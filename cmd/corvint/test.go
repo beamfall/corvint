@@ -25,6 +25,7 @@ import (
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/runevidence"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
@@ -165,7 +166,10 @@ first when a package is selected whole; the plan is unchanged
 (TSP-V0-944).
 Without --dry-run a supplied --manifest must equal the recomputed one.
 Each shard writes one
-corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json).
+corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json)
+and appends its bytes as one record of the private run evidence store
+<git-dir>/corvint/evidence, which flows status and test-evidence read; a
+failed append prints run-evidence-write-failed and keeps the exit status.
 verify-shards accepts the union only when every shard's receipt binds the
 manifest and every execution unit passed exactly once.
 
@@ -1063,9 +1067,7 @@ var testBudget time.Duration
 
 // testDefaultReceiptPath is <git-dir>/corvint/test-run[.I].json.
 func testDefaultReceiptPath(ctx context.Context, gitExecutable, root string, options testOptions) (string, error) {
-	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
-	defer cancel()
-	gitDir, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--absolute-git-dir").Output()
+	gitDir, err := testGitDir(ctx, gitExecutable, root)
 	if err != nil {
 		return "", err
 	}
@@ -1073,7 +1075,36 @@ func testDefaultReceiptPath(ctx context.Context, gitExecutable, root string, opt
 	if options.shardCount > 1 {
 		base = fmt.Sprintf("test-run.%d.json", options.shard)
 	}
-	return filepath.Join(strings.TrimSpace(string(gitDir)), "corvint", base), nil
+	return filepath.Join(gitDir, "corvint", base), nil
+}
+
+// testGitDir is the repository's absolute Git directory.
+func testGitDir(ctx context.Context, gitExecutable, root string) (string, error) {
+	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
+	defer cancel()
+	gitDir, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--absolute-git-dir").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(gitDir)), nil
+}
+
+// testAppendRunEvidence appends the receipt bytes just written as one record of the run evidence
+// store at <git-dir>/corvint/evidence (RVD-V1-004). A failed append is printed as
+// run-evidence-write-failed with its cause and never changes the run's exit code (RVD-V1-010).
+func testAppendRunEvidence(ctx context.Context, gitExecutable, root string, encoded []byte, stderr io.Writer) {
+	gitDir, err := testGitDir(ctx, gitExecutable, root)
+	if err == nil {
+		_, err = (runevidence.Store{Dir: runevidence.Locate(gitDir)}).Append(encoded)
+	}
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: %s %s\n", runevidence.ReasonWriteFailed, singleLine(err.Error()))
+	}
+}
+
+// singleLine is text as one line: each run of whitespace becomes one space.
+func singleLine(text string) string {
+	return strings.Join(strings.Fields(text), " ")
 }
 
 func testWriteReceipt(ctx context.Context, gitExecutable, root string, options testOptions, receipt sessiontest.Receipt, signalExit int, stderr io.Writer) int {
@@ -1086,6 +1117,7 @@ func testWriteReceipt(ctx context.Context, gitExecutable, root string, options t
 		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "the receipt cannot be written: " + err.Error()})
 		return testCommandExit[sessiontest.ResultIncomplete]
 	}
+	testAppendRunEvidence(ctx, gitExecutable, root, encoded, stderr)
 	for _, reason := range receipt.Incomplete {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: INCOMPLETE %s\n", reason)
 	}

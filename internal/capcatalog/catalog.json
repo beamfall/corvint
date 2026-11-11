@@ -1290,7 +1290,7 @@
         "decide digests the packages of HEAD (--packages, default go list ./...) and prints a corvint-test-reuse-decision/0: REUSE only when an admitted record (--trust, default local,main; pull_request needs --pull-request N) passed the package under the same identity with the same digest; --run-list writes the packages still to run.",
         "It writes only the named files; exit 3 when no record or decision can be produced.",
         "--manifest PATH writes the same corvint-test-manifest/0 in every form.",
-        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json)."
+        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json) and appends its bytes as one record of the private run evidence store <git-dir>/corvint/evidence, which flows status and test-evidence read; a failed append prints run-evidence-write-failed and keeps the exit status."
       ],
       "unknowns": [
         {
