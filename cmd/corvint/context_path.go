@@ -21,7 +21,10 @@ const pathContextEvidenceReads = 512
 
 // isPathContext reports whether the `context` arguments ask for the path brief (TBC-V1-009). It
 // looks only where a flag can stand: the value that follows another flag is that flag's own, so
-// task text that begins with `--path=` still asks for the task form.
+// task text given with `--task` still asks for the task form when it begins with `--path=`.
+// Where a flag can stand, a token that begins with `--path=` is the flag, also when its value
+// holds a space. That is how argparse reads a declared option, and it is what lets
+// `--path=docs/my file.md` name a path; task text that begins so is passed with `--task`.
 func isPathContext(rest []string) bool {
 	for index := 0; index < len(rest); index++ {
 		token := rest[index]
