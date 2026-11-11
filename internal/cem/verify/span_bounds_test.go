@@ -113,22 +113,28 @@ func TestCEMV1691DriftStopsAtTheSecondMatch(t *testing.T) {
 	}
 	// Sixteen times the needle and target cost 16x when linear and 256x when
 	// the needle is compared at every offset; 64x splits the two by 4x each
-	// way. The best of three runs drops a scheduler stall.
-	cost := func(n int) time.Duration {
+	// way. Each attempt takes the best of three interleaved runs of both
+	// sizes; a load spike can inflate one attempt, while a quadratic search is
+	// over the bound in every one, so the first attempt inside it decides.
+	run := func(n int) time.Duration {
 		haystack, needle := bytes.Repeat([]byte("a"), 4*n), bytes.Repeat([]byte("a"), n)
-		best := time.Duration(1<<63 - 1)
-		for range 3 {
-			started := time.Now()
-			ClassifySpanContext(context.Background(), true, false, haystack, needle, wire.Span{})
-			SpanOccurrences(haystack, needle)
-			best = min(best, time.Since(started))
-		}
-		return best
+		started := time.Now()
+		ClassifySpanContext(context.Background(), true, false, haystack, needle, wire.Span{})
+		SpanOccurrences(haystack, needle)
+		return time.Since(started)
 	}
-	small, large := cost(64<<10), cost(1<<20)
-	t.Logf("repeated-byte classify+count best of 3: 64 KiB needle %v, 1 MiB needle %v (%.1fx)", small, large, float64(large)/float64(small))
-	if large > 64*small {
-		t.Fatalf("16x the input cost %v against %v, over 64x: not linear", large, small)
+	const attempts = 5
+	linear := false
+	for attempt := 1; attempt <= attempts && !linear; attempt++ {
+		small, large := time.Duration(1<<63-1), time.Duration(1<<63-1)
+		for range 3 {
+			small, large = min(small, run(64<<10)), min(large, run(1<<20))
+		}
+		t.Logf("attempt %d: repeated-byte classify+count best of 3: 64 KiB needle %v, 1 MiB needle %v (%.1fx)", attempt, small, large, float64(large)/float64(small))
+		linear = large <= 64*small
+	}
+	if !linear {
+		t.Fatalf("16x the input cost over 64x in each of %d attempts: not linear", attempts)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
