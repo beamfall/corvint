@@ -339,6 +339,24 @@ Baseline at `origin/main` c6b6cbb0:
   answers with exactly one of them; an answer naming a major the core did not offer, or none, is a
   version mismatch (`RSP-V0-031`). A feature the plugin did not name in `hello` is never used in
   that session.
+- `RSP-V0-064`: (experimental under the standing lane auto-accept (2026-11-11); V1-4824) The Go,
+  JavaScript and Ruby test providers (`corvint-go-test-provider`, `corvint-js-test-provider`,
+  `corvint-ruby-test-provider`) keep their current process boundary: each stays its own executable,
+  and the core keeps linking only what it links today (no Go provider package; the JavaScript and
+  Ruby document types and decoders its readers use). A move of provider code out of the core
+  process MUST be driven by a measurement retained as a `docs/build-log` entry that records, per
+  provider, the release-built (`CGO_ENABLED=0 go build -trimpath`) size of each binary, the bytes
+  of the core binary attributable to that provider's packages, and the p50 and p95 of at least 20
+  timed calls of one fixed call both in process and as an exec of the built provider, with method
+  and host. A provider moves only when its attributable bytes are at least 5% of the core binary
+  and the move adds no more than its in-process p95 to the p95 of a call; a move then keeps a
+  build tag that restores the in-process form, with a test of both forms. The affected-selection
+  providers stay in process whatever the numbers (hot path; they never execute repository code).
+  The 2026-11-11 measurement (`docs/build-log/2026-11-11-test-provider-process-measurement.md`) is
+  no-go for all three. Failure mode: the numbers are host-bound (one Linux amd64 host) and a later
+  change to the core's provider imports can cross the threshold unnoticed until remeasured.
+  Rollback: none needed while the decision is no-go (no code changed); delete this requirement and
+  the build-log entry to drop the threshold.
 
 ### Authority
 
@@ -703,6 +721,7 @@ selects; none narrows.
 | Runner lacks a piece, or is not qualified | `Validate`, `RSP-V0-001`, `-046` | runner FULL, reason named |
 | Inventory missing, failed or divergent | `RSP-V0-002`, `-003` | runner FULL until requalified |
 | Planned test has no terminal result | reconciliation, `RSP-V0-003` | run fails, runner rerun FULL |
+| A provider's in-core bytes grow past the move threshold unmeasured | remeasurement only (`RSP-V0-064`) | providers stay in their current form until a retained measurement says go |
 | Test new on head, or no fresh record | `RSP-V0-004`, `-010` | test selected |
 | Native filter cannot express run set | `RSP-V0-004`, `-043` | reported superset or FULL |
 | Test executes none of P's changed lines but reads P | rule (d), `RSP-V0-012` | test selected |
@@ -860,13 +879,14 @@ can narrow (`RSP-V0-034`, `RSP-V0-036`).
 | RSP-V0-053 | `internal/testevidence/record.go`, target key; `internal/testevidence/freshness.go`, exact target identity; `internal/runnerqualification/plan.go`, independent target/configuration admission scopes | `TestRSPV0053TargetKey`, `TestRSPV0053IndependentQualificationScopes`; cross-target reuse remains unqualified |
 | RSP-V0-054 | `internal/testevidence/capture.go`, unmodeled build attribution | `TestRSPV0054UnmodeledBuild` |
 | RSP-V0-057 | `internal/runnerpolicy/miss.go`; T6-validated requalification; decision `docs/build-log/2026-11-08-rsp-t7-consumption.md` | `TestRSPV0057ConfirmedMissDisablesClass`, `TestRSPV0057FlakeDoesNotDisableClass`, `TestRSPV0057PinnedReplayAndNoAliasing`, `TestRSPV0057UnknownCaptureFull`, `TestRSPV0057UnsetSamplesNothing`, `TestRSPV0057ActualRunBinding`, `TestRSPV0057RequalificationClearsBlock`, `TestRSPV0057InvalidRequalificationKeepsBlock`, `TestRSPV0057NoWorkHistoryComplete`, `TestRSPV0057ConfirmationSupersets`, `TestRSPV0057ConfirmationUnknownPlans`, `TestRSPV0057OtherConfigurationCannotClearMiss` (only the accepted record's own `runnerqualification.Plan.Sequence` clears a miss) (whole `internal/runnerpolicy` package passed in self-review repair); live default-branch sampling and protected retention NOT_OBSERVED |
-| RSP-V0-051 | `internal/testevidencedoc`, `corvint test-evidence`, opt-in MCP and AFU projection | `TestRSPV0051QueriesPositiveAndNegative`, `TestRSPV0051Abstentions`, `TestRSPV0051ExplainSelector`, `TestRSPV0051Goldens`, `TestRSPV0051InvalidAndCapped`, `TestRSPV0051IncompleteInventoryCoverage`, `TestRSPV0051ReadNoWrite`, `TestRSPV0051ReadMissingUnsafeAndIndex`, `TestRSPV0051CLIReadAndNoWrite`, `TestRSPV0051CLIHelpAndInvalid`, `TestRSPV0051MCPOptIn`, `TestRSPV0051FlowProjection`, `TestRSPV0051ParseEndOfOptions` (MCP path follows `--`; written; execution NOT_RUN in build-only lane) |
+| RSP-V0-051 | `internal/testevidencedoc`, `corvint test-evidence`, opt-in MCP and AFU projection | `TestRSPV0051QueriesPositiveAndNegative`, `TestRSPV0051Abstentions`, `TestRSPV0051ExplainSelector`, `TestRSPV0051Goldens`, `TestRSPV0051InvalidAndCapped`, `TestRSPV0051IncompleteInventoryCoverage`, `TestRSPV0051ReadNoWrite`, `TestRSPV0051ReadMissingUnsafeAndIndex`, `TestRSPV0051CLIReadAndNoWrite`, `TestCLIKit` (the `test-evidence` row), `TestRSPV0051MCPOptIn`, `TestRSPV0051FlowProjection`, `TestRSPV0051ParseEndOfOptions` (MCP path follows `--`; written; execution NOT_RUN in build-only lane) |
 | RSP-V0-052 | `internal/appflows/e2erunner/e2erunner.go` (one Playwright inventory via `browsercov.PlaywrightInventory`, key check, shared selector), `internal/appflows/selection_runner.go` (dependency-free callback binding); T1/T2 consumption, shadow only | `TestRSPV0052E2ESafeConsumesRunnerRecords`, `TestRSPV0052NoLegacyFallbackOnMalformedInventory` (also refuses a separate or malformed list report) |
 | RSP-V0-056 | `internal/runnerqualification`, retained collection and inventory timing; existing shadow selector keeps missing records selected | `TestRSPV0056MeasuredCollectionAndInventoryCosts`, `TestRSPV0056UnobservedCostStaysUnqualified`, `TestRSPV0056CollectingRecordSelectsWithoutWaiting` (written, NOT_RUN in build-only lane); live runner cost measurements NOT_OBSERVED |
 | RSP-V0-055 | `internal/testevidence/union.go`, distinct collection count, conservative union and nondeterminism; `internal/runnerselection/select.go`, qualification-gated exclusion | `TestRSPV0055Collections`, `TestRSPV0010UnionRanges`, `TestRSPV0055CollectionReadiness`, `TestRSPV0050SelectionCapabilityRunnerBinding` (unbound script markers cannot become ready through union; written, NOT_RUN in build-only repair) |
 | RSP-V0-058 | `internal/testevidence/freshness.go`, repository-keyed environment digest | `TestRSPV0058EnvironmentDigest` |
 | RSP-V0-059, 060 | (PLANNED) T6 qualification identity (closure digest); T10 conformance kit with a per-runner in-process adapter | (PLANNED) closure-digest and contract-suite fixtures |
 | RSP-V0-061, 062 | (PLANNED) T6 harness equivalence check, carry-forward record and per-trial retention with offline re-score | (PLANNED) carry-forward and re-score fixtures |
+| RSP-V0-064 | no code change (no-go for all three providers); `docs/build-log/2026-11-11-test-provider-process-measurement.md` | measured evidence: binary sizes, core attribution and 30-call p50/p95 per provider in that entry |
 
 
 Repair evidence for the JavaScript pieces (`RSP-V0-002`, `RSP-V0-003`, `RSP-V0-005`):
