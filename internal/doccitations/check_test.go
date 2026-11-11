@@ -132,3 +132,32 @@ func TestDMFV1004CitationsMissingFencedUnpinned(t *testing.T) {
 		t.Fatalf("unpinned %+v", report.Unpinned)
 	}
 }
+
+// DMF-V1-005: the report's worktree member is clean on a fresh index, dirty naming the one read
+// document edited in the worktree, and clean again once the edit is staged, since the check reads
+// the index.
+func TestDMFV1005CitationsWorktree(t *testing.T) {
+	root := foreignRepository(t, map[string]string{"docs/guide.md": "See `lib/run.go:1`.\n", "lib/run.go": "package lib\n", "other.md": "No citations.\n"})
+	report, err := Check(context.Background(), root, []string{"docs/guide.md"})
+	if err != nil || report.Worktree.State != "clean" {
+		t.Fatalf("clean %+v %v", report.Worktree, err)
+	}
+	for name, body := range map[string]string{"docs/guide.md": "Edited `lib/run.go:1`.\n", "other.md": "Edited, not read.\n"} {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err = Check(context.Background(), root, []string{"docs/guide.md"})
+	if err != nil || report.Worktree.State != "dirty" || report.Worktree.Changed != 1 || len(report.Worktree.Paths) != 1 || report.Worktree.Paths[0] != "docs/guide.md" {
+		t.Fatalf("dirty %+v %v", report.Worktree, err)
+	}
+	command := exec.Command("git", "add", "docs/guide.md")
+	command.Dir = root
+	command.Env = append(environment(), "HOME="+root)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git add: %v %s", err, output)
+	}
+	if report, err = Check(context.Background(), root, []string{"docs/guide.md"}); err != nil || report.Worktree.State != "clean" {
+		t.Fatalf("staged %+v %v", report.Worktree, err)
+	}
+}

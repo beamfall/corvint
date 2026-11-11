@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/docworktree"
 )
 
 // Proven-documentation schemas (AFU-V1-030, AFU-V1-032).
@@ -119,6 +120,9 @@ type DocCheck struct {
 	// (DMF-V1-001).
 	ExpiredWaivers []DocExpiredWaiver `json:"expired_waivers,omitempty"`
 	Coverage       *DocCoverage       `json:"coverage,omitempty"`
+	// Worktree says whether the worktree differs from HEAD for the inputs the check read; the
+	// answer stays about HEAD (DMF-V1-005). The caller that knows the intents directory sets it.
+	Worktree *docworktree.Status `json:"worktree,omitempty"`
 }
 
 // DocExpiredWaiver is one waiver that expired and so no longer applies (DMF-V1-001).

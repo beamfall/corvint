@@ -13,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccitations"
 	"github.com/Beamfall/corvint/internal/doccompiler"
+	"github.com/Beamfall/corvint/internal/docworktree"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
@@ -151,8 +152,21 @@ func citationsReport(report doccitations.Report) map[string]any {
 		"profile":   "corvint-docs-citations-check/0",
 		"documents": report.Documents, "citations": report.Citations,
 		"failures": report.Failures, "unpinned": report.Unpinned,
-		"counts": map[string]any{"failures": len(report.Failures), "unpinned": len(report.Unpinned), "fenced_skipped": report.Fenced},
+		"counts":   map[string]any{"failures": len(report.Failures), "unpinned": len(report.Unpinned), "fenced_skipped": report.Fenced},
+		"worktree": report.Worktree,
 	}
+}
+
+// worktreeLine is the text form of a dirty or unknown worktree member, empty when clean
+// (DMF-V1-005).
+func worktreeLine(w docworktree.Status) string {
+	switch w.State {
+	case docworktree.Dirty:
+		return fmt.Sprintf("worktree dirty: %d changed tracked path(s) read (%s); answered from Git, not the worktree", w.Changed, strings.Join(w.Paths, ", "))
+	case docworktree.Unknown:
+		return "worktree unknown: " + w.Reason
+	}
+	return ""
 }
 
 // runDocsCitations prints one line per failure and a summary, or with --json the
@@ -178,6 +192,9 @@ func runDocsCitations(ctx context.Context, options docsOptions, stdout, stderr i
 		}
 		fmt.Fprintf(&output, "docs citations check: %d citations in %d documents, %d failures, %d unpinned, %d in fenced code skipped\n",
 			report.Citations, report.Documents, len(report.Failures), len(report.Unpinned), report.Fenced)
+		if line := worktreeLine(report.Worktree); line != "" {
+			output.WriteString("docs citations check: " + line + "\n")
+		}
 	}
 	if _, err := io.WriteString(stdout, output.String()); err != nil {
 		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write docs output"})

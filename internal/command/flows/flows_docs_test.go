@@ -304,3 +304,19 @@ func TestAFUV1033NonRegularMarkdownSkipped(t *testing.T) {
 		t.Fatalf("render with symlinked Markdown %d %s %s", code, out, diagnostic)
 	}
 }
+
+// DMF-V1-005: flows docs --check says the worktree is clean, then dirty counting the one generated
+// page edited and not committed, while still answering about HEAD.
+func TestDMFV1005FlowsDocsCheckWorktree(t *testing.T) {
+	fx := newDocsFixture(t)
+	code, report, diagnostic := docsCheck(t, fx, "passed")
+	if code != 0 || report.Worktree == nil || report.Worktree.State != "clean" {
+		t.Fatalf("clean %d %+v %s", code, report.Worktree, diagnostic)
+	}
+	shopWrite(t, fx.root, map[string]string{"docs/flows.md": "# Edited, not committed\n", "notes/unrelated.md": "untracked\n"})
+	code, report, diagnostic = docsCheck(t, fx, "passed")
+	w := report.Worktree
+	if code != 0 || report.Status != "pass" || w == nil || w.State != "dirty" || w.Changed != 1 || !slices.Equal(w.Paths, []string{"docs/flows.md"}) {
+		t.Fatalf("dirty %d %+v %s", code, w, diagnostic)
+	}
+}

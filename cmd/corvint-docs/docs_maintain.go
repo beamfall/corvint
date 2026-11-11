@@ -194,7 +194,7 @@ func runDocsMaintainCheck(ctx context.Context, options docsMaintainOptions, stdo
 		emitError(stderr, &gokernel.Error{Code: code, Message: message})
 		return 2
 	}
-	encoded, err := gokernel.CanonicalJSON(map[string]any{"profile": "corvint-docmaintain-check/0", "commit": report.Commit, "blocks": report.Blocks, "stale": report.Stale})
+	encoded, err := gokernel.CanonicalJSON(map[string]any{"profile": "corvint-docmaintain-check/0", "commit": report.Commit, "blocks": report.Blocks, "stale": report.Stale, "worktree": report.Worktree})
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: "internal-error", Message: "could not encode the maintenance check"})
 		return 2

@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/docworktree"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -73,7 +75,7 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 	}
 	o.Registry = *registry
 	if *check {
-		return flowDocsCheck(ctx, root, set, o, *waivers, out)
+		return flowDocsCheck(ctx, root, set, o, *dir, *waivers, out)
 	}
 	o.Waivers = *waivers // DMF-V1-001: generation marks waived claims exactly as --check does
 	page, claims, err := appflows.RenderDocs(ctx, root, set, o)
@@ -89,11 +91,14 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 
 // flowDocsCheck writes the flow-doc-check/0 report and exits nonzero when it fails; it writes nothing
 // to the repository.
-func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o appflows.DocOptions, waivers string, out io.Writer) error {
+func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o appflows.DocOptions, flowsDir, waivers string, out io.Writer) error {
 	report, err := appflows.CheckDocs(ctx, root, set, o, waivers, time.Now().UTC().Format(time.DateOnly))
 	if err != nil {
 		return err
 	}
+	read := slices.DeleteFunc([]string{flowsDir, o.Page, o.Claims, o.DocsRoot, o.Registry, waivers}, func(p string) bool { return p == "" })
+	worktree := docworktree.Observe(ctx, root, docworktree.Head, docworktree.Under(read...))
+	report.Worktree = &worktree // DMF-V1-005
 	data, err := doccorpus.Encode(report)
 	if err != nil {
 		return err
