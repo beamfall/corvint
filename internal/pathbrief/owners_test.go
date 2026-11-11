@@ -25,6 +25,7 @@ func TestOwnerPattern(t *testing.T) {
 		{"/a**go", []string{"ago", "axgo"}, []string{"a/x/b.go", "a/go"}},
 		{"a**/b", []string{"a/b", "ax/b"}, []string{"a/q/b", "x/a/b"}},
 		{"a/*", []string{"a/f"}, []string{"a/f/g", "b/a/f"}},
+		{"/*", []string{"a.go", "Makefile"}, []string{"src/main.go", "a/b/c.go"}},
 		{"?.go", []string{"a.go", "x/a.go"}, []string{"ab.go"}},
 		{"!neg", nil, []string{"neg"}},
 		{"[ab].go", nil, []string{"a.go"}},
