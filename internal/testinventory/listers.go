@@ -71,7 +71,8 @@ func (l *listing) add(id testid.ID, reason, file string) {
 // ListInstance lists one declared instance into its record (TIV-V1-004,
 // TIV-V1-005): the runner's lister names its tests by canonical ID, and the
 // record binds them to the commit, the config and lockfile blobs, the
-// lister identity and every candidate or listed file's blob.
+// lister identity and the blob of every listed file and, for a static or
+// proven instance, every candidate file.
 func listInstance(ctx context.Context, input listInput, instance Declared) (Instance, Lister, error) {
 	identity, ok := CurrentLister(instance.Runner)
 	if !ok {
@@ -112,8 +113,15 @@ func listInstance(ctx context.Context, input listInput, instance Declared) (Inst
 	if instance.Lockfile != "" {
 		record.LockfileDigest = input.Files[instance.Lockfile]
 	}
+	// An unproven instance binds only the files its lister names
+	// (TIV-V1-005): its candidates are every file of the runner's languages
+	// under the root, which the verdict judges against the record instead.
+	bound := result.sources
+	if instance.Pattern == "" {
+		bound = append(append([]string{}, candidates...), result.sources...)
+	}
 	seen := map[string]bool{}
-	for _, name := range append(append([]string{}, candidates...), result.sources...) {
+	for _, name := range bound {
 		if seen[name] {
 			continue
 		}
@@ -125,11 +133,21 @@ func listInstance(ctx context.Context, input listInput, instance Declared) (Inst
 		record.Files = append(record.Files, File{Path: name, Blob: blob})
 	}
 	// testid.List keeps the order of its input, so entry i is named[i]
-	// and lives in sources[i].
+	// and lives in sources[i]. It does not suffix an ID that carries a
+	// reason, so a file-level ID with test-id-unmapped repeats when several
+	// files share it (two unparseable _test.go files of one Go package):
+	// those collapse into the first entry, and every file stays in Files.
+	unmapped := map[string]bool{}
 	for index, entry := range testid.List(result.named) {
 		file := result.sources[index]
 		if !seen[file] {
 			return Instance{}, lister, fmt.Errorf("test %s lives in %s, which is not a listed file under %s", entry.ID, file, instance.Root)
+		}
+		if entry.Reason == testid.ReasonUnmapped {
+			if unmapped[entry.ID] {
+				continue
+			}
+			unmapped[entry.ID] = true
 		}
 		record.Tests = append(record.Tests, Test{ID: entry.ID, File: file, Duplicate: entry.Duplicate, Reason: entry.Reason})
 	}
@@ -378,6 +396,10 @@ func repoRoots(root string) []string {
 func listVitest(ctx context.Context, input listInput, instance Declared) (listing, error) {
 	bin, err := nodeBin(input, instance.Root, "vitest")
 	result := listing{command: []string{"node_modules/.bin/vitest", "list", "--json", "--config", relativeTo(instance.Root, instance.Config)}}
+	if path.Base(instance.Config) == packageJSON {
+		// A package.json-declared instance has no vitest config to pass.
+		result.command = result.command[:3]
+	}
 	if err != nil {
 		return result, err
 	}

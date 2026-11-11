@@ -79,6 +79,131 @@ R38 testing order. It builds on `canonical-test-id` (V1-5398, ctid lane head `9f
     2418 files as 1,991,507 bytes in 0.54 s, a quarter of the 8 MiB cap. `affected --summary` on
     this tree reports seven declared instances, all `inventory-absent`.
 
+## Review fixes (round 1)
+
+An independent review found two P2 defects and three P3s; all are fixed in new commits.
+
+1. **Repeated unmapped Go ID (P2).** Two unreadable `_test.go` files in one package each gave
+   `go:<dir>` with `test-id-unmapped`. `testid.List` does not suffix an ID that carries a reason,
+   so the record repeated the ID, `validate` refused it, and refresh reported
+   `inventory-unavailable` for every runner. A repeated unmapped ID now collapses into its first
+   entry, and every file stays in `files`. Ordinary IDs are still validated as unique.
+   Test: `TestTIVV1004GoUnmappedFilesCollapse`.
+2. **Custom test-file patterns (P2).** Candidates knew only each runner's default names, so a new
+   test file under a Vitest `include`, a Jest `testMatch`, a Playwright `testMatch` or a pytest
+   `python_files` pattern left the instance fresh. The design keeps "a file with no test is still
+   listed", so the fix widens what is listed and adds no wire field to the inventory.
+   - Detection scans the executing instance's config for a member that may move its test names
+     (spec Surfaces lists them). It also flags a relative JavaScript import and an unreadable
+     config. `Declared.Pattern` records what it found.
+   - For such an instance the candidates are every file of the runner's language under the root,
+     and refresh binds each of them.
+   - A changed or new one is unassigned, and the verdict's existing `cause` member names the config
+     and the pattern.
+
+   Unassigned rather than stale keeps TIV-V1-008's per-file rule: the record shows which files held
+   no test, and only a file outside it runs. The lister versions are unchanged because no inventory
+   has been published under the old candidate rule. Playwright `testDir` is not a pattern: it only
+   narrows. Remaining limits are in the spec's Known limits line. Tests:
+   `TestTIVV1008CustomPatternFailsClosed` (one fixture each for Vitest, Jest, Playwright and pytest,
+   plus a relative import and a default-config control) and
+   `TestTIVV1005CustomPatternRecordsEveryLanguageFile`.
+3. **Subdirectory root (P3).** `ls-files` listed paths relative to `--root` while `diff-files`
+   named them from the top level. Both `ls-files` calls now pass `--full-name`. The working-tree
+   reader also refuses a root that is not the Git top level, because reading files below a
+   subdirectory root by top-level names would be wrong. For `affected --worktree` and `watch`
+   such a root now judges the inventory `inventory-invalid`. Test:
+   `TestTIVV1005WorkTreeRefusesSubdirectoryRoot`.
+4. **Final drift check (P3).** Refresh runs one more drift check just before the write, so a filter
+   that selects no instance still checks. The source digest leaves out
+   `.corvint/.test-inventory-*.tmp`. Tests: `TestTIVV1010FinalDriftCheckBeforeWrite` and
+   `TestTIVV1010TemporaryInventoryFileIsNotDrift`.
+
+## Review fixes (round 2): fail closed by default
+
+The fix-only review left P2-2 open. Round 1 flagged a non-default pattern by whole-word matches in
+the config's own bytes, and that cannot be complete: it missed an auto-discovered Vitest workspace
+or projects file, `mergeConfig` over a package or alias, a Jest `preset`, `includeSource`, pytest
+`--doctest-glob` and `--doctest-modules`, and a `package.json` `jest` member. Its wide mode also
+bound every candidate file, which in a large root could pass the 8 MiB cap and make refresh refuse.
+
+Decision: invert the rule. An executing instance is default-pattern only when the reader proves
+it (`internal/testinventory/proof.go`, spec Surfaces "Default-pattern proof"). Anything else is
+unproven, and `Declared.Pattern` keeps the cause text.
+- JavaScript and TypeScript configs are proven from a small tokenizer, not a parser. The proof
+  refuses whatever it cannot evaluate: any import but the runner's own package, any call but
+  `defineConfig`, a spread, function, class, constructor, tagged template, template expression,
+  escape, computed key or member, and any pattern member named anywhere. The one spread allowed is
+  Playwright's `...devices['Name']`, so the stock Playwright config stays proven.
+- A `package.json` `jest` member, or a script that runs vitest, now declares an instance when no
+  config file does, so it is unproven rather than absent. A `jest` member beside a config also
+  leaves that config unproven.
+- pytest: `python_files`, `testpaths`, any `addopts` option outside a short safe list, or a
+  `conftest.py` collection hook or `pytest_plugins` leaves the instance unproven. Doctest
+  extensions join the candidates when a doctest option appears or cannot be ruled out. A conftest
+  hook makes any file a candidate.
+- An unproven record binds only the files the lister names. The verdict judges every unbound file
+  of the instance's candidate extensions under the root as unassigned, the config and lockfile
+  aside, and no directory is skipped but `.git` and the inventory's temporary files.
+- A proven executing instance now skips only `.git` and `node_modules`. The old shared skip list
+  (vendor, testdata, hidden directories) modelled no executing runner's own collection.
+
+Cost, recorded on purpose: the reader cannot tell an unbound file that existed at refresh from a
+new one, so an unproven instance reports every unbound file of its languages as unassigned on every
+plan. That widens the selection and never misses a test file; a proven-default config removes it.
+No wire field changed, and the lister versions stay at 1 because no inventory has been published.
+
+Tests (each `TestTIVV1008UnprovenConfigFailsClosed` row after the first five, and the other new
+tests, fail on 45152cea1):
+- `TestTIVV1008UnprovenConfigFailsClosed`: the five round-1 patterns, a Vitest workspace file,
+  `mergeConfig` from a package import, `includeSource`, a Jest preset, a `package.json` jest member
+  with and without a config, a vitest script, pytest `--doctest-glob` with a new `.md` file,
+  `--doctest-modules`, a conftest hook, a `.tests/**` include, a computed key and an escape.
+- `TestTIVV1008ProvenDefaultControl`: Vitest `defineConfig`, Jest JSDoc and JSON, stock Playwright
+  and pytest with safe `addopts`. A new non-test file is not unassigned there; a new default-named
+  test file is.
+- `TestTIVV1005UnprovenRecordHoldsOnlyListedFiles`: 150,000 TypeScript files under an unproven root;
+  the record binds the one listed file and encodes under MaxBytes.
+- `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles` and `TestTIVV1004VitestDeclaredByPackageScript`:
+  a real refresh through a stub lister.
+
+## Review fixes (round 3, V1-5425): pytest TOML keys, config order, script flags
+
+An independent review found three cases where an instance was reported proven while a runnable test
+was unassigned. All three are fixed by failing closed.
+- **pytest TOML keys.** The proof matched an unindented, unquoted key and needed an unindented
+  header, so `python_files` went unseen when it was indented or quoted, when its header was
+  indented, when it was a dotted key under `[tool]`, or when it sat in the pytest 9 native
+  `[tool.pytest]` table. TOML configs are now scanned for each key's full path
+  (`internal/testinventory/pytestconfig.go`). A file the scanner cannot read, an escaped key, or
+  the pytest table set inline is unproven. INI files are now read as pytest's `iniconfig` reads
+  them: a header may carry a comment, and an indented line is a continuation. An indented line that
+  holds the pytest header is unproven, because a reader that trims lines would see a section there.
+- **Config order.** pytest's documented search order (docs.pytest.org `reference/customize`,
+  stable, checked 2026-11-11) is `pytest.toml`, `.pytest.toml`, `pytest.ini`, `.pytest.ini`,
+  `pyproject.toml`, `tox.ini`, `setup.cfg`. The first four match even when empty. Detection follows
+  that order. An older pytest ignores the names it predates, so the proof checks every declaring
+  config in the root, not only the first.
+- **Script flags.** Orchestrator decision: fail closed. A Jest or Vitest script in the
+  `package.json` of the root, or of any directory above it, that passes the runner a flag outside a
+  safe list leaves the instance unproven. The safe list covers output, reporting, coverage, watch,
+  parallelism, timeout, snapshot and filter flags. A shell expansion or Vitest's `bench` or
+  `typecheck` command also leaves it unproven. Long flags are compared without case, dashes or a
+  `no-` prefix, so `--test-match` counts as `--testMatch`. Positional arguments only filter the
+  configured files and are allowed.
+- The unproven cause used to say "every changed or new file". It now says every file the record
+  does not bind, or binds at another blob, which is what the verdict reports.
+
+Tests: 18 new `TestTIVV1008UnprovenConfigFailsClosed` rows, `TestTIVV1003PytestConfigPrecedence`,
+five new `TestTIVV1008ProvenDefaultControl` rows (safe Jest and Vitest script flags, `pytest.toml`,
+a realistic `pyproject.toml`, a `tox.ini` header with a comment), and a cause-wording assertion. Each
+of the 18 rows fails on 676c335b0. One row, `pytest.ini` beside `pytest.toml`, fails there only on
+its cause text, because that base already read the config as unproven. The Jest, Vitest and
+`pyproject.toml` controls pass on that base too: they guard against over-refusal, not a miss.
+
+Not covered: a Playwright script's `-c`/`--config`. The parent-directory search that pytest itself
+does is also not modelled; only configs in an instance's own root are proven.
+
 ## Assertions extended
 
 Every plan now prints its inventory line, so five exact expectations name the absent

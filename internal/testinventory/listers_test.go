@@ -201,3 +201,35 @@ end
 	}
 	requireBinding(t, root, minitest, "test/calc_test.rb", "test/dsl_test.rb", "test/shared_test.rb")
 }
+
+// TIV-V1-004, TIV-V1-005: two unparseable _test.go files of one Go package
+// both carry the package-level ID with test-id-unmapped; refresh collapses
+// them into one entry, keeps both files bound, and writes the inventory.
+func TestTIVV1004GoUnmappedFilesCollapse(t *testing.T) {
+	root, git := gitRepo(t, map[string]string{
+		"go.mod":            "module example.com/m\n",
+		"calc/a_test.go":    "package calc\n\nfunc (\n",
+		"calc/b_test.go":    "not go at all\n",
+		"calc/calc_test.go": "package calc\n\nimport \"testing\"\n\nfunc TestAdd(t *testing.T) {}\n",
+		"other/o_test.go":   "package other\n\nfunc (\n",
+		"other/other.go":    "package other\n",
+		"calc/calc.go":      "package calc\n",
+	})
+	result, err := Refresh(context.Background(), Options{Git: git})
+	if err != nil {
+		t.Fatalf("Refresh = %v, want the inventory written", err)
+	}
+	main := instanceByKey(t, result.Inventory, "go@.")
+	want := []Test{
+		{ID: "go:calc", File: "calc/a_test.go", Reason: "test-id-unmapped"},
+		{ID: "go:calc::TestAdd", File: "calc/calc_test.go"},
+		{ID: "go:other", File: "other/o_test.go", Reason: "test-id-unmapped"},
+	}
+	if got := testsOf(main); !reflect.DeepEqual(got, want) {
+		t.Fatalf("go@. tests\n%+v\nwant\n%+v", got, want)
+	}
+	requireBinding(t, root, main, "calc/a_test.go", "calc/b_test.go", "calc/calc_test.go", "other/o_test.go")
+	if again, err := Refresh(context.Background(), Options{Git: git}); err != nil || again.Changed {
+		t.Fatalf("second refresh changed=%v err=%v", again.Changed, err)
+	}
+}
