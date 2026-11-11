@@ -412,6 +412,19 @@ func Open(ctx context.Context, root string, raw []byte) (*Result, error) {
 	return r, nil
 }
 
+// ManifestScope is the scope a generation manifest records, read without rederivation; false when
+// raw is not a manifest of this schema.
+func ManifestScope(raw []byte) (string, bool) {
+	var m struct {
+		Schema string `json:"schema"`
+		Scope  string `json:"scope"`
+	}
+	if len(raw) > MaxManifestBytes || json.Unmarshal(raw, &m) != nil || m.Schema != Schema || !validScope(m.Scope) {
+		return "", false
+	}
+	return m.Scope, true
+}
+
 // Finalize is read-only: after the caller commits provider.json, it binds that
 // later provider commit while preserving the original source revision.
 func Finalize(ctx context.Context, root string, r *Result, revision, providerPath string) (doccorpus.Manifest, error) {

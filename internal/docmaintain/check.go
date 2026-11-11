@@ -7,12 +7,14 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccompiler"
+	"github.com/Beamfall/corvint/internal/docworktree"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -52,6 +54,9 @@ type CheckReport struct {
 	Commit string       `json:"commit"`
 	Blocks []CheckBlock `json:"blocks"`
 	Stale  int          `json:"stale"`
+	// Worktree says whether the worktree differs from HEAD for the pages, owner sources and
+	// packages the check read (DMF-V1-005).
+	Worktree docworktree.Status `json:"worktree"`
 }
 
 // Check compares every selected generated block of each page, as committed at HEAD, with a fresh
@@ -82,11 +87,18 @@ func Check(ctx context.Context, root string, pages []CheckPage) (*CheckReport, e
 		}
 		report.Blocks = append(report.Blocks, checkPage(index, p, page, present)...)
 	}
+	read := []string{}
 	for _, b := range report.Blocks {
 		if b.State != BlockFresh {
 			report.Stale++
 		}
+		read = append(read, b.Page, b.Source, b.Package)
 	}
+	for _, p := range pages {
+		read = append(read, p.Page)
+	}
+	read = slices.DeleteFunc(read, func(p string) bool { return p == "" })
+	report.Worktree = docworktree.Observe(ctx, absRoot, docworktree.Head, docworktree.Under(read...))
 	return report, nil
 }
 

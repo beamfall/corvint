@@ -15,7 +15,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
    0, `--preview` still exits 0.
 - [x] 5 Citation check changes and `--json` (DMF-V1-004). Proof: fixture tests for a missing
    top-level file, a fenced citation and an unpinned citation; JSON output test.
-- [ ] 6 `worktree` member on every check report (DMF-V1-005). Proof: fixture test with a dirty
+- [x] 6 `worktree` member on every check report (DMF-V1-005). Proof: fixture test with a dirty
    tracked file for each check.
 - [ ] 7 Per-claim byte-failure detail (DMF-V1-006). Proof: fixture test where one claim changes
       state.

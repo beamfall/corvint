@@ -21,6 +21,7 @@
         "internal/contextindex",
         "internal/diagnostic",
         "internal/docsenvelope",
+        "internal/docworktree",
         "internal/execfile",
         "internal/extevidence",
         "internal/flowcoverage",

@@ -10,6 +10,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/docworktree"
 )
 
 type AnchorCheck struct {
@@ -44,6 +45,9 @@ type Check struct {
 	Retired           []string             `json:"retired"`
 	OutputDifferences []string             `json:"output_differences"`
 	Clean             bool                 `json:"clean"`
+	// Worktree says whether the worktree differs from HEAD under the scope and the compared output
+	// directory (DMF-V1-005); bindings stay answers about the named revisions.
+	Worktree *docworktree.Status `json:"worktree,omitempty"`
 }
 type checkItem struct {
 	anchors  []doccorpus.Anchor

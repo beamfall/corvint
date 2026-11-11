@@ -15,12 +15,14 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/docworktree"
 )
 
 // Failure kinds.
@@ -68,6 +70,10 @@ type Report struct {
 	Fenced    int
 	Failures  []Failure
 	Unpinned  []Citation
+	// Worktree says whether the worktree differs from the index for the
+	// documents and cited files the check read; the answer stays about the
+	// index (DMF-V1-005).
+	Worktree docworktree.Status
 }
 
 var (
@@ -227,6 +233,11 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 			}
 		}
 	}
+	read := slices.Clone(documents)
+	for path := range cited {
+		read = append(read, path)
+	}
+	report.Worktree = docworktree.Observe(ctx, root, docworktree.Index, docworktree.Set(read...))
 	sort.SliceStable(report.Failures, func(a, b int) bool {
 		left, right := report.Failures[a], report.Failures[b]
 		if left.Document != right.Document {

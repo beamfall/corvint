@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/docworktree"
 	"github.com/Beamfall/corvint/internal/flowdocs"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -121,6 +123,9 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 		case "check":
 			var check flowdocs.Check
 			check, err = flowdocs.CheckRevision(ctx, o.root, previous, o.revision, o.output)
+			if err == nil {
+				check.Worktree = docsFlowsWorktree(ctx, o.root, previous, o.output)
+			}
 			value = check
 			if !check.Clean {
 				exit = 1
@@ -152,6 +157,37 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 		return 2
 	}
 	return exit
+}
+
+// docsFlowsWorktree is the DMF-V1-005 worktree member of docs flows check: changed tracked paths
+// under the generation scope and under the compared output directory when it is inside the root.
+func docsFlowsWorktree(ctx context.Context, root string, previous []byte, output string) *docworktree.Status {
+	read := []string{}
+	if scope, ok := flowdocs.ManifestScope(previous); ok {
+		read = append(read, scope)
+	}
+	if rel, ok := repositoryRelative(root, output); ok {
+		read = append(read, rel)
+	}
+	status := docworktree.Observe(ctx, root, docworktree.Head, docworktree.Under(read...))
+	return &status
+}
+
+// repositoryRelative is path relative to root with forward slashes when it names a directory inside
+// root, and false otherwise.
+func repositoryRelative(root, path string) (string, bool) {
+	if path == "" {
+		return "", false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
 }
 
 const docsFlowsHelp = `Generate bounded source-derived flow documentation (generated trust).
