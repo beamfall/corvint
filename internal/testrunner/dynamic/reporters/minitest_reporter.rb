@@ -31,6 +31,10 @@ class CorvintReporter < Minitest::AbstractReporter
       row[:FailureKind] = 'UNKNOWN'
       row[:Message] = errors.map { |f| "UnexpectedError: #{f.error.class.name}" }.uniq.join("\n")[0, 1024]
     end
+    # PTD-V1-002: the test's own time, from Minitest::Result#time, in whole milliseconds; the
+    # Go reader checks it as any reported time and records NOT_MEASURED when it is absent.
+    time = result.respond_to?(:time) ? result.time : nil
+    row[:DurationMs] = (time * 1000).round if time.is_a?(Numeric) && time.finite?
     @rows << row
   end
   def report
