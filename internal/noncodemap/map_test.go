@@ -45,8 +45,8 @@ func TestNCMV1002MissingProofIsProposed(t *testing.T) {
 	}
 	decision := Decide(Input{Dirty: []string{"config/app.yml"}, Unowned: []string{"config/app.yml"}, Map: read, Env: everything})
 	line, full := decision.FullRun()
-	if !full || line.Reason != ReasonUnmapped || line.Path != "config/app.yml" {
-		t.Fatalf("FullRun = %+v %v, want non-code-unmapped config/app.yml", line, full)
+	if !full || line.Reason != ReasonUnowned || line.Path != "config/app.yml" {
+		t.Fatalf("FullRun = %+v %v, want unowned-path config/app.yml", line, full)
 	}
 	if got := strings.Join(decision.Audit(), "\n"); !strings.Contains(got, "data-map config/app.yml proposed: no proof") {
 		t.Fatalf("audit does not report the entry proposed:\n%s", got)

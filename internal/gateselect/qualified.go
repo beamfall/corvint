@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/noncodemap"
 )
 
 // SelectQualified is the common root-Go package contract (AFP-V0-9500).
@@ -45,6 +46,12 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	verdict := lines[len(lines)-1]
 	fallback := func(reason string) []string {
 		return append(lines[:len(lines)-1], "FALLBACK "+reason)
+	}
+	// A full run the NCM-V1 decision named keeps its reason: the generic
+	// input checks below would only replace it with another full run
+	// (NCM-V1-001).
+	if noncodemap.NamesFullRun(verdict) {
+		return lines
 	}
 	// Even an empty candidate set needs a supported input before it can
 	// certify NOTHING.
@@ -101,30 +108,11 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	observed := plan
 	observed.Plan.Scope = proof.Scope
 	observed.Plan.Unknown = nil
-	// Ownership is the full plan's: this Go-only observation reports another
-	// language's source as UNOWNED_DIRTY_PATH, so only an unowned path the
-	// receipt also reports counts, which the NCM-V1 decision has already
-	// run everything for (NCM-V1-001).
-	unowned := map[string]bool{}
-	for _, entry := range plan.Plan.Unknown {
-		if entry.Reason == unownedDirtyPath {
-			unowned[entry.Detail] = true
-		}
-	}
-	dropped := false
 	for _, unknown := range proof.Unknown {
-		if unknown.Reason == unownedDirtyPath && !unowned[unknown.Detail] {
-			dropped = true
-			continue
-		}
 		observed.Plan.Unknown = append(observed.Plan.Unknown, struct {
 			Reason string `json:"reason"`
 			Detail string `json:"detail"`
 		}{unknown.Reason, unknown.Detail})
-	}
-	if dropped && len(observed.Plan.Unknown) == 0 {
-		// The set-aside entries were the observation's only uncertainty.
-		observed.Plan.Scope = "BOUNDED"
 	}
 	if reason, _ := unknownNarrowing(observed, index, root); reason != "" {
 		return fallback(reason)

@@ -43,9 +43,29 @@ func wantNoFull(t *testing.T, decision Decision) {
 }
 
 func TestNCMV1001UnmappedFixtureSelectsEverything(t *testing.T) {
-	enclosed := func(p string) bool { return strings.HasPrefix(p, "tests/") }
-	decision := Decide(Input{Dirty: []string{"tests/fixtures/users.json"}, Unowned: []string{"tests/fixtures/users.json"}, Enclosed: enclosed})
-	wantFull(t, decision, ReasonUnmapped, "tests/fixtures/users.json")
+	decision := Decide(Input{Dirty: []string{"tests/fixtures/users.json"}, Unowned: []string{"tests/fixtures/users.json"}})
+	wantFull(t, decision, ReasonUnowned, "tests/fixtures/users.json")
+}
+
+// TestNCMV1001AttributedPathStaysOwned: the orchestrator ruling of
+// 2026-11-11. A non-code path a Go rule attributes (data beside a package,
+// its testdata, a go:embed input) is owned: it gets no line and keeps the
+// selector's attribution, even when an unproven entry covers it. Only a
+// path nothing attributes runs everything, as unowned-path.
+func TestNCMV1001AttributedPathStaysOwned(t *testing.T) {
+	attributed := func(p string) bool { return strings.HasPrefix(p, "internal/app/") }
+	read := mustParse(t, `{"profile":"corvint-data-map/0","entries":[`+acceptedEntry(`"glob":"internal/app/testdata/*"`, `"go:internal/app::TestLoad"`)+`]}`)
+	paths := []string{"internal/app/data.json", "internal/app/testdata/case.json", "notes/outside.xyz"}
+	decision := Decide(Input{Dirty: paths, Unowned: paths, Attributed: attributed, Map: read, Env: allFacts})
+	wantFull(t, decision, ReasonUnowned, "notes/outside.xyz")
+	want := []string{
+		"noncode unowned-path notes/outside.xyz",
+		"data-map internal/app/testdata/* unproven: fault case FIH-NC-0007 is unknown: FIH-V1 is not linked (V1-5405)",
+	}
+	if got := decision.Audit(); !slices.Equal(got, want) {
+		t.Fatalf("audit = %q, want %q", got, want)
+	}
+	wantNoFull(t, Decide(Input{Dirty: paths[:2], Unowned: paths[:2], Attributed: attributed}))
 }
 
 func TestNCMV1001UnownedPathSelectsEverything(t *testing.T) {
@@ -61,6 +81,13 @@ func TestNCMV1001DeclaredDocumentationAddsNothing(t *testing.T) {
 	}
 	if audit := decision.Audit(); len(audit) != 0 {
 		t.Fatalf("audit = %q, want none: the selector prints its own documentation line", audit)
+	}
+	// Inside an embedding package the declaration still wins: declared
+	// documentation adds no test (review P2-1).
+	embedded := Decide(Input{Dirty: []string{"internal/ui/assets/README.md"}, Unowned: []string{"internal/ui/assets/README.md"}, Documentation: []string{"internal/ui/assets/README.md"}, Attributed: func(string) bool { return true }})
+	wantNoFull(t, embedded)
+	if len(embedded.Lines) != 1 || embedded.Lines[0].Reason != ReasonDocumentation {
+		t.Fatalf("lines = %+v, want one DECLARED_DOCUMENTATION line", embedded.Lines)
 	}
 }
 
@@ -89,7 +116,7 @@ func TestNCMV1004UnprovenEntryDoesNotNarrow(t *testing.T) {
 	} {
 		input.Env.FaultCase = fault
 		decision := Decide(input)
-		wantFull(t, decision, ReasonUnmapped, "config/app.yml")
+		wantFull(t, decision, ReasonUnowned, "config/app.yml")
 		if len(decision.Entries) != 1 || decision.Entries[0].Status != StatusUnproven {
 			t.Fatalf("%s: entries = %+v, want one unproven", name, decision.Entries)
 		}
@@ -169,8 +196,13 @@ func TestNCMV1005NeverNarrowedPaths(t *testing.T) {
 			t.Errorf("NeverNarrowed(%q) = %q, want not on the list", p, category)
 		}
 	}
-	embedded := Decide(Input{Dirty: []string{"internal/ui/assets/app.css"}, Embedded: func(p string) bool { return p == "internal/ui/assets/app.css" }})
-	wantFull(t, embedded, ReasonNeverNarrowed, "internal/ui/assets/app.css")
+	// A go:embed input is attributed to its embedding package, which owns it
+	// (review P2-1): it narrows to that attribution, not to a full run.
+	embedded := Decide(Input{Dirty: []string{"internal/ui/assets/app.css"}, Unowned: []string{"internal/ui/assets/app.css"}, Attributed: func(p string) bool { return p == "internal/ui/assets/app.css" }})
+	wantNoFull(t, embedded)
+	if len(embedded.Lines) != 0 {
+		t.Fatalf("lines = %+v, want none", embedded.Lines)
+	}
 }
 
 func TestNCMV1005LockfileIgnoresEntry(t *testing.T) {
@@ -216,7 +248,10 @@ func TestNCMV1006FlowFileAddsLinkedTestsOnly(t *testing.T) {
 	outside := Decide(Input{Dirty: []string{".corvint/flows/a.json"}, FlowsDirectory: "flows", FlowsJoined: true})
 	wantFull(t, outside, ReasonCorvintConfig, ".corvint/flows/a.json")
 	// The changed flows cannot be computed: everything, with a named reason.
-	wantFull(t, Decide(Input{Dirty: []string{".corvint/flows.json"}}), ReasonFlowsUnreadable, ".corvint/flows.json")
+	// The deprecated flow file too (review P2-3).
+	for _, p := range []string{".corvint/flows.json", ".corvint/e2e-flows.json"} {
+		wantFull(t, Decide(Input{Dirty: []string{p}}), ReasonFlowsUnreadable, p)
+	}
 	invalid := Decide(Input{Dirty: []string{".corvint/e2e-flows.json"}, FlowsJoined: true, FlowsInvalid: "E2E_FLOWS_INVALID"})
 	wantFull(t, invalid, ReasonFlowsUnreadable, ".corvint/e2e-flows.json")
 }
@@ -242,7 +277,7 @@ func TestNCMV1008StaleEntryDoesNotNarrow(t *testing.T) {
 	}
 	input := Input{Dirty: []string{"config/app.yml"}, Unowned: []string{"config/app.yml"}, Map: read, Env: proving}
 	decision := Decide(input)
-	wantFull(t, decision, ReasonUnmapped, "config/app.yml")
+	wantFull(t, decision, ReasonUnowned, "config/app.yml")
 	if want := "data-map config/*.yml stale: cited test go:internal/app::TestGone is gone or cannot be confirmed"; !slices.Contains(decision.Audit(), want) {
 		t.Fatalf("audit lacks %q:\n%s", want, strings.Join(decision.Audit(), "\n"))
 	}
@@ -250,7 +285,7 @@ func TestNCMV1008StaleEntryDoesNotNarrow(t *testing.T) {
 	proving.IsAncestor = func(string) (bool, error) { return false, nil }
 	input.Env = proving
 	decision = Decide(input)
-	wantFull(t, decision, ReasonUnmapped, "config/app.yml")
+	wantFull(t, decision, ReasonUnowned, "config/app.yml")
 	if decision.Entries[0].Status != StatusStale || !strings.Contains(decision.Entries[0].Detail, "not an ancestor") {
 		t.Fatalf("entries = %+v, want stale: not an ancestor", decision.Entries)
 	}
@@ -278,9 +313,9 @@ func TestNCMV1009DecisionIsDeterministic(t *testing.T) {
 	}
 	want := strings.Join([]string{
 		"noncode flows-unreadable .corvint/flows.json",
-		"noncode non-code-unmapped a.json",
-		"noncode non-code-unmapped b.json",
-		"noncode UNOWNED_DIRTY_PATH z.txt",
+		"noncode unowned-path a.json",
+		"noncode unowned-path b.json",
+		"noncode unowned-path z.txt",
 		"data-map *.json unproven: fault case FIH-NC-0007 is unknown: FIH-V1 is not linked (V1-5405)",
 		"data-map b.json unproven: fault case FIH-NC-0007 is unknown: FIH-V1 is not linked (V1-5405)",
 	}, "\n")

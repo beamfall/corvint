@@ -18,16 +18,18 @@ import (
 // adapter or declared command runs, narrowed or FULL. Every other frontier the
 // plan names bears on the change, so it is no category to ignore: a non-Go one
 // adds its language's declared suite through FrontierSuite, and a Go one may
-// hide a Go reader (AFP-V0-2750). A NO_SELECTABLE_TEST unit gets no test from
-// a FULL run either. An UNOWNED_DIRTY_PATH is not admitted (NCM-V1-001, owner
-// decision R32): no plugin claims the path and the plan cannot prove every
-// reader selected, so it runs everything. Every other entry forces FULL.
+// hide a Go reader (AFP-V0-2750). An UNOWNED_DIRTY_PATH is read only by the Go
+// packages rules (b) to (d) select; a NO_SELECTABLE_TEST unit gets no test from
+// a FULL run either. Every other entry forces FULL. The AFP-V0-012 selector,
+// which holds the Go index, first runs everything for an unowned path no Go
+// rule attributes (NCM-V1-001, `unowned-path`), so wherever that selector
+// decides the run an entry admitted here is an attributed one.
 func AllowedUnknown(reason, detail string) bool {
 	switch reason {
 	case "LANGUAGE_FRONTIER":
 		return detail == "go:build-constraint-variants" || detail == "go:nested-module-frontier" ||
 			strings.HasPrefix(detail, driverFrontier)
-	case "NO_SELECTABLE_TEST":
+	case "UNOWNED_DIRTY_PATH", "NO_SELECTABLE_TEST":
 		return true
 	}
 	return false

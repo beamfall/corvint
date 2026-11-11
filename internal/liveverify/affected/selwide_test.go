@@ -199,7 +199,6 @@ func (selwideUnindexed) Units(context.Context, string) (affected.Result, error) 
 
 // AFP-V0-9013: hosted unindexed fixtures retain readers without FULL; failed
 // indexing of real compiled source retains FULL, even below a testdata directory.
-// Since NCM-V1-001 (V1-5424) an unowned fixture runs everything, readers included.
 func TestUnindexedFixtureSession_AFPV09013(t *testing.T) {
 	root, _ := selwideFiles(t, map[string]string{
 		"go.mod":                "module example.test/m\n\ngo 1.27.0\n",
@@ -217,16 +216,14 @@ func TestUnindexedFixtureSession_AFPV09013(t *testing.T) {
 	}
 	for _, dirty := range []string{"host/testdata/case.rb", "host/testdata/new.go"} {
 		m := selwideSession(t, root, graph, dirty)
-		// NCM-V1-001 (V1-5424): the plan reports the fixture UNOWNED_DIRTY_PATH
-		// (a Ruby unit could read it unseen), so it runs everything, named.
-		if m.Scope != sessiontest.ScopeFull || m.Reason != "non-code-unmapped "+dirty {
-			t.Fatalf("fixture did not run everything: %+v", m)
+		if m.Scope == sessiontest.ScopeFull {
+			t.Fatalf("fixture forced FULL: %+v", m)
 		}
 		var units []string
 		for _, u := range m.Units {
 			units = append(units, u.Unit)
 		}
-		if !slices.Contains(units, "go:example.test/m/host") || !slices.Contains(units, "go:example.test/m/solo") {
+		if !slices.Contains(units, "go:example.test/m/host") || slices.Contains(units, "go:example.test/m/solo") {
 			t.Fatalf("fixture readers=%v", units)
 		}
 		if strings.HasSuffix(dirty, ".rb") && !slices.Contains(units, "go:example.test/m/reader") {

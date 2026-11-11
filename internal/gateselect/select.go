@@ -59,12 +59,21 @@ type Receipt struct {
 			Class string   `json:"class"`
 			Paths []string `json:"paths"`
 		} `json:"nonSource"`
-		// Deleted and E2E feed the non-code decision (NCM-V1-001,
+		// Deleted, Selected and E2E feed the non-code decision (NCM-V1-001,
 		// NCM-V1-006): a deleted runner configuration is a removed runner,
 		// and the flow join says whether a flow file's changed flows can be
 		// computed.
 		Deleted []string `json:"deleted"`
-		E2E     *struct {
+		// Selected is read only for the witnesses of declared Go readers,
+		// which attribute a dirty path to a Go package (NCM-V1-001).
+		Selected []struct {
+			UnitID  string `json:"unitId"`
+			Witness struct {
+				Kind      string `json:"kind"`
+				DirtyPath string `json:"dirtyPath"`
+			} `json:"witness"`
+		} `json:"selected"`
+		E2E *struct {
 			Flows   string `json:"flows"`
 			Unknown []struct {
 				Reason string `json:"reason"`
@@ -480,10 +489,6 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 			continue
 		case entry.Reason == "UNINDEXED_SOURCE_PATH" && deletedGoSource(plan, index, root, entry.Detail):
 			continue
-		}
-		if entry.Reason == unownedDirtyPath && noncodemap.CleanPath(entry.Detail) {
-			// NCM-V1-001 (R32): an unowned path runs everything, named.
-			return noncodemap.ReasonUnowned + " " + entry.Detail, nil
 		}
 		reason := entry.Reason
 		if !unknownReason.MatchString(reason) {
