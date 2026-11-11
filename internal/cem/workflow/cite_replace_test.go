@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestCiteReplaceCEMV1694 is CEM-V1-694 and CEM-V1-695 (V1-3168), positive

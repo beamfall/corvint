@@ -13,7 +13,9 @@ Delivery status: experimental (checked by `TestCEMSeamsDependOnlyOnStdlibAndGit`
 ## Dependency boundary
 
 The CEM seams and their command dispatch —
-`internal/cem/{cemcode,wire,patch,sim,gitrun,gitauth,verify,publish,mdreport,coverprofile,workflow,cli}` —
+`internal/cem/{wire,patch,sim,gitauth,verify,publish,mdreport,coverprofile,workflow,cli}`
+and the two leaves `internal/gitrun` and `internal/cemcode`, which sat under
+`internal/cem` until V1-4807 moved them —
 depend only on the Go standard library, the local Git executable and
 `internal/groupreap`, the process-group wait helper `gitrun` shares with the
 other Git runners (V1-0373), which itself imports only the standard library.

@@ -75,7 +75,7 @@ func runGitProcess(ctx context.Context, identity gitIdentity, root string, limit
 	if stdout.exceeded || stderr.exceeded {
 		return nil, errors.New("Git output exceeds release gate bound")
 	}
-	return stdout.Bytes(), nil
+	return stdout.buffer.Bytes(), nil
 }
 
 // groupProbe is syscall.Kill; tests observe that processGroupGone sends

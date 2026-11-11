@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestCEMV1322RepeatedTableSeparatorNamesUniqueSpansV11531 is V1-1531: a

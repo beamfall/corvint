@@ -6,7 +6,7 @@ package patch
 import (
 	"bytes"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // Frozen bounds.

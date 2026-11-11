@@ -71,7 +71,7 @@ is also rechecked, including switches between refs sharing one commit. Overlap s
 
 All guidance tests below live in `cmd/corvint/repository_guidance_test.go`, except RGV-V0-050's in `internal/genesis/guidance_test.go`.
 Genesis Git containment retains the existing `TestDescendantCleanupOnCancellation` and
-`TestDescendantCleanupOnTimeout` regressions in `internal/cem/gitrun/gitrun_unix_test.go`.
+`TestDescendantCleanupOnTimeout` regressions in `internal/gitrun/gitrun_unix_test.go`.
 
 | Requirement | Test |
 |---|---|

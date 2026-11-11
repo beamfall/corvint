@@ -47,8 +47,8 @@ func TestCLICompletesPositiveProgressShortWrites(t *testing.T) {
 		t.Fatal("run failed")
 	}
 	want := "{\"profile\":\"corvint-analyzer-candidate/experimental\",\"family\":\"unknown\",\"request_id\":\"unknown\",\"status\":\"REJECTED\",\"reason\":\"NONCANONICAL_REQUEST\"}\n"
-	if writer.String() != want {
-		t.Fatalf("output=%q", writer.String())
+	if writer.buffer.String() != want {
+		t.Fatalf("output=%q", writer.buffer.String())
 	}
 }
 
@@ -73,9 +73,9 @@ func TestCLIPinnedSuccessBytes(t *testing.T) {
 	}
 }
 
-type oneByteWriter struct{ bytes.Buffer }
+type oneByteWriter struct{ buffer bytes.Buffer } // named, so no promoted write path skips Write (GPK-V0-9930)
 
-func (writer *oneByteWriter) Write(value []byte) (int, error) { return writer.Buffer.Write(value[:1]) }
+func (writer *oneByteWriter) Write(value []byte) (int, error) { return writer.buffer.Write(value[:1]) }
 
 type zeroWriter struct{}
 

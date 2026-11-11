@@ -3,7 +3,7 @@ package wire
 import (
 	"regexp"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // Stable map provenance and role (CEM-V1-093, CEM-V1-095, decision 0525).

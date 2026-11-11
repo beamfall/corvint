@@ -96,13 +96,13 @@ func (d *descendantCleanup) start(ctx context.Context, pid int) error {
 	return nil
 }
 
-type processBuffer struct{ bytes.Buffer }
+type processBuffer struct{ buffer bytes.Buffer } // named, so no promoted write path skips Write (GPK-V0-9930)
 
 func (b *processBuffer) Write(p []byte) (int, error) {
-	if b.Len()+len(p) > 4*1024*1024 {
+	if b.buffer.Len()+len(p) > 4*1024*1024 {
 		return 0, errors.New("process snapshot output limit")
 	}
-	return b.Buffer.Write(p)
+	return b.buffer.Write(p)
 }
 
 // processProbeBudget bounds one /bin/ps probe. It is a hang detector, not a
@@ -138,7 +138,7 @@ func processSnapshot(parent context.Context) (map[int]processRow, error) {
 		return nil, err
 	}
 	rows := map[int]processRow{}
-	for _, line := range strings.Split(out.String(), "\n") {
+	for _, line := range strings.Split(out.buffer.String(), "\n") {
 		parts := strings.Fields(line)
 		if len(parts) == 0 {
 			continue

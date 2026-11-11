@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cemcode"
 	"github.com/Beamfall/corvint/internal/gitancestry"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // Freshness states from EEP-V0-009.

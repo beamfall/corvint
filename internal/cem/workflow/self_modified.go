@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // GoverningInstructionPath reports whether a repository path is a governing

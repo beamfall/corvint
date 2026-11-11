@@ -128,10 +128,12 @@ if [[ \$1 == env ]]; then
   exit 0
 fi
 [[ -d \$TMPDIR && -d \$GOTMPDIR ]] || exit 31
+# ASD-V0-9950: the remote scratch root is the default unless a case names HEAVY_REMOTE_TMPDIR's.
+troot=\$(cat "$tmp/expect-tmp-root" 2> /dev/null) || troot="$tmp/home/.cache/corvint-heavy/tmp"
 if [[ \$1 == test ]]; then
-  [[ \$TMPDIR == "$tmp/home/.cache/corvint-heavy/tmp/heavy-go-test-$(id -u)" ]] || exit 32
+  [[ \$TMPDIR == "\$troot/heavy-go-test-$(id -u)" ]] || exit 32
 else
-  [[ \$TMPDIR == "$tmp/home/.cache/corvint-heavy/tmp/run."* ]] || exit 32
+  [[ \$TMPDIR == "\$troot/run."* ]] || exit 32
 fi
 [[ \$(uname -s) == Linux ]] || exit 33
 printf '%s\n' "\$GOCACHE" "\$CORVINT_GOCACHE" "\$TMPDIR" "\$GOTMPDIR" > "$tmp/observed"
@@ -153,18 +155,21 @@ EOF
     (cd "$tmp/local" && "$script/heavy.sh" "$@") > "$tmp/out" 2> "$tmp/err"
   }
   check_observed() {
-    local cache=$1 scratch gotmp
+    local cache=$1 troot=${2:-$tmp/home/.cache/corvint-heavy/tmp} scratch gotmp
     [[ $(sed -n 1p "$tmp/observed") == "$cache" && $(sed -n 2p "$tmp/observed") == "$cache" ]] ||
       fail "remote Go/Makefile cache mismatch: $(cat "$tmp/observed")"
     scratch=$(sed -n 3p "$tmp/observed") gotmp=$(sed -n 4p "$tmp/observed")
     # GOTMPDIR stays per-run. Go tests keep only the stable namespace and lock; other
     # commands keep the private per-run cleanup contract. Neither may leave the Test* leak.
-    [[ ${gotmp%/*} == "$tmp/home/.cache/corvint-heavy/tmp" && ${gotmp##*/} == run.* && ! -e $gotmp ]] &&
+    [[ ${gotmp%/*} == "$troot" && ${gotmp##*/} == run.* && ! -e $gotmp ]] &&
       [[ $scratch == "$gotmp" || (${scratch%/*} == "$gotmp" && ${scratch##*/} == heavy-run.*) ||
-         ($scratch == "$tmp/home/.cache/corvint-heavy/tmp/heavy-go-test-$(id -u)" &&
+         ($scratch == "$troot/heavy-go-test-$(id -u)" &&
           -f $scratch/.lock && ! -e $scratch/TestLeakedHelper) ]] ||
       fail "remote scratch is not per-run and removed with Test* leak: $(cat "$tmp/observed")"
     grep -q '^heavy.sh: running on ' "$tmp/err" || fail "offload fell back locally: $(cat "$tmp/err")"
+    # ASD-V0-9950 (V1-4841): the run names the TMPDIR the command actually saw, once.
+    [[ $(grep -c '^heavy.sh: TMPDIR=' "$tmp/err") == 1 ]] && grep -qxF "heavy.sh: TMPDIR=$scratch" "$tmp/err" ||
+      fail "remote run did not name the TMPDIR it used ($scratch): $(cat "$tmp/err")"
   }
   printf 'export GOCACHE=%q CORVINT_GOCACHE=%q\n' "$tmp/tmpfs-cache" "$tmp/tmpfs-cache" > "$tmp/remote.env"
   run_host_env env GOCACHE=/no/local/cache CORVINT_GOCACHE=/no/local/make-cache go test -run X ./internal/specindex
@@ -233,8 +238,25 @@ EOF
   [[ ! -e $missing ]] || fail 'forwarded TMPDIR fixture exists'
   run_host_env env TMPDIR="$missing" GOTMPDIR="$missing/go" go test -run X ./internal/specindex
   check_observed "$tmp/home/.cache/corvint-go-build-cache"
+  # ASD-V0-9950 (V1-4841): the dropped Mac paths are named rather than used or silently replaced.
+  for word in "TMPDIR=$missing" "GOTMPDIR=$missing/go"; do
+    grep -qxF "heavy.sh: remote ignores caller $word (host-local scratch and caches, ASD-V0-2121)" "$tmp/err" ||
+      fail "remote did not name the dropped $word: $(cat "$tmp/err")"
+  done
   run_host_env TMPDIR="$missing" GOTMPDIR="$missing/go" make windows-vet
   check_observed "$tmp/home/.cache/corvint-go-build-cache"
+  grep -qxF "heavy.sh: remote ignores caller TMPDIR=$missing (host-local scratch and caches, ASD-V0-2121)" "$tmp/err" ||
+    fail "remote did not name the dropped leading TMPDIR: $(cat "$tmp/err")"
+  # ASD-V0-9950: HEAVY_REMOTE_TMPDIR in the host's environment file is the documented opt-in for
+  # another remote scratch root; a Go test and another command both get their TMPDIR under it.
+  printf 'HEAVY_REMOTE_TMPDIR=%q\n' "$tmp/remote-scratch" > "$tmp/remote.env"
+  printf '%s\n' "$tmp/remote-scratch" > "$tmp/expect-tmp-root"
+  run_host_env env TMPDIR="$missing" go test -run X ./internal/specindex
+  check_observed "$tmp/home/.cache/corvint-go-build-cache" "$tmp/remote-scratch"
+  run_host_env go vet ./internal/specindex
+  check_observed "$tmp/home/.cache/corvint-go-build-cache" "$tmp/remote-scratch"
+  rm -f "$tmp/expect-tmp-root"
+  : > "$tmp/remote.env"
   # Review: Make applies every assignment operator, with blanks around it, over the environment.
   printf 'export GOCACHE=%q CORVINT_GOCACHE=%q\n' "$tmp/disk-cache" "$tmp/disk-cache" > "$tmp/remote.env"
   for op in ':=' '::=' ':::=' '+=' '?=' '!=' ' = ' $'\t:= '; do
@@ -270,7 +292,7 @@ EOF
   fi
   grep -q 'fix: set HEAVY_REMOTE_GOCACHE.*HEAVY_REMOTE_ENV' "$tmp/err" ||
     fail "RAM-backed fallback refusal lacks recovery: $(cat "$tmp/err")"
-  printf 'lane-scripts_test: heavy host environment: 18 cases passed (host-only ENVFILE, cache, windows-vet, disk, symlink, env/leading TMPDIR, Make assignment operators, failure cleanup, refusal)\n'
+  printf 'lane-scripts_test: heavy host environment: 20 cases passed (host-only ENVFILE, cache, windows-vet, disk, symlink, env/leading TMPDIR named when dropped, TMPDIR announced, HEAVY_REMOTE_TMPDIR opt-in, Make assignment operators, failure cleanup, refusal)\n'
   exit 0
 fi
 # DCW-V0-358 (V1-2857): a failure is recorded with its group and line and the run goes on, so one
@@ -606,6 +628,18 @@ got=$(env -u HEAVY_NICE HEAVY_SLOTS=1 "$heavy" sh -c 'ps -o nice= -p $$' 2> /dev
 [[ $got == $((want > 10 ? want : 10)) ]] || fail "heavy.sh default niceness $got, want 10 or the caller's higher $want"
 got=$(HEAVY_NICE=0 HEAVY_SLOTS=1 "$heavy" sh -c 'ps -o nice= -p $$' 2> /dev/null | tr -d ' ')
 [[ $got == "$want" ]] || fail "heavy.sh HEAVY_NICE=0 niceness $got, want the caller's $want"
+# ASD-V0-9950 (V1-4841): the announced TMPDIR follows the command's own env words, and behind an
+# env option heavy.sh does not read (-v here) it is reported as unknown, never guessed.
+HEAVY_SLOTS=1 "$heavy" env TMPDIR="$tmp" sh -c 'printf "saw=%s\n" "$TMPDIR"' > "$tmp/out" 2> "$tmp/err"
+[[ $(cat "$tmp/out") == "saw=$tmp" ]] && grep -qxF "heavy.sh: TMPDIR=$tmp" "$tmp/err" ||
+  fail "heavy.sh did not name an env-assigned TMPDIR: $(cat "$tmp/out" "$tmp/err")"
+HEAVY_SLOTS=1 "$heavy" env -u TMPDIR sh -c 'printf "saw=%s\n" "${TMPDIR-none}"' > "$tmp/out" 2> "$tmp/err"
+[[ $(cat "$tmp/out") == saw=none ]] && grep -qx 'heavy.sh: TMPDIR=unset' "$tmp/err" ||
+  fail "heavy.sh did not name an unset TMPDIR: $(cat "$tmp/out" "$tmp/err")"
+HEAVY_SLOTS=1 "$heavy" env -v TMPDIR="$tmp" sh -c 'printf "saw=%s\n" "$TMPDIR"' > "$tmp/out" 2> "$tmp/err"
+[[ $(cat "$tmp/out") == "saw=$tmp" && $(grep -c '^heavy.sh: TMPDIR=' "$tmp/err") == 1 ]] &&
+  grep -qx 'heavy.sh: TMPDIR=unknown' "$tmp/err" ||
+  fail "heavy.sh guessed a TMPDIR behind an unread env option: $(cat "$tmp/out" "$tmp/err")"
 # ASD-V0-915 (V1-3618): an expected refusal's stdout REFUSED marker is captured and checked, so a
 # passing run prints no unlabelled REFUSED line.
 HEAVY_NICE=20 "$heavy" true > "$tmp/out" 2> "$tmp/err"
