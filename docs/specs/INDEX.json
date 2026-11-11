@@ -4469,7 +4469,7 @@
     "title": "Dead-Function Ratchet V0",
     "reqPrefix": "DCR-V0",
     "intent": "proposed",
-    "delivery": "in-progress (report, tool and baseline on the lane branch; deletion not started)",
+    "delivery": "experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)",
     "claim": "`make deadcode` runs a pinned dead-code analyzer for six GOOS/GOARCH configurations and fails unless the functions all six report equal a shrink-only baseline.",
     "dependsOn": [],
     "supersededBy": null,

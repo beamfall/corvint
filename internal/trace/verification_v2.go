@@ -446,12 +446,6 @@ func (record Record) VerificationCommands() []string {
 	return result
 }
 
-// IsTypedJSON reports only the exact schema-2 or schema-3 discriminator; full
-// admission needs DecodeTyped.
-func IsTypedJSON(data []byte) bool {
-	return typedSchema(data) != 0
-}
-
 func typedSchema(data []byte) int {
 	var raw map[string]jsontext.Value
 	if json.Unmarshal(data, &raw) != nil {

@@ -70,22 +70,6 @@ func hermeticGitCommand(ctx context.Context, gitExecutable, root string, argumen
 	return command
 }
 
-func mapsFromAny(value any) []map[string]any {
-	items, _ := value.([]any)
-	maps := make([]map[string]any, 0, len(items))
-	for _, item := range items {
-		if entry, ok := item.(map[string]any); ok {
-			maps = append(maps, entry)
-		}
-	}
-	return maps
-}
-
-func stringAt(entry map[string]any, key string) string {
-	value, _ := entry[key].(string)
-	return value
-}
-
 // splitWitnessFlag separates `--name=value` from `--name value`. It reports
 // whether the value was inline so a valueless flag can refuse one.
 func splitWitnessFlag(argument string) (string, string, bool) {

@@ -4,14 +4,14 @@ Owner: Russell Lewis
 Date: 2026-11-11
 Requirement prefix: `DCR-V0`
 Intent status: proposed
-Delivery status: in-progress (report, tool and baseline on the lane branch; deletion not started)
+Delivery status: experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)
 Authoritative inputs: tickets V1-4801 (the report and its baseline) and V1-4827 (delete the listed functions), steps of the 2026-11-06 expert-panel restructuring plan; OpenSpec change `docs/specs/openspec/changes/deadcode-ratchet/` (proposal, design, spec delta and tasks); owner decision R33 (`docs/specs/PRODUCT-PLAN-1.0.md` checklist row O42: orphaned code is deleted and tracked).
 
 ## Agent digest
 - Claim: `make deadcode` runs a pinned dead-code analyzer for six GOOS/GOARCH configurations and fails unless the functions all six report equal a shrink-only baseline.
-- Status: proposed / in-progress (report, tool and baseline on the lane branch; deletion not started)
-- Exists: Makefile targets `deadcode` and `deadcode-baseline`, `tools/deadcode-ratchet/` (the runner, the intersection and verdict, `baseline.json` with 149 entries measured at 4c3c20333, hermetic tests on `testdata` fixtures).
-- Blocked on: owner acceptance of the intent; the deletion of the listed functions (DCR-V0-007, DCR-V0-008, V1-4827).
+- Status: proposed / experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)
+- Exists: Makefile targets `deadcode` and `deadcode-baseline`, `tools/deadcode-ratchet/` (the runner, the intersection and verdict, `baseline.json`, hermetic tests on `testdata` fixtures); the baseline held 149 entries at 4c3c20333 and holds 35 after the deletion of 114 functions (V1-4827), each kept entry with its reason.
+- Blocked on: owner acceptance of the intent; independent review; an owner decision on the 35 kept entries (V1-4827 asks for zero).
 - Read next: Requirements, then Failure modes.
 
 ## Problem and current state
@@ -28,7 +28,10 @@ Its answer holds for one GOOS/GOARCH/tag configuration only. This contract runs 
 configurations, keeps the functions every run reports, and compares them with a checked-in
 baseline that can only shrink, the way `tools/import-ratchet` treats a wrong-way import. At
 origin/main 4c3c20333 (2026-11-11) the six runs report 152 (linux/amd64), 155 (linux/arm64, both
-darwin) and 208 (both windows) functions; 149 are in all six.
+darwin) and 208 (both windows) functions; 149 are in all six. The deletion removed 114 of them
+(1,614 Go lines); 35 stay in the baseline with a reason: 16 cited by a spec (DCR-V0-007), 2 called
+by a cited function, 11 counted by the diagnostic-coverage ratchet test, 4 in paths a concurrent
+lane is editing, 1 under `.github/**` and 1 fixture.
 
 ## Requirements
 
@@ -65,14 +68,14 @@ darwin) and 208 (both windows) functions; 149 are in all six.
   tests MUST run without the analyzer, without loading the module and without the network. They
   MUST cover: a function reported by one run only, a new function, a stale entry, a refused
   baseline of each kind in DCR-V0-004, a missing run, and the committed baseline's count.
-- `DCR-V0-007`: (proposed 2026-11-11; delivery not-started; V1-4827) Fail-closed deletion. A
+- `DCR-V0-007`: (proposed 2026-11-11; delivery experimental; V1-4827) Fail-closed deletion. A
   function MAY be deleted only when the report regenerated at the change's base lists it. A listed
   function MUST be kept, with a non-empty baseline `reason`, when it is declared under
   `protocol/**`, carries or is the target of `//go:linkname` or `//export`, is named by an assembly
   file, is cited by name under `docs/specs/**` or in a top-level `docs/*.md` file, or when its
   removal breaks a build or vet of DCR-V0-008. No other declaration MAY be removed, except an
   import left unused.
-- `DCR-V0-008`: (proposed 2026-11-11; delivery not-started; V1-4827) Deletion proof. After the
+- `DCR-V0-008`: (proposed 2026-11-11; delivery experimental; V1-4827) Deletion proof. After the
   deletion, `go build` and `go vet` MUST pass for every package of the module in each of the six
   configurations and under each custom build tag present in the tree, `go vet` MUST pass in
   `interop/cem01-go`, and the tests of every package that lost a function MUST pass.
@@ -100,8 +103,13 @@ development tool: no product package imports it and it uses the standard library
   custom build tag.
 - A function declared once per operating system (`f` in `x_linux.go`, `x_darwin.go` and
   `x_windows.go`) is reported only when every variant is unreachable.
-- Each run is a whole-program load: about 11 s and 4.6 GB peak resident memory on the WSL lane
-  host, 69 s for the six runs (2026-11-11). The target is not part of `go test` or `GATE_STEPS`.
+- Each run is a whole-program load: about 9 to 11 s and 4.6 GB peak resident memory on the WSL
+  lane host, 53 to 69 s for the six runs (2026-11-11). The target is not part of `go test` or
+  `GATE_STEPS`.
+- A test outside a package can count a dead function as live evidence: the diagnostic-coverage
+  ratchet (`script/diagnostic-coverage.count`) counts each `diagnostic.Refusal` literal, reachable
+  or not, so deleting an unreachable refusal constructor fails it. Such functions are kept with
+  that reason rather than lowering the count.
 
 ## Acceptance evidence and traceability
 
@@ -113,8 +121,8 @@ development tool: no product package imports it and it uses the standard library
 | DCR-V0-004 | `TestDecodeBaselineRefusals`, `TestEncodeBaselineRoundTrip`, `TestCommittedBaselineCount` |
 | DCR-V0-005 | `TestVerdictAcceptsMatchingBaseline`, `TestVerdictNamesNewFunction`, `TestVerdictNamesStaleEntry`; `make deadcode` on a scratch commit that adds one unreachable function exits non-zero naming it |
 | DCR-V0-006 | `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 ./tools/deadcode-ratchet/` (all tests, 0.004 s, fixtures embedded from `testdata`) |
-| DCR-V0-007 | not delivered (V1-4827) |
-| DCR-V0-008 | not delivered (V1-4827) |
+| DCR-V0-007 | the removed-declaration check in `docs/build-log/2026-11-11-deadcode-ratchet.md` (114 removed declarations, every one a function of the base report; a control that also removes a live function fails naming it); `TestCommittedBaselineReasons` |
+| DCR-V0-008 | `go build` and `go vet` for the six configurations, `go vet -tags` for `race`, `live`, `beamfall_appstore` and `corvint_development` (red at the base, unchanged), `go vet` in `interop/cem01-go`, the tests of the 43 packages that lost a function, and `make deadcode` exit 0 on the 35-entry baseline, all recorded in `docs/build-log/2026-11-11-deadcode-ratchet.md` |
 
 ## Rollback
 

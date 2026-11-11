@@ -1482,14 +1482,6 @@ func equalStrings(left, right []string) bool {
 	return true
 }
 
-func mapKeys(values map[string]struct{}) []string {
-	result := make([]string, 0, len(values))
-	for value := range values {
-		result = append(result, value)
-	}
-	return result
-}
-
 func exactObjectID(value string, length int) bool {
 	if length != 40 && length != 64 {
 		return false

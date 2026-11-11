@@ -75,9 +75,6 @@ func scriptBinary(build, pad int) []byte {
 	rand.New(rand.NewSource(int64(build) * int64(pad))).Read(noise)
 	return append(append(b, "exit 0\n#"...), hex.EncodeToString(noise)...)
 }
-func coreArchive(t *testing.T, platform string, build int) []byte {
-	return coreArchiveOf(t, platform, scriptBinary(build, 0))
-}
 func coreArchiveOf(t *testing.T, platform string, binary []byte) []byte {
 	t.Helper()
 	prefix := "corvint_" + platform + "/"

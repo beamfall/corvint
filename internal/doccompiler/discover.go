@@ -387,15 +387,6 @@ func inventoryDistributions(packages [][]string) []Distribution {
 	return output
 }
 
-func hasPyMdown(extensions []string) bool {
-	for _, extension := range extensions {
-		if strings.HasPrefix(extension, "pymdownx.") {
-			return true
-		}
-	}
-	return false
-}
-
 func createStateDirectories(root string) error {
 	for _, relative := range []string{"cache", "config", "data", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(root, relative), 0700); err != nil {
@@ -403,14 +394,6 @@ func createStateDirectories(root string) error {
 		}
 	}
 	return nil
-}
-
-func sortedInventory(packages [][]string) [][]string {
-	output := append([][]string(nil), packages...)
-	sort.Slice(output, func(left, right int) bool {
-		return strings.Join(output[left], "\x00") < strings.Join(output[right], "\x00")
-	})
-	return output
 }
 
 func environmentSHA256(inventory string, lock SourcePin, mkdocs, python FilePin, options DiscoverOptions) [32]byte {

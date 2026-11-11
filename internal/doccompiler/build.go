@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"io"
 	"io/fs"
 	"os"
@@ -401,17 +400,6 @@ func validateSite(root string, options BuildOptions) (string, int64, int, error)
 		_, _ = tree.Write(file.digest[:])
 	}
 	return hex.EncodeToString(tree.Sum(nil)), total, len(files), nil
-}
-
-func BuildDigest(result BuildResult) (string, error) {
-	copy := result
-	copy.OutputRoot = ""
-	encoded, err := json.Marshal(copy)
-	if err != nil {
-		return "", failure("build-encoding-failed", "cannot encode build result")
-	}
-	digest := sha256.Sum256(encoded)
-	return hex.EncodeToString(digest[:]), nil
 }
 
 // QualifyOffline cannot promote a completed build from caller-supplied claims.

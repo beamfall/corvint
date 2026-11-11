@@ -66,17 +66,6 @@ func appmapCLIRepoFrom(t *testing.T, fixture string) string {
 	return root
 }
 
-func decodeNumbers(t *testing.T, raw []byte) any {
-	t.Helper()
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
-	var value any
-	if err := decoder.Decode(&value); err != nil {
-		t.Fatal(err)
-	}
-	return value
-}
-
 // shopFixture is the small application behind the map, gaps and impact goldens. Commit A adds the
 // sources and intents, B anchors reviews at A, and HEAD (C) changes cart/cart.go and line 4 of
 // profile/profile.go.
@@ -298,8 +287,4 @@ func inferCLIRepo(t *testing.T) (string, string) {
 		t.Fatal(err)
 	}
 	return root, filename
-}
-
-func maintenanceArgs() []string {
-	return []string{"docs", "maintain", "--flows", "flows", "--page", "docs/flows.md", "--claims", "docs/claims.json", "--docs-root", "docs"}
 }

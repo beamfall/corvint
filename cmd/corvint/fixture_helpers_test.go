@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -244,8 +243,4 @@ func gitOutput(t *testing.T, root string, arguments ...string) string {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)
 	}
 	return string(bytes.TrimSpace(output))
-}
-
-func digestBytes(value []byte) string {
-	return fmt.Sprintf("%x", sha256.Sum256(value))
 }
