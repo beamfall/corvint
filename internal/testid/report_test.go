@@ -4,7 +4,6 @@ package testid
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -14,7 +13,7 @@ import (
 // each named test as its ID string, with " (reason)" when it has a reason.
 func mapped(t *testing.T, name string, read func(*os.File) ([]Named, error)) []string {
 	t.Helper()
-	file, err := os.Open(filepath.Join("testdata", name))
+	file, err := os.Open(name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,10 +48,10 @@ func wantIDs(t *testing.T, name string, got, want []string) {
 // followed by each subtest, split on `/` as go test reports it.
 func TestCTIV1003GoTestJSON(t *testing.T) {
 	t.Parallel()
-	got := mapped(t, "go-test.jsonl", func(f *os.File) ([]Named, error) {
+	got := mapped(t, "testdata/go-test.jsonl", func(f *os.File) ([]Named, error) {
 		return GoTestJSON(f, GoModuleDir("example.test/calc", "."))
 	})
-	wantIDs(t, "go-test.jsonl", got, []string{
+	wantIDs(t, "testdata/go-test.jsonl", got, []string{
 		"go:internal/calc::TestAdd",
 		"go:internal/calc::TestAdd::negative",
 		"go:internal/calc::TestAdd::GET_::a%3Ab",
@@ -85,16 +84,16 @@ func TestCTIV1003GoTestJSON(t *testing.T) {
 // the title as the runner interpolated it.
 func TestCTIV1004VitestAndJestJSON(t *testing.T) {
 	t.Parallel()
-	got := mapped(t, "vitest-mixed.json", func(f *os.File) ([]Named, error) {
+	got := mapped(t, "testdata/vitest-mixed.json", func(f *os.File) ([]Named, error) {
 		return JestJSON(Vitest, f, "/private/tmp/corvint-public-release-20260912/js-fixture")
 	})
-	wantIDs(t, "vitest-mixed.json", got, []string{
+	wantIDs(t, "testdata/vitest-mixed.json", got, []string{
 		"vitest:math.test.js::add::adds two positive numbers",
 		"vitest:math.test.js::add::adds a negative number",
 		"vitest:math.test.js::add::is skipped on purpose",
 	})
-	got = mapped(t, "jest.json", func(f *os.File) ([]Named, error) { return JestJSON(Jest, f, "/repo/") })
-	wantIDs(t, "jest.json", got, []string{
+	got = mapped(t, "testdata/jest.json", func(f *os.File) ([]Named, error) { return JestJSON(Jest, f, "/repo/") })
+	wantIDs(t, "testdata/jest.json", got, []string{
 		"jest:web/sum.test.js::sum::adds",
 		"jest:web/sum.test.js::sum::each::case 1",
 		"jest:web/sum.test.js::sum::each::case 2",
@@ -118,17 +117,17 @@ func TestCTIV1004VitestAndJestJSON(t *testing.T) {
 // title and the test title.
 func TestCTIV1005PlaywrightJSON(t *testing.T) {
 	t.Parallel()
-	got := mapped(t, "playwright-mixed.json", func(f *os.File) ([]Named, error) {
+	got := mapped(t, "testdata/playwright-mixed.json", func(f *os.File) ([]Named, error) {
 		return PlaywrightJSON(f, "/private/tmp/corvint-public-release-20260912/js-fixture")
 	})
-	wantIDs(t, "playwright-mixed.json", got, []string{
+	wantIDs(t, "testdata/playwright-mixed.json", got, []string{
 		"playwright:e2e.spec.js::::increments the counter",
 		"playwright:e2e.spec.js::::deliberately wrong workflow expectation",
 		"playwright:e2e.spec.js::::skipped browser workflow",
 		"playwright:e2e.spec.js::::flaky once then passes on retry",
 	})
-	got = mapped(t, "playwright-projects.json", func(f *os.File) ([]Named, error) { return PlaywrightJSON(f, "/repo") })
-	wantIDs(t, "playwright-projects.json", got, []string{
+	got = mapped(t, "testdata/playwright-projects.json", func(f *os.File) ([]Named, error) { return PlaywrightJSON(f, "/repo") })
+	wantIDs(t, "testdata/playwright-projects.json", got, []string{
 		"playwright:e2e/login.spec.ts::chromium::signs in",
 		"playwright:e2e/login.spec.ts::webkit::signs in",
 		"playwright:e2e/login.spec.ts::chromium::logout::GET /a%3Ab",
@@ -140,8 +139,8 @@ func TestCTIV1005PlaywrightJSON(t *testing.T) {
 // and then escaped.
 func TestCTIV1006PytestNodeIDs(t *testing.T) {
 	t.Parallel()
-	got := mapped(t, "pytest.json", func(f *os.File) ([]Named, error) { return PytestJSON(f, ".") })
-	wantIDs(t, "pytest.json", got, []string{
+	got := mapped(t, "testdata/pytest.json", func(f *os.File) ([]Named, error) { return PytestJSON(f, ".") })
+	wantIDs(t, "testdata/pytest.json", got, []string{
 		"pytest:tests/test_a.py::TestA::test_b[x%3A%3Ay]",
 		"pytest:tests/test_a.py::TestA::test_b[plain]",
 		"pytest:tests/test_a.py::test_c",
@@ -170,13 +169,13 @@ func TestCTIV1006PytestNodeIDs(t *testing.T) {
 // full_description.
 func TestCTIV1007RSpecAndMinitest(t *testing.T) {
 	t.Parallel()
-	got := mapped(t, "minitest.jsonl", func(f *os.File) ([]Named, error) { return MinitestJSONL(f) })
-	wantIDs(t, "minitest.jsonl", got, []string{
+	got := mapped(t, "testdata/minitest.jsonl", func(f *os.File) ([]Named, error) { return MinitestJSONL(f) })
+	wantIDs(t, "testdata/minitest.jsonl", got, []string{
 		"minitest:test/calc_test.rb::CalcTest::test_add",
 		"minitest:test/calc_test.rb::Calc%3A%3AEdgeTest::test_zero",
 	})
-	got = mapped(t, "rspec.json", func(f *os.File) ([]Named, error) { return RSpecJSON(f) })
-	wantIDs(t, "rspec.json", got, []string{
+	got = mapped(t, "testdata/rspec.json", func(f *os.File) ([]Named, error) { return RSpecJSON(f) })
+	wantIDs(t, "testdata/rspec.json", got, []string{
 		"rspec:spec/user_spec.rb (test-id-unmapped)",
 		"rspec:spec/user_spec.rb (test-id-unmapped)",
 		"rspec:spec/user_spec.rb (test-id-unmapped)",
