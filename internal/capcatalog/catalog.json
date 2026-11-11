@@ -572,7 +572,8 @@
       "writeStatements": [
         "The command reads the Git worktree status, builds the multi-language unit graph from source text, and writes one affected-plan/1 document to stdout: the selector's plan (selected units with witnesses and test counts, an exclusion summary, unknowns, scope) and provider.go.packages, the exact import paths an operator may copy into a Go live-test provider bundle.",
         "--format text (AFP-V0-928) writes the same affected-plan/1 plan as lines instead of JSON: \"affected <summary.line> worktree=N revision=SHA [base=SHA]\", a \"warning TEXT\" line when the plan read unpinned worktree content, one \"selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]\" line per selection, one \"unknown REASON DETAIL [hint TEXT]\" line per plan unknown, the exclusion count and digest, and one \"check KIND COMMAND\" line per advice check with the advisory packages appended.",
-        "Example: corvint affected --base FULL_SHA --format text --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of the plan: summary, tiers {counts, summary, tier0, tier1, testIds} with the sorted tier-0 and tier-1 unit names a lane runs locally and each one's canonical test ID (CTI-V1-009), range {base, paths count}, degradations and warning, and e2e {scope, inventory, selected, variations, unknown} when the plan carries E2E flow selections (APK-V0-9970); --format text writes it as lines (\"affected <summary.line> ...\", \"tiers ...\", one \"tier0 UNIT\" or \"tier1 UNIT\" per unit, then the \"e2e-scope\", \"e2e-variation\", \"e2e\" and \"e2e-unknown\" lines).",
+        "Example: corvint affected --base FULL_SHA --format text --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of the plan: summary, tiers {counts, summary, tier0, tier1, testIds} with the sorted tier-0 and tier-1 unit names a lane runs locally and each one's canonical test ID (CTI-V1-009), range {base, paths count}, degradations, warning, e2e {scope, inventory, selected, variations, unknown} when the plan carries E2E flow selections (APK-V0-9970), and inventory: the committed test inventory (.corvint/test-inventory.json) judged against the planned tree, each declared runner instance with inventory-absent, inventory-stale or inventory-invalid when it runs in full and its unassigned test files (TIV-V1-006 to TIV-V1-009); --format text writes it as lines (\"affected <summary.line> ...\", \"tiers ...\", one \"tier0 UNIT\" or \"tier1 UNIT\" per unit, then the \"e2e-scope\", \"e2e-variation\", \"e2e\" and \"e2e-unknown\" lines, then \"inventory STATE ...\").",
+        "It never changes the selection and never writes the inventory.",
         "Example: corvint affected --base FULL_SHA --summary --full writes the affected-plan/0 document instead: every exclusion and every selected unit's test files.",
         "It runs no test, writes no repository state, and never claims that omitted tests are safe to skip; the provider keeps its own NO_AFFECTED_SELECTION_PROOF unknown.",
         "--by-path (experimental, AFP-V0-990; requires --path or --paths-from, not with --full) builds the graph once and writes one affected-by-path/1 document instead of the plan: sharedUnboundedReaders lists once the units the union plan selects as UNBOUNDED_READER (they are selected on any path), and paths gives each named path's scope, how many of that shared set it selects, its unknowns and only the units it adds.",
@@ -1290,7 +1291,8 @@
         "decide digests the packages of HEAD (--packages, default go list ./...) and prints a corvint-test-reuse-decision/0: REUSE only when an admitted record (--trust, default local,main; pull_request needs --pull-request N) passed the package under the same identity with the same digest; --run-list writes the packages still to run.",
         "It writes only the named files; exit 3 when no record or decision can be produced.",
         "--manifest PATH writes the same corvint-test-manifest/0 in every form.",
-        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json)."
+        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json).",
+        "Planning reads the committed test inventory (.corvint/test-inventory.json) at HEAD and prints one \"corvint-test: INVENTORY STATE reasons=...\" line on stderr (an \"inventory:\" summary line, or the dry-run JSON \"inventory\" member); it never narrows the plan and never writes the inventory (TIV-V1-002)."
       ],
       "unknowns": [
         {
@@ -1450,6 +1452,57 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "Writes: nothing under the repository; tests write what they write."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
+    },
+    {
+      "name": "inventory",
+      "helpTopic": "corvint help inventory",
+      "purpose": "refresh the committed test inventory",
+      "maturity": "experimental",
+      "owningSpec": "TIV-V1",
+      "freezeContract": null,
+      "operations": [
+        "refresh"
+      ],
+      "nestedOperations": {},
+      "requiredFlags": {},
+      "flags": [
+        "--collect-only",
+        "--json",
+        "--list",
+        "--reporter",
+        "--runner",
+        "--summary"
+      ],
+      "schemaIds": [
+        "corvint-test-inventory/0",
+        "playwright-discovery/0"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [
+        2
+      ],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "Refusals (exit 2, nothing written, the previous file kept): inventory-refresh-drift when HEAD or a source moved while a lister ran (TIV-V1-010); inventory-too-large when the file would exceed 8 MiB (TIV-V1-011); inventory-invalid-arguments; inventory-unavailable when Git cannot read the repository.",
+        "Readers: corvint affected --summary, corvint test, corvint watch and the corvint.affected MCP tool only read the file and print its reasons (inventory-absent, inventory-stale, unassigned, inventory-invalid); they never run a lister or write it (TIV-V1-002).",
+        "Writes: .corvint/test-inventory.json only, replaced through a temporary file in the same directory; listers write what they write."
       ],
       "unknowns": [
         {
@@ -1701,6 +1754,7 @@
       "test",
       "tests",
       "watch",
+      "inventory",
       "mcp",
       "how"
     ],
