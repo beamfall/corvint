@@ -8,6 +8,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // affectedHeadlinePrefix starts every line of the AFP-V0-3642 headline, so a
@@ -35,6 +37,17 @@ func renderAffectedHeadline(receipt affectedCompactReceipt) string {
 	if receipt.Range.Base != "" {
 		header += " base=" + receipt.Range.Base
 	}
+	// SLF-V1-008: test and driver units are counted apart; the frozen summary line keeps its
+	// `selected=` total, and no driver unit is listed here.
+	tests, drivers := 0, 0
+	for _, selection := range receipt.Plan.Selected {
+		if affected.DriverSelection(selection.UnitID, selection.Kind) {
+			drivers++
+		} else {
+			tests++
+		}
+	}
+	header += fmt.Sprintf(" tests=%d drivers=%d", tests, drivers)
 	lines = append(lines, header)
 	if receipt.Tiers != nil {
 		lines = append(lines, "tiers "+receipt.Tiers.Summary)
