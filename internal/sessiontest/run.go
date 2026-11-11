@@ -67,10 +67,13 @@ var (
 	ciGoFlags = []string{"-p", "1", "-count=1", "-race", "-timeout", "50m"}
 )
 
-// Outcome is one execution unit's terminal outcome.
+// Outcome is one execution unit's terminal outcome. TestID is the canonical
+// test ID its unit names (CTI-V1-009), an added field absent when the unit
+// names none and in a receipt written before it existed (CTI-V1-012).
 type Outcome struct {
 	Outcome string `json:"outcome"`
 	Slice   string `json:"slice"`
+	TestID  string `json:"testId,omitempty"`
 	Unit    string `json:"unit"`
 }
 
@@ -357,6 +360,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		}
 	}
 	receipt.CompletedAt = r.clock().UTC().Format(time.RFC3339Nano)
+	stampTestIDs(&receipt, GoUnitDir(r.Root))
 	return Finish(receipt, m)
 }
 
