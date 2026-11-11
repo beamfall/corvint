@@ -4,7 +4,7 @@
 **Date:** 2026-08-23  
 **Intent status:** retired 2026-11-09 (decision 0594)  
 **Delivery status:** retired  
-**Retirement note:** decision 0594 (owner, 2026-11-09) moved Corvint Tasks and its work-queue adapter to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy. The `corvint work` command and `internal/workqueue`, `internal/worksource` and `internal/worklistadapter` still in this tree are removed by the same decision's process cut. The body below is historical and its requirement IDs stay for traceability.  
+**Retirement note:** decision 0594 (owner, 2026-11-09) moved Corvint Tasks and its work-queue adapter to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy. The `corvint work` command and `internal/workqueue`, `internal/worksource` and `internal/worklistadapter` still in this tree are removed by the same decision's process cut; V1-5240 deleted `internal/worksource` and `internal/worklistadapter` on 2026-11-11 (b55635262 is the last tree with them), and `internal/workqueue` stays while `conformance/work-queue-v0` imports it. The body below is historical and its requirement IDs stay for traceability.  
 **Rollout class:** shadow-only  
 **Wire profiles:** `work-queue-policy/0`, `work-queue-snapshot/0`,
 `work-queue-detail/0`, `work-queue-checkpoint/0`, `work-queue-observation/0`,
