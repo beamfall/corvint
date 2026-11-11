@@ -8,6 +8,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -34,17 +35,101 @@ func locationSourceReason(source string) string {
 	if source == linknameSource || source == cgoSource {
 		return "has " + source + ", which can reach a location source the scan cannot see"
 	}
+	if source == builtinSource {
+		return "has " + source + ", which hides a builtin the location-source scan trusts"
+	}
 	return "calls " + source + ", whose value may name a repository path"
 }
 
 // linknameSource and cgoSource are the two ways a file can call a location
 // source without naming it: a //go:linkname directive binds a local name to
 // any function, and C code reads the environment and the working directory
-// itself (AFP-V0-3660).
+// itself (AFP-V0-3660). builtinSource is a package-level len or append: the
+// scan reads an unresolved len or append as the builtin, and a declaration in
+// another file of the package is unresolved in this one, so the file that
+// declares it holds the package instead.
 const (
 	linknameSource = "a //go:linkname directive"
 	cgoSource      = `cgo (import "C")`
+	builtinSource  = "a package-level declaration of len or append"
 )
+
+// trustedBuiltins are the predeclared functions sourceFlow recognises by an
+// unresolved name.
+var trustedBuiltins = map[string]bool{"len": true, "append": true}
+
+// redeclaresBuiltin reports whether body declares a package-level len or
+// append, or may and does not parse. A token scan finds each candidate at
+// brace depth 0 that is not plainly a call (`len(`); a candidate is confirmed
+// on the parsed declarations.
+func redeclaresBuiltin(body []byte) bool {
+	if !bytes.Contains(body, []byte("len")) && !bytes.Contains(body, []byte("append")) {
+		return false
+	}
+	var lexer scanner.Scanner
+	file := token.NewFileSet().AddFile("", -1, len(body))
+	lexer.Init(file, body, nil, 0)
+	depth, candidate := 0, false
+	previous := token.ILLEGAL
+	for !candidate {
+		_, kind, text := lexer.Scan()
+		if kind == token.EOF {
+			break
+		}
+		switch kind {
+		case token.LBRACE:
+			depth++
+		case token.RBRACE:
+			depth--
+		case token.IDENT:
+			if depth == 0 && trustedBuiltins[text] {
+				_, next, _ := lexer.Scan()
+				switch previous {
+				case token.FUNC, token.VAR, token.CONST, token.TYPE, token.COMMA, token.LPAREN, token.SEMICOLON:
+					candidate = true
+				}
+				candidate = candidate || next != token.LPAREN
+				previous = next
+				continue
+			}
+		}
+		previous = kind
+	}
+	if !candidate {
+		return false
+	}
+	parsed, err := parser.ParseFile(token.NewFileSet(), "", body, parser.SkipObjectResolution)
+	if err != nil {
+		parsed, err = parser.ParseFile(token.NewFileSet(), "", append([]byte("package locationsources\n"), body...), parser.SkipObjectResolution)
+	}
+	if err != nil {
+		return true
+	}
+	for _, declaration := range parsed.Decls {
+		switch declaration := declaration.(type) {
+		case *ast.FuncDecl:
+			if declaration.Recv == nil && trustedBuiltins[declaration.Name.Name] {
+				return true
+			}
+		case *ast.GenDecl:
+			for _, spec := range declaration.Specs {
+				switch spec := spec.(type) {
+				case *ast.ValueSpec:
+					for _, name := range spec.Names {
+						if trustedBuiltins[name.Name] {
+							return true
+						}
+					}
+				case *ast.TypeSpec:
+					if trustedBuiltins[spec.Name.Name] {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
 
 // linknameDirective reports a //go:linkname comment that starts a line, the
 // only place the compiler reads it; text inside a string literal is none.
@@ -70,8 +155,9 @@ func linknameDirective(body []byte) bool {
 type locationSourceKind int
 
 const (
-	sourceString      locationSourceKind = iota // one string result: a path or an environment value
-	sourceLookup                                // (string, bool): result 0 is the value
+	sourceString      locationSourceKind = iota // one string result: a path or a computed location
+	sourceEnvValue                              // one raw environment value, as os.Getenv returns it
+	sourceLookup                                // (string, bool): result 0 is a raw environment value
 	sourceEnvironment                           // []string of NAME=value entries
 	sourceCallerFile                            // runtime.Caller: result 1 is a file path
 	sourceFunc                                  // *runtime.Func: FileLine result 0 is a file path
@@ -79,15 +165,18 @@ const (
 	sourceFrame                                 // runtime.Frame: its File is a file path
 	sourceBounded                               // a location joined to plain literal components
 	sourceAlways                                // a working directory: no use is safe
+	sourceAbsolute                              // filepath.Abs: the working directory joined to its argument
 )
 
 // locationSourceFuncs maps an import path to its location sources.
 // runtime.Callers yields program counters only; a path needs FuncForPC or
-// CallersFrames, which are listed.
+// CallersFrames, which are listed. filepath.Abs of a relative path is the
+// working directory joined to it.
 var locationSourceFuncs = map[string]map[string]locationSourceKind{
-	"os":      {"Getenv": sourceString, "LookupEnv": sourceLookup, "Environ": sourceEnvironment, "ExpandEnv": sourceString},
-	"syscall": {"Getenv": sourceLookup, "Environ": sourceEnvironment, "Getwd": sourceAlways},
-	"runtime": {"Caller": sourceCallerFile, "FuncForPC": sourceFunc, "CallersFrames": sourceFrames},
+	"os":            {"Getenv": sourceEnvValue, "LookupEnv": sourceLookup, "Environ": sourceEnvironment, "ExpandEnv": sourceString},
+	"syscall":       {"Getenv": sourceLookup, "Environ": sourceEnvironment, "Getwd": sourceAlways, "Getcwd": sourceAlways},
+	"runtime":       {"Caller": sourceCallerFile, "FuncForPC": sourceFunc, "CallersFrames": sourceFrames},
+	"path/filepath": {"Abs": sourceAbsolute},
 }
 
 // parseFuncs are the calls whose result is a number, a boolean or a duration
@@ -97,9 +186,8 @@ var parseFuncs = map[string]map[string]bool{
 	"time":    {"ParseDuration": true},
 }
 
-// environmentEntryPrefix is a literal that starts one NAME=value entry of a
-// child process environment.
-var environmentEntryPrefix = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=$`)
+// environmentName is the name of an environment variable.
+var environmentName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // locationSources returns, sorted, each location source of body whose value
 // may form a path, as `os.Getenv` or `os.Getenv (dot import)`. imports maps
@@ -145,6 +233,9 @@ func locationSourceUses(body []byte, imports map[string]string, dotImported map[
 	}
 	if linknameDirective(body) {
 		found[linknameSource] = nil
+	}
+	if redeclaresBuiltin(body) {
+		found[builtinSource] = nil
 	}
 	qualified := map[string]string{}
 	for qualifier, importPath := range imports {
@@ -283,6 +374,7 @@ type sourceFlow struct {
 	imports      map[string]string
 	visiting     map[*ast.Object]bool
 	commands     *[]int // the os/exec selector positions of the commands the current value is the directory of
+	envName      string // the literal variable name of the environment source being followed, or ""
 }
 
 // referenceSafe reports whether reference, a source of kind, is a function
@@ -301,12 +393,43 @@ func (flow sourceFlow) referenceSafe(reference ast.Expr, kind locationSourceKind
 		return false
 	}
 	switch kind {
+	case sourceEnvValue:
+		flow.envName = environmentVariable(call)
 	case sourceLookup:
-		return flow.resultSafe(call, 0, sourceString)
+		flow.envName = environmentVariable(call)
+		return flow.resultSafe(call, 0, sourceEnvValue)
 	case sourceCallerFile:
 		return flow.resultSafe(call, 1, sourceString)
+	case sourceAbsolute:
+		// An absolute literal names itself; a plain relative literal is the
+		// working directory joined to components rule (c) reads; anything
+		// else may be the working directory itself (AFP-V0-3660).
+		if len(call.Args) != 1 {
+			return false
+		}
+		value, literal := locationLiteral(call.Args[0])
+		switch {
+		case literal && strings.HasPrefix(value, "/"):
+			return true
+		case literal && plainComponents([]string{value}):
+			return flow.resultSafe(call, 0, sourceBounded)
+		}
+		return flow.resultSafe(call, 0, sourceString)
 	}
 	return flow.valueSafe(call, kind)
+}
+
+// environmentVariable returns the literal variable name a Getenv or
+// LookupEnv call reads, or "" when the name is computed.
+func environmentVariable(call *ast.CallExpr) string {
+	if len(call.Args) != 1 {
+		return ""
+	}
+	name, ok := locationLiteral(call.Args[0])
+	if !ok || !environmentName.MatchString(name) {
+		return ""
+	}
+	return name
 }
 
 // resultSafe reports whether result index of the multi-valued call is used
@@ -418,8 +541,8 @@ func (flow sourceFlow) valueSafe(expression ast.Expr, kind locationSourceKind) b
 		return false
 	}
 	switch kind {
-	case sourceString:
-		return flow.stringSafe(expression, parent)
+	case sourceString, sourceEnvValue:
+		return flow.stringSafe(expression, parent, kind)
 	case sourceBounded:
 		return flow.boundedSafe(expression, parent)
 	case sourceEnvironment:
@@ -445,16 +568,17 @@ func (flow sourceFlow) valueSafe(expression ast.Expr, kind locationSourceKind) b
 
 // stringSafe lists the uses of a string value that cannot form a path: an
 // operand of a comparison, a switch tag, the argument of len or of a number,
-// boolean or duration parser, and the value of a NAME=value entry written into
-// a string slice for a child process.
-func (flow sourceFlow) stringSafe(expression ast.Expr, parent ast.Node) bool {
+// boolean or duration parser, and, for a raw environment value only, the
+// value of an entry of its own name in a child process's environment
+// (commandEnvironmentEntry).
+func (flow sourceFlow) stringSafe(expression ast.Expr, parent ast.Node, kind locationSourceKind) bool {
 	switch parent := parent.(type) {
 	case *ast.BinaryExpr:
 		switch parent.Op {
 		case token.EQL, token.NEQ, token.LSS, token.GTR, token.LEQ, token.GEQ:
 			return true
 		case token.ADD:
-			if parent.Y == expression && environmentEntry(parent.X) && flow.listElement(parent) {
+			if kind == sourceEnvValue && parent.Y == expression && flow.envName != "" && entryName(parent.X) == flow.envName && flow.commandEnvironmentEntry(parent) {
 				return true
 			}
 			if parent.X == expression && plainSuffix(parent.Y) {
@@ -538,10 +662,12 @@ func (flow sourceFlow) boundedSafe(expression ast.Expr, parent ast.Node) bool {
 }
 
 // boundedReads are the calls that read at or below their first argument and
-// return no path above it: import path to function names.
+// return no path: import path to function names. os.Open and os.OpenFile
+// return a file whose Name is the path, and filepath.Walk and WalkDir hand
+// their callback full paths below it, either of which filepath.Dir can climb
+// above the join, so they are not listed.
 var boundedReads = map[string]map[string]bool{
-	"os":            {"ReadFile": true, "Open": true, "OpenFile": true, "Stat": true, "Lstat": true, "ReadDir": true},
-	"path/filepath": {"WalkDir": true, "Walk": true},
+	"os": {"ReadFile": true, "Stat": true, "Lstat": true, "ReadDir": true},
 }
 
 // plainSuffix reports a string literal that spells a separator followed by
@@ -602,11 +728,11 @@ func locationLiteral(expression ast.Expr) (string, bool) {
 var pathTransforms = map[string]bool{"Dir": true, "Join": true, "Clean": true, "FromSlash": true, "ToSlash": true}
 
 // commandDirectory reports, and records, a location value stored as the Dir
-// of a command: the assignment `name.Dir = value` where name is a local
-// variable whose only assignment is its definition by one os/exec Command or
-// CommandContext call, and that is never named with Args. Whether that
-// command reads only an import graph is the planner's go list proof
-// (AFP-V0-2200, AFP-V0-3664), so the use is recorded, not judged.
+// of a command: the assignment `name.Dir = value` where name is a proven
+// command local (execCommandLocal) built by os/exec Command or
+// CommandContext, never named with Args or Path, and whose Dir is never read.
+// Whether that command reads only an import graph is the planner's go list
+// proof (AFP-V0-2200, AFP-V0-3664), so the use is recorded, not judged.
 func (flow sourceFlow) commandDirectory(expression ast.Expr, assignment *ast.AssignStmt) bool {
 	if assignment.Tok != token.ASSIGN || len(assignment.Lhs) != 1 || len(assignment.Rhs) != 1 || assignment.Rhs[0] != expression {
 		return false
@@ -616,88 +742,149 @@ func (flow sourceFlow) commandDirectory(expression ast.Expr, assignment *ast.Ass
 		return false
 	}
 	name, ok := target.X.(*ast.Ident)
-	if !ok || name.Obj == nil || name.Obj.Kind != ast.Var || flow.packageLevel[name.Obj] {
-		return false
-	}
-	definition, ok := name.Obj.Decl.(*ast.AssignStmt)
-	if !ok || definition.Tok != token.DEFINE || len(definition.Lhs) != 1 || len(definition.Rhs) != 1 {
-		return false
-	}
-	call, ok := definition.Rhs[0].(*ast.CallExpr)
 	if !ok {
 		return false
 	}
-	selector, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok || (selector.Sel.Name != "Command" && selector.Sel.Name != "CommandContext") {
+	built, ok := flow.execCommandLocal(name, false, func(member *ast.SelectorExpr) bool {
+		switch member.Sel.Name {
+		case "Args", "Path":
+			return false
+		case "Dir":
+			return flow.memberWritten(member)
+		}
+		return true
+	})
+	if !ok {
 		return false
 	}
-	qualifier, ok := selector.X.(*ast.Ident)
-	if !ok || qualifier.Obj != nil || flow.imports[qualifier.Name] != "os/exec" {
-		return false
+	*flow.commands = append(*flow.commands, int(built))
+	return true
+}
+
+// execCommandLocal reports whether name is a proven command local: a local
+// variable whose only assignment is its definition `name := exec.Command(...)`
+// or `exec.CommandContext(...)` (or, when literals, `exec.Cmd{...}` or
+// `&exec.Cmd{...}`), and whose every other use is the operand of a member
+// selector member allows. Such a command is never passed, returned, stored,
+// copied, reassigned or address-taken, so no code but these selectors sees
+// it. It returns the position of the os/exec selector that builds it.
+func (flow sourceFlow) execCommandLocal(name *ast.Ident, literals bool, member func(*ast.SelectorExpr) bool) (token.Pos, bool) {
+	if name.Obj == nil || name.Obj.Kind != ast.Var || flow.packageLevel[name.Obj] {
+		return token.NoPos, false
+	}
+	definition, ok := name.Obj.Decl.(*ast.AssignStmt)
+	if !ok || definition.Tok != token.DEFINE || len(definition.Lhs) != 1 || len(definition.Rhs) != 1 {
+		return token.NoPos, false
+	}
+	built := flow.execConstructor(definition.Rhs[0], literals)
+	if built == token.NoPos {
+		return token.NoPos, false
 	}
 	for _, use := range flow.uses[name.Obj] {
 		if use == definition.Lhs[0] {
 			continue
 		}
-		if flow.written(use) {
-			return false
-		}
-		if member, ok := flow.parents[use].(*ast.SelectorExpr); ok && member.X == use && member.Sel.Name == "Args" {
-			return false
+		selector, ok := flow.parents[use].(*ast.SelectorExpr)
+		if !ok || selector.X != use || !member(selector) {
+			return token.NoPos, false
 		}
 	}
-	*flow.commands = append(*flow.commands, int(selector.Pos()))
-	return true
+	return built, true
 }
 
-// environmentEntry reports whether prefix, the left operand of `+ value`,
-// ends a NAME=value entry's name: the literal "NAME=" or any expression
-// followed by a literal ending in "=" (key + "=").
-func environmentEntry(prefix ast.Expr) bool {
-	if sum, ok := prefix.(*ast.BinaryExpr); ok && sum.Op == token.ADD {
-		literal, ok := sum.Y.(*ast.BasicLit)
-		if !ok || literal.Kind != token.STRING {
-			return false
-		}
-		value, err := strconv.Unquote(literal.Value)
-		return err == nil && strings.HasSuffix(value, "=")
+// execConstructor returns the position of the os/exec selector of a Command
+// or CommandContext call, or, when literals, of the type of an exec.Cmd
+// composite literal or its address; otherwise token.NoPos.
+func (flow sourceFlow) execConstructor(expression ast.Expr, literals bool) token.Pos {
+	if address, ok := expression.(*ast.UnaryExpr); ok && address.Op == token.AND && literals {
+		expression = address.X
 	}
-	literal, ok := prefix.(*ast.BasicLit)
-	if !ok || literal.Kind != token.STRING {
+	var selector *ast.SelectorExpr
+	switch expression := expression.(type) {
+	case *ast.CallExpr:
+		selector, _ = expression.Fun.(*ast.SelectorExpr)
+		if selector == nil || selector.Sel.Name != "Command" && selector.Sel.Name != "CommandContext" {
+			return token.NoPos
+		}
+	case *ast.CompositeLit:
+		selector, _ = expression.Type.(*ast.SelectorExpr)
+		if !literals || selector == nil || selector.Sel.Name != "Cmd" {
+			return token.NoPos
+		}
+	default:
+		return token.NoPos
+	}
+	qualifier, ok := selector.X.(*ast.Ident)
+	if !ok || qualifier.Obj != nil || flow.imports[qualifier.Name] != "os/exec" {
+		return token.NoPos
+	}
+	return selector.Pos()
+}
+
+// memberWritten reports whether member is a target of a plain assignment,
+// which replaces the field and reads nothing.
+func (flow sourceFlow) memberWritten(member *ast.SelectorExpr) bool {
+	assignment, ok := flow.parents[member].(*ast.AssignStmt)
+	if !ok || assignment.Tok != token.ASSIGN {
 		return false
 	}
-	value, err := strconv.Unquote(literal.Value)
-	return err == nil && environmentEntryPrefix.MatchString(value)
-}
-
-// listElement reports whether expression is an element of a composite
-// literal (not a key or a keyed value) or a variadic argument of the builtin
-// append, so it is one entry of a string slice.
-func (flow sourceFlow) listElement(expression ast.Expr) bool {
-	switch parent := flow.parents[expression].(type) {
-	case *ast.CompositeLit:
-		for _, element := range parent.Elts {
-			if element == expression {
-				return true
-			}
-		}
-	case *ast.CallExpr:
-		if !builtinAppend(parent) {
-			return false
-		}
-		for _, argument := range parent.Args[1:] {
-			if argument == expression {
-				return true
-			}
+	for _, target := range assignment.Lhs {
+		if target == member {
+			return true
 		}
 	}
 	return false
 }
 
-// environmentSafe allows the whole environment only as a child process's
-// environment: the value of an Env key or of an assignment to an Env field,
-// directly or through the builtin append, slices.Clip or slices.Clone, whose
-// result is again judged as an environment.
+// environmentMember allows every member of a command but a read of its
+// environment: Env only as a plain assignment target, never Environ.
+func (flow sourceFlow) environmentMember(member *ast.SelectorExpr) bool {
+	switch member.Sel.Name {
+	case "Env":
+		return flow.memberWritten(member)
+	case "Environ":
+		return false
+	}
+	return true
+}
+
+// entryName returns NAME for the string literal "NAME=", or "".
+func entryName(prefix ast.Expr) string {
+	value, ok := locationLiteral(prefix)
+	name, entry := strings.CutSuffix(value, "=")
+	if !ok || !entry || !environmentName.MatchString(name) {
+		return ""
+	}
+	return name
+}
+
+// commandEnvironmentEntry reports whether entry, a `"NAME=" + value` sum, is
+// an element of a string slice literal, or a variadic argument of the builtin
+// append, whose value is used safely as an environment list
+// (environmentSafe): it reaches only the Env of a proven command local.
+func (flow sourceFlow) commandEnvironmentEntry(entry ast.Expr) bool {
+	switch container := flow.parents[entry].(type) {
+	case *ast.CompositeLit:
+		list, ok := container.Type.(*ast.ArrayType)
+		if !ok || list.Len != nil || !slices.Contains(container.Elts, entry) {
+			return false
+		}
+		return flow.valueSafe(container, sourceEnvironment)
+	case *ast.CallExpr:
+		if !builtinAppend(container) || !slices.Contains(container.Args[1:], entry) {
+			return false
+		}
+		return flow.valueSafe(container, sourceEnvironment)
+	}
+	return false
+}
+
+// environmentSafe allows an environment list only as a child process's
+// environment: the value of the Env key of an exec.Cmd literal or of an
+// assignment to the Env field of a proven command local whose environment is
+// never read back (execCommandLocal, environmentMember), directly or through
+// the builtin append, slices.Clip or slices.Clone, whose result is again
+// judged as an environment list; or the argument of len.
 func (flow sourceFlow) environmentSafe(expression ast.Expr, parent ast.Node) bool {
 	switch parent := parent.(type) {
 	case *ast.CallExpr:
@@ -720,13 +907,41 @@ func (flow sourceFlow) environmentSafe(expression ast.Expr, parent ast.Node) boo
 		return ok && qualifier.Obj == nil && flow.imports[qualifier.Name] == "slices" && flow.valueSafe(parent, sourceEnvironment)
 	case *ast.KeyValueExpr:
 		key, ok := parent.Key.(*ast.Ident)
-		return ok && key.Name == "Env" && parent.Value == expression
+		if !ok || key.Name != "Env" || parent.Value != expression {
+			return false
+		}
+		literal, ok := flow.parents[parent].(*ast.CompositeLit)
+		if !ok {
+			return false
+		}
+		var bound ast.Node = literal
+		if address, ok := flow.parents[literal].(*ast.UnaryExpr); ok && address.Op == token.AND {
+			bound = address
+		}
+		definition, ok := flow.parents[bound].(*ast.AssignStmt)
+		if !ok || len(definition.Lhs) != 1 || len(definition.Rhs) != 1 || definition.Rhs[0] != bound {
+			return false
+		}
+		name, ok := definition.Lhs[0].(*ast.Ident)
+		if !ok {
+			return false
+		}
+		_, proven := flow.execCommandLocal(name, true, flow.environmentMember)
+		return proven
 	case *ast.AssignStmt:
 		if len(parent.Lhs) != 1 || len(parent.Rhs) != 1 || parent.Rhs[0] != expression || parent.Tok != token.ASSIGN {
 			return false
 		}
 		selector, ok := parent.Lhs[0].(*ast.SelectorExpr)
-		return ok && selector.Sel.Name == "Env"
+		if !ok || selector.Sel.Name != "Env" {
+			return false
+		}
+		name, ok := selector.X.(*ast.Ident)
+		if !ok {
+			return false
+		}
+		_, proven := flow.execCommandLocal(name, true, flow.environmentMember)
+		return proven
 	}
 	return false
 }

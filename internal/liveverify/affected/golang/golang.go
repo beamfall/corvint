@@ -594,22 +594,23 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		// of the unit, so a unit those already hold keeps naming them
 		// (AFP-V0-3663). A source whose only unproven use is the directory of
 		// a command waits for the go list proof (AFP-V0-3664,
-		// applyContingentReads).
-		if kinds == nil || len(kinds) > 0 {
-			every, everyDotted := qualifiedImports(file.Imports, func(string) bool { return true })
-			uses := locationSourceUses(body, every, everyDotted)
-			for _, source := range sortedKeys(uses) {
-				reason := relative + " " + locationSourceReason(source)
-				if kinds != nil || locationHolds(uses[source]) {
-					sourceReads = append(sourceReads, sourceRead{target: fileReads, reason: reason, test: isTest})
-					continue
-				}
-				read := contingentRead{reason: reason, relative: relative, test: isTest, frame: strings.HasPrefix(source, "runtime.")}
-				for _, use := range uses[source] {
-					read.commands = append(read.commands, use.Commands...)
-				}
-				*contingent = append(*contingent, read)
+		// applyContingentReads). A source is no lexical reason, so a
+		// `fixtures` declaration (AFP-V0-9005) keeps it; under `.go go.mod`
+		// (AFP-V0-9000) it is one of the file's reasons the declared globs
+		// replace (AFP-V0-3660).
+		every, everyDotted := qualifiedImports(file.Imports, func(string) bool { return true })
+		uses := locationSourceUses(body, every, everyDotted)
+		for _, source := range sortedKeys(uses) {
+			reason := relative + " " + locationSourceReason(source)
+			if kinds != nil || locationHolds(uses[source]) {
+				sourceReads = append(sourceReads, sourceRead{target: fileReads, reason: reason, test: isTest})
+				continue
 			}
+			read := contingentRead{reason: reason, relative: relative, test: isTest}
+			for _, use := range uses[source] {
+				read.commands = append(read.commands, use.Commands...)
+			}
+			*contingent = append(*contingent, read)
 		}
 		if isTest {
 			tests = append(tests, relative)
