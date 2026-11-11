@@ -62,6 +62,7 @@
         "internal/specindex",
         "internal/taskprojection",
         "internal/tcq",
+        "internal/testid",
         "internal/testplatform",
         "internal/testsupport",
         "internal/testvalidity",
