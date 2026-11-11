@@ -157,3 +157,43 @@ func TestDMFV1005MaintainAndCitationsWorktree(t *testing.T) {
 		t.Fatalf("text worktree line %d %q", code, out.String())
 	}
 }
+
+// DMF-V1-007: generate into docs/flows records it; check without --output-dir compares it and
+// reports a hand-edited page. Generated outside the root, nothing is recorded and check without
+// --output-dir reports output NOT_CHECKED and clean false.
+func TestDMFV1007DocsFlowsCheckRecordedOutput(t *testing.T) {
+	root, _, run, source := flowsDocsFixture(t)
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(root, "docs", "flows")
+	code, raw, stderr := run("generate", "--revision", source, "--scope", "app", "--output-dir", destination)
+	var m flowdocs.Manifest
+	if err := json.Unmarshal(raw, &m); code != 0 || err != nil || m.OutputDir != "docs/flows" {
+		t.Fatalf("generate %d %v %q %s", code, err, m.OutputDir, stderr)
+	}
+	previous := filepath.Join(destination, "generation.json")
+	code, raw, stderr = run("check", "--revision", source, "--previous", previous)
+	check := decodeFlowsCheck(t, raw)
+	if code != 0 || !check.Clean || check.Output != flowdocs.OutputChecked || check.OutputDir != "docs/flows" {
+		t.Fatalf("recorded clean %d %+v %s", code, check, stderr)
+	}
+	page := firstPage(t, destination)
+	if err := os.WriteFile(filepath.Join(destination, filepath.FromSlash(page)), []byte("# Hand edit\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, raw, _ = run("check", "--revision", source, "--previous", previous)
+	check = decodeFlowsCheck(t, raw)
+	if code != 1 || check.Clean || !slices.Equal(check.OutputDifferences, []string{page}) {
+		t.Fatalf("hand edit %d %+v", code, check)
+	}
+	outside := filepath.Join(t.TempDir(), "out")
+	if code, _, stderr = run("generate", "--revision", source, "--scope", "app", "--output-dir", outside); code != 0 {
+		t.Fatalf("generate outside %d %s", code, stderr)
+	}
+	code, raw, _ = run("check", "--revision", source, "--previous", filepath.Join(outside, "generation.json"))
+	check = decodeFlowsCheck(t, raw)
+	if code != 1 || check.Clean || check.Output != flowdocs.OutputNotChecked || check.OutputReason != flowdocs.OutputNoDir {
+		t.Fatalf("no recorded directory %d %+v", code, check)
+	}
+}

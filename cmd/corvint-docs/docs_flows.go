@@ -114,7 +114,9 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 			}
 			if err == nil {
 				var r *flowdocs.Result
-				r, err = flowdocs.Generate(ctx, o.root, flowdocs.Options{Revision: o.revision, Scope: o.scope, Corpus: corpus, Flows: flows})
+				// DMF-V1-007: an output directory inside the root is recorded for docs flows check.
+				recorded, _ := repositoryRelative(o.root, o.output)
+				r, err = flowdocs.Generate(ctx, o.root, flowdocs.Options{Revision: o.revision, Scope: o.scope, OutputDir: recorded, Corpus: corpus, Flows: flows})
 				if err == nil {
 					err = flowdocs.Materialize(o.output, r)
 					value = r.Manifest
@@ -124,7 +126,11 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 			var check flowdocs.Check
 			check, err = flowdocs.CheckRevision(ctx, o.root, previous, o.revision, o.output)
 			if err == nil {
-				check.Worktree = docsFlowsWorktree(ctx, o.root, previous, o.output)
+				compared := check.OutputDir
+				if compared != "" && !filepath.IsAbs(compared) && o.output == "" {
+					compared = filepath.Join(o.root, filepath.FromSlash(compared))
+				}
+				check.Worktree = docsFlowsWorktree(ctx, o.root, previous, compared)
 			}
 			value = check
 			if !check.Clean {
@@ -203,7 +209,10 @@ bindings are bounded lexical observations, never accepted intent or runtime proo
 --flows FILE groups declarations into the project's declared flows; unresolved
 members and unassigned declarations are reported, never generated as flows.
 Check and finalize are read-only. Check reports each stable claim/paragraph's
-fresh/stale/unresolved source binding and optional byte drift (exit 1).
+fresh/stale/unresolved source binding and byte drift of the rendered pages (exit 1).
+Generate records an output directory inside --root in generation.json; check compares
+--output-dir, else that recorded directory. With neither, or a directory that does not
+exist, output is NOT_CHECKED with a reason and the check is never clean (exit 1).
 Finalize admits separately committed provider bytes without changing source anchors.
 See docs/FLOW-DOCUMENTATION.md for limits and original corpus/runtime joins.
 `
