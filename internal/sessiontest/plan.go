@@ -327,12 +327,17 @@ func Build(input Input) (Manifest, error) {
 	}
 	fullReason := ""
 	goRun := []string{}
+	// goAttributed: the Go selector ran over a Go universe and attributed
+	// every UNOWNED_DIRTY_PATH of the plan (gateselect.UnownedPathFallback).
+	goAttributed := false
 	switch verdict, detail, _ := strings.Cut(input.GoSelection, " "); verdict {
 	case "FALLBACK":
 		fullReason = detail
 	case "run":
 		goRun = strings.Fields(detail)
+		goAttributed = len(input.Universe) != 0
 	case "NOTHING":
+		goAttributed = len(input.Universe) != 0
 	default:
 		fullReason = "no AFP-V0-012 attribution verdict"
 	}
@@ -390,6 +395,17 @@ func Build(input Input) (Manifest, error) {
 			}
 			continue
 		}
+		if entry.Reason == "UNOWNED_DIRTY_PATH" && !goAttributed {
+			// RNC-V1-004, owner decision R32: with no Go attribution verdict
+			// no rule attributes the path, so no runner instance owns it and
+			// every test runs, with the named reason. A Go verdict of run or
+			// NOTHING means the selector found a Go rule for every unowned
+			// path; it falls back with the same reason when it does not.
+			if fullReason == "" {
+				fullReason = gateselect.UnownedPathFallback + ": " + entry.Detail
+			}
+			continue
+		}
 		if allowedUnknown(entry) {
 			continue // an allowlisted entry hides no reader a narrowed run omits (AFP-V0-028)
 		}
@@ -404,11 +420,6 @@ func Build(input Input) (Manifest, error) {
 			// deciding driver names it; Go selection is unchanged (AFP-V0-2750).
 			languages[language] = true
 			continue
-		}
-		if fullReason == "" && entry.Reason == "UNOWNED_DIRTY_PATH" {
-			// RNC-V1-004, owner decision R32: a changed path no runner
-			// instance owns runs every test, with the named reason.
-			fullReason = gateselect.UnownedPathFallback + ": " + entry.Detail
 		}
 		if fullReason == "" {
 			fullReason = fmt.Sprintf("plan.unknown entry outside the AFP-V0-028 allowlist: %s %s", entry.Reason, entry.Detail)

@@ -22,12 +22,11 @@ import (
 func TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980(t *testing.T) {
 	root, _, log := sessionFixture(t, "pass")
 	for name, body := range map[string]string{
-		"index/index.go":                    "package index\n",
-		"index/index_test.go":               "package index\n\nimport \"testing\"\n\nfunc TestPaths(t *testing.T) {}\n",
-		"specs/INDEX.json":                  `[{"implementation":["skills/x/SKILL.md"]}]`,
-		"skills/x/SKILL.md":                 "skill\n",
-		".corvint/existence-readers.json":   `{"profile":"corvint-existence-readers/0","entries":[{"package":"index","manifests":["specs/INDEX.json"],"reason":"stats implementation paths"}]}`,
-		".corvint/documentation-paths.json": `{"profile":"corvint-documentation-paths/0","paths":["skills/"]}`,
+		"index/index.go":                  "package index\n",
+		"index/index_test.go":             "package index\n\nimport \"testing\"\n\nfunc TestPaths(t *testing.T) {}\n",
+		"specs/INDEX.json":                `[{"implementation":["skills/x/SKILL.md"]}]`,
+		"skills/x/SKILL.md":               "skill\n",
+		".corvint/existence-readers.json": `{"profile":"corvint-existence-readers/0","entries":[{"package":"index","manifests":["specs/INDEX.json"],"reason":"stats implementation paths"}]}`,
 	} {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
 			t.Fatal(err)

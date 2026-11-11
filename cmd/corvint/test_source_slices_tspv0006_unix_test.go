@@ -204,9 +204,7 @@ func TestTSPV0006DryRunSlicesSourceChanges(t *testing.T) {
 			map[string]string{"p/p.go": edit("strings.ToUpper(s) +", "strings.ToTitle(s) +"), "u/u.go": "package u\n\nfunc U() string { return \"v\" }\n"}},
 		{"a new file", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/extra.go (p/extra.go is new)",
 			map[string]string{"p/extra.go": "package p\n\nfunc Extra() int { return 1 }\n"}},
-		// An assembly file is a path no runner owns, so the plan runs every
-		// test whole (RNC-V1-004, owner decision R32).
-		{"an assembly file", "go:example.test/m/p", "",
+		{"an assembly file", "go:example.test/m/p", "(also selected by ENCLOSING_PACKAGE via p/p_amd64.s)",
 			map[string]string{"p/p.go": edit("strings.ToUpper(s) +", "strings.ToTitle(s) +"), "p/p_amd64.s": "// assembly\n"}},
 		{"a linkname directive", "go:example.test/m/p", "(p/link.go names go:linkname)",
 			map[string]string{"p/p.go": edit("strings.ToUpper(s) +", "strings.ToTitle(s) +"), "p/link.go": "package p\n\nimport _ \"unsafe\"\n\n//go:linkname now time.now\nfunc now() (int64, int32, int64)\n"}},
