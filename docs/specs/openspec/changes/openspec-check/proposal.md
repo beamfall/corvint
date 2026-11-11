@@ -1,7 +1,7 @@
 # Change proposal: Go check of the OpenSpec change folders and their propose, apply and archive stages
 
 Change name: `openspec-check`
-Ticket: none filed yet (task 1.1 files it in `.taskman/`, milestone `v1-0`)
+Ticket: V1-5399 (filed by the orchestrator in `.taskman/`, milestone `v1-0`)
 Product requirement served: PROD-INT-011 and PROD-INT-010 in `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: `docs/specs/openspec-check-v1.md`, a new spec with prefix `OSC-V1`
 Requirement IDs this change adds: OSC-V1-001 to OSC-V1-012
@@ -11,8 +11,8 @@ Owner answers this change implements: G14, owner decision R37 (2026-11-09), owne
 (2026-11-09), owner decision H9 (2026-11-10), owner decision H12 (2026-11-10), owner decision H13
 (2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
-Delivery status: not-started
-Written before dispatch: yes. No lane has been started for this change.
+Delivery status: experimental (lane `oscheck`, V1-5399)
+Written before dispatch: yes. Lane `oscheck` started on 2026-11-11.
 
 This change follows the G14 layout: `proposal.md` (this file), `design.md`, `tasks.md` and
 `specs/openspec-check/spec.md`.

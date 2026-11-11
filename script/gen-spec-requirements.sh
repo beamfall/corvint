@@ -392,6 +392,14 @@ sub header_value {
     return $blob =~ /^[^\S\n]*(?:- )?[^\S\n]*(?:\Q$key\E|\Q$bold\E)([^\n]*)/m ? trim($1) : undef;
 }
 
+# health_class is the first word of the `Health:` line before the first `## ` heading, or undef
+# (OSC-V1-008); tools/openspec-check checks the word against the closed set.
+sub health_class {
+    my ($blob) = @_;
+    my ($head) = $blob =~ /\A(.*?)(?=^## |\z)/ms;
+    return defined $head && $head =~ /^Health:[^\S\n]*(\S+)/m ? $1 : undef;
+}
+
 # field_line is the 1-based line number of the header line header_value reads, or of the Agent
 # digest `- KEY:` line, so a refusal can name it as path:line (SRG-V0-950).
 sub field_line {
@@ -459,6 +467,7 @@ for my $file (sort @specs) {
         intent_line => field_line($blob, 'Intent status:'), status_line => field_line($blob, 'Status', 1),
         claim_line => field_line($blob, 'Claim', 1),
         delivery_line => field_line($blob, 'Delivery status:'),
+        health => health_class($blob),
     };
     # SRG-V0-891 (V1-3295): the ## Requirements section's line range, tracked as
     # script/check-requirement-definitions.sh (RDG-V0-021) tracks it, so the generator refuses an
@@ -1031,12 +1040,15 @@ sub index_text {
     ref $entries eq 'ARRAY' or die "docs/specs/INDEX.json: not a JSON array\n";
     my %listed;
     for my $entry (@$entries) {
-        ref $entry eq 'HASH' && join(',', sort keys %$entry) eq join(',', sort @keys)
-            or die "docs/specs/INDEX.json: every entry needs exactly the keys @keys\n";
+        # OSC-V1-008: `health` is optional and owned by the spec's `Health:` line.
+        my @have = sort grep { $_ ne 'health' } keys %$entry;
+        ref $entry eq 'HASH' && join(',', @have) eq join(',', sort @keys)
+            or die "docs/specs/INDEX.json: every entry needs exactly the keys @keys (and an optional health)\n";
         my $path = $entry->{path};
         !$listed{$path}++ or die "docs/specs/INDEX.json: duplicate entry $path\n";
         my $spec = $header{$path} or die "docs/specs/INDEX.json: $path is not a tracked spec\n";
         $entry->{$_} = $spec->{$_} for grep { defined $spec->{$_} } qw(intent delivery claim);
+        if (defined $spec->{health}) { $entry->{health} = $spec->{health} } else { delete $entry->{health} }
         # SRG-V0-979 (V1-3797): a superseded digest's Successor owns supersededBy, so retiring a
         # spec needs no hand edit of INDEX.json for internal/specindex to accept it.
         my $successor = successor_path($spec->{successor});
@@ -1056,6 +1068,7 @@ sub index_text {
             supersededBy => successor_path($header{$file}{successor}),
             closableToday => JSON::PP::false,
             implementation => [],
+            (defined $header{$file}{health} ? (health => $header{$file}{health}) : ()),
         };
     }
     my $json_string = sub {
@@ -1079,7 +1092,8 @@ sub index_text {
     };
     my @objects = map {
         my $entry = $_;
-        "  {\n" . join(",\n", map { qq(    "$_": ) . $json_value->($entry->{$_}) } @keys) . "\n  }";
+        "  {\n" . join(",\n", map { qq(    "$_": ) . $json_value->($entry->{$_}) }
+            @keys, exists $entry->{health} ? 'health' : ()) . "\n  }";
     } @$entries;
     my $out = "[\n" . join(",\n", @objects) . "\n]\n";
     utf8::encode($out);
@@ -1141,6 +1155,8 @@ sub readme_text {
         my $path = $link =~ m{\A\.\./} ? $link : "docs/specs/$link";
         my $spec = $header{$path} or next;
         $rowed{$path} = 1;
+        # OSC-V1-008: the spec's Health class is a `; health CLASS` suffix of the Contract cell.
+        $columns[2] =~ s/;[^\S\n]*health[^\S\n]+\S+(?=\s*\z)//;
         # SRG-V0-043: a requirement range written right after the link, alone or before a `;`, is
         # the span of the ids of that prefix the spec defines, so it cannot drift from the TSV.
         if ($columns[2] =~ /\A(.*?\]\([^)]+\)\s+)([A-Z][A-Z0-9-]*-)([0-9]{3,})(?:\.\.([0-9]{3,}))?(?=\s*(?:;|\z))/s) {
@@ -1158,6 +1174,9 @@ sub readme_text {
             my $prefix = $row_prefix->($path);
             my $range = $prefix eq '' ? '' : spec_range($path, $prefix);
             substr($columns[2], length $1, 0) = " $range" if $range ne '';
+        }
+        if (defined $spec->{health}) {
+            $columns[2] =~ s/(\s*)\z/; health $spec->{health}$1/;
         }
         $columns[3] = $cell->($columns[3], $spec->{intent});
         $columns[4] = $cell->($columns[4], $spec->{delivery});
@@ -1193,8 +1212,9 @@ sub readme_text {
         my $name = $file =~ s{\Adocs/specs/}{}r;
         my $prefix = $row_prefix->($file);
         my $range = $prefix eq '' ? '' : spec_range($file, $prefix);
-        my $row = sprintf("| %s | [`%s`](%s)%s | %s | %s | %s |\n",
-            new_spec_title($file), $name, $name, $range eq '' ? '' : " $range", @{$header{$file}}{qw(intent delivery claim)});
+        my $health = defined $header{$file}{health} ? "; health $header{$file}{health}" : '';
+        my $row = sprintf("| %s | [`%s`](%s)%s%s | %s | %s | %s |\n",
+            new_spec_title($file), $name, $name, $range eq '' ? '' : " $range", $health, @{$header{$file}}{qw(intent delivery claim)});
         utf8::encode($row);
         push @added, $row;
     }
