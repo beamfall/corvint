@@ -13,7 +13,7 @@ Authoritative inputs: `docs/decisions/0058-learning-loop-evaluation-gate-and-ret
 
 ## Agent digest
 - Claim: `internal/secretscreen.Pattern` and its prefilter redact credential-shaped text, with a prefilter that returns exactly the complete pattern's matches.
-- Status: accepted (decision 0058); experimental.
+- Status: accepted (decision 0058; moved from the learned-trace spec by decision 0597) / experimental
 - Exists: `internal/secretscreen` (`Pattern`, the writer prefilter in `prefilter.go`, the Go verbose and JSON PASS markers in `secretscreen.go`), consumed live by `cmd/corvint/runs.go`, `internal/appflows`, `internal/appmap`, `internal/gotestrun`, `internal/doccorpus`, `internal/diagnostic` and others.
 - Blocked on: nothing; these requirements keep governing live code after the trace writer and reader that first consumed them were deleted (decision 0597).
 - Read next: `LTA-V0-004`, then `LTA-V0-014`.
