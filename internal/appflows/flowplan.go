@@ -162,6 +162,9 @@ func JoinFlowPlan(ctx context.Context, root string, graph *affected.Graph, plan 
 		return plan
 	}
 	plan.Selected = slices.Clone(plan.Selected)
+	if refusal := AsFlowsRefusal(err); refusal != nil && refusal.Unsupported() {
+		return flowsSchemaUnsupported(plan, refusal)
+	}
 	if err != nil {
 		return flowsDeclarationInvalid(plan, "", err.Error())
 	}
@@ -197,6 +200,19 @@ func flowsDeclarationInvalid(plan affected.Plan, dir, detail string) affected.Pl
 		Selected: []affected.E2ESelection{},
 		Unknown: []affected.Unknown{{Reason: affected.UnknownFlowsDeclarationInvalid, Detail: FlowsDeclarationPath,
 			Hint: detail + "; no E2E test is narrowed until the declaration is repaired (APK-V0-004)"}}}
+	return plan
+}
+
+// flowsSchemaUnsupported is the E2E member of a declaration whose schema
+// version this build does not read (FSV-V1-004): FULL, since every E2E test
+// must run and no member of a newer file is trusted to narrow or even list
+// them, with the FLOWS_SCHEMA_UNSUPPORTED unknown naming the found and
+// supported versions. The unit and integration selections are unchanged.
+func flowsSchemaUnsupported(plan affected.Plan, refusal *FlowsRefusal) affected.Plan {
+	plan.E2E = &affected.E2EPlan{Scope: affected.E2EScopeFull, Inventory: affected.E2EInventory{Source: affected.E2EInventoryFlows, State: "n/a"},
+		Selected: []affected.E2ESelection{},
+		Unknown: []affected.Unknown{{Reason: affected.UnknownFlowsSchemaUnsupported, Detail: refusal.Detail(),
+			Hint: refusal.Error() + "; every E2E test is selected and none is narrowed or listed from the file until a build that reads its version plans it"}}}
 	return plan
 }
 

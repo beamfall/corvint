@@ -131,7 +131,7 @@ approval if either run differs from its expected output. (G5; PROD-INT-016; PROD
 | FSV-V1-001 | 2.1 | `internal/appflows/flowschema.go` (`parseFlowsProfile`, `ReadFlowsDeclaration`) | `TestFSVV1001VersionZeroReads_V15410`, `TestFSVV1004MalformedProfileInvalid_V15410` |
 | FSV-V1-002 | 2.1 | `flowsSchemas` in `internal/appflows/flowschema.go`; `internal/appflows/testdata/flows-schema/0.members` and `0.golden.json` | `TestFSVV1002MemberListsAreFrozen_V15410`, `TestFSVV1002AddedMemberWithoutNewVersionFails_V15410` |
 | FSV-V1-003 | 2.2 | `appflows.ReadFlowsDeclaration` is the one reader; `internal/pathbrief` names the path through `appflows.FlowsDeclarationPath` | `TestFSVV1003OneFlowsReader_V15410`, `TestFSVV1003ScanNamesSecondReader_V15410` (`internal/appflows/flowsreaderscan`) |
-| FSV-V1-004 | 2.3, 3.1 | not yet built | not yet built |
+| FSV-V1-004 | 2.3, 3.1 | reader: `internal/appflows/flowschema.go`; planner: `flowsSchemaUnsupported` in `internal/appflows/flowplan.go`; `corvint test`: `testE2EUnits` in `cmd/corvint/test.go`; error catalogue entry (task 3.1): not yet built | `TestFSVV1004UnsupportedVersionRefused_V15410`, `TestFSVV1004MalformedProfileInvalid_V15410`, `TestFSVV1004UnsupportedVersionSelectsEveryE2ETest_V15410`, `TestFSVV1004UnsupportedVersionViaCLI_V15410`, `TestSTRV08706PlanE2EUnits`; catalogue check: not yet built |
 | FSV-V1-005 | 2.4 | not yet built | not yet built |
 | FSV-V1-006 | 2.5 | not yet built | not yet built |
 | FSV-V1-007 | 2.6 | not yet built | not yet built |
