@@ -28,5 +28,5 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    PROD-TEST-020 end-to-end test; a read-only test showing the store unchanged after each reader.
 - [x] 7 Check that no selection path reads the store.
    Requirements: RVD-V1-011. Proof: a test that a failing stored result does not change the plan.
-- [ ] 8 Record the trace and the delivery state in the spec.
+- [x] 8 Record the trace and the delivery state in the spec.
    Requirements: all. Proof: the trace check maps every RVD-V1 ID to a test.

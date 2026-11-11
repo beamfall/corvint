@@ -4466,7 +4466,7 @@
     "title": "Run evidence V1",
     "reqPrefix": "RVD-V1",
     "intent": "accepted",
-    "delivery": "not-started",
+    "delivery": "partial",
     "claim": "A private append-only store under the Git directory keeps each test run, written by test and ingest commands and read by default by flow reports.",
     "dependsOn": [],
     "supersededBy": null,
