@@ -104,7 +104,7 @@ func goLocation() *Location {
 	return l
 }
 
-// jsDeclarationAnchor reports whether the outcome's anchor is the test's declaration: a profiled
+// JSDeclarationAnchor reports whether the outcome's anchor is the test's declaration: a profiled
 // receipt's reporter takes test.location, and stock Playwright's is the spec's own location unless
 // it failed, when the anchor is the failure frame. Vitest anchors are failure frames.
 func JSDeclarationAnchor(receipt jstestreceipt.Receipt, outcome jstestreceipt.TestOutcome) bool {
