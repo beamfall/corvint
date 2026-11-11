@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
+	"github.com/Beamfall/corvint/internal/selectionswitch"
 )
 
 // AffectedTool answers which tests a change requires: the affected-summary/1
@@ -21,6 +23,12 @@ const AffectedTool = "corvint.affected"
 
 // AffectedErrorProfile is the group's own tool-error object.
 const AffectedErrorProfile = "corvint-affected-mcp-tool-error/0"
+
+// AffectedSelectAllProfile is the successful answer that selects every test
+// with a typed reason, where the CLI would exit 2 instead (MTT-V1-008,
+// MTT-V1-011): an MCP call cannot hand the user an exit status, and "run
+// everything, here is why" never narrows.
+const AffectedSelectAllProfile = "affected-select-all/1"
 
 // AffectedOversizedCode is the tool error for a verdict whose result cannot
 // fit one MCP message; it names the CLI as the way to read it (MMR-V0-1118).
@@ -59,7 +67,10 @@ type Affected struct {
 	Root    string
 	Binding *rootbind.Binding
 	Run     AffectedRunner
-	gate    chan struct{}
+	// Lookup reads the server's environment for CORVINT_SELECTION; nil is
+	// os.LookupEnv.
+	Lookup func(string) (string, bool)
+	gate   chan struct{}
 }
 
 // NewAffected is the group for root with its own one-run gate.
@@ -75,6 +86,7 @@ func (group Affected) Tools() []bridge.ToolDescriptor {
 			"without base it plans the dirty worktree alone. The verdict carries the plan scope, dirty/selected/excluded/unknown counts, unknown reasons and the sorted tier-0 and tier-1 unit names; " +
 			"missing evidence widens the scope or stays UNKNOWN, never selects fewer tests. Read-only; served by corvint mcp only. " +
 			"One planner runs at a time per root. A verdict too large for one MCP message is the tool error verdict-oversized: read it with the CLI instead. " +
+			"CORVINT_SELECTION in the server's environment (full, full:<runner>[,<runner>], or any unknown value) makes the answer an affected-select-all/1 result that selects every test with its reason and a hint, never a narrowed plan. " +
 			"The tool error self-binary-stale means this server is running a corvint binary older than the repository's Go source; " +
 			"rebuilding changes nothing until the server restarts, so rebuild corvint and restart corvint mcp.",
 		Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
@@ -110,6 +122,17 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 	}
 	if ctx.Err() != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	// MTT-V1-008: the kill switch is read with the CLI grammar; any value,
+	// known or not, selects every test with its reason and never runs a
+	// planner that could narrow.
+	lookup := group.Lookup
+	if lookup == nil {
+		lookup = os.LookupEnv
+	}
+	value, _ := lookup(selectionswitch.Variable)
+	if kill := selectionswitch.Parse(value); kill.On() {
+		return group.selectAll(ctx, name, base, kill.Reason(), killSwitchDetail(kill), killSwitchHint(kill), kill)
 	}
 	if group.gate != nil {
 		// A call waiting behind another run honours its own cancellation and
@@ -148,6 +171,47 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 			size, protocol.MaxMessageBytes-affectedFrameHeadroom))
 	}
 	return result, nil
+}
+
+// selectAll is the successful select-all answer: scope FULL, every test
+// selected, the typed reason, a one-line detail and hint, and, for the kill
+// switch, the value and runners it named.
+func (group Affected) selectAll(ctx context.Context, name, base, reason, detail, hint string, kill selectionswitch.Switch) (map[string]any, *protocol.RPCError) {
+	structured := map[string]any{
+		"base": base, "detail": detail, "hint": hint, "mutates": false, "ok": true,
+		"profile": AffectedSelectAllProfile, "reason": reason, "scope": "FULL", "selectAll": true, "tool": name,
+	}
+	if kill.On() {
+		runners := []any{}
+		for _, runner := range kill.Runners {
+			runners = append(runners, runner)
+		}
+		structured["selection"] = map[string]any{"variable": selectionswitch.Variable, "value": kill.Value, "runners": runners}
+	}
+	text, err := json.Marshal(structured)
+	if err != nil {
+		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	return Answer(ctx, AffectedErrorProfile, name, structured, string(text), nil, nil)
+}
+
+// killSwitchDetail says why every test is selected.
+func killSwitchDetail(kill selectionswitch.Switch) string {
+	switch {
+	case kill.Unknown:
+		return fmt.Sprintf("%s=%q is neither full nor full:<runner>[,<runner>]; every test is selected instead of a narrowed plan", selectionswitch.Variable, kill.Value)
+	case kill.All:
+		return selectionswitch.Variable + "=full forces every runner to a full run; every test is selected"
+	}
+	return fmt.Sprintf("%s=%q forces runners %s to a full run; this tool widens that to every test until the planner serves a per-runner full plan (NMS-V1-008)", selectionswitch.Variable, kill.Value, strings.Join(kill.Runners, ", "))
+}
+
+// killSwitchHint is the one-line recovery for a kill-switch answer.
+func killSwitchHint(kill selectionswitch.Switch) string {
+	if kill.Unknown {
+		return "set " + selectionswitch.Variable + " to full or full:<runner>[,<runner>], or unset it, in the corvint mcp server's environment and restart the server"
+	}
+	return "unset " + selectionswitch.Variable + " in the corvint mcp server's environment and restart the server to narrow again"
 }
 
 // affectedOversized measures result as the server encodes a frame and reports

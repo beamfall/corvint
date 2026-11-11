@@ -21,7 +21,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [x] 2.5 Remove the `docs` and `corpus` profiles from `corvint mcp` with a typed refusal; rename the
       flow tools; no `test_validity` tool after the G24 batch (M12). Requirements: MTT-V1-005,
       MTT-V1-007. Proof: tool-list test, refusal test and unknown-tool test for `test_validity`.
-- [ ] 2.6 `CORVINT_SELECTION` handling in the `affected` tool. Requirements: MTT-V1-008. Proof: an
+- [x] 2.6 `CORVINT_SELECTION` handling in the `affected` tool. Requirements: MTT-V1-008. Proof: an
       unknown value returns all tests with the reason; `full:go` selects all Go tests.
 - [ ] 2.7 Parity tests for rows with a CLI equivalent. Requirements: MTT-V1-009. Proof: one parity
       test per row.
