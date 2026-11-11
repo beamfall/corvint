@@ -65,8 +65,6 @@
         "internal/testsupport",
         "internal/testvalidity",
         "internal/trace",
-        "internal/tracerecordrepo",
-        "internal/tracerepopaths",
         "internal/untrackedallowance",
         "internal/versionline",
         "internal/webdialect",
