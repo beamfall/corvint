@@ -1096,6 +1096,7 @@ func (graph *Graph) Readers(paths []string) map[string]Witness {
 	graph.readers(reached, normalized)
 	graph.unboundedReadersOf(reached, graph.unboundedDirty(normalized))
 	graph.scopedReadersOf(reached, normalized)
+	graph.deletedScriptObserversOf(reached, normalized, make(map[string]bool))
 	graph.existenceReadersOf(reached, normalized)
 	graph.ownersOf(reached, normalized)
 	graph.testEmbedReadersOf(reached, normalized)

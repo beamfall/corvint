@@ -138,6 +138,18 @@ const MaxPathsPerUnit = 20_000
 // Imports too, so a change there selects the unit as before, but a rule (d)
 // chain does not continue along an edge only they name: such a unit runs no
 // root locator's code.
+// WalkDirectories name, sorted and unique, the repository directories the
+// unit's own commands list or walk by a literal operand, relative and
+// without a trailing "/"; each matches a run of a dirty path's directory
+// components at any depth, as a "/dir/" path token does (AFP-V0-9990).
+// WalkOpaque names the first reason the plugin cannot bound what the unit
+// lists, walks or runs: a computed walk operand, a walk of the working
+// directory, a forwarded or computed command and the other constructs the
+// plugin lists; empty when it can. RunNames are the file-name patterns, "*"
+// standing for any text, of the scripts the unit runs by a computed name no
+// value resolves (TSP-V0-960). The planner reads these three facts only to
+// admit a deleted script (AFP-V0-9992) and to select the units that may
+// have observed it.
 // RouteDispatchImports name units a test reaches only because the framework
 // dispatches a request to them, with no constant naming them, such as every
 // Rails controller for a request spec (RUBY-AFFECTED-V0-049). A change there
@@ -179,6 +191,12 @@ type Unit struct {
 	ImportGraphReadsAll bool     `json:"importGraphReadsAll,omitempty"`
 	// ImportGraphReadsFiles needs ImportGraphReadsAll.
 	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitempty"`
+
+	// WalkDirectories, WalkOpaque and RunNames are the walk facts the
+	// deleted-script admission reads (AFP-V0-9990, AFP-V0-9993).
+	WalkDirectories []string `json:"walkDirectories,omitempty"`
+	WalkOpaque      string   `json:"walkOpaque,omitempty"`
+	RunNames        []string `json:"runNames,omitempty"`
 
 	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
 	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`
@@ -360,6 +378,15 @@ func validUnit(unit Unit, namespace string) error {
 	}
 	if err := validIdentifierList(unit.NameListings); err != nil {
 		return err
+	}
+	if err := validIdentifierList(unit.WalkDirectories); err != nil {
+		return err
+	}
+	if err := validIdentifierList(unit.RunNames); err != nil {
+		return err
+	}
+	if !utf8.ValidString(unit.WalkOpaque) {
+		return ErrInvalidUnit
 	}
 	for _, token := range unit.NameListings {
 		if !slices.Contains(unit.PathTokens, token) {
