@@ -702,6 +702,15 @@ cannot silently go missing or outlive its command.
   precondition first and, when it fails, name the verb, the token, each shadowing span with its row
   line and the CAP-V0-007 rule, rather than reporting an empty finding list. Non-goal: narrowing
   CAP-V0-007 to the `Subcommands` sentence. Rollback: drop `proseShadows` and its call.
+- `CAP-V0-9940`: (experimental; V1-5294; refines CAP-V0-015 and CAP-V0-016) Every non-null
+  `owningSpec` in the committed catalog `internal/capcatalog/catalog.json` MUST name a live spec:
+  at least one entry of `docs/specs/INDEX.json` carries it as its `reqPrefix`, with an `intent`
+  that does not begin with `retired` and a null `supersededBy`. A code that no entry carries is
+  missing, and a code whose every entry is retired or superseded is retired; either fails
+  `TestCAPV09940OwningSpecIsLive`, which names the command, the code and the reason. The fix is the
+  parenthesized code ending the command's root help line, then `make capability-catalog`.
+  Non-goals: judging whether the named spec's requirements cover the command's behaviour, and
+  refusing a live spec for its maturity (a proposed spec passes). Rollback: drop the test.
 
 ## Boundaries and failure modes
 
@@ -891,3 +900,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-7701 | `internal/clitree` required option preamble | `TestCAPV07701PulseRequiredPreamble`, `TestCAPV0972RequiredLeadingOptions` |
 | CAP-V0-7702 | `internal/versionline`, `internal/cliapp`, `install-local`, `script/install-local-bin.sh --all` | `TestTCLV07703ReleaseLine`, `TestTCLV07703CompleteBoundedInstall` |
 | CAP-V0-7706 | full-depth `docs/CAPABILITIES.md` node table, `CheckNodeCatalog` | `TestCAPV07700NodeCatalog` |
+| CAP-V0-9940 | `internal/capcatalog/catalog.json` owning-spec codes against `docs/specs/INDEX.json`; root help lines of `corvint how` and `corvint mcp` in `cmd/corvint/help.go` | `TestCAPV09940OwningSpecIsLive`, `TestCAPV09940RetiredAndMissingCodesRefused` (internal/capcatalog) |

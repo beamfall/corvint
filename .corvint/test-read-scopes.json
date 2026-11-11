@@ -1205,7 +1205,9 @@
     "internal/archivepath": [],
     "internal/breakagemap": [],
     "internal/browsercov": [],
-    "internal/capcatalog": [],
+    "internal/capcatalog": [
+      "docs/specs/INDEX.json"
+    ],
     "internal/cem/gitauth": [],
     "internal/cem/patch": [
       "interop/cem01-go/testdata/inherited-vectors/",
