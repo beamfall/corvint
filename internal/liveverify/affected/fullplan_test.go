@@ -11,9 +11,8 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
 )
 
-// TestFullplanReplay_AZU_V0_9920_9921 ships in fullplan_replay_test.go with
-// the .github/cishards/test-commands.json Python runner it reads
-// (claude/ci-1107x, batch-1107x).
+// TestFullplanReplay_AZU_V0_9920_9921 is in liverepo/fullplan_replay_test.go: it
+// reads the maintained declarations of this checkout (V1-5201).
 
 // Declared source-shaped output still selects its readers, while a real
 // indexed source covered by the declaration keeps its source owner.
