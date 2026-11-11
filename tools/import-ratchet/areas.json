@@ -56,6 +56,7 @@
         "internal/rubydialect",
         "internal/rubysyntax",
         "internal/rustsyntax",
+        "internal/runevidence",
         "internal/runhygiene",
         "internal/runtimeenv",
         "internal/secretscreen",

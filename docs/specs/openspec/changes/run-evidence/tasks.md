@@ -7,11 +7,11 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    Requirements: RVD-V1-001 to RVD-V1-012. Proof: the spec toolchain check passes.
    Done: V1-5448 filed; RVD-V1 reserved; `docs/specs/run-evidence-v1.md` created and accepted under G14
    (acceptance-log row `run-evidence`).
-- [ ] 2 Add the store package: hash-named records, locked append to `log.jsonl`, reader that
+- [x] 2 Add the store package: hash-named records, locked append to `log.jsonl`, reader that
    normalises receipts and ingested documents to per-test rows. Requirements: RVD-V1-001,
    RVD-V1-002, RVD-V1-003, RVD-V1-006. Proof: unit tests for naming, concurrent append and
    normalisation of both profiles.
-- [ ] 3 Add retention, the size cap and corruption handling.
+- [x] 3 Add retention, the size cap and corruption handling.
    Requirements: RVD-V1-009, RVD-V1-010. Proof: unit tests at 21 runs, at the cap, with a bad record
    and an unreadable log.
 - [ ] 4 Append from `corvint test` and `corvint watch`; print `run-evidence-write-failed` on
