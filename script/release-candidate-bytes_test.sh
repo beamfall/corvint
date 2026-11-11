@@ -127,6 +127,51 @@ rc=0; "$script" --sums "$core/SHA256SUMS" > /dev/null 2>&1 || rc=$?
 [ "$rc" = 2 ] || fail "a missing --binary exited $rc, want 2"
 ok
 
+# A hash that fails or prints no 64-hex digest refuses (exit 2) before any record line, so no
+# digest is ever printed empty and no verdict is reached, SOURCE_ONLY included. A fake sha256sum
+# first on PATH breaks the hash of one input, chosen by its content, and delegates the rest.
+fake=$tmp/fakebin
+mkdir -p "$fake"
+if real=$(command -v sha256sum); then real_cmd="'$real'"; else real_cmd="'$(command -v shasum)' -a 256"; fi
+cat > "$fake/sha256sum" <<EOF
+#!/usr/bin/env bash
+in=\$(mktemp '$tmp/fake-sha.XXXXXX')
+cat > "\$in"
+if grep -Fq -- "\$FAKE_SHA_MATCH" "\$in"; then
+  rm -f "\$in"
+  case \$FAKE_SHA_MODE in
+    fail) exit 1 ;;
+    garbage) printf 'not-a-digest  -\n' ;;
+    short) printf 'abc123  -\n' ;;
+  esac
+  exit 0
+fi
+$real_cmd < "\$in"; rc=\$?; rm -f "\$in"; exit \$rc
+EOF
+chmod +x "$fake/sha256sum"
+with_fake_sha() { (export FAKE_SHA_MODE=$1 FAKE_SHA_MATCH=$2 PATH="$fake:$PATH"; shift 2; run "$@"); }
+# Control: the fake delegates every other input, so the refusals below are the broken hash's.
+with_fake_sha fail no-such-content --sums "$core/SHA256SUMS" --binary "$tmp/corvint" --report "$tmp/cli.txt" ||
+  fail "the delegating fake sha256sum broke a clean run: $(cat "$tmp/err")"
+tail -n 1 "$tmp/out" | grep -q '^verdict=SOURCE_ONLY ' || fail "no SOURCE_ONLY verdict with the fake: $(cat "$tmp/out")"
+ok
+hash_refusal() {
+  local mode=$1 match=$2 code=$3 rc=0
+  shift 3
+  with_fake_sha "$mode" "$match" "$@" || rc=$?
+  [ "$rc" = 2 ] && grep -Fq "REFUSE $code" "$tmp/err" || fail "want exit 2 REFUSE $code for a $mode hash of '$match', got $rc: $(cat "$tmp/err")"
+  grep -Fq '; fix: ' "$tmp/err" || fail "REFUSE $code names no recovery (ASD-V0-997): $(cat "$tmp/err")"
+  [ ! -s "$tmp/out" ] || fail "REFUSE $code still printed a record: $(cat "$tmp/out")"
+  ok
+}
+for mode in fail garbage short; do
+  hash_refusal "$mode" 'linux archive bytes' archive-hash-failed --sums "$core/SHA256SUMS" --binary "$tmp/corvint"
+  hash_refusal "$mode" corvint_linux_amd64.tar.gz sums-hash-failed --sums "$core/SHA256SUMS" --binary "$tmp/corvint"
+  hash_refusal "$mode" 'corvint binary' binary-hash-failed --sums "$core/SHA256SUMS" --binary "$tmp/corvint"
+  hash_refusal "$mode" 'corvint binary' binary-hash-failed --sums "$core/SHA256SUMS" --binary "$tmp/corvint" --expect "$sums_sha"
+  hash_refusal "$mode" SUMMARY report-hash-failed --sums "$core/SHA256SUMS" --binary "$tmp/corvint" --report "$tmp/cli.txt"
+done
+
 # The workflow: the dispatch input exists, Check inputs refuses a malformed digest and admits an
 # empty or well-formed one, and linux-core passes it to this script and indexes its reports.
 if [ "$(sha256 "$workflow")" = "$pre_binding_workflow_sha256" ]; then

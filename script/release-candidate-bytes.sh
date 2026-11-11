@@ -38,10 +38,19 @@ case $expect in
   *) [ "${#expect}" -eq 64 ] || refuse "expect-malformed: --expect must be the 64 lowercase hex sha256 of the candidate's SHA256SUMS; fix: pass the digest field of shasum -a 256 SHA256SUMS" ;;
 esac
 
+# sha256 FILE prints FILE's 64 lowercase hex digest or returns 1. set -e does not reach into a
+# command substitution, so every caller checks the status in this shell and refuses before printing.
 sha256() {
-  local out
-  if command -v sha256sum > /dev/null 2>&1; then out=$(sha256sum < "$1"); else out=$(shasum -a 256 < "$1"); fi
-  printf '%s\n' "${out%% *}"
+  local out digest
+  if command -v sha256sum > /dev/null 2>&1; then
+    out=$(sha256sum < "$1") || return 1
+  else
+    out=$(shasum -a 256 < "$1") || return 1
+  fi
+  digest=${out%% *}
+  case $digest in *[!0-9a-f]*) return 1 ;; esac
+  [ "${#digest}" -eq 64 ] || return 1
+  printf '%s\n' "$digest"
 }
 [ -f "$sums" ] && [ -r "$sums" ] || refuse "sums-unreadable: $sums; fix: run conformance/release-artifact-v0 archive first and pass its SHA256SUMS"
 [ -f "$binary" ] && [ -r "$binary" ] || refuse "binary-unreadable: $binary; fix: extract corvint from corvint_linux_amd64.tar.gz and pass its path"
@@ -51,23 +60,29 @@ row=$(awk -v name="$archive_name" '$2 == name || $2 == "*" name { print $1 }' "$
 [ "$(printf '%s\n' "$row" | grep -c .)" = 1 ] || refuse "archive-row-missing: $sums has no single $archive_name row; fix: rebuild the archives, the producer writes one row per target"
 archive=$(dirname "$sums")/$archive_name
 [ -f "$archive" ] || refuse "archive-missing: $archive; fix: keep the archive beside its SHA256SUMS"
-archive_sha=$(sha256 "$archive")
+archive_sha=$(sha256 "$archive") || refuse "archive-hash-failed: $archive gave no sha256; fix: check the archive is readable and sha256sum or shasum works"
 [ "$archive_sha" = "$row" ] || refuse "archive-row-mismatch: $archive is $archive_sha, SHA256SUMS says $row; fix: rebuild the archives into a new directory" 1
 
 commit=$(git rev-parse --verify -q HEAD) || refuse "no-checkout: HEAD does not name a commit; fix: run it from the checkout of the dispatched sha"
 tree=$(git rev-parse --verify -q 'HEAD^{tree}') || refuse "no-checkout: HEAD has no tree; fix: run it from the checkout of the dispatched sha"
-sums_sha=$(sha256 "$sums")
+sums_sha=$(sha256 "$sums") || refuse "sums-hash-failed: $sums gave no sha256; fix: check SHA256SUMS is readable and sha256sum or shasum works"
+binary_sha=$(sha256 "$binary") || refuse "binary-hash-failed: $binary gave no sha256; fix: check the binary is readable and sha256sum or shasum works"
+report_shas=()
+for report in ${reports[@]+"${reports[@]}"}; do
+  [ -f "$report" ] && [ -r "$report" ] || refuse "report-missing: $report; fix: pass only reports that exist"
+  report_sha=$(sha256 "$report") || refuse "report-hash-failed: $report gave no sha256; fix: check the report is readable and sha256sum or shasum works"
+  report_shas+=("$report_sha")
+done
 printf 'commit=%s\n' "$commit"
 printf 'tree=%s\n' "$tree"
 printf 'sha256sums_sha256=%s\n' "$sums_sha"
 printf 'archive=%s sha256=%s\n' "$archive_name" "$archive_sha"
-printf 'binary_sha256=%s\n' "$(sha256 "$binary")"
+printf 'binary_sha256=%s\n' "$binary_sha"
 printf 'runner=%s image=%s\n' "${RUNNER_LABEL:-unknown}" "${ImageVersion:-unknown}"
 printf 'run=%s/%s/actions/runs/%s/attempts/%s\n' "${GITHUB_SERVER_URL:-unknown}" "${GITHUB_REPOSITORY:-unknown}" \
   "${GITHUB_RUN_ID:-unknown}" "${GITHUB_RUN_ATTEMPT:-unknown}"
-for report in ${reports[@]+"${reports[@]}"}; do
-  [ -f "$report" ] || refuse "report-missing: $report; fix: pass only reports that exist"
-  printf 'report %s %s\n' "$(sha256 "$report")" "$report"
+for i in ${reports[@]+"${!reports[@]}"}; do
+  printf 'report %s %s\n' "${report_shas[$i]}" "${reports[$i]}"
 done
 if [ -z "$expect" ]; then
   printf 'verdict=SOURCE_ONLY no candidate_sums_sha256 was dispatched; this is evidence for the source at %s, not for a release candidate\n' "$commit"
