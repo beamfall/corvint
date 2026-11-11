@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -55,10 +56,13 @@ var (
 	docAnchorFields = regexp.MustCompile(`^\s+flow=(\S+)\s+variation=(\S+)\s+outcome=(\S+)\s*$`)
 )
 
-// DocOptions names the committed page, its claim sidecar, the optional hand-written docs root and the
-// run evidence, all repository-relative except the evidence files, which are already read.
+// DocOptions names the committed page, its claim sidecar, the optional hand-written docs root, the
+// optional committed waivers file and the run evidence, all repository-relative except the evidence
+// files, which are already read. Today is the UTC date YYYY-MM-DD that decides waiver expiry; empty
+// means the current UTC date (DMF-V1-001).
 type DocOptions struct {
 	Page, Claims, DocsRoot, Registry string
+	Waivers, Today                   string
 	Evidence                         []TestRunEvidence
 }
 
@@ -78,6 +82,10 @@ type DocClaim struct {
 	Outcome   string        `json:"outcome"`
 	Evidence  []DocEvidence `json:"evidence"`
 	State     string        `json:"state"`
+	// WaivedUntil and Mark are set only for a claim an unexpired waiver names while its current
+	// State is not PROVEN; Mark is the text the page prints (DMF-V1-001).
+	WaivedUntil string `json:"waived_until,omitempty"`
+	Mark        string `json:"mark,omitempty"`
 }
 
 // DocEvidence identifies one required test key and project pair; run IDs are not claim identity.
@@ -107,7 +115,16 @@ type DocCheck struct {
 	Status   string       `json:"status"`
 	Failures []DocFailure `json:"failures"`
 	Waived   []string     `json:"waived"`
-	Coverage *DocCoverage `json:"coverage,omitempty"`
+	// ExpiredWaivers names each expired waiver whose claim the check found; it no longer applies
+	// (DMF-V1-001).
+	ExpiredWaivers []DocExpiredWaiver `json:"expired_waivers,omitempty"`
+	Coverage       *DocCoverage       `json:"coverage,omitempty"`
+}
+
+// DocExpiredWaiver is one waiver that expired and so no longer applies (DMF-V1-001).
+type DocExpiredWaiver struct {
+	Claim   string `json:"claim"`
+	Expires string `json:"expires"`
 }
 
 // DocFailure is one check failure with a closed code.
@@ -137,6 +154,9 @@ type docBuild struct {
 	failures []DocFailure
 	coverage *DocCoverage
 	revision string
+	waivers  []DocWaiver
+	waived   []string
+	expired  []DocExpiredWaiver
 }
 
 type docFile struct {
@@ -168,12 +188,11 @@ func WriteDocs(root string, o DocOptions, page, claims []byte) error {
 
 // CheckDocs compares the committed page and sidecar with regeneration at HEAD (AFU-V1-032). It reads
 // only committed files, so it never mutates the repository; today is the UTC date YYYY-MM-DD.
+// Regeneration applies the same waivers as generation, so a waived claim is compared in its WAIVED
+// form, never in its committed form (DMF-V1-001).
 func CheckDocs(ctx context.Context, root string, set IntentSet, o DocOptions, waiversPath, today string) (DocCheck, error) {
+	o.Waivers, o.Today = waiversPath, today
 	b, err := buildDocs(ctx, root, set, o)
-	if err != nil {
-		return DocCheck{}, err
-	}
-	waivers, err := committedWaivers(ctx, root, b.revision, waiversPath)
 	if err != nil {
 		return DocCheck{}, err
 	}
@@ -181,8 +200,7 @@ func CheckDocs(ctx context.Context, root string, set IntentSet, o DocOptions, wa
 	if err != nil {
 		return DocCheck{}, err
 	}
-	effective, lost, waived := applyWaivers(b.claims, committed.claims, waivers, today)
-	b.claims = effective
+	lost, expired := lostClaims(b.claims, committed.claims, b.waivers, docToday(o))
 	page, claims, err := renderDocs(b, o)
 	if err != nil {
 		return DocCheck{}, err
@@ -190,7 +208,8 @@ func CheckDocs(ctx context.Context, root string, set IntentSet, o DocOptions, wa
 	failures := append(lost, bytesFailure(o.Page, committed.page, page)...)
 	failures = append(failures, bytesFailure(o.Claims, committed.sidecar, claims)...)
 	failures = append(failures, b.failures...)
-	report := DocCheck{Schema: DocCheckSchema, Revision: b.revision, Status: "pass", Failures: failures, Waived: waived, Coverage: b.coverage}
+	report := DocCheck{Schema: DocCheckSchema, Revision: b.revision, Status: "pass", Failures: failures, Waived: b.waived,
+		ExpiredWaivers: mergeExpired(b.expired, expired), Coverage: b.coverage}
 	if len(failures) != 0 {
 		report.Status = "fail"
 	}
@@ -206,19 +225,67 @@ func buildDocs(ctx context.Context, root string, set IntentSet, o DocOptions) (d
 		return docBuild{}, err
 	}
 	at.stability = readFlowStability(ctx, root, o.Registry, o.Evidence, at)
-	b := docBuild{set: set, claims: docClaims(set, links, o.Evidence, at, o.Page), failures: []DocFailure{}, revision: at.commit}
-	if o.DocsRoot == "" {
-		return b, nil
-	}
-	docs, err := committedMarkdown(ctx, root, at.commit, o.DocsRoot, o.Page)
-	if err != nil {
+	b := docBuild{set: set, claims: docClaims(set, links, o.Evidence, at, o.Page), failures: []DocFailure{}, revision: at.commit, waived: []string{}}
+	if b.waivers, err = committedWaivers(ctx, root, at.commit, o.Waivers); err != nil {
 		return docBuild{}, err
 	}
-	anchored, failures, paths := anchorClaims(docs, b.claims)
-	b.claims = append(b.claims, anchored...)
-	b.failures = failures
-	b.coverage = docCoverage(docs, paths, at.commit)
+	if o.DocsRoot != "" {
+		docs, err := committedMarkdown(ctx, root, at.commit, o.DocsRoot, o.Page)
+		if err != nil {
+			return docBuild{}, err
+		}
+		anchored, failures, paths := anchorClaims(docs, b.claims)
+		b.claims = append(b.claims, anchored...)
+		b.failures = failures
+		b.coverage = docCoverage(docs, paths, at.commit)
+	}
+	b.waived, b.expired = markWaived(b.claims, b.waivers, docToday(o))
 	return b, nil
+}
+
+func docToday(o DocOptions) string {
+	if o.Today != "" {
+		return o.Today
+	}
+	return time.Now().UTC().Format(time.DateOnly)
+}
+
+// waiverMark is the page and sidecar text of a waived claim (DMF-V1-001).
+func waiverMark(expires, state string) string {
+	return "WAIVED until " + expires + " (now " + state + ")"
+}
+
+// markWaived marks, in place, every claim an unexpired waiver names while its current state is not
+// PROVEN, and returns the marked claim IDs and the expired waivers whose claim is rendered. A PROVEN
+// claim keeps rendering as PROVEN; an expired waiver never applies (DMF-V1-001).
+func markWaived(claims []DocClaim, waivers []DocWaiver, today string) ([]string, []DocExpiredWaiver) {
+	byClaim := map[string]DocWaiver{}
+	for _, w := range waivers {
+		byClaim[w.Claim] = w
+	}
+	waived, expired := []string{}, []DocExpiredWaiver{}
+	for i := range claims {
+		c := &claims[i]
+		w, named := byClaim[c.ID]
+		switch {
+		case !named:
+		case today >= w.Expires:
+			expired = append(expired, DocExpiredWaiver{Claim: c.ID, Expires: w.Expires})
+		case c.State != ClaimProven:
+			c.WaivedUntil, c.Mark = w.Expires, waiverMark(w.Expires, c.State)
+			waived = append(waived, c.ID)
+		}
+	}
+	slices.Sort(waived)
+	slices.SortFunc(expired, func(x, y DocExpiredWaiver) int { return strings.Compare(x.Claim, y.Claim) })
+	return waived, expired
+}
+
+// mergeExpired joins two expired-waiver lists by claim ID, sorted and without duplicates.
+func mergeExpired(a, b []DocExpiredWaiver) []DocExpiredWaiver {
+	all := append(slices.Clone(a), b...)
+	slices.SortFunc(all, func(x, y DocExpiredWaiver) int { return strings.Compare(x.Claim, y.Claim) })
+	return slices.CompactFunc(all, func(x, y DocExpiredWaiver) bool { return x.Claim == y.Claim })
 }
 
 func validDocOptions(o DocOptions) error {
@@ -472,7 +539,7 @@ func renderDocs(b docBuild, o DocOptions) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return renderPage(b.set, claimStates(claims)), sidecar, nil
+	return renderPage(b.set, claimMarks(claims)), sidecar, nil
 }
 
 func claimStates(claims []DocClaim) map[string]string {
@@ -483,17 +550,30 @@ func claimStates(claims []DocClaim) map[string]string {
 	return states
 }
 
+// claimMarks maps each claim ID to the mark its page line carries: empty for PROVEN, the waiver text
+// for a waived claim, else the state (AFU-V1-031, DMF-V1-001).
+func claimMarks(claims []DocClaim) map[string]string {
+	marks := map[string]string{}
+	for _, c := range claims {
+		marks[c.ID] = stateMark(c.State)
+		if c.Mark != "" {
+			marks[c.ID] = "**" + c.Mark + ":** "
+		}
+	}
+	return marks
+}
+
 // renderPage is the fixed 1.0 template: intent fields only, escaped, and no free prose (AFU-V1-030).
-func renderPage(set IntentSet, states map[string]string) []byte {
+func renderPage(set IntentSet, marks map[string]string) []byte {
 	var b strings.Builder
 	b.WriteString(docPageHeader + "\n# Application flows\n")
 	for _, intent := range set.Flows {
-		writeFlow(&b, intent, states)
+		writeFlow(&b, intent, marks)
 	}
 	return []byte(b.String())
 }
 
-func writeFlow(b *strings.Builder, intent FlowIntent, states map[string]string) {
+func writeFlow(b *strings.Builder, intent FlowIntent, marks map[string]string) {
 	fmt.Fprintf(b, "\n## Flow `%s`\n\n- Kind: %s\n- Actor: %s\n", intent.FlowID, intent.Kind, docText(intent.Actor))
 	if intent.Proposed {
 		b.WriteString("- Proposed: not reviewed\n")
@@ -510,9 +590,18 @@ func writeFlow(b *strings.Builder, intent FlowIntent, states map[string]string) 
 		fmt.Fprintf(b, "\n### Variation `%s`\n\n- Preconditions: %s\n- Steps: %s\n- Projects: %s\n- Outcomes:\n",
 			v.VariationID, docList(v.Preconditions), docIDs(v.Steps), docList(v.Projects))
 		for _, o := range v.Outcomes {
-			fmt.Fprintf(b, "  - %s`%s`: %s\n", stateMark(states[claimID(intent.FlowID, v.VariationID, o)]), claimID(intent.FlowID, v.VariationID, o), docText(behaviors[o]))
+			fmt.Fprintf(b, "  - %s`%s`: %s\n", claimMark(marks, claimID(intent.FlowID, v.VariationID, o)), claimID(intent.FlowID, v.VariationID, o), docText(behaviors[o]))
 		}
 	}
+}
+
+// claimMark is the mark of one rendered claim; a claim with no state renders marked as an empty state,
+// as before marks carried waivers.
+func claimMark(marks map[string]string, id string) string {
+	if m, ok := marks[id]; ok {
+		return m
+	}
+	return stateMark("")
 }
 
 // stateMark marks every claim that is not PROVEN (AFU-V1-031).
@@ -606,41 +695,88 @@ func committedWaivers(ctx context.Context, root, rev, name string) ([]DocWaiver,
 	}
 	var w DocWaivers
 	if err = Decode(raw, &w); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("waivers file %s:%d: %w", name, jsonErrorLine(raw), err)
 	}
-	return w.Waivers, validateWaivers(w)
+	if i, err := validateWaivers(w); err != nil {
+		return nil, fmt.Errorf("waivers file %s:%d: %w", name, waiverEntryLine(raw, i), err)
+	}
+	return w.Waivers, nil
+}
+
+// jsonErrorLine is the 1-based line of the first syntax or type error in raw, or 1 when the error
+// carries no offset (DMF-V1-001).
+func jsonErrorLine(raw []byte) int {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	var w DocWaivers
+	err := d.Decode(&w)
+	var syntax *json.SyntaxError
+	var typed *json.UnmarshalTypeError
+	offset := int64(0)
+	switch {
+	case errors.As(err, &syntax):
+		offset = syntax.Offset
+	case errors.As(err, &typed):
+		offset = typed.Offset
+	}
+	return lineAt(raw, offset)
+}
+
+// waiverEntryLine is the line of the i-th "claim" member in raw, the closest stable anchor of entry
+// i; a negative i (a file-level error) is line 1.
+func waiverEntryLine(raw []byte, i int) int {
+	if i < 0 {
+		return 1
+	}
+	pos := 0
+	for n := 0; ; n++ {
+		at := bytes.Index(raw[pos:], []byte(`"claim"`))
+		if at < 0 {
+			return 1
+		}
+		if n == i {
+			return lineAt(raw, int64(pos+at))
+		}
+		pos += at + len(`"claim"`)
+	}
+}
+
+func lineAt(raw []byte, offset int64) int {
+	offset = min(max(offset, 0), int64(len(raw)))
+	return bytes.Count(raw[:offset], []byte("\n")) + 1
 }
 
 // validateWaivers requires the schema and, per entry, a unique claim ID, reason, reviewer and a
-// calendar expiry date (AFU-V1-032).
-func validateWaivers(w DocWaivers) error {
+// calendar expiry date (AFU-V1-032). It returns the index of the offending entry, or -1.
+func validateWaivers(w DocWaivers) (int, error) {
 	if w.Schema != DocWaiversSchema {
-		return errors.New("waivers schema must be " + DocWaiversSchema)
+		return -1, errors.New("waivers schema must be " + DocWaiversSchema)
 	}
 	seen := map[string]bool{}
-	for _, entry := range w.Waivers {
+	for i, entry := range w.Waivers {
 		expiry, err := time.Parse(time.DateOnly, entry.Expires)
 		if err != nil || expiry.Format(time.DateOnly) != entry.Expires {
-			return errors.New("a waiver expiry must be a YYYY-MM-DD date")
+			return i, errors.New("a waiver expiry must be a YYYY-MM-DD date")
 		}
 		if !flowText(entry.Claim) || !flowText(entry.Reason) || !flowText(entry.Reviewer) || seen[entry.Claim] {
-			return errors.New("a waiver needs a unique claim ID, a reason and a reviewer")
+			return i, errors.New("a waiver needs a unique claim ID, a reason and a reviewer")
 		}
 		seen[entry.Claim] = true
 	}
-	return nil
+	return -1, nil
 }
 
-// applyWaivers finds each committed claim whose state changed or which is gone. An unexpired waiver
-// keeps the committed claim, restoring a gone one, for the byte comparison; otherwise a lost PROVEN is
-// a failure.
-func applyWaivers(regenerated, committed []DocClaim, waivers []DocWaiver, today string) ([]DocClaim, []DocFailure, []string) {
+// lostClaims finds each committed PROVEN claim that is no longer PROVEN or is gone. An unexpired
+// waiver naming it excuses the lost PROVEN; the claim still renders in its WAIVED form, so the byte
+// comparison never uses the committed form (DMF-V1-001). It also returns each expired waiver naming
+// a committed claim whose state changed, which no longer applies.
+func lostClaims(regenerated, committed []DocClaim, waivers []DocWaiver, today string) ([]DocFailure, []DocExpiredWaiver) {
 	current := claimStates(regenerated)
 	byClaim := map[string]DocWaiver{}
 	for _, w := range waivers {
 		byClaim[w.Claim] = w
 	}
-	effective, failures, waived := slices.Clone(regenerated), []DocFailure{}, []string{}
+	failures, expired := []DocFailure{}, []DocExpiredWaiver{}
 	for _, c := range committed {
 		state, present := current[c.ID]
 		if present && state == c.State {
@@ -648,24 +784,16 @@ func applyWaivers(regenerated, committed []DocClaim, waivers []DocWaiver, today 
 		}
 		w, named := byClaim[c.ID]
 		if named && today < w.Expires {
-			waived = append(waived, c.ID)
-			effective = keepCommitted(effective, c)
 			continue
+		}
+		if named {
+			expired = append(expired, DocExpiredWaiver{Claim: c.ID, Expires: w.Expires})
 		}
 		if c.State == ClaimProven {
 			failures = append(failures, lostProven(c, state, present, w, named))
 		}
 	}
-	return effective, failures, waived
-}
-
-func keepCommitted(claims []DocClaim, c DocClaim) []DocClaim {
-	i := slices.IndexFunc(claims, func(x DocClaim) bool { return x.ID == c.ID })
-	if i < 0 {
-		return append(claims, c)
-	}
-	claims[i] = c
-	return claims
+	return failures, expired
 }
 
 func lostProven(c DocClaim, state string, present bool, w DocWaiver, named bool) DocFailure {

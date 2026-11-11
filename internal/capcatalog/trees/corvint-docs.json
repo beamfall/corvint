@@ -2521,7 +2521,7 @@
       "command": "corvint-docs flows docs",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--evidence FILE]...",
+        "corvint-docs [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...",
         "corvint-docs [--root PATH] flows docs --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]..."
       ],
       "flags": [

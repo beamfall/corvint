@@ -31,9 +31,9 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 	receipt := f.String("receipt", "", "committed maintenance receipt, repository-relative")
 	adopt := f.Bool("adopt", false, "explicitly adopt a committed legacy generated pair; historical provenance UNKNOWN")
 	check := f.Bool("check", false, "compare the committed page and sidecar with regeneration")
-	waivers := f.String("waivers", "", "committed flow-doc-waivers/0 file, repository-relative")
-	if f.Parse(args) != nil || *dir == "" || o.Page == "" || o.Claims == "" || f.NArg() != 0 || (*waivers != "" && !*check) {
-		return errors.New("flows docs requires --flows DIR --page FILE --claims FILE, optional --registry FILE, --docs-root DIR and repeatable --evidence FILE, and --waivers FILE only with --check")
+	waivers := f.String("waivers", "", "committed flow-doc-waivers/0 file, repository-relative; read by generation and --check alike")
+	if f.Parse(args) != nil || *dir == "" || o.Page == "" || o.Claims == "" || f.NArg() != 0 {
+		return errors.New("flows docs requires --flows DIR --page FILE --claims FILE, optional --registry FILE, --docs-root DIR, --waivers FILE and repeatable --evidence FILE")
 	}
 	if maintenance {
 		if *preview == *apply || *check || *waivers != "" || (*preview && *expected != "") || (*apply && *expected == "") {
@@ -75,6 +75,7 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 	if *check {
 		return flowDocsCheck(ctx, root, set, o, *waivers, out)
 	}
+	o.Waivers = *waivers // DMF-V1-001: generation marks waived claims exactly as --check does
 	page, claims, err := appflows.RenderDocs(ctx, root, set, o)
 	if err != nil {
 		return err

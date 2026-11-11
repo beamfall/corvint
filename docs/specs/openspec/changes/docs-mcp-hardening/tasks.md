@@ -8,7 +8,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
 - [x] 2 First commit: create `docs/specs/docs-mcp-hardening-v1.md`, its `docs/specs/README.md` row
    and the regenerated index (DMF-V1-001 to 011 and 013). Proof: `make spec-requirements` output
    lists the twelve IDs.
-- [ ] 3 Waived claims render as WAIVED in generation and check (DMF-V1-001). Proof: fixture test
+- [x] 3 Waived claims render as WAIVED in generation and check (DMF-V1-001). Proof: fixture test
    with a waived PROVEN claim shows the mark in the page and the sidecar; flow-doc goldens
    re-recorded.
 - [ ] 4 `docs maintain --check` (DMF-V1-003). Proof: fixture test, stale block exits 1, fresh exits
