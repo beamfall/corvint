@@ -59,6 +59,14 @@ type goPackage struct {
 	movesDirectory bool     // a file moves the working directory (directoryMove)
 	command        bool     // a non-test file declares package main, so the package builds a binary
 	leafReads      []string // rule (d) reasons leafPattern exempts while no file moves it
+	sourceReads    []sourceRead
+}
+
+// sourceRead is a location-source reason waiting for the end of its
+// package's files (AFP-V0-3663).
+type sourceRead struct {
+	reason string
+	test   bool
 }
 
 type repositoryIndex struct {
@@ -151,11 +159,13 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 	// commands run there: a package that moves the working directory keeps
 	// rule (d) for it (AFP-V0-2542).
 	for _, pkg := range index.packages {
-		if !pkg.movesDirectory {
-			continue
+		if pkg.movesDirectory {
+			for _, reason := range pkg.leafReads {
+				pkg.markUnresolved(reason, true)
+			}
 		}
-		for _, reason := range pkg.leafReads {
-			pkg.markUnresolved(reason, true)
+		for _, read := range pkg.sourceReads {
+			pkg.markUnresolved(read.reason, read.test)
 		}
 	}
 	index.link(imports)
@@ -365,10 +375,11 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 			}
 		}
 	}
-	// A location source is marked after the literal and locator reasons, so
-	// a package those already hold keeps naming them (AFP-V0-3663).
+	// A location source is marked after every literal and locator reason of
+	// the package, so a package those already hold keeps naming them
+	// (AFP-V0-3663); indexRepositoryMemo marks it.
 	for _, source := range scan.sources {
-		pkg.markUnresolved(relative+" "+locationSourceReason(source), test)
+		pkg.sourceReads = append(pkg.sourceReads, sourceRead{reason: relative + " " + locationSourceReason(source), test: test})
 	}
 }
 

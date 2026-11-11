@@ -308,18 +308,23 @@ func TestLocationSourceUnseenCalls_AFPV03660(t *testing.T) {
 }
 
 // TestLocationSourceReasonsFollowLiterals_AFPV03663 keeps a package's
-// literal reason ahead of its location-source reason, in this index and the
-// planner, and names the source when it is the only one.
+// literal or locator reason ahead of its location-source reason, in this
+// index and the planner, even when the source's file sorts first, and names
+// the source when it is the only one.
 func TestLocationSourceReasonsFollowLiterals_AFPV03663(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"go.mod":           "module example.com/fixture\n\ngo 1.22\n",
 		"both/x.go":        "package both\n",
 		"both/x_test.go":   "package both\n\nimport \"os\"\n\nfunc F() { os.ReadDir(os.Getenv(\"R\")); os.ReadDir(\"../..\") }\n",
 		"source/x.go":      "package source\n",
+		"across/a.go":      "package across\n\nimport \"os\"\n\nfunc A() { os.ReadDir(os.Getenv(\"R\")) }\n",
+		"across/b.go":      "package across\n\nimport \"os\"\n\nfunc B() string { root, _ := os.Getwd(); return root }\n",
+		"across/x_test.go": "package across\n",
 		"source/x_test.go": "package source\n\nimport \"os\"\n\nfunc F() { os.ReadDir(os.Getenv(\"R\")) }\n",
 	})
-	index := agree(t, root, []string{"both", "source"})
+	index := agree(t, root, []string{"across", "both", "source"})
 	want := map[string]string{
+		"across": "across/b.go calls os.Getwd",
 		"both":   `both/x_test.go carries the literal "../..", which reaches the repository root`,
 		"source": "source/x_test.go calls os.Getenv, whose value may name a repository path",
 	}
