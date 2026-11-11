@@ -12,14 +12,15 @@ import (
 // as a deletion, without UNINDEXED_SOURCE_PATH, although a plugin's Owns claims
 // it: a deleted Go source of a surviving package (deletedGoSource,
 // AFP-V0-2610), a wholly deleted Go package (deletedGoPackage, AFP-V0-821) or a
-// deleted fixture (deletedFixture, AFP-V0-2740). Such a path stays unowned for
+// deleted fixture (deletedFixture, AFP-V0-2740) or a deleted shell script
+// (deletedShellScript, AFP-V0-9992). Such a path stays unowned for
 // frontierUnknowns (AFP-V0-2749): seed and participants share this one
 // predicate, so every path the plan admits this way is still checked against
 // every other plugin's unowned-path entries (AFP-V0-511), such as a test in
 // another language that reads the deleted file by a computed name, which the
 // UNINDEXED_SOURCE_PATH fallback covered before the path was admitted.
 func (graph *Graph) admittedDeletion(path string, packages map[string]string) bool {
-	return graph.deletedGoSource(path, packages) || graph.deletedGoPackage(path, packages) || graph.deletedFixture(path, packages)
+	return graph.deletedGoSource(path, packages) || graph.deletedGoPackage(path, packages) || graph.deletedFixture(path, packages) || graph.deletedShellScript(path)
 }
 
 // deletedGoSource reports a dirty `.go` path that only the Go plugin claims,

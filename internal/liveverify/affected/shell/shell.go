@@ -283,14 +283,19 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	// (TSP-V0-960). An expansion the value bound cut short may drop a script
 	// it would link, so the unit is then an unbounded reader like a computed
 	// source.
-	computed := func(target string) {
+	// It reports whether the target linked a repository script and left
+	// no value unresolved, which walk facts read (AFP-V0-9990).
+	computed := func(target string) bool {
 		if resolve.link(target, nil, known, edges) {
-			return
+			return true
 		}
+		before := len(edges)
 		unresolved, cut := constructed(target, resolve, values, known, edges, &names)
 		builds = builds || unresolved
 		dynamic = dynamic || cut
+		return len(edges) > before && !unresolved && !cut
 	}
+	walks := walkFacts{directories: map[string]bool{}}
 	// A here-document that no delimiter line ended is read differently by
 	// different shells, so the file is held like a computed source
 	// (AFP-V0-9971).
@@ -322,8 +327,10 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 			dynamic = true
 		}
 		private := privateDirectory(commands, len(parsed.commands), index, privateRoots)
+		walks.words(commands[index].words, temp)
 		for _, run := range runs {
 			word, args := run.word, run.args
+			linked := false
 			// An awk or sed program read from a file reads what no word of this
 			// file names (AFP-V0-9974); git over a repository not proven private
 			// reads every path (AFP-V0-9973).
@@ -368,7 +375,11 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 					computed(unquote(target))
 				}
 			case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
-				computed(word)
+				linked = computed(word)
+			}
+			walks.observe(word, args, temp, linked)
+			if isToolchain(word) && !test {
+				walks.hold(OpaqueToolchain)
 			}
 			if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 				toolchain = true
@@ -376,6 +387,9 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 			if walksTree(word, args) {
 				treeWalk = true
 				contentWalk = contentWalk || !nameListingCommand(parsed, index)
+			}
+			if treeWalk {
+				walks.hold(OpaqueTreeWalk)
 			}
 		}
 	}
@@ -418,6 +432,27 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		if len(listed) != 0 {
 			unit.NameListings = sortedKeys(listed)
 		}
+	}
+	// A glob a read word holds walks its literal directory (AFP-V0-9990).
+	for glob := range globs {
+		if directory, ok := walkDirectory(glob); ok {
+			walks.directories[directory] = true
+		}
+	}
+	if unit.PathTokensBounded {
+		walks.hold(OpaqueTokenBound)
+	}
+	unit.WalkDirectories = sortedKeys(walks.directories)
+	unit.WalkOpaque = walks.opaque
+	runNames := map[string]bool{}
+	for _, name := range names {
+		runNames[strings.ReplaceAll(name, wildcard, "*")] = true
+	}
+	if len(runNames) != 0 {
+		unit.RunNames = sortedKeys(runNames)
+	}
+	if len(walks.directories) == 0 {
+		unit.WalkDirectories = nil
 	}
 	return unit, names, dynamic
 }
@@ -1562,9 +1597,17 @@ func pathTokens(parsed script, temp map[string]bool, test, listings, utilities b
 		// below that directory, which an added or deleted file changes
 		// (AFP-V0-9133); the `/dir/` form matches the component at any
 		// depth, as the glob directory below does.
+		// A literal operand spelled with a slash (`script/`, `./script`,
+		// `script/sub`) names its directory the same way: its own token
+		// names only a file called `script` (V1-0290) or none below it
+		// (AFP-V0-9991).
 		if test {
 			name, operands := commandWord(plainWords(cmd.words))
 			for _, directory := range listedDirectories(name, operands) {
+				tokens["/"+directory+"/"] = true
+				held["/"+directory+"/"] = true
+			}
+			for _, directory := range literalWalkDirectories(name, operands) {
 				tokens["/"+directory+"/"] = true
 				held["/"+directory+"/"] = true
 			}
