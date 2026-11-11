@@ -44,7 +44,11 @@ bash 5.2 and dash 0.5 on the host and checks both read the file.
 - awk options: `awk -f prog` and `sed -f script` read programs whose `getline`, redirections or
   `r` commands no word names; such a test is now `shell:runs-toolchain` (AFP-V0-9974).
 
-The ticket title names four gaps; the fourth is not readable from the title and is NOT_DONE.
+Forms delivered and their tests: awk options, `TestAwkProgramFiles_AFPV09974`; git log and
+reflog path output, the `log_names` and `reflog` cases of `TestGitPathOutputWalks_AFPV09973`;
+walker option values, `TestWalkerOptionValues_AFPV09972`. NOT_DONE: `node --import` (a node
+preload; a shell test running node is already `shell:runs-toolchain`, but the form itself has no
+rule or test) and any other form the ticket body specifies, which the lane could not read.
 
 ## V1-5226: wrappers, startup names and write detection (AFP-V0-9975 to AFP-V0-9977)
 
@@ -105,11 +109,34 @@ subshell), one (`script/batch-assemble_test.sh`) reassigns its root, and
 `export PYTHONPATH=/private/tmp/...` until the absolute-value exemption of AFP-V0-9976, which
 `TestRepositoryInboundCallers_AZU_V0_8901` required; it stays bounded.
 
-Differential check (a throwaway test, not committed): every one of the 250 repository shell units
-was observed with the base and the head plugin. No unit loses an import, path token or glob; 28
-gain tokens (mostly AFP-V0-9977: tests that assign `PATH` keep their `mkdir`, `cp` and `mv`
-operands), 16 gain `shell:tree-walk`, and imports, computed names, frontiers and test roles are
-unchanged.
+Differential check: `TestShellUnitDifferential_AFPV09970` (committed, skipped unless its
+environment names the inputs) observes every repository shell file with the base plugin and the
+head plugin on the same input bytes and fails on any lost import, glob or path token. Procedure
+from the head checkout, with `D` a private scratch directory:
+
+```sh
+git ls-files '*.sh' '*.bash' '*.bats' '.github/*.sh' > "$D/files"
+git archive b55635262788687c3eea9a08a94378e4ab8856a4 | tar -x -C "$D/base"
+cp internal/liveverify/affected/shell/differential_test.go "$D/base/internal/liveverify/affected/shell/"
+(cd "$D/base" && script/heavy.sh env GOTOOLCHAIN=local CORVINT_SHELL_DIFF_ROOT="$HEAD" \
+  CORVINT_SHELL_DIFF_FILES="$D/files" CORVINT_SHELL_DIFF_OUT="$D/base.json" \
+  go test -count=1 -run TestShellUnitDifferential ./internal/liveverify/affected/shell/)
+script/heavy.sh env GOTOOLCHAIN=local CORVINT_SHELL_DIFF_ROOT="$PWD" CORVINT_SHELL_DIFF_FILES="$D/files" \
+  CORVINT_SHELL_DIFF_OUT="$D/head.json" CORVINT_SHELL_DIFF_BASE="$D/base.json" \
+  go test -count=1 -run TestShellUnitDifferential -v ./internal/liveverify/affected/shell/
+```
+
+Retained output at the fix-round head (PASS):
+
+```text
+differential: 250 units, 28 gain tokens, 0 gain imports, 16 change unbounded reads, 0 change frontier, names, tests or bound
+```
+
+The 16 changed units are the `shell:tree-walk` tests listed above. Most token gains come from
+AFP-V0-9977: tests that assign `PATH` keep their `mkdir`, `cp` and `mv` operands. An earlier cut
+rule of the fix round (end a body at any line with an unbalanced `)`) made
+`script/wsl-keepalive-check.sh` a 17th change, a false hold on a correctly closed body, which this
+check caught; the rule now follows bash (below).
 
 A first version of `holds_test.go` carried an error string spelled `"script/env.sh: ..."`, which
 the foreign-caller scan reads as a constructed `script/` path and so invalidated
@@ -118,6 +145,29 @@ the foreign-caller scan reads as a constructed `script/` path and so invalidated
 `TestHeavyShEditKeepsShellReaders_V14170` asserted that a docs edit does not select
 `script/analyzer-schema_test.sh`; it now admits that selection only through the test's own
 `shell:tree-walk` read and checks both units' import chains to `script/heavy.sh` directly.
+
+## Fix round 1 (independent review: SHIP-WITH-FIXES)
+
+- P1: AFP-V0-9971's empty delimiter swallowed the rest of a file whose here-document sat in a
+  command substitution: `echo $(cat <<''\n)\n. "$X"` and `x=$(cat <<''\nbody\n)\n. "$X"` lost
+  the base `shell:dynamic-source` hold. bash 5.3 ends such a body at a line that starts with the
+  delimiter and whose rest closes the substitution (`)` for an empty delimiter, `EOF)` or
+  `EOF )` otherwise) and runs what follows; a body line such as `body ) x` stays data; dash
+  refuses all three forms. The lexer now ends the body there and lexes the rest, and every
+  here-document no delimiter line ends (cut by the substitution, at end of file, an operator on
+  the last line or on its substitution's closing line, an escaped ANSI-C delimiter) holds the
+  file as a dynamic source, in command strings and trap handlers too. Tests:
+  `TestIncompleteHereDocumentsHold_AFPV09971`, `TestHereDocumentFixturesAgreeWithBash_AFPV09971`.
+- P3: `<<$'EOF'` and `<<$''` ended only at a literal `$EOF` line, so the source after them was
+  data on base and head; bash decodes the delimiter and runs it. The delimiter is now decoded.
+  Test: `TestAnsiCQuotedDelimiter_AFPV09971`.
+- V1-5226 AC1: `TestWrappedStartupAssignments_AFPV09976` covers `timeout`, `nice`, `nohup`,
+  `time`, `exec` and `command` before a `BASH_ENV` assignment, directly and through `env` (it
+  passes at the first-round head, whose any-word assignment rule already held these; origin/main
+  has no startup-name rule). AC2: `PHPRC`, `PHP_INI_SCAN_DIR`, `TCLLIBPATH` and `LUA_PATH`,
+  `LUA_CPATH`, `LUA_INIT` in every versioned form are startup names
+  (`TestMoreInterpreterStartupNames_AFPV09976`).
+- Each new hold test failed at the first-round head `35af15b47` except the two noted above.
 
 Rollback: revert the lane commits and drop the 16 units from `.corvint/unbounded-readers.json`
 and the two `docs/build-log/` record-reader entries.

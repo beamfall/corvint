@@ -389,3 +389,140 @@ func TestRedefinedUtilitiesKeepOperands_AFPV09977(t *testing.T) {
 	}
 	wantSelected(t, graph, "script/golden.txt", heldNames, droppedNames)
 }
+
+// incompleteHereDocuments are here-documents no delimiter line ends: inside a
+// command substitution bash ends the body at the closing `)` and runs what
+// follows; at the end of the file the body is cut short (AFP-V0-9971).
+var incompleteHereDocuments = map[string]string{
+	"subst_empty":       "echo $(cat <<''\n)\n. \"$X\"\n",
+	"subst_body":        "x=$(cat <<''\nbody\n)\n. \"$X\"\n",
+	"subst_delim_paren": "x=$(cat <<EOF\nbody\nEOF)\n. \"$X\"\n",
+	"eof_no_delimiter":  "cat <<EOF\nbody\n. \"$X\"\n",
+	"eof_operator":      "cat <<EOF",
+	"closed_on_line":    "x=$(cat <<EOF)\nbody\nEOF\n",
+	"escaped_ansi_c":    "cat <<$'E\\x4fF'\nbody\nEOF\necho done\n",
+	"command_string":    "bash -c 'cat <<EOF\nbody'\n",
+}
+
+// AFP-V0-9971: a here-document that no delimiter line ends holds the file as
+// a dynamic source; inside a substitution the body ends at the `)` and the
+// commands after it are lexed.
+func TestIncompleteHereDocumentsHold_AFPV09971(t *testing.T) {
+	tests := map[string]string{
+		"closed_subst":  "x=$(cat <<EOF\nbody\nEOF\n)\ncat script/golden.txt\n",
+		"closed_empty":  "cat <<''\nbody\n\necho done\n",
+		"closed_plain":  "cat <<EOF\nbody\nEOF\necho done\n",
+		"closed_ansi_c": "cat <<$'EOF'\nbody\nEOF\necho done\n",
+		// A body line holding a `)` that does not start with the delimiter
+		// is data, as in bash and dash.
+		"closed_paren": "x=$(cat <<'PS'\n$h = @($all | Where-Object {\n  $_.Id })\nPS\n)\ncat script/golden.txt\n",
+	}
+	var held []string
+	for name, body := range incompleteHereDocuments {
+		tests[name] = body
+		held = append(held, name)
+	}
+	graph := holdGraph(t, tests, nil)
+	wantUnbounded(t, graph, UnboundedDynamicSource, held...)
+	closed := []string{"closed_subst", "closed_empty", "closed_plain", "closed_ansi_c", "closed_paren"}
+	wantUnbounded(t, graph, "", closed...)
+	wantSelected(t, graph, "docs/x.md", held, closed)
+
+	// The substitution's body ends at its `)`, and the source after it is a
+	// command again.
+	for _, body := range []string{incompleteHereDocuments["subst_empty"], incompleteHereDocuments["subst_body"], incompleteHereDocuments["subst_delim_paren"]} {
+		parsed := parse(body)
+		if !parsed.incomplete {
+			t.Errorf("%q: not incomplete", body)
+		}
+		if !slices.ContainsFunc(parsed.commands, func(cmd command) bool { return strings.Join(cmd.words, " ") == `. "$X"` }) {
+			t.Errorf("%q: the source after the substitution is no command", body)
+		}
+	}
+	if parsed := parse("cat <<EOF\nbody\nEOF\n"); parsed.incomplete {
+		t.Error("a closed here-document is incomplete")
+	}
+}
+
+// AFP-V0-9971: an ANSI-C quoted delimiter ends at its decoded spelling, as in
+// bash, so the source after it is a command.
+func TestAnsiCQuotedDelimiter_AFPV09971(t *testing.T) {
+	tests := map[string]string{
+		"ansi_c":       "cat <<$'EOF'\nbody\nEOF\n. \"$X\"\n",
+		"ansi_c_empty": "cat <<$''\nbody\n\n. \"$X\"\n",
+		"locale":       "cat <<$\"EOF\"\nbody\nEOF\n. \"$X\"\n",
+	}
+	graph := holdGraph(t, tests, nil)
+	wantUnbounded(t, graph, UnboundedDynamicSource, "ansi_c", "ansi_c_empty", "locale")
+	parsed := parse(tests["ansi_c"])
+	if parsed.incomplete || len(parsed.data) != 1 || parsed.data[0] != "body" {
+		t.Errorf("data %q incomplete %v; want the decoded delimiter to end the body", parsed.data, parsed.incomplete)
+	}
+}
+
+// AFP-V0-9971: bash runs the source after each substitution and ANSI-C
+// fixture, which the plugin now holds.
+func TestHereDocumentFixturesAgreeWithBash_AFPV09971(t *testing.T) {
+	binary, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash is not installed")
+	}
+	fixtures := map[string]string{
+		"subst_empty":  incompleteHereDocuments["subst_empty"],
+		"subst_body":   incompleteHereDocuments["subst_body"],
+		"delim_paren":  incompleteHereDocuments["subst_delim_paren"],
+		"ansi_c":       "cat <<$'EOF'\nbody\nEOF\n. \"$X\"\n",
+		"ansi_c_empty": "cat <<$''\nbody\n\n. \"$X\"\n",
+	}
+	for name, body := range fixtures {
+		root := t.TempDir()
+		write(t, root, "script/golden.txt", "GOLDEN-MARKER\n")
+		write(t, root, "sourced.sh", "cat script/golden.txt\n")
+		write(t, root, "fixture.sh", body)
+		command := exec.Command(binary, "fixture.sh")
+		command.Dir = root
+		command.Env = append(os.Environ(), "X=./sourced.sh")
+		output, _ := command.CombinedOutput()
+		if !strings.Contains(string(output), "GOLDEN-MARKER") {
+			t.Errorf("bash %s: did not run the source: %q", name, output)
+		}
+	}
+}
+
+// AFP-V0-9976 (V1-5226 AC1): a startup assignment after timeout, nice, nohup,
+// time, exec or command, directly or through env, holds the file.
+func TestWrappedStartupAssignments_AFPV09976(t *testing.T) {
+	tests := map[string]string{}
+	var names []string
+	for wrapper, spelling := range map[string]string{
+		"timeout": "timeout 5", "nice": "nice -n 5", "nohup": "nohup", "time": "time",
+		"exec": "exec", "command": "command",
+	} {
+		for form, middle := range map[string]string{"direct": "", "env": "env "} {
+			name := wrapper + "_" + form
+			tests[name] = spelling + " " + middle + "BASH_ENV=script/hook.sh bash script/run.sh\n"
+			names = append(names, name)
+		}
+	}
+	tests["control"] = "timeout 5 env FOO=1 bash script/run.sh\n"
+	graph := holdGraph(t, tests, map[string]string{"script/run.sh": "true\n", "script/hook.sh": "true\n"})
+	wantUnbounded(t, graph, UnboundedDynamicSource, names...)
+	wantUnbounded(t, graph, "", "control")
+}
+
+// AFP-V0-9976 (V1-5226 AC2): PHP, Lua and Tcl startup names hold the file.
+func TestMoreInterpreterStartupNames_AFPV09976(t *testing.T) {
+	tests := map[string]string{
+		"phprc":       "PHPRC=conf php x.php\n",
+		"php_scan":    "export PHP_INI_SCAN_DIR=conf.d\nphp x.php\n",
+		"lua_path_54": "LUA_PATH_5_4='lib/?.lua' lua x.lua\n",
+		"lua_cpath":   "export LUA_CPATH_5_3=lib/?.so\nlua x.lua\n",
+		"lua_path":    "LUA_PATH='lib/?.lua' lua x.lua\n",
+		"lua_init":    "LUA_INIT=@init.lua lua x.lua\n",
+		"tcllibpath":  "TCLLIBPATH=lib tclsh x.tcl\n",
+		"control":     "LUAROCKS_CONFIG=x lua x.lua\n",
+	}
+	graph := holdGraph(t, tests, nil)
+	wantUnbounded(t, graph, UnboundedDynamicSource, "phprc", "php_scan", "lua_path_54", "lua_cpath", "lua_path", "lua_init", "tcllibpath")
+	wantUnbounded(t, graph, "", "control")
+}

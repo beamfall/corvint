@@ -2942,7 +2942,15 @@ in build-log entry `docs/build-log/2026-11-11-shellwalk.md`.
   A quoted empty here-document delimiter (`<<''`, `<<""`, `<<-''`) SHALL open a here-document
   whose body ends at the first empty line (after leading tabs are stripped for `<<-`), read as
   data like any other body; its lines SHALL NOT be lexed as commands. Only a missing delimiter
-  word opens none.
+  word opens none. An ANSI-C or locale quoted delimiter (`<<$'EOF'`, `<<$"EOF"`) SHALL end at its
+  decoded spelling, as in bash. Inside a command substitution, a body line that starts with the
+  delimiter and whose rest holds the unbalanced `)` SHALL end the body, its rest lexed as the
+  shell text that closes the substitution (bash ends `$(cat <<''` at the `)` line and
+  `$(cat <<EOF` at `EOF)`). A here-document that no delimiter line ends, one so cut, one whose
+  operator line closes its substitution or ends the text, and one whose ANSI-C delimiter holds an
+  escape SHALL hold the file as a `shell:dynamic-source`: shells disagree on such a body (dash
+  refuses the substitution forms), so it is never treated as complete data. The same holds for a
+  command string and a trap handler holding one.
 - **AFP-V0-9972:** (proposed 2026-11-11; delivery experimental; V1-5217)
   The AFP-V0-9134 tree-walk test SHALL read option values both ways: once with no option taking
   a value, which names every word that may be a path, and once with every option of `grep`,
@@ -2989,8 +2997,9 @@ in build-log entry `docs/build-log/2026-11-11-shellwalk.md`.
   its commands assigns or exports an interpreter startup name: `BASH_ENV`, `ENV`, `ZDOTDIR`,
   `BASH_LOADABLES_PATH`, `AWKPATH`, `AWKLIBPATH`, `GCONV_PATH`, `RUBYOPT`, `RUBYLIB`,
   `NODE_OPTIONS`, `NODE_PATH`, `PYTHONPATH`, `PYTHONSTARTUP`, `PYTHONHOME`, `PYTHONUSERBASE`,
-  `JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `JDK_JAVA_OPTIONS`, a `PERL`-prefixed name longer than
-  `PERL`, or an `LD_`, `DYLD_` or `BASH_FUNC_` name. An assignment word counts anywhere among a
+  `JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `JDK_JAVA_OPTIONS`, `PHPRC`, `PHP_INI_SCAN_DIR`,
+  `TCLLIBPATH`, `LUA_PATH`, `LUA_CPATH` or `LUA_INIT` and their versioned forms (`LUA_PATH_5_4`),
+  a `PERL`-prefixed name longer than `PERL`, or an `LD_`, `DYLD_` or `BASH_FUNC_` name. An assignment word counts anywhere among a
   command's words (a prefix, a standalone assignment, which also changes an inherited exported
   value, or one after `env` or another wrapper), as do a bare name given to `export`,
   `declare`, `typeset`, `readonly`, `local`, `read`, `printf`, `getopts`, `for`, `select`,
@@ -3290,16 +3299,27 @@ directory-rooted, file-rooted, temp-rooted and helper walkers bounded. The lane 
 AFP-V0-9970 and AFP-V0-9971 (V1-5382): `TestCarriageReturnIsWordText_AFPV09970` (the
 `echo a\r#;cat` read keeps its token; `EOF\r` does not end an `EOF` body; `exit\r` is no INT exit
 handler; each failed on the base), `TestEmptyHereDocumentDelimiter_AFPV09971` (`<<''`, `<<""`
-and `<<-''` bodies are data and the command after the empty line is lexed), and
+and `<<-''` bodies are data and the command after the empty line is lexed),
 `TestCarriageReturnAndEmptyDelimiterAgreeWithShells_AFPV09970` (runs each fixture under bash and
-dash when present and checks the shells read the file the plugin names). AFP-V0-9972 to
+dash when present and checks the shells read the file the plugin names),
+`TestIncompleteHereDocumentsHold_AFPV09971` (`echo $(cat <<''\n)\n. "$X"`,
+`x=$(cat <<''\nbody\n)\n. "$X"`, `EOF)`, end of file without the delimiter, an operator on the
+last line or on its substitution's closing line, an escaped ANSI-C delimiter and a command string
+each hold; closed bodies, including one with a `)` in a body line, do not),
+`TestAnsiCQuotedDelimiter_AFPV09971` and `TestHereDocumentFixturesAgreeWithBash_AFPV09971` (bash
+runs the source after each fixture). AFP-V0-9972 to
 AFP-V0-9974 (V1-5217): `TestWalkerOptionValues_AFPV09972`, `TestGitPathOutputWalks_AFPV09973`
 and `TestAwkProgramFiles_AFPV09974`. AFP-V0-9975 to AFP-V0-9977 (V1-5226):
-`TestWrappedCommands_AFPV09975`, `TestInterpreterStartupNames_AFPV09976` and
+`TestWrappedCommands_AFPV09975`, `TestInterpreterStartupNames_AFPV09976`,
+`TestWrappedStartupAssignments_AFPV09976` (a startup assignment after `timeout`, `nice`,
+`nohup`, `time`, `exec` or `command`, directly or through `env`),
+`TestMoreInterpreterStartupNames_AFPV09976` and
 `TestRedefinedUtilitiesKeepOperands_AFPV09977`, each in `internal/liveverify/affected/shell`
 with bounded controls. `TestHeavyShEditKeepsShellReaders_V14170` now admits a docs edit selecting
 `script/analyzer-schema_test.sh` only by its own `shell:tree-walk` read and checks its and
-`script/codex-review_test.sh`'s import chains to `script/heavy.sh` directly. The census of repository tests the git rule holds is
+`script/codex-review_test.sh`'s import chains to `script/heavy.sh` directly. `TestShellUnitDifferential_AFPV09970` is the reproducible base-versus-head check over every
+repository shell file (procedure in its doc comment, output in the lane's build-log entry). The
+census of repository tests the git rule holds is
 `make unbounded-readers-check` against `.corvint/unbounded-readers.json`; the lane entry is
 `docs/build-log/2026-11-11-shellwalk.md`.
 

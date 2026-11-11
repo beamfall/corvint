@@ -123,17 +123,26 @@ var startupNames = map[string]bool{
 	"RUBYOPT": true, "RUBYLIB": true, "NODE_OPTIONS": true, "NODE_PATH": true,
 	"PYTHONPATH": true, "PYTHONSTARTUP": true, "PYTHONHOME": true, "PYTHONUSERBASE": true,
 	"JAVA_TOOL_OPTIONS": true, "_JAVA_OPTIONS": true, "JDK_JAVA_OPTIONS": true,
+	"PHPRC": true, "PHP_INI_SCAN_DIR": true, "TCLLIBPATH": true,
 }
 
 // startupName reports a startupNames name or one of the families that load
 // code: PERL-prefixed names longer than PERL, LD_ and DYLD_ loader names and
-// exported bash functions (BASH_FUNC_).
+// exported bash functions (BASH_FUNC_), and lua's module path and init
+// names in every versioned form.
 func startupName(name string) bool {
 	if startupNames[name] {
 		return true
 	}
 	if strings.HasPrefix(name, "PERL") && len(name) > len("PERL") {
 		return true
+	}
+	// LUA_PATH, LUA_CPATH and LUA_INIT, each also in its versioned form
+	// (LUA_PATH_5_4, LUA_INIT_5_1, ...), choose the modules or code lua loads.
+	for _, prefix := range []string{"LUA_PATH", "LUA_CPATH", "LUA_INIT"} {
+		if name == prefix || strings.HasPrefix(name, prefix+"_") {
+			return true
+		}
 	}
 	return strings.HasPrefix(name, "LD_") || strings.HasPrefix(name, "DYLD_") || strings.HasPrefix(name, "BASH_FUNC_")
 }
