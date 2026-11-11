@@ -54,7 +54,7 @@ func TestRNCV1013BuiltInDefaults(t *testing.T) {
 	none := func(string) bool { return false }
 	rails := func(rel string) bool { return rel == "bin/rails" }
 	for runner, want := range map[string][]string{
-		testid.Go:         {"go", "test", "./..."},
+		testid.Go:         {"go", "test", goEveryPackage},
 		testid.Vitest:     {"npx", "vitest", "run"},
 		testid.Jest:       {"npx", "jest"},
 		testid.Playwright: {"npx", "playwright", "test"},
@@ -87,7 +87,7 @@ func command(t *testing.T, request Request) Command {
 // pattern by canonical ID, exact only when the argv runs nothing more.
 func TestRNCV1003GoSelection(t *testing.T) {
 	root := Instance{Runner: testid.Go, Root: ".", Config: "go.mod"}
-	fullGo := []string{"go", "test", "-count=1", "./..."}
+	fullGo := []string{"go", "test", "-count=1", goEveryPackage}
 	cases := []struct {
 		name   string
 		tests  []string
@@ -113,7 +113,7 @@ func TestRNCV1003GoSelection(t *testing.T) {
 			t.Errorf("%s: not exact without a reason", c.name)
 		}
 	}
-	if got := command(t, Request{Instance: root, Full: fullGo}); !slices.Equal(got.Argv, []string{"go", "test", "-json", "-count=1", "./..."}) || got.Tier != TierFull || !got.Exact {
+	if got := command(t, Request{Instance: root, Full: fullGo}); !slices.Equal(got.Argv, []string{"go", "test", "-json", "-count=1", goEveryPackage}) || got.Tier != TierFull || !got.Exact {
 		t.Errorf("full: %+v", got)
 	}
 	nested := Instance{Runner: testid.Go, Root: "tools/x", Config: "tools/x/go.mod"}

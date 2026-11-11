@@ -16,16 +16,19 @@ import (
 // goRunner selects by package and `-run`, and reads `go test -json`.
 type goRunner struct{}
 
+// goEveryPackage is the package pattern of the Go full command.
+const goEveryPackage = "./..."
+
 func (goRunner) Name() string                         { return testid.Go }
 func (goRunner) Lister() testinventory.ListerIdentity { return lister(testid.Go) }
 func (goRunner) Default(Instance, func(string) bool) []string {
-	return []string{"go", "test", "./..."}
+	return []string{"go", "test", goEveryPackage}
 }
 
 // goPattern reports whether word is a package pattern of a go test argv,
 // the words the selection replaces: `./...`, `.`, or a `./` path.
 func goPattern(word string) bool {
-	return word == "." || word == "./..." || strings.HasPrefix(word, "./")
+	return word == "." || word == goEveryPackage || strings.HasPrefix(word, "./")
 }
 
 // Command keeps the full command's `go test` flags, adds -json, and names
@@ -52,7 +55,7 @@ func (goRunner) Command(request Request) (Command, error) {
 		}
 	}
 	if request.Tests == nil {
-		return Command{Argv: append(flags, "./..."), Dir: request.Instance.Root, Report: request.Report, Tier: TierFull, Exact: true}, nil
+		return Command{Argv: append(flags, goEveryPackage), Dir: request.Instance.Root, Report: request.Report, Tier: TierFull, Exact: true}, nil
 	}
 	if len(request.Tests) == 0 {
 		return Command{}, fmt.Errorf("%s: an empty selection runs nothing", request.Instance.Key())
