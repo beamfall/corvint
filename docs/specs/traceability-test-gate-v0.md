@@ -129,6 +129,44 @@ arguments, and requires only `git` and `perl` on `PATH`.
   gate's output, and MUST fail, naming the row, while the name is declared. Failure mode: a row
   keeps the marker after its requirement gains a new test under another name; the row then names
   no live evidence, which the marker count keeps visible. Non-goal: proving the test once existed.
+- `TTG-V0-960`: (proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery
+  experimental) In a traceability row, the gate MUST treat a checked test name that is followed at
+  once by `/` and a requirement ID as a subtest citation `TestName/REQ-ID`. A requirement ID is the
+  longest text at that position matching `[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+`; text after it, such
+  as `_restore_satisfied`, belongs to the subtest name and is ignored. A subtest citation MUST
+  resolve only when `TestName` is declared (TTG-V0-001) and TTG-V0-961 holds. A `/` followed by
+  other text MUST be handled as before this change. A name exempt under TTG-V0-006, TTG-V0-011,
+  TTG-V0-917, TTG-V0-952 or the wildcard rule is not checked as a subtest citation, and an
+  undeclared name fails under TTG-V0-005 only. Non-goal: requiring the ID in the body of a plain
+  `TestName` citation. Rollback: remove the subtest branch and its fixtures.
+- `TTG-V0-961`: (proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery
+  experimental) For a subtest citation `TestName/REQ-ID`, the gate MUST fail unless the body of at
+  least one tracked declaration of `TestName` contains `REQ-ID`. The body is the text from the
+  declaration line of TTG-V0-001 to the first later line that is exactly `}` in column 0, or to the
+  end of the file. The ID is contained only when it is not directly preceded by a letter, a digit or
+  `-` and not directly followed by a letter or a digit; comments and string literals count. The
+  index form reads bodies from the Git index and the range form from HEAD's tree. The failure line
+  MUST be `path:line: TestName/REQ-ID (no declaration of TestName contains REQ-ID)`, with the commit
+  prefix of TTG-V0-950 in the range form. Failure mode: an ID that appears in the body only by
+  coincidence passes; the check is lexical.
+- `TTG-V0-962`: (proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery
+  experimental) With `--range BASE..HEAD` the gate MUST compare the tree of BASE with the tree of
+  HEAD. A requirement is cited at a tree when a traceability row of a spec that is not retired in
+  that tree holds its ID in full in the first cell together with at least one test name that
+  resolves in that tree, or when a subtest citation naming the ID resolves in that tree; the name
+  set, bodies and rows all come from that tree. The gate MUST fail for every requirement that is
+  cited at BASE and not cited at HEAD, unless at HEAD the ID appears in no `docs/specs/*.md` file
+  that is not retired, or TTG-V0-963 applies. The failure line MUST be
+  `REQ-ID: last test citation removed (BASE path:line: TestName)`, naming one citation it had at
+  BASE. Non-goal: expanding a written range of IDs; only IDs written in full count. Failure mode:
+  until CI runs the range form, the rule holds only where someone runs it.
+- `TTG-V0-963`: (proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery
+  experimental) A traceability row at HEAD that holds a requirement ID in its first cell and the
+  text `(untested: REASON)`, where REASON has at least one non-space character, MUST exempt that
+  requirement from TTG-V0-962. The gate MUST print one added line
+  `traceability subtest citations: N checked`, and in the range form one added line
+  `traceability last citations: N requirements cited at BASE, M untested`. The summary line of
+  TTG-V0-008 MUST NOT change.
 
 ## Non-goals and simpler baseline
 
@@ -185,6 +223,8 @@ but not after a heading at or above the opening depth.
 | TTG-V0-951 | `script/check-traceability-tests_test.sh` retired fixture: a spec with the retired header and an undeclared name passes and is counted; the same body under `Delivery status: implemented` fails |
 | TTG-V0-952 | `script/check-traceability-tests_test.sh` removed fixture: an undeclared name marked `(removed)` passes and is counted; a declared name with the marker fails naming the row |
 | TTG-V0-950 | `script/check-traceability-tests_test.sh` spec-first fixture: the spec-only index check fails with the range hint, `--range BASE..HEAD` passes once the next commit adds the test and fails for a range that ends before it, and a never-landing test is named once at its first citing commit |
+| TTG-V0-960, TTG-V0-961 | `script/check-traceability-tests_test.sh` subtest fixtures: an ID-suffixed citation whose body holds the ID resolves and is counted; a body without the ID fails naming the row; a suffix that is not an ID is checked by name only; an ID that is a prefix of a longer one fails; a second declaration holding the ID resolves; each exempt marker skips the subtest check |
+| TTG-V0-962, TTG-V0-963 | `script/check-traceability-tests_test.sh` last-citation fixtures: the range form fails when the only citing test is deleted and its row edited, and passes when a second citation remains, the spec is retired, the requirement text is removed, or the row states `(untested: REASON)`; an empty reason fails |
 
 ## Traceability
 
@@ -201,6 +241,8 @@ but not after a heading at or above the opening depth.
 | TTG-V0-950 | the `--range` option and the per-commit loop in `script/check-traceability-tests.sh`; `TRACE_RANGE` in `Makefile` | `script/check-traceability-tests_test.sh` |
 | TTG-V0-951 | the retired-header skip at the top of the per-spec loop of `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
 | TTG-V0-952 | the `(removed)` branch in the per-line match loop of `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
+| TTG-V0-960, TTG-V0-961 | the subtest-citation branch and `body_has_id` in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` subtest fixtures |
+| TTG-V0-962, TTG-V0-963 | `cited_requirements` and the BASE-against-HEAD comparison of the range form in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` last-citation fixtures |
 
 ## Rollout, rollback, and drift
 
@@ -219,6 +261,9 @@ then use `(PLANNED)` until its test lands.
 Roll back TTG-V0-951 and TTG-V0-952 by removing the retired-header skip, the `(removed)` branch
 and their fixtures; every row naming a test removed under decision 0594 then fails again and must
 be rewritten without the name.
+Roll back TTG-V0-960 to TTG-V0-963 by reverting the script and fixture commits of change
+`traceability-gate-upgrade`; no stored state or file format is added, and `(untested: REASON)`
+text left in a row is then inert.
 
 ## Unresolved
 

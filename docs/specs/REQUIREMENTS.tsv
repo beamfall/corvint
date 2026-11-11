@@ -8813,6 +8813,10 @@ TTG-V0-917	docs/specs/traceability-test-gate-v0.md	(experimental under the stand
 TTG-V0-950	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3586)	standing	2026-11-01; V1-3586
 TTG-V0-951	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept, 2026-11-09; decision 0594)	standing	2026-11-09; decision 0594
 TTG-V0-952	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept, 2026-11-09; decision 0594)	standing	2026-11-09; decision 0594
+TTG-V0-960	docs/specs/traceability-test-gate-v0.md	(proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery	unrecorded	-
+TTG-V0-961	docs/specs/traceability-test-gate-v0.md	(proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery	unrecorded	-
+TTG-V0-962	docs/specs/traceability-test-gate-v0.md	(proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery	unrecorded	-
+TTG-V0-963	docs/specs/traceability-test-gate-v0.md	(proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery	unrecorded	-
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-

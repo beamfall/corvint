@@ -4,7 +4,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 
 ## Tasks
 
-- [ ] 1.1 First commit: copy TTG-V0-960 to TTG-V0-963 from the spec delta into
+- [x] 1.1 First commit: copy TTG-V0-960 to TTG-V0-963 from the spec delta into
       `docs/specs/traceability-test-gate-v0.md` as experimental requirements, with their rows in the
       spec's traceability table, and regenerate the requirement index. Requirements: TTG-V0-960 to
       TTG-V0-963. Proof: `make spec-requirements-check` passes.
