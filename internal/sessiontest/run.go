@@ -360,7 +360,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		}
 	}
 	receipt.CompletedAt = r.clock().UTC().Format(time.RFC3339Nano)
-	stampTestIDs(&receipt, GoUnitDir(r.Root))
+	stampTestIDs(receipt.Invocations, GoUnitDir(r.Root))
 	return Finish(receipt, m)
 }
 
