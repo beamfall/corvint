@@ -464,11 +464,14 @@ cannot silently go missing or outlive its command.
   (`TestCLIKit`, `cmd/corvint/cli_kit_test.go`) over one table holding one row per node of the
   `corvint` command tree plus the root. A row names the command's path, the code it refuses an
   unknown option with, and only the extra argument vectors that command needs (further refusals,
-  help after other options, `--help` read as a value). The kit MUST fail on a tree node without a
-  row, a row that names no node, a duplicated row, or a dispatched verb without a row, so a new
-  command ships with its row. It runs in process, needs only Git, and runs one command with
-  `-run 'TestCLIKit/^PATH$'` (spaces as `_`), so the slow command package is never run whole for
-  it. It replaces the per-command help and refusal copies (`CAP-V0-058`).
+  help after other options, `--help` read as a value, text its help must carry, and refusals a
+  separate process must make). The kit MUST fail on any `clitree.Problems` finding, a node listed
+  twice, a tree node without a row, a row that names no node, a duplicated row, or a dispatched verb
+  without a row, so a new command ships with its row. It runs in process apart from its
+  separate-process refusal rows, under a PATH that is an empty directory (no help or refusal path it
+  drives starts Git, so no platform skips it), and runs one command with `-run 'TestCLIKit/^PATH$'`
+  (spaces as `_`), so the slow command package is never run whole for it. It replaces the
+  per-command help and refusal copies (`CAP-V0-058`).
 - `CAP-V0-056`: (experimental under the standing lane auto-accept (2026-11-11); V1-4814; amends
   `CAP-V0-042` and `CAP-V0-044`) For every row, `PATH --help`, `PATH -h` and `corvint help PATH`,
   each with no root, with `--root DIR` and with `--root=DIR` where DIR is not a repository, and the
@@ -486,15 +489,17 @@ cannot silently go missing or outlive its command.
   under a repository root with nothing on stdout, no stdin read and exactly one stderr line: a JSON
   object with `ok` false and a `code` equal to the row's code, from the closed argument set
   (`invalid-arguments`, a command's own `COMMAND-invalid-arguments`, or `not-installed` for a shim
-  whose bundled app is absent; the kit's PATH holds only Git, so the result does not depend on the
-  host). Under a root that is not a repository the same unknown option MUST still be refused with
-  such an envelope and never as `internal-error`. Before every top-level verb a bare `--root`
-  followed by an option-like token MUST be refused as a missing value (decision 0181), and `corvint
-  help TOPIC` for an unknown topic MUST name every dispatched verb. Before this change `test-plan
-  page-state` and `test-plan prefixes` reported their argument errors as `internal-error`; they now
-  report `test-plan-invalid-arguments` with the same message. The one exception is `cem
-  verify-stable`, whose frozen contract (`CEM-V1-017`) prints its verdict as one JSON object on
-  stdout, exits 2 and writes nothing on stderr; the kit checks that form for its row.
+  whose bundled app is absent; the kit's PATH is an empty directory, so the result does not depend
+  on the host). A row's separate-process vectors (`init --revision`, `adopt --unknown`), run through
+  the test binary's second entry point, MUST be refused the same way. Under a root that is not a
+  repository the same unknown option MUST still be refused with such an envelope and never as
+  `internal-error`. Before every top-level verb a bare `--root` followed by an option-like token
+  MUST be refused as a missing value (decision 0181), and `corvint help TOPIC` for an unknown topic
+  MUST name every dispatched verb. Before this change `test-plan page-state` and `test-plan
+  prefixes` reported their argument errors as `internal-error`; they now report
+  `test-plan-invalid-arguments` with the same message. The one exception is `cem verify-stable`,
+  whose frozen contract (`CEM-V1-017`) prints its verdict as one JSON object on stdout, exits 2 and
+  writes nothing on stderr; the kit checks that form for its row.
 - `CAP-V0-058`: (experimental under the standing lane auto-accept (2026-11-11); V1-4814) The help
   and refusal copies the kit subsumes MUST be deleted: `TestCAPV0042EveryTreeNodeAnswersHelp`
   (removed), `TestEveryVerbHelpFollowsTheHouseFormat` (removed),
@@ -505,8 +510,10 @@ cannot silently go missing or outlive its command.
   `TestActivationArgumentErrorsAndHelp` (removed), `TestTestPlanHelp` (removed) and
   `TestCEMHelpSurfaces` (removed). Every traceability row that cited one of them MUST cite
   `TestCLIKit` instead. The kit compares help to the topic text the binary serves and refusals to
-  their envelope and code, not to copied prose; a command's semantic refusals (input files,
-  repository state) stay in that command's own tests.
+  their envelope and code; the only fixed texts are each row's `helpContains` (a flag or usage form
+  a reader relies on: `--explain`, `--full-receipt`, `test-plan consolidate --input FILE`, and the
+  root verb lines for `cem`, `test-plan`, `adopt` and `init`); a command's semantic refusals (input
+  files, repository state) stay in that command's own tests.
 - `CAP-V0-970`: (experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)
   The help parser (`clitree.Synopses`) MUST NOT read an example as a synopsis: a line of an
   `Example:` or `Examples:` section (the header line, or the indented block under it up to the
@@ -827,14 +834,14 @@ it by shipping `help --json` and a snapshot); output schemas, exit codes or flag
 node; generating help text; checking that a node's summary or example is true; a CI step (the
 check runs in the existing Go test shards).
 
-CAP-V0-055 to CAP-V0-058 failure modes: the kit checks shape, not truth. A help topic that is
-wrong but well formed passes, as do a refusal with the right code and a misleading message and a
-row whose extra vectors miss a command-specific refusal; those stay with each command's own tests.
-The kit runs in process, so it does not see an exit path that only the built binary takes (the
-deleted activation copy ran the built binary for two argument cases). A new command whose unknown
-option is refused with a code outside the closed argument set fails the kit until its refusal is
-fixed or the set is amended here. The PATH it runs under holds only Git, so a shim that must find
-its bundled app is checked only in its `not-installed` form.
+CAP-V0-055 to CAP-V0-058 failure modes: the kit checks shape, not truth. A help topic that is wrong
+but well formed passes, as do a refusal with the right code and a misleading message and a row whose
+extra vectors miss a command-specific refusal; those stay with each command's own tests. The kit
+runs in process except for its separate-process rows, so an exit path that only a separate process
+takes is seen only for those vectors. A new command whose unknown option is refused with a code
+outside the closed argument set fails the kit until its refusal is fixed or the set is amended here.
+The PATH it runs under is empty, so a shim that must find its bundled app is checked only in its
+`not-installed` form.
 
 CAP-V0-040 to CAP-V0-050 failure modes: the dispatch scan is lexical. It reads a switch,
 comparison or lookup only on a value named like an argument slice (`arg*`, `rest`, `tokens`,
