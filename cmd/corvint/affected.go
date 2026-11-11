@@ -909,7 +909,7 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		return 2
 	}
 	if invocation.Summary {
-		return writeAffectedVerdict(receipt, invocation.Format, stdout, stderr)
+		return writeAffectedVerdict(receipt, invocation.Root, invocation.Format, stdout, stderr)
 	}
 	if invocation.Format == "text" {
 		compact, ok := receipt.(affectedCompactReceipt)

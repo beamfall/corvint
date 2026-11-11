@@ -499,8 +499,9 @@ It cannot be combined with --full or
 --playwright-config; --format json (the default) is the JSON document.
 Example: corvint affected --base FULL_SHA --format text
 --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
-the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
-tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
+the plan: summary, tiers {counts, summary, tier0, tier1, testIds} with the
+sorted tier-0 and tier-1 unit names a lane runs locally and each one's
+canonical test ID (CTI-V1-009), range {base, paths count},
 degradations and warning; --format text writes it as lines ("affected
 <summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit).
 It never changes the selection.

@@ -18,7 +18,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 5 Add the `testId` field to `corvint-test-run/0` outcomes and read legacy keys.
    Requirements: CTI-V1-009, CTI-V1-012. Proof: a receipt test that reads an integ 9ec3a29d0
    receipt without `testId` and a new receipt with it; existing receipt tests stay green.
-- [ ] 6 Use the ID in the plan, watch output and the MCP affected tool.
+- [x] 6 Use the ID in the plan, watch output and the MCP affected tool.
    Requirements: CTI-V1-009. Proof: one fixture per runner where the plan, the receipt and watch
    print the same ID for the same test.
 - [ ] 7 Record the trace and the delivery state in the spec.
