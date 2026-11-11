@@ -646,8 +646,8 @@ func TestOSCV1001TaskIDForms(t *testing.T) {
 		{"Requirements: OSC-V1-001 to 003. Proof: t.", "OSC-V1-001 OSC-V1-002 OSC-V1-003", false},
 		{"Requirements: OSC-V1-009 to OSC-V1-010.", "OSC-V1-009 OSC-V1-010", false},
 		{"Reserve `RNC-V1` 001..003; set requirementRefs.", "RNC-V1-001 RNC-V1-002 RNC-V1-003", false},
-		{"reserve prefix `TKF-V1` (001 to 002)", "TKF-V1-001 TKF-V1-002", false},
-		{"reserve `GHA-V1` 001-002, 020-021", "GHA-V1-001 GHA-V1-002", false},
+		{"reserve prefix `XYZ-V1` (001 to 002)", "XYZ-V1-001 XYZ-V1-002", false},
+		{"reserve `NOPE-V1` 001-002, 020-021", "NOPE-V1-001 NOPE-V1-002", false},
 		{"File ticket V1-5399. Requirements: all. Proof: t.", "", true},
 		{"Build-log entry; Tasks gate. Proof: receipt audit.", "", false},
 	} {
