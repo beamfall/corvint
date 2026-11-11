@@ -349,12 +349,17 @@ Baseline at `origin/main` c6b6cbb0:
   runner, sorted by name: `runner`, `mode` (always `full`: the host never admits qualification,
   `RSP-V0-030`), `reason`, `run` (`ok` or `fail`) and, when `run` is `fail`, `run_reason`
   `runner-adapter-unavailable`. `reason` is the first applicable of: malformed discovery
-  (`discovery-invalid:<cause>` or `candidate-pins-invalid`), `unsupported-schema`, `unpinned`, the
-  resolution failure (for example `digest-mismatch` or `missing-executable`),
-  `adapter-session-missing` (a caller-built plan that leaves a pinned runner without a session),
-  the session's `RSP-V0-031` failure code, `candidate-pins-changed`, and otherwise
-  `runner-not-qualified`. `run`
-  is `ok` only when a pinned, resolved session closed without failure, or when the runner keeps a
+  (`discovery-invalid:<cause>` or `candidate-pins-invalid`), `unsupported-schema`, `unpinned`,
+  `runner-claimed-by-two-pins` (a caller-built plan naming the runner in more than one pin; no
+  pin is launched for it), the resolution failure (for example `digest-mismatch` or
+  `missing-executable`), `adapter-session-missing` (a caller-built plan that leaves a pinned
+  runner without a session), the session's `RSP-V0-031` failure code, `candidate-pins-changed`,
+  and otherwise `runner-not-qualified`. A reason is a lowercase hyphenated code taken before the
+  first `:` of the failure; a failure that does not start with such a code (for example a wrapped
+  file-system error naming a path) is reported as `session-open-failed`, so no path or detail
+  reaches plan output. The discovery plan keeps `unsupported-schema` when a CI candidate also
+  edits the pins, and the host launches no pin for a runner whose discovery reason is anything
+  other than `candidate-pins-changed`. `run` is `ok` only when a pinned, resolved session closed without failure, or when the runner keeps a
   pre-plugin execution path; every other line is `fail`, so a required runner is never silently
   skipped. A runner the candidate's pins changed still runs FULL from its trusted pin. Failure
   modes: any `RSP-V0-031` failure, an unpinned or unresolvable runner and malformed discovery each
@@ -789,7 +794,7 @@ outcomes equal the stated ones.
 | 030, 042 | admitted qualification and base index from a protected-ref run narrow | forged qualification record, fabricated or candidate-produced coverage record, candidate-modified corpus pin fixture: each not admitted, runner `full`, reason named |
 | 031 | external-plugin runner whose plugin is missing, unlaunchable or unpinned: run outcome checked, not only plan mode | run fails `runner-adapter-unavailable`, never passes or skips; runner with a core pre-plugin path runs that path |
 | 032 | additive feature named in `hello` is used | unnamed feature: never sent |
-| 063 | clean twin through the adapter host: one line per required runner, `full` `runner-not-qualified`, run `ok`; no session for an unrequired pin | each `RSP-V0-031` failure fixture, digest mismatch, missing executable, unpinned runner and malformed discovery: `full` with that cause, run `fail` `runner-adapter-unavailable`; same runner with a pre-plugin path: run `ok` |
+| 063 | clean twin through the adapter host: one line per required runner, `full` `runner-not-qualified`, run `ok`; no session for an unrequired pin | each `RSP-V0-031` failure fixture, digest mismatch, missing executable, unpinned runner, runner claimed by two pins, unrecognised open error (`session-open-failed`, no path), malformed discovery, and unsupported schema with a CI candidate pin edit: `full` with that cause, run `fail` `runner-adapter-unavailable`, no session; same runner with a pre-plugin path: run `ok` |
 | 033, 035 | qualification record holds seed, population, trials, misses and bound; 300 zero-miss trials report 0.995% | 299 trials: class unqualified; one miss: class blocked; unkilled mutants not counted as trials |
 | 059, 060 | edit outside a runner's closure: digest, contract-suite result and qualification reused | edit to one file in the runner package and one in a dependency: digest changes, runner `full` until requalified; unresolved closure: `plugin-digest-unresolved`; failing contract suite: qualification refused |
 | 061, 062 | runner patch release with equal inventory and records: carried forward without trials, carry-forward record names the baseline; selector change re-scored offline with zero misses: carried forward | one consulted component differs: first difference named, full requalification; second carry-forward compared against the baseline, not the first; re-score miss: class blocked; record-format change: never carried |
