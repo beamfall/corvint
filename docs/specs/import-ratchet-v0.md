@@ -133,10 +133,12 @@ reviewed change.
   and receives the program from its caller. Spawns inside `internal/gitrun` are out of scope by
   design. A name that contains `git` but holds another program would be listed needlessly; the
   list makes that visible in review.
-- IRT-V0-021 finds uses of `affected` by selector name, not by type resolution. A local variable,
-  parameter or field receiver named `affected` in an importer counts as a use of the package, so
-  a file that shadows the import could hide a leaf-only import or report a non-leaf name it does
-  not take from the package.
+- IRT-V0-021 finds uses of `affected` by selector name with the parser's file-scope object
+  resolution, not by type checking. A selector counts only when its `affected` identifier is
+  unresolved in the file, so a local variable, parameter or receiver named `affected` is not taken
+  for the package. A package-level declaration of that name would collide with the import and fail
+  the build. A name reached any other way, such as through a type alias or a value declared in
+  another package, is not seen.
 
 ## Acceptance evidence and traceability
 
@@ -149,7 +151,7 @@ reviewed change.
 | IRT-V0-005 | `TestImportRatchet` controls |
 | IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages; 0.09 s, 298 packages and 44 edges after the V1-5233 re-key) |
 | IRT-V0-020 | `TestIRTV0020DirectGitSpawnsAreAllowlisted` (checkout scan against `direct_git_allowlist.txt`, 59 spawns; a synthetic-module control naming an unlisted spawn of each program form (literal, identifier, selector, `gitstatus.Executable()`), a `goBin` program that is not reported, a stale and a malformed entry) |
-| IRT-V0-021 | `TestIRTV0021NoLeafOnlyAffectedImport` (checkout graph and a synthetic-module control that fails a `Language`-only importer) |
+| IRT-V0-021 | `TestIRTV0021NoLeafOnlyAffectedImport` (checkout graph and a synthetic-module control that fails a `Language`-only importer, a dot importer and an importer whose only non-leaf selector is on a parameter named `affected`) |
 
 Area names are the layers of decision 0594 item 8: `shared`, `analyzers`, `tests`, `docs` and
 `release` (V1-5233). Until then they followed the panel's mapping (scripts of 2026-11-06):
