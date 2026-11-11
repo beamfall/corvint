@@ -1781,11 +1781,16 @@ my $digest = ($m->{planDigest} // "") =~ /^sha256:([0-9a-f]{12})/ ? $1 : "unknow
 # ASD-V0-5190/5191 (V1-5019): the scope, UNKNOWN unless the manifest records one Corvint writes; a
 # FULL manifest is disclosed with its recorded reason and incomplete entries, cleaned and bounded.
 my $scope = defined $m->{scope} && !ref $m->{scope} && $m->{scope} =~ /^(FULL|NARROWED|NOTHING)$/ ? $m->{scope} : "UNKNOWN";
-sub clean { my $v = shift; return "" unless defined $v && !ref $v; $v =~ s/[\x00-\x1f\x7f]/?/g; length($v) > 512 ? substr($v, 0, 512) . "...(" . length($v) . " bytes)" : $v }
+# The decoded values are character strings: C0, DEL and C1 controls are replaced, a long value is cut
+# at 512 characters, at most 20 incomplete entries are named with a "+N more" count, and STDERR is
+# UTF-8 so a non-ASCII value prints as itself (gaterel review).
+binmode STDERR, ":utf8";
+sub clean { my $v = shift; return "" unless defined $v && !ref $v; $v =~ s/[\x00-\x1f\x7f-\x9f]/?/g; length($v) > 512 ? substr($v, 0, 512) . "...(" . length($v) . " chars)" : $v }
 sub full_notice {
   return if $scope ne "FULL";
   my $why = clean($m->{reason}); $why = "NOT_RECORDED" if $why eq "";
   my @inc = ref $m->{incomplete} eq "ARRAY" ? grep { $_ ne "" } map { clean($_) } @{ $m->{incomplete} } : ();
+  if (@inc > 20) { my $more = @inc - 20; splice(@inc, 20); push @inc, "+$more more" }
   print STDERR "heavy.sh: FULL-selection: HEAVY_SELECTION=$path (planDigest $digest) is scope FULL: every package runs whole, so this run is coverage, not narrowing evidence; reason: $why" . (@inc ? "; incomplete: " . join("; ", @inc) : "") . " (ASD-V0-5190)\n";
 }
 if ($mode eq "scope") { full_notice(); print "$scope\n"; exit 0 }
