@@ -224,8 +224,12 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   `runnernames` constant or a registered runner name literal, and whose body builds a plugin type
   of the package (a type with a `Pieces` method) or calls a package function that returns one or a
   `RunnerPlugin`. Its baseline is empty. A fixture of the `SelectionPlugin` switch of commit
-  `5bfe17dc6` SHALL be reported, and a branch that names a runner without choosing a plugin type
-  (the Ruby plugin's `test-unit` identity mapping) SHALL NOT. A parity test SHALL pin
+  `5bfe17dc6` SHALL be reported. A branch that names a runner without choosing a plugin type (the
+  Ruby plugin's `test-unit` identity mapping) SHALL NOT be reported, and neither SHALL a family
+  factory's admission guard, which refuses an unsupported runner before building its one plugin
+  type (`NewJVMSelectionPlugin`, `PythonPlugin`, `NewRustPlugin`, `ShellSelectionPlugin`). Known
+  limit: a family-neutral function that refuses every runner but one and then builds that runner's
+  plugin has the admission-guard shape and is not reported. A parity test SHALL pin
   `SelectionPlugin`'s result for every registered runner.
 
 ## Failure modes
