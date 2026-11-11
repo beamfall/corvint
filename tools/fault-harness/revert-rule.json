@@ -1,0 +1,11 @@
+{
+  "profile": "fault-harness-revert-rule/1",
+  "statement": "Decided 2026-11-09 under R42, A17 (FIH-V1-002). Frame: the PRs merged in the 12 months before the pinned commit (24 months if fewer than 30 qualify) that are fixes (a fix title prefix, a bug label, or a closing link to a bug issue), that change runner-owned source and at least one test, whose source-only revert applies and builds at the pin, and whose revert fails at least one test three times out of three on the full suite. Order the frame by SHA-256 of (this file's SHA-256, newline, decimal PR number) and take the first 30, at most two per source file. A shortfall below 30 is filled with changed-line mutants and reported.",
+  "frameMonths": 12,
+  "extendedFrameMonths": 24,
+  "take": 30,
+  "maxPerSourceFile": 2,
+  "confirmRuns": 3,
+  "fixTitlePrefixes": ["fix"],
+  "bugLabels": ["bug"]
+}

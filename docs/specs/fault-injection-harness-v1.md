@@ -14,8 +14,8 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/fault-injection
 ## Agent digest
 - Claim: Pre-registered, hashed fault sets per runner prove that a selected run executes every test that kills a fault on a changed line, with a fixed miss verdict.
 - Status: accepted automatically under G14 (decision 0596; V1-5405) / experimental; partially delivered
-- Exists: `tools/fault-harness`: the harness core, the Go adapter and the AEO parity command (task 3).
-- Blocked on: the pre-registration and seal (task 4), baseline and quarantine (task 5), the verdict writer (task 7); then tasks 6, 8 and 9.
+- Exists: `tools/fault-harness`: the harness core, the Go adapter, the AEO parity command, the pre-registration, the reverted-fix rule file and the seal (tasks 3 and 4).
+- Blocked on: baseline and quarantine (task 5) and the verdict writer (task 7); then tasks 6, 8 and 9.
 - Read next: Requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
@@ -62,6 +62,15 @@ before any fault is generated for it; the harness MUST refuse a held-out pre-reg
 - GIVEN no committed draw record under PRR-V1-004
 - WHEN a held-out pre-registration or fault set is requested
 - THEN it refuses with `held-out-not-drawn`
+
+Delivery: delivered. `fault-harness check`, `select-reverts`, `generate-go` and `seal` read the
+pre-registration (`fault-harness-preregistration/1`: runner, language, repository SHA and pin date,
+sampling frame, the reverted-fix rule's path and SHA-256, the operator list per language, seeds,
+over-sample, exclusion budget and rules) and refuse with `preregistration-changed` when its SHA-256
+differs from the committed hash file, before anything runs; a missing hash file is
+`preregistration-unhashed`. A held-out pre-registration is refused with `held-out-not-drawn` unless
+it pins a draw record whose SHA-256 matches; the PRR-V1-004 draw record does not exist yet, so every
+real held-out request is refused. Test: `TestPreregistrationHash_FIH_V1_001`.
 
 - `FIH-V1-002`: (accepted automatically under G14, decision 0596; V1-5405) Composition of a fault set
 
@@ -113,6 +122,19 @@ set is sealed (PRR-V1-003).
 - GIVEN 104 code PRs and 32 non-code faults with confirmed kills and no misses
 - WHEN the verdict is printed
 - THEN it prints one sentence with N = 104 and a second with N = 32, each with its own bound
+
+Delivery: partly delivered. The A17 rule is the committed file
+`tools/fault-harness/revert-rule.json` with its hash `revert-rule.json.sha256`; `loadRule` refuses
+another SHA-256 (`revert-rule-changed`) or other numbers (`revert-rule-invalid`). `selectReverts`
+applies it to observed PR facts (12-month frame, 24 when fewer than 30 qualify, SHA-256 order of
+rule hash and PR number, first 30, at most two per source file, shortfall reported). `seal` refuses
+a set whose reverts differ from the selection, whose shortfall is not filled by changed-line mutant
+PRs, whose mutant PRs hold other than 3 to 5 mutants or an operator outside the pre-registered list,
+with fewer than 30 non-code faults (`non-code-faults-below-minimum`), or, for Playwright, fewer than
+20 flow-reaching faults. `generate-go` places Go mutants. Observing the PR facts on a pinned
+repository, the Playwright flow manifest and the non-code fault generators are tasks 6 and 8 and not
+yet built; the two printed bounds are FIH-V1-007. Tests: `TestRevertRule_FIH_V1_002`,
+`TestSeal_FIH_V1_002_014`.
 
 - `FIH-V1-003`: (accepted automatically under G14, decision 0596; V1-5405) Faults sit on changed lines
 
@@ -337,6 +359,10 @@ over-sample; a smaller N is the owner's choice (decided 2026-11-09 under R42, A1
 - WHEN the verdict is computed
 - THEN N is 91, the four counts are printed and the verdict is `INVALID`
 
+Delivery: partly delivered: the pre-registration must over-sample at least 100 code PRs and `seal`
+refuses a set with fewer code PRs than the pre-registered over-sample (`over-sample-not-met`). The
+four counts and the N floor are the verdict writer of task 7. Test: `TestSeal_FIH_V1_002_014`.
+
 - `FIH-V1-015`: (accepted automatically under G14, decision 0596; V1-5405) Line-level proven
 
 Review release-tasks 21. A runner MAY be called line-level proven only when its FIH-V1 verdict is
@@ -353,8 +379,8 @@ decision R16 (2026-11-09)). A runner proven at tier `file`, such as pytest under
 
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
-| FIH-V1-001 | 4 | not yet built | not yet built |
-| FIH-V1-002 | 4, 7 | not yet built | not yet built |
+| FIH-V1-001 | 4 | `tools/fault-harness/prereg.go`, `cmds.go` | `TestPreregistrationHash_FIH_V1_001` |
+| FIH-V1-002 | 4, 7 | `tools/fault-harness/prereg.go`, `seal.go`, `revert-rule.json` | `TestRevertRule_FIH_V1_002`, `TestSeal_FIH_V1_002_014` |
 | FIH-V1-003 | 3 | `tools/fault-harness/faults.go` | `TestChangedLineSites_FIH_V1_003`, `TestFaultsOnChangedLinesInGit_FIH_V1_003` |
 | FIH-V1-004 | 5 | not yet built | not yet built |
 | FIH-V1-005 | 3 | `tools/fault-harness/run.go`, `adapter.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoOutcomesFailClosed_FIH_V1_005` |
@@ -366,7 +392,7 @@ decision R16 (2026-11-09)). A runner proven at tier `file`, such as pytest under
 | FIH-V1-011 | 3 | `tools/fault-harness/aeo.go`, `main.go` | `TestGoParityWithOracle_FIH_V1_011` |
 | FIH-V1-012 | 9 | not yet built | not yet built |
 | FIH-V1-013 | 3 | `tools/fault-harness` | `TestImports_FIH_V1_013` |
-| FIH-V1-014 | 4, 7 | not yet built | not yet built |
+| FIH-V1-014 | 4, 7 | `tools/fault-harness/seal.go` | `TestSeal_FIH_V1_002_014` |
 | FIH-V1-015 | 7 | not yet built | not yet built |
 
 Release evidence (seven sealed pre-registrations, the cost-check reports, seven verdicts at the RC
