@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"io"
 
@@ -25,7 +24,7 @@ func runTestPlanPrefixes(ctx context.Context, root string, arguments []string, s
 	full := f.Bool("full", false, "full byte cap")
 	check := f.Bool("check", false, "exit 1 when a new test introduces a flagged prefix")
 	if f.Parse(arguments) != nil || f.NArg() != 0 || *mapFile == "" {
-		emitError(stderr, errors.New("test-plan prefixes requires --map FILE; optional --ledger, --facts, --baseline, --check, --revision, --budget or --full"))
+		emitError(stderr, testPlanArgumentError("test-plan prefixes requires --map FILE; optional --ledger, --facts, --baseline, --check, --revision, --budget or --full"))
 		return 2
 	}
 	if root == "" {
