@@ -91,7 +91,7 @@ as part of that dated run.
 
 Corvint sets no whole-command timeout on these steps. Some internal Git steps carry their own
 deadline and fail the command when it expires: the index build and the range-impact diff use 30 s
-(`internal/contextindex/git.go:27@e8c8d0ea`, `internal/contextindex/index.go:344@c925936b`,
+(`internal/contextindex/git.go:27@e8c8d0ea`, `internal/contextindex/index.go:334@c925936b`,
 `internal/contextindex/range_impact.go:124@c925936b`), and `affected` reads `git status` under 10 s
 (`internal/liveverify/affected/dirty.go:37@bb3abea6`, `internal/liveverify/affected/dirty.go:53@d3f19770`). Otherwise
 the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1114@5434511f`,

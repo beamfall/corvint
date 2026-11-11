@@ -5,7 +5,6 @@ import (
 	"errors"
 	"runtime"
 	"slices"
-	"strings"
 	"sync"
 )
 
@@ -123,122 +122,6 @@ func sortedIDs(counts map[string]uint32, keys *[]string, values *[]uint32) map[s
 		ids[key] = uint32(id)
 	}
 	return ids
-}
-
-// frequencies returns the nameFrequency and termFrequency maps
-// evalPrepareSymbols counts, read out of the table.
-func (table *symbolTermTable) frequencies() (map[string]int, map[string]int) {
-	names := make(map[string]int, len(table.names))
-	for id, name := range table.names {
-		names[name] = int(table.nameCounts[id])
-	}
-	termsByCount := make(map[string]int, len(table.terms))
-	for id, term := range table.terms {
-		termsByCount[term] = int(table.termCounts[id])
-	}
-	return names, termsByCount
-}
-
-// usable reports whether the table describes index's symbols and the fast
-// path's other inputs are present; otherwise the full pass runs.
-func (table *symbolTermTable) usable(index *Index, windows []map[string]struct{}) bool {
-	return table != nil && table.symbols == len(index.Symbols) && windows != nil && !evalRecomputePathTerms
-}
-
-// evalPreparePrecomputed is evalPrepareSymbols over a symbol term table. A
-// symbol the ranking would drop before it scores is not prepared: the ranking
-// keeps a candidate only when its name may match exactly, or two query terms
-// meet terms(name) ∪ terms(path), or three meet its context window, and each
-// of those is checked here with the table's ids and the window sets. Every
-// other symbol is prepared exactly as collect prepares it, in symbol order.
-// anyVersioned is evalAnyVersionedPath over every symbol the full pass would
-// have prepared, so the version narrowing sees the same universe.
-func evalPreparePrecomputed(index *Index, table *symbolTermTable, queryText string, queryTerms map[string]struct{}, intent evalIntent, windows []map[string]struct{}) (prepared []evalPreparedSymbol, nameFrequency, termFrequency map[string]int, anyVersioned bool) {
-	nameFrequency, termFrequency = table.frequencies()
-	if len(queryTerms) == 0 {
-		return nil, nameFrequency, termFrequency, false
-	}
-	queryIDs := make(map[uint32]string, len(queryTerms))
-	for term := range queryTerms {
-		if id, ok := slices.BinarySearch(table.terms, term); ok {
-			queryIDs[uint32(id)] = term
-		}
-	}
-	compactQuery := compactText(queryText)
-	exactCompact := make(map[uint32]bool)
-	for id, name := range table.names {
-		if len(name) >= 5 && table.nameCounts[id] == 1 && strings.Contains(compactQuery, name) {
-			exactCompact[uint32(id)] = true
-		}
-	}
-
-	type chunkResult struct {
-		prepared     []evalPreparedSymbol
-		anyVersioned bool
-	}
-	symbols := index.Symbols
-	workers := min(runtime.NumCPU(), max(len(symbols)/symbolsPerWorker, 1))
-	chunks := make([]chunkResult, workers)
-	var pending sync.WaitGroup
-	for worker := range workers {
-		pending.Add(1)
-		go func(chunk *chunkResult, low, high int) {
-			defer pending.Done()
-			symbolTermsOf := evalSymbolTerms{}
-			lastPath, allowed, versioned := "", false, false
-			var pathHits map[string]struct{}
-			for position := low; position < high; position++ {
-				symbol := symbols[position]
-				if symbol.Path != lastPath || position == low {
-					lastPath = symbol.Path
-					allowed = !isTestPath(symbol.Path) && evalPathAllowed(symbol.Path, intent)
-					if allowed {
-						pathTerms := symbolTermsOf.pathTermsOf(symbol.Path)
-						pathHits, versioned = make(map[string]struct{}), false
-						for term := range queryTerms {
-							if _, ok := pathTerms[term]; ok {
-								pathHits[term] = struct{}{}
-							}
-						}
-						for term := range pathTerms {
-							if evalVersionTerm.MatchString(term) {
-								versioned = true
-								break
-							}
-						}
-					}
-				}
-				if !allowed {
-					continue
-				}
-				chunk.anyVersioned = chunk.anyVersioned || versioned
-				overlap := len(pathHits)
-				for _, id := range table.nameTermIDs[table.nameTermOffsets[position]:table.nameTermOffsets[position+1]] {
-					if term, ok := queryIDs[id]; ok {
-						if _, counted := pathHits[term]; !counted {
-							overlap++
-						}
-					}
-				}
-				exact := exactCompact[table.symbolName[position]] || queryText == pythonLower(symbol.Name)
-				if !exact && overlap < 2 && len(windows[position]) < 3 {
-					continue
-				}
-				symbolTerms, nameTerms := symbolTermsOf.of(symbol.Name, symbol.Path)
-				chunk.prepared = append(chunk.prepared, evalPreparedSymbol{
-					symbol: symbol, terms: symbolTerms, context: windows[position], name: nameTerms,
-					path: symbolTermsOf.pathTermsOf(symbol.Path), nameParts: evalOrderedTerms(symbol.Name),
-					compactName: table.names[table.symbolName[position]],
-				})
-			}
-		}(&chunks[worker], worker*len(symbols)/workers, (worker+1)*len(symbols)/workers)
-	}
-	pending.Wait()
-	for _, chunk := range chunks {
-		prepared = append(prepared, chunk.prepared...)
-		anyVersioned = anyVersioned || chunk.anyVersioned
-	}
-	return prepared, nameFrequency, termFrequency, anyVersioned
 }
 
 // MarshalBinary lays the table out little-endian: the symbol count, then the

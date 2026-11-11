@@ -68,7 +68,7 @@ func TestLSPRecordConformance(t *testing.T) {
 	}
 	for _, raw := range items {
 		item := raw.(map[string]any)
-		if contextindex.TrustClass(item["authority"].(string)) != contextindex.TrustExternalProvider {
+		if item["authority"] != "external-provider" {
 			t.Errorf("an LSP row is external-provider evidence: %v", item["authority"])
 		}
 		if item["relation_state"] != RelationFresh || !strings.Contains(item["relation"].(map[string]any)["reference"].(string), "from seed pkg/main.go") {

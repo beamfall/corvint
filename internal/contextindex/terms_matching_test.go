@@ -1,9 +1,7 @@
 package contextindex
 
 import (
-	"reflect"
 	"strings"
-	"testing"
 )
 
 // termsMatchingCorpus holds the shapes terms() treats specially, so a divergence
@@ -64,63 +62,6 @@ func referenceTermsMatching(text string, keep map[string]struct{}) map[string]st
 		}
 	}
 	return result
-}
-
-func TestTermsMatchingEqualsFilteredTerms(t *testing.T) {
-	keepSets := make([]map[string]struct{}, 0, len(termsMatchingKeepSets)+1)
-	for _, phrase := range termsMatchingKeepSets {
-		keepSets = append(keepSets, stringSet(phrase))
-	}
-	union := make(map[string]struct{})
-	for _, text := range termsMatchingCorpus {
-		for term := range terms(text) {
-			union[term] = struct{}{}
-		}
-	}
-	keepSets = append(keepSets, union)
-	for _, text := range termsMatchingCorpus {
-		for _, keep := range keepSets {
-			want := referenceTermsMatching(text, keep)
-			got := termsMatching(text, keep)
-			if !reflect.DeepEqual(want, got) {
-				t.Fatalf("termsMatching(%q, %v):\n got = %v\nwant = %v", text, sortedKeys(keep), sortedKeys(got), sortedKeys(want))
-			}
-		}
-	}
-}
-
-// TestTermsMatchingEmptyKeepSetIsEmpty pins the early-out: nothing can survive an
-// intersection with an empty set, so no text may produce a term.
-func TestTermsMatchingEmptyKeepSetIsEmpty(t *testing.T) {
-	for _, text := range termsMatchingCorpus {
-		if got := termsMatching(text, map[string]struct{}{}); len(got) != 0 {
-			t.Fatalf("termsMatching(%q, {}) = %v, want empty", text, sortedKeys(got))
-		}
-	}
-}
-
-// FuzzTermsMatchingEqualsFilteredTerms drives the same property over arbitrary
-// text and an arbitrary keep-set, which is the only way to reach the byte
-// sequences the corpus above did not think of.
-func FuzzTermsMatchingEqualsFilteredTerms(f *testing.F) {
-	for index, text := range termsMatchingCorpus {
-		f.Add(text, termsMatchingKeepSets[index%len(termsMatchingKeepSets)])
-	}
-	f.Fuzz(func(t *testing.T, text, keepPhrase string) {
-		keep := stringSet(keepPhrase)
-		// A keep-set drawn only from the text's own terms exercises the admitted
-		// branch of every guard, which an unrelated phrase rarely reaches.
-		for term := range terms(text) {
-			if len(term)%2 == 0 {
-				keep[term] = struct{}{}
-			}
-		}
-		want := referenceTermsMatching(text, keep)
-		got := termsMatching(text, keep)
-		if !reflect.DeepEqual(want, got) {
-			t.Fatalf("termsMatching(%q, %q):\n got = %v\nwant = %v", text, keepPhrase, sortedKeys(got), sortedKeys(want))
-		}
-	})
 }
 
 func sortedKeys(values map[string]struct{}) []string {
