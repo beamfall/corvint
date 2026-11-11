@@ -5480,6 +5480,10 @@ GLS-V0-045	docs/specs/go-line-selection-v0.md	(accepted under the owner's standi
 GLS-V0-046	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) Miss	standing	2026-10-11; V1-4366
 GLS-V0-047	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) A confir	standing	2026-10-11; V1-4366
 GLS-V0-050	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) The buil	standing	2026-10-11; V1-4366
+GLS-V0-051	docs/specs/go-line-selection-v0.md	(proposed 2026-11-11; V1-4514; delivery experimental) Reading the runner identit	unrecorded	-
+GLS-V0-052	docs/specs/go-line-selection-v0.md	(proposed 2026-11-11; V1-4514; delivery experimental) The identity's `runtime=`	unrecorded	-
+GLS-V0-053	docs/specs/go-line-selection-v0.md	(proposed 2026-11-11; V1-4514; delivery experimental) C code reads the environme	unrecorded	-
+GLS-V0-054	docs/specs/go-line-selection-v0.md	(proposed 2026-11-11; V1-4514; delivery experimental) `linecov qualify` runs eac	unrecorded	-
 GLTP-V0-001	docs/specs/go-live-test-provider-v0.md	Each V0 document is one UTF-8 canonical JSON object followed by exactly one LF.	unrecorded	-
 GLTP-V0-002	docs/specs/go-live-test-provider-v0.md	Raw `go test -json` is runner input, not canonical Corvint JSON. Its decoder acc	unrecorded	-
 GLTP-V0-003	docs/specs/go-live-test-provider-v0.md	`H(kind, profile, body)` is lowercase SHA-256 of	unrecorded	-
