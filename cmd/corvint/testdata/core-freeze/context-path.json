@@ -16,17 +16,6 @@
           "truncated": false
         },
         {
-          "items": [],
-          "missingSources": [
-            "CODEOWNERS"
-          ],
-          "name": "owners",
-          "reason": "source-absent; missing-source: CODEOWNERS",
-          "state": "NOT_OBSERVED",
-          "total": 0,
-          "truncated": false
-        },
-        {
           "items": [
             {
               "link": "affected-plan",
@@ -47,34 +36,10 @@
         {
           "items": [],
           "missingSources": [
-            ".corvint/flows.json"
-          ],
-          "name": "flows",
-          "reason": "source-absent; missing-source: .corvint/flows.json",
-          "state": "NOT_OBSERVED",
-          "total": 0,
-          "truncated": false
-        },
-        {
-          "items": [],
-          "missingSources": [
-            ".corvint/requirement-links.json",
-            "corvint-tasks",
-            "completed-ticket-commits"
+            ".corvint/requirement-links.json"
           ],
           "name": "requirements",
-          "reason": "no-link-for-path; missing-source: .corvint/requirement-links.json, corvint-tasks, completed-ticket-commits",
-          "state": "NOT_OBSERVED",
-          "total": 0,
-          "truncated": false
-        },
-        {
-          "items": [],
-          "missingSources": [
-            "corvint-tasks"
-          ],
-          "name": "tickets",
-          "reason": "source-absent; missing-source: corvint-tasks",
+          "reason": "no-link-for-path; missing-source: .corvint/requirement-links.json",
           "state": "NOT_OBSERVED",
           "total": 0,
           "truncated": false
@@ -82,6 +47,6 @@
       ]
     }
   ],
-  "profile": "corvint-path-brief/0",
+  "profile": "corvint-path-brief/1",
   "revision": "<varies:string>"
 }

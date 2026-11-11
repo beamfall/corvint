@@ -494,21 +494,17 @@
         "context"
       ],
       "command": "corvint context",
-      "summary": "Print the path brief of a file or directory, or the instruction load set",
+      "summary": "Print the path brief of a file or directory",
       "usage": [
-        "corvint [--root PATH] context --path PATH [--path PATH ...]",
-        "corvint [--root PATH] context --subject PATH --instruction-host HOST --instruction-host-version VERSION --instruction-cwd DIR --instruction-profile default"
+        "corvint [--root PATH] context --path PATH [--path PATH ...]"
       ],
       "flags": [
-        "--instruction-cwd",
-        "--instruction-host",
-        "--instruction-host-version",
-        "--instruction-profile",
         "--path",
-        "--root",
-        "--subject"
+        "--root"
       ],
-      "required": [],
+      "required": [
+        "--path PATH"
+      ],
       "example": "corvint context --path PATH",
       "help": "corvint context --help"
     },
@@ -658,7 +654,8 @@
         "corvint [--root PATH] impact [--limit N] [--provider FILE]... [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]... [--language-profile non-go-syntax-v0] [--require-clean] [--producer] PATH...",
         "corvint [--root PATH] impact --capabilities",
         "corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N] [--range-profile expanded-256]",
-        "corvint impact --app-root DIR --test-root ALIAS=ABSOLUTE_ROOT --manifest FILE --base COMMIT [--manifest-repo ALIAS] [--at REV] [--test-at REV] [--ledger FILE]"
+        "corvint impact --app-root DIR --test-root ALIAS=ABSOLUTE_ROOT --manifest FILE --base COMMIT [--manifest-repo ALIAS] [--at REV] [--test-at REV] [--ledger FILE]",
+        "corvint impact command."
       ],
       "flags": [
         "--app-root",
@@ -721,6 +718,33 @@
       "required": [],
       "example": "corvint init",
       "help": "corvint init --help"
+    },
+    {
+      "path": [
+        "instructions"
+      ],
+      "command": "corvint instructions",
+      "summary": "Print the instruction load set of a tracked file (experimental, IID-V0)",
+      "usage": [
+        "corvint [--root PATH] instructions --subject PATH --host HOST --host-version VERSION --cwd DIR --profile default"
+      ],
+      "flags": [
+        "--cwd",
+        "--host",
+        "--host-version",
+        "--profile",
+        "--root",
+        "--subject"
+      ],
+      "required": [
+        "--subject PATH",
+        "--host HOST",
+        "--host-version VERSION",
+        "--cwd DIR",
+        "--profile"
+      ],
+      "example": "corvint instructions --subject PATH --host HOST --host-version VERSION --cwd DIR --profile default",
+      "help": "corvint instructions --help"
     },
     {
       "path": [

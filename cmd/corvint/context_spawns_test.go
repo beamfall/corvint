@@ -50,8 +50,8 @@ func TestContextMissSpawnsTheObservationPairOnce(t *testing.T) {
 	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(shim), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	arguments := []string{"--root", root, "context", "--subject", "cache/demux.go", "--instruction-host", "codex",
-		"--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default"}
+	arguments := []string{"--root", root, "instructions", "--subject", "cache/demux.go", "--host", "codex",
+		"--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"}
 	if _, stderr, code := runCandidateWithEnvironment(t, "", []string{"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH")}, arguments...); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}

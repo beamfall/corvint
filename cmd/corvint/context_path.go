@@ -84,8 +84,7 @@ func runPathContext(ctx context.Context, options taskContextOptions, stdout, std
 		paths[index] = normalized
 	}
 	brief, err := pathbrief.Build(ctx, options.root, paths, pathbrief.Sources{
-		Tests:   pathContextTests(options.root),
-		Tickets: pathbrief.ExecTickets(options.root),
+		Tests: pathContextTests(options.root),
 	})
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: "path-brief-unavailable", Message: "cannot read the committed tree at HEAD"})

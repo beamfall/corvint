@@ -160,8 +160,8 @@ func TestIndexBootstrapsIgnoredObservationLedger(t *testing.T) {
 func TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte(t *testing.T) {
 	t.Parallel()
 	root := taskContextRepository(t)
-	arguments := []string{"--root", root, "context", "--subject", "cache/demux.go", "--instruction-host", "codex",
-		"--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default"}
+	arguments := []string{"--root", root, "instructions", "--subject", "cache/demux.go", "--host", "codex",
+		"--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"}
 	var cold, stderr bytes.Buffer
 	if code := runContext(context.Background(), arguments, strings.NewReader(""), &cold, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())

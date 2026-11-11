@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
 const (
@@ -23,12 +22,6 @@ func fakeTests(results ...TestsResult) func(context.Context, string, [][]string)
 	return func(context.Context, string, [][]string) []TestsResult { return results }
 }
 
-func fakeTickets(tickets ...Ticket) func(context.Context) ([]Ticket, error) {
-	return func(context.Context) ([]Ticket, error) { return tickets, nil }
-}
-
-func failingTickets(context.Context) ([]Ticket, error) { return nil, errTasks }
-
 // links commits a requirement-link file into the repository.
 func links(t *testing.T, root string, file LinkFile) {
 	t.Helper()
@@ -38,7 +31,7 @@ func links(t *testing.T, root string, file LinkFile) {
 
 func flag(v bool) *bool { return &v }
 
-// TBC-V1-010: six sections in fixed order; instructions come from the directory ancestry.
+// TBC-V1-010: three sections in fixed order; instructions come from the directory ancestry.
 func TestBuildStructureAndInstructions(t *testing.T) {
 	root := newRepo(t, map[string]string{"AGENTS.md": "x", "CLAUDE.md": "x", "a/AGENTS.md": "x", "a/b/x.go": "x", "z/y.go": "x"})
 	brief := build(t, root, Sources{}, "a/b/x.go", "z/y.go")
@@ -58,24 +51,6 @@ func TestBuildNoCommitIsAnError(t *testing.T) {
 	if _, err := Build(context.Background(), root, []string{"a"}, Sources{}); err == nil {
 		t.Fatal("no error without a commit")
 	}
-}
-
-// TBC-V1-010, TBC-V1-011: owners are the last matching rule per file; no file is a missing source.
-func TestBuildOwners(t *testing.T) {
-	root := newRepo(t, map[string]string{"a/x.go": "x", "a/y.txt": "x"})
-	missing := pick(t, build(t, root, Sources{}, "a"), 0, "owners")
-	equal(t, "state", missing.State, StateNotObserved)
-	equal(t, "missing", missing.MissingSources, []string{SourceOwners})
-	hasPrefixAndNames(t, missing, "source-absent", SourceOwners)
-
-	commitAll(t, root, map[string]string{".github/CODEOWNERS": "* @all\n*.go @gophers\n/docs/ @docs\n"})
-	s := pick(t, build(t, root, Sources{}, "a"), 0, "owners")
-	equal(t, "state", s.State, StateObserved)
-	if len(s.Items) != 2 || s.Items[0].Pattern != "*" || s.Items[0].Files != 1 || s.Items[1].Pattern != "*.go" || s.Items[1].Files != 1 {
-		t.Errorf("items %+v", s.Items)
-	}
-	none := pick(t, build(t, root, Sources{}, ".github/CODEOWNERS"), 0, "owners")
-	equal(t, "own file still matches *", len(none.Items), 1)
 }
 
 // TBC-V1-010, TBC-V1-011: the tests section states which source was read.
@@ -131,36 +106,22 @@ func TestBuildTestsLimit(t *testing.T) {
 	}
 }
 
-// TBC-V1-010: a flows file without a reader is reported, never shown as an empty list.
-func TestBuildFlows(t *testing.T) {
-	root := newRepo(t, map[string]string{"a/x.go": "x"})
-	s := pick(t, build(t, root, Sources{}, "a/x.go"), 0, "flows")
-	equal(t, "no file", s.State+" "+s.Reason, "NOT_OBSERVED source-absent; missing-source: .corvint/flows.json")
-	commitAll(t, root, map[string]string{SourceFlows: "{}"})
-	s = pick(t, build(t, root, Sources{}, "a/x.go"), 0, "flows")
-	equal(t, "file", s.State+" "+s.Reason, "NOT_OBSERVED flows-reader-not-built")
-}
-
 // TBC-V1-010, TBC-V1-011: requirements is never OBSERVED and names every missing source.
 func TestBuildRequirementsStates(t *testing.T) {
 	root := newRepo(t, map[string]string{"a/x.go": "x"})
 	s := pick(t, build(t, root, Sources{}, "a/x.go"), 0, "requirements")
 	equal(t, "no file", s.State+" "+s.Reason[:len("no-link-for-path")], "NOT_OBSERVED no-link-for-path")
-	equal(t, "missing, tickets unreadable", s.MissingSources, []string{LinksPath, SourceTasks, SourceTicketCommit})
-
-	s = pick(t, build(t, root, Sources{Tickets: failingTickets}, "a/x.go"), 0, "requirements")
-	equal(t, "missing, tickets failing", s.MissingSources, []string{LinksPath, SourceTasks, SourceTicketCommit})
-	s = pick(t, build(t, root, Sources{Tickets: fakeTickets()}, "a/x.go"), 0, "requirements")
-	equal(t, "missing, tickets read", s.MissingSources, []string{LinksPath, SourceTicketCommit})
+	equal(t, "missing", s.MissingSources, []string{LinksPath})
 
 	links(t, root, LinkFile{Commits: []LinkCommit{{SHA: c1, CommitterTime: 5}},
 		Evidence: []LinkEvidence{{File: "s.md", End: 9, BlobOid: c1, Requirements: []string{"R-001"}}},
 		Paths:    []LinkPath{{Path: "a/x.go", Records: []LinkRecord{{Evidence: []int{0}}}}}})
-	s = pick(t, build(t, root, Sources{Tickets: fakeTickets()}, "a/x.go"), 0, "requirements")
-	equal(t, "with link", s.State+" "+s.Reason, "INCOMPLETE links-not-exhaustive; missing-source: completed-ticket-commits")
-	s = pick(t, build(t, root, Sources{Tickets: fakeTickets()}, "a"), 0, "requirements")
+	s = pick(t, build(t, root, Sources{}, "a/x.go"), 0, "requirements")
+	equal(t, "with link", s.State+" "+s.Reason, "INCOMPLETE links-not-exhaustive")
+	equal(t, "with link, nothing missing", len(s.MissingSources), 0)
+	s = pick(t, build(t, root, Sources{}, "a"), 0, "requirements")
 	equal(t, "directory", len(s.Items), 1)
-	s = pick(t, build(t, root, Sources{Tickets: fakeTickets()}, "AGENTS.md"), 0, "requirements")
+	s = pick(t, build(t, root, Sources{}, "AGENTS.md"), 0, "requirements")
 	equal(t, "path without link", s.State, StateNotObserved)
 }
 
@@ -219,34 +180,13 @@ func TestBuildRequirementsDamagedLinkFile(t *testing.T) {
 	equal(t, "missing", s.MissingSources[0], LinksPath)
 }
 
-// TBC-V1-010, TBC-V1-011: open tickets whose declared scope or touch paths cover the path.
-func TestBuildTickets(t *testing.T) {
-	root := newRepo(t, map[string]string{"a/x.go": "x", "b/y.go": "x"})
-	tickets := []Ticket{
-		{ID: "V1-3", Title: "touch", TouchPaths: []string{"a/x.go"}},
-		{ID: "V1-1", Title: "scope", DeclaredScope: []string{"a/"}},
-		{ID: "V1-2", Title: "other", DeclaredScope: []string{"b/"}},
-	}
-	s := pick(t, build(t, root, Sources{Tickets: fakeTickets(tickets...)}, "a/x.go"), 0, "tickets")
-	if s.State != StateObserved || len(s.Items) != 2 || s.Items[0].Ticket != "V1-1" || s.Items[0].Field != "declaredScope" ||
-		s.Items[1].Ticket != "V1-3" || s.Items[1].Field != "record.effects.touchPaths" {
-		t.Errorf("tickets %+v", s)
-	}
-	s = pick(t, build(t, root, Sources{Tickets: fakeTickets(tickets...)}, "."), 0, "tickets")
-	equal(t, "repository root", len(s.Items), 0)
-	for _, src := range []Sources{{}, {Tickets: failingTickets}} {
-		s = pick(t, build(t, root, src, "a/x.go"), 0, "tickets")
-		equal(t, "source down", s.State+" "+strings.Join(s.MissingSources, ","), "NOT_OBSERVED "+TasksExecutable)
-	}
-}
-
 // TBC-V1-009: a path absent from HEAD still gets a brief.
 func TestBuildAbsentPath(t *testing.T) {
 	root := newRepo(t, map[string]string{"AGENTS.md": "x", "a/x.go": "x"})
-	brief := build(t, root, Sources{Tests: fakeTests(), Tickets: fakeTickets()}, "a/gone.go")
+	brief := build(t, root, Sources{Tests: fakeTests()}, "a/gone.go")
 	p := brief.Paths[0]
 	equal(t, "kind", p.Kind, "absent")
-	for _, name := range []string{"tests", "flows", "requirements"} {
+	for _, name := range []string{"tests", "requirements"} {
 		s := pick(t, brief, 0, name)
 		equal(t, name, s.State+" "+s.Reason, "NOT_OBSERVED path-not-at-head")
 	}
@@ -258,14 +198,27 @@ func TestBuildNeverUsedCorvint(t *testing.T) {
 	root := newRepo(t, map[string]string{"a/x.go": "x"})
 	brief := build(t, root, Sources{}, "a/x.go")
 	equal(t, "tests", pick(t, brief, 0, "tests").State, StateNotObserved)
-	equal(t, "tickets", pick(t, brief, 0, "tickets").State, StateNotObserved)
+	equal(t, "requirements", pick(t, brief, 0, "requirements").State, StateNotObserved)
+}
+
+// TBC-V1-010: CODEOWNERS, a flows file and a Tasks store add no section; the profile is /1.
+func TestBuildCutSectionsAreAbsent(t *testing.T) {
+	root := newRepo(t, map[string]string{"a/x.go": "x", ".github/CODEOWNERS": "* @all\n", ".corvint/flows.json": "{}",
+		".taskman/queue.json": "{}"})
+	brief := build(t, root, Sources{}, "a/x.go")
+	equal(t, "profile", brief.Profile, "corvint-path-brief/1")
+	var names []string
+	for _, s := range brief.Paths[0].Sections {
+		names = append(names, s.Name)
+	}
+	equal(t, "sections", names, []string{"instructions", "tests", "requirements"})
 }
 
 // TBC-V1-009: building the brief writes nothing to the repository.
 func TestBuildLeavesTheRepositoryAlone(t *testing.T) {
 	root := newRepo(t, map[string]string{"a/x.go": "x"})
 	before := git(t, root, "status", "--porcelain=v1", "--ignored")
-	build(t, root, Sources{Tickets: fakeTickets()}, "a/x.go", "a", ".")
+	build(t, root, Sources{}, "a/x.go", "a", ".")
 	equal(t, "status", git(t, root, "status", "--porcelain=v1", "--ignored"), before)
 }
 
@@ -326,28 +279,5 @@ func TestNormalizePath(t *testing.T) {
 		if got, err := NormalizePath(root, filepath.Join(link, "escape", "x")); err == nil {
 			t.Errorf("link out of the repository accepted: %q", got)
 		}
-	}
-}
-
-// The ticket read starts while the tests source runs: this tests source returns only once it has.
-func TestBuildReadsTicketsWhileTestsRun(t *testing.T) {
-	root := newRepo(t, map[string]string{"a/x.go": "x\n"})
-	started := make(chan struct{})
-	brief := build(t, root, Sources{
-		Tests: func(_ context.Context, _ string, groups [][]string) []TestsResult {
-			select {
-			case <-started:
-			case <-time.After(30 * time.Second):
-				t.Error("the ticket read did not start while the tests source ran")
-			}
-			return make([]TestsResult, len(groups))
-		},
-		Tickets: func(context.Context) ([]Ticket, error) {
-			close(started)
-			return []Ticket{{ID: "T-1", DeclaredScope: []string{"a/"}}}, nil
-		},
-	}, "a/x.go")
-	if s := pick(t, brief, 0, "tickets"); len(s.Items) != 1 || s.Items[0].Ticket != "T-1" {
-		t.Errorf("tickets %+v", s)
 	}
 }

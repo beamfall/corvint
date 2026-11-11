@@ -14,7 +14,7 @@ import (
 )
 
 // Profile names the path brief document.
-const Profile = "corvint-path-brief/0"
+const Profile = "corvint-path-brief/1"
 
 // SectionLimit is the most items one section lists for one path (TBC-V1-010).
 const SectionLimit = 64
@@ -26,14 +26,11 @@ const (
 	StateNotObserved = "NOT_OBSERVED"
 )
 
-// Names of the optional sources a reason can report as missing (TBC-V1-011).
+// Names of the test sources a reason can report as missing (TBC-V1-011). The requirements
+// section names LinksPath.
 const (
-	SourceOwners       = "CODEOWNERS"
-	SourceFlows        = ".corvint/flows.json"
-	SourcePlan         = "affected-plan"
-	SourceEvidence     = "test-evidence"
-	SourceTasks        = TasksExecutable
-	SourceTicketCommit = "completed-ticket-commits"
+	SourcePlan     = "affected-plan"
+	SourceEvidence = "test-evidence"
 )
 
 // Notice is the standing statement of TBC-V1-007.
@@ -51,7 +48,7 @@ type Brief struct {
 	Paths    []PathBrief `json:"paths"`
 }
 
-// PathBrief holds the six sections of one `--path`.
+// PathBrief holds the three sections of one `--path`.
 type PathBrief struct {
 	Path string `json:"path"`
 	// Kind is file, directory or absent, read at the brief's revision.
@@ -82,14 +79,8 @@ type Section struct {
 // Item is one listed link. Link names what produced it; the other fields depend on the section.
 type Item struct {
 	Link string `json:"link"`
-	// Path is the instruction file, the CODEOWNERS file, or the linked file of a requirement.
+	// Path is the instruction file or the linked file of a requirement.
 	Path string `json:"path,omitempty"`
-
-	Line    int      `json:"line,omitempty"`
-	Pattern string   `json:"pattern,omitempty"`
-	Owners  []string `json:"owners,omitempty"`
-	// Files is the number of the path's files the owners rule is the last match for.
-	Files int `json:"files,omitempty"`
 
 	Test string `json:"test,omitempty"`
 	// Reason is the plan's reason for a test.
@@ -107,12 +98,6 @@ type Item struct {
 	// ChangedSince says whether the linked file differs at the brief's revision from the file at
 	// Commit.
 	ChangedSince *bool `json:"changedSince,omitempty"`
-
-	Ticket string `json:"ticket,omitempty"`
-	Title  string `json:"title,omitempty"`
-	// Field and Entry name the ticket field and the value in it that covers the path.
-	Field string `json:"field,omitempty"`
-	Entry string `json:"entry,omitempty"`
 }
 
 // Evidence is the pinned span a requirement link points at.
@@ -150,8 +135,6 @@ type TestsResult struct {
 type Sources struct {
 	// Tests answers for each group of files at the brief's revision, in order. It is called once.
 	Tests func(ctx context.Context, revision string, groups [][]string) []TestsResult
-	// Tickets returns every open ticket. It is called at most once.
-	Tickets func(ctx context.Context) ([]Ticket, error)
 }
 
 // NormalizePath turns one `--path` value into a slash-separated path relative to root, "" for
@@ -224,7 +207,6 @@ func Build(ctx context.Context, root string, paths []string, sources Sources) (B
 		b.names = append(b.names, name)
 	}
 	slices.Sort(b.names)
-	b.readOwners()
 	b.readLinks()
 
 	brief := Brief{Profile: Profile, Revision: head, Notice: Notice, Paths: []PathBrief{}}
@@ -236,16 +218,7 @@ func Build(ctx context.Context, root string, paths []string, sources Sources) (B
 	}
 	var tests []TestsResult
 	if sources.Tests != nil {
-		// The ticket read and the tests source are independent and both slow, so they run together.
-		ticketsRead := make(chan struct{})
-		go func() {
-			defer close(ticketsRead)
-			if len(paths) != 0 {
-				b.openTickets()
-			}
-		}()
 		tests = sources.Tests(ctx, head, groups)
-		<-ticketsRead
 	}
 	for index, s := range subjects {
 		result := TestsResult{PlanMissing: "not-available", EvidenceMissing: "not-available"}
@@ -253,7 +226,7 @@ func Build(ctx context.Context, root string, paths []string, sources Sources) (B
 			result = tests[index]
 		}
 		brief.Paths = append(brief.Paths, PathBrief{Path: s.display(), Kind: s.kind, Files: len(s.files), Sections: []Section{
-			b.instructions(s), b.owners(s), b.tests(s, result), b.flows(s), b.requirements(s), b.tickets(s),
+			b.instructions(s), b.tests(s, result), b.requirements(s),
 		}})
 	}
 	return brief, nil
@@ -265,12 +238,7 @@ type builder struct {
 	names   []string
 	sources Sources
 
-	ownersFile  string
-	ownerRules  []ownerRule
-	links       *LinkFile
-	ticketsRead bool
-	ticketList  []Ticket
-	ticketsErr  error
+	links *LinkFile
 }
 
 // subject is one `--path` resolved against the tree.
@@ -306,19 +274,6 @@ func (b *builder) subject(name string) subject {
 	return subject{path: name, kind: "directory", files: b.names[from:to]}
 }
 
-func (b *builder) readOwners() {
-	for _, name := range ownersFiles {
-		oid, tracked := b.tree[name]
-		if !tracked {
-			continue
-		}
-		if data, ok := b.repo.blob(oid); ok {
-			b.ownersFile, b.ownerRules = name, parseOwners(string(data))
-		}
-		return
-	}
-}
-
 func (b *builder) readLinks() {
 	oid, tracked := b.tree[LinksPath]
 	if !tracked {
@@ -327,16 +282,6 @@ func (b *builder) readLinks() {
 	if data, ok := b.repo.blob(oid); ok {
 		b.links, _ = ParseLinks(data)
 	}
-}
-
-func (b *builder) openTickets() ([]Ticket, error) {
-	if !b.ticketsRead {
-		b.ticketsRead, b.ticketsErr = true, errTasks
-		if b.sources.Tickets != nil {
-			b.ticketList, b.ticketsErr = b.sources.Tickets(b.repo.ctx)
-		}
-	}
-	return b.ticketList, b.ticketsErr
 }
 
 // section applies the limit and writes the reason: the code, then each missing source.
@@ -418,33 +363,6 @@ func (b *builder) instructions(s subject) Section {
 	return section("instructions", StateObserved, "tree-at-revision", nil, items)
 }
 
-func (b *builder) owners(s subject) Section {
-	if b.ownersFile == "" {
-		return section("owners", StateNotObserved, "source-absent", []string{SourceOwners}, nil)
-	}
-	counts := map[int]int{}
-	if s.kind == "absent" {
-		if rule := ownerOf(b.ownerRules, parent(s.path)+"/"); rule >= 0 {
-			counts[rule] = 0
-		}
-	}
-	for _, file := range s.files {
-		if rule := ownerOf(b.ownerRules, file); rule >= 0 {
-			counts[rule]++
-		}
-	}
-	items := []Item{}
-	for index, rule := range b.ownerRules {
-		if count, matched := counts[index]; matched {
-			items = append(items, Item{Link: "codeowners-rule", Path: b.ownersFile, Line: rule.line, Pattern: rule.pattern, Owners: rule.owners, Files: count})
-		}
-	}
-	if len(items) == 0 {
-		return section("owners", StateObserved, "no-codeowners-rule-matches", nil, items)
-	}
-	return section("owners", StateObserved, "last-matching-rule", nil, items)
-}
-
 func (b *builder) tests(s subject, result TestsResult) Section {
 	if s.kind == "absent" {
 		return section("tests", StateNotObserved, "path-not-at-head", nil, nil)
@@ -487,18 +405,6 @@ func (b *builder) tests(s subject, result TestsResult) Section {
 	return out
 }
 
-// flows reports the flows file as a source. This build has no reader for it, and says so rather
-// than showing an empty list (CRI-V1-002).
-func (b *builder) flows(s subject) Section {
-	if s.kind == "absent" {
-		return section("flows", StateNotObserved, "path-not-at-head", nil, nil)
-	}
-	if _, tracked := b.tree[SourceFlows]; !tracked {
-		return section("flows", StateNotObserved, "source-absent", []string{SourceFlows}, nil)
-	}
-	return section("flows", StateNotObserved, "flows-reader-not-built", nil, nil)
-}
-
 // linkGroup is the entries behind one requirement item and the entry it reports.
 type linkGroup struct {
 	requirement string
@@ -527,16 +433,11 @@ func (b *builder) requirements(s subject) Section {
 	if s.kind == "absent" {
 		return section("requirements", StateNotObserved, "path-not-at-head", nil, nil)
 	}
+	// The link file is the only source (TBC-V1-011).
 	var missing []string
 	if b.links == nil {
 		missing = append(missing, LinksPath)
 	}
-	// Completed tickets are the second source. Tasks does not record their commits, so the
-	// source is named as missing even when the store can be read.
-	if _, err := b.openTickets(); err != nil {
-		missing = append(missing, SourceTasks)
-	}
-	missing = append(missing, SourceTicketCommit)
 	type spanKey struct {
 		file       string
 		start, end int
@@ -598,38 +499,4 @@ func (b *builder) requirements(s subject) Section {
 		return section("requirements", StateNotObserved, "no-link-for-path", missing, items)
 	}
 	return section("requirements", StateIncomplete, "links-not-exhaustive", missing, items)
-}
-
-// tickets lists the open tickets whose declared scope or touch paths cover the path.
-func (b *builder) tickets(s subject) Section {
-	tickets, err := b.openTickets()
-	if err != nil {
-		return section("tickets", StateNotObserved, "source-absent", []string{SourceTasks}, nil)
-	}
-	items := []Item{}
-	for _, ticket := range tickets {
-		field, entry := "declaredScope", covering(ticket.DeclaredScope, s)
-		if entry == "" {
-			field, entry = "record.effects.touchPaths", covering(ticket.TouchPaths, s)
-		}
-		if entry != "" {
-			items = append(items, Item{Link: "ticket-scope", Ticket: ticket.ID, Title: ticket.Title, Field: field, Entry: entry})
-		}
-	}
-	slices.SortFunc(items, func(a, b Item) int { return cmp.Compare(a.Ticket, b.Ticket) })
-	if len(items) == 0 {
-		return section("tickets", StateObserved, "no-open-ticket-covers-path", nil, items)
-	}
-	return section("tickets", StateObserved, "open-ticket-scope", nil, items)
-}
-
-// covering returns the first entry, in ascending order, that covers the subject, or "".
-func covering(entries []string, s subject) string {
-	found := ""
-	for _, entry := range entries {
-		if scopeCovers(entry, s.path, s.kind == "directory") && (found == "" || entry < found) {
-			found = entry
-		}
-	}
-	return found
 }

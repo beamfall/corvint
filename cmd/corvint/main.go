@@ -571,7 +571,7 @@ var (
 	// keeps the Python oracle's argparse declaration order; verbs this binary
 	// adds are appended in the order rootHelp documents them.
 	topLevelCommands = []string{"init", "adopt", "impact", "cem", "context",
-		"affected", "index", "docs",
+		"instructions", "affected", "index", "docs",
 		"test-evidence", "test-validity", "test-plan", "review", "flows", "runs", "test", "tests", "watch", "mcp", "how"}
 )
 
@@ -661,6 +661,13 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		if options, isTaskContext, contextErr := parseTaskContextInvocation(arguments); isTaskContext {
 			if contextErr != nil {
 				emitError(stderr, contextErr)
+				return 2
+			}
+			return runTaskContext(ctx, options, stdout, stderr)
+		}
+		if options, isInstructions, instructionsErr := parseInstructionsInvocation(arguments); isInstructions {
+			if instructionsErr != nil {
+				emitError(stderr, instructionsErr)
 				return 2
 			}
 			return runTaskContext(ctx, options, stdout, stderr)
