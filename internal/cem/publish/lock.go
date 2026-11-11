@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // lockWait is a hang detector, not a performance budget (decision 0082): a

@@ -189,9 +189,9 @@ root digest. Those fields are outside the delivered repository-binding status an
 `NOT_OBSERVED`.
 
 The server performs no Corvint executable PATH lookup because it calls the Go kernels in process.
-Every Git runner it uses, including the `internal/cem/gitrun` runner, is pinned to
+Every Git runner it uses, including the `internal/gitrun` runner, is pinned to
 one absolute start-time Git executable (`internal/mcp/cli/main.go:164`, `internal/gitstatus`'s
-`Pin`/`Executable`, `internal/cem/gitrun.PinBinary`; `MCPV0-016`); a Git binary placed on PATH after
+`Pin`/`Executable`, `internal/gitrun.PinBinary`; `MCPV0-016`); a Git binary placed on PATH after
 start never runs. This is observed by the adversarial conformance case `TestGitPlantedOnPathAfterStartNeverRuns`
 in `conformance/mcp-2026-07-28`, plus
 `internal/gitstatus.TestPinFixesExecutableAgainstLaterPathChanges`; both pass.

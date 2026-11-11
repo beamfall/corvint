@@ -2,8 +2,8 @@ package gitauth
 
 import (
 	"context"
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 	"sort"
 )
 

@@ -107,6 +107,7 @@ GATE_STEPS = \
   pre-push-windows-vet-test \
   register-shell-test-test \
   release-binaries-check \
+  release-candidate-bytes-test \
   release-checklist-test \
   repin-test \
   requirement-definitions-check \
@@ -170,7 +171,7 @@ endif
 
 .PHONY: go-version
 go-version:
-	test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
+	test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3" || test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.4" || { echo "go-version: want go1.27.3 or go1.27.4 (V1-5408 staged pin move)" >&2; exit 1; }
 
 .PHONY: go-test
 go-test:
@@ -753,6 +754,12 @@ host-package-version-verify:
 .PHONY: release-checklist-test
 release-checklist-test:
 	@script/release-checklist_test.sh
+
+# PRS-V1-1900 (V1-0374): the Release gates linux-core job binds its rebuilt archives to the
+# dispatched candidate's SHA256SUMS digest with script/release-candidate-bytes.sh.
+.PHONY: release-candidate-bytes-test
+release-candidate-bytes-test:
+	@script/release-candidate-bytes_test.sh
 
 # release-binaries-check validates tools/release-binary/binaries.json, the per-binary release
 # catalog (ARTIFACT-BIN-V0-001, V1-5236): every cmd/ executable classified once as product or
@@ -1402,6 +1409,7 @@ shell-test: \
   no-python-runtime-dependency-test \
   pre-push-windows-vet-test \
   register-shell-test-test \
+  release-candidate-bytes-test \
   release-checklist-test \
   repin-test \
   requirement-definitions-test \

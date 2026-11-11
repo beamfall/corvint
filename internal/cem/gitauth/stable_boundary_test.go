@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cemcode"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 func TestStableMetadataLineGrammar(t *testing.T) {

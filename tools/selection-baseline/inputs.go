@@ -4,11 +4,15 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gateselect"
@@ -83,7 +87,79 @@ func inputDecision(ctx context.Context, root, base string) (bool, string) {
 	if err != nil {
 		return true, "unknown read set: reader index unavailable"
 	}
-	return decideInputs(paths, dirs, bounds, module+"/tools/selection-baseline", base)
+	declaration := ""
+	if slices.Contains(paths, readScopesFile) {
+		declaration = driverDeclarationChange(ctx, root, base, "tools/selection-baseline")
+	}
+	return decideInputs(paths, dirs, bounds, module+"/tools/selection-baseline", base, declaration)
+}
+
+// readScopesFile is Corvint's read-scope declaration. The replay never reads
+// this checkout's copy: the planner and selector read each fixed historical
+// clone's own. In this checkout it binds only the driver's current-tree runtime
+// reads, through the driver's own entry (ASC-V0-9850, V1-5162).
+const readScopesFile = ".corvint/test-read-scopes.json"
+
+// declarationLimit bounds each side of the declaration; a larger one is doubt.
+const declarationLimit = 1 << 20
+
+// driverDeclarationChange compares the declaration's profile and the driver's
+// entry (DIR's list, or its absence) at base and in the worktree. It returns ""
+// when both sides decode under the declaration's strict rules and agree, so an
+// edit confined to other packages' entries cannot move a replay; otherwise it
+// names the change or the doubt, and the caller runs (ASC-V0-9850).
+func driverDeclarationChange(ctx context.Context, root, base, dir string) string {
+	// Ask Git for the size first: run buffers a blob whole, so the limit has
+	// to hold before the read, not after it.
+	size, err := run(ctx, root, "git", "cat-file", "-s", base+":"+readScopesFile)
+	if err != nil {
+		return "the declaration is unreadable at " + base
+	}
+	if n, err := strconv.ParseInt(strings.TrimSpace(size), 10, 64); err != nil || n > declarationLimit {
+		return "the declaration is oversize at " + base
+	}
+	before, err := run(ctx, root, "git", "cat-file", "blob", base+":"+readScopesFile)
+	if err != nil {
+		return "the declaration is unreadable at " + base
+	}
+	info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(readScopesFile)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return "the declaration was deleted"
+	}
+	if err != nil || !info.Mode().IsRegular() {
+		return "the declaration is not a regular file"
+	}
+	if info.Size() > declarationLimit {
+		return "the declaration is oversize"
+	}
+	after, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(readScopesFile)))
+	if err != nil {
+		return "the declaration is unreadable"
+	}
+	return compareDriverEntry([]byte(before), after, dir)
+}
+
+// compareDriverEntry is the pure half of driverDeclarationChange. Both sides
+// are judged by Corvint's own declaration grammar (gateselect.ParseReadScopes):
+// unknown members, duplicate names, another profile, oversize input, or an
+// invalid package path or entry list on either side is doubt, so a base that
+// HEAD repairs still runs (ASC-V0-9850).
+func compareDriverEntry(before, after []byte, dir string) string {
+	decode := func(data []byte) (map[string][]string, bool) {
+		packages, err := gateselect.ParseReadScopes(data)
+		return packages, err == nil
+	}
+	b, okBefore := decode(before)
+	a, okAfter := decode(after)
+	if !okBefore || !okAfter {
+		return "the declaration does not decode on both sides"
+	}
+	entryBefore, declaredBefore := b[dir]
+	entryAfter, declaredAfter := a[dir]
+	if declaredBefore != declaredAfter || !slices.Equal(entryBefore, entryAfter) {
+		return "its " + dir + " entry changed"
+	}
+	return ""
 }
 
 // Even a module with no imported package can affect version selection through
@@ -245,7 +321,9 @@ func compilationDirs(root string, input io.Reader) ([]string, error) {
 	return dirs, nil
 }
 
-func decideInputs(paths, dirs, bounds []string, driver, base string) (bool, string) {
+// declaration is driverDeclarationChange's verdict for readScopesFile when
+// the diff holds it: "" skips that one path, anything else runs naming it.
+func decideInputs(paths, dirs, bounds []string, driver, base, declaration string) (bool, string) {
 	if len(dirs) == 0 || len(bounds) == 0 {
 		return true, "unknown read set: empty compilation or reader bound"
 	}
@@ -263,12 +341,22 @@ func decideInputs(paths, dirs, bounds []string, driver, base string) (bool, stri
 	}
 	// These inputs bind the recipe, compiler environment and declared runtime
 	// reads. Reader bounds below also admit any future declared driver input.
-	explicit := []string{"Makefile", "go.mod", "go.sum", "go.work", "go.work.sum", "VERSION", ".corvint/test-read-scopes.json", ".corvint/unbounded-readers.json", guardPath}
+	// The read-scope declaration is decided per entry above (ASC-V0-9850).
+	explicit := []string{"Makefile", "go.mod", "go.sum", "go.work", "go.work.sum", "VERSION", ".corvint/unbounded-readers.json", guardPath}
 	prefixes := append([]string{"benchmarks/selection-baseline/", ".github/cishards/"}, dirs...)
 	sort.Strings(paths)
 	for _, p := range paths {
 		if p == "" {
 			continue
+		}
+		if p == readScopesFile {
+			// Corvint's reader index binds the declaration to every declared
+			// package, the driver included; only the driver's entry can move
+			// the driver, and the replayed trees read their own copies.
+			if declaration == "" {
+				continue
+			}
+			return true, "matching input " + p + ": " + declaration
 		}
 		for _, name := range explicit {
 			if p == name {

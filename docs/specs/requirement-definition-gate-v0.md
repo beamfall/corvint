@@ -12,7 +12,7 @@ Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT
 ## Agent digest
 - Claim: Every requirement id in REQUIREMENTS.tsv must have a clause body in some spec, and none may be defined twice.
 - Status: accepted (owner instruction 2026-09-07) / implemented
-- Exists: `script/check-requirement-definitions.sh`, wired into `make gate` as `requirement-definitions-check`; its fixture cases `script/check-requirement-definitions_test.sh` run as `requirement-definitions-test` (V1-2311).
+- Exists: `script/check-requirement-definitions.sh`, wired into `make gate` as `requirement-definitions-check`; its fixture cases `script/check-requirement-definitions_test.sh` run as `requirement-definitions-test` (V1-2311); the proposed RDG-V0-9980 scan of requirement ids cited in Go files, the Makefile and `AGENTS.md`, with its frozen baseline `script/requirement-citations-undefined.txt` and its reviewed allowlist `script/requirement-citations-allowlist.tsv` (V1-5324).
 - Blocked on: nothing for this gate. Three sibling gate scripts remain unspecified (`../agent-memory/fixes.md`).
 - Read next: Requirements; Trust boundary, limits, and failure modes.
 
@@ -119,6 +119,33 @@ row-only id or duplicate definition exists in the corpus.
   the fix is to stage the spec and run `make spec-requirements` to regenerate
   `docs/specs/REQUIREMENTS.tsv`, and otherwise to restore their definitions, because the TSV is
   generated from the staged specs and a stale row is the usual cause. Rollback: drop the hint line.
+- `RDG-V0-9980`: (proposed; V1-5324; widens RDG-V0-001 and RDG-V0-003 beyond the TSV) The gate
+  MUST also read, from the Git index, every file `git ls-files` lists whose path is `AGENTS.md`,
+  whose base name is `Makefile`, or whose name ends in `.go`, except a path with a `testdata/` or
+  `vendor/` component, a path under `docs/build-log/` or `docs/decisions/`, and a Go file whose
+  first line is a `// Code generated ... DO NOT EDIT.` header. In each it MUST record as a citation
+  every match of the RDG-V0-001 id shape that is not preceded by a letter, digit or hyphen, is not
+  followed by a digit, and ends at its first three-digit group (no hyphen-separated segment before
+  that group is three or more digits), so `ABC-V0-001..003`, `ABC-V0-001-002` and
+  `ABC-V0-001/002` each read as `ABC-V0-001` alone and a four-digit id is never read as a
+  three-digit one. A cited id other than `CEM-CB-*` (RDG-V0-002) that no spec defines under
+  RDG-V0-004 MUST fail, naming the id, its first citing `path:line` and the three remedies (define
+  the requirement, fix the citation, or, only for a token that is not a requirement id, add an
+  allowlist line with a reason), unless the id is a line of the index copy of
+  `script/requirement-citations-undefined.txt` or of `script/requirement-citations-allowlist.tsv`.
+  A definition in a spec whose first 40 lines say `Delivery status: retired` (the TTG-V0-951 rule)
+  counts as defined; the gate MUST print, as information and not as a failure, the number of cited
+  ids defined only in such a spec. The baseline file is frozen: one id per line, sorted, `#` lines
+  and blank lines ignored, an absent file an empty baseline; lines are only ever removed, never
+  added to silence a new citation. The allowlist is the reviewed list of cited tokens that are not
+  requirement ids (a checksum or standard name, a code, a label, an id that exists only inside a
+  test fixture): one `id<TAB>reason` line each, `#` lines and blank lines ignored, an absent file
+  an empty list. The gate MUST fail on an allowlist line with no reason, on an allowlist line whose
+  id a spec defines or no file in scope still cites, and on a baseline line whose id a spec
+  defines, no file in scope still cites, or the allowlist lists (each a stale line). Known limit:
+  four-digit ids such as `XXX-V0-1234` are outside the RDG-V0-001 shape, so this scan does not see
+  them. Non-goal: citations in spec bodies, other documentation, shell scripts and JSON are not
+  read. Rollback: delete the citation scan, its reports, the baseline file and the allowlist.
 
 ## Non-goals and simpler baseline
 
@@ -130,7 +157,7 @@ than that shape (it also accepts an unbulleted line and a period-terminated form
 satisfy this gate while still being invisible to a stricter reader such as the OCM intent reader
 named there. It does not check that a definition's row in `REQUIREMENTS.tsv` cites the same file and
 line the gate found, does not check ids that never appear in `REQUIREMENTS.tsv` at all (except when
-they collide with a duplicate, per RDG-V0-005), and does not run when the TSV file is absent rather
+they collide with a duplicate, per RDG-V0-005, or are cited in a file RDG-V0-9980 reads), and does not run when the TSV file is absent rather
 than empty.
 
 ## Trust boundary, limits, and failure modes
@@ -151,6 +178,9 @@ stopping at the first.
 | Git cannot determine whether `docs/specs/REQUIREMENTS.tsv` is tracked | fail with a Git diagnostic, by RDG-V0-006 |
 | TSV row's first field does not match the id shape | unchecked, neither pass nor fail is reported for it |
 | Id named only in running prose (not at line start) | not recorded as a definition; can make an otherwise-defined id read as row-only |
+| Id cited in a Go file, a `Makefile` or `AGENTS.md` that no spec defines | fail, naming the id, its first citing `path:line` and the three remedies, unless baselined or allowlisted, by RDG-V0-9980; an id defined only in a retired spec passes and is counted |
+| Baseline line in `script/requirement-citations-undefined.txt` whose id is now defined, no longer cited or allowlisted | fail as stale, by RDG-V0-9980 |
+| Allowlist line in `script/requirement-citations-allowlist.tsv` with no reason, or whose id is now defined or no longer cited | fail, by RDG-V0-9980 |
 
 ## Acceptance criteria and testing matrix
 
@@ -170,6 +200,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-023 | `script/check-requirement-definitions_test.sh`: a paragraph line and an indented list-item line each starting with a cited `` `ALPHA-V0-001` `` followed by `.` or `:` pass (the base gate failed this case as a duplicate), and a bulleted duplicate directly after a paragraph line fails naming both lines; on the live corpus the scan reads 5,343 definition lines instead of 5,345, and the two dropped lines are wrapped prose (`CAL-V0-264.` in `corvint-tasks-pool-safe-reuse-v0.md` and `SHA-256.` in `operator-update-v0.md`), not definitions |
 | RDG-V0-022 | `script/check-requirement-definitions_test.sh`: `` - `ALPHA-V0-002` (V1-2168): `` fails naming `docs/specs/alpha.md:7 ALPHA-V0-002` and the accepted forms (the base gate did not name that line), and the same shape for a defined id passes; the live corpus has 0 hits at this change |
 | RDG-V0-741 | `script/check-requirement-definitions_test.sh`: a stale `ALPHA-V0-009` row fails naming the id and the stage-then-`make spec-requirements` fix |
+| RDG-V0-9980 | `script/check-requirement-definitions_test.sh`: an undefined id cited in a Go file (named with the three remedies), in a `Makefile` and in `AGENTS.md` each fails naming the id and its citing line; a defined id, a four-digit id and a baselined id pass; a range, suffix or slash pair after a defined id reads as that id alone; both stale baseline cases and a baseline line for an allowlisted token fail; an id defined only in a retired spec passes and is counted; a `testdata/` citation is not read; an allowlisted token passes, and an allowlist line with no or a blank reason, no longer cited, or whose id is defined fails. On the tree at this change: 7 baseline ids, 64 allowlist lines, 285 cited ids defined only in a retired spec |
 
 ## Traceability
 
@@ -184,6 +215,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-022 | the `@misshapen` scan and its report in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh`; `requirement-definitions-check` |
 | RDG-V0-021 | the `@outside` scan and the baseline comparison in `script/check-requirement-definitions.sh`; `script/requirement-definitions-outside-section.txt` | `script/check-requirement-definitions_test.sh`; `TestRDGV0021MovedDefinitionsAreEnumerated` (removed) |
 | RDG-V0-741 | the regeneration hint after the undefined-id report in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh` |
+| RDG-V0-9980 | the citation scan, the baseline and allowlist comparisons and the retired-only count in `script/check-requirement-definitions.sh`; `script/requirement-citations-undefined.txt`; `script/requirement-citations-allowlist.tsv` | `script/check-requirement-definitions_test.sh`; `requirement-definitions-check` |
 
 ## Rollout, rollback, and drift
 

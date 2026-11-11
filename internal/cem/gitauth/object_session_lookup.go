@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // sessionReader asks the object session's co-process for one record.

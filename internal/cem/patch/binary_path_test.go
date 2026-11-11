@@ -3,7 +3,7 @@ package patch
 import (
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestBinaryRefusalNamesPath pins CEM-V1-037 (V1-0301, decision 0548): every
