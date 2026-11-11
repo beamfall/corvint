@@ -4592,6 +4592,18 @@ DCLI-V0-004	docs/specs/direct-native-cli-authority-v0.md	**Provenance/trust.** A
 DCLI-V0-005	docs/specs/direct-native-cli-authority-v0.md	**Common computation/currentness.** Preserve fixed protected paths, release/adap	unrecorded	-
 DCLI-V0-006	docs/specs/direct-native-cli-authority-v0.md	**Negative acceptance.** Closed decoder rejects old/new mixed fields, unknown ho	unrecorded	-
 DCLI-V0-007	docs/specs/direct-native-cli-authority-v0.md	**Rollback.** Revoke/raise protected generation floor, withdraw the direct quali	unrecorded	-
+DMF-V1-001	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Waived claims show as	owner	decision 0596; V1-5409
+DMF-V1-002	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) One repository docs c	owner	decision 0596; V1-5409
+DMF-V1-003	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Maintain check exit c	owner	decision 0596; V1-5409
+DMF-V1-004	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Complete citation che	owner	decision 0596; V1-5409
+DMF-V1-005	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Reports say when the	owner	decision 0596; V1-5409
+DMF-V1-006	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Byte failures name th	owner	decision 0596; V1-5409
+DMF-V1-007	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) No clean result witho	owner	decision 0596; V1-5409
+DMF-V1-008	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Distinct tool descrip	owner	decision 0596; V1-5409
+DMF-V1-009	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) No second test-select	owner	decision 0596; V1-5409
+DMF-V1-010	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Actionable tool error	owner	decision 0596; V1-5409
+DMF-V1-011	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Rebuilt corpus served	owner	decision 0596; V1-5409
+DMF-V1-013	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) `docs consume` stale	owner	decision 0596; V1-5409
 DCI-V0-001	docs/specs/documentation-ci-v0.md	The classifier MUST read a clean checkout at the full captured target SHA, requi	unrecorded	-
 DCI-V0-002	docs/specs/documentation-ci-v0.md	The closed path scope MUST be modified existing mode-100644 `README.md` and,	unrecorded	-
 DCI-V0-003	docs/specs/documentation-ci-v0.md	README fenced and indented code bytes MUST remain identical. The admitted Markdo	unrecorded	-
