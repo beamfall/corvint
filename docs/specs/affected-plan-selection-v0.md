@@ -144,18 +144,87 @@ measure. None of them drops a unit the change can reach.
   pattern) made only of name characters SHALL name that directory as a `/dir/` fragment, so
   a file added to or deleted from the directory selects the test. The plan reads dirty paths
   without their base-tree status, so it cannot tell an addition from an edit and an edit
-  below the directory selects the test too; narrowing to additions and deletions needs the
-  base status as a plan input and is not admitted here. A helper's bare operands are not
-  named, for the reason AFP-V0-9129 gives.
+  below the directory selects the test too, unless the read is a name-listing read, which
+  AFP-V0-9962 narrows to the change statuses that can alter a listing. A helper's bare
+  operands are not named, for the reason AFP-V0-9129 gives.
 - **AFP-V0-9134:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5194)
   A shell test that walks the tree from its working directory SHALL be an unbounded reader
-  with the reason `shell:tree-walk`, selected on every dirty path: `find` with no path or
+  with the reason `shell:tree-walk`, selected as AFP-V0-9963 states: `find` with no path or
   with `.` or `./`, recursive `grep`, `rg`, `ag` or `ack` with no path or with `.`, `du`,
   `tree` or `ls -R` likewise. No declaration bounds it. A walker whose operands are literal
   directories keeps the AFP-V0-9133 fragments; one whose operands are all computed, a private
   temporary root included, keeps the existing conservative relation; a plain `ls` of the
   working directory reads one directory's names and is not a walk. A helper that walks the
   tree stays a bounded source (V1-4283): the test that runs it is selected by its own reads.
+- **AFP-V0-9960:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
+  The affected planner MUST accept, for each dirty path, one change status against the base:
+  `added`, `deleted`, `type-changed`, `modified` or `unknown`. A rename MUST be reported as
+  `deleted` for the old path and `added` for the new path. `modified` MUST mean a regular file
+  at both sides; a changed symlink or submodule entry, which can redirect a listing, MUST be
+  `type-changed`. A path whose status is absent or cannot be established MUST be `unknown`.
+  `corvint affected --base` MUST compute the status from the base tree and pass it to the
+  planner.
+- **AFP-V0-9961:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
+  The shell plugin MUST record a name-listing read, separate from a content read, for a
+  directory operand of a command whose output depends only on entry names and kinds. The
+  admitted forms are a closed list: `ls` with no flags or only `-1`, `-a`, `-A` (direct
+  children); the same with `-R` (all descendants); `find` with an empty expression or only
+  `-name`, `-iname`, `-path`, `-type`, `-maxdepth`, `-mindepth`, `-print`, `-print0` with
+  literal arguments; and `tree` with no flags. Every other form MUST stay a content read. When
+  a unit holds a content read and a name-listing read of the same directory, the content read
+  MUST decide. An admitted form MUST also stay a content read unless every later stage of its
+  pipeline is a standard-input filter (`wc`, `sort`, `head`, `tail`, a non-recursive `grep`
+  with a literal pattern) and the whole test passes a closed grammar: the gate admits only
+  what follows and MUST refuse every construct it does not recognise. (1) The file defines no
+  function and holds no here-document, `case` statement or `((` arithmetic command. (2) No
+  word of any command is an assignment word (`x=1`, `x+=1`, `x[0]=1`, in any position and of
+  any case), a `{name}` redirection word, a backtick or process substitution; and every `$` in
+  a word is `$name`, `${name}`, `${name:-text}`, `${name-text}` with literal text, `$#`, `$?`,
+  a single-digit positional parameter, or a `$(…)` substitution whose inner commands are
+  commands of the test held to this same grammar. (3) Every command outside an admitted
+  pipeline is one of: control words and redirections alone (`if`, `then`, `else`, `elif`,
+  `fi`, `while`, `until`, `do`, `done`, `!`, `{ }`, `( )` joined by `;`, `&`, `&&`, `||` or
+  `|`); `echo`, `true`, `false`, `:` or `exit`; `printf` whose first argument is literal and
+  does not begin with `-`; `test` or `[` whose literal arguments beginning with `-` are `-e -f
+  -d -h -L -z -n -eq -ne -lt -le -gt -ge -a -o`, where an argument holding an expansion is a
+  double-quoted single field and appears only as `[ X ]`, `[ ! X ]`, `[ -z X ]`, `[ -n X ]` or
+  `[ X OP Y ]` with OP one of `= == != -eq -ne -lt -le -gt -ge`; `[[` with the same unary
+  operators and string comparisons but no integer operator (whose operands `[[` evaluates
+  arithmetically) and no `=~` (which sets `BASH_REMATCH`), and with an expansion only when no
+  file operator is present; or `cat`, `head`, `tail`, `wc`, `sort`, `cmp`, `grep`, `egrep` or
+  `fgrep` with short options only (no `-r`, `-R`, `-d`, `-e` or `-f` for a grep, judged by the
+  unquoted value), a digit count after `head` or `tail` `-n` or `-c`, a literal grep pattern
+  with no unquoted glob, and literal path-shaped operands. (4) An expansion appears only in an
+  argument of `echo`, `printf` after the first, `test`, `[`, `[[`, `:` or `exit`; a
+  redirection target is `1`, `2`, `&1`, `&2`, `-`, `/dev/null` or a literal path-shaped word.
+  (5) A reader operand or redirection target that ends in `/` or `/.`, or that names a
+  directory a listing of the test names, MUST be refused. Under this grammar no command can
+  write a variable, change the working directory, run a program other than the named
+  utilities, or open a file by a name no literal token holds, so no write needs to be judged
+  environment-style. `diff`, a checksum tool, `set`, `read`, `for`, `cd` and every other
+  command are refused as unrecognised. Not modelled, with the limit each leaves: the
+  environment the test runner exports before the unit starts (`PATH`, `BASH_ENV`, `SHELLOPTS`,
+  `CLICOLOR_FORCE`, `GREP_OPTIONS`, positional parameters) is outside the unit's words, so a
+  runner that exports one changes reads this gate cannot see; variables the shell itself
+  maintains (`_`, `?`, `PIPESTATUS`, `LINENO`) are written by every shell and no word of the
+  unit names them as a write; a reader operand naming a directory without a trailing slash
+  that no listing of the test names is admitted because every admitted reader fails on a
+  directory operand and reads nothing below it; and an operand that is a tracked symbolic link
+  is matched by its own path and not by its target's, so a link into a listed directory is not
+  seen as a content read of it.
+- **AFP-V0-9962:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
+  A name-listing read MUST select its unit for a dirty path within the read's depth whose
+  status is `added`, `deleted`, `type-changed` or `unknown`, and MUST NOT select it for a path
+  whose status is `modified`.
+- **AFP-V0-9963:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
+  An unbounded reader with the reason `shell:tree-walk` whose every walking command is an
+  admitted name-only form MUST be selected for a dirty path only when the path's status is
+  `added`, `deleted`, `type-changed` or `unknown`. A unit with at least one content-searching
+  walker MUST be selected on every dirty path.
+- **AFP-V0-9964:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
+  The graph cache MUST store name-listing reads, and its version MUST change with this field.
+  A cache written under an older version MUST be rebuilt and MUST NOT be read as holding no
+  name-listing reads. Change status MUST NOT be cached.
 - **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
   A direct string literal argument to a diagnostic method of a syntactically
   resolved `*testing.T` parameter is output metadata, not a path read. The same
@@ -996,7 +1065,7 @@ outside every other read of `main_test.go`. The two requirements below replace t
 - **AFP-V0-3303:** (experimental; owner-requested V1-5174) Observed graph units and their
   digest/cache SHALL retain the tree predicates, samples and listing markers. The graph cache
   SHALL bind the trees file's content digest and read stamp, including absence, and advance to
-  `corvint-affected-graph-cache/3` (which also carries the test embed facts) so older entries rebuild. A metadata-only change MUST NOT
+  `corvint-affected-graph-cache/3` (which also carries the test embed facts; AFP-V0-9964 advances it to `/4`) so older entries rebuild. A metadata-only change MUST NOT
   reuse a stale graph. BASE/HEAD content and listings are per-plan inputs and SHALL NOT survive
   in the reusable graph cache. Edits of either declaration retain selection: the string-only
   file keeps its existing package comparison; the trees file compares package entries under AFP-V0-3304 and selects declared scopes when
@@ -2468,7 +2537,8 @@ implementation is on the sibling branch and absent from the V1-5177 base.
 - **AFP-V0-3352:** (experimental, owner-requested V1-5177, 2026-11-08)
   Test embed flags and paths SHALL participate in the graph digest, path validation and
   cache serialization. Graph-cache entries predating these facts SHALL NOT be reused:
-  use `corvint-affected-graph-cache/3` (which also carries the tree predicates), rejecting the older `/0` to `/2` profiles.
+  use `corvint-affected-graph-cache/3` (which also carries the tree predicates), rejecting the older `/0` to `/2` profiles;
+  AFP-V0-9964 advances it to `/4`, which rejects `/3` too.
 
 - **AFP-V0-9600:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-5071) This repository's `go list` import-graph guards that the AFP-V0-9010 rule can prove
@@ -3568,6 +3638,17 @@ repository shell file (procedure in its doc comment, output in the lane's build-
 census of repository tests the git rule holds is
 `make unbounded-readers-check` against `.corvint/unbounded-readers.json`; the lane entry is
 `docs/build-log/2026-11-11-shellwalk.md`.
+AFP-V0-9960: `TestClassifyChange_AFPV09960` and `TestChangeStatuses_AFPV09960` (added, deleted,
+renamed, file to directory, changed symlink, modified, untracked, no base, unreadable base);
+`TestAffectedChangeStatusCLI_AFPV09960` runs `corvint affected` with and without `--base`.
+AFP-V0-9961: `TestNameListingForms_AFPV09961` (one row per admitted and refused form, the
+pipeline and unit-gate refusals included, one `grammar_` row per construct outside the closed
+grammar and one `r2_` row per round-2 review path), `TestNameListingGrammarPositions_AFPV09961`
+(each refused construct before and after a listing, bare and inside `if`, a subshell, a brace
+group and a command substitution) and `TestNameListingContentDecides_AFPV09961`.
+AFP-V0-9962: `TestNameListingSelection_AFPV09962`. AFP-V0-9963:
+`TestNameOnlyTreeWalker_AFPV09963`. AFP-V0-9964: `TestGraphCacheNameListings_AFPV09964`. The
+mutation evidence and measurements are in `docs/build-log/2026-11-11-affstatus.md`.
 
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
