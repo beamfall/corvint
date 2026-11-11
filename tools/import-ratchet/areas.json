@@ -179,7 +179,6 @@
         "internal/doccorpus",
         "internal/docmaintain",
         "internal/docstools",
-        "internal/docviews",
         "internal/flowdocs",
         "internal/mcp/corpusbridge",
         "internal/requestpath"

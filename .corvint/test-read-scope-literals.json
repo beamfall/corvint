@@ -96,7 +96,6 @@
       "internal/doccorpus": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/doccorpus/selfcorpus": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/docmaintain": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/docviews": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/execfile": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/extevidence": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/flowcoverage": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
