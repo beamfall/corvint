@@ -59,6 +59,11 @@ type driverScan struct {
 	// named as a command the scanner models shadows it (AFP-V0-9130); an
 	// unknown command word is already trusted for nothing.
 	functions map[string]bool
+	// strict marks the AFP-V0-3600 scan of a recipe expanded with every make
+	// value unknown, and leaks each word outside a GOCACHE value that holds
+	// one: a non-empty leaks refuses that proof.
+	strict bool
+	leaks  map[string]bool
 }
 
 // markComputed marks the scanned text a computed invocation for reason.
@@ -399,6 +404,10 @@ func (s *driverShellScanner) script(script, cwd string) {
 				word, next := s.word(line, position, cwd)
 				position = next
 				if redirect {
+					if s.scan.strict && strings.Contains(word.text, driverComputed) {
+						// AFP-V0-3600: a redirection target is never a cache value.
+						s.scan.leak(word.text)
+					}
 					// AFP-V0-3128: a file read through a redirection whose
 					// name is unknown is outside every bounded read set.
 					// AFP-V0-9051: so is one whose name no edge records, such
@@ -831,6 +840,9 @@ var driverInterpreters = map[string]bool{
 // command handles one simple command and returns the working directory the
 // next command of the same script runs in.
 func (s *driverShellScanner) command(words []driverWord, cwd string) string {
+	if s.scan.strict {
+		s.strictWords(words)
+	}
 	assignment := func(word string) {
 		name, value, _ := strings.Cut(word, "=")
 		s.scan.local(strings.TrimSuffix(name, "+"))
@@ -850,6 +862,13 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			// other value may perform, which downloads and runs a toolchain
 			// this graph does not model; it adds no read of its own.
 			if value == "local" {
+				return
+			}
+		case "GOOS", "GOARCH", "CGO_ENABLED", "GOENV", "GOWORK", "GOPROXY":
+			// AFP-V0-3601: these values only choose a build variant the Go
+			// claimant already unions or stop the go command reading a
+			// configuration file or the network.
+			if driverGoSelectionValues[name][value] {
 				return
 			}
 		}
@@ -975,6 +994,20 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 	}
 	settle(true)
 	return cwd
+}
+
+// driverGoSelectionValues are the exact Go toolchain assignments AFP-V0-3601
+// admits beside AFP-V0-3128's: a GOOS or GOARCH whose files the Go claimant's
+// package units already union (AFP-V0-580) and whose programs no wrapper in
+// the Go distribution runs, as js and wasip1 programs are, and the values that
+// stop cgo, the user's go env file, go.work and module downloads.
+var driverGoSelectionValues = map[string]map[string]bool{
+	"GOOS":        {"linux": true, "darwin": true, "windows": true, "freebsd": true, "netbsd": true, "openbsd": true},
+	"GOARCH":      {"amd64": true, "arm64": true, "386": true, "arm": true},
+	"CGO_ENABLED": {"0": true},
+	"GOENV":       {"off": true},
+	"GOWORK":      {"off": true},
+	"GOPROXY":     {"off": true},
 }
 
 // driverReservedWords are the prefix keywords that are shell syntax, not a
@@ -1360,7 +1393,16 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		// pipe, a heredoc whose body this scanner skips, or a redirect
 		// (AFP-V0-2958).
 		operand := false
-		for index := 1; index < len(words); index++ {
+		// AFP-V0-3602: `node --test` over literal existing files runs those
+		// files, as `node FILE` runs its script operand.
+		nodeTest := base == "node" && len(words) > 2 && words[1].text == "--test" && s.driverNodeTestFiles(words[2:], cwd)
+		if nodeTest {
+			for _, word := range words[2:] {
+				s.pathWord(word.text, cwd)
+			}
+			operand = true
+		}
+		for index := 1; index < len(words) && !nodeTest; index++ {
 			arg := words[index].text
 			if driverShells[base] && strings.HasPrefix(arg, "-") && strings.Contains(arg[1:], "c") && !strings.HasPrefix(arg, "--") {
 				if index+1 < len(words) {
@@ -1439,6 +1481,26 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	s.pathWord(head, cwd)
 	s.embedded(words, cwd)
 	return cwd
+}
+
+// driverNodeTestFiles reports `node --test` operands that are each a literal
+// relative path to an existing regular `.js`, `.mjs` or `.cjs` file recorded
+// as a repository edge (AFP-V0-3602): Node runs exactly those files as tests.
+// No operand, an option, a glob, a directory or a missing file refuses.
+func (s *driverShellScanner) driverNodeTestFiles(words []driverWord, cwd string) bool {
+	for _, word := range words {
+		text := word.text
+		if driverDynamic(text) || strings.HasPrefix(text, "-") || strings.ContainsAny(text, "*?[]{}") ||
+			!(strings.HasSuffix(text, ".js") || strings.HasSuffix(text, ".mjs") || strings.HasSuffix(text, ".cjs")) ||
+			!s.driverOperandRecorded(text, cwd) {
+			return false
+		}
+		info, err := s.scan.source.Lstat(driverJoin(cwd, text))
+		if err != nil || !info.Mode().IsRegular() {
+			return false
+		}
+	}
+	return len(words) != 0
 }
 
 // driverPureCommands read no file, whatever their operands (AFP-V0-3128).

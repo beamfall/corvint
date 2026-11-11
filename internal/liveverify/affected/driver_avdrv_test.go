@@ -135,10 +135,17 @@ func TestDriverEnumerationSelectsFilesAndCallers_AFPV09401(t *testing.T) {
 }
 
 func TestDriverEnumerationKeepsComputedFallback_AFPV09402(t *testing.T) {
+	// AFP-V0-3600 (lane compsite) changes the expectation for the first two
+	// recipes this test held, `$(if $(CI),git ls-files,find .)` and
+	// `$(if $(CI),go run ./tools/check,go run ./tools/other)`: every
+	// alternative is literal whatever CI is, and each reads the whole tree,
+	// so TestDriverEvaluatedWholeTreeReader_AFP_V0_3600 pins them as file-set
+	// readers selected on every dirty path. The fallbacks below stay.
 	for _, recipe := range []string{
-		"$(if $(CI),git ls-files,find .)",
-		"$(if $(CI),go run ./tools/check,go run ./tools/other)",
 		"$$RUNNER $(if $(CI),a,b)",
+		"$(if $(CI),git ls-files,$(LISTER) .)",
+		"$(if $(CI),go run ./tools/check,go run $(TOOL))",
+		"$(if $(CI),go run ./tools/check,go run ./tools/other) $(ARGS)",
 	} {
 		graph, err := BuildFS(driverEnumerationFiles(recipe), Driver{})
 		if err != nil {
