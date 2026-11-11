@@ -75,3 +75,25 @@ falls back to the current behaviour.
   planner today, and a staged new file is in the index.
 - Treating all `ls` and `find` forms as name-only: `ls -l` prints sizes and times, and
   `find -newer`, `-size` and `-exec` read content or metadata.
+
+## Implementation notes (lane affstatus, 2026-11-11)
+
+- Go shape: `Graph.WithChangeStatus(map[string]ChangeStatus)` returns a plan-input copy of the
+  graph, as `WithGoChanges` does; `Select(graph, dirty)` is unchanged and reads every path as
+  `unknown`. `affected.ChangeStatuses` reads the base with `git ls-tree --literal-pathspecs` and
+  the head through the parent directory's listing; only an exact name match counts on either
+  side, so a case-folding file system cannot turn a rename into `modified`.
+- `Unit.NameListings` is the subset of `PathTokens` that only name-listing reads hold, so every
+  other consumer of `PathTokens` (record readers, `Readers`, `Namers`, placement) sees the same
+  tokens as before; only the path-literal reader rule drops them for a `modified` path.
+  `Unit.UnboundedNamesOnly` marks a name-only `shell:tree-walk`; a unit a root locator also
+  reaches is never narrowed.
+- Unit gate (fail closed). Today a listing's `/dir/` token, or a walker's unbounded reads, also
+  select the test for computed reads that no token holds (`cat "script/$f"`, `cd script`, a
+  helper, `git ls-files | xargs cat`). An admitted form therefore records a name-listing read
+  only when every later stage of its pipeline is a standard-input filter and every other command
+  of the test is a closed-list builtin or reads only literal path-shaped operands. This is
+  stricter than the closed list alone and is written into AFP-V0-9961.
+- Depth. A name-listing read selects on every non-`modified` path below the directory, at any
+  depth: an added `script/sub/new.sh` creates the `sub` entry that `ls script` lists. Depth never
+  narrows; a `modified` path cannot change a listing at any depth.

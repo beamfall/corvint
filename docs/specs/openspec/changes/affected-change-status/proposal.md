@@ -8,7 +8,7 @@ amends AFP-V0-9133 and AFP-V0-9134 and adds AFP-V0-9960 to AFP-V0-9964.
 Requirement IDs this change adds: AFP-V0-9960 to AFP-V0-9964. No `AFP-V0-996x` ID exists in
 `docs/specs` on `origin/main` at `4c3c20333` or on any fetched lane branch (checked 2026-11-11).
 Intent status: proposed (written 2026-11-11; only the owner can accept it)
-Delivery status: not-started
+Delivery status: experimental (implemented on the affstatus lane, 2026-11-11; intent still proposed)
 Written before dispatch: yes.
 Layout: this folder follows G14 (`proposal.md`, `design.md`, `tasks.md`,
 `specs/affected-change-status/spec.md`).

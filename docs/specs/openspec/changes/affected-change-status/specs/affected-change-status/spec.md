@@ -38,7 +38,12 @@ closed list: `ls` with no flags or only `-1`, `-a`, `-A` (direct children); the 
 (all descendants); `find` with an empty expression or only `-name`, `-iname`, `-path`, `-type`,
 `-maxdepth`, `-mindepth`, `-print`, `-print0` with literal arguments; and `tree` with no flags.
 Every other form MUST stay a content read. When a unit holds a content read and a name-listing
-read of the same directory, the content read MUST decide.
+read of the same directory, the content read MUST decide. A computed read may be of that
+directory, so an admitted form MUST also stay a content read unless every later stage of its
+pipeline is a standard-input filter (`wc`, `sort`, `head`, `tail`, a non-recursive `grep`) and
+every other command of the test is an output or existence-test builtin or reads only literal
+path-shaped operands, with no sourced file, function call, directory change, program or PATH
+assignment.
 
 #### Scenario: Long listing is a content read
 

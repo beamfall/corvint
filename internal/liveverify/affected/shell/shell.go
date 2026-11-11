@@ -275,6 +275,9 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	edges := map[string]bool{}
 	unitFrontier := map[string]bool{}
 	toolchain, dynamic, treeWalk := false, false, false
+	// contentWalk marks a tree walk that is no admitted name-listing read
+	// (AFP-V0-9963).
+	contentWalk := false
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
 	// computed links a run target or expands it as a computed name
 	// (TSP-V0-960). An expansion the value bound cut short may drop a script
@@ -329,8 +332,10 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		}
 		if walksTree(word, args) {
 			treeWalk = true
+			contentWalk = contentWalk || !nameListingCommand(parsed, index)
 		}
 	}
+	listings := nameListingAdmitted(parsed, test)
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
 	if builds && !test {
@@ -352,17 +357,23 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	case test && treeWalk:
 		// A walk from the working directory reads a set no token names: a
 		// file added or deleted anywhere changes a listing, and an edit
-		// anywhere changes a search (AFP-V0-9134).
+		// anywhere changes a search (AFP-V0-9134). A walk that only lists
+		// names cannot observe an edit, so the planner narrows it by change
+		// status (AFP-V0-9963).
 		unit.UnboundedReads = UnboundedTreeWalk
+		unit.UnboundedNamesOnly = listings && !contentWalk
 	}
 	unit.PlacesFileNames = placesFileNames(commands, len(parsed.commands), resolve.placement(test && !strings.HasSuffix(relative, ".bats")))
-	tokens, globs := pathTokens(parsed, tempRoots(resolve, parsed, text), test)
+	tokens, globs, listed := pathTokens(parsed, tempRoots(resolve, parsed, text), test, listings)
 	unit.PathGlobs = sortedKeys(globs)
 	if len(tokens)+len(globs) > maxPathTokens {
 		unit.PathGlobs = nil
 		unit.PathTokensBounded = true
 	} else {
 		unit.PathTokens = sortedKeys(tokens)
+		if len(listed) != 0 {
+			unit.NameListings = sortedKeys(listed)
+		}
 	}
 	return unit, names, dynamic
 }
@@ -1361,9 +1372,14 @@ func underTempRoot(value string, roots map[string]bool) bool {
 // directories (AFP-V0-9133) are named; a helper's are not, since a non-test
 // shell unit bears the foreign-invocation frontier on every unit that reaches
 // it, and a helper listing `internal` would turn every Go edit below it into
-// an unknown.
-func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool, map[string]bool) {
+// an unknown. listings admits name-listing reads (nameListingAdmitted):
+// the tokens of an admitted name-only command (nameListingCommand) that no
+// other read holds are returned in names as well, so the planner narrows
+// them by change status (AFP-V0-9961, AFP-V0-9962).
+func pathTokens(parsed script, temp map[string]bool, test, listings bool) (map[string]bool, map[string]bool, map[string]bool) {
 	tokens, globs := map[string]bool{}, map[string]bool{}
+	content, names := map[string]bool{}, map[string]bool{}
+	held := content
 	add := func(text string) {
 		if len(temp) != 0 {
 			text = tempExpansion.ReplaceAllStringFunc(text, func(match string) string {
@@ -1377,10 +1393,20 @@ func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool
 		for _, token := range pathToken.FindAllString(expansion.ReplaceAllString(text, " "), -1) {
 			if pathShaped(token) {
 				tokens[token] = true
+				held[token] = true
 			}
 		}
 	}
-	for _, cmd := range parsed.commands {
+	for index, cmd := range parsed.commands {
+		// An admitted name-only command with no glob among its words holds
+		// name-listing reads; every other command holds content reads.
+		held = content
+		if listings && nameListingCommand(parsed, index) && !slices.ContainsFunc(readWords(cmd.words), func(word string) bool {
+			_, glob := literalPathGlob(word)
+			return glob
+		}) {
+			held = names
+		}
 		// A bare directory operand of a listing command names the files
 		// below that directory, which an added or deleted file changes
 		// (AFP-V0-9133); the `/dir/` form matches the component at any
@@ -1389,6 +1415,7 @@ func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool
 			name, operands := commandWord(plainWords(cmd.words))
 			for _, directory := range listedDirectories(name, operands) {
 				tokens["/"+directory+"/"] = true
+				held["/"+directory+"/"] = true
 			}
 		}
 		for _, word := range readWords(cmd.words) {
@@ -1403,6 +1430,7 @@ func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool
 				// the glob alone, for the frontier reason given above.
 				if directory := globDirectory(glob); test && directory != "" {
 					tokens["/"+directory+"/"] = true
+					content["/"+directory+"/"] = true
 				}
 			}
 			// Matched names can feed derived reads (for example, replacing
@@ -1410,10 +1438,14 @@ func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool
 			add(word)
 		}
 	}
+	held = content
 	for _, body := range parsed.data {
 		add(body)
 	}
-	return tokens, globs
+	for token := range content {
+		delete(names, token)
+	}
+	return tokens, globs, names
 }
 
 // globDirectory returns the literal directory components of a literalPathGlob
