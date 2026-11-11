@@ -275,62 +275,125 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	edges := map[string]bool{}
 	unitFrontier := map[string]bool{}
 	toolchain, dynamic, treeWalk := false, false, false
+	// contentWalk marks a tree walk that is no admitted name-listing read
+	// (AFP-V0-9963).
+	contentWalk := false
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
 	// computed links a run target or expands it as a computed name
 	// (TSP-V0-960). An expansion the value bound cut short may drop a script
 	// it would link, so the unit is then an unbounded reader like a computed
 	// source.
-	computed := func(target string) {
+	// It reports whether the target linked a repository script and left
+	// no value unresolved, which walk facts read (AFP-V0-9990).
+	computed := func(target string) bool {
 		if resolve.link(target, nil, known, edges) {
-			return
+			return true
 		}
+		before := len(edges)
 		unresolved, cut := constructed(target, resolve, values, known, edges, &names)
 		builds = builds || unresolved
 		dynamic = dynamic || cut
+		return len(edges) > before && !unresolved && !cut
 	}
+	walks := walkFacts{directories: map[string]bool{}}
+	// A here-document that no delimiter line ended is read differently by
+	// different shells, so the file is held like a computed source
+	// (AFP-V0-9971).
+	if parsed.incomplete {
+		dynamic = true
+	}
+	temp := tempRoots(resolve, parsed, text)
+	privateRoots := rootsWith(resolve, parsed, text, exitGuardedAssignment)
 	commands := parsed.commands
 	for index := 0; index < len(commands); index++ {
-		word, args := commandWord(plainWords(commands[index].words))
-		switch {
-		case word == "source" || word == ".":
-			// A source no literal, fresh directory or checked host guard resolves is dynamic,
-			// an environment-named one (`. "$ENVFILE"`) included: nothing in
-			// the file bounds what the caller's value names (AFP-V0-2953).
-			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) && !hostEnvironmentSource(resolve, parsed, text, index) {
-				dynamic = true
+		plain := plainWords(commands[index].words)
+		word, args := commandWord(plain)
+		// A wrapper's own option values can hide the command it runs
+		// (`sudo -u root bash x.sh`, `nice -n 5 go test`), and a wrapper
+		// commandPrefixes lacks hides it outright; the first known command
+		// after the wrapper is classified too, in addition to the command
+		// word, and a repository script it names is linked (AFP-V0-9975).
+		// This only adds holds and edges.
+		runs := []invocation{{word, args}}
+		if inner, rest, ok := wrapped(plain); ok && inner != word {
+			runs = append(runs, invocation{inner, rest})
+		}
+		for _, operand := range wrapperOperands(plain) {
+			resolve.link(operand, nil, known, edges)
+		}
+		// An interpreter startup name makes the next interpreter read a
+		// file no word names, like a computed source (AFP-V0-9976).
+		if setsStartupName(commands[index].words) {
+			dynamic = true
+		}
+		private := privateDirectory(commands, len(parsed.commands), index, privateRoots)
+		walks.words(commands[index].words, temp)
+		for _, run := range runs {
+			word, args := run.word, run.args
+			linked := false
+			// An awk or sed program read from a file reads what no word of this
+			// file names (AFP-V0-9974); git over a repository not proven private
+			// reads every path (AFP-V0-9973).
+			if programFile(word, args) {
+				toolchain = true
 			}
-		case word == "load" && loads:
-			if len(args) == 0 || !resolve.link(unquote(args[0]), []string{"", ".bash"}, known, edges) {
-				dynamic = true
+			if gitWalksTree(plain, word, args, privateRoots, private) {
+				treeWalk = true
 			}
-		case shells[word]:
-			// A command string's commands are scanned as the file's own.
-			if script, ok := commandString(args); ok {
-				commands = append(commands, parse(script).commands...)
-				if index < len(parsed.commands) && strings.ContainsAny(script, "$`") {
-					// A command string held in a variable is scanned for each
-					// value the file gives it (AFP-V0-553).
-					// A value bound that cut the list may have dropped a
-					// command string that runs a script, so the unit is then
-					// a dynamic source (AFP-V0-3147).
-					scanned, cut := commandStrings(script, values)
-					commands = append(commands, scanned...)
-					dynamic = dynamic || cut
+			switch {
+			case word == "source" || word == ".":
+				// A source no literal, fresh directory or checked host guard resolves is dynamic,
+				// an environment-named one (`. "$ENVFILE"`) included: nothing in
+				// the file bounds what the caller's value names (AFP-V0-2953).
+				if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) && !hostEnvironmentSource(resolve, parsed, text, index) {
+					dynamic = true
 				}
+			case word == "load" && loads:
+				if len(args) == 0 || !resolve.link(unquote(args[0]), []string{"", ".bash"}, known, edges) {
+					dynamic = true
+				}
+			case shells[word]:
+				// A command string's commands are scanned as the file's own.
+				if script, ok := commandString(args); ok {
+					inner := parse(script)
+					commands = append(commands, inner.commands...)
+					// A here-document no delimiter ends holds the file as
+					// in its own text (AFP-V0-9971).
+					dynamic = dynamic || inner.incomplete
+					if index < len(parsed.commands) && strings.ContainsAny(script, "$`") {
+						// A command string held in a variable is scanned for each
+						// value the file gives it (AFP-V0-553).
+						// A value bound that cut the list may have dropped a
+						// command string that runs a script, so the unit is then
+						// a dynamic source (AFP-V0-3147).
+						scanned, cut := commandStrings(script, values)
+						commands = append(commands, scanned...)
+						dynamic = dynamic || cut
+					}
+				}
+				for _, target := range invokedScripts(word, args) {
+					computed(unquote(target))
+				}
+			case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
+				linked = computed(word)
 			}
-			for _, target := range invokedScripts(word, args) {
-				computed(unquote(target))
+			walks.observe(word, args, temp, linked)
+			if isToolchain(word) && !test {
+				walks.hold(OpaqueToolchain)
 			}
-		case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
-			computed(word)
-		}
-		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
-			toolchain = true
-		}
-		if walksTree(word, args) {
-			treeWalk = true
+			if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
+				toolchain = true
+			}
+			if walksTree(word, args) {
+				treeWalk = true
+				contentWalk = contentWalk || !nameListingCommand(parsed, index)
+			}
+			if treeWalk {
+				walks.hold(OpaqueTreeWalk)
+			}
 		}
 	}
+	listings := nameListingAdmitted(parsed, test)
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
 	if builds && !test {
@@ -352,17 +415,44 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	case test && treeWalk:
 		// A walk from the working directory reads a set no token names: a
 		// file added or deleted anywhere changes a listing, and an edit
-		// anywhere changes a search (AFP-V0-9134).
+		// anywhere changes a search (AFP-V0-9134). A walk that only lists
+		// names cannot observe an edit, so the planner narrows it by change
+		// status (AFP-V0-9963).
 		unit.UnboundedReads = UnboundedTreeWalk
+		unit.UnboundedNamesOnly = listings && !contentWalk
 	}
 	unit.PlacesFileNames = placesFileNames(commands, len(parsed.commands), resolve.placement(test && !strings.HasSuffix(relative, ".bats")))
-	tokens, globs := pathTokens(parsed, tempRoots(resolve, parsed, text), test)
+	tokens, globs, listed := pathTokens(parsed, temp, test, listings, !redefinesUtilities(parsed, text))
 	unit.PathGlobs = sortedKeys(globs)
 	if len(tokens)+len(globs) > maxPathTokens {
 		unit.PathGlobs = nil
 		unit.PathTokensBounded = true
 	} else {
 		unit.PathTokens = sortedKeys(tokens)
+		if len(listed) != 0 {
+			unit.NameListings = sortedKeys(listed)
+		}
+	}
+	// A glob a read word holds walks its literal directory (AFP-V0-9990).
+	for glob := range globs {
+		if directory, ok := walkDirectory(glob); ok {
+			walks.directories[directory] = true
+		}
+	}
+	if unit.PathTokensBounded {
+		walks.hold(OpaqueTokenBound)
+	}
+	unit.WalkDirectories = sortedKeys(walks.directories)
+	unit.WalkOpaque = walks.opaque
+	runNames := map[string]bool{}
+	for _, name := range names {
+		runNames[strings.ReplaceAll(name, wildcard, "*")] = true
+	}
+	if len(runNames) != 0 {
+		unit.RunNames = sortedKeys(runNames)
+	}
+	if len(walks.directories) == 0 {
+		unit.WalkDirectories = nil
 	}
 	return unit, names, dynamic
 }
@@ -375,11 +465,18 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 // every one but ls without -R. ok is false for any other command, and for
 // grep without a recursive option, which reads its operands as files
 // (AFP-V0-9133, AFP-V0-9134).
-func walkerPaths(word string, args []string) (paths []string, recursive, ok bool) {
+//
+// consume selects the other reading of option values: every option that
+// walkerTakesValue cannot prove takes none consumes the next word that is not
+// itself an option, as `grep -rm 1 PATTERN` or `du -d 1` do. The reading
+// without consume names every word that may be an operand; this one names the
+// fewest (AFP-V0-9972).
+func walkerPaths(word string, args []string, consume bool) (paths []string, recursive, ok bool) {
 	var operands []string
 	var options []string
 	ended := false
-	for _, arg := range args {
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
 		value := unquote(arg)
 		switch {
 		case ended || !walkerOption(arg):
@@ -388,6 +485,9 @@ func walkerPaths(word string, args []string) (paths []string, recursive, ok bool
 			ended = true
 		default:
 			options = append(options, value)
+			if consume && walkerTakesValue(path.Base(word), value) && index+1 < len(args) && !walkerOption(args[index+1]) {
+				index++
+			}
 		}
 	}
 	switch path.Base(word) {
@@ -442,15 +542,93 @@ func walkerOption(raw string) bool {
 // reported: an unknown operand keeps the existing conservative relation, and
 // a private temporary root is no repository path. A plain `ls` of the working
 // directory reads one directory's names, not the tree, and is not reported.
+//
+// Both readings of option values are tried (AFP-V0-9972): the one that takes
+// no option value names every word that may be a path, so a `.` operand is
+// never missed, and the one that consumes a value after every option not
+// proven to take none names the fewest, so a walk with no path operand is
+// never missed either.
 func walksTree(word string, args []string) bool {
-	paths, recursive, ok := walkerPaths(word, args)
-	if !ok || !recursive {
+	for _, consume := range []bool{false, true} {
+		paths, recursive, ok := walkerPaths(word, args, consume)
+		if !ok || !recursive {
+			continue
+		}
+		if len(paths) == 0 || slices.Contains(paths, ".") || slices.Contains(paths, "./") {
+			return true
+		}
+	}
+	return false
+}
+
+// walkerGrammar names the options of a walking command known to take no
+// value: short letters, which may be grouped, and long names. Every other
+// option may take one (AFP-V0-9972).
+type walkerGrammar struct {
+	letters string
+	long    []string
+}
+
+var walkerGrammars = map[string]walkerGrammar{
+	"grep": {"0123456789EFGPiywxvcLloqsbHhnTZzrRaIUuV", []string{
+		"count", "files-with-matches", "files-without-match", "line-number", "quiet", "silent",
+		"recursive", "dereference-recursive", "ignore-case", "no-ignore-case", "invert-match",
+		"word-regexp", "line-regexp", "extended-regexp", "fixed-strings", "basic-regexp",
+		"perl-regexp", "only-matching", "no-messages", "byte-offset", "with-filename", "no-filename",
+		"initial-tab", "null", "null-data", "text", "binary", "line-buffered", "color", "colour"}},
+	"rg": {"iIsSwxvclnNHuLFPUzoqap.", []string{
+		"hidden", "no-ignore", "files", "files-with-matches", "files-without-match", "count",
+		"line-number", "no-line-number", "heading", "no-heading", "fixed-strings", "ignore-case",
+		"smart-case", "case-sensitive", "word-regexp", "line-regexp", "invert-match", "follow",
+		"multiline", "null", "only-matching", "quiet", "text", "json", "vimgrep", "no-messages",
+		"stats", "trim", "column", "pretty", "with-filename", "no-filename", "binary",
+		"search-zip", "one-file-system", "unrestricted", "no-config"}},
+	"ag": {"iswvclnLQSUaztHf", []string{
+		"hidden", "unrestricted", "count", "files-with-matches", "files-without-matches",
+		"literal", "ignore-case", "smart-case", "case-sensitive", "word-regexp", "invert-match",
+		"follow", "search-zip", "silent", "nocolor", "nogroup", "noheading", "numbers", "null",
+		"all-text", "all-types", "skip-vcs-ignores"}},
+	"ack": {"iIwvclLnHhfQsxk", []string{
+		"ignore-case", "smart-case", "word-regexp", "invert-match", "count", "files-with-matches",
+		"files-without-matches", "literal", "follow", "nofollow", "with-filename", "no-filename",
+		"recurse", "no-recurse", "nocolor", "noheading", "nogroup", "noenv", "ignore-ack-defaults"}},
+	"ls": {"aAbBcCdfFgGhHiklLmnNopqQrRsStuUvxXZ1", []string{
+		"all", "almost-all", "escape", "ignore-backups", "directory", "classify", "no-group",
+		"human-readable", "si", "dereference", "dereference-command-line", "inode", "numeric-uid-gid",
+		"literal", "hide-control-chars", "show-control-chars", "quote-name", "reverse",
+		"recursive", "size", "context", "group-directories-first", "full-time", "color"}},
+	"du": {"0abcDhHklLmsSxP", []string{
+		"null", "all", "apparent-size", "bytes", "total", "dereference-args", "human-readable",
+		"si", "count-links", "dereference", "no-dereference", "separate-dirs", "summarize",
+		"one-file-system", "inodes", "time"}},
+	"tree": {"adlfixqNQpugshDFvtcUrCASJXn", []string{
+		"noreport", "dirsfirst", "filesfirst", "du", "prune", "inodes", "device", "gitignore",
+		"matchdirs", "ignore-case", "fromfile", "info", "fflinks", "noindent"}},
+}
+
+// walkerTakesValue reports an option word that may consume the next word: a
+// long option not listed as taking no value and given no `=` value, or a
+// short group whose last letter is not proven to take no value (a letter
+// before the last that takes a value has its value attached). A command with
+// no grammar takes none.
+func walkerTakesValue(command, option string) bool {
+	if command == "egrep" || command == "fgrep" || command == "zgrep" {
+		command = "grep"
+	}
+	grammar, ok := walkerGrammars[command]
+	if !ok {
 		return false
 	}
-	if len(paths) == 0 {
-		return true
+	if long, isLong := strings.CutPrefix(option, "--"); isLong {
+		return !strings.Contains(long, "=") && !slices.Contains(grammar.long, long)
 	}
-	return slices.Contains(paths, ".") || slices.Contains(paths, "./")
+	for index := 1; index < len(option); index++ {
+		if !strings.ContainsRune(grammar.letters, rune(option[index])) {
+			// A value-taking letter: the rest of the group is its value.
+			return index == len(option)-1
+		}
+	}
+	return false
 }
 
 // listedDirectories returns the bare directory names a listing or walking
@@ -459,7 +637,7 @@ func walksTree(word string, args []string) bool {
 // `ls dir` and recursive searches of `dir` are reported alike. The caller
 // names them for test units only.
 func listedDirectories(word string, args []string) []string {
-	paths, _, ok := walkerPaths(word, args)
+	paths, _, ok := walkerPaths(word, args, false)
 	if !ok {
 		return nil
 	}
@@ -686,7 +864,11 @@ func commandStrings(script string, values map[string][]string) ([]command, bool)
 	var cut bool
 	var out []command
 	for _, value := range expand(script, values, 0, &cut) {
-		out = append(out, parse(strings.ReplaceAll(value, wildcard, "$_")).commands...)
+		parsed := parse(strings.ReplaceAll(value, wildcard, "$_"))
+		out = append(out, parsed.commands...)
+		// An incomplete here-document in a value holds the file as a cut
+		// bound does (AFP-V0-9971).
+		cut = cut || parsed.incomplete
 	}
 	return out, cut
 }
@@ -1047,7 +1229,10 @@ func substitution(text string) (string, string, bool) {
 	return "", "", false
 }
 
-var redirection = regexp.MustCompile(`\s*[0-9]*(?:>>?|<|&>)\s*(?:&[0-9]+|/dev/null)`)
+// redirection matches a discarded redirection around shell blanks only: `\s`
+// would also take a carriage return, which a shell keeps as word text
+// (AFP-V0-9970).
+var redirection = regexp.MustCompile(`[ \t]*[0-9]*(?:>>?|<|&>)[ \t]*(?:&[0-9]+|/dev/null)`)
 
 // substituted evaluates the commands a directory form substitutes:
 // `dirname SCRIPT`, `git rev-parse` with its top-level option, `realpath DIR`,
@@ -1212,6 +1397,13 @@ var tempExpansion = regexp.MustCompile(`\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za
 // files without naming each one (populates) has none either: a path below
 // such a copy reads a repository file no token names.
 func tempRoots(r *resolver, parsed script, text string) map[string]bool {
+	return rootsWith(r, parsed, text, unconditionalAssignment)
+}
+
+// rootsWith is tempRoots with the check that a name's one assignment runs:
+// unconditionalAssignment for path tokens, exitGuardedAssignment for the git
+// location of AFP-V0-9973.
+func rootsWith(r *resolver, parsed script, text string, runs func(*resolver, script, string, string) bool) map[string]bool {
 	if strings.Contains(text, "mktemp()") || strings.Contains(text, "mktemp ()") || strings.Contains(text, "function mktemp") || strings.Contains(text, "alias mktemp") || populates.MatchString(text) {
 		return nil
 	}
@@ -1220,7 +1412,7 @@ func tempRoots(r *resolver, parsed script, text string) map[string]bool {
 	for changed := true; changed; {
 		changed = false
 		for name, value := range r.values {
-			if roots[name] || !assignedOnce(text, name) || !unconditionalAssignment(r, parsed, text, name) {
+			if roots[name] || !assignedOnce(text, name) || !runs(r, parsed, text, name) {
 				continue
 			}
 			pathOverridden := firstPath >= 0 && firstPath < firstAssignment(text, name)
@@ -1361,9 +1553,19 @@ func underTempRoot(value string, roots map[string]bool) bool {
 // directories (AFP-V0-9133) are named; a helper's are not, since a non-test
 // shell unit bears the foreign-invocation frontier on every unit that reaches
 // it, and a helper listing `internal` would turn every Go edit below it into
-// an unknown.
-func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool, map[string]bool) {
+// an unknown. listings admits name-listing reads (nameListingAdmitted):
+// the tokens of an admitted name-only command (nameListingCommand) that no
+// other read holds are returned in names as well, so the planner narrows
+// them by change status (AFP-V0-9961, AFP-V0-9962).
+//
+// utilities reports that cp, mv and mkdir name the standard utilities in
+// this file; when a function, alias, hash, enable or PATH assignment may make
+// them run something else, readWords drops none of their operands
+// (AFP-V0-9977).
+func pathTokens(parsed script, temp map[string]bool, test, listings, utilities bool) (map[string]bool, map[string]bool, map[string]bool) {
 	tokens, globs := map[string]bool{}, map[string]bool{}
+	content, names := map[string]bool{}, map[string]bool{}
+	held := content
 	add := func(text string) {
 		if len(temp) != 0 {
 			text = tempExpansion.ReplaceAllStringFunc(text, func(match string) string {
@@ -1377,21 +1579,40 @@ func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool
 		for _, token := range pathToken.FindAllString(expansion.ReplaceAllString(text, " "), -1) {
 			if pathShaped(token) {
 				tokens[token] = true
+				held[token] = true
 			}
 		}
 	}
-	for _, cmd := range parsed.commands {
+	for index, cmd := range parsed.commands {
+		// An admitted name-only command with no glob among its words holds
+		// name-listing reads; every other command holds content reads.
+		held = content
+		if listings && nameListingCommand(parsed, index) && !slices.ContainsFunc(readWords(cmd.words, utilities), func(word string) bool {
+			_, glob := literalPathGlob(word)
+			return glob
+		}) {
+			held = names
+		}
 		// A bare directory operand of a listing command names the files
 		// below that directory, which an added or deleted file changes
 		// (AFP-V0-9133); the `/dir/` form matches the component at any
 		// depth, as the glob directory below does.
+		// A literal operand spelled with a slash (`script/`, `./script`,
+		// `script/sub`) names its directory the same way: its own token
+		// names only a file called `script` (V1-0290) or none below it
+		// (AFP-V0-9991).
 		if test {
 			name, operands := commandWord(plainWords(cmd.words))
 			for _, directory := range listedDirectories(name, operands) {
 				tokens["/"+directory+"/"] = true
+				held["/"+directory+"/"] = true
+			}
+			for _, directory := range literalWalkDirectories(name, operands) {
+				tokens["/"+directory+"/"] = true
+				held["/"+directory+"/"] = true
 			}
 		}
-		for _, word := range readWords(cmd.words) {
+		for _, word := range readWords(cmd.words, utilities) {
 			if glob, ok := literalPathGlob(word); ok && !tempRootedWord(word, temp) {
 				globs[glob] = true
 				// The matched names can feed a derived read of a sibling
@@ -1403,6 +1624,7 @@ func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool
 				// the glob alone, for the frontier reason given above.
 				if directory := globDirectory(glob); test && directory != "" {
 					tokens["/"+directory+"/"] = true
+					content["/"+directory+"/"] = true
 				}
 			}
 			// Matched names can feed derived reads (for example, replacing
@@ -1410,10 +1632,14 @@ func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool
 			add(word)
 		}
 	}
+	held = content
 	for _, body := range parsed.data {
 		add(body)
 	}
-	return tokens, globs
+	for token := range content {
+		delete(names, token)
+	}
+	return tokens, globs, names
 }
 
 // globDirectory returns the literal directory components of a literalPathGlob
@@ -1500,7 +1726,12 @@ func literalPathGlob(word string) (string, bool) {
 // role stays, so a path both copied from and copied to is still read, and an
 // appending redirection, a `-t` or `--target-directory` option, or fewer than
 // two operands keeps every word (fail closed).
-func readWords(words []string) []string {
+//
+// utilities false keeps every operand of cp, mv and mkdir: those names may
+// not run the utilities whose written operands are dropped (AFP-V0-9977).
+// The `>` and `>|` targets are dropped either way, since the shell itself
+// truncates them before the command runs.
+func readWords(words []string, utilities bool) []string {
 	written := map[string]bool{}
 	read := make([]string, 0, len(words))
 	for index := 0; index < len(words); index++ {
@@ -1520,6 +1751,9 @@ func readWords(words []string) []string {
 		}
 	}
 	name, operands := commandWord(plainWords(words))
+	if !utilities {
+		name = ""
+	}
 	// Qualified and computed commands may be wrappers that read every operand;
 	// their basename alone does not establish standard utility semantics.
 	switch name {

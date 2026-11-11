@@ -101,6 +101,7 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 				graph.readers(readers, input)
 				graph.unboundedReadersOf(readers, graph.unboundedDirty(input))
 				graph.scopedReadersOf(readers, input)
+				graph.deletedScriptObserversOf(readers, input, make(map[string]bool))
 				readersByPath[file] = readers
 			}
 			for unit := range readers {
