@@ -351,7 +351,8 @@ func TestCINV07922ConfirmedMainMissIsAMissRow_CINV07922(t *testing.T) {
 // -race build, test-confine wrapper and 50m deadline, retains the MAINMISS, MAINCHECK and up to
 // three MISS names, files an issue and fails on a confirmed miss, with exactly actions: read,
 // contents: read and issues: write; it names the live forward epoch, and the control plane no
-// longer carries the job.
+// longer carries the job. The reruns skip the live test tier exactly as the shard step does
+// (AFP-V0-2702), and the MISS names are uploaded only while CORVINT_MAIN_MISS_KILL is on.
 func TestCINV07922MainMissWorkflowBinding_CINV07922(t *testing.T) {
 	requireGitHubChange(t, ".github/workflows/main-miss.yml", "")
 	read := func(path string) string {
@@ -388,6 +389,10 @@ func TestCINV07922MainMissWorkflowBinding_CINV07922(t *testing.T) {
 		`          GO_TEST_FLAGS="-race -exec $RUNNER_TEMP/test-confine" sh "$GITHUB_WORKSPACE/trusted/.github/forward-rows/mainmiss-confirm.sh"` + "\n",
 		"          MISS: ${{ runner.temp }}/main-miss/miss.json\n          SOURCE: ${{ github.workspace }}/source\n",
 		`          TEST_TIMEOUT: "50m"` + "\n",
+		`          CORVINT_SKIP_LIVE_TIER: "1"` + "\n        run: |\n          unset GOMAXPROCS",
+		"        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss1 != ''\n",
+		"        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss2 != ''\n",
+		"        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss3 != ''\n",
 		"          name: ${{ steps.confirm.outputs.check }}\n          path: ${{ runner.temp }}/main-miss/check.json\n",
 		"          name: ${{ steps.confirm.outputs.miss1 }}\n          path: ${{ runner.temp }}/main-miss/miss1/row.json\n",
 		"          name: ${{ steps.confirm.outputs.miss2 }}\n          path: ${{ runner.temp }}/main-miss/miss2/row.json\n",
@@ -405,6 +410,17 @@ func TestCINV07922MainMissWorkflowBinding_CINV07922(t *testing.T) {
 	// a named suspicion; the workflow never checks out or runs code of anything but main.
 	if !strings.Contains(ci, `-count=1 -race -timeout 50m "$1" "$2" "$3"`) {
 		t.Fatal("ci.yml's run_slice no longer runs with -timeout 50m; TEST_TIMEOUT in main-miss.yml must follow")
+	}
+	// The shard step skips the live tier (AFP-V0-2702); the reruns must run the same tests.
+	if !strings.Contains(ci, "          CORVINT_SKIP_LIVE_TIER: \"1\"\n        run: |\n          test \"$(go env GOVERSION)\" = \"go1.27.3\"\n          # AFP-V0-097/098") {
+		t.Fatal("ci.yml's shard Go test step no longer sets CORVINT_SKIP_LIVE_TIER; the confirm step of main-miss.yml must follow")
+	}
+	// No MISS row is uploaded outside the CORVINT_MAIN_MISS_KILL gate.
+	if n := strings.Count(wf, "/row.json\n"); n != 3 {
+		t.Fatalf("%d MISS row uploads, want 3", n)
+	}
+	if n := strings.Count(wf, "vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss"); n != 3 {
+		t.Fatalf("%d MISS row uploads gated on CORVINT_MAIN_MISS_KILL, want 3", n)
 	}
 	steps := regexp.MustCompile(`(?m)^      - (?:name: .*|uses: .*)\n(?:        .*\n)*`).FindAllString(wf, -1)
 	if len(steps) < 12 {

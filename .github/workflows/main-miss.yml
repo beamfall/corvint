@@ -5,8 +5,10 @@ name: Main miss
 # suspected misses (mainmiss.sh, the MAINMISS row). Each suspicion is then confirmed or cleared by
 # reruns (mainmiss-confirm.sh): the skipped package must pass at the pull request's merge commit's
 # first parent and fail twice at the merge commit, under the shard's -race build and test-confine
-# wrapper, to be a miss. A confirmed miss is uploaded as a MISS row of the epoch, which the
-# AFP-V0-029 bar and the AFP-V0-030 kill switch count like any MISS, and files a GitHub issue; an
+# wrapper, to be a miss. A confirmed miss files a GitHub issue and fails the job. While the
+# repository variable CORVINT_MAIN_MISS_KILL is `on` it is also uploaded as a MISS row of the
+# epoch, which the AFP-V0-029 bar and the AFP-V0-030 kill switch count like any MISS; unset (the
+# default) is observe mode: no MISS row, so a confirmation cannot turn narrowing off. An
 # unconfirmed one is classified (flake, preexisting, unconfirmed) in the MAINCHECK document. Only
 # this repository's own pushes to main reach the checkout and the reruns: a protected main holds
 # merged, reviewed commits. The scripts run from the default-branch commit (trusted), with gh, jq
@@ -174,6 +176,9 @@ jobs:
           BUDGET_SECONDS: "10800"
           # The shards' test deadline (ci.yml run_slice).
           TEST_TIMEOUT: "50m"
+          # AFP-V0-2702: the shards skip the live test tier, so the reruns skip it too; a rerun
+          # that ran it could fail on a live test the failed shard never ran.
+          CORVINT_SKIP_LIVE_TIER: "1"
         run: |
           unset GOMAXPROCS GOGC GOMEMLIMIT GORACE
           test "$(go env GOVERSION)" = "go1.27.3"
@@ -187,10 +192,11 @@ jobs:
           path: ${{ runner.temp }}/main-miss/check.json
           if-no-files-found: error
           retention-days: 90
-      # A confirmed miss is a MISS row of the epoch: the bar and the kill switch count it from the
-      # name alone (AFP-V0-029, AFP-V0-030). Three names at most; check.json holds the rest.
+      # While CORVINT_MAIN_MISS_KILL is `on`, a confirmed miss is a MISS row of the epoch: the bar
+      # and the kill switch count it from the name alone (AFP-V0-029, AFP-V0-030). Three names at
+      # most; check.json holds the rest. Unset or anything else uploads no MISS row (observe mode).
       - name: Retain the first confirmed miss as a MISS row (CIN-V0-7922)
-        if: always() && steps.confirm.outputs.miss1 != ''
+        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss1 != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.confirm.outputs.miss1 }}
@@ -198,7 +204,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Retain the second confirmed miss as a MISS row (CIN-V0-7922)
-        if: always() && steps.confirm.outputs.miss2 != ''
+        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss2 != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.confirm.outputs.miss2 }}
@@ -206,7 +212,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Retain the third confirmed miss as a MISS row (CIN-V0-7922)
-        if: always() && steps.confirm.outputs.miss3 != ''
+        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss3 != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.confirm.outputs.miss3 }}
@@ -238,11 +244,11 @@ jobs:
               "" \
               "- Failed full run of main: $FAILED_RUN_URL" \
               "- Confirmation run and MAINCHECK artifact: $RUN_URL" \
-              "- The MISS row of this miss counts toward the AFP-V0-029 bar and the AFP-V0-030 kill switch until the epoch advances (AFP-V0-030 re-arming).")
+              "- While the repository variable CORVINT_MAIN_MISS_KILL is on, the MISS row of this miss counts toward the AFP-V0-029 bar and the AFP-V0-030 kill switch until the epoch advances (AFP-V0-030 re-arming); otherwise the MAINCHECK artifact is its only record.")
             gh issue create -R "$REPO" --title "$title" --body "$body"
           done
       - name: Fail on a confirmed miss
         if: steps.confirm.outputs.confirmed == '1'
         run: |
-          echo "::error::CIN-V0-7922: a narrowed pull request's selection skipped a package its change broke; the confirmed miss is a MISS row of epoch $FORWARD_EPOCH, so narrowing stays off until the row is reviewed and the epoch advances (AFP-V0-030)"
+          echo "::error::CIN-V0-7922: a narrowed pull request's selection skipped a package its change broke; while CORVINT_MAIN_MISS_KILL is on, the confirmed miss is a MISS row of epoch $FORWARD_EPOCH and narrowing stays off until the row is reviewed and the epoch advances (AFP-V0-030)"
           exit 1

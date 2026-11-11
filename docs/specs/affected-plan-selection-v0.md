@@ -1908,7 +1908,8 @@ one list, so a later class cannot reopen it.
   `script/batch-precheck.sh` runs `make live-test` as an extra target before every batch push.
 - **AFP-V0-2702:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4815)
   PR shards SHALL exclude the tier: the Go test step of the `go-product-shard` job in
-  `.github/workflows/ci.yml` sets `CORVINT_SKIP_LIVE_TIER: "1"`, no other line of the workflow or of
+  `.github/workflows/ci.yml` sets `CORVINT_SKIP_LIVE_TIER: "1"` (the confirmation reruns of
+  `.github/workflows/main-miss.yml` repeat that step's setting, CIN-V0-7922), no other line of the workflow or of
   `.github/cishards/test-commands.json` sets it, and no `go test` line passes a `-tags` value naming
   `live`, so every live test skips in the shards and runs everywhere else. The
   merge queue SHALL run the tier in a `go-live` job (`make live-test`) on `merge_group` events,

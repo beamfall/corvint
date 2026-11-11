@@ -1444,9 +1444,10 @@ jobs:
           # merge queue's deciding full suite and AFP-V0-428 seed producer among them, keeps
           # -p 1, the ci profile's argv (STR-V0-012).
           SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
-          # AFP-V0-2702 (V1-4923): the one place the live test tier skips. The confine wrapper passes
-          # it to the test binaries; the merge-queue go-live job, local runs, corvint test, make gate
-          # and batch-precheck do not set it, so they run the tier.
+          # AFP-V0-2702 (V1-4923): the one place of this workflow where the live test tier skips
+          # (main-miss.yml's confirmation reruns repeat this step's setting, CIN-V0-7922). The
+          # confine wrapper passes it to the test binaries; the merge-queue go-live job, local runs,
+          # corvint test, make gate and batch-precheck do not set it, so they run the tier.
           CORVINT_SKIP_LIVE_TIER: "1"
         run: |
           test "$(go env GOVERSION)" = "go1.27.3"
