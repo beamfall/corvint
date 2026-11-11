@@ -345,7 +345,7 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 
 ## Traceability
 
-| Requirement | Tests (package) |
+| Requirement | Evidence (package) |
 | --- | --- |
 | NCM-V1-001 | `TestNCMV1001UnmappedFixtureSelectsEverything`, `TestNCMV1001AttributedPathStaysOwned`, `TestNCMV1001UnownedPathSelectsEverything`, `TestNCMV1001DeclaredDocumentationAddsNothing` (also inside an embedding package), `TestNCMV1001RemovedRunnerSelectsEverything` (`internal/noncodemap`); `TestNCMV1SelectorUnownedFallsBack`, `TestNCMV1SelectorEmbeddedInputNarrowsToItsPackage`, `TestNCMV1SelectorUnavailableRunner`, `TestNCMV1001UnownedAttributedOnAllowlist`, `TestNCMV1QualifiedKeepsThePlansOwnership`, `TestNCMV1QualifiedKeepsTheNamedReason`, `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` (`internal/gateselect`); `TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980`, `TestOwnershipNamedDryRun_AZU_V0_9900` (`cmd/corvint`) |
 | NCM-V1-002 | `TestNCMV1002MissingProofIsProposed` (`internal/noncodemap`) |
