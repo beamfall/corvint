@@ -160,36 +160,87 @@ func checkRefused(t *testing.T, cases []boundsCase) {
 // delta of 2^64-1 (and a whole Decode then refuses it only through
 // checkSegments) and test id 0 (int32 of -2^63) for the wrapped and
 // overflowing deltas, which a whole Decode also accepts.
-func TestCompactRefusesIDDeltaOverflow(t *testing.T) {
+func TestCompactRefusesIDDeltaOverflow(t *testing.T) { checkRefused(t, idDeltaCases()) }
+
+func idDeltaCases() []boundsCase {
 	block := func(tests ...uint64) []byte { return sectionBlock(nil, 3, 2, 2, 1, tests, nil) }
-	checkRefused(t, []boundsCase{
+	return []boundsCase{
 		{"delta 2^64-1 gives -1", block(math.MaxUint64), 1},
 		{"delta 2^63 wraps negative", block(1 << 63), 1},
 		{"second delta wraps below the first", block(1, math.MaxUint64), 1},
 		{"sum overflows int64", block(0, math.MaxInt64), 1},
 		{"delta one past the limit", block(2), 1},
-	})
+	}
 }
 
 // Site 2, the block start: `int64(prev) + int64(delta)`. Observed on base
 // b55635262: every reader accepts a first block starting at line -1, and a
 // start of 2^32+5 whose end delta wraps back reads as Start 5, End 5.
-func TestCompactRefusesBlockStartOverflow(t *testing.T) {
-	checkRefused(t, []boundsCase{
+func TestCompactRefusesBlockStartOverflow(t *testing.T) { checkRefused(t, blockStartCases()) }
+
+func blockStartCases() []boundsCase {
+	return []boundsCase{
 		{"delta 2^64-1 gives start -1", sectionBlock(nil, math.MaxUint64, 0, 0, 0, nil, nil), 1},
 		{"delta 2^63 wraps negative", sectionBlock(nil, 1<<63, 0, 0, 0, nil, nil), 1},
 		{"start above int32 truncated by a wrapped end", sectionBlock(nil, 1<<32+5, 0, math.MaxUint64-1<<32+1, 0, nil, nil), 1},
 		{"second start overflows int32", sectionBlock(sectionBlock(nil, 3, 0, 0, 0, nil, nil), math.MaxInt32-2, 0, 0, 0, nil, nil), 2},
-	})
+	}
 }
 
 // Site 3, the block end: `start + int64(delta)`. Observed on base b55635262:
 // every reader accepts End 9 below Start 10 for a delta of 2^64-1, and reads
 // End 10 (int32 of 10-2^63) for a delta of 2^63.
-func TestCompactRefusesBlockEndOverflow(t *testing.T) {
-	checkRefused(t, []boundsCase{
+func TestCompactRefusesBlockEndOverflow(t *testing.T) { checkRefused(t, blockEndCases()) }
+
+func blockEndCases() []boundsCase {
+	return []boundsCase{
 		{"delta 2^64-1 ends before the start", sectionBlock(nil, 10, 0, math.MaxUint64, 0, nil, nil), 1},
 		{"delta 2^63 wraps negative", sectionBlock(nil, 10, 0, 1<<63, 0, nil, nil), 1},
 		{"end above int32", sectionBlock(nil, 10, 0, math.MaxInt32-9, 0, nil, nil), 1},
+	}
+}
+
+// FuzzCompactDecode feeds arbitrary block sections, under a checksum that
+// verifies, to the section decoder with arbitrary test and segment limits,
+// and to a whole Decode behind boundsIndex's header. Property: decoding
+// fails, or every id is ascending and below its limit and every block has
+// 0 <= Start <= End <= 2^31-1 and non-negative columns; it never panics.
+func FuzzCompactDecode(f *testing.F) {
+	f.Add(validSection(), uint32(2), uint32(2), uint32(0))
+	f.Add(sectionBlock(nil, 1, 0, 0, 0, []uint64{0}, []uint64{0}), uint32(1), uint32(1), uint32(1))
+	for _, cases := range [][]boundsCase{idDeltaCases(), blockStartCases(), blockEndCases()} {
+		for _, c := range cases {
+			f.Add(c.sec, uint32(c.blocks), uint32(2), uint32(0))
+		}
+	}
+	f.Fuzz(func(t *testing.T, sec []byte, blocks, nTests, nSegs uint32) {
+		// Limits up to 2^31: the most tests a header count admits.
+		lim := func(v uint32) int { return int(v % (1<<31 + 1)) }
+		tests, segs := lim(nTests), lim(nSegs)
+		row := fileRow{length: int64(len(sec)), blocks: int(blocks), sum: sha256.Sum256(sec)}
+		if got, err := decodeSection(sec, row, tests, segs); err == nil {
+			checkDecodedBlocks(t, got, tests, segs)
+		}
+		if ix, err := Decode(bytes.NewReader(compactFile(sec, int(blocks)))); err == nil {
+			checkDecodedBlocks(t, ix.Files[0].Blocks, len(ix.Tests), len(ix.Segments))
+		}
 	})
+}
+
+func checkDecodedBlocks(t *testing.T, blocks []Block, nTests, nSegs int) {
+	t.Helper()
+	inRange := func(what string, ids []int32, limit int) {
+		for i, id := range ids {
+			if id < 0 || int(id) >= limit || i > 0 && id <= ids[i-1] {
+				t.Fatalf("%s ids %v outside [0, %d) or not ascending", what, ids, limit)
+			}
+		}
+	}
+	for _, b := range blocks {
+		if b.Start < 0 || b.End < b.Start || b.StartCol < 0 || b.EndCol < 0 {
+			t.Fatalf("decoded block %+v", b)
+		}
+		inRange("test", b.Tests, nTests)
+		inRange("segment", b.Segs, nSegs)
+	}
 }
