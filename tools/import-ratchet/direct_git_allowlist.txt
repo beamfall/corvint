@@ -31,7 +31,6 @@ internal/perfbudget/fixture.go:gitCommand: returns the *exec.Cmd for outputConta
 internal/releasecandidate/candidate.go:runSourceGit: fixed release environment with HOME in scratch and unbounded stdout; returns exec's error unchanged
 internal/rubylinecov/collect.go:collectOnce: inherits the environment with no output bound; the error wraps exec's error text
 internal/runnerprotocol/snapshot.go:repositorySnapshot: own contained runner: groupreap.Contain, bounded buffers, WaitDelay and PATH limited to the Git directory
-internal/worksource/git.go:Source.gitRaw: the worksource runner itself: caller-supplied Git environment, isolation ceiling, WaitDelay, setupGitProcess and bounded output with cancel
 tools/affected-zero-unknown-replay/main.go:git: CombinedOutput with the inherited environment and no timeout
 tools/beamfall-shadow/main.go:gitLimitedBytes: fixed minimal environment with its own byte limits and git output limit exceeded error text
 tools/cem-release-suites/main.go:gitCommand: inherits the environment minus Git selection variables with no timeout; callers wire the command
