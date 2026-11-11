@@ -290,7 +290,7 @@ func locationSourceUses(body []byte, imports map[string]string, dotImported map[
 		}
 		return found
 	}
-	flow := sourceFlow{parents: map[ast.Node]ast.Node{}, packageLevel: map[*ast.Object]bool{}, imports: imports, visiting: map[*ast.Object]bool{}, commands: new([]int)}
+	flow := sourceFlow{parents: map[ast.Node]ast.Node{}, packageLevel: map[*ast.Object]bool{}, imports: imports, visiting: map[*ast.Object]locationSourceKind{}, commands: new([]int)}
 	var stack []ast.Node
 	ast.Inspect(file, func(node ast.Node) bool {
 		if node == nil {
@@ -372,7 +372,7 @@ type sourceFlow struct {
 	packageLevel map[*ast.Object]bool
 	uses         map[*ast.Object][]*ast.Ident
 	imports      map[string]string
-	visiting     map[*ast.Object]bool
+	visiting     map[*ast.Object]locationSourceKind
 	commands     *[]int // the os/exec selector positions of the commands the current value is the directory of
 	envName      string // the literal variable name of the environment source being followed, or ""
 }
@@ -465,10 +465,15 @@ func (flow sourceFlow) bindingSafe(ident *ast.Ident, kind locationSourceKind) bo
 	if object == nil || object.Kind != ast.Var || flow.packageLevel[object] {
 		return false
 	}
-	if flow.visiting[object] {
-		return true // its other reads are being checked
+	// A re-entry at the kind being checked is a copy of the same value,
+	// whose other reads are being checked; one at another kind is a
+	// transform of it written back (`v = filepath.Dir(v)`), which a use
+	// allowed for the first kind alone, the raw environment entry of
+	// stringSafe, must not accept, so it fails closed (AFP-V0-3661).
+	if visiting, ok := flow.visiting[object]; ok {
+		return visiting == kind
 	}
-	flow.visiting[object] = true
+	flow.visiting[object] = kind
 	defer delete(flow.visiting, object)
 	for _, use := range flow.uses[object] {
 		if use == ident || flow.written(use) {
@@ -730,7 +735,8 @@ var pathTransforms = map[string]bool{"Dir": true, "Join": true, "Clean": true, "
 // commandDirectory reports, and records, a location value stored as the Dir
 // of a command: the assignment `name.Dir = value` where name is a proven
 // command local (execCommandLocal) built by os/exec Command or
-// CommandContext, never named with Args or Path, and whose Dir is never read.
+// CommandContext, never named with Args, Path or Environ, and whose Dir is
+// never read.
 // Whether that command reads only an import graph is the planner's go list
 // proof (AFP-V0-2200, AFP-V0-3664), so the use is recorded, not judged.
 func (flow sourceFlow) commandDirectory(expression ast.Expr, assignment *ast.AssignStmt) bool {
@@ -747,7 +753,8 @@ func (flow sourceFlow) commandDirectory(expression ast.Expr, assignment *ast.Ass
 	}
 	built, ok := flow.execCommandLocal(name, false, func(member *ast.SelectorExpr) bool {
 		switch member.Sel.Name {
-		case "Args", "Path":
+		case "Args", "Path", "Environ":
+			// With Env nil, Environ appends PWD=<Dir>: it reads Dir back.
 			return false
 		case "Dir":
 			return flow.memberWritten(member)
