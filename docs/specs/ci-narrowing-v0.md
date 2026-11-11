@@ -838,6 +838,124 @@ package-level one follows it.
   remove `mainmiss-confirm.sh`, the `merge` member and the MAINCHECK lines of `bar.jq`; MISS rows
   already uploaded stay counted until the epoch advances.
 
+### CI integrity: flake exceptions and required archive integrity (CIN-V0-8720, CIN-V0-8721; V1-5098, V1-5099)
+
+Intent (lane ghci charter 2026-11-08, ported by lane ghci2 on 2026-11-11; V1-5098, V1-5099): a
+diagnostic rerun turned any first-attempt failure into success, so a new intermittent failure
+passed the required check without anyone naming it; and `artifact-integrity` was not in
+`go-product.needs`, so a broken release archive could merge. Both requirements are proposed,
+delivery experimental, and take effect only after the owner's `ci-control-plane` review of the
+`.github` change.
+
+- `CIN-V0-8720`: (proposed 2026-11-11; V1-5098; delivery experimental; lane ghci port)
+  Refining AFP-V0-441, a successful diagnostic rerun SHALL clear a failed shard only when every
+  failed test has an exact package/test exception in `.github/forward-rows/known-flakes.tsv` at
+  the immutable event base (PR base, queue base, or push commit). The authorizer
+  `.github/forward-rows/known-flakes.py` SHALL be read from that same event base and run from a
+  copy outside the tested tree, so a pull request can change neither the list nor the rule that
+  judges its own run; an event base without the authorizer or the list forgives nothing. The list
+  SHALL be a regular Git blob, at most 16 KiB and 128 entries, with four tab-separated fields:
+  package, exact test identity, open native ticket ID and an ISO calendar expiry date. The
+  exception expires at the start of that UTC date; duplicates, malformed entries, expired entries,
+  missing policy, unknown tests and any read refusal SHALL prevent forgiveness. Subtests SHALL
+  require their own exact entries, never inherit a parent's exception. Each failed invocation
+  SHALL name a listed test failure; missing package outcomes or unattributed build/timeout
+  failures SHALL remain failures. Authorization SHALL require complete start/test/terminal
+  lifecycles for every invocation, including later slices of an already failed package. Complete
+  observed invocation counts SHALL equal the workflow's expected manifest per package, including
+  packages with no JSON at all; unexpected packages or excess invocations SHALL refuse
+  forgiveness. The manifest SHALL contain only LF-terminated import paths, one per scheduled
+  invocation (duplicates count as slices), bounded to 1 MiB and 4096 invocations; empty,
+  malformed, unknown or capped forms SHALL refuse. It SHALL certify only supported event
+  transitions and output forms; unfinished tests, fatal diagnostics and unknown forms SHALL refuse
+  forgiveness even after a listed failure. Stream reads SHALL cap at 256 MiB total and 1 MiB per
+  line and refuse on any cap or malformed/unsupported event, never forgive a prefix. Existing
+  rerun completeness and bounds remain binding. The diagnostic rerun and unchanged FLAKY report
+  SHALL remain, including when an unlisted fail-then-pass blocks the shard, and a refused
+  authorization SHALL print a warning naming the event base. Policy maintenance SHALL verify the
+  owning ticket is open before adding or renewing an entry; runtime authorization is offline and
+  does not infer current ticket liveness. The seed contains only the two unresolved
+  detached-process failures documented under V1-4549, expiring 2026-11-15 00:00 UTC (exclusive);
+  renewing it is the owner's decision.
+- `CIN-V0-8721`: (proposed 2026-11-11; V1-5099; delivery experimental; lane ghci port)
+  Archive correctness SHALL be a premerge guarantee: `go-product.needs` SHALL include
+  `artifact-integrity` and `cadence-plan`, and the aggregate SHALL check the integrity result
+  before every DOCS, REUSE or batched early return. A failure, cancellation, missing or unknown
+  outcome SHALL fail the aggregate. Success includes the existing AFP-V0-163 verified tree reuse
+  inside the integrity job. A skipped integrity job SHALL be accepted only for (a) a `main` push
+  whose `static-reuse` job succeeded with mode REUSE (AFP-V0-080), (b) a pull request whose
+  `cadence-plan` job succeeded with DEFER (CIN-V0-4753), or (c) a `ci:batched` pull request under
+  AFP-V0-027; these are exactly the three conditions under which the integrity job's own `if:`
+  skips it. A merge-group run SHALL require integrity success, including for a deferred or batched
+  constituent. An invalid skip authorization SHALL fail, never be inferred from docs mode or a
+  producer's output alone. `go-product` keeps `if: always()`, so a need skipped by design
+  (`cadence-plan` on a push, `artifact-integrity` under (a) to (c)) never stops it from running
+  and reporting. No release, signing, publication or independent required-check change is
+  authorized.
+
+Failure modes: the first rollout's event base lacks the authorizer and the list, so until the
+`.github` change is on `main` no rerun is forgiven and a flaky shard stays red (fail closed, as
+intended); an exception may expire, or the Git object or stream may be unreadable, and each leaves
+the failed shard failed with its rerun diagnostic. A runner without `python3` forgives nothing. A
+snapshot proves ticket status only at that snapshot, so renewals require an operator check. When
+the seed expires on 2026-11-15 the two V1-4549 tests stop being forgiven: a shard where either
+fails first and passes on rerun fails from 2026-11-15 00:00 UTC. For CIN-V0-8721, absent or failed
+skip producers and skipped merge-queue integrity jobs block go-product, and go-product now waits
+for the archive gate (up to its 30-minute limit) on runs that build archives. Rollback: revert the
+corresponding workflow and helper change; neither change migrates product state.
+
+### Line-level selection with the trusted planner (CIN-V0-8722; V1-5258)
+
+Intent (V1-5258): the line-level selection step builds `linecov-corvint` from the trusted `main`
+commit `tools` (GLS-V0-041), never from the tested tree, and runs it with `--root` on the tested
+tree. Since AFP-V0-9730 a binary whose stamped commit's Go source differs from `HEAD` refuses with
+exit 2 (`self-binary-stale`), so every pull request that changes Go source fell back to the static
+plan.
+
+- `CIN-V0-8722`: (proposed 2026-11-11; V1-5258; delivery experimental) The line-level selection
+  step of `go-product-shard` SHALL keep building `linecov-corvint` with `-buildvcs=true` from
+  `tools` and SHALL run `affected --line-index` with `--accept-stale-binary`. Immediately after
+  that call, before the line selection is read, the step SHALL read the receipt's top-level
+  `degradations`: absent or empty, or exactly `["self-binary-stale"]`, continues; any other value
+  (`self-binary-unverified`, another or an additional code, a non-array, an unreadable receipt)
+  SHALL stop the step with the FALLBACK reason naming it. A `self-binary-stale` plan SHALL be
+  named in the job summary (`CIN-V0-8722 shard N: planned by the trusted selector of main commit
+  T, not the tested tree; degraded self-binary-stale (AFP-V0-9730)`) and recorded as the file
+  `degraded` beside `affected.json` in the retained line selection proof. Choice and reason: a
+  binary built with `-buildvcs=false` carries no Git stamp and so reports no degradation at all
+  (AFP-V0-846 non-goal), which would hide from the narrowing decision and its proof that the
+  planner's source differs from the tested tree; keeping the stamp and accepting the stale verdict
+  keeps that fact in the receipt, the summary and the proof. The stale verdict is expected here:
+  GLS-V0-041 deliberately plans a pull request with `main`'s selector so the pull request cannot
+  choose its own, and the verdict states exactly that difference. Anything the stamp comparison
+  cannot establish (`self-binary-unverified`) is not expected, since `tools` is in the full-depth
+  checkout, and falls back. This requirement does not change which selector plans or the GLS-V0-034
+  qualification, NARROWED/SHADOW admission or kill switches; a pull request that changes the
+  selection code itself is planned by `main`'s selector, as it was before AFP-V0-9730.
+  Non-goals: building the planner from the tested tree; reading `degradationDetails`. Failure
+  modes: a future degradation code falls back until this step names it; a hosted run is the only
+  evidence that the step now reaches the line-level decision (not observed by this change).
+  Rollback: drop `--accept-stale-binary` and the degradation check; the step then falls back on
+  every Go source change again.
+
+### Main-miss workflow hygiene (CIN-V0-8723; V1-5349)
+
+- `CIN-V0-8723`: (proposed 2026-11-11; V1-5349; delivery experimental) `main-miss.yml` SHALL
+  declare a workflow `concurrency` group `main-miss-${{ github.event.workflow_run.head_sha }}`
+  with `cancel-in-progress: false`, so a re-run of the same failed `main` commit queues behind the
+  running confirmation instead of racing it (and filing a second issue), while different commits
+  never wait on each other; and `defaults.run.shell: bash`, so every run step executes under
+  `bash --noprofile --norc -eo pipefail` as in `ci.yml` (CIN-V0-8425). `mainmiss-confirm.sh`
+  SHALL read each suspected pull request's packages one per line with `IFS= read -r`, never by
+  word-splitting a command substitution, so a package path holding a space is one package (a name
+  holding a line break cannot be a Go import path and is read as separate lines); the script
+  stays POSIX `sh`. After the existing count line, its step summary SHALL print one line
+  `main miss check: N unconfirmed package(s)` and, when N > 0, the first three distinct reasons
+  of unconfirmed packages in result order. The existing count line and every document are
+  unchanged. Failure modes: with `cancel-in-progress: false` GitHub keeps one pending run per
+  group, so a third run of the same commit replaces the second pending one (both examine the same
+  failure). Rollback: revert the two workflow keys and the script's read loop and summary line.
+
 ## Non-goals
 
 merge-queue tree reuse of `go-static`, `go-interop` and `cce-live` (V1-2902 remainder: it needs
@@ -928,6 +1046,10 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 |---|---|---|
 | CIN-V0-7921 | the fallback shape (`planned`, `fallback`), `$unplanned`, `$fullRun`, `$fullType`, the `FULL` class and `selection.full` in `.github/forward-rows/row.jq`; the FULL class and `-r<type>` suffix in `collect.sh`; the `$full` count and line in `bar.jq` | `TestCINV07921FallbackSelectionIsATypedFullRow_CINV07921` (`tools/ci-forward-row/fullrow_test.go`: the #163 shape is FULL/skew with no incomplete reason, a failing package under it is no miss, another no-plan reason is abstain, a planned whole run is plan, a FULL document without a reason still fails the shape, one unplanned shard beside planned shards is INCOMPLETE, a planned FULL shard beside them stays CLEAN; fault injection: without the FULL branch the same run is CLEAN, or MISS once a package fails), `TestCINV07921CollectorNamesTheFullRowWithItsType_CINV07921` (the collector names `-rskew` and `-rplan`, and a dry-run that printed nothing stays INCOMPLETE), `TestCINV07921FullRowsAreNotNarrowingEvidence_CINV07921` (twenty abstained rows: NOT MET, 0 complete, clear; beside eight complete rows the count is unchanged and a FULL re-run replaces nothing; the pre-change CLEAN and INCOMPLETE names reproduce the defect; the four #163 INCOMPLETE names over three merges count three, as FULL none), `TestCINV07921FallbackRerunsKeepTheVerdictMet_CINV07921` (`accept.sh` over the #163 listing: MET with FULL names, FULL with a tripped switch under the old INCOMPLETE names); hosted FULL row `NOT_OBSERVED` |
 | CIN-V0-7922 | `.github/workflows/main-miss.yml`; `merge`, `epoch` and `earlierEpoch` in `mainmiss.sh` and `mainmiss.jq`; `.github/forward-rows/mainmiss-confirm.sh`; the MAINCHECK lines and `mainMiss.checks` of `bar.jq`; `script/ci-least-privilege-exceptions.tsv` | `TestCINV07922ConfirmationRerunsClassifyEachSuspectedPullRequest_CINV07922` (`tools/ci-forward-row/mainmiss_confirm_test.go`, a real Git repository and a go stand-in: pass/fail/fail confirms and names a MISS row, a package absent at the base confirms on its merge failures, a merge pass is a flake, a base failure is preexisting, a merge commit off main or none is unconfirmed; the reruns are base once and merge twice with the shard's flags; MAX_PACKAGES and BUDGET_SECONDS leave the rest unconfirmed; an unusable base capture confirms nothing; no worktree is left), `TestCINV07922EarlierEpochMissIsLeftOut_CINV07922` (a miss of a known earlier epoch is not rerun and gets no check entry or MISS row, one of the current or an unknown epoch is confirmed and names `selectionEpoch`, and a document holding only earlier-epoch misses confirms nothing), `TestCINV07922MainMissBelongsToItsSelectionEpoch_CINV07922` (`tools/ci-forward-row/mainmiss_test.go`: the fake `gh` serves the pull-request run's selection documents; epoch 2 stays a miss with `epoch` 2, epoch 1 is listed in `earlierEpoch` with no name and no row, mixed epochs and no documents stay misses with `epoch` null), `TestCINV07922ConfirmedMainMissIsAMissRow_CINV07922` (a MISS row from a confirmed miss makes the bar NOT MET, two trip the switch, MAINMISS and MAINCHECK names feed neither and are reported), `TestCINV07922MainMissWorkflowBinding_CINV07922` (the workflow's trigger, trusted checkout, scripts, flags, deadline equal to `run_slice`, uploads, issue step, failure step, permissions, epoch, and the control plane without the job); `TestAFPV0983MainFailureNamesTheNarrowedPullRequest` (the miss carries `merge`); local replay of the protocol for #104 and #109 in `docs/build-log/2026-11-09-misskill.md`; hosted confirmation `NOT_OBSERVED` |
+| CIN-V0-8720 | `.github/forward-rows/known-flakes.py` and `known-flakes.tsv`; `KNOWN_FLAKES_REVISION` and the base-read authorizer call in the shard's rerun block of `.github/workflows/ci.yml` | `python3 -B .github/forward-rows/known-flakes_test.py` (run in `go-static`): listed/unlisted and subtest identities, expiry boundary, malformed/capped/missing list, complete invocations and test transitions, expected-count equality, a slice with no JSON, malformed/unknown manifest, timeout/crash/unknown output refusal; the actual workflow block in a fixture repository where the worktree's permissive list and authorizer cannot forgive (only the event-base copies count), a base without either refuses, and the FLAKY record survives every refusal; workflow binding of the revision, the base-read call before the status clear and the go-static registration; `TestAFPV0441WorkflowBindings` (`tools/ci-forward-row`) still requires exactly one status clear after `flaky.sh`; hosted run NOT_OBSERVED |
+| CIN-V0-8721 | `go-product` needs, the integrity outcome bindings and the pre-return integrity check in `.github/workflows/ci.yml` | `python3 -B .github/forward-rows/go-product_test.py` (run in `go-static`): the actual aggregate step under success, failure, cancelled, skipped, empty and unknown integrity results across pull request, merge group and push with DOCS, REUSE and batched early returns; valid and invalid REUSE, DEFER and batched skips; needs and bindings; the `go-product` fixtures of `tools/ci-reuse-plan` (`goProductUpstream`, `wantGoProductNeeds`) and `TestAFPV0591CoverageGuard` (`tools/ci-forward-row`) supply a successful integrity result and accept the needs list before and after the `.github` half lands; hosted run NOT_OBSERVED |
+| CIN-V0-8722 | `--accept-stale-binary`, the `degradations` check and the `degraded` proof file of the line-level selection step of `go-product-shard` in `.github/workflows/ci.yml` | `python3 -B .github/forward-rows/linecov-stale_test.py` (run in `go-static`): binding of `-buildvcs=true`, the flag and the check's place before the selection is read; the extracted check under no, empty, stale, unverified, mixed, non-array and unreadable degradations; `TestWorkflowQualifiedInvocationMatchesWrapperRecord` (`tools/linecov`) still binds the affected call's build settings; a hosted source-changing pull request reaching the line-level decision is NOT_RUN |
+| CIN-V0-8723 | `concurrency` and `defaults` of `.github/workflows/main-miss.yml`; the package read loop and unconfirmed-package summary line of `.github/forward-rows/mainmiss-confirm.sh` | `python3 -B .github/forward-rows/mainmiss-confirm_test.py` (run in `go-static`): a package directory with a space is rerun as one package and confirmed, word-split fragments never reach `go test`; the summary's unconfirmed count and first reasons; the workflow's concurrency group, `cancel-in-progress: false` and bash default; `TestCINV07922MainMissWorkflowBinding_CINV07922` and the CIN-V0-7922 confirmation tests (`tools/ci-forward-row`) unchanged; hosted run NOT_OBSERVED |
 | CIN-V0-7600 | `admits`, `recordJobLine`, `successfulJob`, `recorded`, `recordedNarrowed` in `tools/ci-reuse-plan/main.go` | `TestCINV07600RecordAdmitsBeforeAdvisoryCompletion`, `TestCINV07600RecordAdmissionFailsClosed`, `TestCINV07600NarrowedRecordRequiresItsAggregateAndGuards`, `TestCINV07600ReplayPR99`; old/new retained-input replay in `2026-11-05-ci-reuse-record-admission`; hosted REUSE pending workflow listing follow-up |
 | CIN-V0-001 | `CORVINT_PR_FORWARD_EPOCH`, the shadow step's `forwardEpoch` argument and the narrowing-verdict `FORWARD_EPOCH` in `ci.yml`; `FORWARD_EPOCH` and the artifact name in `ci-forward-bar.yml`; `ci-control-plane.yml`; `selection.jq`; the epoch check of `collect.sh` | `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind`; the "producer epoch names the row" case of `TestAFPV0047CollectorNamesRows`; `TestAFPV0047SelectionDocument` |
 | CIN-V0-002 | the `pin-tool-*` and `pin-shadow-*` step ids and the "Fail loudly on an unreachable or unbuildable pin" step of `ci.yml` | `TestCINV0002UnreachablePinFailsTheShardLoudly` |
