@@ -3,14 +3,13 @@ package testid
 
 import (
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
 
 func listed(t *testing.T, name string, read func(*os.File) ([]Named, error)) []Entry {
 	t.Helper()
-	file, err := os.Open(filepath.Join("testdata", name))
+	file, err := os.Open(name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +26,7 @@ func listed(t *testing.T, name string, read func(*os.File) ([]Named, error)) []E
 // selects either one selects jest:a.test.js with duplicate-test-id.
 func TestCTIV1010DuplicateJestTitlesWidenToFile(t *testing.T) {
 	t.Parallel()
-	entries := listed(t, "jest.json", func(f *os.File) ([]Named, error) { return JestJSON(Jest, f, "/repo") })
+	entries := listed(t, "testdata/jest.json", func(f *os.File) ([]Named, error) { return JestJSON(Jest, f, "/repo") })
 	want := []Entry{
 		{ID: "jest:web/sum.test.js::sum::adds"},
 		{ID: "jest:web/sum.test.js::sum::each::case 1"},
@@ -61,7 +60,7 @@ func TestCTIV1010DuplicateJestTitlesWidenToFile(t *testing.T) {
 	}
 	// File-level entries a report gives without a name path are not
 	// suffixed: they already select the whole file.
-	rspec := listed(t, "rspec.json", func(f *os.File) ([]Named, error) { return RSpecJSON(f) })
+	rspec := listed(t, "testdata/rspec.json", func(f *os.File) ([]Named, error) { return RSpecJSON(f) })
 	for _, entry := range rspec {
 		if entry != (Entry{ID: "rspec:spec/user_spec.rb", Reason: ReasonUnmapped}) {
 			t.Errorf("rspec entry %+v", entry)
