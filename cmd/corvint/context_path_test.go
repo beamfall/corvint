@@ -26,11 +26,26 @@ func TestPathContextParse(t *testing.T) {
 	if err != nil || !slices.Equal(options.paths, []string{"a", "b"}) {
 		t.Fatalf("paths %v, %v", options.paths, err)
 	}
+	// A path with a space is accepted in both forms.
+	options, err = parse("--path=docs/my file.md", "--path", "other dir/x.go")
+	if err != nil || !slices.Equal(options.paths, []string{"docs/my file.md", "other dir/x.go"}) {
+		t.Fatalf("paths with spaces %v, %v", options.paths, err)
+	}
+	// Task text that begins with the flag's spelling is the task of the task form.
+	for _, args := range [][]string{{"--task", "--path= fix the parser"}, {"--limit", "3", "--task", "--path= fix the parser"}} {
+		options, err = parse(args...)
+		if err != nil || options.task != "--path= fix the parser" || len(options.paths) != 0 {
+			t.Errorf("%v: %+v, %v", args, options, err)
+		}
+	}
 	for _, c := range []struct {
 		args     []string
 		mentions string
 	}{
 		{[]string{"--path"}, "expected one argument"},
+		{[]string{"--path", "a", "some task text"}, "corvint impact"},
+		{[]string{"--path", "a", "--task=fix the parser"}, "corvint impact"},
+		{[]string{"--worktree-overlay", "--path", "a"}, "--worktree-overlay"},
 		{[]string{"--path", "--path", "a"}, "expected one argument"},
 		{[]string{"--path", "a", "--base", "X"}, "corvint impact"},
 		{[]string{"--path", "a", "--task", "t"}, "corvint impact"},
