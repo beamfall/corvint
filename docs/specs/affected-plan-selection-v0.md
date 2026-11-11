@@ -77,6 +77,8 @@ Lane seldis (2026-11-09; V1-4968, V1-4971, V1-4363) adds AFP-V0-9730 to AFP-V0-9
 same reason; see build-log entry `2026-11-09-seldis`. Lane seldisfix (2026-11-09, the review of
 seldis) adds AFP-V0-11033, the same refusal for `affected jobs` and `affected audit`; see build-log
 entry `2026-11-09-seldisfix`.
+Lane affux (2026-11-11; V1-4399) adds AFP-V0-9987 to AFP-V0-9989 here for the same reason; see
+build-log entry `2026-11-11-affux`.
 
 ## User and current state
 
@@ -2922,6 +2924,78 @@ Copied from the OpenSpec change `hub-read-scopes`; the build log entry
   The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
   `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
 
+### Flat selection, one witness shape, `--json` and `--head` replay (lane affux, 2026-11-11; V1-4399)
+
+Fail-closed rule for AFP-V0-9987 to AFP-V0-9989: the classes known to need tests the plan cannot
+bound widen and never narrow. An unresolved package (a unit AFP-V0-012 rule (d) selects as
+`UNBOUNDED_READER`) stays selected on every change; any plan input `--head` would have to read
+outside Git objects is refused, never read from the checkout; a base whose identity cannot be
+proven widens (AFP-V0-800 already plans a pull request against the tested merge's first parent and
+goes FULL with a named `pr-base-*` reason otherwise; V1-5211 found no CI consumer that narrows on a
+stale event base, see build-log entry `2026-11-11-affux`). The members AFP-V0-9987 adds are
+reporting only: they are derived from `plan.selected` after selection and never change
+`plan.selected`, `plan.scope`, `plan.unknown`, `provider`, advice or the exit status.
+
+- **AFP-V0-9987:** (proposed 2026-11-11; experimental; V1-4399) The default `affected-plan/1`
+  document SHALL carry the top-level member `selectedFlat`, an array that is always present
+  (empty when nothing is selected) with one object per `plan.selected` entry, in the same order:
+  `unitId`; `test`, the Go package import path for a `go:` unit, the unit's only test file when
+  the `--full` plan lists exactly one, and the unit ID otherwise; `witness`, the witness kind;
+  `dirtyPath`, the witness's dirty path; and `reason`, one line naming the dirty path and the
+  witness detail (the unbounded cause's unit and read, the glob, the read-scope declaration entry,
+  or the chain length when it exceeds one unit). The `--full` (`affected-plan/0`), `--by-path`,
+  `--summary` and `--format text` documents are unchanged by this member. The member is an
+  optional addition under CCF-V1-006. The `summary` object of the `affected-plan/1` document, and
+  so of the `affected-summary/1` verdict that embeds it, SHALL carry
+  `unresolvedPackages`: the number of selected `go:` units whose witness kind is `UNBOUNDED_READER`,
+  the Go packages whose reads no literal or read-scope declaration bounds and which every change
+  selects (AFP-V0-012 rule (d); the affected counterpart of `tools/gate-affected-select
+  -unresolved`). `summary.line` and the text forms are unchanged. The fail-closed rule above SHALL
+  be tested: on one fixture plan, `plan.selected` with these members present is the same list as
+  the receipt projected without them, `selectedFlat` names exactly the units of `plan.selected` in
+  order, and the `--full` plan selects the same unit IDs; a fixture with an unresolved package
+  keeps it selected and counts it. The core-freeze goldens `affected-committed-range.json` and
+  `affected-worktree.json` gain only these two members.
+- **AFP-V0-9988:** (proposed 2026-11-11; experimental; V1-4399; documents AFP-V0-035, AFP-V0-640
+  and AFP-V0-990 without changing their wire) The compact plan, the `--full` plan and the
+  `--by-path` document SHALL emit every witness as one object shape: `kind` (string) and
+  `dirtyPath` (string), always; `viaLength` (integer), always in the compact plan and `--by-path`
+  and never in `--full`; `via` (array of unit IDs), always in `--full` and in the compact plan only
+  for a chain `plan.viaLinks` cannot state (AFP-V0-640), never in `--by-path`; `anyDirtyPath`
+  (`true`, only on `UNBOUNDED_READER`); `cause` (`{unit, reads}`, only on `UNBOUNDED_READER`);
+  `glob` (string); and `readScope` (`{declaration, entry}`). No witness carries another member. A
+  witness of each of the three documents SHALL decode into one type that rejects unknown members,
+  and a unit both plans select SHALL carry the same `kind`, `dirtyPath`, `cause`, `glob` and
+  `readScope` in each, with `viaLength` equal to the length of the `--full` `via`. The plan forms
+  of `corvint affected` SHALL accept `--json` once and without a value as `--format json`: the output is
+  byte-identical to the same invocation without it, because the default output is already JSON.
+  `--json` with `--format text` SHALL refuse with exit 2, naming that the two conflict and that
+  JSON is the default; a repeated `--json` or one with a value SHALL refuse like any repeated
+  switch. `corvint affected --help` SHALL say so. The `jobs`, `audit`, `discovery`, `cache` and
+  `--ownership-audit` forms are unchanged.
+- **AFP-V0-9989:** (proposed 2026-11-11; experimental; V1-4399) `corvint affected --base BASE
+  --head HEAD` SHALL plan the commit pair from Git objects alone, without reading the root's
+  working tree, index or untracked or ignored files: HEAD is resolved in the root repository as
+  `--base` is (full id, prefix of at least 7 digits or a revision); Corvint clones the root
+  repository's objects into a private temporary directory outside the repository (`git clone
+  --shared --no-checkout` with the hermetic Git configuration, hooks off), checks HEAD out detached
+  there, plans `--base BASE` over that clean checkout with the unchanged planner, and removes the
+  directory before it exits, on success and on failure. The receipt is the `--base` receipt of a
+  clean checkout of HEAD: `revision` is HEAD, the dirty set is the committed range BASE..HEAD, and
+  `summary.worktree` is 0. The AFP-V0-846 and AFP-V0-9730 judgement applies to HEAD as to any plan,
+  so a replay of a historical HEAD with a binary built elsewhere needs `--accept-stale-binary`, as
+  `tools/selection-baseline` passes it. `--head` without `--base` SHALL refuse; so SHALL `--head`
+  with any option whose input lies outside Git objects: `--path`, `--paths-from`, `--worktree`,
+  `--snapshot`, `--require-clean`, `--fail-fast-order`, `--by-path`, `--provider`,
+  `--provider-command`, `--repository`, `--repository-base`, `--appmap-impact`,
+  `--playwright-config`, `--playwright-discovery`, `--playwright-env`, `--line-index`,
+  `--line-exec` and `--line-test-timeout`, each exit 2 naming the option and that `--head` reads
+  only Git objects. A HEAD tree that holds a gitlink (its content is not in this repository's
+  objects), or a clone or checkout that fails, SHALL refuse with exit 2 and the error code
+  `unsupported-affected-head`, writing no plan. The temporary directory is transient private
+  scratch like the `--snapshot` scratch of `plansnapshot.Materialize`, never repository, Git,
+  trace or `.corvint/` state, and never an input beyond the Git objects it was written from.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -3147,6 +3221,18 @@ those reads have separately declared plain bounds. Missing endpoint/listing obse
 prove non-impact. Rollback replaces tree metadata objects with their reason strings; the main
 read-scope declaration remains string-only throughout.
 
+For AFP-V0-9987 to AFP-V0-9989 (lane affux): a consumer that reads `selectedFlat` or
+`summary.unresolvedPackages` as a selection decision would still see exactly `plan.selected`; the
+members are derived after selection, so a defect in them misreports and never narrows.
+`selectedFlat[].test` names one runnable handle per unit, not every test: a reader that needs the
+test files still reads `--full`. `--head` fails closed: an option that needs a file or the
+worktree is refused before any clone, a gitlink or a failed clone or checkout refuses with
+`unsupported-affected-head`, and an interrupted run removes its scratch through the same cleanup;
+a host without space for one checkout of HEAD refuses rather than reading the root's checkout. A
+historical HEAD planned by a binary built at another commit is refused as `self-binary-stale`
+unless accepted, and an accepted plan is marked degraded. `--json` is an alias, so it cannot
+change bytes; combined with `--format text` it refuses instead of guessing.
+
 ## Acceptance evidence and traceability
 
 AFP-V0-3350 to AFP-V0-3352 are covered by `TestTestOnlyEmbedSelectsNonImportedSource_AFPV03350`,
@@ -3358,9 +3444,18 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9731 | the `testFileCount` member of `affectedCompactSelection` (`cmd/corvint/affected_compact.go`) and `affectedByPathUnit` (`cmd/corvint/affected_by_path.go`); the `test-files=` word in `renderAffectedText` and `renderAffectedByPathText` | `TestAffectedTestCountsMatchGoTestList_AFPV09731` in `cmd/corvint/affected_test_file_counts_test.go` (go test -list parity, both counts in the compact, text and by-path forms, unchanged full plan); `TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range` with the regenerated golden |
 | AFP-V0-9732 | `gateselect.PlannedRunSet` through `testPlanRunSet` in `cmd/corvint/test.go` (AFP-V0-2402, unchanged) | `TestV14361RangeAffectedAndTestSelectTheSameGoPackages_AFPV09732` in `cmd/corvint/selection_agreement_replay_test.go` (100 Go packages on both sides, NARROWED; skipped where the commits are absent; in CI it runs only in the `go-product-shard` job, `fetch-depth: 0`, when `cmd/corvint` is in the shard's run set); `TestAFPV02402RunSetIsThePlanGoSelection`; the CLI replay in `../build-log/2026-11-09-seldis.md` |
 | AFP-V0-11033 | `parseAcceptStaleBinary` in `cmd/corvint/affected.go`; `staleBinaryGate` in `cmd/corvint/self_binary.go`; its calls and the flag in `parseAffectedJobsOptions` and `runAffectedJobs` (`cmd/corvint/affected_jobs.go`) and `parseAffectedAuditOptions` and `runAffectedAudit` (`cmd/corvint/affected_audit.go`); the `Degradations` and `DegradationDetails` members of `jobinputs.Plan` (`internal/jobinputs/jobinputs.go`) and `affectedAuditReport` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go`, the `jobs` and `audit` forms (refused on separate and merged streams with the subcommand's `go run` recovery, accepted documents carry the members with the stderr line exactly when the streams differ, repeated flag refused; it fails on the exit-0 and exit-3 documents); `TestAffectedJobsCLI`; `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445`; `TestAffectedAuditMissingObservationIsUnknown_AFPV0447`; `make capabilities-check` |
+| AFP-V0-9987 | `affectedFlatSelected` and the `SelectedFlat` member of `affectedCompactReceipt` (`cmd/corvint/affected_flat.go`, `cmd/corvint/affected_compact.go`); `UnresolvedPackages` in `summarizeAffectedPlan` (`cmd/corvint/affected_summary.go`) | `TestAffectedSelectedFlatAndUnresolvedCount_AFPV09987` and `TestAffectedNewMembersNeverChangeSelection_AFPV09987` in `cmd/corvint/affected_flat_test.go`; core-freeze goldens `affected-committed-range.json` and `affected-worktree.json` regenerated for these two members only |
+| AFP-V0-9988 | `affectedCompactWitness`, `compactWitness` (`cmd/corvint/affected_compact.go`) and `affected.Witness.MarshalJSON` (`internal/liveverify/affected/select.go`), unchanged; `--json` in `parseAffectedOptions` (`cmd/corvint/affected.go`) and `affectedHelp` (`cmd/corvint/help.go`) | `TestAffectedWitnessOneShapeAcrossModes_AFPV09988` and `TestAffectedJSONFlagIsTheDefaultJSON_AFPV09988` in `cmd/corvint/affected_flat_test.go`; `make capabilities-check` |
+| AFP-V0-9989 | `--head` in `parseAffectedOptions` and `affectedHeadRefusal` (`cmd/corvint/affected.go`); `materializeAffectedHead` (`cmd/corvint/affected_head.go`) | `TestAffectedHeadPlansTheCommitPairFromGitObjects_AFPV09989` and `TestAffectedHeadRefusesInputsOutsideGitObjects_AFPV09989` in `cmd/corvint/affected_head_test.go`; before/after counts in `../build-log/2026-11-11-affux.md` |
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
+
+For AFP-V0-9987 to AFP-V0-9989, revert the lane affux commits: drop `selectedFlat` and
+`summary.unresolvedPackages` and restore the two core-freeze goldens, delete `--json` and `--head`
+with their help and catalog rows. No selection, cache or stored-receipt migration is involved;
+readers fall back to `plan.selected[].unitId` and `.witness.kind` and to a scratch clone for a
+historical replay.
 
 For AFP-V0-10329, remove `exercisingUnits`, `fixtureTest` and
 `TestRepositoryOwnerRowsNameExercisingTests_AFPV010329`; the owner rows that name their exercising
