@@ -54,8 +54,13 @@ Source: G1, owner answer 2, owner decisions R7 and R32 (2026-11-09). `corvint te
 run Go, Vitest, Jest, Playwright, pytest, RSpec and Minitest tests through the contract, and a
 runner without a working implementation MUST run its declared full command with a printed reason.
 A changed path that no runner instance owns, or a runner that has been removed or is unavailable,
-MUST make the plan run all tests with a named reason (`runner-removed` for a removed or unavailable
-runner); `UNOWNED_DIRTY_PATH` MUST NOT be an allowlisted pass.
+MUST make the plan run all tests with a named reason (`unowned-path` for an unowned path,
+`runner-removed` for a removed or unavailable runner). A path a Go selection rule attributes (an
+enclosing package or embed, a package whose files name it, a declared read scope or declared reader
+that bears on it, a selection the plan makes with the path as its witness, or a nested module whose
+own suite runs it) is owned by that Go instance and MUST NOT force a full run under this rule;
+`UNOWNED_DIRTY_PATH` MUST NOT be an allowlisted pass for any other path (orchestrator ruling
+2026-11-11 on the R32 scope).
 
 #### Scenario: Minitest without implementation
 
