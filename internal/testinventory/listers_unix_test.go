@@ -156,11 +156,12 @@ func TestTIVV1004PytestLister(t *testing.T) {
 	}
 }
 
-// TIV-V1-005, TIV-V1-008: a Vitest config with include widens the files a
-// refresh binds to every JavaScript or TypeScript file under the root, so
-// the record lists the files that held no test and a later reader can tell
-// a new custom-named test file from them.
-func TestTIVV1005CustomPatternRecordsEveryLanguageFile(t *testing.T) {
+// TIV-V1-005, TIV-V1-008: a Vitest config with include is unproven, so a
+// refresh binds only the files the lister names, never every JavaScript or
+// TypeScript file under the root, and a later reader judges each file of
+// those languages the record does not bind as unassigned, in a testdata or
+// node_modules-named path too.
+func TestTIVV1005UnprovenRefreshBindsOnlyListedFiles(t *testing.T) {
 	root, git := gitRepo(t, map[string]string{
 		".gitignore":          "node_modules/\n",
 		"vitest.config.ts":    "export default { test: { include: ['src/**/*.check.ts'] } }\n",
@@ -168,7 +169,7 @@ func TestTIVV1005CustomPatternRecordsEveryLanguageFile(t *testing.T) {
 		"src/a.check.ts":      "test('a', () => {})\n",
 		"src/lib.ts":          "export const x = 1\n",
 		"src/readme.md":       "not code\n",
-		"src/testdata/f.ts":   "skipped\n",
+		"src/testdata/f.ts":   "fixture\n",
 		"src/node_modules.ts": "a file, not the directory\n",
 	})
 	stub(t, root, "node_modules/.bin/vitest", "list --json --config vitest.config.ts",
@@ -178,7 +179,7 @@ func TestTIVV1005CustomPatternRecordsEveryLanguageFile(t *testing.T) {
 	if got := testsOf(vitest); !reflect.DeepEqual(got, []Test{{ID: "vitest:src/a.check.ts::a", File: "src/a.check.ts"}}) {
 		t.Fatalf("vitest tests %+v", got)
 	}
-	requireBinding(t, root, vitest, "src/a.check.ts", "src/lib.ts", "src/node_modules.ts", "vitest.config.ts")
+	requireBinding(t, root, vitest, "src/a.check.ts")
 	if _, err := Refresh(context.Background(), Options{Git: git}); err != nil {
 		t.Fatal(err)
 	}
@@ -187,9 +188,29 @@ func TestTIVV1005CustomPatternRecordsEveryLanguageFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, instance := range Judge(work).Instances {
-		if instance.Key == "vitest@." && (instance.Full || !reflect.DeepEqual(instance.Unassigned, []string{"src/b.check.ts"}) || !strings.Contains(instance.Cause, "sets include,")) {
-			t.Fatalf("verdict after a new custom-named test file: %+v", instance)
-		}
+	instance := judgedInstance(t, Judge(work), "vitest@.")
+	want := []string{"src/b.check.ts", "src/lib.ts", "src/node_modules.ts", "src/testdata/f.ts"}
+	if instance.Full || !reflect.DeepEqual(instance.Unassigned, want) || !strings.Contains(instance.Cause, "(sets include)") {
+		t.Fatalf("verdict after a new custom-named test file: %+v", instance)
 	}
+}
+
+// TIV-V1-003, TIV-V1-004: a package.json script that runs vitest declares
+// an unproven Vitest instance with no config file, which the lister runs
+// without --config.
+func TestTIVV1004VitestDeclaredByPackageScript(t *testing.T) {
+	root, git := gitRepo(t, map[string]string{
+		".gitignore":        "node_modules/\n",
+		"package.json":      `{"scripts": {"test": "vitest run"}}`,
+		"package-lock.json": "{}\n",
+		"src/a.test.ts":     "test('a', () => {})\n",
+	})
+	stub(t, root, "node_modules/.bin/vitest", "list --json",
+		`printf '[{"name":"a","file":"%s/src/a.test.ts"}]\n' "$(pwd -P)"`)
+	inventory := refreshTwice(t, git, nil)
+	vitest := instanceByKey(t, inventory, "vitest@.")
+	if vitest.Config != "package.json" || !reflect.DeepEqual(vitest.Lister.Command, []string{"node_modules/.bin/vitest", "list", "--json"}) {
+		t.Fatalf("vitest instance config %q command %v", vitest.Config, vitest.Lister.Command)
+	}
+	requireBinding(t, root, vitest, "src/a.test.ts")
 }
