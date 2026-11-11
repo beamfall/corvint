@@ -32,12 +32,17 @@ func span(text, from, to string) [2]int {
 	return [2]int{start, start + len(to) + strings.Index(text[start:], to)}
 }
 
+// spanDigest is the digest a sealed record states for a span of the fixture spec.
+func spanDigest(span [2]int) string {
+	sum := sha256.Sum256([]byte(exportSpec[span[0]:span[1]]))
+	return hex.EncodeToString(sum[:])
+}
+
 func record(t *testing.T, blob string, first, prose [2]int, hunks string) string {
-	digest := strings.Repeat("d", 64)
 	return fmt.Sprintf(`{"spec":"cem/1.0","baseRevision":%q,"patchSha256":%q,"evidence":[
 	 {"id":"e1","path":"docs/spec.md","blobOid":%q,"spanSha256":%q,"span":{"start":%d,"end":%d}},
 	 {"id":"e2","path":"docs/spec.md","blobOid":%q,"spanSha256":%q,"span":{"start":%d,"end":%d}}],
-	 "hunks":[%s]}`, c1, digest, blob, digest, first[0], first[1], blob, digest, prose[0], prose[1], hunks)
+	 "hunks":[%s]}`, c1, strings.Repeat("d", 64), blob, spanDigest(first), first[0], first[1], blob, spanDigest(prose), prose[0], prose[1], hunks)
 }
 
 // newExportFixture builds a repository with three commits, then one commit that adds two sealed
@@ -172,8 +177,8 @@ func TestExportSkipsDamagedRecords(t *testing.T) {
 		"no base revision":      {`"baseRevision":"` + c1 + `",`, ""},
 		"short base revision":   {c1, c1[:39]},
 		"no patch digest":       {`"patchSha256":"` + digest + `",`, ""},
-		"no span digest":        {`"spanSha256":"` + digest + `",`, ""},
-		"malformed span digest": {`"spanSha256":"` + digest, `"spanSha256":"` + digest[:63] + "X"},
+		"no span digest":        {`"spanSha256":"` + spanDigest(f.first) + `",`, ""},
+		"malformed span digest": {`"spanSha256":"` + spanDigest(f.first), `"spanSha256":"` + spanDigest(f.first)[:63] + "X"},
 		"no blob":               {`"blobOid":"` + f.specBlob + `",`, ""},
 		"no evidence id":        {`"id":"e2",`, ""},
 		"no evidence path":      {`"path":"docs/spec.md",`, ""},
@@ -191,9 +196,17 @@ func TestExportSkipsDamagedRecords(t *testing.T) {
 			t.Errorf("%s: stats %+v %v", name, stats, err)
 		}
 	}
+	// A well-formed record whose span bytes do not have the stated digest is read, and that
+	// evidence gives no link: the record no longer supports it.
+	wrong := strings.Replace(good, spanDigest(f.first), spanDigest(f.prose), 1)
+	commitAll(t, f.root, map[string]string{recordDirectory + "/" + f.c3 + ".cem.json": wrong})
+	_, stats, err := Export(context.Background(), f.root, "HEAD")
+	if err != nil || stats.RecordsRead != before.RecordsRead+1 || stats.Links != before.Links || stats.LinksDropped != before.LinksDropped+1 {
+		t.Errorf("wrong span digest: stats %+v %v", stats, err)
+	}
 	// The undamaged record is read and adds its link.
 	commitAll(t, f.root, map[string]string{recordDirectory + "/" + f.c3 + ".cem.json": good})
-	_, stats, err := Export(context.Background(), f.root, "HEAD")
+	_, stats, err = Export(context.Background(), f.root, "HEAD")
 	if err != nil || stats.RecordsRead != before.RecordsRead+1 || stats.Links != before.Links+1 {
 		t.Errorf("good record: stats %+v %v", stats, err)
 	}

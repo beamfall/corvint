@@ -34,7 +34,8 @@ type ExportStats struct {
 	// LinksPathAbsentAtInput counts entries whose path is not a file at the input commit.
 	LinksPathAbsentAtInput int `json:"linksPathAbsentAtInput"`
 	// LinksDropped counts links left out because the basis names no evidence entry of its record,
-	// or the pinned blob is not in the repository or is shorter than the span.
+	// the pinned blob is not in the repository or is shorter than the span, or the bytes of the
+	// span do not have the digest the record states.
 	LinksDropped int `json:"linksDropped"`
 	Paths        int `json:"paths"`
 	Evidence     int `json:"evidence"`
@@ -95,10 +96,13 @@ func validSHA256(digest string) bool {
 	return len(digest) == 64 && validOID(digest)
 }
 
+// evidenceKey is one evidence entry of a record. The digest is part of the key, so that a record
+// whose digest does not match the span never takes a link from one whose digest does.
 type evidenceKey struct {
 	file       string
 	start, end int
 	blobOid    string
+	spanSha256 string
 }
 
 type linkKey struct {
@@ -154,7 +158,7 @@ func Export(ctx context.Context, root, revision string) ([]byte, ExportStats, er
 		commits = append(commits, sha)
 		evidence := map[string]evidenceKey{}
 		for _, entry := range record.Evidence {
-			evidence[entry.ID] = evidenceKey{file: entry.Path, start: entry.Span.Start, end: entry.Span.End, blobOid: entry.BlobOid}
+			evidence[entry.ID] = evidenceKey{file: entry.Path, start: entry.Span.Start, end: entry.Span.End, blobOid: entry.BlobOid, spanSha256: entry.SpanSha256}
 		}
 		for _, hunk := range record.Hunks {
 			for _, basis := range hunk.Basis {
@@ -187,7 +191,7 @@ func Export(ctx context.Context, root, revision string) ([]byte, ExportStats, er
 			blob = readDefinitions(r, key.evidence.blobOid)
 			definitions[key.evidence.blobOid] = blob
 		}
-		requirements[key.evidence] = blob.inside(key.evidence.start, key.evidence.end)
+		requirements[key.evidence] = blob.inside(key.evidence.start, key.evidence.end, key.evidence.spanSha256)
 	}
 	ordered := make([]linkKey, 0, len(links))
 	for key := range links {
@@ -269,7 +273,8 @@ func Export(ctx context.Context, root, revision string) ([]byte, ExportStats, er
 }
 
 func compareEvidence(a, b evidenceKey) int {
-	return cmp.Or(cmp.Compare(a.file, b.file), cmp.Compare(a.start, b.start), cmp.Compare(a.end, b.end), cmp.Compare(a.blobOid, b.blobOid))
+	return cmp.Or(cmp.Compare(a.file, b.file), cmp.Compare(a.start, b.start), cmp.Compare(a.end, b.end), cmp.Compare(a.blobOid, b.blobOid),
+		cmp.Compare(a.spanSha256, b.spanSha256))
 }
 
 // blobDefinitions is one pinned blob scanned for requirement definition lines.
@@ -296,10 +301,14 @@ func readDefinitions(r repo, oid string) *blobDefinitions {
 
 // inside returns, in ascending order, every requirement ID whose definition begins inside the
 // byte span: the ID stands in the span on the line the index generator takes as its definition.
-// It returns nil when the blob is unreadable or shorter than the span, and an empty list when the
-// span defines nothing.
-func (b *blobDefinitions) inside(start, end int) []string {
+// It returns nil when the blob is unreadable or shorter than the span, or when the bytes of the
+// span do not have the digest the record states: such evidence is damaged and gives no link. It
+// returns an empty list when the span defines nothing.
+func (b *blobDefinitions) inside(start, end int, spanSha256 string) []string {
 	if b == nil || end > len(b.text) {
+		return nil
+	}
+	if digest := sha256.Sum256([]byte(b.text[start:end])); hex.EncodeToString(digest[:]) != spanSha256 {
 		return nil
 	}
 	ids := []string{}

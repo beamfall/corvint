@@ -34,7 +34,14 @@ func TestPathContextParse(t *testing.T) {
 	if err != nil || !slices.Equal(options.paths, []string{"docs/my file.md", "other dir/x.go"}) {
 		t.Fatalf("paths with spaces %v, %v", options.paths, err)
 	}
-	// Task text that begins with the flag's spelling is the task of the task form.
+	// Where a flag can stand, `--path=` is the flag whatever its value holds: a declared option is
+	// read before the rule that a token with a space is positional text.
+	options, err = parse("--path= fix the parser")
+	if err != nil || !slices.Equal(options.paths, []string{" fix the parser"}) || options.task != "" {
+		t.Fatalf("inline value with spaces %+v, %v", options, err)
+	}
+	// Task text that begins with the flag's spelling is the task of the task form when it is the
+	// value of `--task`.
 	for _, args := range [][]string{{"--task", "--path= fix the parser"}, {"--limit", "3", "--task", "--path= fix the parser"}} {
 		options, err = parse(args...)
 		if err != nil || options.task != "--path= fix the parser" || len(options.paths) != 0 {
