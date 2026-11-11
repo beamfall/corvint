@@ -99,8 +99,13 @@ platforms. It is exactly:
    (`CEM-V1-008`).
 3. The dogfood loop: `dogfood` (and the internal `dogfood-record` and `dogfood-ocm` verbs it runs)
    producing a retained, explicit local outcome bound to a CEM.
-4. The three Core jobs accepted by decision 0332: `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`
-   and `UC-EVIDENCE-CARRYING-COMPLETION`. Every other headline job stays literally `UNPROVEN`.
+4. The Core jobs accepted by decision 0332: `UC-CHANGE-CONSEQUENCE` and
+   `UC-EVIDENCE-CARRYING-COMPLETION`. `UC-TASK-ORIENTATION` leaves the Core-jobs table under
+   decision 0597 (delegated 1.0 choice, orchestrator, 2026-11-11, not an owner acceptance): its
+   treatment was `context --task`, which decision 0597 cut, and no kept surface takes task text
+   and names files (`context --path` takes a path, `impact` and `affected` take a diff). It is
+   literally `UNPROVEN` with no replacement treatment. Every other headline job stays literally
+   `UNPROVEN`.
 5. The native release artifact, its reproducibility report, `SHA256SUMS`, and the install,
    upgrade, uninstall and recovery lifecycle of `stable-operations-v0.md`.
 
@@ -161,7 +166,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint init`, `adopt` | Core | First-run inventory and receipt; loop entry (V1-0008). |
 | `corvint index` | Core | Deterministic immutable snapshot every Core read depends on. |
 | `corvint query` | Core | Cited retrieval over the pinned snapshot. |
-| `corvint context` | Core | Task context packet; `UC-TASK-ORIENTATION`. |
+| `corvint context`, `instructions` | Core | `context --path` path brief (`corvint-path-brief/1`: instructions, tests, requirements) and the instruction load set (`instructions`; `context --instruction-*` is a deprecated alias for one release). No use-case claim: the task packet and `UC-TASK-ORIENTATION` were removed by decision 0597. |
 | `corvint impact`, `affected` | Core | Change consequence and verification selection; `UC-CHANGE-CONSEQUENCE`. The `affected --selection-profile e2e-safe` value is Core too (decision 0385, `AFU-V1-019..024`). |
 | `corvint prove` | Core | Proof over pinned evidence; `UC-EVIDENCE-CARRYING-COMPLETION`. |
 | `corvint cem`, `ocm`, `frontier` | Core | The proof wire to be frozen by V1-0013. |
@@ -232,8 +237,10 @@ accepted by decision 0373 and the amendment it requires are stated.
   one sentence: "The 1.0 Core candidate additionally requires the three Core jobs on one
   owner-selected untouched public repository with cases frozen before execution." The ticket
   type of V1-0019 changes from EXTERNAL to MANUAL.
-- Frozen cases: one harness, `benchmarks/untouched-repository-v1/harness.py`, runs the three Core
-  jobs on each PRS-V1-008 repository from its own preregistration. It computes the
+- Frozen cases: one harness, `benchmarks/untouched-repository-v1/harness.py`, runs the Core
+  jobs (historical since decision 0594, whose removals include `dogfood`, and decision 0597, which removed the
+  orientation treatment `context --task`; the harness and each preregistration's sealed `harnessSha256` are not
+  edited, and a new run needs a new preregistered revision, see its README) on each PRS-V1-008 repository from its own preregistration. It computes the
   preregistration digest from the file and refuses to run when it differs from the sealed
   `preregistration.sha256` or from `--prereg-sha256`.
   - go-chi/chi (decision 0422), held out for run-001: pinned at

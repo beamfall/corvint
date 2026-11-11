@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-// TestInstructionDoctorFlagsAndWire is IID-V0-001 after decision 0597: the instruction load set
+// TestInstructionDoctorFlagsAndDefaultWire is IID-V0-001 after decision 0597: the instruction load set
 // needs no task text, refuses incomplete or repeated flags, and writes nothing.
-func TestInstructionDoctorFlagsAndWire(t *testing.T) {
+func TestInstructionDoctorFlagsAndDefaultWire(t *testing.T) {
 	root := taskContextRepository(t)
 	base := []string{"--root", root, "context", "--subject", "cache/demux.go"}
 	flags := []string{"--instruction-host", "codex", "--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default"}
@@ -41,7 +41,6 @@ func TestInstructionDoctorFlagsAndWire(t *testing.T) {
 		{"--instruction-host", "codex"},
 		append(append([]string{}, flags...), "--instruction-host", "codex"),
 		append(append([]string{}, flags...), "--summary"),
-		append(append([]string{}, flags...), "--task", "inspect instructions"),
 		{"--instruction-host", "codex", "--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "actual"},
 	} {
 		if _, requested, err := parseTaskContextInvocation(append(append([]string{}, base...), suffix...)); !requested || err == nil {
@@ -99,8 +98,40 @@ func TestInstructionsVerbMatchesTheAlias(t *testing.T) {
 	}
 }
 
-// TestContextTaskPacketIsRemoved is decision 0597: task text, --task, --limit and
-// --worktree-overlay refuse with exit 2 and point at affected and impact.
+// TestContextAliasIgnoresTheRemovedPacketFlags is IID-V0-001: callers that passed --task, --limit or
+// --worktree-overlay with the instruction flags still get the load set, byte-identical to the
+// instructions verb, plus the deprecation line and a warning naming the ignored flags.
+func TestContextAliasIgnoresTheRemovedPacketFlags(t *testing.T) {
+	root := taskContextRepository(t)
+	run := func(args ...string) (int, string, string) {
+		t.Helper()
+		var out, stderr bytes.Buffer
+		code := runContext(context.Background(), append([]string{"--root", root}, args...), strings.NewReader(""), &out, &stderr)
+		return code, out.String(), stderr.String()
+	}
+	_, want, _ := run("instructions", "--subject", "cache/demux.go", "--host", "codex", "--host-version", "0.153.2", "--cwd", "cache", "--profile", "default")
+	instruction := []string{"--subject", "cache/demux.go", "--instruction-host", "codex", "--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default"}
+	for _, extra := range [][]string{
+		{"--task", "find the demux"},
+		{"--task=demux"},
+		{"--limit", "5", "--worktree-overlay"},
+		{"--limit=5"},
+	} {
+		code, out, stderr := run(append(append([]string{"context"}, instruction...), extra...)...)
+		if code != 0 || out != want {
+			t.Fatalf("%v: exit %d, output differs from the instructions verb: %s", extra, code, out)
+		}
+		if strings.Count(stderr, "\n") != 2 || !strings.Contains(stderr, "corvint instructions") || !strings.Contains(stderr, "are ignored") {
+			t.Fatalf("%v: stderr %q, want the deprecation line and the ignored-flags warning", extra, stderr)
+		}
+	}
+	if code, out, _ := run("instructions", "--task", "x", "--subject", "cache/demux.go", "--host", "codex", "--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"); code != 2 || out != "" {
+		t.Fatalf("instructions accepted --task: exit %d", code)
+	}
+}
+
+// TestContextTaskPacketIsRemoved is decision 0597: task text, and --task, --limit or
+// --worktree-overlay without instruction flags, refuse with exit 2 and point at affected and impact.
 func TestContextTaskPacketIsRemoved(t *testing.T) {
 	root := taskContextRepository(t)
 	for _, rest := range [][]string{
