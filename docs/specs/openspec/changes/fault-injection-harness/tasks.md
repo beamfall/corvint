@@ -6,7 +6,7 @@ Each task names its requirement IDs and its proof.
    Proof: `ticket show` read back. V1-5405 filed; FIH-V1 reserved.
 - [x] 2 First commit: create `fault-injection-harness-v1.md`, its `docs/specs/README.md` row and the
    regenerated index. Requirements: FIH-V1-001..015. Proof: spec diff.
-- [ ] 3 Harness core and Go adapter from `tools/affected-edit-oracle`. Requirements: FIH-V1-003,
+- [x] 3 Harness core and Go adapter from `tools/affected-edit-oracle`. Requirements: FIH-V1-003,
    005, 006, 011, 013. Proof: Go parity test and import check.
 - [ ] 4 Pre-registration format, the reverted-fix rule file and its hash (A17), operator lists,
    over-sample and seal refusal. Requirements: FIH-V1-001, 002, 014. Proof: changed-seed,

@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-11
 Requirement prefix: `FIH-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5405)
-Delivery status: not-started
+Delivery status: experimental; partially delivered
 Authoritative inputs: change folder `docs/specs/openspec/changes/fault-injection-harness/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/fault-injection-harness/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-TEST-002, PROD-TEST-011, PROD-INT-008),
@@ -13,9 +13,9 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/fault-injection
 
 ## Agent digest
 - Claim: Pre-registered, hashed fault sets per runner prove that a selected run executes every test that kills a fault on a changed line, with a fixed miss verdict.
-- Status: accepted automatically under G14 (decision 0596; V1-5405) / not-started
-- Exists: the change folder only.
-- Blocked on: the harness core, the Go adapter, the pre-registration format and the verdict writer (tasks 3, 4, 5 and 7).
+- Status: accepted automatically under G14 (decision 0596; V1-5405) / experimental; partially delivered
+- Exists: `tools/fault-harness`: the harness core, the Go adapter and the AEO parity command (task 3).
+- Blocked on: the pre-registration and seal (task 4), baseline and quarantine (task 5), the verdict writer (task 7); then tasks 6, 8 and 9.
 - Read next: Requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
@@ -124,6 +124,12 @@ lines. (G3)
 - WHEN mutants are generated
 - THEN the site is skipped
 
+Delivery: delivered for Go. `goSites` places a mutant only on a line of the PR's `git diff -U0` new
+side and skips every other site; `applyFault` refuses a fault whose bytes or line differ from its
+record; a revert reverse-applies the fix's source-only diff and is proved to restore the pre-fix
+lines by the fix applying forward again. Tests: `TestChangedLineSites_FIH_V1_003`,
+`TestFaultsOnChangedLinesInGit_FIH_V1_003`.
+
 - `FIH-V1-004`: (accepted automatically under G14, decision 0596; V1-5405) Baseline and quarantine
 
 The full suite MUST run three times at the base. A test failing in any baseline run MUST be
@@ -155,6 +161,11 @@ at least one confirmed kill. (G3)
 - WHEN kills are confirmed
 - THEN it is not a kill
 
+Delivery: delivered. `confirmKills` counts a test only when it fails in three of three faulted runs
+and passed in all three baseline runs; a faulted tree that does not build, crashes or times out is
+no kill and joins the dropped count. Tests: `TestKillConfirmationAndMiss_FIH_V1_005_006`,
+`TestGoOutcomesFailClosed_FIH_V1_005`.
+
 - `FIH-V1-006`: (accepted automatically under G14, decision 0596; V1-5405) A miss blocks
 
 For each confirmed kill, the selected run (the plan Corvint produced for that PR, executed by the
@@ -165,6 +176,12 @@ verdict is not zero-miss, and the miss MUST NOT be waived as a flake. (G3)
 - GIVEN a confirmed kill by test T and a plan without T
 - WHEN the verdict is computed
 - THEN the case is `MISS` and the release is blocked
+
+Delivery: delivered in the harness core. For a NARROWED plan the selected run executes the plan's
+own units with their test filters, and every confirmed kill it does not execute and see fail is a
+miss; a selected-run failure after a confirmed kill is a failed measurement (case `ERROR`). The
+release block itself is the verdict of FIH-V1-007. Test:
+`TestKillConfirmationAndMiss_FIH_V1_005_006`.
 
 - `FIH-V1-007`: (accepted automatically under G14, decision 0596; V1-5405) PRs are counted and the wording is fixed
 
@@ -188,6 +205,11 @@ compiled-in runner contract that runs a named test set at a commit and returns a
 - GIVEN a pre-registration naming a runner without an adapter
 - WHEN the harness starts
 - THEN it refuses with `runner-adapter-missing`
+
+Delivery: partly delivered: the compiled-in contract (`Adapter`: run a named test set in a tree,
+return per-test outcomes) and the `runner-adapter-missing` refusal for any runner without an
+adapter. Only the Go adapter exists; the other six adapters are task 6 and not yet built. Test:
+`TestAdapterContract_FIH_V1_008`.
 
 - `FIH-V1-009`: (accepted automatically under G14, decision 0596; V1-5405) Pinned and reproducible
 
@@ -249,6 +271,13 @@ adapters MUST reuse the same harness core. (G1)
 - WHEN run through the harness Go adapter
 - THEN the miss verdict matches `affected-edit-oracle` on the same inputs
 
+Delivery: delivered for Go. `tools/fault-harness` generalises `tools/affected-edit-oracle` (its
+process, Git and receipt plumbing is copied, the oracle is unchanged) and `fault-harness parity`
+runs an AEO-V0 mutation case through the harness core and Go adapter.
+`TestGoParityWithOracle_FIH_V1_011` builds the oracle and compares both miss verdicts and missing
+units on one synthetic repository for three planners. The parity run on the checked-in AEO corpus is
+not run here.
+
 - `FIH-V1-012`: (accepted automatically under G14, decision 0596; V1-5405) Held-out fault sets
 
 Owner decision R19 (2026-11-09). Each held-out repository drawn under PRR-V1-004 (one per family,
@@ -291,6 +320,9 @@ reuse `internal/liveverify/mutate` only after the G26 ticket re-owns that packag
 - WHEN imports are checked
 - THEN neither removed package appears
 
+Delivery: delivered. The harness imports neither removed package, nor `internal/liveverify/mutate`,
+which no G26 ticket has re-owned; it defines its own operators. Test: `TestImports_FIH_V1_013`.
+
 - `FIH-V1-014`: (accepted automatically under G14, decision 0596; V1-5405) Case accounting and the size of N
 
 Owner decision R19 (2026-11-09), review release-tasks 10. The verdict MUST report four counts:
@@ -323,17 +355,17 @@ decision R16 (2026-11-09)). A runner proven at tier `file`, such as pytest under
 |---|---|---|---|
 | FIH-V1-001 | 4 | not yet built | not yet built |
 | FIH-V1-002 | 4, 7 | not yet built | not yet built |
-| FIH-V1-003 | 3 | not yet built | not yet built |
+| FIH-V1-003 | 3 | `tools/fault-harness/faults.go` | `TestChangedLineSites_FIH_V1_003`, `TestFaultsOnChangedLinesInGit_FIH_V1_003` |
 | FIH-V1-004 | 5 | not yet built | not yet built |
-| FIH-V1-005 | 3 | not yet built | not yet built |
-| FIH-V1-006 | 3 | not yet built | not yet built |
+| FIH-V1-005 | 3 | `tools/fault-harness/run.go`, `adapter.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoOutcomesFailClosed_FIH_V1_005` |
+| FIH-V1-006 | 3 | `tools/fault-harness/run.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoParityWithOracle_FIH_V1_011` |
 | FIH-V1-007 | 7 | not yet built | not yet built |
-| FIH-V1-008 | 6 | not yet built | not yet built |
+| FIH-V1-008 | 6 | `tools/fault-harness/adapter.go` (Go adapter only) | `TestAdapterContract_FIH_V1_008`; six adapters not yet built |
 | FIH-V1-009 | 6 | not yet built | not yet built |
 | FIH-V1-010 | 6 | not yet built | not yet built |
-| FIH-V1-011 | 3 | not yet built | not yet built |
+| FIH-V1-011 | 3 | `tools/fault-harness/aeo.go`, `main.go` | `TestGoParityWithOracle_FIH_V1_011` |
 | FIH-V1-012 | 9 | not yet built | not yet built |
-| FIH-V1-013 | 3 | not yet built | not yet built |
+| FIH-V1-013 | 3 | `tools/fault-harness` | `TestImports_FIH_V1_013` |
 | FIH-V1-014 | 4, 7 | not yet built | not yet built |
 | FIH-V1-015 | 7 | not yet built | not yet built |
 
