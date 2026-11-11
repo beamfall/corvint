@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -150,5 +152,34 @@ func TestAffectedHeadlineOnSeparateStderr_AFPV03642(t *testing.T) {
 		if code != 0 || len(headlineLines(string(formErr))) != 0 {
 			t.Fatalf("%v: exit %d stderr:\n%s", form, code, formErr)
 		}
+	}
+}
+
+// AFP-V0-3642: a headline write to an stderr pipe whose reader has gone must
+// not kill the process. Go raises SIGPIPE for a write to a broken pipe on
+// file descriptor 2, so before the fix the process died with no plan on
+// stdout; the headline is now written only to a terminal or regular file,
+// and the plan still prints with exit 0.
+func TestAffectedHeadlineClosedStderrPipe_AFPV03642(t *testing.T) {
+	root, built := selfBinaryRepository(t)
+	commitSelfBinaryFiles(t, root, map[string]string{"self.go": "package self\n\nfunc Self() int { return 2 }\n"})
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = reader.Close()
+	command := candidateCommand("--root", root, "affected", "--base", built, "--accept-stale-binary")
+	var stdout bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = writer
+	err = command.Run()
+	_ = writer.Close()
+	var exitErr *exec.ExitError
+	if err != nil && !errors.As(err, &exitErr) {
+		t.Fatal(err)
+	}
+	var receipt map[string]any
+	if err != nil || json.Unmarshal(stdout.Bytes(), &receipt) != nil {
+		t.Fatalf("closed stderr pipe: %v (state %v), stdout:\n%s", err, command.ProcessState, stdout.Bytes())
 	}
 }
