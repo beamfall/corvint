@@ -4,9 +4,9 @@ Build in this order. Each task names its requirement IDs and its proof. The cano
 (change `canonical-test-id`) and the inventory (change `test-inventory`) land first (owner decision
 R38 (2026-11-09) build order).
 
-- [ ] 1 Reserve `RNC-V1` 001..018; file the Jest ticket; set `requirementRefs`. Proof: `ticket show`
-   read back.
-- [ ] 2 First commit: create `runner-contract-v1.md`; add the README entry; regenerate the index.
+- [x] 1 Reserve `RNC-V1` 001..018; file the Jest ticket; set `requirementRefs`. Proof: `ticket show`
+   read back. V1-5416 filed; RNC-V1 reserved. Jest delivered in task 5 under V1-5416.
+- [x] 2 First commit: create `runner-contract-v1.md`; add the README entry; regenerate the index.
    Requirements: all. Proof: spec diff and index check.
 - [ ] 3 Define the interface from `RunnerPlugin`, keyed by canonical test ID and runner instance;
    adapt Go, Vitest and Playwright. Requirements: RNC-V1-001, 003, 005, 006, 012, 014. Proof:
