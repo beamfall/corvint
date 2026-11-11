@@ -864,6 +864,13 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			if value == "local" {
 				return
 			}
+		case "GOOS", "GOARCH", "CGO_ENABLED", "GOENV", "GOWORK", "GOPROXY":
+			// AFP-V0-3601: these values only choose a build variant the Go
+			// claimant already unions or stop the go command reading a
+			// configuration file or the network.
+			if driverGoSelectionValues[name][value] {
+				return
+			}
 		}
 		s.scan.markComputed("shell:assignment")
 		s.scan.uncertify("shell:assignment:" + name)
@@ -987,6 +994,20 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 	}
 	settle(true)
 	return cwd
+}
+
+// driverGoSelectionValues are the exact Go toolchain assignments AFP-V0-3601
+// admits beside AFP-V0-3128's: a GOOS or GOARCH whose files the Go claimant's
+// package units already union (AFP-V0-580) and whose programs no wrapper in
+// the Go distribution runs, as js and wasip1 programs are, and the values that
+// stop cgo, the user's go env file, go.work and module downloads.
+var driverGoSelectionValues = map[string]map[string]bool{
+	"GOOS":        {"linux": true, "darwin": true, "windows": true, "freebsd": true, "netbsd": true, "openbsd": true},
+	"GOARCH":      {"amd64": true, "arm64": true, "386": true, "arm": true},
+	"CGO_ENABLED": {"0": true},
+	"GOENV":       {"off": true},
+	"GOWORK":      {"off": true},
+	"GOPROXY":     {"off": true},
 }
 
 // driverReservedWords are the prefix keywords that are shell syntax, not a
