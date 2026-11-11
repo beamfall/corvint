@@ -54,17 +54,6 @@ type Export struct {
 	TotalBytes int64
 }
 
-// findExportFile looks up path (repository-relative, forward-slash) among
-// export's hash-verified files. Files is sorted by Path, so this is a
-// binary search rather than a scan.
-func findExportFile(export Export, path string) (SourceFile, bool) {
-	i := sort.Search(len(export.Files), func(i int) bool { return export.Files[i].Path >= path })
-	if i < len(export.Files) && export.Files[i].Path == path {
-		return export.Files[i], true
-	}
-	return SourceFile{}, false
-}
-
 // exportSource reads root's HEAD tree via `git ls-tree -rz` for the entry
 // list and two independent `git cat-file --batch` passes (forward and
 // reverse object order, each parsed by a separate routine below) for blob

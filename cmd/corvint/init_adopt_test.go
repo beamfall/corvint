@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -303,13 +302,4 @@ func gitCommand(t *testing.T, directory string, environment []string, arguments 
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)
 	}
-}
-
-func decodeActivationOutput(t *testing.T, data []byte) map[string]any {
-	t.Helper()
-	var payload map[string]any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		t.Fatal(err)
-	}
-	return payload
 }

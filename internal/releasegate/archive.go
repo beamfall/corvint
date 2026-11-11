@@ -93,13 +93,6 @@ func scanArchiveDepth(name string, parent Evidence, content []byte, depth int) (
 	return findings, nil
 }
 
-// Archive names are advisory only.  Every candidate is classified from bytes,
-// including an extensionless archive nested inside another archive.
-func sniffArchiveKind(content []byte) string {
-	kind, _ := classifyArchive(content)
-	return kind
-}
-
 // classifyArchive recognizes only canonical whole-byte containers.  A marker
 // at any other offset is deliberately archive-like but invalid: accepting a
 // self-extracting prefix, a concatenated stream, or padded bytes would let an

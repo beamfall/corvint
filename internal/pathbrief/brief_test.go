@@ -29,8 +29,6 @@ func links(t *testing.T, root string, file LinkFile) {
 	commitAll(t, root, map[string]string{LinksPath: string(mustJSON(t, file))})
 }
 
-func flag(v bool) *bool { return &v }
-
 // TBC-V1-010: three sections in fixed order; instructions come from the directory ancestry.
 func TestBuildStructureAndInstructions(t *testing.T) {
 	root := newRepo(t, map[string]string{"AGENTS.md": "x", "CLAUDE.md": "x", "a/AGENTS.md": "x", "a/b/x.go": "x", "z/y.go": "x"})

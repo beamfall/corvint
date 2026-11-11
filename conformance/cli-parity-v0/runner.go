@@ -1310,10 +1310,6 @@ func destroyFixture(path string) error {
 	return nil
 }
 
-func newPrivateTemp(pattern string) (string, error) {
-	return os.MkdirTemp(privateTempBase(), pattern)
-}
-
 func privateTempBase() string {
 	if runtime.GOOS == "darwin" {
 		return "/private/tmp"
@@ -1352,30 +1348,4 @@ func sweepStaleReplayWorkspaces(base string, cutoff time.Time, limit int) {
 func removeWritableTree(root string) {
 	_ = makeTreeWritable(root)
 	_ = os.RemoveAll(root)
-}
-
-func writeFileAtomically(path string, raw []byte) error {
-	directory := filepath.Dir(path)
-	temporary, err := os.CreateTemp(directory, ".manifest-*.tmp")
-	if err != nil {
-		return err
-	}
-	temporaryPath := temporary.Name()
-	defer os.Remove(temporaryPath)
-	if err := temporary.Chmod(0o644); err != nil {
-		_ = temporary.Close()
-		return err
-	}
-	if _, err := temporary.Write(raw); err != nil {
-		_ = temporary.Close()
-		return err
-	}
-	if err := temporary.Sync(); err != nil {
-		_ = temporary.Close()
-		return err
-	}
-	if err := temporary.Close(); err != nil {
-		return err
-	}
-	return os.Rename(temporaryPath, path)
 }
