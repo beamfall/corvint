@@ -6722,6 +6722,15 @@ NEA-V0-014	docs/specs/new-e2e-test-acceptance-v0.md	(proposed; V1-2688) `externa
 NEA-V0-015	docs/specs/new-e2e-test-acceptance-v0.md	(proposed; V1-2688) Before each repeat or probe run the worker runs the health h	unrecorded	-
 NEA-V0-016	docs/specs/new-e2e-test-acceptance-v0.md	(proposed; V1-2688) A report from an `external_app` request carries `external` w	unrecorded	-
 NEA-V0-017	docs/specs/new-e2e-test-acceptance-v0.md	(proposed; V1-2688) A /0 assessment or report whose verdict is `blocked` names	unrecorded	-
+NCM-V1-001	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Full by	standing	2026-10-11; V1-5424
+NCM-V1-002	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Map entr	standing	2026-10-11; V1-5424
+NCM-V1-003	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Recordin	standing	2026-10-11; V1-5424
+NCM-V1-004	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Narrowin	standing	2026-10-11; V1-5424
+NCM-V1-005	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Paths ne	standing	2026-10-11; V1-5424
+NCM-V1-006	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Corvint	standing	2026-10-11; V1-5424
+NCM-V1-007	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Versione	standing	2026-10-11; V1-5424
+NCM-V1-008	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Stale en	standing	2026-10-11; V1-5424
+NCM-V1-009	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Determin	standing	2026-10-11; V1-5424
 NGI-V0-001	docs/specs/non-go-impact-v0.md	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,	unrecorded	-
 NGI-V0-002	docs/specs/non-go-impact-v0.md	Default and expanded committed ranges MUST bind Ruby/JS/TS path	unrecorded	-
 NGI-V0-003	docs/specs/non-go-impact-v0.md	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic	unrecorded	-
