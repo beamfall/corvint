@@ -2,9 +2,11 @@
 
 Build in this order. Each task names its requirement IDs and the proof that closes it.
 
-- [ ] 1 Create `docs/specs/run-evidence-v1.md` with RVD-V1-001 to RVD-V1-012 from the spec delta as
+- [x] 1 Create `docs/specs/run-evidence-v1.md` with RVD-V1-001 to RVD-V1-012 from the spec delta as
    proposed, and regenerate `docs/specs/REQUIREMENTS.tsv`.
    Requirements: RVD-V1-001 to RVD-V1-012. Proof: the spec toolchain check passes.
+   Done: V1-5448 filed; RVD-V1 reserved; `docs/specs/run-evidence-v1.md` created and accepted under G14
+   (acceptance-log row `run-evidence`).
 - [ ] 2 Add the store package: hash-named records, locked append to `log.jsonl`, reader that
    normalises receipts and ingested documents to per-test rows. Requirements: RVD-V1-001,
    RVD-V1-002, RVD-V1-003, RVD-V1-006. Proof: unit tests for naming, concurrent append and
