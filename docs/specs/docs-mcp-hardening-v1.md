@@ -144,7 +144,7 @@ committed or indexed content. Serves PROD-DOCS-003 and PROD-DOCS-005. (finding 4
 - WHEN `flows docs --check` runs
 - THEN the report says `worktree: dirty`, counts 1 path and names the page
 
-Delivery: not yet built.
+Delivery: the new shared package `internal/docworktree` observes `git status` for the tracked paths a check read, against HEAD for committed reads and against the index for the citation check, and returns `{"state":"clean"}`, `dirty` with `changed` and the first five `paths`, or `unknown` with a `reason`. It is the `worktree` member of `docs citations check` (JSON, and a text line when not clean), `docs maintain --check`, `flows docs --check` (`flow-doc-check/0`) and `docs flows check`; `corvint-docs docs check` carries it too (DMF-V1-002). No check reads worktree bytes as evidence. Tests: `TestDMFV1005ParseStatus`, `TestDMFV1005ObserveRepository` (`internal/docworktree`), `TestDMFV1005CitationsWorktree` (`internal/doccitations`), `TestDMFV1005FlowsDocsCheckWorktree` (`internal/command/flows`), `TestDMFV1005DocsFlowsCheckWorktree` and `TestDMFV1005MaintainAndCitationsWorktree` (`cmd/corvint-docs`).
 
 - `DMF-V1-006`: (accepted automatically under G14, decision 0596; V1-5409) Byte failures name the changed claims
 
@@ -299,7 +299,7 @@ Delivery: not yet built.
 | DMF-V1-002 | 9 | not yet built | not yet built |
 | DMF-V1-003 | 4 | `internal/docmaintain/check.go`, `cmd/corvint-docs/docs_maintain.go` | `TestDMFV1003*` |
 | DMF-V1-004 | 5 | `internal/doccitations/check.go`, `cmd/corvint-docs/docs.go` | `TestDMFV1004*` |
-| DMF-V1-005 | 6 | not yet built | not yet built |
+| DMF-V1-005 | 6 | `internal/docworktree`, the four check reports | `TestDMFV1005*` |
 | DMF-V1-006 | 7 | not yet built | not yet built |
 | DMF-V1-007 | 8 | not yet built | not yet built |
 | DMF-V1-008 | 10 | not yet built | not yet built |
