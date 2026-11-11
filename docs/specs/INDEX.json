@@ -895,9 +895,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/docviews"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/cross-repository-breakage-map-v0.md",
