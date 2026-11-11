@@ -206,8 +206,8 @@ never lands still fails (`TTG-V0-950`); without the range the index check names 
 
 A traceability row that cites a subtest as `TestName/REQ-ID` resolves only when the body of a
 declaration of `TestName` holds `REQ-ID`, so name the ID in the subtest name or body
-(`TTG-V0-960`, `TTG-V0-961`). The same range form compares BASE's tree with HEAD's and fails for a
-requirement whose last resolving test citation the change removed, which is how a test
+(`TTG-V0-960`, `TTG-V0-961`). The same range form compares the tree of `git merge-base BASE HEAD`
+with HEAD's and fails for a requirement whose last resolving test citation the change removed, which is how a test
 consolidation that deletes a requirement's only test is caught (`TTG-V0-962`). A requirement left
 without a test on purpose keeps its row and states `(untested: REASON)` there (`TTG-V0-963`); a
 requirement removed from every live spec, or whose spec is retired, needs no marker. Until CI runs
