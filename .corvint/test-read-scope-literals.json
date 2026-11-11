@@ -172,7 +172,6 @@
       "internal/rubytestprovider": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/runhygiene": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/runtimeenv": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/scopelease": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/secretscreen": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/sessiontest": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/specindex": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
