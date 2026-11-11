@@ -14,7 +14,7 @@ requirement IDs and its proof.
    importer's test selected, never Uncovered.
 - [x] 4 Python import roots from configuration and layout. Requirements: SLF-V1-001. Proof:
    `pythonpath` and namespace-package fixtures; rule held disabled until task 8.
-- [ ] 5 Glob imports and manual mocks, with computed-form frontiers. Requirements: SLF-V1-003, 004.
+- [x] 5 Glob imports and manual mocks, with computed-form frontiers. Requirements: SLF-V1-003, 004.
    Proof: Vite glob fixture, Jest mock fixture, computed-target fixture.
 - [ ] 6 Literal Vitest and Jest configuration evaluation, with the five added key-shaped markers
    (R42 A6). Requirements: SLF-V1-005. Proof: literal and computed config fixtures, a `roots:`
