@@ -298,3 +298,30 @@ func TestSymlinksRootEdges_AFPV09965(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-9965 (rescope): an evaluated target that holds a byte past ASCII,
+// or is evaluated against a physical root that does, resolves to the
+// repository root even where it lies below a root exactly, since its case-
+// and normalization-insensitive form is not computed; the ASCII check runs
+// before the exact match.
+func TestSymlinksPhysicalTarget_AFPV09965(t *testing.T) {
+	for _, row := range []struct {
+		name, reached string
+		roots         []string
+		want          string
+		ok            bool
+	}{
+		{"non_ascii_below", "/r/café.sh", []string{"/r"}, ".", true},
+		{"non_ascii_root", "/ré/a.sh", []string{"/ré"}, ".", true},
+		{"non_ascii_second_root", "/r/a.sh", []string{"/r", "/snapé"}, ".", true},
+		{"exact_below", "/r/s/a.sh", []string{"/r"}, "s/a.sh", true},
+		{"exact_root", "/r", []string{"/r"}, ".", true},
+		{"second_root", "/q/a.sh", []string{"/r", "/q"}, "a.sh", true},
+		{"case_fold", "/R/a.sh", []string{"/r"}, ".", true},
+		{"outside", "/elsewhere/a.sh", []string{"/r"}, "", false},
+	} {
+		if got, ok := physicalTarget(row.reached, row.roots); got != row.want || ok != row.ok {
+			t.Errorf("%s: physicalTarget(%q, %q) = %q, %v; want %q, %v", row.name, row.reached, row.roots, got, ok, row.want, row.ok)
+		}
+	}
+}

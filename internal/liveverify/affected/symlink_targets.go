@@ -200,23 +200,24 @@ func insideRoot(physical, root string) (string, bool) {
 }
 
 // physicalTarget is the Targets value of a link that reaches the physical
-// slash path reached: the repository path when it is one of roots (the
-// tree's physical path, then the repository's when the tree is a snapshot)
-// or lies below one, and "." when it does so only under a case fold, or when
-// either holds a byte past ASCII, whose folding and normalisation are not
-// modelled. A case-insensitive file system opens `../REPO/x` beside repo,
-// and EvalSymlinks keeps the case it was given (AFP-V0-9965). It returns
-// false for a path outside every root.
+// slash path reached: "." when it or one of roots (the tree's physical path,
+// then the repository's when the tree is a snapshot) holds a byte past
+// ASCII, whose folding and normalisation are not modelled, even where it
+// lies below a root exactly; otherwise the repository path when it is one of
+// roots or lies below one, and "." when it does so only under a case fold. A
+// case-insensitive file system opens `../REPO/x` beside repo, and
+// EvalSymlinks keeps the case it was given (AFP-V0-9965). It returns false
+// for a path outside every root.
 func physicalTarget(reached string, roots []string) (string, bool) {
+	if !asciiText(reached) || slices.ContainsFunc(roots, func(root string) bool { return !asciiText(root) }) {
+		return ".", true
+	}
 	for _, root := range roots {
 		if inside, ok := insideRoot(reached, root); ok {
 			return inside, true
 		}
 	}
 	for _, root := range roots {
-		if !asciiText(reached) || !asciiText(root) {
-			return ".", true
-		}
 		if _, ok := insideRoot(strings.ToLower(reached), strings.ToLower(root)); ok {
 			return ".", true
 		}
