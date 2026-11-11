@@ -24,7 +24,8 @@ var (
 	allIDs       = regexp.MustCompile(`(?i)\bRequirements:\s*all\b`)
 	proofMarker  = regexp.MustCompile(`(?i)\bproof:`)
 	commitName   = regexp.MustCompile(`\b[0-9a-f]{7,40}\b`)
-	taskLine     = regexp.MustCompile(`^- \[([ xX])\] ([0-9]+(?:\.[0-9]+)*[a-z]?)\s+\S`)
+	taskLine     = regexp.MustCompile(`^- \[([ x])\] ([0-9]+(?:\.[0-9]+)*[a-z]?)\s+\S`)
+	taskLike     = regexp.MustCompile(`^[-*+]\s*\[`)
 	changeName   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 	archivedName = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$`)
 	externalRepo = regexp.MustCompile("(?i)`?beamfall/([a-z0-9][a-z0-9._-]*)`?")
@@ -345,7 +346,7 @@ func (c *change) readTasks(text string) {
 			continue
 		}
 		trimmed := strings.TrimLeft(line, " \t")
-		if strings.HasPrefix(trimmed, "- [") {
+		if taskLike.MatchString(trimmed) {
 			flush()
 			m := taskLine.FindStringSubmatch(trimmed)
 			if m == nil {

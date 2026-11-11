@@ -203,8 +203,17 @@ func TestOSCV1003CommitBinding(t *testing.T) {
 	f.addChange("x")
 	base := f.commit("propose x")
 	f.write("main.go", "package main\n")
-	bad := f.commit("code with no trailer")
-	f.mustFail(1, []string{"--base", base}, "FAIL OSC-V1-003 commit "+bad[:12]+" changes main.go outside docs/ but binds to no change")
+	f.commit("code that opts in to no change\n\nCorvint-Ticket: V1-1234")
+	f.write(changesDir+"/gone/notes.md", "a folder that is later deleted\n")
+	f.write("gone.go", "package main\n")
+	bad := f.commit("code and a change folder no longer present")
+	f.remove(changesDir + "/gone")
+	f.commit("drop the folder")
+	out := f.mustFail(1, []string{"--base", base}, "FAIL OSC-V1-003 commit "+bad[:12]+" changes gone.go outside docs/ "+
+		"and touches change folder(s) gone, which no active or archived folder holds at HEAD, so it binds to no change")
+	if strings.Count(out, "FAIL OSC-V1-003") != 1 {
+		t.Fatalf("only the opted-in commit is in scope:\n%s", out)
+	}
 	f.mustPass() // without a range the commit rules are NOT_RUN
 
 	for _, trailer := range []string{"Change: x", "Corvint-Ticket: V1-9001", "Requirement: OLD-V1-001"} {
@@ -395,28 +404,195 @@ func TestOSCV1011Baseline(t *testing.T) {
 	f := newFixture(t)
 	f.addChange("x")
 	f.remove(changesDir + "/x/design.md")
-	f.write(defaultBaseline, "# Report-only subjects.\nchange x\n")
+	f.write(defaultBaseline, "# Report-only findings.\n"+missingDesign+"\n")
 	base := f.commit("x without design, baselined")
 	out := f.mustPass("--base", base)
 	if !strings.Contains(out, "BASELINE OSC-V1-001 change x: docs/specs/openspec/changes/x/design.md is missing") {
 		t.Fatalf("want the baselined finding listed:\n%s", out)
 	}
-	f.write(defaultBaseline, "change x\nspec docs/specs/base-v1.md\n")
+	grown := "OSC-V1-008 spec docs/specs/base-v1.md: its header has no `Health:` line"
+	f.write(defaultBaseline, missingDesign+"\n"+grown+"\n")
 	f.commit("grow the baseline")
-	f.mustFail(1, []string{"--base", base}, "baseline entry \"spec docs/specs/base-v1.md\" was added since",
-		"baseline entry \"spec docs/specs/base-v1.md\" no longer fails")
-	f.write(defaultBaseline, "change x\nchange Not_A_Name\n")
-	f.mustFail(1, nil, "is not `change <name>` or `spec docs/specs/<file>.md`")
+	f.mustFail(1, []string{"--base", base}, "baseline entry \""+grown+"\" was added since",
+		"baseline entry \""+grown+"\" no longer fails")
+	for _, line := range []string{"change x", "OSC-V1-001 change Not_A_Name: x", "OSC-V1-001 change x:", "RULE change x: y"} {
+		f.write(defaultBaseline, missingDesign+"\n"+line+"\n")
+		f.mustFail(1, nil, "is not `<rule ID> change <name>: <finding>` or `<rule ID> spec docs/specs/<file>.md: <finding>`")
+	}
 	f.write(changesDir+"/x/design.md", design)
-	f.write(defaultBaseline, "change x\n")
-	f.mustFail(1, nil, "baseline entry \"change x\" no longer fails: delete its line")
+	f.write(defaultBaseline, missingDesign+"\n")
+	f.mustFail(1, nil, "baseline entry \""+missingDesign+"\" no longer fails: delete its line")
 	f.write(defaultBaseline, "")
 	f.mustPass()
 	// A subject with no baseline entry still fails, and boundary findings are never baselined.
-	f.write(defaultBaseline, "change x\n")
+	f.write(defaultBaseline, missingDesign+"\n")
 	f.remove("docs/specs/openspec/config.yaml")
 	f.remove(changesDir + "/x/design.md")
 	f.mustFail(1, nil, "FAIL OSC-V1-007 docs/specs/openspec/config.yaml is missing")
+}
+
+const missingDesign = "OSC-V1-001 change x: docs/specs/openspec/changes/x/design.md is missing"
+
+// TestOSCV1011BaselinePerFinding: an entry hides one finding (rule, subject and key), not its
+// subject; a moved line keeps its entry.
+func TestOSCV1011BaselinePerFinding(t *testing.T) {
+	f := newFixture(t)
+	f.addChange("x")
+	f.write(changesDir+"/x/tasks.md", "# Tasks\n\n- [ ] 1 Write it. Proof: test.\n")
+	noID := "OSC-V1-001 change x: tasks.md: task 1 names no requirement ID (or `Requirements: all`)"
+	f.write(defaultBaseline, noID+"\n")
+	f.commit("x with a task naming no ID, baselined")
+	out := f.mustPass()
+	if !strings.Contains(out, "BASELINE OSC-V1-001 change x: tasks.md:3: task 1 names no requirement ID") {
+		t.Fatalf("want the baselined finding listed:\n%s", out)
+	}
+	// The same finding on another line keeps its entry.
+	f.write(changesDir+"/x/tasks.md", "# Tasks\n\nIntro.\n\n- [ ] 1 Write it. Proof: test.\n")
+	f.mustPass()
+	// A new finding on the baselined subject fails; the baselined one stays reported.
+	f.remove(changesDir + "/x/design.md")
+	out = f.mustFail(1, nil, "FAIL OSC-V1-001 change x: docs/specs/openspec/changes/x/design.md is missing")
+	if !strings.Contains(out, "BASELINE OSC-V1-001 change x: tasks.md:5: task 1 names no requirement ID") {
+		t.Fatalf("the listed finding should stay baselined:\n%s", out)
+	}
+	// The same message under another rule or subject is not covered.
+	if baselineKey(finding{"OSC-V1-005", "change x", "tasks.md:5: task 1 names no requirement ID (or `Requirements: all`)"}) == noID ||
+		baselineKey(finding{"OSC-V1-001", "change y", "tasks.md:5: task 1 names no requirement ID (or `Requirements: all`)"}) == noID ||
+		baselineKey(finding{"OSC-V1-007", "", "x"}) != "" {
+		t.Fatal("a baseline key must bind the rule and the subject, and a subjectless finding has none")
+	}
+}
+
+// TestOSCV1011BaselineGrowthGitErrors: a baseline absent at the base makes every entry added; a
+// Git failure reading it is an error, not an absent file.
+func TestOSCV1011BaselineGrowthGitErrors(t *testing.T) {
+	f := newFixture(t)
+	f.addChange("x")
+	f.remove(changesDir + "/x/design.md")
+	base := f.commit("x without design, no baseline")
+	f.write(defaultBaseline, missingDesign+"\n")
+	f.commit("add a baseline")
+	f.mustPass()
+	f.mustFail(1, []string{"--base", base}, "baseline entry \""+missingDesign+"\" was added since "+base)
+
+	g := gitRepo{root: f.dir}
+	added, err := baselineGrowth(g, base, defaultBaseline, map[string]bool{missingDesign: true})
+	if err != nil || len(added) != 1 {
+		t.Fatalf("absent at base: want one added entry, got %v, %v", added, err)
+	}
+	if _, err := baselineGrowth(g, "0000000000000000000000000000000000000001", defaultBaseline, nil); err == nil ||
+		!strings.Contains(err.Error(), "history-unavailable") {
+		t.Fatalf("a base Git cannot read: want a history-unavailable error, got %v", err)
+	}
+	// An unreadable object at the base is an error with exit 2, never an absent file.
+	f.write(defaultBaseline, missingDesign+"\n")
+	withFile := f.commit("baseline kept")
+	blob := f.git("rev-parse", withFile+":"+defaultBaseline)
+	if err := os.Remove(filepath.Join(f.dir, ".git", "objects", blob[:2], blob[2:])); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := g.showFile(withFile, defaultBaseline); err == nil {
+		t.Fatal("a missing blob: want an error")
+	}
+	f.mustFail(2, []string{"--base", withFile}, "REFUSE history-unavailable", "cannot read "+defaultBaseline+" at "+withFile)
+}
+
+// TestOSCV1011GitAbsentVersusFailure: only a path absent at a commit is absent; any other Git
+// failure is an error, including in the ID and archive history rules.
+func TestOSCV1011GitAbsentVersusFailure(t *testing.T) {
+	f := newFixture(t)
+	head := f.git("rev-parse", "HEAD")
+	g := gitRepo{root: f.dir}
+	for _, tc := range []struct {
+		rev, path string
+		want      bool
+	}{
+		{head, requirementsTSV, true},
+		{head, "docs/specs", true},
+		{head, "docs/specs/nope.md", false},
+		{head, "docs/specs/REQUIREMENTS", false},
+		{"", requirementsTSV, false},
+	} {
+		got, err := g.exists(tc.rev, tc.path)
+		if err != nil || got != tc.want {
+			t.Errorf("exists(%q, %q) = %v, %v; want %v", tc.rev, tc.path, got, err, tc.want)
+		}
+	}
+	if _, err := g.exists("no-such-rev", requirementsTSV); err == nil {
+		t.Error("a rev Git cannot resolve: want an error")
+	}
+	if text, ok, err := g.showFile(head, "docs/specs/nope.md"); err != nil || ok || text != "" {
+		t.Errorf("an absent file: got %q, %v, %v", text, ok, err)
+	}
+
+	// idRules: an unreadable REQUIREMENTS.tsv at the folder's parent refuses.
+	f.addChange("x")
+	f.commit("propose x")
+	blob := f.git("rev-parse", head+":"+requirementsTSV)
+	if err := os.Remove(filepath.Join(f.dir, ".git", "objects", blob[:2], blob[2:])); err != nil {
+		t.Fatal(err)
+	}
+	f.mustFail(2, nil, "REFUSE history-unavailable", "cannot read "+requirementsTSV+" at "+head)
+
+	// archiveHistoryRules: a failed `git status` refuses instead of reading as a clean tree.
+	a := finishedChange(t)
+	a.archive("2026-11-11-x")
+	a.commit("archive x")
+	a.mustPass()
+	if err := os.WriteFile(filepath.Join(a.dir, ".git", "index"), []byte("not an index"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.mustFail(2, nil, "REFUSE history-unavailable", "cannot read the work-tree status of "+changesDir+"/archive/2026-11-11-x")
+}
+
+// TestOSCV1003OptIn: a commit opts in by a change-folder path, a `Change:` trailer or a proposal's
+// ticket; an archived folder path names its change; every other commit gets no finding.
+func TestOSCV1003OptIn(t *testing.T) {
+	if got := strings.Join(touchedChanges([]string{changesDir + "/x/tasks.md", changesDir + "/archive/2026-11-11-y/design.md",
+		changesDir + "/archive/README.md", changesDir + "/README.md", "docs/specs/x.md", changesDir + "/x/proposal.md"}), " "); got != "x y" {
+		t.Fatalf("touchedChanges = %q, want \"x y\"", got)
+	}
+
+	f := newFixture(t)
+	f.addChange("x")
+	base := f.commit("propose x")
+	f.write("a.go", "package main\n")
+	f.commit("an ordinary fix\n\nCorvint-Ticket: V1-0001")
+	f.write("b.go", "package main\n")
+	f.write(changesDir+"/x/tasks.md", tasks(false, false)+"- [ ] 1.3 More. Requirements: XYZ-V1-001. Proof: t.\n")
+	f.commit("code and a tasks edit for x, no trailer")
+	f.write("c.go", "package main\n")
+	f.commit("an unaccepted requirement on an out-of-scope commit\n\nRequirement: NOPE-V1-001")
+	f.mustPass("--base", base)
+
+	// A path opt-in binds the commit to its change, so the propose stage applies (OSC-V1-004).
+	g := newFixture(t)
+	base = g.git("rev-parse", "HEAD")
+	g.addChange("x")
+	g.write("main.go", "package main\n")
+	together := g.commit("folder and code together, no trailer")
+	g.mustFail(1, []string{"--base", base}, "FAIL OSC-V1-004 commit "+together[:12]+" changes main.go for change x")
+
+	// A ticket opt-in with an unaccepted requirement fails on the requirement.
+	h := newFixture(t)
+	h.addChange("x")
+	base = h.commit("propose x")
+	h.write("main.go", "package main\n")
+	h.commit("code\n\nCorvint-Ticket: V1-9001\nRequirement: NOPE-V1-001")
+	h.mustFail(1, []string{"--base", base}, "`Requirement: NOPE-V1-001` names no requirement accepted")
+}
+
+// TestOSCV1001MalformedTaskLines: a bullet in another form than `- [ ] N` or `- [x] N` fails
+// naming the line instead of being skipped.
+func TestOSCV1001MalformedTaskLines(t *testing.T) {
+	for _, line := range []string{"* [x] 1 Done. Requirements: all. Proof: t.", "+ [ ] 1 Open. Requirements: all. Proof: t.",
+		"- [X] 1 Done. Requirements: all. Proof: t.", "- [-] 1 Dropped. Requirements: all. Proof: t.",
+		"-[ ] 1 Tight. Requirements: all. Proof: t.", "  * [ ] 1.1 Nested. Requirements: all. Proof: t."} {
+		f := newFixture(t)
+		f.addChange("x")
+		f.write(changesDir+"/x/tasks.md", "# Tasks\n\n- [ ] 1 Write it. Requirements: all. Proof: t.\n"+line+"\n")
+		f.mustFail(1, nil, "FAIL OSC-V1-001 change x: tasks.md:4: ", "is not `- [ ] N text` with a task number")
+	}
 }
 
 func TestOSCV1011HistoryUnavailable(t *testing.T) {

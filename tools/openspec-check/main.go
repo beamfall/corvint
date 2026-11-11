@@ -7,9 +7,9 @@
 // the archive state and history of every change, the one OpenSpec root, the Health: line of every
 // spec under docs/specs/ and the acceptance link of every proposal. With --base REV it also checks
 // every non-merge commit of REV..HEAD: each commit that touches a path outside docs/ binds to a
-// change whose folder its first parent already holds, or names an accepted requirement. Failures
-// of a subject listed in the baseline file are reported and do not fail; the baseline only
-// shrinks. It reads files and Git history only; it writes nothing and calls no network service,
+// change whose folder its first parent already holds, or names an accepted requirement, when it
+// opts in to a change. A finding listed in the baseline file by rule, subject and finding key is
+// reported and does not fail; the baseline only shrinks. It reads files and Git history only; it writes nothing and calls no network service,
 // no npm and no OpenSpec command.
 //
 // Exit status: 0 when nothing fails, 1 when a rule fails, 2 on a usage error or a refusal
@@ -195,26 +195,26 @@ func check(root, base, baselinePath string) (*result, error) {
 		}
 		findings = append(findings, grown...)
 	}
-	failing := map[string]bool{}
+	matched := map[string]bool{}
 	for _, f := range findings {
-		if f.subject != "" && entries[f.subject] {
+		if key := baselineKey(f); key != "" && entries[key] {
 			res.baselined = append(res.baselined, f)
-			failing[f.subject] = true
+			matched[key] = true
 			continue
 		}
 		res.failures = append(res.failures, f)
 	}
 	stale := []string{}
-	for subject := range entries {
-		if !failing[subject] {
-			stale = append(stale, subject)
+	for entry := range entries {
+		if !matched[entry] {
+			stale = append(stale, entry)
 		}
 	}
 	sort.Strings(stale)
-	for _, subject := range stale {
+	for _, entry := range stale {
 		res.failures = append(res.failures, finding{req: "OSC-V1-011", msg: fmt.Sprintf(
 			"baseline entry %q no longer fails: delete its line from %s (the baseline only shrinks)",
-			subject, baselinePath)})
+			entry, baselinePath)})
 	}
 	return res, nil
 }
