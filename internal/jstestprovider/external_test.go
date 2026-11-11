@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testsupport"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -139,7 +140,7 @@ func TestSensitiveInputNormalizationBoundsAndNoPanic(t *testing.T) {
 	}
 
 	deep := BrowserStep{Title: "parent"}
-	for range sensitiveInputMaxDepth + 1 {
+	for range jstestreceipt.SensitiveInputMaxDepth + 1 {
 		deep = BrowserStep{Title: "parent", Steps: []BrowserStep{deep}}
 	}
 	over := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{deep}}}}}}
@@ -147,20 +148,20 @@ func TestSensitiveInputNormalizationBoundsAndNoPanic(t *testing.T) {
 		t.Fatalf("depth findings=%+v", findings)
 	}
 	over.Tests[0].Attempts = []Attempt{{Steps: make([]BrowserStep, 3000)}, {Steps: make([]BrowserStep, 3000)}}
-	if findings := ValidateSensitiveInputEvidence(over); len(findings) == 0 || findings[0].Code != SensitiveInputStepBoundExceeded || len(findings) > sensitiveInputMaxFindings {
+	if findings := ValidateSensitiveInputEvidence(over); len(findings) == 0 || findings[0].Code != SensitiveInputStepBoundExceeded || len(findings) > jstestreceipt.SensitiveInputMaxFindings {
 		t.Fatalf("step findings=%+v", findings)
 	}
-	over.Tests[0].Attempts = []Attempt{{Steps: []BrowserStep{{Title: strings.Repeat("x", sensitiveInputMaxStringBytes+1)}}}}
+	over.Tests[0].Attempts = []Attempt{{Steps: []BrowserStep{{Title: strings.Repeat("x", jstestreceipt.SensitiveInputMaxStringBytes+1)}}}}
 	if findings := ValidateSensitiveInputEvidence(over); len(findings) != 1 || findings[0].Code != SensitiveInputStringBoundExceeded {
 		t.Fatalf("string findings=%+v", findings)
 	}
-	leaks := make([]BrowserStep, sensitiveInputMaxFindings+10)
+	leaks := make([]BrowserStep, jstestreceipt.SensitiveInputMaxFindings+10)
 	for i := range leaks {
 		leaks[i] = BrowserStep{Title: `Fill "leak"`}
 	}
 	over.Tests[0].Attempts = []Attempt{{Steps: leaks}}
 	findings := ValidateSensitiveInputEvidence(over)
-	if len(findings) != sensitiveInputMaxFindings || findings[len(findings)-1].Code != SensitiveInputFindingBoundExceeded {
+	if len(findings) != jstestreceipt.SensitiveInputMaxFindings || findings[len(findings)-1].Code != SensitiveInputFindingBoundExceeded {
 		t.Fatalf("finding bound=%+v", findings)
 	}
 }
@@ -263,7 +264,7 @@ func TestSensitiveInputUnicodeGrammarAndReportScope(t *testing.T) {
 			if len(ValidateSensitiveInputEvidence(r)) == 0 {
 				t.Fatal("raw action admitted")
 			}
-			policy, _ := sensitivePolicy(r.SensitiveInputPolicy)
+			policy, _ := jstestreceipt.SensitivePolicy(r.SensitiveInputPolicy)
 			candidates := boundaryCollectSensitiveValues(r, policy)
 			found := false
 			for _, candidate := range candidates {
@@ -349,7 +350,7 @@ func qualifiedFixture(t *testing.T) Receipt {
 	r.External.ConfigOverride = "controlled-fixture-config"
 	test := TestOutcome{Name: "pass", FullName: "one > pass", State: StatePassed, Anchor: &Anchor{File: "/repo/test.cjs", Line: 1}, Project: &ProjectIdentity{Name: "one", Browser: "chromium", Device: "unknown", Use: json.RawMessage(`{}`), ConfigDigest: "config"}, Attempts: []Attempt{{State: StatePassed, Retry: 0, FailureKind: "none"}}}
 	r.Identity.ConfigInputDigests = map[string]string{r.Identity.ConfigFile: r.Identity.ConfigDigest}
-	test.ID = qualifiedTestID(r.Identity, test)
+	test.ID = jstestreceipt.QualifiedTestID(r.Identity, test)
 	r.Tests = []TestOutcome{test}
 	return r
 }
@@ -366,7 +367,7 @@ func TestQualifiedReceiptProjection(t *testing.T) {
 		r := qualifiedFixture(t)
 		mutate(&r)
 		if r.Tests[0].ID != "forged" {
-			r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+			r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 		}
 		if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 			t.Fatal("unknown lifecycle/identity emitted pass")
@@ -387,7 +388,7 @@ func TestPlaywright163UnqualifiedBrowserTupleAbstains(t *testing.T) {
 	r.Identity.RunnerVersion = "1.63.0"
 	r.Identity.NodeVersion = "v22.23.2"
 	r.Tests[0].Project.Use = json.RawMessage(`{"browserName":"chromium","channel":"","launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome 153.0.8010.48","channel":"","executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","headlessShellAvailable":true}}`)
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	if ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
 		t.Fatal("qualified Playwright 1.63 browser tuple abstained")
 	}
@@ -409,7 +410,7 @@ func TestPlaywright163UnqualifiedBrowserTupleAbstains(t *testing.T) {
 			mutated.Tests[0].Project = &ProjectIdentity{}
 			*mutated.Tests[0].Project = *r.Tests[0].Project
 			mutated.Tests[0].Project.Use = json.RawMessage(strings.Replace(string(r.Tests[0].Project.Use), replacement[0], replacement[1], 1))
-			mutated.Tests[0].ID = qualifiedTestID(mutated.Identity, mutated.Tests[0])
+			mutated.Tests[0].ID = jstestreceipt.QualifiedTestID(mutated.Identity, mutated.Tests[0])
 			if ReceiptTestProjection(mutated, mutated.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 				t.Fatal("mismatched Playwright 1.63 tuple projected green")
 			}
@@ -420,7 +421,7 @@ func TestPlaywright163UnqualifiedBrowserTupleAbstains(t *testing.T) {
 	contradictory.Tests[0].Project = &ProjectIdentity{}
 	*contradictory.Tests[0].Project = *r.Tests[0].Project
 	contradictory.Tests[0].Project.Browser = "firefox"
-	contradictory.Tests[0].ID = qualifiedTestID(contradictory.Identity, contradictory.Tests[0])
+	contradictory.Tests[0].ID = jstestreceipt.QualifiedTestID(contradictory.Identity, contradictory.Tests[0])
 	if ReceiptTestProjection(contradictory, contradictory.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 		t.Fatal("contradictory retained browser identity projected green")
 	}
@@ -431,7 +432,7 @@ func TestPlaywright163BundledBrowserTupleAbstainsOnDrift(t *testing.T) {
 	r.Identity.RunnerVersion = "1.63.0"
 	r.Identity.NodeVersion = "v22.23.2"
 	r.Tests[0].Project.Use = json.RawMessage(hostBundledUse(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`))
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	if ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
 		t.Fatal("qualified bundled Playwright 1.63 browser tuple abstained")
 	}
@@ -454,7 +455,7 @@ func TestPlaywright163BundledBrowserTupleAbstainsOnDrift(t *testing.T) {
 			mutated.Tests[0].Project = &ProjectIdentity{}
 			*mutated.Tests[0].Project = *r.Tests[0].Project
 			mutated.Tests[0].Project.Use = json.RawMessage(strings.Replace(string(r.Tests[0].Project.Use), replacement[0], replacement[1], 1))
-			mutated.Tests[0].ID = qualifiedTestID(mutated.Identity, mutated.Tests[0])
+			mutated.Tests[0].ID = jstestreceipt.QualifiedTestID(mutated.Identity, mutated.Tests[0])
 			if ReceiptTestProjection(mutated, mutated.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 				t.Fatal("mismatched bundled Playwright 1.63 tuple projected green")
 			}
@@ -467,7 +468,7 @@ func TestQualifiedReceiptBindingSeparatesInfrastructureOutcomeFromInvalidLifecyc
 	r.Tests[0].State = StateInfrastructure
 	r.Tests[0].Attempts[0].State = StateInfrastructure
 	r.Tests[0].Attempts[0].FailureKind = "browser-or-fixture"
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	if !QualifiedReceiptBindingReady(r, r.Tests[0]) {
 		t.Fatal("qualified infrastructure outcome lost its valid binding")
 	}
@@ -481,11 +482,11 @@ func TestQualifiedIdentityStableAcrossScratchAndDistinctAcrossProjects(t *testin
 	r := qualifiedFixture(t)
 	original := r.Tests[0].ID
 	r.Identity.Argv[2] = "--config=/tmp/b/config.cjs"
-	if qualifiedTestID(r.Identity, r.Tests[0]) != original {
+	if jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0]) != original {
 		t.Fatal("scratch changed stable test identity")
 	}
 	r.Tests[0].Project.Name = "two"
-	if qualifiedTestID(r.Identity, r.Tests[0]) == original {
+	if jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0]) == original {
 		t.Fatal("project identity collision")
 	}
 }
@@ -528,7 +529,7 @@ func TestQualifiedEncodingRejectsSecretAndBounds(t *testing.T) {
 		t.Fatal("secret retained")
 	}
 	r = qualifiedFixture(t)
-	r.Tests[0].FailureMessage = strings.Repeat("x", externalOutputLimit)
+	r.Tests[0].FailureMessage = strings.Repeat("x", jstestreceipt.ExternalOutputLimit)
 	if _, err := EncodeQualified(r); err == nil {
 		t.Fatal("oversize retained")
 	}
@@ -539,7 +540,7 @@ func TestSensitiveInputPrefixOverlappingValuesRedactLongestFirst(t *testing.T) {
 		Name: "prefix", FullName: "suite > prefix", State: StateFailed, FailureMessage: "saw hunter2extra then hunter2",
 		Attempts: []Attempt{{State: StateFailed, Steps: []BrowserStep{{Title: `Fill "hunter2extra"`}, {Title: `Fill "hunter2"`}}}},
 	}}}
-	policy, err := sensitivePolicy(r.SensitiveInputPolicy)
+	policy, err := jstestreceipt.SensitivePolicy(r.SensitiveInputPolicy)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -604,10 +605,10 @@ func TestQualifiedReportConfigInputBounds(t *testing.T) {
 	}
 
 	r, report = fixture()
-	for i := range externalMaxConfigInputs {
+	for i := range jstestreceipt.ExternalMaxConfigInputs {
 		report.ConfigFiles[fmt.Sprintf("/missing/helper-%d.cjs", i)] = "digest"
 	}
-	want := fmt.Sprintf("config-inputs-overflow: observed %d config inputs, limit %d", externalMaxConfigInputs+1, externalMaxConfigInputs)
+	want := fmt.Sprintf("config-inputs-overflow: observed %d config inputs, limit %d", jstestreceipt.ExternalMaxConfigInputs+1, jstestreceipt.ExternalMaxConfigInputs)
 	if err := bindQualifiedReport(&r, report); err == nil || err.Error() != want {
 		t.Fatalf("config input count overflow err=%v, want %q", err, want)
 	}
@@ -615,15 +616,15 @@ func TestQualifiedReportConfigInputBounds(t *testing.T) {
 	r, report = fixture()
 	long := "/missing/" + strings.Repeat("d", 4000)
 	size := len(config) + len(configDigest)
-	for i := 0; size <= externalMaxConfigInputBytes; i++ {
+	for i := 0; size <= jstestreceipt.ExternalMaxConfigInputBytes; i++ {
 		path := fmt.Sprintf("%s-%04d.cjs", long, i)
 		report.ConfigFiles[path] = configDigest
 		size += len(path) + len(configDigest)
 	}
-	if len(report.ConfigFiles) > externalMaxConfigInputs {
+	if len(report.ConfigFiles) > jstestreceipt.ExternalMaxConfigInputs {
 		t.Fatalf("byte-bound fixture also exceeds the count bound: %d", len(report.ConfigFiles))
 	}
-	want = fmt.Sprintf("config-inputs-overflow: observed %d config input bytes, limit %d", size, externalMaxConfigInputBytes)
+	want = fmt.Sprintf("config-inputs-overflow: observed %d config input bytes, limit %d", size, jstestreceipt.ExternalMaxConfigInputBytes)
 	if err := bindQualifiedReport(&r, report); err == nil || err.Error() != want {
 		t.Fatalf("config input byte overflow err=%v, want %q", err, want)
 	}
@@ -726,7 +727,7 @@ func TestProfileAttemptEmptyProject(t *testing.T) {
 	r.Tests[0].Project.Use = json.RawMessage(hostBundledUse(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`))
 	r.Tests[0].Project.Name = ""
 	r.Tests[0].AttemptDetails = []AttemptDetail{{State: StatePassed, Anchor: r.Tests[0].Anchor}}
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	if !QualifiedReceiptBindingReady(r, r.Tests[0]) {
 		t.Fatal("valid unnamed /3 project refused")
 	}
@@ -755,7 +756,7 @@ func TestPlaywright163Node24TupleAdmissionIsExact(t *testing.T) {
 		r.Identity.RunnerVersion = "1.63.0"
 		r.Identity.NodeVersion = identityNode
 		r.Tests[0].Project.Use = json.RawMessage(strings.Replace(use, "NODE", browserNode, 1))
-		r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+		r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 		return r
 	}
 	admitted := receipt(bundled, "v24.11.1", "v24.11.1")
@@ -828,7 +829,7 @@ func playwrightTupleReceipt(t *testing.T, profile, runner, node, use string) Rec
 	r.Identity.RunnerVersion = runner
 	r.Identity.NodeVersion = node
 	r.Tests[0].Project.Use = json.RawMessage(hostBundledUse(strings.ReplaceAll(use, "NODE", node)))
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	return r
 }
 
@@ -852,7 +853,7 @@ func TestPWPV0032Playwright164BundledTupleIsExact(t *testing.T) {
 		t.Fatal("qualified bundled Playwright 1.64 browser tuple abstained")
 	}
 	attempt := playwrightTupleReceipt(t, AttemptExternalProfile, "1.64.0", "v22.23.2", playwright164Bundled)
-	if !qualifiedPlaywrightTuple(attempt, attempt.Tests[0]) {
+	if !jstestreceipt.QualifiedPlaywrightTuple(attempt, attempt.Tests[0]) {
 		t.Fatal("qualified /3 Playwright 1.64 browser tuple abstained")
 	}
 	bundled163 := strings.NewReplacer("156.0.8078.4", "153.0.8010.12", "1248", "1243", "77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634", "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282").Replace(playwright164Bundled)
@@ -896,7 +897,7 @@ func TestPWPV0033Playwright164ProfilesAndNodeAreExact(t *testing.T) {
 		{SensitiveExternalProfile, "v24.11.1", false},
 	} {
 		r := playwrightTupleReceipt(t, test.profile, "1.64.0", test.node, playwright164Bundled)
-		if got := qualifiedPlaywrightTuple(r, r.Tests[0]); got != test.want {
+		if got := jstestreceipt.QualifiedPlaywrightTuple(r, r.Tests[0]); got != test.want {
 			t.Fatalf("%s on %s: qualified=%v want %v", test.profile, test.node, got, test.want)
 		}
 	}
@@ -908,7 +909,7 @@ func TestPWPV0035Playwright164AttestedAndSensitiveTuples(t *testing.T) {
 	for _, profile := range []string{AttestedExternalProfile, SensitiveExternalProfile} {
 		for node, want := range map[string]bool{"v22.23.2": true, "v24.11.1": false, "v22.23.3": false, "v22.23": false} {
 			r := playwrightTupleReceipt(t, profile, "1.64.0", node, playwright164Bundled)
-			if got := qualifiedPlaywrightTuple(r, r.Tests[0]); got != want {
+			if got := jstestreceipt.QualifiedPlaywrightTuple(r, r.Tests[0]); got != want {
 				t.Fatalf("%s on Node %s: qualified=%v want %v", profile, node, got, want)
 			}
 		}
@@ -927,12 +928,12 @@ func TestPWPV0036Playwright164Node24TupleIsExact(t *testing.T) {
 	if ReceiptTestProjection(admitted, admitted.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
 		t.Fatal("admitted 1.64.0 Node v24.11.1 bundled tuple abstained")
 	}
-	if attempt := playwrightTupleReceipt(t, AttemptExternalProfile, "1.64.0", "v24.11.1", playwright164Bundled); !qualifiedPlaywrightTuple(attempt, attempt.Tests[0]) {
+	if attempt := playwrightTupleReceipt(t, AttemptExternalProfile, "1.64.0", "v24.11.1", playwright164Bundled); !jstestreceipt.QualifiedPlaywrightTuple(attempt, attempt.Tests[0]) {
 		t.Fatal("admitted 1.64.0 Node v24.11.1 /3 tuple abstained")
 	}
 	drift := playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.1", playwright164Bundled)
 	drift.Tests[0].Project.Use = json.RawMessage(hostBundledUse(strings.ReplaceAll(playwright164Bundled, "NODE", "v22.23.2")))
-	drift.Tests[0].ID = qualifiedTestID(drift.Identity, drift.Tests[0])
+	drift.Tests[0].ID = jstestreceipt.QualifiedTestID(drift.Identity, drift.Tests[0])
 	for name, r := range map[string]Receipt{
 		"neighbouring-patch": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.0", playwright164Bundled),
 		"later-minor":        playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.12.0", playwright164Bundled),
@@ -973,7 +974,7 @@ func TestPWPV0037Playwright164SystemChromeIsExact(t *testing.T) {
 		"unconfigured":   playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(chrome155, `"launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}`, `"launchOptions":{}`, 1)),
 	} {
 		t.Run(name, func(t *testing.T) {
-			if qualifiedPlaywrightTuple(r, r.Tests[0]) {
+			if jstestreceipt.QualifiedPlaywrightTuple(r, r.Tests[0]) {
 				t.Fatal("unqualified system-Chrome tuple admitted")
 			}
 		})

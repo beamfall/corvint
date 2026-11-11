@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -25,11 +26,8 @@ var (
 	rspecMetadataTag = regexp.MustCompile(`(?:^|[,({\s]):(\w+)\b`)
 )
 
-// rspecExclusion is one metadata filter a committed support file excludes from every run.
-type rspecExclusion struct {
-	key, value string // value "" matches any value of key
-	cause      string // path:line of the filter_run_excluding call
-}
+// rspecExclusion is testdiscovery.RSpecExclusion, kept under its old name.
+type rspecExclusion = testdiscovery.RSpecExclusion
 
 // rspecMetadataPairs returns a declaring line's metadata as key to value, outside string
 // literals and before its block opens. A `:tag` symbol is `tag` = "true"; a value that is not a
@@ -87,7 +85,7 @@ func rspecExclusions(files map[string]string) []rspecExclusion {
 			sort.Strings(keys)
 			for _, key := range keys {
 				if value := pairs[key]; value != "false" && value != "nil" {
-					out = append(out, rspecExclusion{key: key, value: value, cause: fmt.Sprintf("%s:%d", path, i+1)})
+					out = append(out, rspecExclusion{Key: key, Value: value, Cause: fmt.Sprintf("%s:%d", path, i+1)})
 				}
 			}
 		}
@@ -97,19 +95,19 @@ func rspecExclusions(files map[string]string) []rspecExclusion {
 
 // configExcluded returns the cause of the first exclusion whose key the example or one of its
 // groups carries with a matching value, innermost declaration first, or "".
-func (r *rspecReader) configExcluded(e rspecExample) string {
-	if len(r.excluded) == 0 {
+func configExcluded(r *rspecReader, e rspecExample) string {
+	if len(r.Excluded) == 0 {
 		return ""
 	}
-	heads := []string{e.body[0].text}
-	for g := e.group; g > 0; g = r.groups[g].parent {
-		heads = append(heads, r.groups[g].head)
+	heads := []string{e.Body[0].Text}
+	for g := e.Group; g > 0; g = r.Groups[g].Parent {
+		heads = append(heads, r.Groups[g].Head)
 	}
 	for _, head := range heads {
 		pairs := rspecMetadataPairs(head)
-		for _, x := range r.excluded {
-			if value, ok := pairs[x.key]; ok && value != "false" && value != "nil" && (x.value == "" || value == "" || value == x.value) {
-				return x.cause
+		for _, x := range r.Excluded {
+			if value, ok := pairs[x.Key]; ok && value != "false" && value != "nil" && (x.Value == "" || value == "" || value == x.Value) {
+				return x.Cause
 			}
 		}
 	}
@@ -121,8 +119,8 @@ func (r *rspecReader) configExcluded(e rspecExample) string {
 // nested block, or 0.
 func conditionalSkip(body []rubyLine) int {
 	for k := 1; k < len(body); k++ {
-		if rspecSkipStatement.MatchString(body[k].text) {
-			return body[k].line
+		if rspecSkipStatement.MatchString(body[k].Text) {
+			return body[k].Line
 		}
 	}
 	return 0
@@ -130,17 +128,17 @@ func conditionalSkip(body []rubyLine) int {
 
 // skipConfigFindings returns the abstained RSPEC-CONDITIONAL-SKIP and RSPEC-CONFIG-EXCLUDED
 // findings of an example no RSPEC-SKIPPED finding covers (TSA-V0-450).
-func (r *rspecReader) skipConfigFindings(test string, e rspecExample) []testvalidity.SourceFinding {
+func skipConfigFindings(r *rspecReader, test string, e rspecExample) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
-	at := func(line int) string { return fmt.Sprintf("%s:%d", e.path, line) }
-	if line := conditionalSkip(e.body); line != 0 {
+	at := func(line int) string { return fmt.Sprintf("%s:%d", e.Path, line) }
+	if line := conditionalSkip(e.Body); line != 0 {
 		out = append(out, testvalidity.SourceFinding{Rule: testvalidity.RuleRSpecConditionalSkip, Severity: testvalidity.SeverityAbstained,
-			Test: test, Title: e.title, Location: at(line), Cause: at(e.line),
+			Test: test, Title: e.Title, Location: at(line), Cause: at(e.Line),
 			Message: "the example skips or is pending under a condition the static reader cannot decide, so a run may not execute it"})
 	}
-	if cause := r.configExcluded(e); cause != "" {
+	if cause := configExcluded(r, e); cause != "" {
 		out = append(out, testvalidity.SourceFinding{Rule: testvalidity.RuleRSpecConfigExcluded, Severity: testvalidity.SeverityAbstained,
-			Test: test, Title: e.title, Location: at(e.line), Cause: cause,
+			Test: test, Title: e.Title, Location: at(e.Line), Cause: cause,
 			Message: "the example carries metadata a committed filter_run_excluding removes from a run, so a run may not execute it"})
 	}
 	return out

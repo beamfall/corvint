@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -36,7 +37,7 @@ func TestApplicationAttestationCommandProvider(t *testing.T) {
 	configPath := filepath.Join(root, "config.json")
 	statePath := filepath.Join(root, "state.json")
 	expectation := applicationExpectationFixture()
-	writeCanonicalFixture(t, configPath, applicationAttestationConfig{Profile: applicationAttestationConfigProfile, Expectation: expectation})
+	writeCanonicalFixture(t, configPath, jstestreceipt.ApplicationAttestationConfig{Profile: jstestreceipt.ApplicationAttestationConfigProfile, Expectation: expectation})
 	before := applicationAttestationFixture()
 	writeCanonicalFixture(t, statePath, before)
 	provider, err := prepareApplicationAttestationProvider(ApplicationAttestationProvider{
@@ -67,7 +68,7 @@ func TestApplicationAttestationCommandProvider(t *testing.T) {
 	after.Instance.StartGeneration = "generation-2"
 	writeCanonicalFixture(t, statePath, after)
 	second, failure := provider.observe(context.Background())
-	if failure != "" || second == nil || !slices.Contains(compareApplicationAttestations(first.Attestation, second.Attestation), "application-restarted") {
+	if failure != "" || second == nil || !slices.Contains(jstestreceipt.CompareApplicationAttestations(first.Attestation, second.Attestation), "application-restarted") {
 		t.Fatalf("restart was not detected: second=%+v failure=%q", second, failure)
 	}
 }
@@ -88,9 +89,9 @@ func TestApplicationAttestationNegativeControls(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			actual := healthy
 			row.mutate(&actual)
-			reason := validateAttestationShape(actual)
+			reason := jstestreceipt.ValidateAttestationShape(actual)
 			if reason == "" {
-				reason = compareExpectation(expectation, actual)
+				reason = jstestreceipt.CompareExpectation(expectation, actual)
 			}
 			if reason != row.want {
 				t.Fatalf("reason=%q want=%q", reason, row.want)
@@ -152,7 +153,7 @@ func qualifiedAttestedFixture(t *testing.T) Receipt {
 	refreshObservation(after)
 	receipt.ApplicationAttestation = &ApplicationAttestationReceipt{
 		Provider: ApplicationAttestationProviderIdentity{
-			Profile: ApplicationAttestationProviderProfile, Argv: []string{"/provider"}, ExecutablePath: "/provider", ExecutableDigest: sha256Hex([]byte("provider")), ConfigPath: "/provider.json", ConfigDigest: canonicalConfigDigest(applicationExpectationFixture()), Environment: map[string]string{},
+			Profile: ApplicationAttestationProviderProfile, Argv: []string{"/provider"}, ExecutablePath: "/provider", ExecutableDigest: jstestreceipt.Sha256Hex([]byte("provider")), ConfigPath: "/provider.json", ConfigDigest: canonicalConfigDigest(applicationExpectationFixture()), Environment: map[string]string{},
 		},
 		Expectation: applicationExpectationFixture(), Before: before, After: after, Failures: []string{},
 	}
@@ -226,8 +227,8 @@ func TestQualifiedProfilesRejectMixedIdentityShapes(t *testing.T) {
 }
 
 func canonicalConfigDigest(expectation ApplicationAttestationExpectation) string {
-	data, _ := json.Marshal(applicationAttestationConfig{Profile: applicationAttestationConfigProfile, Expectation: expectation})
-	return sha256Hex(append(data, '\n'))
+	data, _ := json.Marshal(jstestreceipt.ApplicationAttestationConfig{Profile: jstestreceipt.ApplicationAttestationConfigProfile, Expectation: expectation})
+	return jstestreceipt.Sha256Hex(append(data, '\n'))
 }
 
 func initAttestationGitRepository(t *testing.T, git, content string) string {
@@ -279,7 +280,7 @@ func applicationAttestationFixture() ApplicationAttestation {
 
 func refreshObservation(observation *ApplicationAttestationObservation) {
 	data, _ := json.Marshal(observation.Attestation)
-	observation.OutputDigest = sha256Hex(append(data, '\n'))
+	observation.OutputDigest = jstestreceipt.Sha256Hex(append(data, '\n'))
 }
 
 func writeCanonicalFixture(t *testing.T, path string, value any) {

@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -179,7 +180,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 				if e != nil {
 					t.Fatal(e)
 				}
-				return sha256Hex(b)
+				return jstestreceipt.Sha256Hex(b)
 			}
 			observerConfig := filepath.Join(out, "observer.json")
 			if e := os.WriteFile(observerConfig, []byte("{\"documentUrl\":\"http://127.0.0.1:4394/\"}\n"), 0600); e != nil {
@@ -187,7 +188,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 			}
 			expectation := ApplicationAttestationExpectation{Repository: ApplicationRepositoryExpectation{RootCommit: repo.RootCommit, Revision: repo.Revision, Tree: repo.Tree, DirtyPolicy: "require-clean"}, Build: ApplicationArtifactIdentity{Kind: "source", Digest: "sha256:" + digest(filepath.Join(root, "app.html"))}, Configuration: ApplicationArtifactIdentity{Kind: "source", Digest: "sha256:" + digest(filepath.Join(root, "playwright.config.cjs"))}, InstanceKind: "process"}
 			attestationConfig := filepath.Join(out, "attestation.json")
-			writeCanonicalFixture(t, attestationConfig, applicationAttestationConfig{Profile: applicationAttestationConfigProfile, Expectation: expectation})
+			writeCanonicalFixture(t, attestationConfig, jstestreceipt.ApplicationAttestationConfig{Profile: jstestreceipt.ApplicationAttestationConfigProfile, Expectation: expectation})
 			cfg := E2EConfig{Config: Config{Dir: root, TestFiles: []string{filepath.Join(root, "counter.spec.cjs")}, ConfigFile: filepath.Join(root, "playwright.config.cjs"), PackageJSON: filepath.Join(root, "package.json"), Lockfile: filepath.Join(root, "package-lock.json"), RunnerName: "playwright", RunnerVersion: runnerVersion, DeclaredEnvKeys: []string{"PATH", "LANG", "LC_ALL", "TMPDIR"}, Timeout: 30 * time.Second}, ServerArgv: []string{node, filepath.Join(root, "server.cjs")}, ServerReadyURL: "http://127.0.0.1:4394/", TestArgv: []string{"--workers=1", "--retries=0", "--forbid-only"}, ApplicationAttestation: &ApplicationAttestationProvider{Argv: []string{os.Args[0], "-test.run=^TestPTFV0AttestationHelper$"}, ConfigFile: attestationConfig}, Freshness: &FreshnessConfig{ProductDir: root, ProductExpected: *repo, TestExpected: *repo, ArtifactPath: "app.html", SourceDigest: strings.TrimPrefix(expectation.Build.Digest, "sha256:"), DocumentURL: "http://127.0.0.1:4394/", Runner: command(node, filepath.Join(fixtureModules, "playwright", "cli.js")), Server: command(node, filepath.Join(root, "server.cjs")), Observer: command(node, filepath.Join(root, "observer.cjs"), "fresh"), ObserverConfigFile: observerConfig, ObserverConfigDigest: digest(observerConfig)}}
 			cfg.Freshness.Dependencies = freshLiveDependencies(t, fixtureModules, []string{filepath.Join(root, "app.html"), filepath.Join(root, "server.cjs"), filepath.Join(root, "observer.cjs"), filepath.Join(root, "counter.spec.cjs"), filepath.Join(root, "playwright.config.cjs"), filepath.Join(root, "package.json"), filepath.Join(root, "package-lock.json"), observerConfig, attestationConfig})
 			cfg.Freshness.DependencyDigest = FreshDependencyDigest(cfg.Freshness.Dependencies)
@@ -197,7 +198,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 					t.Fatal(e)
 				}
 				mutant := bytes.Replace(source, []byte("textContent=1"), []byte("textContent=2"), 1)
-				cfg.Freshness.Mutation = &ResponseMutationDefinition{ArtifactPath: "app.html", SourceSHA256: sha256Hex(source), From: "textContent=1", To: "textContent=2", MutantSHA256: sha256Hex(mutant)}
+				cfg.Freshness.Mutation = &ResponseMutationDefinition{ArtifactPath: "app.html", SourceSHA256: jstestreceipt.Sha256Hex(source), From: "textContent=1", To: "textContent=2", MutantSHA256: jstestreceipt.Sha256Hex(mutant)}
 			}
 
 			if mode == "cancel" {
@@ -216,7 +217,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 				t.Cleanup(func() {
 					foreignCancel()
 					o := <-foreignDone
-					if !o.OwnedProcessGroupCleanup || !freshDescendantsAbsent(o.DescendantObservation) {
+					if !o.OwnedProcessGroupCleanup || !jstestreceipt.FreshDescendantsAbsent(o.DescendantObservation) {
 						t.Errorf("foreign fixture cleanup: %+v", o)
 					}
 				})
@@ -233,7 +234,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 				t.Fatal(e)
 			}
 			o := procgroup.Run(context.Background(), procgroup.Spec{Argv: []string{os.Args[0], "-test.run=^TestPTFV0WorkerHelper$", "--", job}, Dir: root, Env: freshLiveEnvironment(), Timeout: 45 * time.Second, OutputLimit: 4 << 20, ObserveDescendants: true})
-			if o.ExitStatus != 0 || o.Cancelled || o.TimedOut || !o.OwnedProcessGroupCleanup || !freshDescendantsAbsent(o.DescendantObservation) {
+			if o.ExitStatus != 0 || o.Cancelled || o.TimedOut || !o.OwnedProcessGroupCleanup || !jstestreceipt.FreshDescendantsAbsent(o.DescendantObservation) {
 				t.Fatalf("worker: %+v\n%s", o, string(o.Stderr))
 			}
 			var r Receipt
@@ -250,7 +251,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 				return
 			}
 			if mode == "cancel" {
-				if !r.Cancelled || !freshDescendantsAbsent(r.DescendantObservation) || FreshnessCurrency(r, TestOutcome{}) != testvalidity.FreshnessUnknown {
+				if !r.Cancelled || !jstestreceipt.FreshDescendantsAbsent(r.DescendantObservation) || FreshnessCurrency(r, TestOutcome{}) != testvalidity.FreshnessUnknown {
 					t.Fatalf("cancel evidence: %+v", r)
 				}
 				if _, e := os.Stat(filepath.Join(out, "browser-started")); e != nil {
@@ -431,7 +432,7 @@ func freshLiveDependencies(t *testing.T, modules string, inputs []string) *Fresh
 		if e != nil {
 			t.Fatal(e)
 		}
-		m.Files[path] = sha256Hex(b)
+		m.Files[path] = jstestreceipt.Sha256Hex(b)
 	}
 	if !FreshDependenciesMatch(m, ObserveFreshDependencies(m)) {
 		t.Fatal("dependency manifest not complete")

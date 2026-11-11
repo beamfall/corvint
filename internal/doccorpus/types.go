@@ -4,7 +4,7 @@ package doccorpus
 
 import (
 	"github.com/Beamfall/corvint/internal/lineanchor"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 const (
@@ -198,11 +198,11 @@ type ObservationLink struct {
 	StepEvidence   []Anchor          `json:"step_evidence"`
 }
 type Observation struct {
-	Trust       string                   `json:"trust"`
-	Limitations []string                 `json:"limitations"`
-	Link        ObservationLink          `json:"link"`
-	InputSHA256 string                   `json:"input_sha256"`
-	Document    testvaliditydoc.Document `json:"document"`
+	Trust       string                     `json:"trust"`
+	Limitations []string                   `json:"limitations"`
+	Link        ObservationLink            `json:"link"`
+	InputSHA256 string                     `json:"input_sha256"`
+	Document    testvaliditymodel.Document `json:"document"`
 }
 type CapabilityDeclaration struct {
 	Name   string `json:"name"`

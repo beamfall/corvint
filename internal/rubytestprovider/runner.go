@@ -22,27 +22,22 @@ import (
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/rubytestreceipt"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 	"github.com/Beamfall/corvint/internal/testevidence"
 )
 
-const (
-	// MaxSpecFileBytes bounds one snapshot file; it equals the bound discovery
-	// reads a retained spec or helper file under, so a file the run bound is
-	// always one discovery can compare (LPCV-V0-092, LPCV-V0-094).
-	MaxSpecFileBytes     = 4 << 20
-	maxReportBytes       = 32 << 20
-	maxRunnerOutputBytes = 1 << 20
-	maxRSpecIDBytes      = 512
-	reportDirectory      = ".corvint/rspec"
-	// DefaultTimeout bounds one RSpec run.
-	DefaultTimeout = 30 * time.Minute
-	// FormatterCorvint names the Corvint-shipped RSpec JSON formatter
-	// (LPCV-V0-136); FormatterStock is RSpec's own json formatter.
-	FormatterCorvint = "corvint-rspec-json/0"
-	FormatterStock   = "stock"
-	formatterClass   = "CorvintRSpecJsonFormatter"
-)
+// MaxSpecFileBytes is rubytestreceipt.MaxSpecFileBytes, kept under its old name.
+const MaxSpecFileBytes = rubytestreceipt.MaxSpecFileBytes
+
+// DefaultTimeout is rubytestreceipt.DefaultTimeout, kept under its old name.
+const DefaultTimeout = rubytestreceipt.DefaultTimeout
+
+// FormatterCorvint is rubytestreceipt.FormatterCorvint, kept under its old name.
+const FormatterCorvint = rubytestreceipt.FormatterCorvint
+
+// FormatterStock is rubytestreceipt.FormatterStock, kept under its old name.
+const FormatterStock = rubytestreceipt.FormatterStock
 
 // corvintFormatter is the Ruby source of the Corvint-shipped formatter, written
 // under .corvint/rspec for one run and removed afterwards.
@@ -51,7 +46,7 @@ const (
 var corvintFormatter []byte
 
 // FormatterClass is the Ruby class the Corvint-shipped formatter registers.
-const FormatterClass = formatterClass
+const FormatterClass = rubytestreceipt.FormatterClass
 
 // CorvintFormatterSource returns a copy of the Corvint-shipped formatter
 // bytes. The corvint-test-runner rspec profile writes these same bytes, so one
@@ -78,10 +73,6 @@ type Config struct {
 
 // observeRepository names the host test repository; tests may replace it.
 var observeRepository = jstestprovider.ObserveTestRepositoryAtStart
-
-// maxSnapshotEntries bounds every directory entry a spec-tree walk visits,
-// whatever its type; tests may lower it.
-var maxSnapshotEntries = 16384
 
 // EnclosingWorktree is the nearest symlink-resolved ancestor of dir (dir
 // included) holding a .git entry, the root corvint test-validity --discover is
@@ -134,7 +125,7 @@ func Run(ctx context.Context, config Config) (Document, error) {
 		return Document{}, errors.New("more --spec selectors than the bound")
 	}
 	for _, spec := range config.Specs {
-		if _, err := parseSelector(spec); err != nil {
+		if _, err := rubytestreceipt.ParseSelector(spec); err != nil {
 			return Document{}, err
 		}
 	}
@@ -158,16 +149,16 @@ func Run(ctx context.Context, config Config) (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
-	jsonReport := reportDirectory + "/" + nonce + ".json"
-	junitReport := reportDirectory + "/" + nonce + ".xml"
-	formatterFile := reportDirectory + "/" + nonce + "-formatter.rb"
+	jsonReport := rubytestreceipt.ReportDirectory + "/" + nonce + ".json"
+	junitReport := rubytestreceipt.ReportDirectory + "/" + nonce + ".xml"
+	formatterFile := rubytestreceipt.ReportDirectory + "/" + nonce + "-formatter.rb"
 	argv := append(append([]string{}, config.ExecPrefix...), rspec...)
 	if shipped {
 		if err := root.WriteFile(formatterFile, corvintFormatter, 0o644); err != nil {
 			return Document{}, err
 		}
 		defer root.Remove(formatterFile)
-		argv = append(argv, "--require", "./"+formatterFile, "--format", formatterClass, "--out", jsonReport)
+		argv = append(argv, "--require", "./"+formatterFile, "--format", rubytestreceipt.FormatterClass, "--out", jsonReport)
 	} else {
 		argv = append(argv, "--format", "json", "--out", jsonReport)
 	}
@@ -201,12 +192,12 @@ func Run(ctx context.Context, config Config) (Document, error) {
 		document.Runtime = probeRuntime(ctx, config.ExecPrefix, dir, timeout)
 	}
 
-	observation := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: dir, Env: os.Environ(), Timeout: timeout, OutputLimit: maxRunnerOutputBytes, OverflowPolicy: procgroup.OverflowTruncate})
-	report, reportErr := readBounded(root, jsonReport, maxReportBytes)
+	observation := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: dir, Env: os.Environ(), Timeout: timeout, OutputLimit: rubytestreceipt.MaxRunnerOutputBytes, OverflowPolicy: procgroup.OverflowTruncate})
+	report, reportErr := readBounded(root, jsonReport, rubytestreceipt.MaxReportBytes)
 	var junit []byte
 	var junitErr error
 	if config.JUnit {
-		junit, junitErr = readBounded(root, junitReport, maxReportBytes)
+		junit, junitErr = readBounded(root, junitReport, rubytestreceipt.MaxReportBytes)
 	}
 	_ = root.Remove(jsonReport)
 	_ = root.Remove(junitReport)
@@ -344,19 +335,19 @@ func parseReport(data []byte) (rspecReport, error) {
 // the run: a 64-hex ID, or not-reported for any missing, unreadable or
 // malformed value (LPCV-V0-138).
 func runContainer(data []byte, readErr error) *RuntimeFact {
-	unknown := &RuntimeFact{Unknown: runtimeNotReported}
+	unknown := &RuntimeFact{Unknown: rubytestreceipt.RuntimeNotReported}
 	if readErr != nil {
 		return unknown
 	}
 	report, err := parseReport(data)
-	if err != nil || report.CorvintRuntime == nil || report.CorvintRuntime.Container == nil || !blobPattern("sha256", *report.CorvintRuntime.Container) {
+	if err != nil || report.CorvintRuntime == nil || report.CorvintRuntime.Container == nil || !rubytestreceipt.BlobPattern("sha256", *report.CorvintRuntime.Container) {
 		return unknown
 	}
 	return &RuntimeFact{Value: *report.CorvintRuntime.Container}
 }
 
 func (report rspecReport) version() string {
-	if report.Version == nil || !versionValue(*report.Version) {
+	if report.Version == nil || !rubytestreceipt.VersionValue(*report.Version) {
 		return ""
 	}
 	return *report.Version
@@ -379,7 +370,7 @@ func observeExample(raw rspecExample, project, helperSet string, before, after s
 	}
 	example := Example{ID: worktreeFile + ":" + strconv.Itoa(raw.LineNumber), File: worktreeFile, Line: raw.LineNumber, Status: closedStatus(raw.Status), Helpers: helperSet}
 	example.SharedExample, example.SharedExampleAbsent = observeShared(raw.SharedGroupInclusionBacktrace, project, example.ID)
-	if len(raw.ID) <= maxRSpecIDBytes && !secretscreen.MatchString(raw.ID) {
+	if len(raw.ID) <= rubytestreceipt.MaxRSpecIDBytes && !secretscreen.MatchString(raw.ID) {
 		example.RSpecID = raw.ID
 	}
 	switch {
@@ -408,17 +399,10 @@ func observeExample(raw rspecExample, project, helperSet string, before, after s
 
 func closedStatus(status string) string {
 	switch status {
-	case statusPassed, statusFailed, statusPending:
+	case rubytestreceipt.StatusPassed, rubytestreceipt.StatusFailed, rubytestreceipt.StatusPending:
 		return status
 	}
 	return "unknown"
-}
-
-// isHelperPath reports whether a project-relative name is, or lies under, a
-// conventional helper path: spec/spec_helper.rb, spec/rails_helper.rb or
-// spec/support.
-func isHelperPath(name string) bool {
-	return name == "spec/spec_helper.rb" || name == "spec/rails_helper.rb" || name == "spec/support" || strings.HasPrefix(name, "spec/support/")
 }
 
 // bindHelpers records the conventional helper files present before the run:
@@ -433,12 +417,12 @@ func bindHelpers(document *Document, before, after snapshot) {
 		document.HelpersUnbound = after.unbound
 	}
 	for _, name := range append(append([]string{}, before.irregular...), after.irregular...) {
-		if isHelperPath(name) && document.HelpersUnbound == "" {
+		if rubytestreceipt.IsHelperPath(name) && document.HelpersUnbound == "" {
 			document.HelpersUnbound = "helper-not-regular-file"
 		}
 	}
 	for _, name := range before.sorted() {
-		if !isHelperPath(name) {
+		if !rubytestreceipt.IsHelperPath(name) {
 			continue
 		}
 		blob := before.files[name]
@@ -477,13 +461,13 @@ func (s snapshot) sorted() []string {
 	for name := range s.files {
 		names = append(names, name)
 	}
-	sortStrings(names)
+	rubytestreceipt.SortStrings(names)
 	return names
 }
 
 func takeSnapshot(ctx context.Context, root *os.Root, format string) snapshot {
 	result := snapshot{files: map[string]string{}}
-	err := walkTree(ctx, root, "spec", func(name string, mode fs.FileMode) error {
+	err := rubytestreceipt.WalkTree(ctx, root, "spec", func(name string, mode fs.FileMode) error {
 		if !mode.IsRegular() {
 			result.irregular = append(result.irregular, name)
 			return nil
@@ -492,13 +476,13 @@ func takeSnapshot(ctx context.Context, root *os.Root, format string) snapshot {
 			return nil
 		}
 		if len(result.files) == MaxSnapshotFiles {
-			return errSnapshotOverBound
+			return rubytestreceipt.ErrSnapshotOverBound
 		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		data, err := readBounded(root, name, MaxSpecFileBytes)
-		if errors.Is(err, errOverBound) {
+		if errors.Is(err, rubytestreceipt.ErrOverBound) {
 			result.files[name] = ""
 			return nil
 		}
@@ -509,7 +493,7 @@ func takeSnapshot(ctx context.Context, root *os.Root, format string) snapshot {
 		return nil
 	})
 	switch {
-	case errors.Is(err, errSnapshotOverBound):
+	case errors.Is(err, rubytestreceipt.ErrSnapshotOverBound):
 		return snapshot{files: map[string]string{}, unbound: "spec-snapshot-over-bound"}
 	case err != nil:
 		return snapshot{files: map[string]string{}, unbound: "spec-snapshot-unavailable"}
@@ -517,138 +501,10 @@ func takeSnapshot(ctx context.Context, root *os.Root, format string) snapshot {
 	return result
 }
 
-// CurrentHelpers lists, sorted and worktree-relative, the conventional helper
-// files of projectDirectory as they are now, under the same paths and entry
-// bound as a run. A helper path that is not a regular file, or a tree over the
-// bound, is an error: the current set cannot be compared (LPCV-V0-094).
+// CurrentHelpers is rubytestreceipt.CurrentHelpers, kept under its old name.
 func CurrentHelpers(root *os.Root, projectDirectory string) ([]string, error) {
-	prefix := ""
-	if projectDirectory != "." {
-		prefix = projectDirectory + "/"
-	}
-	info, err := root.Lstat(filepath.FromSlash(prefix + "spec"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return []string{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	if !info.IsDir() {
-		return nil, errNotDirectory
-	}
-	helpers := []string{}
-	visit := func(name string, mode fs.FileMode) error {
-		if !isHelperPath(strings.TrimPrefix(name, prefix)) {
-			return nil
-		}
-		if !mode.IsRegular() {
-			return errors.New("a helper path is not a regular file")
-		}
-		if strings.HasSuffix(name, ".rb") {
-			helpers = append(helpers, name)
-		}
-		return nil
-	}
-	for _, name := range []string{prefix + "spec/spec_helper.rb", prefix + "spec/rails_helper.rb"} {
-		info, err := root.Lstat(filepath.FromSlash(name))
-		if errors.Is(err, fs.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		if err := visit(name, info.Mode().Type()); err != nil {
-			return nil, err
-		}
-	}
-	if err := walkTree(context.Background(), root, prefix+"spec/support", visit); err != nil {
-		return nil, err
-	}
-	sortStrings(helpers)
-	return helpers, nil
+	return rubytestreceipt.CurrentHelpers(root, projectDirectory)
 }
-
-// walkTree visits every non-directory entry under start without following a
-// symlink, counting every entry against maxSnapshotEntries. A missing start is
-// empty; a start that is not a real directory is errNotDirectory.
-func walkTree(ctx context.Context, root *os.Root, start string, visit func(name string, mode fs.FileMode) error) error {
-	info, err := root.Lstat(filepath.FromSlash(start))
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() {
-		return errNotDirectory
-	}
-	pending, entries := []string{start}, 0
-	for len(pending) > 0 {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		name := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		children, err := listDirectory(root, name, &entries)
-		if err != nil {
-			return err
-		}
-		for _, child := range children {
-			childName := name + "/" + child.Name()
-			if child.IsDir() {
-				pending = append(pending, childName)
-				continue
-			}
-			if err := visit(childName, child.Type()); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// listDirectory reads one directory in chunks, refusing it once the walk's
-// entry count passes maxSnapshotEntries, and only when the opened directory is
-// the one a no-follow Lstat admitted.
-func listDirectory(root *os.Root, name string, entries *int) ([]fs.DirEntry, error) {
-	admitted, err := root.Lstat(filepath.FromSlash(name))
-	if err != nil {
-		return nil, err
-	}
-	if !admitted.IsDir() {
-		return nil, errNotDirectory
-	}
-	directory, err := root.Open(filepath.FromSlash(name))
-	if err != nil {
-		return nil, err
-	}
-	defer directory.Close()
-	opened, err := directory.Stat()
-	if err != nil || !os.SameFile(admitted, opened) {
-		return nil, errors.New("directory changed while it was opened")
-	}
-	var children []fs.DirEntry
-	for {
-		batch, err := directory.ReadDir(256)
-		*entries += len(batch)
-		if *entries > maxSnapshotEntries {
-			return nil, errSnapshotOverBound
-		}
-		children = append(children, batch...)
-		if errors.Is(err, io.EOF) || err == nil && len(batch) == 0 {
-			return children, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-	}
-}
-
-var (
-	errOverBound         = errors.New("file is over its bound")
-	errSnapshotOverBound = errors.New("spec snapshot is over its bound")
-	errNotDirectory      = errors.New("not a real directory")
-)
 
 // readBounded reads one regular file under root without following a final
 // symlink or blocking on a special file, refusing content over limit and a
@@ -678,7 +534,7 @@ func readBounded(root *os.Root, name string, limit int64) ([]byte, error) {
 		return nil, err
 	}
 	if int64(len(data)) > limit {
-		return nil, errOverBound
+		return nil, rubytestreceipt.ErrOverBound
 	}
 	return data, nil
 }
@@ -691,7 +547,7 @@ func readBounded(root *os.Root, name string, limit int64) ([]byte, error) {
 func ensureReportDirectory(root *os.Root) error {
 	_, err := root.Lstat(".corvint")
 	createdCorvint := errors.Is(err, fs.ErrNotExist)
-	for _, name := range []string{".corvint", reportDirectory} {
+	for _, name := range []string{".corvint", rubytestreceipt.ReportDirectory} {
 		if err := root.Mkdir(name, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
 			return err
 		}
@@ -703,7 +559,7 @@ func ensureReportDirectory(root *os.Root) error {
 			return fmt.Errorf("%s is not a directory", name)
 		}
 	}
-	reports, err := root.OpenRoot(reportDirectory)
+	reports, err := root.OpenRoot(rubytestreceipt.ReportDirectory)
 	if err != nil {
 		return err
 	}

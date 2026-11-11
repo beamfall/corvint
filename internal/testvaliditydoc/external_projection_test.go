@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/testvalidity"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // recordedExternal reads the qualified corvint-playwright-external/3 document of one recorded
@@ -54,10 +55,10 @@ func TestPWPV0153CompleteExternalReceiptNamesRunAndFreshness(t *testing.T) {
 	}
 	// A stale build stays stale, and a run without tests keeps its own reason.
 	stale := testvalidity.Project(testvalidity.Input{Execution: &testvalidity.ExecutionFacts{Currency: testvalidity.FreshnessStale}})
-	if got := externalRunProjection(stale, []Test{{}}); got.Freshness.State != testvalidity.FreshnessStale {
+	if got := testvaliditymodel.ExternalRunProjection(stale, []Test{{}}); got.Freshness.State != testvalidity.FreshnessStale {
 		t.Errorf("stale: %+v", got.Freshness)
 	}
-	if got := externalRunProjection(testvalidity.Project(testvalidity.Input{}), nil); got.Execution.Reason != "no-input-supplied" || got.Freshness.Reason != ReasonExternalCurrencyUnverified {
+	if got := testvaliditymodel.ExternalRunProjection(testvalidity.Project(testvalidity.Input{}), nil); got.Execution.Reason != "no-input-supplied" || got.Freshness.Reason != ReasonExternalCurrencyUnverified {
 		t.Errorf("no tests: %+v", got)
 	}
 }

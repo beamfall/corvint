@@ -7,7 +7,7 @@ import (
 	"io"
 	"sort"
 
-	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 const EdgeLedgerSchema = "application-edge-ledger/0"
@@ -503,7 +503,7 @@ func receiptsAt(e *verifier, receipts []receiptInput, key string, revisions map[
 			if t.ID != key {
 				continue
 			}
-			rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t)
+			rev, _ := jstestreceipt.QualifiedApplicationRevision(in.r, t)
 			if revisions[rev] || !commitOID.MatchString(rev) || e.anchorsAt(rev, anchors).evaluated != rev {
 				kept = append(kept, in)
 				break
@@ -551,15 +551,15 @@ func keyUncertain(e *verifier, key string, anchors []Anchor) bool {
 			if t.ID != key {
 				continue
 			}
-			if !jstestprovider.QualifiedReceiptBindingReady(in.r, t) {
+			if !jstestreceipt.QualifiedReceiptBindingReady(in.r, t) {
 				return true
 			}
 			switch t.State {
-			case jstestprovider.StatePassed, jstestprovider.StateFailed, jstestprovider.StateTimedOut:
+			case jstestreceipt.StatePassed, jstestreceipt.StateFailed, jstestreceipt.StateTimedOut:
 			default:
 				return true
 			}
-			if rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t); !commitOID.MatchString(rev) || e.anchorsAt(rev, anchors).evaluated != rev || e.anchorsAt(rev, anchors).state != Fresh {
+			if rev, _ := jstestreceipt.QualifiedApplicationRevision(in.r, t); !commitOID.MatchString(rev) || e.anchorsAt(rev, anchors).evaluated != rev || e.anchorsAt(rev, anchors).state != Fresh {
 				return true
 			}
 		}

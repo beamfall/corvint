@@ -96,49 +96,49 @@ func jsAssertion(name string) bool {
 
 func readJSTeardown(name, text string) tdFile {
 	s := parseSource(name, text)
-	f := tdFile{framework: "jsts", uncertain: s.uncertain}
-	if s.uncertain {
+	f := tdFile{framework: "jsts", uncertain: s.Uncertain}
+	if s.Uncertain {
 		f.reason = "file-uncertain"
 	}
 	groups := func(i int) []int {
 		out := []int{}
-		for k, d := range s.decls {
-			if d.kind == "describe" && within(i, d.body) {
+		for k, d := range s.Decls {
+			if d.Kind == "describe" && within(i, d.Body) {
 				out = append(out, k)
 			}
 		}
 		return out
 	}
 	inTest := func(i int) bool {
-		for _, d := range s.decls {
-			if d.kind == "test" && within(i, d.body) {
+		for _, d := range s.Decls {
+			if d.Kind == "test" && within(i, d.Body) {
 				return true
 			}
 		}
 		return false
 	}
 	hooks := []jsHook{}
-	for i, t := range s.tokens {
+	for i, t := range s.Tokens {
 		hook := jsSetupHooks[t.Text] || jsTeardownHooks[t.Text] || jsUnreadHooks[t.Text]
-		if !s.ident(i, "") || !hook || (s.memberAccess(i) && !(s.ident(i-2, "test") && !s.memberAccess(i-2))) {
+		if !s.Ident(i, "") || !hook || (s.MemberAccess(i) && !(s.Ident(i-2, "test") && !s.MemberAccess(i-2))) {
 			continue
 		}
-		if !s.punct(i+1, "(") || s.match[i+1] < 0 || inTest(i) {
+		if !s.Punct(i+1, "(") || s.Match[i+1] < 0 || inTest(i) {
 			continue
 		}
-		for _, arg := range s.splitArgs(i+1, s.match[i+1]) {
-			if s.callback(arg) {
-				hooks = append(hooks, jsHook{name: t.Text, at: i, body: s.callbackBody(arg), groups: groups(i)})
+		for _, arg := range s.SplitArgs(i+1, s.Match[i+1]) {
+			if s.Callback(arg) {
+				hooks = append(hooks, jsHook{name: t.Text, at: i, body: callbackBody(s, arg), groups: groups(i)})
 				break
 			}
 		}
 	}
-	for _, d := range s.decls {
-		if d.kind != "test" || d.body[1] <= d.body[0] {
+	for _, d := range s.Decls {
+		if d.Kind != "test" || d.Body[1] <= d.Body[0] {
 			continue
 		}
-		enclosing := groups(d.at)
-		ex := tdExample{title: d.title, titled: d.titled, line: d.line}
+		enclosing := groups(d.At)
+		ex := tdExample{title: d.Title, titled: d.Titled, line: d.Line}
 		applying := []jsHook{}
 		for _, h := range hooks {
 			if subset(h.groups, enclosing) {
@@ -149,12 +149,12 @@ func readJSTeardown(name, text string) tdFile {
 		add := ex.adder()
 		for _, h := range applying {
 			if jsSetupHooks[h.name] {
-				add(s.tdCalls(h.body), phaseSetup, 0, 0)
+				add(tdCalls(s, h.body), phaseSetup, 0, 0)
 			}
 		}
 		// finally code keeps its source position: it runs where it stands, not at the example's end.
-		finals := s.finallyBlocks(d.body)
-		for _, c := range s.tdCalls(s.callbackBody(d.body)) {
+		finals := finallyBlocks(s, d.Body)
+		for _, c := range tdCalls(s, callbackBody(s, d.Body)) {
 			c.phase = phaseBody
 			for _, r := range finals {
 				if within(c.at, r) {
@@ -167,9 +167,9 @@ func readJSTeardown(name, text string) tdFile {
 			h := applying[k]
 			switch {
 			case jsTeardownHooks[h.name]:
-				add(s.tdCalls(h.body), phaseTeardown, 1+h.at, 1+len(enclosing)-len(h.groups))
+				add(tdCalls(s, h.body), phaseTeardown, 1+h.at, 1+len(enclosing)-len(h.groups))
 			case jsUnreadHooks[h.name]:
-				ex.unread = append(ex.unread, s.tdCalls(h.body)...)
+				ex.unread = append(ex.unread, tdCalls(s, h.body)...)
 			}
 		}
 		f.examples = append(f.examples, ex)
@@ -207,12 +207,12 @@ func subset(inner, outer []int) bool {
 }
 
 // finallyBlocks returns the `finally { }` blocks inside a range.
-func (s *source) finallyBlocks(r [2]int) [][2]int {
+func finallyBlocks(s *source, r [2]int) [][2]int {
 	out := [][2]int{}
 	for i := r[0]; i < r[1]; i++ {
-		if s.ident(i, "finally") && s.punct(i+1, "{") && s.match[i+1] > i+1 {
-			out = append(out, [2]int{i + 2, s.match[i+1]})
-			i = s.match[i+1]
+		if s.Ident(i, "finally") && s.Punct(i+1, "{") && s.Match[i+1] > i+1 {
+			out = append(out, [2]int{i + 2, s.Match[i+1]})
+			i = s.Match[i+1]
 		}
 	}
 	return out
@@ -220,18 +220,18 @@ func (s *source) finallyBlocks(r [2]int) [][2]int {
 
 // callbackBody returns the token range of a callback argument's function body, inside its braces,
 // or the expression of a brace-less arrow; the whole argument when neither is found.
-func (s *source) callbackBody(arg [2]int) [2]int {
+func callbackBody(s *source, arg [2]int) [2]int {
 	for i := arg[0]; i < arg[1]; i++ {
 		switch {
-		case s.punct(i, "(") && s.match[i] > i:
-			i = s.match[i]
-		case s.arrow(i):
-			if s.punct(i+2, "{") && s.match[i+2] > i+2 {
-				return [2]int{i + 3, s.match[i+2]}
+		case s.Punct(i, "(") && s.Match[i] > i:
+			i = s.Match[i]
+		case s.Arrow(i):
+			if s.Punct(i+2, "{") && s.Match[i+2] > i+2 {
+				return [2]int{i + 3, s.Match[i+2]}
 			}
 			return [2]int{i + 2, arg[1]}
-		case s.punct(i, "{") && s.match[i] > i:
-			return [2]int{i + 1, s.match[i]}
+		case s.Punct(i, "{") && s.Match[i] > i:
+			return [2]int{i + 1, s.Match[i]}
 		}
 	}
 	return arg
@@ -240,41 +240,41 @@ func (s *source) callbackBody(arg [2]int) [2]int {
 // conditional reports that the call at token i may not run each time the range r runs: it sits in
 // a function nested in r, an if/else, a loop, a switch, a catch, a ternary or after a short-circuit
 // operator (TSA-V0-112). try and finally blocks and plain blocks run.
-func (s *source) conditional(i int, r [2]int) bool {
+func conditional(s *source, i int, r [2]int) bool {
 	statement := true // still inside the statement that holds the call
 	for j := i - 1; j >= r[0]; j-- {
-		if s.punct(j, ")") || s.punct(j, "]") || s.punct(j, "}") {
-			open := s.match[j]
+		if s.Punct(j, ")") || s.Punct(j, "]") || s.Punct(j, "}") {
+			open := s.Match[j]
 			if open < 0 || open > j {
 				return true // unbalanced: execution cannot be established
 			}
-			if statement && s.punct(j, ")") && (s.ident(open-1, "if") || s.ident(open-1, "for") || s.ident(open-1, "while")) {
+			if statement && s.Punct(j, ")") && (s.Ident(open-1, "if") || s.Ident(open-1, "for") || s.Ident(open-1, "while")) {
 				return true // a brace-less if or loop
 			}
-			if s.punct(j, "}") {
+			if s.Punct(j, "}") {
 				statement = false
 			}
 			j = open
 			continue
 		}
 		switch {
-		case s.punct(j, ";"):
+		case s.Punct(j, ";"):
 			statement = false
-		case s.punct(j, "{"):
+		case s.Punct(j, "{"):
 			before := j - 1
 			switch {
-			case s.punct(before, ">") && s.arrow(before-1),
-				s.punct(before, ")"), // if/for/while/switch/catch, or a function or method body
-				s.ident(before, "else"), s.ident(before, "do"), s.ident(before, "catch"):
+			case s.Punct(before, ">") && s.Arrow(before-1),
+				s.Punct(before, ")"), // if/for/while/switch/catch, or a function or method body
+				s.Ident(before, "else"), s.Ident(before, "do"), s.Ident(before, "catch"):
 				return true
 			}
 			statement = true // a block, try/finally or object literal: its own statement continues
 		case !statement:
-		case s.arrow(j), s.ident(j, "else"), s.ident(j, "do"):
+		case s.Arrow(j), s.Ident(j, "else"), s.Ident(j, "do"):
 			return true
-		case s.punct(j, "?") && !s.punct(j+1, "."):
+		case s.Punct(j, "?") && !s.Punct(j+1, "."):
 			return true // a ternary or ??
-		case (s.punct(j, "&") && s.punct(j-1, "&")) || (s.punct(j, "|") && s.punct(j-1, "|")):
+		case (s.Punct(j, "&") && s.Punct(j-1, "&")) || (s.Punct(j, "|") && s.Punct(j-1, "|")):
 			return true
 		}
 	}
@@ -282,49 +282,49 @@ func (s *source) conditional(i int, r [2]int) bool {
 }
 
 // tdCalls lists the calls in a range in token order.
-func (s *source) tdCalls(r [2]int) []tdCall {
+func tdCalls(s *source, r [2]int) []tdCall {
 	out := []tdCall{}
 	for i := r[0]; i < r[1]; i++ {
-		if !s.ident(i, "") || !s.punct(i+1, "(") || s.match[i+1] < 0 {
+		if !s.Ident(i, "") || !s.Punct(i+1, "(") || s.Match[i+1] < 0 {
 			continue
 		}
-		name := s.tokens[i].Text
-		if jsNotCalls[name] || s.ident(i-1, "function") || jsAssertion(name) {
+		name := s.Tokens[i].Text
+		if jsNotCalls[name] || s.Ident(i-1, "function") || jsAssertion(name) {
 			continue
 		}
-		c := tdCall{name: name, line: s.tokens[i].Line, mentions: map[string]bool{}, at: i, conditional: s.conditional(i, r)}
+		c := tdCall{name: name, line: s.Tokens[i].Line, mentions: map[string]bool{}, at: i, conditional: conditional(s, i, r)}
 		root := i
-		for s.punct(root-1, ".") {
+		for s.Punct(root-1, ".") {
 			k := root - 2
-			if s.punct(k, "?") {
+			if s.Punct(k, "?") {
 				k--
 			}
-			if !s.ident(k, "") {
+			if !s.Ident(k, "") {
 				root = -1
 				break
 			}
 			root = k
 		}
 		if root >= 0 && root != i {
-			c.mentions[s.tokens[root].Text] = true
+			c.mentions[s.Tokens[root].Text] = true
 		}
-		for _, arg := range s.splitArgs(i+1, s.match[i+1]) {
-			if s.callback(arg) {
+		for _, arg := range s.SplitArgs(i+1, s.Match[i+1]) {
+			if s.Callback(arg) {
 				continue
 			}
 			for k := arg[0]; k < arg[1]; k++ {
-				if s.ident(k, "") && !s.memberAccess(k) {
-					c.mentions[s.tokens[k].Text] = true
+				if s.Ident(k, "") && !s.MemberAccess(k) {
+					c.mentions[s.Tokens[k].Text] = true
 				}
 			}
 		}
 		if root >= 0 {
 			k := root - 1
-			if s.ident(k, "await") {
+			if s.Ident(k, "await") {
 				k--
 			}
-			if s.punct(k, "=") && s.ident(k-1, "") && !s.memberAccess(k-1) {
-				c.assigned = s.tokens[k-1].Text
+			if s.Punct(k, "=") && s.Ident(k-1, "") && !s.MemberAccess(k-1) {
+				c.assigned = s.Tokens[k-1].Text
 			}
 		}
 		out = append(out, c)
@@ -399,7 +399,7 @@ func readRSpecTeardown(text string, effects sideEffects) tdFile {
 
 // block returns the body of the block opened on line i and the index of its last line.
 func (w *rbWalker) block(i int) ([]rubyLine, int) {
-	text := w.lines[i].text
+	text := w.lines[i].Text
 	if rubyDo.MatchString(text) {
 		end := rubyBlockEnd(w.lines, i)
 		if end >= len(w.lines) {
@@ -421,13 +421,13 @@ func (w *rbWalker) block(i int) ([]rubyLine, int) {
 		case '}':
 			depth--
 			if depth == 0 {
-				return []rubyLine{{line: w.lines[i].line, text: strings.TrimSpace(stripped[open+1 : k])}}, i
+				return []rubyLine{{Line: w.lines[i].Line, Text: strings.TrimSpace(stripped[open+1 : k])}}, i
 			}
 		}
 	}
-	body := []rubyLine{{line: w.lines[i].line, text: strings.TrimSpace(stripped[open+1:])}}
+	body := []rubyLine{{Line: w.lines[i].Line, Text: strings.TrimSpace(stripped[open+1:])}}
 	for j := i + 1; j < len(w.lines); j++ {
-		for _, c := range tdRubyString.ReplaceAllString(w.lines[j].text, `""`) {
+		for _, c := range tdRubyString.ReplaceAllString(w.lines[j].Text, `""`) {
 			switch c {
 			case '{':
 				depth++
@@ -446,7 +446,7 @@ func (w *rbWalker) block(i int) ([]rubyLine, int) {
 
 // skip returns the last line of a block opened on line i, or i.
 func (w *rbWalker) skip(i int) int {
-	text := w.lines[i].text
+	text := w.lines[i].Text
 	if rubyOpens(text) || strings.Count(text, "{") > strings.Count(text, "}") {
 		_, end := w.block(i)
 		return end
@@ -457,7 +457,7 @@ func (w *rbWalker) skip(i int) int {
 func (w *rbWalker) group(lo, hi, depth int, outer []rbHook) {
 	hooks := append([]rbHook{}, outer...)
 	for i := lo; i < hi; i++ {
-		text := w.lines[i].text
+		text := w.lines[i].Text
 		if m := tdRubyHook.FindStringSubmatch(text); m != nil && !strings.HasPrefix(strings.TrimSpace(m[2]), "=") {
 			kind, opens := hookKind(m[1], m[2])
 			end, body := i, []rubyLine(nil)
@@ -482,7 +482,7 @@ func (w *rbWalker) group(lo, hi, depth int, outer []rbHook) {
 		i = w.skip(i)
 	}
 	for i := lo; i < hi; i++ {
-		text := w.lines[i].text
+		text := w.lines[i].Text
 		switch {
 		case tdRubyGroup.MatchString(text) && rubyDo.MatchString(text):
 			end := rubyBlockEnd(w.lines, i)
@@ -505,7 +505,7 @@ func (w *rbWalker) group(lo, hi, depth int, outer []rbHook) {
 			i = end
 		case tdRubyExample.MatchString(text):
 			body, end := w.block(i)
-			w.example(text, w.lines[i].line, body, depth, hooks)
+			w.example(text, w.lines[i].Line, body, depth, hooks)
 			i = end
 		default:
 			i = w.skip(i)
@@ -542,13 +542,13 @@ func hookKind(name, rest string) (string, bool) {
 
 // braceGroup returns the closing line of a multi-line brace group opened on line i.
 func (w *rbWalker) braceGroup(i, hi int) (int, bool) {
-	text := tdRubyString.ReplaceAllString(w.lines[i].text, `""`)
+	text := tdRubyString.ReplaceAllString(w.lines[i].Text, `""`)
 	if !strings.HasSuffix(text, "{") || strings.Count(text, "{") != strings.Count(text, "}")+1 {
 		return 0, false
 	}
 	depth := 1
 	for j := i + 1; j < hi; j++ {
-		line := tdRubyString.ReplaceAllString(w.lines[j].text, `""`)
+		line := tdRubyString.ReplaceAllString(w.lines[j].Text, `""`)
 		depth += strings.Count(line, "{") - strings.Count(line, "}")
 		if depth <= 0 {
 			rest := strings.TrimSpace(strings.TrimPrefix(line, "}"))
@@ -567,7 +567,7 @@ func (w *rbWalker) blockCalls(lines []rubyLine, phase string, ensure bool) []tdC
 	stack := []bool{} // per open block: whether its lines may not run
 	ensureAt, rescueAt := -1, -1
 	for _, l := range lines {
-		text := tdRubyString.ReplaceAllString(l.text, `""`)
+		text := tdRubyString.ReplaceAllString(l.Text, `""`)
 		switch {
 		case rubyEnd.MatchString(text):
 			if len(stack) > 0 {
@@ -655,7 +655,7 @@ func (w *rbWalker) example(text string, line int, body []rubyLine, depth int, ho
 func (w *rbWalker) calls(lines []rubyLine, teardown bool) []tdCall {
 	out := []tdCall{}
 	for _, l := range lines {
-		text := tdRubyString.ReplaceAllString(l.text, `""`)
+		text := tdRubyString.ReplaceAllString(l.Text, `""`)
 		locs := tdRubyToken.FindAllStringIndex(text, -1)
 		toks := make([]string, len(locs))
 		for k, loc := range locs {
@@ -683,7 +683,7 @@ func (w *rbWalker) calls(lines []rubyLine, teardown bool) []tdCall {
 			if !paren && !w.effects.declared(tok) && !bare {
 				continue
 			}
-			c := tdCall{name: tok, line: l.line, mentions: map[string]bool{}}
+			c := tdCall{name: tok, line: l.Line, mentions: map[string]bool{}}
 			if root != k {
 				c.mentions[toks[root]] = true
 			}

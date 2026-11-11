@@ -1,4 +1,4 @@
-package testsource
+package testdiscovery
 
 import (
 	"regexp"
@@ -8,10 +8,6 @@ import (
 	"github.com/Beamfall/corvint/internal/appmap"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
-
-// The Playwright half of the static test discovery (DCX-V1-371..376). It reuses the TSA-V0-073
-// example reader (jsReader) for placement, titles and abstention, and its token helpers for
-// expectations, calls and imports.
 
 var (
 	// jsHookNames are the hooks a describe or the file applies to its examples, with their scope.
@@ -50,21 +46,21 @@ type jsRuntime struct {
 
 type jsDiscovery struct {
 	f       *discoveryFile
-	r       *jsReader
-	s       *source
+	r       *JSReader
+	s       *Source
 	hooks   []jsDiscoveryHook
 	runtime []jsRuntime
 }
 
 // discoverJS reads one Playwright test file and returns "" or the file's uncertainty reason.
 func (f *discoveryFile) discoverJS() string {
-	s := parseSource(f.path, f.text)
-	if s.uncertain {
-		f.unknown("", validitySourceUnparsed, "the lexer could not place some source or a bracket does not balance, so no example is read", 0, 0)
-		return validitySourceUnparsed
+	s := ParseSource(f.path, f.text)
+	if s.Uncertain {
+		f.unknown("", ValiditySourceUnparsed, "the lexer could not place some source or a bracket does not balance, so no example is read", 0, 0)
+		return ValiditySourceUnparsed
 	}
-	r := &jsReader{s: s, name: f.path}
-	r.read()
+	r := &JSReader{S: s, Name: f.path}
+	r.Read()
 	d := &jsDiscovery{f: f, r: r, s: s}
 	d.readCalls()
 	runtimeAt := map[int]bool{}
@@ -72,23 +68,23 @@ func (f *discoveryFile) discoverJS() string {
 		runtimeAt[a.at] = true
 	}
 	perLine := map[int]int{}
-	for _, e := range r.decls {
-		if e.kind == "test" && !runtimeAt[e.at] {
-			perLine[e.line]++
+	for _, e := range r.Decls {
+		if e.Kind == "test" && !runtimeAt[e.At] {
+			perLine[e.Line]++
 		}
 	}
-	for _, e := range r.decls {
-		if e.kind != "test" || runtimeAt[e.at] {
+	for _, e := range r.Decls {
+		if e.Kind != "test" || runtimeAt[e.At] {
 			continue
 		}
-		d.example(e, perLine[e.line])
+		d.example(e, perLine[e.Line])
 	}
 	return ""
 }
 
 // tokenEnd is the last line token i covers.
 func (d *jsDiscovery) tokenEnd(i int) int {
-	t := d.s.tokens[i]
+	t := d.s.Tokens[i]
 	raw := t.Source
 	if raw == "" {
 		raw = t.Text
@@ -101,23 +97,23 @@ func (d *jsDiscovery) rangeLines(start, end int) (int, int) {
 	if end <= start {
 		end = start + 1
 	}
-	return d.s.tokens[start].Line, d.tokenEnd(end - 1)
+	return d.s.Tokens[start].Line, d.tokenEnd(end - 1)
 }
 
 // readCalls places every hook call and every titleless runtime modifier call.
 func (d *jsDiscovery) readCalls() {
 	s := d.s
-	for i := range s.tokens {
-		if !s.ident(i, "") || s.ident(i-1, "function") || !s.punct(i+1, "(") || s.match[i+1] < 0 {
+	for i := range s.Tokens {
+		if !s.Ident(i, "") || s.Ident(i-1, "function") || !s.Punct(i+1, "(") || s.Match[i+1] < 0 {
 			continue
 		}
-		name := s.tokens[i].Text
-		testMember := s.memberAccess(i) && s.ident(i-2, "") && testRoots[s.tokens[i-2].Text] && !s.memberAccess(i-2)
-		args := s.splitArgs(i+1, s.match[i+1])
-		if scope, ok := jsHookNames[name]; ok && (testMember || !s.memberAccess(i)) {
-			h := jsDiscoveryHook{at: i, line: s.tokens[i].Line, endLine: s.tokens[s.match[i+1]].Line, kind: name, scope: scope}
+		name := s.Tokens[i].Text
+		testMember := s.MemberAccess(i) && s.Ident(i-2, "") && testRoots[s.Tokens[i-2].Text] && !s.MemberAccess(i-2)
+		args := s.SplitArgs(i+1, s.Match[i+1])
+		if scope, ok := jsHookNames[name]; ok && (testMember || !s.MemberAccess(i)) {
+			h := jsDiscoveryHook{at: i, line: s.Tokens[i].Line, endLine: s.Tokens[s.Match[i+1]].Line, kind: name, scope: scope}
 			for _, a := range args {
-				if body, _, ok := s.functionBody(a[0]); ok && body[1] <= a[1] {
+				if body, _, ok := s.FunctionBody(a[0]); ok && body[1] <= a[1] {
 					h.body, h.hasBody = body, true
 					break
 				}
@@ -130,9 +126,9 @@ func (d *jsDiscovery) readCalls() {
 		}
 		// test.skip('title', fn) declares an example; every other form is a runtime modifier.
 		declares := false
-		if len(args) > 1 && s.loneString(args[0]) {
+		if len(args) > 1 && s.LoneString(args[0]) {
 			for _, a := range args[1:] {
-				if _, _, ok := s.functionBody(a[0]); ok || s.callback(a) {
+				if _, _, ok := s.FunctionBody(a[0]); ok || s.Callback(a) {
 					declares = true
 				}
 			}
@@ -140,15 +136,15 @@ func (d *jsDiscovery) readCalls() {
 		if declares {
 			continue
 		}
-		a := jsRuntime{at: i - 2, line: s.tokens[i-2].Line, endLine: s.tokens[s.match[i+1]].Line, kind: name}
+		a := jsRuntime{at: i - 2, line: s.Tokens[i-2].Line, endLine: s.Tokens[s.Match[i+1]].Line, kind: name}
 		switch {
 		case len(args) == 0:
-		case len(args) == 1 && s.loneString(args[0]):
-			a.description = s.tokens[args[0][0]].Text
+		case len(args) == 1 && s.LoneString(args[0]):
+			a.description = s.Tokens[args[0][0]].Text
 		default:
-			a.conditional = !(args[0][1]-args[0][0] == 1 && s.ident(args[0][0], "true"))
-			if len(args) > 1 && s.loneString(args[1]) {
-				a.description = s.tokens[args[1][0]].Text
+			a.conditional = !(args[0][1]-args[0][0] == 1 && s.Ident(args[0][0], "true"))
+			if len(args) > 1 && s.LoneString(args[1]) {
+				a.description = s.Tokens[args[1][0]].Text
 			}
 		}
 		d.runtime = append(d.runtime, a)
@@ -157,70 +153,70 @@ func (d *jsDiscovery) readCalls() {
 
 // reaches reports that a statement at token i applies to example e under chain (its describes,
 // innermost first): in e's body, or at file or describe level outside every example body.
-func (d *jsDiscovery) reaches(i int, e jsDecl, chain []int) bool {
-	if e.hasBody && within(i, e.body) {
+func (d *jsDiscovery) reaches(i int, e JSDecl, chain []int) bool {
+	if e.HasBody && Within(i, e.Body) {
 		return true
 	}
-	if d.r.inExampleBody(i, -1) {
+	if d.r.InExampleBody(i, -1) {
 		return false
 	}
-	own := d.r.ancestors(i)
+	own := d.r.Ancestors(i)
 	return len(own) == 0 || slices.Contains(chain, own[0])
 }
 
 // declArgs recomputes the declaring call's argument ranges of decl e, as jsReader.read walks it.
-func (d *jsDiscovery) declArgs(e jsDecl) [][2]int {
+func (d *jsDiscovery) declArgs(e JSDecl) [][2]int {
 	s := d.s
-	j := e.at + 1
-	for s.punct(j, ".") && s.ident(j+1, "") {
-		member := s.tokens[j+1].Text
+	j := e.At + 1
+	for s.Punct(j, ".") && s.Ident(j+1, "") {
+		member := s.Tokens[j+1].Text
 		j += 2
-		if jsUnsupportedMembers[member] && s.punct(j, "(") && s.match[j] > j && s.punct(s.match[j]+1, "(") {
-			j = s.match[j] + 1
+		if jsUnsupportedMembers[member] && s.Punct(j, "(") && s.Match[j] > j && s.Punct(s.Match[j]+1, "(") {
+			j = s.Match[j] + 1
 		}
 		if member == "each" {
 			switch {
-			case s.punct(j, "(") && s.match[j] > j:
-				j = s.match[j] + 1
-			case j < len(s.tokens) && s.tokens[j].Kind == appmap.JSTemplate:
+			case s.Punct(j, "(") && s.Match[j] > j:
+				j = s.Match[j] + 1
+			case j < len(s.Tokens) && s.Tokens[j].Kind == appmap.JSTemplate:
 				j++
 			}
 		}
 	}
-	if !s.punct(j, "(") || s.match[j] < 0 {
+	if !s.Punct(j, "(") || s.Match[j] < 0 {
 		return nil
 	}
-	return s.splitArgs(j, s.match[j])
+	return s.SplitArgs(j, s.Match[j])
 }
 
-func (d *jsDiscovery) example(e jsDecl, sameLine int) {
+func (d *jsDiscovery) example(e JSDecl, sameLine int) {
 	f, r, s := d.f, d.r, d.s
-	out, ok := f.newExample(e.line, max(e.line, e.endLine))
+	out, ok := f.newExample(e.Line, max(e.Line, e.EndLine))
 	if !ok {
 		return
 	}
-	chain := r.ancestors(e.at)
-	out.Identity = ExampleIdentity{Kind: ExampleIdentityJS, File: f.path, Unknown: discoverReasonProjectNotStatic}
-	reason := r.abstention(e, sameLine)
+	chain := r.Ancestors(e.At)
+	out.Identity = ExampleIdentity{Kind: ExampleIdentityJS, File: f.path, Unknown: DiscoverReasonProjectNotStatic}
+	reason := r.Abstention(e, sameLine)
 	var titles []string
 	if reason != testvalidity.HygieneReasonJSLineAmbiguous {
-		titles = r.titlePath(e)
+		titles = r.TitlePath(e)
 	}
 	if titles == nil {
-		out.TitleUnknown = discoverReasonTitleNotLiteral
+		out.TitleUnknown = DiscoverReasonTitleNotLiteral
 		if reason == testvalidity.HygieneReasonJSLineAmbiguous {
 			out.TitleUnknown = reason
 		}
 		out.Identity.Unknown = out.TitleUnknown
-		f.unknown(out.ID, out.TitleUnknown, "a title on the example's path is not one literal string, so neither the title path nor the js-title-path identity is fixed", e.line, e.line)
+		f.unknown(out.ID, out.TitleUnknown, "a title on the example's path is not one literal string, so neither the title path nor the js-title-path identity is fixed", e.Line, e.Line)
 	} else {
 		out.Identity.FullName = strings.Join(titles, " > ")
 		decls := append([]int{}, chain...)
 		slices.Reverse(decls)
 		for k, title := range titles {
-			line := e.line
+			line := e.Line
 			if k < len(decls) {
-				line = r.decls[decls[k]].line
+				line = r.Decls[decls[k]].Line
 			}
 			a, _ := f.anchor(line, line, "static test discovery title")
 			out.TitlePath = append(out.TitlePath, DiscoveredTitle{Title: title, Evidence: a})
@@ -228,7 +224,7 @@ func (d *jsDiscovery) example(e jsDecl, sameLine int) {
 	}
 	// Tags and annotations come from the declarations, outermost describe first.
 	for k := len(chain) - 1; k >= 0; k-- {
-		d.declFacts(&out, r.decls[chain[k]])
+		d.declFacts(&out, r.Decls[chain[k]])
 	}
 	d.declFacts(&out, e)
 	for _, a := range d.runtime {
@@ -240,21 +236,21 @@ func (d *jsDiscovery) example(e jsDecl, sameLine int) {
 	}
 	if reason != "" {
 		out.Read = reason
-		f.unknown(out.ID, reason, "the TSA-V0-073 reader abstains on the example, so its body facts are not read", e.line, e.line)
+		f.unknown(out.ID, reason, "the TSA-V0-073 reader abstains on the example, so its body facts are not read", e.Line, e.Line)
 		f.capFacts(&out)
 		f.out.Examples = append(f.out.Examples, out)
 		return
 	}
 	hooks := []jsDiscoveryHook{}
 	for _, h := range d.hooks {
-		if r.inExampleBody(h.at, -1) || !d.reaches(h.at, e, chain) {
+		if r.InExampleBody(h.at, -1) || !d.reaches(h.at, e, chain) {
 			continue
 		}
 		hooks = append(hooks, h)
 		asserts := false
 		if h.hasBody {
 			for k := h.body[0]; k < h.body[1]; k++ {
-				if s.jsAssertion(k) {
+				if s.JSAssertion(k) {
 					asserts = true
 					break
 				}
@@ -268,9 +264,9 @@ func (d *jsDiscovery) example(e jsDecl, sameLine int) {
 			f.unknown(out.ID, "hook-body-not-literal", "the hook's callback is not a literal function, so its calls are not read", h.line, h.endLine)
 		}
 	}
-	if e.hasBody {
-		d.expectations(&out, e.body)
-		d.navigations(&out, e.body, "example")
+	if e.HasBody {
+		d.expectations(&out, e.Body)
+		d.navigations(&out, e.Body, "example")
 	}
 	d.reachesOf(&out, e, hooks)
 	f.capFacts(&out)
@@ -278,40 +274,40 @@ func (d *jsDiscovery) example(e jsDecl, sameLine int) {
 }
 
 // declFacts adds decl g's title tags, details tags and annotations, and its modifiers.
-func (d *jsDiscovery) declFacts(out *DiscoveredExample, g jsDecl) {
+func (d *jsDiscovery) declFacts(out *DiscoveredExample, g JSDecl) {
 	f, s := d.f, d.s
 	// The declaration's head: from its call through the line its callback body opens on.
-	head := g.line
-	if g.hasBody && g.body[0] >= 0 && g.body[0] < len(s.tokens) {
-		head = max(head, s.tokens[g.body[0]].Line)
+	head := g.Line
+	if g.HasBody && g.Body[0] >= 0 && g.Body[0] < len(s.Tokens) {
+		head = max(head, s.Tokens[g.Body[0]].Line)
 	}
-	anchor, _ := f.anchor(g.line, head, "static test discovery declaration")
+	anchor, _ := f.anchor(g.Line, head, "static test discovery declaration")
 	if g.literalTitle {
-		for _, m := range jsTitleTag.FindAllStringSubmatch(g.title, -1) {
+		for _, m := range jsTitleTag.FindAllStringSubmatch(g.Title, -1) {
 			out.Tags = append(out.Tags, DiscoveredTag{Name: m[1], Evidence: anchor})
 		}
 	}
-	switch g.root[0] {
+	switch g.Root[0] {
 	case 'x':
 		out.Annotations = append(out.Annotations, DiscoveredAnnotation{Type: "skip", Evidence: anchor})
 	case 'f':
 		out.Annotations = append(out.Annotations, DiscoveredAnnotation{Type: "only", Evidence: anchor})
 	}
 	for _, m := range jsDeclAnnotations {
-		if g.members[m] {
+		if g.Members[m] {
 			out.Annotations = append(out.Annotations, DiscoveredAnnotation{Type: m, Evidence: anchor})
 		}
 	}
 	args := d.declArgs(g)
-	if len(args) < 3 || !s.punct(args[1][0], "{") || s.match[args[1][0]] != args[1][1]-1 {
+	if len(args) < 3 || !s.Punct(args[1][0], "{") || s.Match[args[1][0]] != args[1][1]-1 {
 		return
 	}
 	open, close := args[1][0], args[1][1]-1
-	for _, p := range s.splitArgs(open, close) {
-		if !s.ident(p[0], "") || !s.punct(p[0]+1, ":") {
+	for _, p := range s.SplitArgs(open, close) {
+		if !s.Ident(p[0], "") || !s.Punct(p[0]+1, ":") {
 			continue
 		}
-		key, value := s.tokens[p[0]].Text, [2]int{p[0] + 2, p[1]}
+		key, value := s.Tokens[p[0]].Text, [2]int{p[0] + 2, p[1]}
 		if value[0] >= value[1] {
 			continue
 		}
@@ -320,17 +316,17 @@ func (d *jsDiscovery) declFacts(out *DiscoveredExample, g jsDecl) {
 		switch key {
 		case "tag":
 			for _, v := range d.elements(value) {
-				if s.loneString(v) && s.tokens[v[0]].Literal {
-					out.Tags = append(out.Tags, DiscoveredTag{Name: s.tokens[v[0]].Text, Evidence: where})
+				if s.LoneString(v) && s.Tokens[v[0]].Literal {
+					out.Tags = append(out.Tags, DiscoveredTag{Name: s.Tokens[v[0]].Text, Evidence: where})
 				} else {
-					f.unknown(out.ID, discoverReasonMetadata, "tag value "+s.render(v[0], v[1]), at, end)
+					f.unknown(out.ID, DiscoverReasonMetadata, "tag value "+s.Render(v[0], v[1]), at, end)
 				}
 			}
 		case "annotation":
 			for _, v := range d.elements(value) {
 				typ, desc, ok := d.annotationObject(v)
 				if !ok {
-					f.unknown(out.ID, discoverReasonMetadata, "annotation "+s.render(v[0], v[1]), at, end)
+					f.unknown(out.ID, DiscoverReasonMetadata, "annotation "+s.Render(v[0], v[1]), at, end)
 					continue
 				}
 				out.Annotations = append(out.Annotations, DiscoveredAnnotation{Type: typ, Description: desc, Evidence: where})
@@ -342,8 +338,8 @@ func (d *jsDiscovery) declFacts(out *DiscoveredExample, g jsDecl) {
 // elements splits an array literal into its elements, or returns the value itself.
 func (d *jsDiscovery) elements(v [2]int) [][2]int {
 	s := d.s
-	if s.punct(v[0], "[") && s.match[v[0]] == v[1]-1 {
-		return s.splitArgs(v[0], v[1]-1)
+	if s.Punct(v[0], "[") && s.Match[v[0]] == v[1]-1 {
+		return s.SplitArgs(v[0], v[1]-1)
 	}
 	return [][2]int{v}
 }
@@ -351,19 +347,19 @@ func (d *jsDiscovery) elements(v [2]int) [][2]int {
 // annotationObject reads `{ type: 'x', description: 'y' }` with literal strings.
 func (d *jsDiscovery) annotationObject(v [2]int) (string, string, bool) {
 	s := d.s
-	if !s.punct(v[0], "{") || s.match[v[0]] != v[1]-1 {
+	if !s.Punct(v[0], "{") || s.Match[v[0]] != v[1]-1 {
 		return "", "", false
 	}
 	typ, desc := "", ""
-	for _, p := range s.splitArgs(v[0], v[1]-1) {
-		if !s.ident(p[0], "") || !s.punct(p[0]+1, ":") || p[1]-p[0] != 3 || !s.loneString([2]int{p[0] + 2, p[1]}) || !s.tokens[p[0]+2].Literal {
+	for _, p := range s.SplitArgs(v[0], v[1]-1) {
+		if !s.Ident(p[0], "") || !s.Punct(p[0]+1, ":") || p[1]-p[0] != 3 || !s.LoneString([2]int{p[0] + 2, p[1]}) || !s.Tokens[p[0]+2].Literal {
 			return "", "", false
 		}
-		switch s.tokens[p[0]].Text {
+		switch s.Tokens[p[0]].Text {
 		case "type":
-			typ = s.tokens[p[0]+2].Text
+			typ = s.Tokens[p[0]+2].Text
 		case "description":
-			desc = s.tokens[p[0]+2].Text
+			desc = s.Tokens[p[0]+2].Text
 		default:
 			return "", "", false
 		}
@@ -375,43 +371,43 @@ func (d *jsDiscovery) annotationObject(v [2]int) (string, string, bool) {
 func (d *jsDiscovery) expectations(out *DiscoveredExample, body [2]int) {
 	f, s := d.f, d.s
 	for k := body[0]; k < body[1]; k++ {
-		if s.assertionCount(k) {
+		if s.AssertionCount(k) {
 			continue
 		}
-		if c, ok := s.readExpect(k); ok {
-			x := DiscoveredExpectation{Matcher: c.matcher, Receiver: boundText(s.render(c.subject[0], c.subject[1]))}
-			for j := c.subject[1] + 1; j+1 <= c.end; j++ {
-				if s.punct(j, ".") && s.ident(j+1, "not") {
+		if c, ok := s.ReadExpect(k); ok {
+			x := DiscoveredExpectation{Matcher: c.Matcher, Receiver: boundText(s.Render(c.Subject[0], c.Subject[1]))}
+			for j := c.Subject[1] + 1; j+1 <= c.End; j++ {
+				if s.Punct(j, ".") && s.Ident(j+1, "not") {
 					x.Negated = true
 				}
 			}
 			if x.Matcher == "" {
-				x.Unknown = discoverReasonMatcherUnread
+				x.Unknown = DiscoverReasonMatcherUnread
 			}
-			start, end := d.rangeLines(k, c.end+1)
+			start, end := d.rangeLines(k, c.End+1)
 			x.Evidence, _ = f.anchor(start, end, "static test discovery expectation")
 			out.Expectations = append(out.Expectations, x)
 			continue
 		}
-		if s.ident(k, "assert") && !s.memberAccess(k) {
+		if s.Ident(k, "assert") && !s.MemberAccess(k) {
 			call, matcher := k+1, "assert"
-			if s.punct(k+1, ".") && s.ident(k+2, "") {
-				call, matcher = k+3, s.tokens[k+2].Text
+			if s.Punct(k+1, ".") && s.Ident(k+2, "") {
+				call, matcher = k+3, s.Tokens[k+2].Text
 			}
-			if s.punct(call, "(") && s.match[call] > call {
+			if s.Punct(call, "(") && s.Match[call] > call {
 				x := DiscoveredExpectation{Matcher: matcher, Negated: strings.HasPrefix(matcher, "not") || strings.Contains(matcher, "Not")}
-				if args := s.splitArgs(call, s.match[call]); len(args) > 0 {
-					x.Receiver = boundText(s.render(args[0][0], args[0][1]))
+				if args := s.SplitArgs(call, s.Match[call]); len(args) > 0 {
+					x.Receiver = boundText(s.Render(args[0][0], args[0][1]))
 				}
-				start, end := d.rangeLines(k, s.match[call]+1)
+				start, end := d.rangeLines(k, s.Match[call]+1)
 				x.Evidence, _ = f.anchor(start, end, "static test discovery expectation")
 				out.Expectations = append(out.Expectations, x)
-				k = s.match[call]
+				k = s.Match[call]
 				continue
 			}
 		}
-		if s.jsAssertion(k) {
-			line := s.tokens[k].Line
+		if s.JSAssertion(k) {
+			line := s.Tokens[k].Line
 			x := DiscoveredExpectation{Unknown: discoverReasonAssertionShape}
 			x.Evidence, _ = f.anchor(line, line, "static test discovery expectation")
 			out.Expectations = append(out.Expectations, x)
@@ -423,13 +419,13 @@ func (d *jsDiscovery) expectations(out *DiscoveredExample, body [2]int) {
 func (d *jsDiscovery) navigations(out *DiscoveredExample, body [2]int, source string) {
 	f, s := d.f, d.s
 	for k := body[0]; k < body[1]; k++ {
-		if !s.ident(k, "") || !s.memberAccess(k) || !s.punct(k+1, "(") || s.match[k+1] < 0 {
+		if !s.Ident(k, "") || !s.MemberAccess(k) || !s.Punct(k+1, "(") || s.Match[k+1] < 0 {
 			continue
 		}
-		name := s.tokens[k].Text
+		name := s.Tokens[k].Text
 		n := DiscoveredNavigation{Kind: name, Source: source}
 		switch {
-		case jsRequestMethods[name] && s.ident(k-2, "request"):
+		case jsRequestMethods[name] && s.Ident(k-2, "request"):
 			n.Kind = "request"
 			if name != "fetch" {
 				n.Method = strings.ToUpper(name)
@@ -438,22 +434,22 @@ func (d *jsDiscovery) navigations(out *DiscoveredExample, body [2]int, source st
 		default:
 			continue
 		}
-		close := s.match[k+1]
-		args := s.splitArgs(k+1, close)
+		close := s.Match[k+1]
+		args := s.SplitArgs(k+1, close)
 		receiver := k - 2
-		for receiver > 0 && s.punct(receiver-1, ".") && s.ident(receiver-2, "") {
+		for receiver > 0 && s.Punct(receiver-1, ".") && s.Ident(receiver-2, "") {
 			receiver -= 2
 		}
-		n.Expression = boundText(s.render(receiver, close+1))
+		n.Expression = boundText(s.Render(receiver, close+1))
 		switch {
 		case len(args) == 0:
-			n.Unknown = discoverReasonTargetNotLiteral
-		case s.loneString(args[0]) && s.tokens[args[0][0]].Literal:
-			n.Target = s.tokens[args[0][0]].Text
-		case args[0][1]-args[0][0] == 1 && s.tokens[args[0][0]].Kind == appmap.JSString && strings.HasPrefix(s.tokens[args[0][0]].Source, "/"):
-			n.Target = s.tokens[args[0][0]].Source // a regular expression pattern, as written
+			n.Unknown = DiscoverReasonTargetNotLiteral
+		case s.LoneString(args[0]) && s.Tokens[args[0][0]].Literal:
+			n.Target = s.Tokens[args[0][0]].Text
+		case args[0][1]-args[0][0] == 1 && s.Tokens[args[0][0]].Kind == appmap.JSString && strings.HasPrefix(s.Tokens[args[0][0]].Source, "/"):
+			n.Target = s.Tokens[args[0][0]].Source // a regular expression pattern, as written
 		default:
-			n.Unknown = discoverReasonTargetNotLiteral
+			n.Unknown = DiscoverReasonTargetNotLiteral
 		}
 		if n.Kind == "request" && n.Method == "" && len(args) > 1 {
 			n.Method = d.optionMethod(args[1])
@@ -467,12 +463,12 @@ func (d *jsDiscovery) navigations(out *DiscoveredExample, body [2]int, source st
 // optionMethod reads a literal `method: 'POST'` from a request.fetch options object.
 func (d *jsDiscovery) optionMethod(v [2]int) string {
 	s := d.s
-	if !s.punct(v[0], "{") || s.match[v[0]] != v[1]-1 {
+	if !s.Punct(v[0], "{") || s.Match[v[0]] != v[1]-1 {
 		return ""
 	}
-	for _, p := range s.splitArgs(v[0], v[1]-1) {
-		if s.ident(p[0], "method") && s.punct(p[0]+1, ":") && p[1]-p[0] == 3 && s.tokens[p[0]+2].Literal {
-			return strings.ToUpper(s.tokens[p[0]+2].Text)
+	for _, p := range s.SplitArgs(v[0], v[1]-1) {
+		if s.Ident(p[0], "method") && s.Punct(p[0]+1, ":") && p[1]-p[0] == 3 && s.Tokens[p[0]+2].Literal {
+			return strings.ToUpper(s.Tokens[p[0]+2].Text)
 		}
 	}
 	return ""
@@ -480,11 +476,11 @@ func (d *jsDiscovery) optionMethod(v [2]int) string {
 
 // reachesOf adds the modules, dynamic loads and fixtures example e and its hooks reach
 // (DCX-V1-374).
-func (d *jsDiscovery) reachesOf(out *DiscoveredExample, e jsDecl, hooks []jsDiscoveryHook) {
+func (d *jsDiscovery) reachesOf(out *DiscoveredExample, e JSDecl, hooks []jsDiscoveryHook) {
 	f, r, s := d.f, d.r, d.s
 	ranges := [][2]int{}
-	if e.hasBody {
-		ranges = append(ranges, e.body)
+	if e.HasBody {
+		ranges = append(ranges, e.Body)
 	}
 	for _, h := range hooks {
 		if h.hasBody {
@@ -494,23 +490,23 @@ func (d *jsDiscovery) reachesOf(out *DiscoveredExample, e jsDecl, hooks []jsDisc
 	used := map[string]int{} // name to the first token using it
 	for _, rg := range ranges {
 		for k := rg[0]; k < rg[1]; k++ {
-			if !s.ident(k, "") || s.memberAccess(k) {
+			if !s.Ident(k, "") || s.MemberAccess(k) {
 				continue
 			}
-			name := s.tokens[k].Text
+			name := s.Tokens[k].Text
 			if _, seen := used[name]; !seen {
 				used[name] = k
 			}
-			if (name == "require" || name == "import") && s.punct(k+1, "(") && s.match[k+1] > k+1 {
-				args := s.splitArgs(k+1, s.match[k+1])
-				start, end := d.rangeLines(k, s.match[k+1]+1)
+			if (name == "require" || name == "import") && s.Punct(k+1, "(") && s.Match[k+1] > k+1 {
+				args := s.SplitArgs(k+1, s.Match[k+1])
+				start, end := d.rangeLines(k, s.Match[k+1]+1)
 				where, _ := f.anchor(start, end, "static test discovery dynamic load")
-				reach := DiscoveredReach{Kind: "import", Specifier: boundText(s.render(k+2, s.match[k+1])), Evidence: where}
-				if len(args) == 1 && s.loneString(args[0]) && s.tokens[args[0][0]].Literal {
-					reach.Specifier = s.tokens[args[0][0]].Text
+				reach := DiscoveredReach{Kind: "import", Specifier: boundText(s.Render(k+2, s.Match[k+1])), Evidence: where}
+				if len(args) == 1 && s.LoneString(args[0]) && s.Tokens[args[0][0]].Literal {
+					reach.Specifier = s.Tokens[args[0][0]].Text
 					reach.Target, reach.State, reach.Reason = f.resolver.web(f.path, reach.Specifier)
 				} else {
-					reach.State, reach.Reason = "unresolved", discoverReasonComputedLookup
+					reach.State, reach.Reason = "unresolved", DiscoverReasonComputedLookup
 				}
 				out.Reaches = append(out.Reaches, reach)
 			}
@@ -522,43 +518,43 @@ func (d *jsDiscovery) reachesOf(out *DiscoveredExample, e jsDecl, hooks []jsDisc
 	}
 	slices.Sort(names)
 	for _, name := range names {
-		b, ok := r.bindings[name]
-		if !ok || jsTestLibrary(b.spec) || b.spec == "@playwright/test" || testRoots[name] || describeRoots[name] {
+		b, ok := r.Bindings[name]
+		if !ok || JSTestLibrary(b.Spec) || b.Spec == "@playwright/test" || testRoots[name] || describeRoots[name] {
 			continue
 		}
-		line := s.tokens[used[name]].Line
+		line := s.Tokens[used[name]].Line
 		where, _ := f.anchor(line, line, "static test discovery use of "+name)
 		decl, _ := f.anchor(b.line, b.line, "static test discovery import of "+name)
-		reach := DiscoveredReach{Kind: "import", Name: name, Specifier: b.spec, Evidence: where, Declaration: &decl}
-		reach.Target, reach.State, reach.Reason = f.resolver.web(f.path, b.spec)
+		reach := DiscoveredReach{Kind: "import", Name: name, Specifier: b.Spec, Evidence: where, Declaration: &decl}
+		reach.Target, reach.State, reach.Reason = f.resolver.web(f.path, b.Spec)
 		out.Reaches = append(out.Reaches, reach)
 	}
 	d.fixtures(out, e)
 }
 
 // fixtures adds the fixtures the example's callback destructures.
-func (d *jsDiscovery) fixtures(out *DiscoveredExample, e jsDecl) {
+func (d *jsDiscovery) fixtures(out *DiscoveredExample, e JSDecl) {
 	f, r, s := d.f, d.r, d.s
-	if !e.hasBody {
+	if !e.HasBody {
 		return
 	}
 	var params [2]int
 	found := false
 	for _, a := range d.declArgs(e) {
-		if body, _, ok := s.functionBody(a[0]); ok && body == e.body {
+		if body, _, ok := s.FunctionBody(a[0]); ok && body == e.Body {
 			v := a[0]
-			if s.ident(v, "async") {
+			if s.Ident(v, "async") {
 				v++
 			}
-			if s.ident(v, "function") {
+			if s.Ident(v, "function") {
 				v++
-				if s.ident(v, "") {
+				if s.Ident(v, "") {
 					v++
 				}
 			}
-			if s.punct(v, "(") && s.match[v] > v {
-				params, found = [2]int{v + 1, s.match[v]}, true
-			} else if s.ident(v, "") {
+			if s.Punct(v, "(") && s.Match[v] > v {
+				params, found = [2]int{v + 1, s.Match[v]}, true
+			} else if s.Ident(v, "") {
 				params, found = [2]int{v, v + 1}, true
 			}
 			break
@@ -567,41 +563,41 @@ func (d *jsDiscovery) fixtures(out *DiscoveredExample, e jsDecl) {
 	if !found || params[0] >= params[1] {
 		return
 	}
-	first := s.splitArgs(params[0]-1, params[1])
+	first := s.SplitArgs(params[0]-1, params[1])
 	if len(first) == 0 {
 		return
 	}
 	p := first[0]
-	line := s.tokens[p[0]].Line
-	where, _ := f.anchor(line, s.tokens[p[1]-1].Line, "static test discovery fixture parameter")
-	if !s.punct(p[0], "{") || s.match[p[0]] < 0 {
-		if s.ident(p[0], "") && p[1]-p[0] == 1 && s.tokens[p[0]].Text != "done" {
-			out.Reaches = append(out.Reaches, DiscoveredReach{Kind: "fixture", Name: s.tokens[p[0]].Text, State: "unresolved", Reason: discoverReasonComputedLookup, Evidence: where})
+	line := s.Tokens[p[0]].Line
+	where, _ := f.anchor(line, s.Tokens[p[1]-1].Line, "static test discovery fixture parameter")
+	if !s.Punct(p[0], "{") || s.Match[p[0]] < 0 {
+		if s.Ident(p[0], "") && p[1]-p[0] == 1 && s.Tokens[p[0]].Text != "done" {
+			out.Reaches = append(out.Reaches, DiscoveredReach{Kind: "fixture", Name: s.Tokens[p[0]].Text, State: "unresolved", Reason: DiscoverReasonComputedLookup, Evidence: where})
 		}
 		return
 	}
-	binding, bound := r.bindings[e.root]
-	for _, part := range s.splitArgs(p[0], s.match[p[0]]) {
-		if !s.ident(part[0], "") {
+	binding, bound := r.Bindings[e.Root]
+	for _, part := range s.SplitArgs(p[0], s.Match[p[0]]) {
+		if !s.Ident(part[0], "") {
 			continue
 		}
-		name := s.tokens[part[0]].Text
+		name := s.Tokens[part[0]].Text
 		reach := DiscoveredReach{Kind: "fixture", Name: name, Evidence: where}
 		switch {
 		case playwrightFixtures[name]:
 			reach.State, reach.Specifier = "builtin", "@playwright/test"
-		case bound && isRelativeSpec(binding.spec):
-			reach.Specifier = binding.spec
-			reach.Target, reach.State, reach.Reason = f.resolver.web(f.path, binding.spec)
+		case bound && IsRelativeSpec(binding.Spec):
+			reach.Specifier = binding.Spec
+			reach.Target, reach.State, reach.Reason = f.resolver.web(f.path, binding.Spec)
 			if reach.State == "repository" {
-				reach.Reason = discoverReasonFixtureBody
+				reach.Reason = DiscoverReasonFixtureBody
 			}
-			decl, _ := f.anchor(binding.line, binding.line, "static test discovery import of "+e.root)
+			decl, _ := f.anchor(binding.line, binding.line, "static test discovery import of "+e.Root)
 			reach.Declaration = &decl
 		default:
 			reach.State, reach.Reason = "unresolved", discoverReasonFixtureUnknown
 			if bound {
-				reach.Specifier = binding.spec
+				reach.Specifier = binding.Spec
 			}
 		}
 		out.Reaches = append(out.Reaches, reach)

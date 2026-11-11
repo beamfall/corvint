@@ -7,49 +7,65 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 )
 
 // The RSpec side of the seed-parity reading (TSA-V0-101): FactoryBot create, create_list, build
 // and build_list calls and Rails YAML fixtures declared by `fixtures`, read in the example body,
 // the before/let!/subject! hooks of its groups, and the lazy lets and subjects that scope invokes.
 
-var (
-	rspecFixturesLine = regexp.MustCompile(`^fixtures\b`)
-	rspecSeedCall     = regexp.MustCompile(`(?:\bFactoryBot\.)?\b(create_list|build_list|create|build)\b`)
-	rubyWord          = regexp.MustCompile(`[A-Za-z_]\w*[!?]?`)
-	rspecAssertLine   = regexp.MustCompile(`\b(?:expect|is_expected|should|assert\w*|refute\w*)\b`)
-	rspecSubjectUse   = regexp.MustCompile(`\bis_expected\b|(?:^|[\s{])should\b`)
-	rubyAssignTail    = regexp.MustCompile(`(?:^|[\s;{(])@?([A-Za-z_]\w*)\s*=\s*$`)
-	rubySeedSymbol    = regexp.MustCompile(`^:([A-Za-z_]\w*[?!]?)$`)
-	rubyQuotedName    = regexp.MustCompile(`^(?:"([A-Za-z_]\w*)"|'([A-Za-z_]\w*)')$`)
-	rubyKeyValue      = regexp.MustCompile(`^([A-Za-z_]\w*[?!]?):(\s+\S.*|[^:\s].*)$`)
-	rubyRocket        = regexp.MustCompile(`^(?::([A-Za-z_]\w*[?!]?)|"([A-Za-z_]\w*)"|'([A-Za-z_]\w*)')\s*=>\s*(\S.*)$`)
-	seedNumber        = regexp.MustCompile(`^-?\d+(?:\.\d+)?$`)
-	// rubyConditional matches a line whose calls may not all run.
-	rubyConditional = regexp.MustCompile(`\b(?:if|unless|while|until|rescue|and|or|then|else|elsif|when|case|return|next|break)\b|&&|\|\||\s\?\s`)
-	yamlKey         = regexp.MustCompile(`^([A-Za-z_][\w.-]*|"[^"]*"|'[^']*'):(?:\s+(.*))?$`)
-)
+// rspecSeedCall is testdiscovery.RSpecSeedCall, kept under its old name.
+var rspecSeedCall = testdiscovery.RSpecSeedCall
 
-// rspecLet is one let, let!, subject or subject! declaration; name is "subject" for an anonymous
-// subject.
-type rspecLet struct {
-	name string
-	lazy bool
-	body []rubyLine
-}
+// rubyWord is testdiscovery.RubyWord, kept under its old name.
+var rubyWord = testdiscovery.RubyWord
+
+// rspecAssertLine is testdiscovery.RSpecAssertLine, kept under its old name.
+var rspecAssertLine = testdiscovery.RSpecAssertLine
+
+// rspecSubjectUse is testdiscovery.RSpecSubjectUse, kept under its old name.
+var rspecSubjectUse = testdiscovery.RSpecSubjectUse
+
+// rubyAssignTail is testdiscovery.RubyAssignTail, kept under its old name.
+var rubyAssignTail = testdiscovery.RubyAssignTail
+
+// rubySeedSymbol is testdiscovery.RubySeedSymbol, kept under its old name.
+var rubySeedSymbol = testdiscovery.RubySeedSymbol
+
+// rubyQuotedName is testdiscovery.RubyQuotedName, kept under its old name.
+var rubyQuotedName = testdiscovery.RubyQuotedName
+
+// rubyKeyValue is testdiscovery.RubyKeyValue, kept under its old name.
+var rubyKeyValue = testdiscovery.RubyKeyValue
+
+// rubyRocket is testdiscovery.RubyRocket, kept under its old name.
+var rubyRocket = testdiscovery.RubyRocket
+
+// seedNumber is testdiscovery.SeedNumber, kept under its old name.
+var seedNumber = testdiscovery.SeedNumber
+
+// rubyConditional is testdiscovery.RubyConditional, kept under its old name.
+var rubyConditional = testdiscovery.RubyConditional
+
+// yamlKey is testdiscovery.YAMLKey, kept under its old name.
+var yamlKey = testdiscovery.YAMLKey
+
+// rspecLet is testdiscovery.RSpecLet, kept under its old name.
+type rspecLet = testdiscovery.RSpecLet
 
 // rspecSeed extracts the setup of the example declared on line (TSA-V0-101).
 func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, error) {
 	at := func(n int) string { return fmt.Sprintf("%s:%d", name, n) }
 	x := seedExtract{test: at(line)}
-	r := &rspecReader{lines: rubyLines(text), groups: []rspecGroup{{parent: -1, decls: map[string]string{}}}}
-	if r.read() != "" {
+	r := &rspecReader{Lines: rubyLines(text), Groups: []rspecGroup{{Parent: -1, Decls: map[string]string{}}}}
+	if r.Read() != "" {
 		x.abstain(seedReasonSourceUncertain, x.test)
 		return x, nil
 	}
 	found := -1
-	for k, e := range r.examples {
-		if e.line == line {
+	for k, e := range r.Examples {
+		if e.Line == line {
 			found = k
 		}
 	}
@@ -57,9 +73,9 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 		x.abstain(seedReasonExampleNotFound, x.test)
 		return x, nil
 	}
-	e := r.examples[found]
+	e := r.Examples[found]
 	chain := []int{}
-	for g := e.group; g >= 0; g = r.groups[g].parent {
+	for g := e.Group; g >= 0; g = r.Groups[g].Parent {
 		chain = append(chain, g)
 	}
 	// scope maps each logical line that runs for the example to the let it declares, or "";
@@ -68,18 +84,18 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 	add := func(body []rubyLine, own string) {
 		depths := rubyBodyDepths(body)
 		for _, l := range body {
-			if _, ok := scope[l.line]; !ok {
-				scope[l.line], depth[l.line] = own, depths[l.line]
+			if _, ok := scope[l.Line]; !ok {
+				scope[l.Line], depth[l.Line] = own, depths[l.Line]
 			}
 		}
 	}
 	// resolve finds the definition a name runs: the innermost let, or the named subject that
 	// `subject` aliases.
 	resolve := func(n string) (rspecLet, bool) {
-		if c := r.canonical(e.group, n); strings.HasPrefix(c, "let:") {
+		if c := rspecReaderCanonical(r, e.Group, n); strings.HasPrefix(c, "let:") {
 			n = strings.TrimPrefix(c, "let:")
 		}
-		return r.innermostLet(chain, n)
+		return innermostLet(r, chain, n)
 	}
 	invoked := map[string]bool{}
 	queue := []string{}
@@ -95,51 +111,51 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 		}
 		setup := []rubyLine{}
 		for _, l := range body {
-			if !rspecAssertLine.MatchString(maskRubyStrings(l.text)) {
+			if !rspecAssertLine.MatchString(maskRubyStrings(l.Text)) {
 				setup = append(setup, l)
 			}
 		}
 		names := invokedNames(setup)
 		for _, l := range setup {
-			for _, n := range rubyStatementHeads(maskRubyStrings(l.text)) {
+			for _, n := range rubyStatementHeads(maskRubyStrings(l.Text)) {
 				if _, ok := calls[n]; !ok && names[n] && !params[n] {
-					calls[n] = at(l.line)
+					calls[n] = at(l.Line)
 				}
 			}
 		}
 		for _, l := range body {
-			if rspecSubjectUse.MatchString(maskRubyStrings(l.text)) && !invoked["subject"] {
+			if rspecSubjectUse.MatchString(maskRubyStrings(l.Text)) && !invoked["subject"] {
 				invoked["subject"] = true
 				queue = append(queue, "subject")
 			}
 		}
 	}
-	add(e.body, "")
-	visit(e.body, nil)
+	add(e.Body, "")
+	visit(e.Body, nil)
 	for _, g := range chain {
-		for _, h := range r.groups[g].hooks {
-			body, own := h.body, ""
-			if h.kind != "before" {
+		for _, h := range r.Groups[g].Hooks {
+			body, own := h.Body, ""
+			if h.Kind != "before" {
 				// let!(:x) runs `before { x }`, and x is the innermost definition: an inner let
 				// overriding an outer let! replaces its body.
-				own = h.own
-				if let, ok := resolve(h.own); ok {
-					body, own = let.body, let.name
+				own = h.Own
+				if let, ok := resolve(h.Own); ok {
+					body, own = let.Body, let.Name
 				}
 			}
 			add(body, own)
 			visit(body, nil)
 		}
 	}
-	helpers := r.seedHelpers(chain)
+	helpers := seedHelpers(r, chain)
 	followed := []string{}
 	for len(queue) > 0 {
 		n := queue[0]
 		queue = queue[1:]
 		if let, ok := resolve(n); ok {
-			if let.lazy {
-				add(let.body, let.name)
-				visit(let.body, nil)
+			if let.Lazy {
+				add(let.Body, let.Name)
+				visit(let.Body, nil)
 			}
 			continue
 		}
@@ -147,13 +163,13 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 		// nests one level under the def (TSA-V0-644).
 		if h, ok := helpers[n]; ok {
 			followed = append(followed, n)
-			depths := rubyBodyDepths(h.body)
-			for _, l := range h.body {
-				if _, ok := scope[l.line]; !ok {
-					scope[l.line], depth[l.line] = "", depths[l.line]+1
+			depths := rubyBodyDepths(h.Body)
+			for _, l := range h.Body {
+				if _, ok := scope[l.Line]; !ok {
+					scope[l.Line], depth[l.Line] = "", depths[l.Line]+1
 				}
 			}
-			visit(h.body, helperParams(h.body))
+			visit(h.Body, helperParams(h.Body))
 		}
 	}
 	// A helper is followed only when it runs exactly once, unconditionally, for the example; a
@@ -161,7 +177,7 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 	// Capybara vocabulary may seed records the reading cannot see, so the side abstains naming
 	// it (TSA-V0-644).
 	for _, n := range followed {
-		if site, ok := r.helperSite(scope, depth, n, helpers[n], at); !ok {
+		if site, ok := helperSite(r, scope, depth, n, helpers[n], at); !ok {
 			x.abstainHelper(n, site)
 		}
 	}
@@ -170,7 +186,7 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 		if _, isHelper := helpers[n]; isHelper || seedCallVocabulary[n] || seedLike(n) || !(n[0] >= 'a' && n[0] <= 'z' || n[0] == '_') {
 			continue
 		}
-		if _, ok := resolve(n); ok || r.canonical(e.group, n) != "" {
+		if _, ok := resolve(n); ok || rspecReaderCanonical(r, e.Group, n) != "" {
 			continue
 		}
 		unresolved = append(unresolved, n)
@@ -181,73 +197,73 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 	}
 	fixtures := map[int]bool{}
 	for _, g := range chain {
-		for _, l := range r.groups[g].fixtures {
-			fixtures[l.line] = true
+		for _, l := range r.Groups[g].Fixtures {
+			fixtures[l.Line] = true
 		}
 	}
 	// ignored holds the lines that never run for the example.
 	ignored := map[int]bool{}
 	ignore := func(body []rubyLine) {
 		for _, l := range body {
-			ignored[l.line] = true
+			ignored[l.Line] = true
 		}
 	}
-	for k, other := range r.examples {
+	for k, other := range r.Examples {
 		if k != found {
-			ignore(other.body)
+			ignore(other.Body)
 		}
 	}
-	for _, g := range r.groups {
-		ignored[g.line] = true // a group's declaring line: `describe CreateOrder do` names, never seeds
-		for _, h := range g.hooks {
-			ignore(h.body)
+	for _, g := range r.Groups {
+		ignored[g.Line] = true // a group's declaring line: `describe CreateOrder do` names, never seeds
+		for _, h := range g.Hooks {
+			ignore(h.Body)
 		}
-		for _, let := range g.lets {
-			ignore(let.body)
+		for _, let := range g.Lets {
+			ignore(let.Body)
 		}
-		ignore(g.fixtures)
+		ignore(g.Fixtures)
 	}
-	for _, h := range r.helpers {
-		if !invoked[helperName(h.body)] {
-			ignore(h.body)
+	for _, h := range r.Helpers {
+		if !invoked[helperName(h.Body)] {
+			ignore(h.Body)
 		}
 	}
 	tables := 0
-	for _, l := range r.lines {
-		masked := maskRubyStrings(l.text)
+	for _, l := range r.Lines {
+		masked := maskRubyStrings(l.Text)
 		words := seedWordSpans(masked)
 		if len(words) == 0 {
 			continue
 		}
-		own, inScope := scope[l.line]
+		own, inScope := scope[l.Line]
 		switch {
-		case fixtures[l.line]:
-			calls, reason, err := fixtureSeeds(l.text, at(l.line), read, &tables)
+		case fixtures[l.Line]:
+			calls, reason, err := fixtureSeeds(l.Text, at(l.Line), read, &tables)
 			if err != nil {
 				return seedExtract{}, err
 			}
 			if reason != "" {
-				x.abstain(reason, at(l.line))
+				x.abstain(reason, at(l.Line))
 				continue
 			}
 			x.calls = append(x.calls, calls...)
 		case inScope:
-			calls, reason := rubySeedCalls(l.text, masked, words, at(l.line), own, depth[l.line])
+			calls, reason := rubySeedCalls(l.Text, masked, words, at(l.Line), own, depth[l.Line])
 			if reason != "" {
-				x.abstain(reason, at(l.line))
+				x.abstain(reason, at(l.Line))
 				continue
 			}
 			x.calls = append(x.calls, calls...)
-		case !ignored[l.line]:
-			x.abstain(seedReasonScopeUnresolved, at(l.line))
+		case !ignored[l.Line]:
+			x.abstain(seedReasonScopeUnresolved, at(l.Line))
 		}
 	}
-	for _, l := range e.body {
-		masked := maskRubyStrings(l.text)
+	for _, l := range e.Body {
+		masked := maskRubyStrings(l.Text)
 		if !rspecAssertLine.MatchString(masked) {
 			continue
 		}
-		a := seedAssert{at: at(l.line), idents: map[string]bool{}}
+		a := seedAssert{at: at(l.Line), idents: map[string]bool{}}
 		for _, w := range rubyWord.FindAllString(masked, -1) {
 			a.idents[snake(w)] = true
 		}
@@ -266,35 +282,35 @@ func rubyBodyDepths(body []rubyLine) map[int]int {
 		return out
 	}
 	brace, kw := 0, 0
-	if !rubyDo.MatchString(body[0].text) {
+	if !rubyDo.MatchString(body[0].Text) {
 		brace = -1
 	}
 	for k, l := range body {
-		if k > 0 && rubyEnd.MatchString(l.text) {
+		if k > 0 && rubyEnd.MatchString(l.Text) {
 			kw--
 		}
 		if kw < 0 && k < len(body)-1 {
 			for _, l := range body {
-				out[l.line] = 1
+				out[l.Line] = 1
 			}
 			return out
 		}
-		out[l.line] = kw + brace
-		if k > 0 && rubyOpens(l.text) {
+		out[l.Line] = kw + brace
+		if k > 0 && rubyOpens(l.Text) {
 			kw++
 		}
-		m := maskRubyStrings(l.text)
+		m := maskRubyStrings(l.Text)
 		brace += strings.Count(m, "{") - strings.Count(m, "}")
 	}
 	return out
 }
 
 // innermostLet is the let named n declared by the nearest group of chain (innermost first).
-func (r *rspecReader) innermostLet(chain []int, n string) (rspecLet, bool) {
+func innermostLet(r *rspecReader, chain []int, n string) (rspecLet, bool) {
 	for _, g := range chain {
-		lets := r.groups[g].lets
+		lets := r.Groups[g].Lets
 		for k := len(lets) - 1; k >= 0; k-- {
-			if lets[k].name == n {
+			if lets[k].Name == n {
 				return lets[k], true
 			}
 		}
@@ -302,29 +318,8 @@ func (r *rspecReader) innermostLet(chain []int, n string) (rspecLet, bool) {
 	return rspecLet{}, false
 }
 
-// maskRubyStrings blanks the contents of quoted strings, keeping every byte offset.
-func maskRubyStrings(text string) string {
-	b := []byte(text)
-	quote := byte(0)
-	for i := 0; i < len(b); i++ {
-		c := b[i]
-		switch {
-		case quote != 0 && c == '\\':
-			b[i] = ' '
-			if i+1 < len(b) {
-				b[i+1] = ' '
-				i++
-			}
-		case quote != 0 && c == quote:
-			quote = 0
-		case quote != 0:
-			b[i] = ' '
-		case c == '\'' || c == '"':
-			quote = c
-		}
-	}
-	return string(b)
-}
+// maskRubyStrings is testdiscovery.MaskRubyStrings, kept under its old name.
+func maskRubyStrings(text string) string { return testdiscovery.MaskRubyStrings(text) }
 
 // seedWordSpans returns the [start, end) spans of the seed-like words of a masked line that are
 // not symbols (`:create`) or hash keys (`create:`).
@@ -699,14 +694,14 @@ func yamlValue(v string) string {
 
 // seedHelpers maps each def an example of chain can call to its body: a def of an enclosing
 // group, innermost first, or at file level (TSA-V0-644).
-func (r *rspecReader) seedHelpers(chain []int) map[string]rspecHelper {
+func seedHelpers(r *rspecReader, chain []int) map[string]rspecHelper {
 	out := map[string]rspecHelper{}
 	for _, g := range append(append([]int{}, chain...), 0) {
-		for _, h := range r.helpers {
-			if h.group != g || len(h.body) == 0 {
+		for _, h := range r.Helpers {
+			if h.Group != g || len(h.Body) == 0 {
 				continue
 			}
-			if n := helperName(h.body); n != "" {
+			if n := helperName(h.Body); n != "" {
 				if _, ok := out[n]; !ok {
 					out[n] = h
 				}
@@ -719,24 +714,24 @@ func (r *rspecReader) seedHelpers(chain []int) map[string]rspecHelper {
 // helperSite finds the one line that calls helper n among the lines that run for the example,
 // outside the helper's own body. It reports false, with the first calling line, when the helper
 // is called more than once, from a nested block or a conditional line, or not found.
-func (r *rspecReader) helperSite(scope map[int]string, depth map[int]int, n string, h rspecHelper, at func(int) string) (string, bool) {
+func helperSite(r *rspecReader, scope map[int]string, depth map[int]int, n string, h rspecHelper, at func(int) string) (string, bool) {
 	own := map[int]bool{}
-	for _, l := range h.body {
-		own[l.line] = true
+	for _, l := range h.Body {
+		own[l.Line] = true
 	}
 	word := regexp.MustCompile(`(^|[^\w.:@$])` + regexp.QuoteMeta(n) + `($|[^\w?!:])`)
 	site, count, plain := "", 0, true
-	for _, l := range r.lines {
-		if _, ok := scope[l.line]; !ok || own[l.line] {
+	for _, l := range r.Lines {
+		if _, ok := scope[l.Line]; !ok || own[l.Line] {
 			continue
 		}
-		masked := maskRubyStrings(l.text)
+		masked := maskRubyStrings(l.Text)
 		for _, loc := range word.FindAllStringIndex(masked, -1) {
 			if site == "" {
-				site = at(l.line)
+				site = at(l.Line)
 			}
 			count++
-			if depth[l.line]+strings.Count(masked[:loc[0]], "{")-strings.Count(masked[:loc[0]], "}") != 0 || rubyConditional.MatchString(masked) {
+			if depth[l.Line]+strings.Count(masked[:loc[0]], "{")-strings.Count(masked[:loc[0]], "}") != 0 || rubyConditional.MatchString(masked) {
 				plain = false
 			}
 		}
@@ -803,7 +798,7 @@ var seedCallVocabulary = map[string]bool{
 // them as locals, not as calls (TSA-V0-644).
 func helperParams(body []rubyLine) map[string]bool {
 	out := map[string]bool{helperName(body): true}
-	head := stripRubyStrings(body[0].text)
+	head := stripRubyStrings(body[0].Text)
 	if rubyOneLine.MatchString(head) {
 		head, _, _ = strings.Cut(head, ";")
 	}
