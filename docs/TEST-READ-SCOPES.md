@@ -29,7 +29,7 @@ else (a spec, `go.mod`, another package's sources, a repository walk) fails ther
    d=$(mktemp -d) && mkdir "$d/cmd"
    cp .github/testconfine/scopes.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_other.go "$d/"
    cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
-   printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+   printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.4\n' > "$d/go.mod"
    (cd "$d" && GOENV=off GOWORK=off GOTOOLCHAIN=local GOFLAGS= go build -trimpath -buildvcs=false -o "$d/test-confine" ./cmd)
    "$d/test-confine" -probe   # prints the Landlock ABI; exits 1 below 2
    CORVINT_CONFINE_ROOT="$PWD" go test -exec "$d/test-confine" -count=1 -run 'TestName' ./internal/gateselect

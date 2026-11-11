@@ -20,7 +20,7 @@ type coreMember struct {
 var verifyCoreBinary = verifyCoreArchiveBinary
 
 func verifyCoreArchiveBinary(raw []byte, target coreTarget) ([]byte, error) {
-	return verifyArchiveBinary(raw, target, modulePath+"/cmd/corvint", "go1.27.3")
+	return verifyArchiveBinary(raw, target, modulePath+"/cmd/corvint", "go1.27.4")
 }
 
 // verifyArchiveBinary rechecks one release archive of the ARTIFACT-GO-V0-002
