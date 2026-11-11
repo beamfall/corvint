@@ -3,7 +3,7 @@ package gitauth
 import (
 	"path/filepath"
 
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // OpenPinned uses a host-validated executable for this repository's bounded

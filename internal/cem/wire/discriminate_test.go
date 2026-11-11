@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestInheritedDiscriminationWitness pins the cem/1.0 hunk discriminates

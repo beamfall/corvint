@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestOpenStableSymlinkedPathIsRefusedUpFront pins V1-2519: a repository

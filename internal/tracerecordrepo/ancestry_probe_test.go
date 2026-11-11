@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gitancestry/ancestrytest"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // EEP-V0-771: the replay-window probe ignores info/grafts, and a shallow boundary can only turn a
