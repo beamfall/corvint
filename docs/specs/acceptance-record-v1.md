@@ -112,6 +112,24 @@ Requirement IDs are stable. Each scenario under "Scenarios" names the requiremen
   which keeps the citations of active documents and drops the archived ones. Invariant 8 MUST NOT
   be reworded by this change. Any later rewording of invariant 8 MUST keep the words "human-owned
   intent" and MUST go to the owner. Source: owner decisions H4 and H5 (2026-11-10).
+- `ACR-V1-013`: (proposed; V1-5296) Every change folder under
+  `docs/specs/openspec/changes/` (an immediate folder, or an archived `YYYY-MM-DD-<name>` folder
+  under `changes/archive/`) MUST have exactly one `change` row in the acceptance log: `auto` when
+  it is logged as auto-accepted under G14, or `pending-owner` while it waits for the owner. A lane
+  that adds a change folder adds its `pending-owner` row in the same change; only the owner, or a
+  logged G14 classification, moves it to `auto` or `owner`. The audit MUST report a folder with no
+  row as `MISSING_CHANGE_ROW`.
+- `ACR-V1-014`: (proposed; V1-5296) The `Intent status:` line of each change folder's
+  `proposal.md` MUST agree with its log row: `pending-owner` with a status that begins
+  `proposed`, `auto` or `owner` with one that begins `accepted`. The audit MUST report any other
+  pairing, and a `proposal.md` with no `Intent status:` line, as `HEADER_MISMATCH` naming the
+  folder, the row mode and the header status.
+- `ACR-V1-015`: (proposed; V1-5296) The index table of `docs/specs/openspec/README.md` MUST
+  give each change folder the status its log row implies: `waiting for owner` for
+  `pending-owner`, `auto-accepted` for `auto` and `accepted` for `owner`. The audit MUST report a
+  folder whose index row is missing or says otherwise as `INDEX_MISMATCH`. The README text above
+  the table MUST say which record accepted the plan and that the log, not the README, is the
+  authority for each folder's state.
 
 ## Fallback in force
 
@@ -214,8 +232,10 @@ the log audit covers those. The plan's "Intent: proposed" sub-lines are pinned t
 - A lane writes an `owner` row. The audit cannot see who wrote a row; review and the owner's
   merge are the control, and identity stays `NOT_VERIFIED`.
 - The log and a spec marker drift apart. The audit names the requirement and both modes.
-- An accepted change has no `change` row. Not detected: no machine-readable list of accepted
-  changes exists. Review is the control.
+- A change folder has no `change` row, or its proposal header or README index row disagrees with
+  the row. The audit names it (`MISSING_CHANGE_ROW`, `HEADER_MISMATCH`, `INDEX_MISMATCH`;
+  ACR-V1-013 to ACR-V1-015). It cannot tell whether a `pending-owner` folder would qualify for G14;
+  that classification is the owner's or a reviewed lane's and is logged, never inferred.
 - A release is published with no record. Not prevented until the workflow read of ACR-V1-009
   and ACR-V1-010 is built; until then the owner's environment approval is the only control.
 - An invariant is edited outside this change. `script/agents-invariants-check.sh` fails until the
@@ -237,9 +257,15 @@ the log audit covers those. The plan's "Intent: proposed" sub-lines are pinned t
 | ACR-V1-010 | none | `NOT_RUN` |
 | ACR-V1-011 | Decision 0596 status line and section 11 (fallback, H14) | fallback recorded; tag verification `NOT_RUN` |
 | ACR-V1-012 | `script/agents-invariants-check.sh`, `script/agents-invariants-check_test.sh`; build log `2026-11-10-agents-invariants-acr012.md` | delivered |
+| ACR-V1-013 | `script/acceptance-log-audit.sh`; `script/acceptance-log-audit_test.sh` (missing change row); one `change` row per folder in the log | proposed / experimental |
+| ACR-V1-014 | `script/acceptance-log-audit_test.sh` (header mismatch) | proposed / experimental |
+| ACR-V1-015 | `script/acceptance-log-audit_test.sh` (index mismatch); `docs/specs/openspec/README.md` | proposed / experimental |
 
 ## Rollback
 
 Remove `script/acceptance-log-audit.sh`, its test and its line in the `spec-acceptance-audit`
 target, and delete this file and its index row. The decision record, the log and the invariant
 check are separate deliveries and stay. No stored state or wire format changes.
+
+Rollback of ACR-V1-013 to ACR-V1-015 alone: drop the three finding kinds from the audit and its
+test; the `change` rows in the log and the README status column are documentation and may stay.
