@@ -128,7 +128,7 @@ the counts. Serves PROD-DOCS-003. (finding 3; `internal/doccitations/check.go`)
 - WHEN the citation check runs with `--json`
 - THEN `a.go:3` is not checked, `b.go:4` is listed as unpinned and the JSON counts both groups
 
-Delivery: not yet built.
+Delivery: `internal/doccitations` reports `missing-file` for any untracked cited path, skips and counts tokens inside fenced code (`Report.Fenced`), and lists tracked citations with no pin in `Report.Unpinned`; `docs citations check --json` prints `corvint-docs-citations-check/0` (failures, unpinned, counts) and the text summary counts unpinned and fenced citations. SDD-V0-633 is amended to match. Tests: `TestDMFV1004CitationsMissingFencedUnpinned` (`internal/doccitations`), `TestDMFV1004CitationsCheckJSON` (`cmd/corvint-docs`).
 
 - `DMF-V1-005`: (accepted automatically under G14, decision 0596; V1-5409) Reports say when the worktree differs
 
@@ -298,7 +298,7 @@ Delivery: not yet built.
 | DMF-V1-001 | 3 | `internal/appflows/docs.go`, `internal/command/flows/flows_docs.go` | `TestDMFV1001*` |
 | DMF-V1-002 | 9 | not yet built | not yet built |
 | DMF-V1-003 | 4 | `internal/docmaintain/check.go`, `cmd/corvint-docs/docs_maintain.go` | `TestDMFV1003*` |
-| DMF-V1-004 | 5 | not yet built | not yet built |
+| DMF-V1-004 | 5 | `internal/doccitations/check.go`, `cmd/corvint-docs/docs.go` | `TestDMFV1004*` |
 | DMF-V1-005 | 6 | not yet built | not yet built |
 | DMF-V1-006 | 7 | not yet built | not yet built |
 | DMF-V1-007 | 8 | not yet built | not yet built |
