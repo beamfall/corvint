@@ -4451,5 +4451,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/ticket-brief-v1.md",
+    "title": "Ticket Brief V1 — the context brief for a ticket and for paths",
+    "reqPrefix": "TBC-V1",
+    "intent": "proposed; its two product requirements are accepted by the owner (decision 0596; 2026-11-10)",
+    "delivery": "experimental; path form built, ticket form not started",
+    "claim": "`corvint context` prints a brief built only from declared links, for a ticket or for paths, and states what it could not observe.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
