@@ -466,6 +466,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	var leafReads []string
 	var kindReads unboundedReads
 	var kindLeafReads []string
+	var sourceReads []sourceRead
 	moves := false
 	linkListings := map[string][]fs.DirEntry{}
 	fileSet := token.NewFileSet()
@@ -589,17 +590,18 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 				fileReads.mark(relative+" "+reason, isTest)
 			}
 		}
-		// A location source is marked after the literal and locator reasons,
-		// so a unit those already hold keeps naming them (AFP-V0-3663). A
-		// source whose only unproven use is the directory of a command waits
-		// for the go list proof (AFP-V0-3664, applyContingentReads).
+		// A location source is marked after every literal and locator reason
+		// of the unit, so a unit those already hold keeps naming them
+		// (AFP-V0-3663). A source whose only unproven use is the directory of
+		// a command waits for the go list proof (AFP-V0-3664,
+		// applyContingentReads).
 		if kinds == nil || len(kinds) > 0 {
 			every, everyDotted := qualifiedImports(file.Imports, func(string) bool { return true })
 			uses := locationSourceUses(body, every, everyDotted)
 			for _, source := range sortedKeys(uses) {
 				reason := relative + " " + locationSourceReason(source)
 				if kinds != nil || locationHolds(uses[source]) {
-					fileReads.mark(reason, isTest)
+					sourceReads = append(sourceReads, sourceRead{target: fileReads, reason: reason, test: isTest})
 					continue
 				}
 				read := contingentRead{reason: reason, relative: relative, test: isTest, frame: strings.HasPrefix(source, "runtime.")}
@@ -625,6 +627,9 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		for _, reason := range kindLeafReads {
 			kindReads.mark(reason, true)
 		}
+	}
+	for _, read := range sourceReads {
+		read.target.mark(read.reason, read.test)
 	}
 	if len(sources) == 0 && len(tests) == 0 {
 		return affected.Unit{}, nil, nil, false, directoryEmbeds{}, nil
