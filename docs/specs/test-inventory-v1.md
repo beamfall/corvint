@@ -177,7 +177,8 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   working tree, read with lock-free, hermetic Git that never rewrites the index.
 - Listers (TIV-V1-004, TIV-V1-005): Go `go-ast` (static: top-level `Test`, `Fuzz` and runnable
   `Example` functions per package directory, build constraints not evaluated; an unparseable file is
-  its package ID with `test-id-unmapped`); RSpec `rspec-static` (static, file level); Minitest
+  its package ID with `test-id-unmapped`, and several unparseable files of one package share one such
+  entry while every file stays bound); RSpec `rspec-static` (static, file level); Minitest
   `minitest-static` (static: `def test_` methods of a top-level class deriving directly from
   `Minitest::Test`, otherwise file level); Vitest `vitest list --json`, Jest `jest --listTests` (file
   level), Playwright `playwright test --list --reporter=json` converted through
@@ -185,11 +186,23 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   no:cacheprovider` (all executing, from the project's own `node_modules/.bin` or `.venv`). Each
   record binds the commit, config and lockfile blobs, the lister identity and every candidate or
   listed test file's blob.
+- Custom test-file patterns (TIV-V1-005, TIV-V1-008): candidates are the runner's default test-file
+  names unless the executing instance's config names a member that may move them, which the reader
+  does not evaluate: Vitest `include`, `projects` or `workspace`; Jest `testMatch`, `testRegex` or
+  `projects`; Playwright `testMatch`; pytest `python_files`; a JavaScript config that imports a
+  relative module; or a config it cannot read. The match is a whole-word scan of the config bytes,
+  so a name in a comment also counts (fail closed). Such an instance's candidates are every
+  JavaScript or TypeScript file (Python for pytest) under its root, refresh binds each of them, and a
+  changed or new one is unassigned with the verdict's `cause` naming the config and the members it
+  sets. The instance is never fresh with an unlisted file of its language under the root.
 - `corvint inventory refresh [--runner RUNNER] [--root DIR]` (TIV-V1-002, TIV-V1-010,
   TIV-V1-011) is the only writer: it replaces the file through a temporary file in the same
   directory, refuses `inventory-refresh-drift` when the working tree's source digest or HEAD moved
-  after any lister, refuses `inventory-too-large` over 8 MiB, and records a failed lister in
-  `failures` with the instance left out.
+  after any lister or at one final check just before the write (made also when the filters select
+  no instance), refuses `inventory-too-large` over 8 MiB, and records a failed lister in `failures`
+  with the instance left out. The source digest leaves out the inventory file and its temporary
+  files (`.corvint/.test-inventory-*.tmp`). The working-tree reader refuses a `--root` that is not
+  the Git top level, and refresh then fails `inventory-unavailable`.
 - Readers (TIV-V1-002, TIV-V1-006 to TIV-V1-009) judge the file and never run a lister or write:
   `corvint affected --summary` (`affected-summary/1`, member `inventory` and `inventory` text
   lines) and the `corvint.affected` MCP tool, which returns that verdict, against HEAD for a based
@@ -202,6 +215,13 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   runner full with `selection-full`; parsing the variable belongs to change
   `narrowing-measurement`, which owns its grammar and refusal, and no command reads it yet.
 - NOT_PRODUCED: the GitHub Action refresh step (task 7, change `github-action`).
+- Known limits: the pattern scan reads only the instance's config, so a pattern set by a non-relative
+  package the config imports (a shared preset), by a `package.json` `jest` member, or on the command
+  line is not seen. A test directory outside the instance root (Playwright `testDir: '../e2e'`) is
+  not a candidate; its listing fails the lister, which leaves the instance absent. The static RSpec
+  and Minitest listers keep the default names: an `.rspec` `--pattern` or a Rake `TestTask` pattern
+  is not read. A wide candidate set can approach the 8 MiB cap in a large root, which refresh then
+  refuses with `inventory-too-large`.
 
 ## Traceability
 
@@ -210,13 +230,13 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
 | TIV-V1-001 | `TestTIVV1001RoundTripCanonicalBytes` (`internal/testinventory`); `TestTIVV1001InventoryRefreshCLI` (`cmd/corvint`, one Go module and one Vitest project) |
 | TIV-V1-002 | `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (affected, watch and test read only), `TestTIVV1002InventoryHelpAndRefusals` (`cmd/corvint`); the GitHub Action part is NOT_PRODUCED (task 7) |
 | TIV-V1-003 | `TestTIVV1003SeveralInstancesOfOneRunner`, `TestTIVV1003DetectInstances`, `TestTIVV1003ForceFullCoversEveryInstance`, `TestTIVV1004JestListerTwoRoots` (`internal/testinventory`) |
-| TIV-V1-004 | `TestTIVV1004GoStaticLister`, `TestTIVV1004RSpecStaticLister`, `TestTIVV1004MinitestStaticLister`, `TestTIVV1004VitestLister`, `TestTIVV1004JestListerTwoRoots`, `TestTIVV1004PlaywrightLister`, `TestTIVV1004PytestLister` (`internal/testinventory`; each refreshes twice to identical bytes) |
-| TIV-V1-005 | `requireBinding` in every TIV-V1-004 lister test; `TestTIVV1005TreesNameFilesByBlobID` (`internal/testinventory`) |
+| TIV-V1-004 | `TestTIVV1004GoStaticLister`, `TestTIVV1004GoUnmappedFilesCollapse`, `TestTIVV1004RSpecStaticLister`, `TestTIVV1004MinitestStaticLister`, `TestTIVV1004VitestLister`, `TestTIVV1004JestListerTwoRoots`, `TestTIVV1004PlaywrightLister`, `TestTIVV1004PytestLister` (`internal/testinventory`; each refreshes twice to identical bytes) |
+| TIV-V1-005 | `requireBinding` in every TIV-V1-004 lister test; `TestTIVV1005TreesNameFilesByBlobID`, `TestTIVV1005CustomPatternRecordsEveryLanguageFile`, `TestTIVV1005WorkTreeRefusesSubdirectoryRoot` (`internal/testinventory`) |
 | TIV-V1-006 | `TestTIVV1006To009ReaderRules` rows `absent file`, `absent record`, `absent after lister failure`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`absent`) |
 | TIV-V1-007 | `TestTIVV1006To009ReaderRules` rows `stale config`, `stale lockfile`, `stale lockfile appeared`, `stale lister version`, `stale config moved`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`stale`) |
-| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
+| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1008CustomPatternFailsClosed` (Vitest, Jest, Playwright and pytest custom patterns), `TestTIVV1005CustomPatternRecordsEveryLanguageFile` (`internal/testinventory`); `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
 | TIV-V1-009 | `TestTIVV1006To009ReaderRules` rows `invalid truncated`, `invalid profile`, `invalid oversize`; `TestTIVV1009DecodeRefusesInvalid`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`invalid`) |
-| TIV-V1-010 | `TestTIVV1010RefreshRefusesDrift` (`internal/testinventory`, source and HEAD drift); `TestTIVV1010InventoryRefreshDriftCLI` (`cmd/corvint`) |
+| TIV-V1-010 | `TestTIVV1010RefreshRefusesDrift` (`internal/testinventory`, source and HEAD drift), `TestTIVV1010FinalDriftCheckBeforeWrite`, `TestTIVV1010TemporaryInventoryFileIsNotDrift`; `TestTIVV1010InventoryRefreshDriftCLI` (`cmd/corvint`) |
 | TIV-V1-011 | `TestTIVV1011ListerFailureRecorded`, `TestTIVV1011EncodeRefusesOversize` (`internal/testinventory`); `TestTIVV1011InventoryRefreshTooLargeCLI` (`cmd/corvint`) |
 | TIV-V1-012 | `TestTIVV1012UnknownAddedFieldPreserved` (`internal/testinventory`) |
 
