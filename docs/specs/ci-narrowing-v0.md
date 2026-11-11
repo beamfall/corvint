@@ -654,9 +654,10 @@ extract-and-run tests used pipefail, so a masked pipeline failure passed the tes
   `.github/workflows/ci.yml` (AFP-V0-2721). A mapped input only produces or reports forward-row
   evidence (`collect.sh`, `classify.sh`, `row.jq`, `selection.jq`, `outcomes.sh`, `outcomes.jq`,
   `tiers.sh`, `tiers.jq`, `failed.sh`, `failed.jq`, `flaky.sh`, `mainmiss.sh`, `mainmiss.jq`,
-  `absence.jq`, `bar.sh`, `full-reasons.sh`, `infra-reclassified.txt`) or is one of the two
-  workflows that run them on main (`ci-forward-bar.yml`, `ci-control-plane.yml`); the guard maps
-  each to the test packages that read it, which include every package whose
+  `mainmiss-confirm.sh`, `absence.jq`, `bar.sh`, `full-reasons.sh`, `infra-reclassified.txt`) or
+  is one of the two workflows that run them on main (`ci-forward-bar.yml`,
+  `ci-control-plane.yml`); the guard maps each to the test packages that read it, which include
+  every package whose
   `.corvint/test-read-scopes.json` entry covers the path (`tools/ci-forward-row`;
   `tools/tiers-replay` for `tiers.*`; `tools/capabilities-check`, `tools/ci-forward-row` and
   `tools/ci-reuse-plan` for the workflows). The guard prints `1` and every changed input when any
