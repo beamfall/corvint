@@ -30,6 +30,12 @@ if test -n "$range"; then
     { printf '%s: --range head %s is not a commit\n' "$0" "${range#*..}" >&2; exit 2; }
   base=$(git rev-parse --verify -q "${range%%..*}^{commit}") ||
     { printf '%s: --range base %s is not a commit\n' "$0" "${range%%..*}" >&2; exit 2; }
+  # TTG-V0-962: the last-citation check compares HEAD with the point it branched from, never with a
+  # BASE that moved on after it; a range whose ends share no history is refused.
+  merge_base=$(git merge-base "$base" "$head") ||
+    { printf '%s: --range %s: base %s (%s) and head %s (%s) have no merge base; the last-citation check (TTG-V0-962) needs one\n' \
+        "$0" "$range" "${range%%..*}" "$base" "${range#*..}" "$head" >&2; exit 2; }
+  base=$merge_base
   commits=$(git rev-list --first-parent --reverse "${range%%..*}..$head") ||
     { printf '%s: git rev-list %s failed\n' "$0" "$range" >&2; exit 2; }
   test -n "$commits" || { printf '%s: --range %s holds no commit\n' "$0" "$range" >&2; exit 2; }
@@ -41,7 +47,8 @@ use strict;
 use warnings;
 use IPC::Open2 qw(open2);
 
-# $base_ref is the range base whose cited requirements HEAD must keep ('' in the index form);
+# $base_ref is the merge base of the range whose cited requirements HEAD must keep ('' in the index
+# form);
 # $test_ref is the tree whose test functions resolve a row ('' is the Git index); @spec_refs are the
 # trees whose spec rows are checked, in commit order ('' alone is the index).
 my ($base_ref, $test_ref, @spec_refs) = @ARGV;
@@ -154,10 +161,13 @@ my %tests = map { $_ => 1 } keys %{ $head_tests->{decl} };
 # TTG-V0-960: a requirement ID is the longest text matching this shape at its position.
 my $req_id = qr/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+/;
 
-# TTG-V0-961: the body of a declaration runs from its `func TestName(` line to the first later line
-# that is exactly `}` in column 0 (gofmt closes a top-level function there), or to the end of the
-# file. The ID counts only when no letter, digit or `-` precedes it and no letter or digit follows.
-# Any one declaration of the name in any tracked test file of the tree satisfies the citation.
+# TTG-V0-961: the body of a declaration is its `func TestName(` line alone when that line closes
+# every brace it opens and ends on a closing brace (a one-line test); otherwise it runs to the first
+# later line that is exactly `}` in column 0 (gofmt closes a top-level function there), or to the
+# end of the file. The reading is lexical: a column-0 `}` inside a raw string ends the body too,
+# which the refusal states. The ID counts only when no letter, digit or `-` precedes it and no
+# letter or digit follows. Any one declaration of the name in any tracked test file of the tree
+# satisfies the citation.
 sub body_has_id {
     my ($tests, $name, $id) = @_;
     my $key = "$name\0$id";
@@ -165,11 +175,19 @@ sub body_has_id {
     my $found = 0;
     FILE: for my $file (@{ $tests->{decl}{$name} || [] }) {
         my $source = index_blob($file, $tests->{ref});
-        while ($source =~ /^\s*func\s+\Q$name\E\s*\(/mg) {
-            my $start = $-[0];
+        while ($source =~ /^\s*(func\s+\Q$name\E\s*\()/mg) {
+            my $start = $-[1];
             my $eol = index($source, "\n", $start);
+            my $line = $eol < 0 ? substr($source, $start) : substr($source, $start, $eol - $start);
+            my ($depth, $last) = (0, '');
+            for my $brace ($line =~ /[{}]/g) {
+                $depth += $brace eq '{' ? 1 : -1;
+                $last = $brace;
+            }
             my $body = substr($source, $start);
-            if ($eol >= 0 && substr($source, $eol) =~ /\n\}(?:\n|\z)/) {
+            if ($last eq '}' && $depth == 0) {
+                $body = $line;
+            } elsif ($eol >= 0 && substr($source, $eol) =~ /\n\}(?:\n|\z)/) {
                 $body = substr($source, $start, $eol - $start + $+[0]);
             }
             if ($body =~ /(?<![A-Za-z0-9-])\Q$id\E(?![A-Za-z0-9])/) {
@@ -318,7 +336,8 @@ for my $spec_ref (@spec_refs) {
                 $subtests{"$file\0$name/$id"} = 1;
                 next if body_has_id($head_tests, $name, $id);
                 my $first = $reported{"$file\0$name/$id"} //= $spec_ref;
-                push @missing, "$at$file:$line_number: $name/$id (no declaration of $name contains $id)"
+                push @missing, "$at$file:$line_number: $name/$id (no declaration of $name contains $id; "
+                    . "each body was read from its func line to the first column-0 }: @{ $head_tests->{decl}{$name} })"
                     if $first eq $spec_ref;
                 next;
             }
