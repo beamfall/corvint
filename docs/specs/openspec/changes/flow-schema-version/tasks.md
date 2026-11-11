@@ -15,7 +15,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       the member-list test fails on a fixture that adds a member under version 0.
 - [x] 2.2 Single reader and the source scan test. Requirements: FSV-V1-003. Proof: the scan test
       fails on a fixture package that opens `.corvint/flows.json` directly.
-- [ ] 2.3 `FLOWS_SCHEMA_UNSUPPORTED` in the affected planner. Requirements: FSV-V1-004. Proof: a
+- [x] 2.3 `FLOWS_SCHEMA_UNSUPPORTED` in the affected planner. Requirements: FSV-V1-004. Proof: a
       planner test where every E2E test is selected with the reason.
 - [ ] 2.4 Refusal in `corvint flows` reports and in the documentation product's flow reader.
       Requirements: FSV-V1-005. Proof: command tests showing a non-zero exit and no partial output.
