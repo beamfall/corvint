@@ -11,7 +11,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 3 Add the absent, stale, per-file and invalid rules to the reader.
    Requirements: TIV-V1-006, TIV-V1-007, TIV-V1-008, TIV-V1-009. Proof: table-driven tests, one row
    per cause, each with its reason string.
-- [ ] 4 Add the listers: Go static, Vitest, Jest, Playwright (reusing `playwright-discovery/0`),
+- [x] 4 Add the listers: Go static, Vitest, Jest, Playwright (reusing `playwright-discovery/0`),
    pytest, RSpec and Minitest static. Requirements: TIV-V1-004, TIV-V1-005. Proof: one fixture
    repository per runner; refresh twice writes identical bytes.
 - [ ] 5 Add `corvint inventory refresh` with drift refusal and the size cap.
