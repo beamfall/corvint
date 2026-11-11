@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 // nodeVersionFor is the version of the node executable that runs the runner (CCE-V0-140): argv[0]
@@ -94,10 +96,10 @@ func recordedNodeVersion(runnerVersion string, tests []TestOutcome, reported *st
 	}
 	reportNamed := version != ""
 	for _, t := range tests {
-		if reportNamed && browserlessReason(runnerVersion, t) != "" {
+		if reportNamed && jstestreceipt.BrowserlessReason(runnerVersion, t) != "" {
 			continue
 		}
-		var use playwrightUseIdentity
+		var use jstestreceipt.PlaywrightUseIdentity
 		if t.Project == nil || json.Unmarshal(t.Project.Use, &use) != nil || use.CorvintBrowser.NodeVersion == nil || *use.CorvintBrowser.NodeVersion == "" {
 			return ""
 		}

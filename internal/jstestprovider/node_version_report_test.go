@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -94,7 +95,7 @@ func TestPWPV0961BrowserlessNpxRunTupleCandidate(t *testing.T) {
 	if tuple := ReceiptRuntimeTuple(before); tuple != RuntimeTupleUnobserved {
 		t.Fatalf("without a report-level version tuple = %s, want %s", tuple, RuntimeTupleUnobserved)
 	}
-	if !qualifiedPrerequisitesUnknown(before, before.Tests[0]) {
+	if !jstestreceipt.QualifiedPrerequisitesUnknown(before, before.Tests[0]) {
 		t.Fatal("no-browser-use test qualified on an unobserved Node")
 	}
 	admitted := "v22.23.2"
@@ -102,17 +103,17 @@ func TestPWPV0961BrowserlessNpxRunTupleCandidate(t *testing.T) {
 	if after.Identity.NodeVersion != admitted || ReceiptRuntimeTuple(after) != RuntimeTupleCandidate {
 		t.Fatalf("node=%q tuple=%s, want %s candidate", after.Identity.NodeVersion, ReceiptRuntimeTuple(after), admitted)
 	}
-	if qualifiedPrerequisitesUnknown(after, after.Tests[0]) {
+	if jstestreceipt.QualifiedPrerequisitesUnknown(after, after.Tests[0]) {
 		t.Fatal("no-browser-use test did not qualify on the candidate tuple")
 	}
 	if state := ReceiptTestProjection(after, after.Tests[0]).Execution.State; state != testvalidity.ExecutionPassed {
 		t.Fatalf("no-browser-use test projected %s", state)
 	}
-	if !qualifiedPrerequisitesUnknown(after, after.Tests[1]) {
+	if !jstestreceipt.QualifiedPrerequisitesUnknown(after, after.Tests[1]) {
 		t.Fatal("not-run test made an execution claim")
 	}
 	unadmitted := "v22.23.3"
-	if r := run(&unadmitted); ReceiptRuntimeTuple(r) != RuntimeTupleUnqualified || !qualifiedPrerequisitesUnknown(r, r.Tests[0]) {
+	if r := run(&unadmitted); ReceiptRuntimeTuple(r) != RuntimeTupleUnqualified || !jstestreceipt.QualifiedPrerequisitesUnknown(r, r.Tests[0]) {
 		t.Fatalf("unadmitted node tuple = %s", ReceiptRuntimeTuple(r))
 	}
 	// A runner outside 1.63.0 and 1.64.0 records no browserless test (PWP-V3-014), so none is skipped.

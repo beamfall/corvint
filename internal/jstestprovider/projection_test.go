@@ -1,6 +1,10 @@
 package jstestprovider
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
+)
 
 func TestToTestProjection_NeverCollapsesToBoolean(t *testing.T) {
 	cases := []struct {
@@ -52,7 +56,7 @@ func TestFlakyOutcomeIsSharedRule(t *testing.T) {
 		{"failed-without-attempts", TestOutcome{State: StateFailed}, false},
 	}
 	for _, c := range cases {
-		if got := flakyOutcome(c.outcome); got != c.want {
+		if got := jstestreceipt.FlakyOutcome(c.outcome); got != c.want {
 			t.Errorf("%s: flakyOutcome = %v, want %v", c.name, got, c.want)
 		}
 	}

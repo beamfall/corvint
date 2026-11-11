@@ -16,7 +16,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/runhygiene"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -111,7 +111,7 @@ var runAdapters = map[string]runAdapter{
 }
 
 func parsePlaywrightReceipt(raw []byte) ([]*runTest, error) {
-	r, err := jstestprovider.DecodeAttemptReceipt(raw)
+	r, err := jstestreceipt.DecodeAttemptReceipt(raw)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func parsePlaywrightReceipt(raw []byte) ([]*runTest, error) {
 	}
 	tests := []*runTest{}
 	for _, test := range r.Tests {
-		if jstestprovider.ReceiptTestProjection(r, test).Execution.State == testvalidity.ExecutionInfrastructure {
+		if jstestreceipt.ReceiptTestProjection(r, test).Execution.State == testvalidity.ExecutionInfrastructure {
 			return nil, errors.New("external-attempt-test-unqualified")
 		}
 		if test.ID == "" || test.Project == nil || test.Project.Name == "" {
@@ -129,7 +129,7 @@ func parsePlaywrightReceipt(raw []byte) ([]*runTest, error) {
 		run := &runTest{key: test.ID, project: test.Project.Name}
 		for _, detail := range test.AttemptDetails {
 			outcome := string(detail.State)
-			if detail.State == jstestprovider.StateInfrastructure {
+			if detail.State == jstestreceipt.StateInfrastructure {
 				return nil, errors.New("external-attempt-infrastructure-unsupported")
 			}
 			a := RunAttempt{Outcome: outcome, DurationMS: durationMS(detail.DurationMS), Failure: detail.FailureMessage, AssertionAnchors: []RunAnchor{}, Attachments: []RunAttachment{}}
@@ -167,7 +167,7 @@ func IngestRunEvidence(format string, raw []byte, header RunHeader) (Ingested, e
 		if errors.As(playwrightReceiptBounded(raw), &bound) {
 			return Ingested{Incomplete: string(bound)}, nil
 		}
-		receipt, err := jstestprovider.DecodeAttemptReceipt(raw)
+		receipt, err := jstestreceipt.DecodeAttemptReceipt(raw)
 		if err != nil || receipt.Identity.RunnerVersion == "" || receipt.Identity.RunnerVersion != header.RunnerVersion {
 			return Ingested{}, errors.New("external-attempt-runner-identity-mismatch")
 		}

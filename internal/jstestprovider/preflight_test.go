@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -201,7 +202,7 @@ func TestPWPV0091PreflightProbesRunInOrderAndStopAtFirstFailure(t *testing.T) {
 	if failure == nil || receipt.Probes[0].State != PreflightNotRun || receipt.Probes[0].Reason != "preflight-timeout" || receipt.Probes[1].Reason != "earlier-probe-failed" {
 		t.Fatalf("total timeout: %+v %+v", receipt, failure)
 	}
-	if err := preflightShapeError(Receipt{Profile: ExternalProfile, External: &ExternalLifecycle{}, Preflight: receipt, Infrastructure: failure}); err != nil {
+	if err := jstestreceipt.PreflightShapeError(Receipt{Profile: ExternalProfile, External: &ExternalLifecycle{}, Preflight: receipt, Infrastructure: failure}); err != nil {
 		t.Fatalf("runner output fails its own shape: %v", err)
 	}
 }
@@ -272,7 +273,7 @@ func TestPWPV0093PreflightShapeRemovesPassingAuthority(t *testing.T) {
 		Probes: []PreflightProbeResult{{Name: "api", Kind: PreflightHTTP, State: PreflightPassed, Artefact: "http://127.0.0.1:3000/healthz"}}}
 	r := qualifiedFixture(t)
 	r.Preflight = passed
-	if err := qualifiedProfileShapeError(r); err != nil || ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+	if err := jstestreceipt.QualifiedProfileShapeError(r); err != nil || ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
 		t.Fatalf("passed preflight removed passing: %v", err)
 	}
 	failed := func() *PreflightReceipt {
@@ -309,7 +310,7 @@ func TestPWPV0093PreflightShapeRemovesPassingAuthority(t *testing.T) {
 	} {
 		r := qualifiedFixture(t)
 		mutate(&r)
-		if err := qualifiedProfileShapeError(r); err == nil {
+		if err := jstestreceipt.QualifiedProfileShapeError(r); err == nil {
 			t.Fatalf("%s: shape accepted", name)
 		}
 		for _, test := range r.Tests {
@@ -326,7 +327,7 @@ func TestPWPV0093PreflightShapeRemovesPassingAuthority(t *testing.T) {
 	}
 	r = qualifiedFixture(t)
 	r.Preflight, r.Infrastructure, r.Tests = failed(), infra, nil
-	if err := qualifiedProfileShapeError(r); err != nil {
+	if err := jstestreceipt.QualifiedProfileShapeError(r); err != nil {
 		t.Fatalf("well-formed failure: %v", err)
 	}
 }

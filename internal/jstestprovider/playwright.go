@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/runhygiene"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 	"github.com/Beamfall/corvint/internal/tcq"
@@ -253,7 +254,7 @@ func playwrightAttemptDetail(r *playwrightResult) AttemptDetail {
 func resultStatuses(results []playwrightResult) []string {
 	statuses := make([]string, 0, len(results))
 	for _, result := range results {
-		statuses = append(statuses, tcqStatus[ExecutionState(result.Status)])
+		statuses = append(statuses, jstestreceipt.TcqStatus[ExecutionState(result.Status)])
 	}
 	return statuses
 }

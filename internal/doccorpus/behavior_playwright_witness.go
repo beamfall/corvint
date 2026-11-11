@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -277,7 +277,7 @@ func (c playwrightWitnessContext) repositoryPath(absolute string) (string, bool)
 // witness returns the test's witness or the named reason it stays unwitnessed.
 func (c playwrightWitnessContext) witness(test BehaviorTest) (PlaywrightWitness, string, string, []string) {
 	identity := c.receipt.Playwright.Identity
-	var native *jstestprovider.Anchor
+	var native *jstestreceipt.Anchor
 	fullName := ""
 	for _, outcome := range c.receipt.Playwright.Tests {
 		if outcome.ID != test.ID || outcome.Anchor == nil {
@@ -367,7 +367,7 @@ func playwrightReceiptState(observed testvaliditydoc.Test) (string, string) {
 
 // sharedReceiptTuple reports whether more than one qualified receipt outcome has this file, line,
 // project and full title, so no report result could be attributed to exactly one of them.
-func (c playwrightWitnessContext) sharedReceiptTuple(anchor *jstestprovider.Anchor, project, fullName string) bool {
+func (c playwrightWitnessContext) sharedReceiptTuple(anchor *jstestreceipt.Anchor, project, fullName string) bool {
 	count := 0
 	for _, outcome := range c.receipt.Playwright.Tests {
 		if outcome.Anchor != nil && outcome.Project != nil && outcome.Anchor.File == anchor.File && outcome.Anchor.Line == anchor.Line && outcome.Project.Name == project && outcome.FullName == fullName {
