@@ -3,9 +3,10 @@
 # for a change folder under docs/specs/openspec/changes/, `spec docs/specs/<file>.md` for a spec.
 # The file only shrinks: an entry that no longer fails fails the check until its line is deleted,
 # and `make openspec-check OPENSPEC_BASE=<rev>` fails an entry added since <rev>. Every subject
-# not listed here is blocking. First version 2026-11-11 (V1-5399): every change folder that failed
-# then, and every spec, since no spec header carries a `Health:` line yet (spec-set-cleanup writes
-# them, OSC-V1-008).
+# not listed here is blocking. First version 2026-11-11 (V1-5399): the 32 change folders that
+# failed then, and every spec, since no spec header carries a `Health:` line yet (spec-set-cleanup
+# writes them, OSC-V1-008). The same day's repository run (task 3.1) removed runner-contract and
+# watch-seven-runners, which pass once the reservation range form `PREFIX` NNN..NNN is read.
 change acceptance-record
 change affected-plan-kinds
 change agent-packages
@@ -27,7 +28,6 @@ change pytest-provider
 change release-process
 change review-evidence-check
 change ruby-providers
-change runner-contract
 change selection-hardening
 change source-removal
 change tasks-hardening
@@ -37,7 +37,6 @@ change tasks-store-cutover
 change ticket-brief-context
 change ticket-taxonomy
 change watch-flows-hardening
-change watch-seven-runners
 spec docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md
 spec docs/specs/PRODUCT-PLAN-1.0.md
 spec docs/specs/SPEC-HEALTH-2026-11-09.md

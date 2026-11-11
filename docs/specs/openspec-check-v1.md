@@ -13,8 +13,8 @@ R37, R41, H9, H12 and H13), and the change folder `docs/specs/openspec/changes/o
 ## Agent digest
 - Claim: A Go check enforces the OpenSpec change-folder layout, the propose, apply and archive stages, one OpenSpec root and spec health classes.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-5399) / experimental
-- Exists: this spec; the change folder `docs/specs/openspec/changes/openspec-check/`.
-- Blocked on: the Go check, the baseline, the Health projection and the `openspec-validate` target.
+- Exists: `tools/openspec-check` and its baseline; `make openspec-check`, `focused-docs` and `openspec-validate`; the Health projection.
+- Blocked on: `Health:` lines (spec-set-cleanup); the pinned `openspec` run; the CI install step and range.
 - Read next: Requirements; Decisions; Failure modes; Acceptance evidence.
 
 ## User and measurable job
@@ -148,8 +148,9 @@ Non-goals:
 - Task numbers. An item is `- [ ] N text` or `- [x] N text` where `N` is digits with optional
   `.digits` groups and an optional lowercase letter (`2.3a`), the forms the folders already use
   and the OpenSpec command counts. A line starting `- [` in another form is malformed.
-  `Requirements: all` names every delta ID of the folder. `X-NNN to NNN` and `X-NNN to X-NNN`
-  name the whole range. Ticket IDs (`V1-NNNN`) are not requirement IDs.
+  `Requirements: all` names every delta ID of the folder. `X-NNN to NNN`, `X-NNN to X-NNN` and the
+  reservation form `` `X` NNN..NNN `` (also `NNN to NNN` or `NNN-NNN`, in parentheses or not) name
+  the whole range. Ticket IDs (`V1-NNNN`) are not requirement IDs.
 - Commit rules run only with a range (`--base REV`, checked as `REV..HEAD`). The tree rules
   (layout, IDs, tick order, canonical spec, archive state and history, boundaries, health,
   acceptance) run on every invocation; the ID and archive rules read history, so every run needs a
@@ -215,7 +216,7 @@ Non-goals:
 
 | Requirement | Evidence | State |
 |---|---|---|
-| OSC-V1-001 | `TestOSCV1001Layout` | fixture-tested |
+| OSC-V1-001 | `TestOSCV1001Layout`; `TestOSCV1001TaskIDForms` | fixture-tested |
 | OSC-V1-002 | `TestOSCV1002RequirementIDs` | fixture-tested |
 | OSC-V1-003 | `TestOSCV1003CommitBinding` | fixture-tested |
 | OSC-V1-004 | `TestOSCV1004ProposeStage` | fixture-tested |
@@ -225,8 +226,8 @@ Non-goals:
 | OSC-V1-008 | `TestOSCV1008HealthClass`; `script/gen-spec-requirements_test.sh` case OSC-V1-008 | check and projection fixture-tested; lines not written |
 | OSC-V1-009 | `TestOSCV1009AcceptanceLink` | fixture-tested |
 | OSC-V1-010 | `script/gen-spec-requirements_test.sh` cases 6, 7 and 8 (SRG-V0-009, 010, 012); `TestRequirementsAcceptanceColumns`; `make spec-requirements-check` | carried over, delivered |
-| OSC-V1-011 | `TestOSCV1011Baseline`; `TestOSCV1011HistoryUnavailable`; `TestOSCV1011StaleRequirements` | fixture-tested; repository run in build log |
-| OSC-V1-012 | `script/openspec-validate_test.sh` | NOT_RUN path and fake-command paths tested; pinned run `NOT_RUN` on hosts without the command |
+| OSC-V1-011 | `TestOSCV1011Baseline`; `TestOSCV1011HistoryUnavailable`; `TestOSCV1011StaleRequirements`; a depth-1 clone of the repository refused with `history-unavailable` | fixture-tested; the repository passes with 30 change folders and 288 specs baselined; the CI range is not wired |
+| OSC-V1-012 | `script/openspec-validate_test.sh` (its real-command case runs when `openspec` 1.17.0 is installed); `make openspec-validate` | fake-command paths tested; the pinned run on the repository and the real-command case `NOT_RUN` on hosts without the command |
 
 ## Rollback
 
