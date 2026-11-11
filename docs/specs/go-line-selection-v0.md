@@ -15,7 +15,7 @@ holds the new requirements); `session-test-runner-v0.md` (`corvint test`); `AGEN
 - Claim: A fresh per-test Go coverage index, bound to the environment it observed, narrows a Go change to the tests its lines can reach, fail-closed.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-4364, V1-4365, V1-4366) / experimental
 - Exists: the `linecov-index/4` compact format and lazy reader with per-test environment bindings, `corvint affected --line-index`, `corvint test --line-index`, the `linecov qualify` mutation harness with its report and qualification record, `linecov ci -selection` and the CI line-selection, miss-confirmation and kill-switch steps; a qualified NARROWED selection narrows locally and in CI (`GLS-V0-020`, `GLS-V0-040`, `GLS-V0-042`).
-- Blocked on: the owner enablement decision for CI (`CORVINT_LINECOV_NARROWING`, LPCV-V0-955) after the retained qualification; FC is still read through `go env -changed`, which does not report it (Enabled for 1.0).
+- Blocked on: the owner enablement decision for CI (`CORVINT_LINECOV_NARROWING`, LPCV-V0-955) after a fresh qualification: the proposed environment-completeness repairs (`GLS-V0-051..054`, V1-4514) change qualified sources, so the committed record stops admitting until it is regenerated.
 - Read next: Enabled for 1.0; Requirements; Selection rule; Failure modes; Traceability.
 
 ## User and verified baseline
@@ -497,6 +497,53 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   selects and the tests the line selection keeps, with one index at a stated commit, the same build,
   and every FALLBACK reason, plus the `GLS-V0-003` latency and size on the whole-module index.
 
+### Environment completeness and qualification timeouts (V1-4514)
+
+IDs `GLS-V0-051..060` are reserved for this block; `GLS-V0-055..060` are unused.
+
+- `GLS-V0-051`: (proposed 2026-11-11; V1-4514; delivery experimental) Reading the runner identity
+  also refuses the settings that the go command, its compiler, cgo or linker read straight from
+  the environment but that `go env -changed` does not report (go1.27.3 prints `{}` for
+  `FC=x go env -json -changed FC`), so the `GLS-V0-009` refusal of FC never fired. Reading the
+  identity fails, naming the variable, when `go env` reports a non-empty FC or GO_EXTLINK_ENABLED
+  (from the environment or the `go env -w` file), or when the environment the tests run under sets
+  a non-empty GCC, GOCOMPILEDEBUG, GOCLOBBERDEADHASH, GOSSAFUNC or GOSSADIR (the go command reads
+  these with `os.Getenv` and folds them into its build action ID; `go env` does not print them).
+  AR and GCCGO join the `go env -changed` list of `GLS-V0-009`. Collection and selection read the
+  identity through one function, so the setting refuses on either side: `linecov collect` fails,
+  and `corvint affected --line-index` and `corvint test --line-index` take the
+  `runner-unavailable` FALLBACK, so the static plan stands. An unset or empty setting adds nothing,
+  so an identity read without one is unchanged.
+- `GLS-V0-052`: (proposed 2026-11-11; V1-4514; delivery experimental) The identity's `runtime=`
+  also names, after GOMAXPROCS, GOGC, GOMEMLIMIT and GORACE, each set one of GOTRACEBACK and GOROOT
+  (the Go runtime reads them from its own copy of the environment, not through `os.Getenv`:
+  GOTRACEBACK when it starts, GOROOT in `runtime.GOROOT()`), then, sorted by name, every set
+  variable whose name starts with `LD_` or `DYLD_`, and GLIBC_TUNABLES: the dynamic loader and the
+  C library read them outside Go code in a dynamically linked test binary, which every `-race` or
+  cgo build is. The `GLS-V0-017` audit cannot see these reads, so an index collected under one
+  value is a `runner-mismatch` under another. An unset variable adds nothing, so an identity read
+  without any of them is unchanged.
+- `GLS-V0-053`: (proposed 2026-11-11; V1-4514; delivery experimental) C code reads the environment
+  through the C library's `getenv`, which the `os` audit of `GLS-V0-017` cannot see. Collection
+  therefore lists each package's test binary dependencies (`go list -deps -test` under the runner's
+  GOFLAGS) and, once, the dependencies of every module package (`go list -deps ./...`, which holds
+  every binary a test can build from the module). When a non-standard package among a package's
+  test binary dependencies compiles C, C++ or SWIG sources (`CgoFiles`, `SwigFiles`,
+  `SwigCXXFiles`), every record of that package binds the whole environment (`*`) as
+  `collector-modified`. A record that started an instrumented child binds it too when any
+  non-standard dependency of the module compiles such sources. Those tests are always kept, and
+  their package runs whole as `environment` (`GLS-V0-018`). A package the listing cannot load
+  counts as compiling such sources; a listing that fails outright fails collection. Standard-library cgo is not covered by this rule: the `net` package reads the
+  resolver variables (`LOCALDOMAIN`, `RES_OPTIONS`, `HOSTALIASES`) through `os`, so the audit
+  binds them, and `os/user` reads none.
+- `GLS-V0-054`: (proposed 2026-11-11; V1-4514; delivery experimental) `linecov qualify` runs each
+  suite package as `go test -json -timeout=D`, with D the deadline the index names
+  (`LPCV-V0-7603`). When the deadline expires the test binary panics, and test2json reports the
+  package failed with no result for the test that was running. The harness has no declared failing
+  test for that package, so it counts the package as a crash: every test the package declares
+  counts as failing, and any of them the selection left out is a miss. A timeout can therefore
+  only add misses, never hide one. A package with no result at all leaves the mutant `invalid`.
+
 ## Selection rule
 
 The rule is `LPCV-V0-952` applied inside the static plan. The static plan stays the sound
@@ -540,8 +587,10 @@ blocker is solved rather than deferred:
 2. The runtime settings the Go runtime reads itself (GOMAXPROCS, GOGC, GOMEMLIMIT, GORACE) are in
    the identity (`GLS-V0-009`).
 3. FC: `go env -json -changed FC` still prints `{}` on go1.27.3, so the FC refusal of `GLS-V0-009`
-   does not fire. FC chooses a Fortran compiler for cgo builds; this module has no Fortran, and
-   the environment audit binds a test that reads FC. It stays an open item, not a 1.0 blocker.
+   does not fire. Proposed repair (V1-4514): the identity refuses a non-empty FC that `go env`
+   reports, and the other settings the go command reads without `go env -changed` reporting them
+   (`GLS-V0-051`). The Go runtime's and the dynamic loader's own reads are carried in `runtime=`
+   (`GLS-V0-052`), and C code's reads bind the whole environment (`GLS-V0-053`).
 4. `linecov qualify` runs suites under the deadline the index names (`LPCV-V0-7603`).
 
 What the binding costs: an index narrows only under an environment that holds every variable its
@@ -568,6 +617,10 @@ objects and the head test files; it writes nothing.
 | A test added at HEAD, or only built under a tag | unrecorded, kept |
 | A test or in-order record observed under another environment | kept, or the package whole, as `environment` (`GLS-V0-018`) |
 | The index binds no environment | FALLBACK `environment-unbound`, static plan |
+| FC, GO_EXTLINK_ENABLED, GCC, GOCOMPILEDEBUG, GOCLOBBERDEADHASH, GOSSAFUNC or GOSSADIR set when collecting or selecting, or AR or GCCGO changed | collection fails; selection FALLBACK `runner-unavailable`, static plan (`GLS-V0-051`) |
+| GOTRACEBACK, GOROOT, an `LD_*` or `DYLD_*` variable or GLIBC_TUNABLES differs between collection and selection | FALLBACK `runner-mismatch`, static plan (`GLS-V0-052`) |
+| A test binary, or a child a test starts, links non-standard C, C++ or SWIG code | its records bind the whole environment: always kept, the package whole as `environment` (`GLS-V0-053`) |
+| A qualification suite run times out | the package counts as a crash: every declared test failing; any left out is a miss (`GLS-V0-054`) |
 | A test read GOFLAGS, GOCOVERDIR, a `CORVINT_LINECOV_*` variable or the whole environment | binds `collector-modified`: always kept, its package whole when the in-order record holds it (`GLS-V0-017`) |
 | A `TestMain`-only package without a complete suite record | the package runs whole as `suite-unrecorded` (`GLS-V0-008`) |
 | A suspected miss whose recorded runner is absent or not reproducible, or out of time | stays suspected, never confirmed (`GLS-V0-046`) |
@@ -583,7 +636,8 @@ change only through a started binary is kept, a head-new test is kept, an isolat
 is kept, a drift body edit marks its tests stale and a drift helper edit keeps its unit whole; a
 body reached only under another environment is excluded under the collection environment and kept,
 with its package, under the other, for a variable a test reads, the whole environment and a
-variable only a child reads; the
+variable only a child reads; FC set, or a `CI` value a test reads changed, between index collection
+and selection keeps the static plan or the reading package whole (`GLS-V0-051`, `GLS-V0-053`); the
 `/4` round trip and every damaged-index case; the plan-time budget; the `corvint affected` and
 `corvint test` wiring; the qualification harness on a fixture with a seeded miss it must report; the
 `linecov ci -selection` and `linecov miss` cases; and the retained Corvint qualification and 20-PR
@@ -597,6 +651,12 @@ base (`GLS-V0-040`, `GLS-V0-043`); otherwise it plans and records the selection 
 static lists. Rollback: unset the variable or create `refs/tags/linecov-kill-go`; selection returns
 to the static plan, and deleting the index loses only performance. An index collected before
 `GLS-V0-017` decides nothing (`environment-unbound`) until the next collection.
+The `GLS-V0-051..054` repairs change qualified sources (`internal/linecov/runner.go`,
+`collect.go`), so the committed record stops admitting and every selection is SHADOW `unqualified`
+until the owner regenerates the record with `linecov qualify` (`GLS-V0-034`). They never write or
+edit the record and never turn on CI narrowing. Rollback of the repairs: revert their commits.
+Selection then returns to the `GLS-V0-009` identity, and the regenerated record would need
+regenerating again.
 
 ## Traceability
 
@@ -607,12 +667,15 @@ to the static plan, and deleting the index loses only performance. An index coll
 | GLS-V0-008 | `internal/linecov/collect.go`, `index.go`, `windows.go`, `audit.go`, `tools/linecov` | `TestMergeResolvesInOrderParts`, `TestFaultInjection`, `TestDecide`, `TestCollectParts`, `TestCompactProfile`, `TestCollectorProcessGroup`, `TestInOrderWindows`, `TestUninstrumentedChild`, `TestOrderedChildMutation`, `TestQualifyRefusesFailingBaseline`, `TestSuiteOnlyPackageKeptWithoutSuiteRecord`, `TestCollectSuiteOnlyPackage`, `TestHeadTestNames` (TestMain-only lists) |
 | GLS-V0-009 | `internal/linecov/runner.go`, `collect.go`, `tools/linecov` | `TestCallerOverlayRefused`, `TestRunnerIdentityDropsParallelism`, `TestRunnerIDBindsArchFeatures`, `TestRunnerIDBindsRuntimeSettings`, `TestAffectedLineArchFeatureMismatchKeepsStaticPlan`, `TestRunnerIDBindsTestRuntime`, `TestRunnerIDRefusesUncarriedEnvironment`, `TestFaultInjection` (`body reached only in verbose mode`, `body reached only under a test deadline`), `TestAffectedLineTestRuntimeMismatchKeepsStaticPlan` |
 | GLS-V0-010..016 | `internal/linecov/decide.go`, `heads.go`, `cmd/corvint/affected_linecov.go`, `internal/liveverify/affected/readers.go` (`Readers`) | `TestDecide`, `TestHeadTestNames`, `TestAffectedLineIndexNarrowsTheBasePlan`, `TestAffectedLineIndexProfileRefusals`, `TestAffectedLineTestRuntimeMismatchKeepsStaticPlan`, `TestAffectedLineSourceReaderKeptWhole`, `TestAffectedLineInsertionIntroducingInitKeepsWhole`, `TestAnalyzeRequiresBothSides`, `TestLineNarrowingAppliesWhenQualified` |
-| GLS-V0-017, GLS-V0-018 | `internal/linecov/envaudit.go`, `audit.go`, `collect.go`, `compact.go`, `index.go`, `decide.go`, `select.go`, `windows.go` | `TestEnvAuditParse`, `TestEnvUnbound`, `TestUnboundIndexDecidesNothing`, `TestEnvAuditVersionAdmission`, `TestSyscallEnvironmentMutation`, `TestFaultInjection` (`environment:` and `collector-set variable:` cases, collector-own read checks), `TestCompactRoundTrip` |
+| GLS-V0-017, GLS-V0-018 | `internal/linecov/envaudit.go`, `audit.go`, `collect.go`, `compact.go`, `index.go`, `decide.go`, `select.go`, `windows.go` | `TestEnvAuditParse`, `TestEnvUnbound`, `TestUnboundIndexDecidesNothing`, `TestEnvAuditVersionAdmission`, `TestSyscallEnvironmentMutation`, `TestFaultInjection` (`environment:` and `collector-set variable:` cases, collector-own read checks), `TestCompactRoundTrip`, `TestAffectedLineFCOrCIChangeKeepsStaticPlan` (a changed `CI` a test reads) |
 | GLS-V0-020 | `cmd/corvint/test.go`, `affected_linecov.go`, `internal/sessiontest/plan.go` | `TestLineNarrowingAppliesWhenQualified`, `TestCorvintTestLineIndexNarrowsTheRun`, `TestCorvintTestUnqualifiedLineIndexIsShadow`, `TestRunnerEnvCarriesBuildFlags`, `TestRunnerEnvKeepsSavedGoFlags`, `TestRunnerEnvSavedTestFlagOrFailedGoEnvFallsBack`, `TestRunnerEnvDeclaredVerbosityKeepsInverseVerboseTest`, `TestRunnerEnvRefusesUncarriedDeclaredEnv`, `TestCorvintTestUncarriedGoFlagKeepsStaticPlan`, `TestCorvintTestDeclaredVerbosityKeepsInverseVerboseTest`, `TestLocalQualificationRequiresMatchingEvidence` |
 | GLS-V0-030..034 | `tools/linecov/qualify.go` | `TestQualifyFixtureHasNoMiss`, `TestQualifyReportsASeededMiss`, `TestSummarizeAndQualified`, `TestWorkflowQualifiedInvocationMatchesWrapperRecord`; `.github/linecov/qualification.json`; build log |
 | GLS-V0-035 | `tools/linecov/qualify.go` (unchanged) over the fixture in `tools/linecov/qualify_crosspkg_test.go` | `TestQualifyCrossPackageFixtureHasNoMiss` (every site of lib, each kind valid, zero misses, a lib mutant killed only by `app.TestReport`, the control keeps none), `TestQualifyReportsACrossPackageSeededMiss` (the seeded index fails qualify naming `app.TestReport`); build log `2026-11-11-selection-baseline-profile.md` |
 | GLS-V0-040..047 | `.github/workflows/ci.yml`, `linecov-index.yml`, `linecov-miss.yml`, `tools/linecov` | `TestCISelectionRewritesWholePackages`, `TestCINarrowsWholePackages`, `TestMissFindsExcludedFailures`, `TestLinecovPackageMissConfirmation`, `TestLinecovMissConfirmationReproducesRecordedRunner`, `TestLinecovKillSurvivesArtifactExpiry`, `TestLinecovKillMarkerWriter`, `TestAFPV0170RecordNeedsEveryShardFullUnderAnyVerdict`; workflow YAML and shell syntax checks |
 | GLS-V0-050 | build log | `2026-11-03-gls-line-selection.md`, `2026-11-06-lineidx-enable.md` |
+| GLS-V0-051, GLS-V0-052 | `internal/linecov/runner.go` | `TestRunnerIDRefusesUnreportedToolchainEnvironment`, `TestRunnerIDBindsRuntimeReadEnvironment`, `TestAffectedLineFCOrCIChangeKeepsStaticPlan` |
+| GLS-V0-053 | `internal/linecov/collect.go` | `TestCollectBindsWholeEnvironmentForCCode` |
+| GLS-V0-054 | `tools/linecov/qualify.go` (unchanged) | `TestQualifySuiteTimeoutCountsEveryTestFailing` |
 
 ## Owner questions
 

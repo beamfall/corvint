@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +37,7 @@ func RunnerID(ctx context.Context, root string, env []string, timeout time.Durat
 	if err != nil {
 		return "", "", err
 	}
-	args := append([]string{"env", "-json", "GOVERSION", "GOOS", "GOARCH", "GOFLAGS", "CGO_ENABLED", "GOEXPERIMENT", "GOWORK"}, ArchFeatureVars...)
+	args := append(append([]string{"env", "-json", "GOVERSION", "GOOS", "GOARCH", "GOFLAGS", "CGO_ENABLED", "GOEXPERIMENT", "GOWORK"}, ArchFeatureVars...), UnreportedGoEnvVars...)
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir, cmd.Env = root, env
 	var stderr bytes.Buffer
@@ -49,6 +51,9 @@ func RunnerID(ctx context.Context, root string, env []string, timeout time.Durat
 		return "", "", fmt.Errorf("go env: %w", err)
 	}
 	if err := checkGoFlags(e["GOFLAGS"]); err != nil {
+		return "", "", err
+	}
+	if err := checkUnreportedEnv(e, env); err != nil {
 		return "", "", err
 	}
 	if w := e["GOWORK"]; w != "" && w != "off" {
@@ -74,6 +79,29 @@ func RunnerID(ctx context.Context, root string, env []string, timeout time.Durat
 	return RunnerIdentity(e["GOVERSION"], e["GOOS"], e["GOARCH"], e["CGO_ENABLED"], e["GOFLAGS"], e["GOEXPERIMENT"], ArchFeatures(e), RuntimeSettings(env), wrapper, test), e["GOFLAGS"], nil
 }
 
+// checkUnreportedEnv refuses a non-empty UnreportedGoEnvVars setting in one
+// go env reading, or UnreportedProcessEnvVars variable in env (nil is this
+// process's environment): each changes what a test executes, `go env
+// -changed` does not report it, and the identity does not carry it
+// (GLS-V0-051).
+func checkUnreportedEnv(goenv map[string]string, env []string) error {
+	for _, name := range UnreportedGoEnvVars {
+		if v := goenv[name]; v != "" {
+			return fmt.Errorf("%s=%q changes what a test executes, go env -changed does not report it, and the runner identity does not carry it", name, v)
+		}
+	}
+	if env == nil {
+		env = os.Environ()
+	}
+	values := EnvValues(env)
+	for _, name := range UnreportedProcessEnvVars {
+		if v := values[name]; v != "" {
+			return fmt.Errorf("%s=%q changes what the go command builds, go env does not report it, and the runner identity does not carry it", name, v)
+		}
+	}
+	return nil
+}
+
 // ExecIdentity is the identity form of a `go test -exec` wrapper: "" for
 // none, else `sha256:` of the wrapper file's content, so two runs share it
 // only under the same wrapper build (GLS-V0-009). An unreadable wrapper is an
@@ -91,24 +119,46 @@ func ExecIdentity(wrapper string) (string, error) {
 
 // RuntimeEnvVars are the environment variables the Go runtime reads itself,
 // not through os.Getenv, that can change what a program executes: scheduler
-// width, collector pacing and race detector behaviour. Collection's env audit
-// cannot see them, so the identity names each set one (GLS-V0-009).
-var RuntimeEnvVars = []string{"GOMAXPROCS", "GOGC", "GOMEMLIMIT", "GORACE"}
+// width, collector pacing and race detector behaviour (GLS-V0-009), the
+// traceback level and the GOROOT runtime.GOROOT reports (GLS-V0-052).
+// Collection's env audit cannot see them, so the identity names each set one.
+var RuntimeEnvVars = []string{"GOMAXPROCS", "GOGC", "GOMEMLIMIT", "GORACE", "GOTRACEBACK", "GOROOT"}
 
 // RuntimeSettings is the identity form of the RuntimeEnvVars in env (nil is
-// this process's environment): NAME=value for each set one, in order.
+// this process's environment): NAME=value for each set one, in order, then
+// each set loader variable (LoaderEnvVars, or a name starting with one of
+// LoaderEnvPrefixes) sorted by name (GLS-V0-052).
 func RuntimeSettings(env []string) string {
 	if env == nil {
 		env = os.Environ()
 	}
 	values := EnvValues(env)
-	var out []string
+	var out, loader []string
 	for _, name := range RuntimeEnvVars {
 		if v, ok := values[name]; ok {
 			out = append(out, name+"="+v)
 		}
 	}
-	return strings.Join(out, " ")
+	for name, v := range values {
+		if loaderEnv(name) {
+			loader = append(loader, name+"="+v)
+		}
+	}
+	sort.Strings(loader)
+	return strings.Join(append(out, loader...), " ")
+}
+
+// loaderEnv reports whether the dynamic loader or the C library reads name.
+func loaderEnv(name string) bool {
+	if slices.Contains(LoaderEnvVars, name) {
+		return true
+	}
+	for _, p := range LoaderEnvPrefixes {
+		if strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // BuildFlags are the go build flags that can change the built test binary,
@@ -177,10 +227,36 @@ func RunnerTestTimeout(id string) (timeout time.Duration, ok bool) {
 }
 
 // UncarriedEnvVars are the go env settings that can change what a test
-// executes but that the runner identity does not name: GODEBUG, and the C
-// toolchain and flags a cgo build compiles with. RunnerID refuses each one
-// changed from its default rather than modelling it (GLS-V0-009).
-var UncarriedEnvVars = []string{"GODEBUG", "CC", "CXX", "FC", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_FFLAGS", "CGO_LDFLAGS", "PKG_CONFIG"}
+// executes but that the runner identity does not name: GODEBUG, the C
+// toolchain and flags a cgo build compiles with, and the archiver and gccgo
+// a gccgo build uses (GLS-V0-051). RunnerID refuses each one go env
+// -changed reports changed from its default rather than modelling it
+// (GLS-V0-009); FC is never reported, so UnreportedGoEnvVars refuses it.
+var UncarriedEnvVars = []string{"GODEBUG", "CC", "CXX", "FC", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_FFLAGS", "CGO_LDFLAGS", "PKG_CONFIG", "AR", "GCCGO"}
+
+// UnreportedGoEnvVars are the go env settings the go command reads to build
+// a test that `go env -changed` does not report even when set (go1.27.3
+// prints {} for FC=x go env -json -changed FC): the Fortran compiler of a cgo
+// build and the external-linking switch. RunnerID reads them through go env,
+// which sees the environment and the go env -w file, and refuses a non-empty
+// one (GLS-V0-051).
+var UnreportedGoEnvVars = []string{"FC", "GO_EXTLINK_ENABLED"}
+
+// UnreportedProcessEnvVars are the variables the go command, its compiler
+// or cgo read with os.Getenv, which go env does not print at all: cgo's C
+// compiler fallback and the compiler's debug settings the go command folds
+// into its build action ID. RunnerID refuses a non-empty one in the
+// environment the tests run under (GLS-V0-051).
+var UnreportedProcessEnvVars = []string{"GCC", "GOCOMPILEDEBUG", "GOCLOBBERDEADHASH", "GOSSAFUNC", "GOSSADIR"}
+
+// LoaderEnvVars and LoaderEnvPrefixes name the variables the dynamic loader
+// and the C library read outside Go code in a dynamically linked test binary
+// (every -race or cgo build): the environment audit cannot see those reads,
+// so RuntimeSettings names each set one (GLS-V0-052).
+var (
+	LoaderEnvVars     = []string{"GLIBC_TUNABLES"}
+	LoaderEnvPrefixes = []string{"LD_", "DYLD_"}
+)
 
 // ArchFeatureVars are the go env settings that choose the instructions or
 // the FIPS module a build of a GOARCH compiles to, so two builds differing in

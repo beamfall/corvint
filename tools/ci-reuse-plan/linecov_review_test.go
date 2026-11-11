@@ -359,8 +359,18 @@ func TestLinecovMissConfirmationReproducesRecordedRunner(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module m\n\ngo 1.27\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// A hosted shard's environment: no runtime or arch-feature settings.
-	for _, name := range append(append([]string{"GOEXPERIMENT", "GOWORK"}, linecov.RuntimeEnvVars...), linecov.ArchFeatureVars...) {
+	// A hosted shard's environment: no runtime, loader or arch-feature
+	// settings (GLS-V0-052).
+	names := append(append(append([]string{"GOEXPERIMENT", "GOWORK"}, linecov.RuntimeEnvVars...), linecov.ArchFeatureVars...), linecov.LoaderEnvVars...)
+	for _, kv := range os.Environ() {
+		name, _, _ := strings.Cut(kv, "=")
+		for _, prefix := range linecov.LoaderEnvPrefixes {
+			if strings.HasPrefix(name, prefix) {
+				names = append(names, name)
+			}
+		}
+	}
+	for _, name := range names {
 		t.Setenv(name, "")
 		os.Unsetenv(name)
 	}
