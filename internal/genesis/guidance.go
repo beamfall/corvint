@@ -171,7 +171,7 @@ const dirtyStatusPathsShown = 8
 
 // dirtyWorktreeError names, from `git status --porcelain=v1 -z` output, the
 // first dirtyStatusPathsShown entries and the total, so the refusal says which
-// paths are dirty (RGV-V0-016, V1-2053). When any entry is untracked it also
+// paths are dirty (RGV-V0-050, V1-2053). When any entry is untracked it also
 // states that Git runs without global configuration (sanitizedGitEnvironment,
 // decision 0158), so a path ignored only by a global excludes file counts as
 // untracked, and names the fix.
