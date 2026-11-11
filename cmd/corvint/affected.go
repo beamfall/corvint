@@ -1613,6 +1613,13 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 		graph = graph.WithGatedLocatorChanges(golang.GatedLocatorChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 		graph = affectedReadScopeChanges(ctx, in, graph, changed)
 		graph = affectedOwnershipInputs(ctx, in, graph, changed)
+		// AFP-V0-9960: with --base, each changed path's status against the
+		// base commit narrows name-listing reads (AFP-V0-9962, AFP-V0-9963).
+		// Without a base, or for a path no status is established for, the
+		// status is unknown and selects as before.
+		if in.base != "" {
+			graph = graph.WithChangeStatus(affected.ChangeStatuses(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
+		}
 	}
 	plan := affectedSelect(graph, changed, in.shared)
 	// AFU-V1-1651: a declared consumer bound to flows is kept, left out or

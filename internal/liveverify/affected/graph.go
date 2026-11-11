@@ -24,6 +24,13 @@ type Graph struct {
 	// tokens is derived once from the immutable units, shared by every plan
 	// and selection-input copy of this graph. It is not part of the wire data.
 	tokens [][]pathToken
+	// contentTokens holds, in graph.order, each unit's path tokens less its
+	// NameListings, nil for a unit with none: a dirty path whose change
+	// status cannot change a listing is matched against these (AFP-V0-9962).
+	contentTokens [][]pathToken
+	// status is each dirty path's change status, a plan input set by
+	// WithChangeStatus (AFP-V0-9960); an absent path is ChangeUnknown.
+	status map[string]ChangeStatus
 	owner  map[string]string
 	// embedded maps each file a unit's production or test embeds list to those units, in
 	// unit order (AFP-V0-600).
@@ -61,6 +68,11 @@ type Graph struct {
 	// code reads nothing unbounded, so, like a BINARY_EXEC runner, such a
 	// unit is a terminal selection (AFP-V0-2991, AFP-V0-560).
 	runnerOnly map[string]bool
+	// namesOnly holds the unbounded readers whose own reads are name
+	// listings alone (Unit.UnboundedNamesOnly) and that no root locator
+	// reaches: rule (d) selects them only for a dirty path whose change
+	// status can change a listing (AFP-V0-9963).
+	namesOnly  map[string]bool
 	claimants  map[string]Language
 	languages  []string
 	frontier   []string
@@ -252,12 +264,14 @@ type digestUnit struct {
 	PathTokens           []string `json:"pathTokens"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
+	NameListings         []string `json:"nameListings,omitempty"`
 	PlacesFileNames      bool     `json:"placesFileNames,omitzero"`
 	Embeds               bool     `json:"embeds"`
 	EmbedFiles           []string `json:"embedFiles,omitempty"`
 	TestEmbeds           bool     `json:"testEmbeds,omitzero"`
 	TestEmbedFiles       []string `json:"testEmbedFiles,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads"`
+	UnboundedNamesOnly   bool     `json:"unboundedNamesOnly,omitzero"`
 	LocatesRoot          bool     `json:"locatesRoot"`
 	ReadScoped           bool     `json:"readScoped,omitzero"`
 	ReadScope            []string `json:"readScope,omitempty"`
@@ -707,6 +721,7 @@ func (graph *Graph) resolvePathImports() {
 func (graph *Graph) finish() {
 	sort.Strings(graph.order)
 	graph.tokens = graph.splitPathTokens()
+	graph.contentTokens = graph.splitContentTokens()
 	graph.dependents = graph.reverse(func(unit Unit) []string { return unit.Imports })
 	graph.advisory = graph.reverse(func(unit Unit) []string { return unit.AdvisoryImports })
 	graph.routed = graph.reverse(func(unit Unit) []string { return unit.RouteDispatchImports })
@@ -718,7 +733,7 @@ func (graph *Graph) finish() {
 	graph.testRunners = graph.reverse(func(unit Unit) []string { return unit.TestOnlyExecs })
 	called := graph.callerEdges()
 	graph.testReach = graph.unitsReachingTests(called)
-	graph.unbounded, graph.causes, graph.chains, graph.locatorReach, graph.runnerOnly = graph.unboundedReaders()
+	graph.unbounded, graph.causes, graph.chains, graph.locatorReach, graph.runnerOnly, graph.namesOnly = graph.unboundedReaders()
 }
 
 // callerEdges adds the TSP-V0-005 edges of every unit's declared Callers to
@@ -765,7 +780,7 @@ func (graph *Graph) callerEdges() map[string][]string {
 // one before it. It also returns the units the locators' traversal walks
 // (AFP-V0-581), and the listed units only a test-only run reaches
 // (runnerOnly).
-func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string][]string, map[string]bool, map[string]bool) {
+func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string][]string, map[string]bool, map[string]bool, map[string]bool) {
 	locators := make(map[string]Witness)
 	own := make([]string, 0)
 	for _, id := range graph.order {
@@ -801,6 +816,15 @@ func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string]
 			runnerOnly[id] = true
 		}
 	}
+	// A name-only walker narrows only when its own reads are the whole
+	// cause: a unit a root locator also reaches stays selected on every
+	// dirty path (AFP-V0-9963).
+	namesOnly := make(map[string]bool)
+	for _, id := range own {
+		if _, located := reached[id]; !located && graph.units[id].UnboundedNamesOnly && !graph.units[id].LocatesRoot {
+			namesOnly[id] = true
+		}
+	}
 	for _, id := range own {
 		reached[id] = Witness{}
 		delete(runnerOnly, id)
@@ -821,7 +845,7 @@ func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string]
 		}
 	}
 	sort.Strings(ids)
-	return ids, causes, chains, walked, runnerOnly
+	return ids, causes, chains, walked, runnerOnly, namesOnly
 }
 
 // reverse maps every unit to the sorted units whose edges name it.
@@ -971,12 +995,14 @@ func projectUnit(unit Unit) digestUnit {
 		PathTokens:           unit.PathTokens,
 		PathGlobs:            unit.PathGlobs,
 		PathTokensBounded:    unit.PathTokensBounded,
+		NameListings:         unit.NameListings,
 		PlacesFileNames:      unit.PlacesFileNames,
 		Embeds:               unit.Embeds,
 		EmbedFiles:           unit.EmbedFiles,
 		TestEmbeds:           unit.TestEmbeds,
 		TestEmbedFiles:       unit.TestEmbedFiles,
 		UnboundedReads:       unit.UnboundedReads,
+		UnboundedNamesOnly:   unit.UnboundedNamesOnly,
 		LocatesRoot:          unit.LocatesRoot,
 		ReadScoped:           unit.ReadScoped,
 		ReadScope:            unit.ReadScope,

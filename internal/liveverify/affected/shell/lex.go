@@ -27,7 +27,11 @@ type command struct {
 // order, its heredoc bodies, which are data rather than commands, and the
 // functions it defines, each mapped to the number of commands before its
 // first definition. definitions counts each name's definitions, and bodies
-// holds the brace body of a name's first definition (TSP-V0-004).
+// holds the brace body of a name's first definition (TSP-V0-004). cases and
+// arithmetic count the `case` statements and `((` arithmetic commands, which
+// the lexer folds away without a command of their own (a case header and its
+// patterns are dropped, an arithmetic command reads as nested subshells), so
+// the name-listing gate can refuse them (AFP-V0-9961).
 type script struct {
 	commands    []command
 	data        []string
@@ -43,6 +47,8 @@ type script struct {
 	// at the `)`; dash refuses the file), so a file holding one is held as a
 	// dynamic source (AFP-V0-9971).
 	incomplete bool
+	cases      int
+	arithmetic int
 }
 
 // body is a function's brace body: its block id and the block id holding
@@ -195,6 +201,7 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		case len(words) == 2 && words[0] == "case" && word == "in":
 			words = nil
 			cases++
+			l.out.cases++
 			pattern = true
 			push(frame{keyword: true})
 		case len(words) == 0 && word == "{":
@@ -374,6 +381,9 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			if start >= 0 && strings.HasSuffix(l.src[start:l.pos], "=") {
 				l.balanced('(', ')')
 				continue
+			}
+			if l.peek(1) == '(' {
+				l.out.arithmetic++
 			}
 			endWord()
 			if l.functionParens(words) {
