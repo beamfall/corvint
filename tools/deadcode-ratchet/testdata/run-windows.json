@@ -1,0 +1,20 @@
+[
+	{
+		"Name": "a",
+		"Path": "example.com/m/a",
+		"Funcs": [
+			{"Name": "Unused", "Position": {"File": "a/a.go", "Line": 10, "Col": 6}, "Generated": false, "Marker": false},
+			{"Name": "T.Method", "Position": {"File": "a/a.go", "Line": 20, "Col": 13}, "Generated": false, "Marker": false},
+			{"Name": "posixOnly", "Position": {"File": "a/a_unix.go", "Line": 3, "Col": 6}, "Generated": false, "Marker": false},
+			{"Name": "Gen", "Position": {"File": "a/zz_generated.go", "Line": 7, "Col": 6}, "Generated": true, "Marker": false},
+			{"Name": "T.isMarker", "Position": {"File": "a/a.go", "Line": 30, "Col": 13}, "Generated": false, "Marker": true}
+		]
+	},
+	{
+		"Name": "b",
+		"Path": "example.com/m/b",
+		"Funcs": [
+			{"Name": "helper", "Position": {"File": "b/b.go", "Line": 5, "Col": 6}, "Generated": false, "Marker": false}
+		]
+	}
+]

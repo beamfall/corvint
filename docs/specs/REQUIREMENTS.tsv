@@ -4430,6 +4430,14 @@ DCW-V0-690	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-691	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3604; refines	standing	2026-11-01; V1-3604
 DCW-V0-710	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; lane cit-w41	standing	2026-11-02
 DCW-V0-711	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; lane cit-w41	standing	2026-11-02
+DCR-V0-001	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Pinned analyzer.	unrecorded	-
+DCR-V0-002	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Six configurations over ev	unrecorded	-
+DCR-V0-003	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Identity and intersection.	unrecorded	-
+DCR-V0-004	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Strict, sorted baseline.	unrecorded	-
+DCR-V0-005	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Shrink-only verdict. The t	unrecorded	-
+DCR-V0-006	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Hermetic proof. The tool's	unrecorded	-
+DCR-V0-007	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery not-started; V1-4827) Fail-closed deletion. A	unrecorded	-
+DCR-V0-008	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery not-started; V1-4827) Deletion proof. After the	unrecorded	-
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
