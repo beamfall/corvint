@@ -4754,7 +4754,7 @@ away and the mutators refuse `unsupported-spec` again.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-340 | `TestCEMV1340CEMActionHelpNamesOnlyThatAction` (removed), `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin`, `TestHelpFlagAnywhereFollowsArgparse`, `TestHFlagAliasesHelpFlag` (`cmd/corvint`) | Each registered action's help has its usage, no other action's usage, and Verification options only for the verifying actions. `cem prepare --help` and `cem begin --patch p -h` print that action's help, and `cem --help` is unchanged |
+| CEM-V1-340 | `TestCEMV1340CEMActionHelpNamesOnlyThatAction` (removed), `TestCLIKit` (`cmd/corvint`; its `cem_*` rows) | Each registered action's help has its usage, no other action's usage, and Verification options only for the verifying actions. `cem prepare --help` and `cem begin --patch p -h` print that action's help, and `cem --help` is unchanged |
 | CEM-V1-341 | `TestCEMV1341AssemblyResultCarriesTopLevelOK` (removed) (`cmd/corvint-cem-candidate`) | For both result profiles, the output is `{"ok":true,` followed by the `json.Encoder` bytes after the opening brace |
 | CEM-V1-342 | `TestMutatorsRefuseStableInput`, `TestMutatorsRefuseStableDestination` and the other `requireStableRefusal` callers (`internal/cem/workflow`) | Every stable-map mutator refusal carries `not-a-producer-map` and writes nothing |
 | CEM-V1-343 | `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` (`internal/observations`); `script/check-error-code-ownership.sh` | The code is admitted as a dogfood reason and owned by this spec |

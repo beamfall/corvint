@@ -1460,6 +1460,10 @@ CAP-V0-047	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-048	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) Every ot	standing	2026-10-11; V1-2685
 CAP-V0-049	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) A root	standing	2026-10-11; V1-2685
 CAP-V0-050	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) `AGENTS.	standing	2026-10-11; V1-2685
+CAP-V0-055	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-11); V1-4814; amends	standing	2026-11-11; V1-4814
+CAP-V0-056	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-11); V1-4814; amends	standing	2026-11-11; V1-4814
+CAP-V0-057	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-11); V1-4814) For eve	standing	2026-11-11; V1-4814
+CAP-V0-058	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-11); V1-4814) The hel	standing	2026-11-11; V1-4814
 CAP-V0-970	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)	standing	V1-3286
 CAP-V0-975	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4071; refines	standing	2026-11-01; V1-4071
 CAP-V0-060	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the	standing	2026-10-11; V1-3212
@@ -7540,6 +7544,7 @@ RSP-V0-030	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's
 RSP-V0-031	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A	standing	2026-10-11; decision 0592
 RSP-V0-032	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
 RSP-V0-047	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Ev	standing	2026-10-11; decision 0592
+RSP-V0-064	docs/specs/runner-selection-plugins-v0.md	(experimental under the standing lane auto-accept (2026-11-11); V1-4824) The Go,	standing	2026-11-11; V1-4824
 RSP-V0-042	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) CI	standing	2026-10-11; decision 0592
 RSP-V0-043	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Fo	standing	2026-10-11; decision 0592
 RSP-V0-044	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
