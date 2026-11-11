@@ -112,7 +112,9 @@ member.
   unknowns under `plan.e2e.unknown`. A present declaration that is unreadable, oversized, invalid in
   any member, or names a directory that does not load or evaluate at HEAD yields `scope` `UNKNOWN`,
   the unknown `{reason: "FLOWS_DECLARATION_INVALID", detail: ".corvint/flows.json", hint}` and no
-  selection. No inventory file is ever absent from `selected` without a flow link in a non-stale
+  selection. A declaration whose profile names a well-formed schema version this build does not
+  read yields `scope` `FULL`, no listed selection and the unknown `FLOWS_SCHEMA_UNSUPPORTED`
+  (FSV-V1-004, `flow-schema-version-v1.md`). No inventory file is ever absent from `selected` without a flow link in a non-stale
   review state explaining it; `plan.scope`, `plan.selected` and `plan.unknown` are not changed by
   this member.
 - `APK-V0-005`: (proposed 2026-11-09; V1-5251; delivery experimental) The new members are

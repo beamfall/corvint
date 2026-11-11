@@ -6,8 +6,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/appflows"
 )
 
 // CMS-V0-913: `corvint flows ...` and `corvint how ...` are exec-only shims onto corvint-docs
@@ -144,6 +147,48 @@ func TestRSPV0051FlowProjection(t *testing.T) {
 	for _, args := range [][]string{{"test-evidence", "checkout/checkout.go"}, {"test-evidence", "--flows", "flows", "checkout/checkout.go", "--revision", fx.b}} {
 		if code, _, diag = runNative(args...); code != 2 || !strings.Contains(diag, `"code"`) {
 			t.Fatalf("accepted %v: %d %s", args, code, diag)
+		}
+	}
+}
+
+// FSV-V1-005 (V1-5410): the native `corvint flows test-evidence` report, run
+// with corvint alone, exits non-zero with the shared reader's reason and
+// writes no report when the flows declaration names an unsupported schema
+// version or is invalid; a version 0 declaration changes nothing.
+func TestFSVV1005NativeFlowReportRefuses_V15410(t *testing.T) {
+	fx := newShopFixture(t)
+	path := os.Getenv("PATH")
+	capture := fakeDocsApp(t)
+	t.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+path)
+	declaration := filepath.Join(fx.root, filepath.FromSlash(appflows.FlowsDeclarationPath))
+	if err := os.MkdirAll(filepath.Dir(declaration), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	report := func() (int, string, string) {
+		var stdout, stderr bytes.Buffer
+		code := run([]string{"--root", fx.root, "flows", "test-evidence", "--flows", "flows", "checkout/checkout.go"}, strings.NewReader(""), &stdout, &stderr)
+		if _, err := os.Stat(capture); err == nil {
+			t.Fatal("flows test-evidence reached corvint-docs")
+		}
+		return code, stdout.String(), stderr.String()
+	}
+	for _, tc := range []struct{ body, code, reason string }{
+		{`{"profile":"corvint-flows/0","flows":"flows"}`, "", ""},
+		{`{"profile":"corvint-flows/7","flows":"flows"}`, "flows-schema-unsupported", "FLOWS_SCHEMA_UNSUPPORTED: .corvint/flows.json: profile corvint-flows/7 is schema version 7"},
+		{`{"profile":"corvint-flows/01","flows":"flows"}`, "flows-declaration-invalid", "FLOWS_DECLARATION_INVALID: .corvint/flows.json: "},
+	} {
+		if err := os.WriteFile(declaration, []byte(tc.body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		code, out, diag := report()
+		if tc.code == "" {
+			if code != 0 || out == "" || diag != "" {
+				t.Fatalf("%s: %d %q %s", tc.body, code, out, diag)
+			}
+			continue
+		}
+		if code != 2 || out != "" || !strings.Contains(diag, `"code": "`+tc.code+`"`) || !strings.Contains(diag, tc.reason) {
+			t.Fatalf("%s: exit %d stdout %q stderr %s", tc.body, code, out, diag)
 		}
 	}
 }

@@ -21,6 +21,9 @@ func runFlowsStatus(ctx context.Context, root string, args []string, out, diag i
 	if f.Parse(args) != nil || *dir == "" || f.NArg() != 0 || f.Lookup("registry").Value.String() != "" {
 		return errors.New("flows status requires --flows DIR, optional repeatable --evidence FILE and optional --base SHA")
 	}
+	if err := refuseUnreadableFlows(root); err != nil {
+		return err
+	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
 		return err

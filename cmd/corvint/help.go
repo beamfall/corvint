@@ -818,7 +818,10 @@ path that selected it. The inventory is the bound discovery receipt
 (AFU-V1-140), else the flows' test links; a test no flow links is selected as
 unlinked; a stale link, global path, unbounded plan, missing receipt or
 exceeded bound selects every E2E test with a typed e2e unknown and never
-drops one. Example: corvint affected --base FULL_COMMIT_ID --format text.
+drops one. A profile naming a schema version this build does not read is
+FLOWS_SCHEMA_UNSUPPORTED: every E2E test must run, plan.e2e is FULL and lists
+none, and corvint test is INCOMPLETE for them (FSV-V1-004). Example: corvint
+affected --base FULL_COMMIT_ID --format text.
 
 --selection-profile e2e-safe reads one repository-relative
 application-flow-selection-provider/1 FILE (flows directory, runner config,

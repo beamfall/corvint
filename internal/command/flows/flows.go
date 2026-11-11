@@ -289,6 +289,9 @@ func runFlowsGaps(ctx context.Context, root string, args []string, out, diag io.
 	if f.Parse(args) != nil || *dir == "" || f.NArg() != 0 {
 		return errors.New("flows gaps requires --flows DIR and optional --registry FILE, --provider FILE and repeatable --evidence FILE")
 	}
+	if err := refuseUnreadableFlows(root); err != nil {
+		return err
+	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
 		return err
@@ -344,6 +347,9 @@ func runFlowsImpact(ctx context.Context, root string, args []string, out, diag i
 	base := f.String("base", "", "base commit of the changed range")
 	if f.Parse(args) != nil || *dir == "" || *base == "" || f.NArg() != 0 {
 		return errors.New("flows impact requires --flows DIR --base SHA")
+	}
+	if err := refuseUnreadableFlows(root); err != nil {
+		return err
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {

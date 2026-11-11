@@ -1,0 +1,6 @@
+flows
+kinds[].kind
+kinds[].path
+playwright.config
+playwright.discovery
+profile

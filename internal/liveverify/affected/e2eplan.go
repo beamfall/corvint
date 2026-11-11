@@ -44,6 +44,9 @@ const (
 // plan.e2e.unknown and never under plan.unknown.
 const (
 	UnknownFlowsDeclarationInvalid = "FLOWS_DECLARATION_INVALID"
+	// UnknownFlowsSchemaUnsupported: the flows declaration names a
+	// well-formed schema version this build does not read (FSV-V1-004).
+	UnknownFlowsSchemaUnsupported  = "FLOWS_SCHEMA_UNSUPPORTED"
 	UnknownE2EFlowStale            = "E2E_FLOW_STALE"
 	UnknownE2EFlowUnreviewed       = "E2E_FLOW_UNREVIEWED"
 	UnknownE2EGlobalPath           = "E2E_GLOBAL_PATH"

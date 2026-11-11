@@ -1161,6 +1161,10 @@
     ],
     "internal/appflows": [],
     "internal/appflows/e2erunner": [],
+    "internal/appflows/flowsreaderscan": [
+      "cmd/",
+      "internal/"
+    ],
     "internal/appmap": [
       "internal/contextindex/"
     ],
@@ -2097,6 +2101,7 @@
       "script/",
       "tools/"
     ],
+    "tools/flows-smoke": [],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
       "Makefile",
