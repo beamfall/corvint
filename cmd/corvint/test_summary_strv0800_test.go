@@ -101,8 +101,8 @@ func TestDryRunStaleBinarySharesSummaryBudget(t *testing.T) {
 	root, built := selfBinaryRepository(t)
 	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", built))
 	files := map[string]string{
-		"self.go":                   "package self\n\nfunc Self() int { return 2 }\n",
-		sessiontest.DeclarationPath: `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":{"none":"no suite"},"typescript":{"none":"no suite"}}}` + "\n",
+		"self.go":                "package self\n\nfunc Self() int { return 2 }\n",
+		sessiontest.CommandsPath: `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":{"none":"no suite"},"typescript":{"none":"no suite"}}}` + "\n",
 	}
 	for i := 0; i < 100; i++ {
 		prefix := fmt.Sprintf("package%03d%s/", i, strings.Repeat("x", 60))
@@ -132,7 +132,7 @@ func TestDryRunLongStalePathsStayWithinSummaryBudget(t *testing.T) {
 	root, built := selfBinaryRepository(t)
 	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", built))
 	files := map[string]string{
-		sessiontest.DeclarationPath: `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":{"none":"no suite"},"typescript":{"none":"no suite"}}}` + "\n",
+		sessiontest.CommandsPath: `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":{"none":"no suite"},"typescript":{"none":"no suite"}}}` + "\n",
 	}
 	// Cap the entire absolute path at 800 bytes, including root and separators;
 	// each component is at most 200 bytes (below macOS's 255-byte bound).

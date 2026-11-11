@@ -123,7 +123,7 @@ func TestSTRV08701DeclaredProviders(t *testing.T) {
 // is one provider unit; anything else that names the language keeps its
 // declared command, and nothing selected is dropped.
 func TestSTRV08702BuildProviderUnits(t *testing.T) {
-	undeclared := "typescript: no qualified adapter and " + DeclarationPath + " declares no typescript full command"
+	undeclared := "typescript: no qualified adapter and " + CommandsPath + " declares no typescript full command"
 	frontier := Unknown{Reason: "LANGUAGE_FRONTIER", Detail: "typescript:e2e-runtime-dependency:e2e/login.spec.ts:3 page.goto"}
 	for name, test := range map[string]struct {
 		edit       func(*Input)

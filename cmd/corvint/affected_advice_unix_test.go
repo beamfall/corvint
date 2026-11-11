@@ -118,8 +118,9 @@ func TestAffectedAdviceFocusedNextStep_AFPV0496(t *testing.T) {
 }
 
 // ACX-V0-853 (V1-3726): a root without the corvint test command declaration
-// is not advised corvint test, whose dry run would select nothing there; the
-// unknown entry names the declaration and the declared checks stay first.
+// is not advised corvint test, whose dry run would plan with undeclared
+// built-in defaults there (RNC-V1-013); the unknown entry names the
+// declaration and the defaults, and the declared checks stay first.
 func TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, adviceAgentsName), []byte("## Verify\n\n```sh\nswift test\n```\n"), 0o600); err != nil {
@@ -136,7 +137,7 @@ func TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853(t *testing
 	if len(advice.Checks) == 0 || advice.Checks[0].Command != "swift test" || advice.Checks[0].Kind != adviceKindMandatory {
 		t.Fatalf("declared Verify command is not the first check: %+v", advice.Checks)
 	}
-	if !slices.Contains(advice.Unknown, adviceFocusedUndeclared) || !strings.Contains(adviceFocusedUndeclared, sessiontest.DeclarationPath) {
+	if !slices.Contains(advice.Unknown, adviceFocusedUndeclared) || !strings.Contains(adviceFocusedUndeclared, sessiontest.CommandsPath) || !strings.Contains(adviceFocusedUndeclared, "built-in default") {
 		t.Fatalf("unknown does not name the missing declaration: %v", advice.Unknown)
 	}
 	writeTestCommandDeclaration(t, root)

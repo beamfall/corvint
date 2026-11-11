@@ -8,12 +8,15 @@ import (
 
 // TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860: Select, the CI
 // PR tier, runs an UNKNOWN plan narrowed only when every unknown is a
-// non-module-level LANGUAGE_FRONTIER, an UNOWNED_DIRTY_PATH, a
+// non-module-level LANGUAGE_FRONTIER, a
 // NO_SELECTABLE_TEST or a deleted Go source of a package that still exists
 // (attributed to it and its importer by rule (a)); an unindexed existing
 // source, a deleted source of a removed package, another reason, a malformed
 // reason and an UNKNOWN plan naming none fall back. The UNOWNED_DIRTY_PATH and
-// NO_SELECTABLE_TEST cases were V1-3354 negatives, inverted by V1-3480. A
+// NO_SELECTABLE_TEST cases were V1-3354 negatives, inverted by V1-3480. Since
+// RNC-V1-004 (owner decision R32) an UNOWNED_DIRTY_PATH narrows only when a Go
+// rule attributes it (core/data.txt, enclosed by core); the root Makefile no
+// package encloses or names falls back with the named reason unowned-path. A
 // well-formed UNSELECTED_BINARY_CONSUMER narrows too (V1-4361): no Go run,
 // narrowed or FULL, runs it; a malformed one falls back.
 // SelectStructural (`corvint test`) is unchanged.
@@ -22,6 +25,7 @@ func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 		"go.mod":            "module " + fixtureModule + "\n\ngo 1.22\n",
 		"core/core.go":      "package core\n",
 		"core/core_test.go": "package core\n",
+		"core/data.txt":     "data\n",
 		"user/user.go":      "package user\n\nimport _ \"" + fixtureModule + "/core\"\n",
 		"user/user_test.go": "package user\n",
 	})
@@ -34,7 +38,7 @@ func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 		receipt.Provider.Go.State = "RUNNABLE"
 		receipt.Provider.Go.Packages = []string{fixtureModule + "/core"}
 		receipt.Plan.Scope = scope
-		receipt.Plan.Dirty = []string{"core/core.go", "Makefile", "core/gone.go", "removed/gone.go"}
+		receipt.Plan.Dirty = []string{"core/core.go", "Makefile", "core/data.txt", "core/gone.go", "removed/gone.go"}
 		receipt.Plan.Unknown = unknowns
 		return receipt
 	}
@@ -50,8 +54,10 @@ func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 	}{
 		{"bounded", plan("BOUNDED"), "run " + core + " " + user},
 		{"language frontiers alone", plan("UNKNOWN", frontier, unknown{"LANGUAGE_FRONTIER", "shell:foreign-invocation-unmodelled"}), "run " + core + " " + user},
-		{"an unowned dirty path", plan("UNKNOWN", unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "run " + core + " " + user},
-		{"an unowned path beside frontiers", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "run " + core + " " + user},
+		{"an attributed unowned path", plan("UNKNOWN", unknown{"UNOWNED_DIRTY_PATH", "core/data.txt"}), "run " + core + " " + user},
+		{"an attributed unowned path beside frontiers", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "core/data.txt"}), "run " + core + " " + user},
+		{"an unattributed unowned path", plan("UNKNOWN", unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "FALLBACK " + UnownedPathFallback + ": Makefile"},
+		{"an unattributed unowned path beside an attributed one", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "core/data.txt"}, unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "FALLBACK " + UnownedPathFallback + ": Makefile"},
 		{"no selectable test", plan("UNKNOWN", unknown{"NO_SELECTABLE_TEST", "go:x"}), "run " + core + " " + user},
 		{"a deleted source of a package that exists", plan("UNKNOWN", unknown{"UNINDEXED_SOURCE_PATH", "core/gone.go"}), "run " + core + " " + user},
 		{"a binary consumer", plan("UNKNOWN", frontier, unknown{"UNSELECTED_BINARY_CONSUMER", "tools/web-flows/test/e2e.mjs"}), "run " + core + " " + user}, //corvint:fixture-path

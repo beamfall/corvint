@@ -83,7 +83,10 @@ of every requirement below and the binding gate until this spec is promoted.
   against the root, never against the caller's working directory, and a bare name is looked up on
   `PATH`. When no plan can be produced, `FULL` SHALL run every full command it declares. When the declaration cannot be read (absent, oversized,
   unknown or malformed member, missing `go`), the run is `INCOMPLETE` in every scope and exits
-  nonzero. The verdict is a pure function of the plan, the declared full scope and the source
+  nonzero. Since `RNC-V1-013` that file is read only in Corvint's own repository and only while
+  `.corvint/test-commands.json` is absent; every other repository reads `.corvint/test-commands.json`
+  (`go` optional), refuses a malformed one with exit 2 (`test-commands-invalid`), and without it
+  runs each runner's built-in default full command. The verdict is a pure function of the plan, the declared full scope and the source
   identity, so every host and shard reaches it from the same inputs.
 - `STR-V0-004`: Execution SHALL go through registered runner adapters, one per runner, each with a
   versioned capability manifest (the discover, plan, execute and cancel subset of LPCV-V0-021) and

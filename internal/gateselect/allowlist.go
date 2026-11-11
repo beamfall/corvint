@@ -18,9 +18,14 @@ import (
 // adapter or declared command runs, narrowed or FULL. Every other frontier the
 // plan names bears on the change, so it is no category to ignore: a non-Go one
 // adds its language's declared suite through FrontierSuite, and a Go one may
-// hide a Go reader (AFP-V0-2750). An UNOWNED_DIRTY_PATH is read only by the Go
-// packages rules (b) to (d) select; a NO_SELECTABLE_TEST unit gets no test from
-// a FULL run either. Every other entry forces FULL.
+// hide a Go reader (AFP-V0-2750). An UNOWNED_DIRTY_PATH is admitted here, but
+// both selectors keep it narrowed only when a Go rule attributes the path: an
+// enclosing package or embed (rule (b)), a package that names it (rule (c)), a
+// declared read scope that bears on it, or a nested module's own suite. A path
+// none attributes is one no runner instance owns, and runs every test with the
+// named reason ReasonUnownedPath (RNC-V1-004, owner decision R32); see
+// unattributedPath and sessiontest.Build. A NO_SELECTABLE_TEST unit gets no
+// test from a FULL run either. Every other entry forces FULL.
 func AllowedUnknown(reason, detail string) bool {
 	switch reason {
 	case "LANGUAGE_FRONTIER":
@@ -31,6 +36,15 @@ func AllowedUnknown(reason, detail string) bool {
 	}
 	return false
 }
+
+// ReasonUnownedPath names the FULL run of a plan with a changed path no
+// runner instance owns (RNC-V1-004, owner decision R32): every test runs and
+// the run says so, in the driver's fallback line and in `corvint test`.
+const ReasonUnownedPath = "unowned-path"
+
+// UnownedPathFallback is the fallback reason both selectors print for an
+// UNOWNED_DIRTY_PATH entry no Go rule attributes, followed by ": <path>".
+const UnownedPathFallback = ReasonUnownedPath + ": a changed path no runner instance owns runs every test (UNOWNED_DIRTY_PATH)"
 
 // driverFrontier prefixes a frontier of the make and CI driver namespace
 // (AZU-V0-001), whose units no language suite runs.

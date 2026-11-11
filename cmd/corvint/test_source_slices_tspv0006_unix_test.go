@@ -44,14 +44,14 @@ func sourceSliceFixture(t *testing.T) (root, base string) {
 			"func TestSet(t *testing.T) { Set(&state) }\n\n" +
 			"func TestState(t *testing.T) { _ = state }\n\n" +
 			"func TestMark(t *testing.T) { Mark(\"m\") }\n",
-		"p/ext_test.go":             "package p_test\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/p\"\n)\n\nfunc TestExternal(t *testing.T) { _ = p.Lower(\"X\") }\n",
-		"q/q.go":                    "package q\n\nimport \"example.test/m/p\"\n\nfunc Q() string { return p.Upper(\"q\") }\n",
-		"q/q_test.go":               "package q\n\nimport \"testing\"\n\nfunc TestQ(t *testing.T) { _ = Q() }\n",
-		"r/r.go":                    "package r\n\nfunc R() int { return 1 }\n\nfunc S() int { return 2 }\n",
-		"r/r_test.go":               "package r\n\nimport \"testing\"\n\nfunc TestR(t *testing.T) { _ = R() }\n",
-		"d/d.go":                    "package d\n\nimport . \"strings\"\n\nfunc D(s string) string { return ToUpper(s) }\n\nfunc E() int { return 1 }\n",
-		"d/d_test.go":               "package d\n\nimport \"testing\"\n\nfunc TestD(t *testing.T) { _ = D(\"d\") }\n",
-		sessiontest.DeclarationPath: sessionDeclaration(""),
+		"p/ext_test.go":          "package p_test\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/p\"\n)\n\nfunc TestExternal(t *testing.T) { _ = p.Lower(\"X\") }\n",
+		"q/q.go":                 "package q\n\nimport \"example.test/m/p\"\n\nfunc Q() string { return p.Upper(\"q\") }\n",
+		"q/q_test.go":            "package q\n\nimport \"testing\"\n\nfunc TestQ(t *testing.T) { _ = Q() }\n",
+		"r/r.go":                 "package r\n\nfunc R() int { return 1 }\n\nfunc S() int { return 2 }\n",
+		"r/r_test.go":            "package r\n\nimport \"testing\"\n\nfunc TestR(t *testing.T) { _ = R() }\n",
+		"d/d.go":                 "package d\n\nimport . \"strings\"\n\nfunc D(s string) string { return ToUpper(s) }\n\nfunc E() int { return 1 }\n",
+		"d/d_test.go":            "package d\n\nimport \"testing\"\n\nfunc TestD(t *testing.T) { _ = D(\"d\") }\n",
+		sessiontest.CommandsPath: sessionDeclaration(""),
 	}
 	for name, body := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
