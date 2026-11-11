@@ -136,23 +136,23 @@ func batchReadBlobs(ctx context.Context, identity gitIdentity, root string, entr
 }
 
 type limitBuffer struct {
-	bytes.Buffer
+	buffer   bytes.Buffer // named, so no promoted write path skips the cap (GPK-V0-9930)
 	limit    int
 	exceeded bool
 }
 
 func (b *limitBuffer) Write(v []byte) (int, error) {
-	remain := b.limit - b.Len()
+	remain := b.limit - b.buffer.Len()
 	if remain <= 0 {
 		b.exceeded = true
 		return len(v), nil
 	}
 	if len(v) > remain {
-		_, _ = b.Buffer.Write(v[:remain])
+		_, _ = b.buffer.Write(v[:remain])
 		b.exceeded = true
 		return len(v), nil
 	}
-	return b.Buffer.Write(v)
+	return b.buffer.Write(v)
 }
 func sanitizedGitEnvironment() []string {
 	environment := make([]string, 0, 16)
