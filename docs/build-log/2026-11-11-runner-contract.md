@@ -101,9 +101,20 @@ their narrowing:
   AFP-V0-2377): the expectations now accept the FULL plan, where the package still runs whole;
 - an unowned addition with the ownership audit (AZU-V0-9900): the FULL plan keeps the named
   obligation on the whole package;
+- a hosted fixture no plugin indexes, under a Go package's `testdata` (AFP-V0-9013 and
+  AFP-V0-9310): the planner still classes it `UNOWNED_DIRTY_PATH` ("data"), and the session now
+  runs every test, its readers included, instead of only its readers. This conflicts with
+  AFP-V0-9013's "without FULL". On this repository the fixtures sampled
+  (`internal/analyzerswift/testdata/.../Package.swift`, `internal/docmaintain/testdata/*.py`) are
+  not unowned;
 - a deleted manifest name (AFP-V0-980) and a read-scope declaration edit (AFP-V0-050): these
   fixtures now declare the path, as this repository does (documentation, runtime reader), so their
   narrowing is still proven.
+
+An alternative was considered and not built: count an unowned path as owned by the Go instance
+when a Go attribution rule (an enclosing package, an embed, a path-literal reader) maps it to a
+package. That would restore the narrowing above, but it reopens the gap R32 closes: a non-Go test
+that reads the path is not attributed. It is left for an owner decision.
 
 ## Assertions extended
 

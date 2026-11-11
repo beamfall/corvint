@@ -139,9 +139,12 @@ func TestPlain(t *testing.T) {}
 			if plan.Scope != affected.ScopeUnknown || !pathUnknown {
 				t.Fatalf("lost fixture uncertainty: %+v", plan)
 			}
+			// The fixture is a path no runner owns, so the plan runs every
+			// test with the named reason, its readers and the declared Swift
+			// suite included (RNC-V1-004, owner decision R32).
 			manifest := swfixSession(t, root, "example.test/m", graph, plan)
-			if manifest.Scope != sessiontest.ScopeNarrowed {
-				t.Fatalf("fixture forced FULL: %+v", manifest)
+			if manifest.Scope != sessiontest.ScopeFull || !strings.HasPrefix(manifest.Reason, "unowned-path: ") {
+				t.Fatalf("unowned fixture narrowed: %+v", manifest)
 			}
 			var units []string
 			for _, u := range manifest.Units {
@@ -151,10 +154,10 @@ func TestPlain(t *testing.T) {}
 			if strings.HasSuffix(dirty, "Package.swift") {
 				want = []string{"go:example.test/m/host", "go:example.test/m/reader", "declared:swift"}
 			}
-			slices.Sort(units)
-			slices.Sort(want)
-			if !slices.Equal(units, want) {
-				t.Fatalf("dirty %s: units %v, want %v", dirty, units, want)
+			for _, unit := range want {
+				if !slices.Contains(units, unit) {
+					t.Fatalf("dirty %s: units %v, want them to include %v", dirty, units, want)
+				}
 			}
 		}
 	}
