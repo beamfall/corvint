@@ -36,15 +36,24 @@ func TestAFPV0510AffectedSummaryRestatesThePlan(t *testing.T) {
 		t.Fatalf("fixture plan: %v", plan)
 	}
 	excluded := plan["excluded"].(map[string]any)["count"]
+	// AFP-V0-9987 adds the selected go: UNBOUNDED_READER count.
+	unresolved := 0
+	for _, item := range plan["selected"].([]any) {
+		selection := item.(map[string]any)
+		if strings.HasPrefix(selection["unitId"].(string), "go:") && selection["witness"].(map[string]any)["kind"] == "UNBOUNDED_READER" {
+			unresolved++
+		}
+	}
 	want := map[string]any{
-		"committed":       float64(0),
-		"dirty":           float64(len(plan["dirty"].([]any))),
-		"worktree":        float64(len(plan["dirty"].([]any))),
-		"excluded":        excluded,
-		"scope":           "UNKNOWN",
-		"selected":        float64(len(plan["selected"].([]any))),
-		"unknown":         float64(len(plan["unknown"].([]any))),
-		"unknownByReason": byReason,
+		"unresolvedPackages": float64(unresolved),
+		"committed":          float64(0),
+		"dirty":              float64(len(plan["dirty"].([]any))),
+		"worktree":           float64(len(plan["dirty"].([]any))),
+		"excluded":           excluded,
+		"scope":              "UNKNOWN",
+		"selected":           float64(len(plan["selected"].([]any))),
+		"unknown":            float64(len(plan["unknown"].([]any))),
+		"unknownByReason":    byReason,
 	}
 	want["line"] = fmt.Sprintf("scope=UNKNOWN dirty=%d selected=%d excluded=%d unknown=%d", int(want["dirty"].(float64)), int(want["selected"].(float64)), int(excluded.(float64)), int(want["unknown"].(float64)))
 	for _, reason := range sortedKeysOf(byReason) {

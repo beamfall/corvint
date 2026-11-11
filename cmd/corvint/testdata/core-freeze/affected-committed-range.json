@@ -98,6 +98,15 @@
     ]
   },
   "revision": "<varies:string>",
+  "selectedFlat": [
+    {
+      "dirtyPath": "pkg/main.go",
+      "reason": "dirty path pkg/main.go",
+      "test": "example.test/cli/pkg",
+      "unitId": "go:example.test/cli/pkg",
+      "witness": "DIRECT_SOURCE_CHANGE"
+    }
+  ],
   "summary": {
     "committed": 5,
     "dirty": 5,
@@ -109,6 +118,7 @@
     "unknownByReason": {
       "UNOWNED_DIRTY_PATH": 3
     },
+    "unresolvedPackages": 0,
     "worktree": 0
   },
   "tiers": {
