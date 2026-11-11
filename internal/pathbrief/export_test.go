@@ -62,11 +62,11 @@ func newExportFixture(t *testing.T) exportFixture {
 	}, ","))
 	r2 := record(t, f.specBlob, f.first, f.prose, hunk("src/a.go", spec("e1")+","+spec("missing"))) // one dangling basis
 	f.final = commitAll(t, f.root, map[string]string{
-		".corvint/changes/" + f.c1 + ".cem.json": r1,
-		".corvint/changes/" + f.c2 + ".cem.json": r2,
-		".corvint/changes/" + f.c3 + ".cem.json": "not json",
-		".corvint/changes/README.md":             "stray\n",
-		"src/b.go":                               deleted,
+		recordDirectory + "/" + f.c1 + ".cem.json": r1,
+		recordDirectory + "/" + f.c2 + ".cem.json": r2,
+		recordDirectory + "/" + f.c3 + ".cem.json": "not json",
+		recordDirectory + "/README.md":             "stray\n",
+		"src/b.go":                                 deleted,
 	})
 	return f
 }
@@ -183,14 +183,14 @@ func TestExportSkipsDamagedRecords(t *testing.T) {
 		if damaged == good {
 			t.Fatalf("%s: fixture not changed", name)
 		}
-		commitAll(t, f.root, map[string]string{".corvint/changes/" + f.c3 + ".cem.json": damaged})
+		commitAll(t, f.root, map[string]string{recordDirectory + "/" + f.c3 + ".cem.json": damaged})
 		_, stats, err := Export(context.Background(), f.root, "HEAD")
 		if err != nil || stats.RecordsRead != before.RecordsRead || stats.RecordsSkipped != before.RecordsSkipped || stats.Links != before.Links {
 			t.Errorf("%s: stats %+v %v", name, stats, err)
 		}
 	}
 	// The undamaged record is read and adds its link.
-	commitAll(t, f.root, map[string]string{".corvint/changes/" + f.c3 + ".cem.json": good})
+	commitAll(t, f.root, map[string]string{recordDirectory + "/" + f.c3 + ".cem.json": good})
 	_, stats, err := Export(context.Background(), f.root, "HEAD")
 	if err != nil || stats.RecordsRead != before.RecordsRead+1 || stats.Links != before.Links+1 {
 		t.Errorf("good record: stats %+v %v", stats, err)
@@ -216,8 +216,8 @@ func TestExportRefusals(t *testing.T) {
 	f := newExportFixture(t)
 	ghost := strings.Repeat("c", 40)
 	commitAll(t, f.root, map[string]string{
-		".corvint/changes/" + ghost + ".cem.json": `{"spec":"cem/1.0","evidence":[],"hunks":[]}`,
-		".corvint/changes/" + f.c3 + ".cem.json":  `{"spec":"cem/0.9"}`,
+		recordDirectory + "/" + ghost + ".cem.json": `{"spec":"cem/1.0","evidence":[],"hunks":[]}`,
+		recordDirectory + "/" + f.c3 + ".cem.json":  `{"spec":"cem/0.9"}`,
 	})
 	_, stats, err := Export(context.Background(), f.root, "HEAD")
 	if err != nil || stats.RecordsRead != 2 || stats.RecordsSkipped != 3 {

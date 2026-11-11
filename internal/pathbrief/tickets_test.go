@@ -2,13 +2,13 @@ package pathbrief
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -84,7 +84,7 @@ func TestExecTicketsPages(t *testing.T) {
 		t.Skip("executable lookup needs an extension")
 	}
 	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, TasksExecutable), []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, TasksExecutable), []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin)
