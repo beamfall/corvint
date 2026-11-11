@@ -152,7 +152,7 @@ measure. None of them drops a unit the change can reach.
   temporary root included, keeps the existing conservative relation; a plain `ls` of the
   working directory reads one directory's names and is not a walk. A helper that walks the
   tree stays a bounded source (V1-4283): the test that runs it is selected by its own reads.
-- **AFP-V0-9960:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+- **AFP-V0-9960:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
   The affected planner MUST accept, for each dirty path, one change status against the base:
   `added`, `deleted`, `type-changed`, `modified` or `unknown`. A rename MUST be reported as
   `deleted` for the old path and `added` for the new path. `modified` MUST mean a regular file
@@ -160,7 +160,7 @@ measure. None of them drops a unit the change can reach.
   `type-changed`. A path whose status is absent or cannot be established MUST be `unknown`.
   `corvint affected --base` MUST compute the status from the base tree and pass it to the
   planner.
-- **AFP-V0-9961:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+- **AFP-V0-9961:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
   The shell plugin MUST record a name-listing read, separate from a content read, for a
   directory operand of a command whose output depends only on entry names and kinds. The
   admitted forms are a closed list: `ls` with no flags or only `-1`, `-a`, `-A` (direct
@@ -168,17 +168,21 @@ measure. None of them drops a unit the change can reach.
   `-name`, `-iname`, `-path`, `-type`, `-maxdepth`, `-mindepth`, `-print`, `-print0` with
   literal arguments; and `tree` with no flags. Every other form MUST stay a content read. When
   a unit holds a content read and a name-listing read of the same directory, the content read
-  MUST decide.
-- **AFP-V0-9962:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+  MUST decide. A computed read may be of that directory, so an admitted form MUST also stay a
+  content read unless every later stage of its pipeline is a standard-input filter (`wc`,
+  `sort`, `head`, `tail`, a non-recursive `grep`) and every other command of the test is an
+  output or existence-test builtin or reads only literal path-shaped operands, with no sourced
+  file, function call, directory change, program or PATH assignment.
+- **AFP-V0-9962:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
   A name-listing read MUST select its unit for a dirty path within the read's depth whose
   status is `added`, `deleted`, `type-changed` or `unknown`, and MUST NOT select it for a path
   whose status is `modified`.
-- **AFP-V0-9963:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+- **AFP-V0-9963:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
   An unbounded reader with the reason `shell:tree-walk` whose every walking command is an
   admitted name-only form MUST be selected for a dirty path only when the path's status is
   `added`, `deleted`, `type-changed` or `unknown`. A unit with at least one content-searching
   walker MUST be selected on every dirty path.
-- **AFP-V0-9964:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+- **AFP-V0-9964:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
   The graph cache MUST store name-listing reads, and its version MUST change with this field.
   A cache written under an older version MUST be rebuilt and MUST NOT be read as holding no
   name-listing reads. Change status MUST NOT be cached.
@@ -3215,6 +3219,14 @@ AFP-V0-9134: `TestShellTreeWalkerUnbounded_AFPV09134` makes each `.`-rooted walk
 unbounded reader selected for an added, edited or deleted file anywhere, and keeps
 directory-rooted, file-rooted, temp-rooted and helper walkers bounded. The lane entry is
 `docs/build-log/2026-11-09-affshell.md`.
+AFP-V0-9960: `TestClassifyChange_AFPV09960` and `TestChangeStatuses_AFPV09960` (added, deleted,
+renamed, file to directory, changed symlink, modified, untracked, no base, unreadable base);
+`TestAffectedChangeStatusCLI_AFPV09960` runs `corvint affected` with and without `--base`.
+AFP-V0-9961: `TestNameListingForms_AFPV09961` (one row per admitted and refused form, the
+pipeline and unit-gate refusals included) and `TestNameListingContentDecides_AFPV09961`.
+AFP-V0-9962: `TestNameListingSelection_AFPV09962`. AFP-V0-9963:
+`TestNameOnlyTreeWalker_AFPV09963`. AFP-V0-9964: `TestGraphCacheNameListings_AFPV09964`. The
+mutation evidence and measurements are in `docs/build-log/2026-11-11-affstatus.md`.
 
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.

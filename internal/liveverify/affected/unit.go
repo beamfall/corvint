@@ -62,6 +62,12 @@ const MaxPathsPerUnit = 20_000
 // literal directory and reads nothing recursively.
 // PathTokensBounded reports that the plugin dropped the unit's tokens at its
 // bound, so the unit's reads are unknown.
+// NameListings is the sorted, unique subset of PathTokens that only
+// name-listing reads hold (AFP-V0-9961): commands whose output is a function
+// of entry names and kinds alone. Such a token still selects as every path
+// token does, except for a dirty path whose change status is ChangeModified,
+// which cannot change a listing (AFP-V0-9962). A token any content read also
+// holds stays out of it, so the content read decides.
 // Embeds reports a Go package whose non-test files carry a //go:embed
 // directive, so a data file below its directory may be compiled into it.
 // EmbedFiles lists, sorted, the repository files those directives resolve to
@@ -74,7 +80,10 @@ const MaxPathsPerUnit = 20_000
 // UnboundedReads names why no literal bounds what the unit reads (a
 // root-locating call or a literal that climbs out of its package; AFP-V0-012
 // rule (d)); LocatesRoot reports that a non-test file is the cause, so every
-// unit that compiles this one is unbounded too.
+// unit that compiles this one is unbounded too. UnboundedNamesOnly reports
+// that every unbounded read is a name listing, so the unit is selected as an
+// unbounded reader only for a dirty path whose change status can change a
+// listing (AFP-V0-9963); it needs UnboundedReads and excludes LocatesRoot.
 // ReadScoped reports a unit whose tests' reads the repository declares
 // (AFP-V0-023): ReadScope then holds the sorted, unique repository paths they
 // read outside the unit's directory, a trailing "/" naming a subtree, and the
@@ -148,12 +157,14 @@ type Unit struct {
 	PathTokens           []string `json:"pathTokens,omitempty"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded,omitempty"`
+	NameListings         []string `json:"nameListings,omitempty"`
 	PlacesFileNames      bool     `json:"placesFileNames,omitempty"`
 	Embeds               bool     `json:"embeds,omitempty"`
 	EmbedFiles           []string `json:"embedFiles,omitempty"`
 	TestEmbeds           bool     `json:"testEmbeds,omitempty"`
 	TestEmbedFiles       []string `json:"testEmbedFiles,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads,omitempty"`
+	UnboundedNamesOnly   bool     `json:"unboundedNamesOnly,omitempty"`
 	LocatesRoot          bool     `json:"locatesRoot,omitempty"`
 	ReadScoped           bool     `json:"readScoped,omitempty"`
 	ReadScope            []string `json:"readScope,omitempty"`
@@ -343,6 +354,17 @@ func validUnit(unit Unit, namespace string) error {
 	}
 	if unit.LocatesRoot && unit.UnboundedReads == "" {
 		return ErrInvalidUnit
+	}
+	if unit.UnboundedNamesOnly && (unit.UnboundedReads == "" || unit.LocatesRoot) {
+		return ErrInvalidUnit
+	}
+	if err := validIdentifierList(unit.NameListings); err != nil {
+		return err
+	}
+	for _, token := range unit.NameListings {
+		if !slices.Contains(unit.PathTokens, token) {
+			return ErrInvalidUnit
+		}
 	}
 	if err := validReadScope(unit.ReadScoped, unit.ReadScope); err != nil {
 		return err
