@@ -21,7 +21,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
       state.
 - [x] 8 Output directory in the manifest; no clean result without comparing (DMF-V1-007). Proof:
    fixture tests with a recorded directory, a missing directory and no directory.
-- [ ] 9 `corvint-docs docs check` (DMF-V1-002), after tasks 4 to 8. Proof: fixture tests for
+- [x] 9 `corvint-docs docs check` (DMF-V1-002), after tasks 4 to 8. Proof: fixture tests for
    all-pass, one stale part and nothing found; run on the Corvint repository with the JSON kept.
 - [ ] 10 Tool and property descriptions for the 19 remaining docs tools (DMF-V1-008; R42 B9). Proof:
     `tools/list` golden re-recorded; a test that fails on any two docs tools with the same
