@@ -230,3 +230,73 @@ func TestSDDV0005DocsMaintainLimitRefusalNamesLimitAndSize(t *testing.T) {
 		t.Fatalf("refusal %q: observed %d, %v", envelope.Error, observed, err)
 	}
 }
+
+// DMF-V1-003: `docs maintain --check` exits 0 on a fresh committed block, 1 naming the block's page
+// line once its cited source changed at HEAD, and --preview keeps exiting 0 on the same stale page.
+func TestDMFV1003MaintainCheckExitCode(t *testing.T) {
+	t.Parallel()
+	root := docsRepository(t)
+	pagePath := filepath.Join(root, "docs", "page.md")
+	if err := os.MkdirAll(filepath.Dir(pagePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pagePath, []byte("# Page\n\nHuman intro.\n\n<!-- corvint:docmaintain:insertion-point -->\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := func(args ...string) (int, string, string) {
+		t.Helper()
+		var out, errOut bytes.Buffer
+		code := runContext(context.Background(), append([]string{"--root", root, "docs", "maintain"}, args...), strings.NewReader(""), &out, &errOut)
+		return code, out.String(), errOut.String()
+	}
+	selector := []string{"--page", "docs/page.md", "--source", "owner.md", "--package", "cache"}
+	if code, _, stderr := run(append(selector, "--enable", "--apply")...); code != 0 {
+		t.Fatalf("apply %d %s", code, stderr)
+	}
+	docsCommit(t, root)
+	decode := func(out string) map[string]any {
+		t.Helper()
+		var report map[string]any
+		if err := json.Unmarshal([]byte(out), &report); err != nil {
+			t.Fatalf("check output %q: %v", out, err)
+		}
+		return report
+	}
+	code, out, stderr := run("--check", "--page", "docs/page.md")
+	report := decode(out)
+	blocks, _ := report["blocks"].([]any)
+	if code != 0 || report["profile"] != "corvint-docmaintain-check/0" || report["stale"] != float64(0) || len(blocks) != 1 {
+		t.Fatalf("fresh check %d %v %s", code, report, stderr)
+	}
+	if b := blocks[0].(map[string]any); b["state"] != "fresh" || b["line"] != float64(6) || b["source"] != "owner.md" {
+		t.Fatalf("fresh block %v", b)
+	}
+	owner, err := os.ReadFile(filepath.Join(root, "owner.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "owner.md"), append(owner, []byte("A new requirement line.\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	docsCommit(t, root)
+	code, out, stderr = run(append(selector, "--check")...)
+	report = decode(out)
+	blocks, _ = report["blocks"].([]any)
+	if code != 1 || report["stale"] != float64(1) || len(blocks) != 1 || blocks[0].(map[string]any)["state"] != "stale" ||
+		!strings.Contains(stderr, "docs-maintain-stale") || !strings.Contains(stderr, "docs/page.md:6 source=owner.md package=cache stale") {
+		t.Fatalf("stale check %d %v %s", code, report, stderr)
+	}
+	if code, out, stderr = run(append(selector, "--enable", "--preview")...); code != 0 || !strings.Contains(out, `"eligible":true`) {
+		t.Fatalf("preview changed its exit on a stale block: %d %s %s", code, out, stderr)
+	}
+	for _, bad := range [][]string{
+		{"--check"},
+		{"--check", "--page", "docs/page.md", "--enable"},
+		{"--check", "--page", "docs/page.md", "--preview"},
+		{"--check", "--page", "docs/page.md", "--source", "owner.md"},
+	} {
+		if code, _, _ := run(bad...); code != 2 {
+			t.Errorf("%v exited %d", bad, code)
+		}
+	}
+}

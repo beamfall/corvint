@@ -522,8 +522,8 @@ func (handler *toolHandler) answer(ctx context.Context, name string, arguments m
 		if bridgeErr.Code == "invalid-arguments" || bridgeErr.Code == "unsupported-tool" {
 			return nil, protocol.InvalidParams("Invalid params")
 		}
-		if bridgeErr.Code == "cancelled" || ctx.Err() != nil {
-			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+		if bridgeErr.Code == toolgroup.CancelledCode || ctx.Err() != nil {
+			return handler.toolFailure(name, toolgroup.CancelledCode, "") // DMF-V1-010
 		}
 		return handler.withWorktreeNotice(registry)(handler.toolFailure(name, bridgeErr.Code, bridgeErr.ReasonClass))
 	}
@@ -574,6 +574,9 @@ func (handler *toolHandler) toolErrorObject(name, code, reasonClass string) map[
 		value["profile"] = toolErrorReasonClass
 		value["reasonClass"] = cmp.Or(reasonClass, unclassified)
 	}
+	// The /0 and /1 objects stay exactly as decision 0383 and the conformance vectors freeze
+	// them; DMF-V1-010's added members reach the docs, corpus, test-validity and affected
+	// tool errors only (a code-tool profile version would carry them).
 	return value
 }
 

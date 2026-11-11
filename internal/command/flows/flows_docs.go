@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/docworktree"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -31,9 +34,9 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 	receipt := f.String("receipt", "", "committed maintenance receipt, repository-relative")
 	adopt := f.Bool("adopt", false, "explicitly adopt a committed legacy generated pair; historical provenance UNKNOWN")
 	check := f.Bool("check", false, "compare the committed page and sidecar with regeneration")
-	waivers := f.String("waivers", "", "committed flow-doc-waivers/0 file, repository-relative")
-	if f.Parse(args) != nil || *dir == "" || o.Page == "" || o.Claims == "" || f.NArg() != 0 || (*waivers != "" && !*check) {
-		return errors.New("flows docs requires --flows DIR --page FILE --claims FILE, optional --registry FILE, --docs-root DIR and repeatable --evidence FILE, and --waivers FILE only with --check")
+	waivers := f.String("waivers", "", "committed flow-doc-waivers/0 file, repository-relative; read by generation and --check alike")
+	if f.Parse(args) != nil || *dir == "" || o.Page == "" || o.Claims == "" || f.NArg() != 0 {
+		return errors.New("flows docs requires --flows DIR --page FILE --claims FILE, optional --registry FILE, --docs-root DIR, --waivers FILE and repeatable --evidence FILE")
 	}
 	if maintenance {
 		if *preview == *apply || *check || *waivers != "" || (*preview && *expected != "") || (*apply && *expected == "") {
@@ -73,8 +76,9 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 	}
 	o.Registry = *registry
 	if *check {
-		return flowDocsCheck(ctx, root, set, o, *waivers, out)
+		return flowDocsCheck(ctx, root, set, o, *dir, *waivers, *evidence, out)
 	}
+	o.Waivers = *waivers // DMF-V1-001: generation marks waived claims exactly as --check does
 	page, claims, err := appflows.RenderDocs(ctx, root, set, o)
 	if err != nil {
 		return err
@@ -88,10 +92,16 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 
 // flowDocsCheck writes the flow-doc-check/0 report and exits nonzero when it fails; it writes nothing
 // to the repository.
-func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o appflows.DocOptions, waivers string, out io.Writer) error {
+func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o appflows.DocOptions, flowsDir, waivers string, evidence []string, out io.Writer) error {
 	report, err := appflows.CheckDocs(ctx, root, set, o, waivers, time.Now().UTC().Format(time.DateOnly))
 	if err != nil {
 		return err
+	}
+	read := slices.DeleteFunc([]string{flowsDir, o.Page, o.Claims, o.DocsRoot, o.Registry, waivers}, func(p string) bool { return p == "" })
+	worktree := docworktree.Observe(ctx, root, docworktree.Head, docworktree.Under(read...))
+	report.Worktree = &worktree // DMF-V1-005
+	if report.ByteDetail != nil {
+		report.ByteDetail.Regenerate = regenerateCommand(o, flowsDir, waivers, evidence) // DMF-V1-006
 	}
 	data, err := doccorpus.Encode(report)
 	if err != nil {
@@ -104,4 +114,24 @@ func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o a
 		return &gokernel.Error{Code: flowDocsCheckFailed, Message: fmt.Sprintf("flows docs --check found %d failure(s)", len(report.Failures))}
 	}
 	return nil
+}
+
+// regenerateCommand is the flows docs invocation that rewrites the page and sidecar the check
+// compared, with the same inputs (DMF-V1-006); each argument is shell-quoted when needed.
+func regenerateCommand(o appflows.DocOptions, flowsDir, waivers string, evidence []string) string {
+	args := []string{"corvint-docs", "flows", "docs", "--flows", flowsDir, "--page", o.Page, "--claims", o.Claims}
+	for _, pair := range [][2]string{{"--docs-root", o.DocsRoot}, {"--registry", o.Registry}, {"--waivers", waivers}} {
+		if pair[1] != "" {
+			args = append(args, pair[0], pair[1])
+		}
+	}
+	for _, e := range evidence {
+		args = append(args, "--evidence", e)
+	}
+	for i, a := range args {
+		if a == "" || strings.ContainsAny(a, " \t\n'\"\\$`;&|<>()*?[]{}!#~") {
+			args[i] = "'" + strings.ReplaceAll(a, "'", `'\''`) + "'"
+		}
+	}
+	return strings.Join(args, " ")
 }

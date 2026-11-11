@@ -16,7 +16,7 @@ import (
 const rootHelp = `usage: corvint-docs [--root PATH] docs SUBCOMMAND [OPTIONS]
        corvint-docs [--root PATH] flows [SUBCOMMAND] [OPTIONS]
        corvint-docs [--root PATH] how [OPTIONS] GOAL
-       corvint-docs help docs | docs corpus | docs corpus OPERATION | docs flows | docs maintain | flows | how | docs-tool
+       corvint-docs help docs | docs check | docs corpus | docs corpus OPERATION | docs flows | docs maintain | flows | how | docs-tool
        corvint-docs help --json
 Corvint's documentation app (decision 0594): drafting pinned documentation, the documentation
 corpus, generated-block maintenance and flow documentation, and the application-flow group
@@ -59,6 +59,7 @@ var helpBooleanFlags = map[string]bool{"--apply": true, "--check": true, "--dry-
 // nestedHelpTopics are the `help docs X` topics with authored text of their own.
 var nestedHelpTopics = [][2]string{
 	{"docs corpus", "docs-corpus"},
+	{"docs check", "docs-check"},
 	{"docs flows", "docs-flows"},
 	{"docs maintain", "docs-maintain"},
 }
@@ -198,6 +199,8 @@ func topicText(topic string) string {
 		return docsHelp + "\n" + docsMaintainHelp + "\n" + docsFlowsHelp
 	case "docs-corpus":
 		return docsCorpusHelp()
+	case "docs-check":
+		return docsCheckHelp
 	case "docs-flows":
 		return docsFlowsHelp
 	case "docs-maintain":
@@ -214,7 +217,7 @@ func topicText(topic string) string {
 
 // helpTopics lists every authored topic that documents a command path, in a stable order.
 func helpTopics() []string {
-	topics := []string{"docs", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool", "flows", "how"}
+	topics := []string{"docs", "docs-check", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool", "flows", "how"}
 	for _, operation := range corpusOperations {
 		topics = append(topics, "docs-corpus-"+operation.name)
 	}
@@ -229,6 +232,8 @@ func helpTopicPath(topic string) []string {
 	switch topic {
 	case "docs-corpus":
 		return []string{"docs", "corpus"}
+	case "docs-check":
+		return []string{"docs", "check"}
 	case "docs-flows":
 		return []string{"docs", "flows"}
 	case "docs-maintain":

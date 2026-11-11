@@ -2039,11 +2039,6 @@
       "summary": "Navigation structure of one flow id, or of the flows a query selects by name or linked test ([DCS-V1-596..597](specs/documentation-corpus-search-ranking-v1.md))"
     },
     {
-      "name": "corvint.docs_recommend_tests",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Tests the corpus links to a subject, plus the subjects documenting the path and their test links ([DCS-V1-595](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
       "name": "corvint.docs_search",
       "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Search the corpus; compact receipt by default, receipt: \"full\" for the full one"

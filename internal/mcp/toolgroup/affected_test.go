@@ -111,7 +111,8 @@ func TestMMRV01118AffectedCallContract(t *testing.T) {
 	}
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
-	if _, failure := group.Call(cancelled, AffectedTool, map[string]any{}); failure == nil || failure.Code != protocol.CodeInternalError {
-		t.Fatalf("cancelled: %#v", failure)
+	// DMF-V1-010: a cancelled call is the cancelled tool error, not -32603.
+	if result, failure := group.Call(cancelled, AffectedTool, map[string]any{}); failure != nil || result["isError"] != true || result["structuredContent"].(map[string]any)["code"] != CancelledCode {
+		t.Fatalf("cancelled: %#v %#v", result, failure)
 	}
 }

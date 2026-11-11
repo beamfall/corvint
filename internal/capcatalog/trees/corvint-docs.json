@@ -56,7 +56,9 @@
       "command": "corvint-docs docs",
       "summary": "Experimental source documentation orientation",
       "usage": [
-        "corvint-docs [--root PATH] docs citations check [PATH...]",
+        "corvint-docs [--root PATH] docs check                      (corvint-docs help docs check)",
+        "corvint-docs [--root PATH] docs check",
+        "corvint-docs [--root PATH] docs citations check [--json] [PATH...]",
         "corvint-docs [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md",
         "corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)",
         "corvint-docs [--root PATH] docs corpus OPERATION [OPTIONS]",
@@ -128,6 +130,7 @@
         "corvint-docs [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]",
         "corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)",
         "corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]",
+        "corvint-docs [--root PATH] docs maintain --check --page PATH [--source PATH --package DIRECTORY]",
         "corvint-docs [--root PATH] docs nav --trusted-project --request FILE",
         "corvint-docs [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON"
       ],
@@ -151,6 +154,7 @@
         "--include",
         "--input",
         "--inspect-python",
+        "--json",
         "--kind",
         "--limit",
         "--manifest",
@@ -208,8 +212,26 @@
         "--workspace"
       ],
       "required": [],
-      "example": "corvint-docs docs citations check",
+      "example": "corvint-docs docs check",
       "help": "corvint-docs docs --help"
+    },
+    {
+      "path": [
+        "docs",
+        "check"
+      ],
+      "command": "corvint-docs docs check",
+      "summary": "Check every piece of the repository's documentation in one pass",
+      "usage": [
+        "corvint-docs [--root PATH] docs check                      (corvint-docs help docs check)",
+        "corvint-docs [--root PATH] docs check"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint-docs docs check",
+      "help": "corvint-docs docs check --help"
     },
     {
       "path": [
@@ -219,9 +241,10 @@
       "command": "corvint-docs docs citations",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] docs citations check [PATH...]"
+        "corvint-docs [--root PATH] docs citations check [--json] [PATH...]"
       ],
       "flags": [
+        "--json",
         "--root"
       ],
       "required": [],
@@ -237,9 +260,10 @@
       "command": "corvint-docs docs citations check",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] docs citations check [PATH...]"
+        "corvint-docs [--root PATH] docs citations check [--json] [PATH...]"
       ],
       "flags": [
+        "--json",
         "--root"
       ],
       "required": [],
@@ -1655,10 +1679,12 @@
       "summary": "Experimental automatic maintenance of one human documentation page",
       "usage": [
         "corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)",
-        "corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]"
+        "corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]",
+        "corvint-docs [--root PATH] docs maintain --check --page PATH [--source PATH --package DIRECTORY]"
       ],
       "flags": [
         "--apply",
+        "--check",
         "--enable",
         "--max-wall-clock",
         "--max-writes",
@@ -2521,7 +2547,7 @@
       "command": "corvint-docs flows docs",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--evidence FILE]...",
+        "corvint-docs [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...",
         "corvint-docs [--root PATH] flows docs --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]..."
       ],
       "flags": [

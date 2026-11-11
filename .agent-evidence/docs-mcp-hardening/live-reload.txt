@@ -1,0 +1,5 @@
+DMF-V1-011 live session at 9cf181c8aa0e0c701bf0749dfe327dc5e1b227d3 (worktree carries the task 13 change, uncommitted at capture).
+One corvint-mcp --tool-profile corpus process; docs_search call 1, then a commit, docs corpus build into corpus.json.next and mv over corpus.json, then docs_search call 2 on the same stdin.
+pid 1986147; artifact rebuilt between call 1 and call 2 in one session
+{"id": 1, "isError": false, "artifact_sha256": "cad064dbb860eec6ccc0d3513c41c5245f7bd26fe89a55719f7494249033ac99", "results": 1, "load": "first-call", "error": null, "code": null, "message": null}
+{"id": 2, "isError": false, "artifact_sha256": "3ab00a30b1659033d7066be137fa6424df16acde451f605f91d53b4daf6b7801", "results": 2, "load": "first-call", "error": null, "code": null, "message": null}

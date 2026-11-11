@@ -682,8 +682,9 @@ delivered.
 - `DCX-V1-498`: A corpus MCP server answers its first call from an artifact recorded by another
   attested builder revision of the same derivation (`DCX-V1-471`). One whose derivation differs
   is refused as `corpus-refused`, naming both versions and the rebuild. Once the artifact is
-  rebuilt into a new file renamed over the served one, the running server refuses with its
-  restart message (`DCP-V1-143`) and a restarted server answers. Acceptance:
+  rebuilt into a new file renamed over the served one, the running server verifies the rebuilt
+  artifact and answers from it without a restart (`DMF-V1-011`, superseding the restart refusal),
+  as a restarted server does. Acceptance:
   `TestDCXV1498MCPServesArtifactsAcrossBuilderUpgrades`.
 
 ### Compact provider producer and rebuild reuse (GitHub #1664, #1667)
