@@ -4,8 +4,10 @@ package liverepo_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -21,6 +23,40 @@ import (
 // fullplanPythonSuite is the CI Python suite AZU-V0-9920 requires the maintained
 // test-command declaration to name.
 var fullplanPythonSuite = []string{"python3", "-B", ".github/macos/select_test.py"}
+
+// fullplanMaintainedPythonNone is the python entry the maintained declaration holds until the
+// .github edit naming the CI Python suite lands (AZU-V0-9920, V1-4730).
+const fullplanMaintainedPythonNone = "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Python suite; Python files are benchmark and qualification scripts, runner reporters and affected-graph testdata fixtures, and the repository has no pytest or unittest configuration"
+
+// fullplanPythonDifference checks the known difference between the maintained declaration's
+// python entry and the suite the replay sets (AZU-V0-9920, V1-4730). It returns "" while the
+// maintained entry is the recorded none, and a failure message once the entry names the suite
+// (delete the override then) or changes to anything else.
+func fullplanPythonDifference(maintained any) string {
+	switch {
+	case reflect.DeepEqual(maintained, []any{"python3", "-B", ".github/macos/select_test.py"}):
+		return sessiontest.DeclarationPath + " now names the CI Python suite; delete the override in fullplanDeclared and this known-difference check (AZU-V0-9920)"
+	case !reflect.DeepEqual(maintained, map[string]any{"none": fullplanMaintainedPythonNone}):
+		return fmt.Sprintf("%s python entry changed from the recorded known difference to %#v; update fullplanDeclared (AZU-V0-9920)", sessiontest.DeclarationPath, maintained)
+	}
+	return ""
+}
+
+// TestFullplanPythonKnownDifference_AZU_V0_9920 pins the known-difference check: the recorded
+// none passes, the CI suite and any other entry fail with their own message.
+func TestFullplanPythonKnownDifference_AZU_V0_9920(t *testing.T) {
+	if problem := fullplanPythonDifference(map[string]any{"none": fullplanMaintainedPythonNone}); problem != "" {
+		t.Fatalf("recorded none: %s", problem)
+	}
+	if problem := fullplanPythonDifference([]any{"python3", "-B", ".github/macos/select_test.py"}); !strings.Contains(problem, "delete the override") {
+		t.Fatalf("suite declared: %q", problem)
+	}
+	for _, other := range []any{map[string]any{"none": "edited reason"}, []any{"python3", "-m", "pytest"}, nil} {
+		if problem := fullplanPythonDifference(other); !strings.Contains(problem, "changed from the recorded known difference") {
+			t.Fatalf("%#v: %q", other, problem)
+		}
+	}
+}
 
 // fullplanWrite writes files under root, creating parent directories.
 func fullplanWrite(t *testing.T, root string, files map[string]string) {
@@ -53,6 +89,9 @@ func fullplanDeclared(t *testing.T) sessiontest.Declared {
 	languages, ok := declaration["languages"].(map[string]any)
 	if !ok {
 		t.Fatalf("maintained declaration has no languages object")
+	}
+	if problem := fullplanPythonDifference(languages["python"]); problem != "" {
+		t.Fatal(problem)
 	}
 	languages["python"] = fullplanPythonSuite
 	if raw, err = json.Marshal(declaration); err != nil {
