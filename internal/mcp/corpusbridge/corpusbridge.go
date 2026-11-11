@@ -144,7 +144,10 @@ const FullView = "full"
 // adds claim hits to the subject hits (DCP-V1-328) rather than restricting the result to claims.
 const SearchIncludeDescription = `include ["claims"] adds claim hits to the subject hits, ranked together and labelled in result_kinds; for claims only, use the claims operation (corvint.docs_claims).`
 
-var tools = map[string]string{"corvint.docs_inventory": "inventory", "corvint.docs_info": "info", "corvint.docs_validate": "validate", "corvint.docs_concept": "concept", "corvint.docs_claims": "claims", "corvint.docs_flow": "flow", "corvint.docs_dependencies": "dependencies", "corvint.docs_recommend_tests": "recommend-tests", "corvint.docs_navigation": "navigation", "corvint.docs_vocabulary": "vocabulary", "corvint.docs_intent": "intent", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
+// tools maps each corpus MCP tool to its operation. No tool answers which tests to run:
+// corvint.docs_recommend_tests is removed and test questions go to corvint mcp (DMF-V1-009, R42
+// B2); the corpus recommend-tests operation stays a CLI read only.
+var tools = map[string]string{"corvint.docs_inventory": "inventory", "corvint.docs_info": "info", "corvint.docs_validate": "validate", "corvint.docs_concept": "concept", "corvint.docs_claims": "claims", "corvint.docs_flow": "flow", "corvint.docs_dependencies": "dependencies", "corvint.docs_navigation": "navigation", "corvint.docs_vocabulary": "vocabulary", "corvint.docs_intent": "intent", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
 
 func New(root, path string) (*Registry, *Error) {
 	absolute, err := filepath.Abs(root)
@@ -264,7 +267,7 @@ func descriptors(h header) []bridge.ToolDescriptor {
 			// DCS-V1-597: or a query over flow ids, names and linked test files and titles.
 			properties["query"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 		}
-		if op == "locate" || op == "recommend-tests" {
+		if op == "locate" {
 			// DCP-V1-310: an optional declared repository's root-commit identity.
 			properties["repository"] = map[string]any{"type": "string", "minLength": 40, "maxLength": 64}
 		}
@@ -364,7 +367,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "caller_revision" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims" || op == "locate" || op == "navigation") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || (key == "include" || key == "receipt") && op == "search" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && (op == "gaps" || op == "search" || op == "locate" || op == "claims") || key == "exclude_kind" && op == "claims" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
+		allowed := key == "retirement" || key == "caller_revision" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims" || op == "locate" || op == "navigation") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || (key == "include" || key == "receipt") && op == "search" || key == "repository" && op == "locate" || key == "kind" && (op == "gaps" || op == "search" || op == "locate" || op == "claims") || key == "exclude_kind" && op == "claims" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}

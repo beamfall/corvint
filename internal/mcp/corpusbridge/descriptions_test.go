@@ -21,9 +21,6 @@ var docsToolTable = []string{
 	"corvint.docs_trace", "corvint.docs_validate", "corvint.docs_vocabulary",
 }
 
-// pendingRemoval are tools another task removes; they are allowed beside the table until then.
-var pendingRemoval = []string{"corvint.docs_recommend_tests"}
-
 var alternativeTool = regexp.MustCompile("use corvint\\.docs_[a-z_]+")
 
 // docsDescriptors is every corvint.docs_* tool a client can list: the corpus tools and the draft
@@ -78,8 +75,28 @@ func TestDMFV1008DistinctToolDescriptions(t *testing.T) {
 		}
 	}
 	for _, name := range names {
-		if !slices.Contains(docsToolTable, name) && name != "corvint.docs_draft" && name != "corvint.docs_consume" && !slices.Contains(pendingRemoval, name) {
+		if !slices.Contains(docsToolTable, name) && name != "corvint.docs_draft" && name != "corvint.docs_consume" {
 			t.Errorf("docs tool %s is not in the tool table", name)
 		}
+	}
+}
+
+// DMF-V1-009: no docs tool answers which tests to run: corvint.docs_recommend_tests is not listed and
+// is refused as an unsupported tool, and every docs tool description sends test questions to
+// corvint mcp.
+func TestDMFV1009NoDocsTestSelectionTool(t *testing.T) {
+	for _, tool := range docsDescriptors() {
+		if tool.Name == "corvint.docs_recommend_tests" || strings.Contains(tool.Name, "test") {
+			t.Fatalf("docs tool %s offers a test question", tool.Name)
+		}
+		if strings.HasPrefix(tool.Name, "corvint.docs_") && !strings.Contains(tool.Description, "corvint.affected on the testing server `corvint mcp`") {
+			t.Fatalf("%s does not name corvint mcp for test questions", tool.Name)
+		}
+	}
+	if _, ok := tools["corvint.docs_recommend_tests"]; ok {
+		t.Fatal("corvint.docs_recommend_tests is still dispatched")
+	}
+	if len(AllTools()) != len(docsToolTable) {
+		t.Fatalf("corpus tools %d, want the %d of the table", len(AllTools()), len(docsToolTable))
 	}
 }

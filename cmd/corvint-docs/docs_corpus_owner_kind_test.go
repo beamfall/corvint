@@ -109,8 +109,9 @@ func idsOf(t *testing.T, out string) []string {
 
 // DCS-V1-594, DCS-V1-595 (GitHub #2012): corpus locate and recommend-tests on
 // a path return the subject documenting a subject anchored there, with its
-// documents relation, through the CLI and the MCP tool alike; recommend-tests
-// also returns that owner's TestLink relation. A related_to neighbour is no
+// documents relation, locate through the CLI and the MCP tool alike and
+// recommend-tests through the CLI, its MCP tool being removed (DMF-V1-009);
+// recommend-tests also returns that owner's TestLink relation. A related_to neighbour is no
 // owner, and a batch keeps one receipt per path.
 func TestDCSV1594CorpusPathOperationsReturnDocumentingOwners(t *testing.T) {
 	root := ownerCorpusCLIFixture(t)
@@ -119,7 +120,11 @@ func TestDCSV1594CorpusPathOperationsReturnDocumentingOwners(t *testing.T) {
 		t.Fatal(err)
 	}
 	locate := idsOf(t, corpusParity(t, root, registry, "corvint.docs_locate", `{"path":"proof.go"}`, "locate", "--path", "proof.go"))
-	tests := idsOf(t, corpusParity(t, root, registry, "corvint.docs_recommend_tests", `{"path":"proof.go"}`, "recommend-tests", "--path", "proof.go"))
+	code, out, stderr := corpusCLI(t, root, "docs", "corpus", "recommend-tests", "--path", "proof.go", "--artifact", "corpus.json")
+	if code != 0 {
+		t.Fatalf("recommend-tests: exit %d: %s", code, stderr)
+	}
+	tests := idsOf(t, out)
 	for name, c := range map[string]struct{ got, want []string }{
 		"locate":          {locate, []string{"proof:impl", "proof:owner", "proof:owns"}},
 		"recommend-tests": {tests, []string{"proof:impl", "proof:owner", "proof:owns", "proof:owner-asserts"}},
