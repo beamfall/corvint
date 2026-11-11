@@ -125,6 +125,9 @@ type config struct {
 	// testDir, when every testMatch in it is a literal root-free string glob, or nil (TJAA-V0-092).
 	literalProjects []PlaywrightProject
 	literalTestDir  string
+	// literal is a Vitest or Jest config's SLF-V1-005 evaluation, set only while
+	// literalConfigNarrowing is on and every recognised marker in it is literal.
+	literal *literalEvaluation
 }
 
 type packageScope struct {
@@ -436,6 +439,14 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	owned := make([]string, 0, len(files))
 	aliasConfigs := []string{}
 	sites := sourceSites{}
+	observed := make(map[string]bool, len(files))
+	var configPaths []string
+	for _, relative := range files {
+		observed[relative] = true
+		if _, known := configRunner(relative, ""); known || prefixedConfig(path.Base(relative), "vite.config") {
+			configPaths = append(configPaths, relative)
+		}
+	}
 	// opaque holds the owned modules whose imports are not all statically observed (AFP-V0-389).
 	opaque := map[string]bool{}
 	for _, relative := range files {
@@ -481,9 +492,14 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			if marker >= 0 && runner == runnerPlaywright {
 				configs[len(configs)-1].literalProjects, configs[len(configs)-1].literalTestDir = playwrightLiteralProjects(relative, text)
 			}
+			if marker >= 0 && literalConfigNarrowing {
+				// SLF-V1-005: a fully literal Vitest or Jest config is evaluated and raises nothing.
+				configs[len(configs)-1].literal, _ = evaluateLiteralConfig(relative, runner, text, configPaths, observed, language.Owns)
+			}
 			switch {
 			case marker >= 0 && runner == runnerPlaywright:
 				// AFP-V0-404: decided once the tests are classified, below.
+			case marker >= 0 && configs[len(configs)-1].literal != nil:
 			case marker >= 0:
 				frontier.at(FrontierConfig, relative, text, marker)
 			case runner == runnerMocha:
@@ -772,6 +788,10 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		direct[id] = make(map[string]bool)
 		for _, configPath := range observation.configs {
 			direct[id][configPath] = true
+			// SLF-V1-005: every test of an evaluated config loads its setup and mapped modules.
+			for _, load := range literalLoads(configPath, configs) {
+				direct[id][load] = true
+			}
 		}
 	}
 	for id, unit := range storybookGroups {
@@ -876,7 +896,7 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 	explicit := explicitRunners(body, refs)
 	possible := possibleRunners(relative, configs, scopes)
 	observation.puppeteer = importsPackage(refs, "puppeteer") || importsPackage(refs, "puppeteer-core")
-	candidate := isTestCandidate(relative) || len(explicit) != 0 || observation.puppeteer || conventionCandidate(relative, conventionRunners(relative, possible, scopes))
+	candidate := isTestCandidate(relative) || len(explicit) != 0 || observation.puppeteer || conventionCandidate(relative, conventionRunners(relative, possible, scopes)) || literalMember(relative, configs)
 	if !candidate || isConfigPath(relative, body) {
 		return observation
 	}
@@ -2269,9 +2289,10 @@ func repositorySpecifier(directory, specifier string) bool {
 var dynamicConfigMarkers = []string{"testMatch", "testRegex", "testDir", "specPattern", "specs:", "src:", "projects:", "include:", "exclude:", "setupFiles", "globalSetup", "capabilities:", "browsers:"}
 
 // dynamicConfigMarker returns the offset of the first membership or project marker the adapter does
-// not model, or -1.
+// not model, or -1: a dynamicConfigMarkers text or a key-shaped `roots`, `testPathIgnorePatterns`,
+// `moduleNameMapper`, `dir` or `root` key (SLF-V1-005, R42 (panel pick) A6).
 func dynamicConfigMarker(body string) int {
-	offset := -1
+	offset := keyShapedConfigMarkerAt(body)
 	for _, marker := range dynamicConfigMarkers {
 		if found := strings.Index(body, marker); found >= 0 && (offset < 0 || found < offset) {
 			offset = found

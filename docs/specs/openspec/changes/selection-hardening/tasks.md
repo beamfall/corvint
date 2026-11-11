@@ -16,7 +16,7 @@ requirement IDs and its proof.
    `pythonpath` and namespace-package fixtures; rule held disabled until task 8.
 - [x] 5 Glob imports and manual mocks, with computed-form frontiers. Requirements: SLF-V1-003, 004.
    Proof: Vite glob fixture, Jest mock fixture, computed-target fixture.
-- [ ] 6 Literal Vitest and Jest configuration evaluation, with the five added key-shaped markers
+- [x] 6 Literal Vitest and Jest configuration evaluation, with the five added key-shaped markers
    (R42 A6). Requirements: SLF-V1-005. Proof: literal and computed config fixtures, a `roots:`
    fixture; dirty-config fixture runs in full.
 - [ ] 6a Run the finding 11 settle experiment (Go-only edit, TypeScript unknowns) now; if confirmed,
