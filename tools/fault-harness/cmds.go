@@ -74,7 +74,7 @@ func selectFromFiles(p loadedPreregistration, rulePath, candidatesPath string) (
 
 func runGenerateGoCommand(ctx context.Context, args []string, w io.Writer) int {
 	fs := flags("generate-go", "--preregistration FILE --hash FILE --root DIR --pr N --base SHA --head SHA [--fills-shortfall]",
-		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --root ../repo --pr 1234 --base BASE_SHA --head HEAD_SHA", w)
+		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --root REPO_DIR --pr 1234 --base BASE_SHA --head HEAD_SHA", w)
 	prereg := fs.String("preregistration", "", "pre-registration file")
 	hash := fs.String("hash", "", "committed SHA-256 file of the pre-registration")
 	root := fs.String("root", "", "repository holding both commits (read only)")
@@ -173,7 +173,7 @@ type results struct {
 
 func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 	fs := flags("run", "--preregistration FILE --hash FILE --set FILE --seal FILE --root DIR --clones DIR [--corvint BIN] [--go-test ARGV] [--unrunnable ID]... [--out FILE]",
-		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --set go.faults.json --seal go.seal.json --root ../repo --clones /tmp/fh-clones --out go.results.json", w)
+		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --set go.faults.json --seal go.seal.json --root REPO_DIR --clones /tmp/fh-clones --out go.results.json", w)
 	prereg := fs.String("preregistration", "", "pre-registration file")
 	hash := fs.String("hash", "", "committed SHA-256 file of the pre-registration")
 	setPath := fs.String("set", "", "sealed fault set")

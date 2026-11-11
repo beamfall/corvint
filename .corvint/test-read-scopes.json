@@ -2072,6 +2072,12 @@
       "go.mod",
       "go.sum"
     ],
+    "tools/fault-harness": [
+      "go.mod",
+      "go.sum",
+      "internal/groupreap/",
+      "tools/affected-edit-oracle/"
+    ],
     "tools/fixture-maintenance-check": [
       "cmd/",
       "conformance/",

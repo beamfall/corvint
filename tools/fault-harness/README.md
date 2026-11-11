@@ -12,12 +12,12 @@ GOTOOLCHAIN=local go build -o /tmp/fault-harness ./tools/fault-harness
 /tmp/fault-harness select-reverts --preregistration go.prereg.json --hash go.prereg.json.sha256 \
   --rule tools/fault-harness/revert-rule.json --candidates go.candidates.json
 /tmp/fault-harness generate-go --preregistration go.prereg.json --hash go.prereg.json.sha256 \
-  --root ../repo --pr 1234 --base BASE_SHA --head HEAD_SHA
+  --root REPO_DIR --pr 1234 --base BASE_SHA --head HEAD_SHA
 /tmp/fault-harness seal --preregistration go.prereg.json --hash go.prereg.json.sha256 \
   --rule tools/fault-harness/revert-rule.json --candidates go.candidates.json \
   --set go.faults.json --out go.seal.json
 /tmp/fault-harness run --preregistration go.prereg.json --hash go.prereg.json.sha256 \
-  --set go.faults.json --seal go.seal.json --root ../repo --clones /tmp/fh-clones --out go.results.json
+  --set go.faults.json --seal go.seal.json --root REPO_DIR --clones /tmp/fh-clones --out go.results.json
 /tmp/fault-harness verdict --preregistration go.prereg.json --hash go.prereg.json.sha256 \
   --results go.results.json --out go.verdict.json
 /tmp/fault-harness parity --root . --clones /tmp/fh-clones --out /tmp/parity.json

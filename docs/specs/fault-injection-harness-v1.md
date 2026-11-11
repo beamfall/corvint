@@ -13,7 +13,7 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/fault-injection
 
 ## Agent digest
 - Claim: Pre-registered, hashed fault sets per runner prove that a selected run executes every test that kills a fault on a changed line, with a fixed miss verdict.
-- Status: accepted automatically under G14 (decision 0596; V1-5405) / experimental; partially delivered
+- Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5405) / experimental; partially delivered
 - Exists: `tools/fault-harness` with its README: the harness core, the Go adapter, the AEO parity command, the pre-registration, the reverted-fix rule file, the seal, the baseline with quarantine, the `run` command and the verdict writer (tasks 3, 4, 5 and 7).
 - Blocked on: the six other adapters, the manifest pins and the cost check (task 6); sealed sets and verdicts at the RC SHA (task 8); the held-out sets after the draw (task 9).
 - Read next: Requirements; Delivery and traceability; Rollback.
