@@ -771,7 +771,8 @@ func TestAffectedReceiptMembersAreClosedAndByteStable(t *testing.T) {
 			members = append(members, member)
 		}
 		sort.Strings(members)
-		want := []string{"advice", "mutates", "ok", "plan", "profile", "provider", "range", "revision", "summary", "tool"}
+		// selectedFlat is the default document's reporting-only member (AFP-V0-9987).
+		want := []string{"advice", "mutates", "ok", "plan", "profile", "provider", "range", "revision", "selectedFlat", "summary", "tool"}
 		if !slices.Equal(members, want) {
 			t.Fatalf("receipt members are %v, want %v", members, want)
 		}

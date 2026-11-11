@@ -13,9 +13,9 @@ func TestRangeAndOutputFlagVocabulary_ACXV0858(t *testing.T) {
 	t.Parallel()
 	vocabulary := regexp.MustCompile(`--(head|target|revision|rev|base|format|json|summary)\b`)
 	for verb, want := range map[string][]string{
-		"affected":  {"--base", "--format", "--summary"},
-		"context":   {"--base", "--json"},                           // --base only in the pointer to corvint affected (decision 0597)
-		"flows":     {"--base", "--format", "--json", "--revision"}, // the shim help; the forwarded verbs' flags are corvint-docs's (decision 0595)
+		"affected":  {"--base", "--format", "--head", "--json", "--summary"}, // --json: AFP-V0-9988, --head: AFP-V0-9989 (V1-4399)
+		"context":   {"--base", "--json"},                                    // --base only in the pointer to corvint affected (decision 0597)
+		"flows":     {"--base", "--format", "--json", "--revision"},          // the shim help; the forwarded verbs' flags are corvint-docs's (decision 0595)
 		"impact":    {"--base", "--revision"},
 		"runs":      {"--base", "--rev", "--summary"},
 		"test-plan": {"--format", "--revision"},
