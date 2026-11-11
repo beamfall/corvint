@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/testid"
 )
 
 // Plan is one per-package go test plan: the committed-range plan of
@@ -34,9 +35,15 @@ type Plan struct {
 }
 
 // Invocation is one `go test` package argument and its -run filter.
+// TestIDs names what it runs by canonical test ID (CTI-V1-009): the
+// package-level ID of a whole package, one ID per kept top-level test of a
+// narrowed one, and none for a compile-only run, which runs no test. The
+// package directory is relative to the watch root, the repository root of a
+// module at the root.
 type Invocation struct {
 	Package string
-	Run     string `json:",omitempty"`
+	Run     string   `json:",omitempty"`
+	TestIDs []string `json:",omitempty"`
 }
 
 // Event is a local observation, never a CI receipt or a proof. Each result
@@ -198,14 +205,32 @@ func goPlan(ctx context.Context, o Options, diffs []linecov.FileDiff, p *Plan) e
 		pp := p.Packages[d]
 		switch pp.Mode {
 		case linecov.Whole:
-			p.Run = append(p.Run, Invocation{Package: "./" + d})
+			p.Run = append(p.Run, Invocation{Package: "./" + d, TestIDs: testIDs(d, nil)})
 		case linecov.Tests:
-			p.Run = append(p.Run, Invocation{Package: "./" + d, Run: "^(" + strings.Join(pp.Tests, "|") + ")$"})
+			p.Run = append(p.Run, Invocation{Package: "./" + d, Run: "^(" + strings.Join(pp.Tests, "|") + ")$", TestIDs: testIDs(d, pp.Tests)})
 		case linecov.Compile:
 			p.Run = append(p.Run, Invocation{Package: "./" + d, Run: "^$"})
 		}
 	}
 	return nil
+}
+
+// testIDs is the canonical test IDs of package directory dir: the
+// package-level ID when tests is empty, else one ID per top-level test. A
+// directory that is not a clean relative path names no ID.
+func testIDs(dir string, tests []string) []string {
+	pkg, err := testid.New(testid.Go, dir)
+	if err != nil {
+		return nil
+	}
+	if len(tests) == 0 {
+		return []string{pkg.String()}
+	}
+	ids := make([]string, 0, len(tests))
+	for _, test := range tests {
+		ids = append(ids, pkg.Child(test).String())
+	}
+	return ids
 }
 
 // TestArgs is the go test argv of one planned invocation. It runs under the
