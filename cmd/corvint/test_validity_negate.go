@@ -214,12 +214,12 @@ func execNegateProvider(invocation negateInvocation, worktree string, stderr io.
 	}
 	var exitErr *exec.ExitError
 	if errors.As(waitErr, &exitErr) && exitErr.ExitCode() == 2 {
-		return stepnegation.Document{}, decodeNegateRefusal(output.Bytes())
+		return stepnegation.Document{}, decodeNegateRefusal(output.buffer.Bytes())
 	}
 	if waitErr != nil {
 		return stepnegation.Document{}, &gokernel.Error{Code: "negate-provider-failed", Message: "provider failed: " + waitErr.Error()}
 	}
-	document, err := stepnegation.Decode(output.Bytes())
+	document, err := stepnegation.Decode(output.buffer.Bytes())
 	if err != nil {
 		return stepnegation.Document{}, &gokernel.Error{Code: "negate-provider-failed", Message: "provider document " + err.Error()}
 	}
@@ -242,19 +242,19 @@ func decodeNegateRefusal(data []byte) error {
 	return &gokernel.Error{Code: refusal.Code, Message: refusal.Message}
 }
 
-// negateOutput is a bounded stdout capture.
+// negateOutput is a bounded stdout capture; its buffer is a named field so no promoted write path skips the cap (GPK-V0-9930).
 type negateOutput struct {
-	bytes.Buffer
+	buffer  bytes.Buffer
 	limit   int
 	overrun bool
 }
 
 func (o *negateOutput) Write(data []byte) (int, error) {
-	if o.Len()+len(data) > o.limit {
+	if o.buffer.Len()+len(data) > o.limit {
 		o.overrun = true
 		return len(data), nil
 	}
-	return o.Buffer.Write(data)
+	return o.buffer.Write(data)
 }
 
 func cloneNegation(document stepnegation.Document) stepnegation.Document {

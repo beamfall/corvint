@@ -55,23 +55,23 @@ func (repository Repository) wire() map[string]any {
 }
 
 type boundedBuffer struct {
-	bytes.Buffer
+	buffer   bytes.Buffer // named, so no promoted write path skips the cap (GPK-V0-9930)
 	limit    int
 	exceeded bool
 }
 
 func (buffer *boundedBuffer) Write(value []byte) (int, error) {
-	remaining := buffer.limit - buffer.Len()
+	remaining := buffer.limit - buffer.buffer.Len()
 	if remaining <= 0 {
 		buffer.exceeded = true
 		return len(value), nil
 	}
 	if len(value) > remaining {
-		_, _ = buffer.Buffer.Write(value[:remaining])
+		_, _ = buffer.buffer.Write(value[:remaining])
 		buffer.exceeded = true
 		return len(value), nil
 	}
-	return buffer.Buffer.Write(value)
+	return buffer.buffer.Write(value)
 }
 
 // SanitizedGitEnvironment is the environment of every Core Git read. An empty
@@ -155,13 +155,13 @@ func gitRaw(ctx context.Context, root string, outputLimit int, arguments ...stri
 		return nil, newError("repository-probe-too-large", "Git error exceeds its byte limit")
 	}
 	if err != nil {
-		detail := strings.TrimSpace(stderr.String())
+		detail := strings.TrimSpace(stderr.buffer.String())
 		if detail == "" {
 			detail = "git command failed: " + err.Error()
 		}
 		return nil, newError("repository-probe-failed", "Git error: "+detail)
 	}
-	return stdout.Bytes(), nil
+	return stdout.buffer.Bytes(), nil
 }
 
 func probeContextError(ctx context.Context) *Error {

@@ -99,13 +99,13 @@ type zeroWriter struct{}
 
 func (zeroWriter) Write([]byte) (int, error) { return 0, nil }
 
-type chunkWriter struct{ bytes.Buffer }
+type chunkWriter struct{ buffer bytes.Buffer } // named, so no promoted write path skips Write (GPK-V0-9930)
 
 func (writer *chunkWriter) Write(value []byte) (int, error) {
 	if len(value) > 7 {
 		value = value[:7]
 	}
-	return writer.Buffer.Write(value)
+	return writer.buffer.Write(value)
 }
 
 func TestRunHandlesShortWrites(t *testing.T) {
@@ -113,8 +113,8 @@ func TestRunHandlesShortWrites(t *testing.T) {
 		t.Fatalf("zero short write exit=%d", code)
 	}
 	var writer chunkWriter
-	if code := run(nil, strings.NewReader(candidateVector), &writer); code != 0 || writer.String() != candidateVectorOutput {
-		t.Fatalf("partial writes exit=%d bytes=%q", code, writer.String())
+	if code := run(nil, strings.NewReader(candidateVector), &writer); code != 0 || writer.buffer.String() != candidateVectorOutput {
+		t.Fatalf("partial writes exit=%d bytes=%q", code, writer.buffer.String())
 	}
 }
 
