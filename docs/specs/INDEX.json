@@ -4460,5 +4460,18 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/openspec-check-v1.md",
+    "title": "OpenSpec Check V1 — change folders, stages, boundaries and health classes",
+    "reqPrefix": "OSC-V1",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-5399)",
+    "delivery": "experimental",
+    "claim": "A Go check enforces the OpenSpec change-folder layout, the propose, apply and archive stages, one OpenSpec root and spec health classes.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
   }
 ]
