@@ -2,8 +2,8 @@
 
 Owner: Russell Lewis
 Date: 2026-11-11
-Intent status: proposed
-Delivery status: not-started
+Intent status: accepted
+Delivery status: partial
 Authoritative inputs: change folder `docs/specs/openspec/changes/test-inventory/` (`proposal.md`,
 `design.md`, `tasks.md` and `specs/test-inventory/spec.md`), `docs/specs/PRODUCT-PLAN-1.0.md`
 (PROD-TEST-004, PROD-TEST-005, PROD-TEST-017) and
@@ -11,10 +11,10 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/test-inventory/
 
 ## Agent digest
 - Claim: One committed inventory lists every test of the seven blocking runners by canonical ID; a missing or doubtful list runs everything.
-- Status: proposed / not-started. Change `test-inventory` is second in the R38 testing order, after `canonical-test-id`.
-- Exists: the change folder; ticket V1-5406 delivers it.
-- Blocked on: `canonical-test-id` (CTI-V1-001) for the entry key.
-- Read next: Requirements; Surfaces; Traceability.
+- Status: accepted / partial. Change `test-inventory` auto-accepted under G14 (decision 0596); delivered under V1-5406 except the GitHub Action refresh step.
+- Exists: `internal/testinventory`; `corvint inventory refresh`; `inventory` in `affected-summary/1` and `corvint.affected`; `corvint-test: INVENTORY` in `corvint test`; `Inventory` in `corvint watch` plan events.
+- Blocked on: the GitHub Action refresh step (task 7) waits on change `github-action`; selection from the inventory is `e2e-inventory-discovery` and `runner-contract`.
+- Read next: Surfaces; Traceability.
 
 ## User and boundary
 
@@ -30,7 +30,7 @@ Selection from the inventory belongs to `e2e-inventory-discovery` and `runner-co
 
 ## Requirements
 
-- `TIV-V1-001`: (proposed 2026-11-09; delivery not-started) One committed inventory
+- `TIV-V1-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) One committed inventory
 
 Corvint MUST keep one committed inventory file for all seven blocking runners at
 `.corvint/test-inventory.json` with profile `corvint-test-inventory/0`. Every entry MUST be keyed by
@@ -41,19 +41,20 @@ the canonical test ID (CTI-V1-001) and name the file the test lives in.
 - WHEN `corvint inventory refresh` completes
 - THEN `.corvint/test-inventory.json` holds one instance record for each, with canonical IDs
 
-- `TIV-V1-002`: (proposed 2026-11-09; delivery not-started) Only the refresh verb writes the inventory
+- `TIV-V1-002`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Only the refresh verb writes the inventory
 
 `corvint inventory refresh` MUST be the only command that writes the inventory. `corvint affected`,
 `corvint test`, `corvint watch` and the MCP tools MUST only read it and MUST NOT run a lister.
 `corvint watch` MUST NOT refresh the inventory. The GitHub Action MUST run
-`corvint inventory refresh` before it plans.
+`corvint inventory refresh` before it plans. Delivery: the GitHub Action part is not yet built (task
+7 waits on change `github-action`); every other part is delivered.
 
 **Scenario: watch with a stale inventory**
 - GIVEN a stale inventory
 - WHEN `corvint watch` handles a save
 - THEN it reports `inventory-stale`, runs the widened selection and leaves the file unchanged
 
-- `TIV-V1-003`: (proposed 2026-11-09; delivery not-started) Runner instances keyed by runner, root and config
+- `TIV-V1-003`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Runner instances keyed by runner, root and config
 
 Each inventory record MUST describe one runner instance identified by runner, root directory and
 config file. A repository MAY declare several instances of one runner. `CORVINT_SELECTION=full:<runner>`
@@ -64,7 +65,7 @@ MUST apply to every instance of that runner.
 - WHEN `CORVINT_SELECTION=full:jest` is set
 - THEN both instances run their full commands
 
-- `TIV-V1-004`: (proposed 2026-11-09; delivery not-started) One lister per runner, marked static or executing
+- `TIV-V1-004`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) One lister per runner, marked static or executing
 
 Each runner MUST have one lister, and each instance record MUST state whether its lister was
 `static` (reads source only) or `executing` (runs project code). Go, RSpec and Minitest listers are
@@ -76,7 +77,7 @@ inside `corvint inventory refresh`.
 - WHEN the record is read
 - THEN it states lister kind `executing` and the lister command used
 
-- `TIV-V1-005`: (proposed 2026-11-09; delivery not-started) Inventory bound to the tree
+- `TIV-V1-005`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Inventory bound to the tree
 
 Each instance record MUST store the commit it was refreshed at, the config file digest, the lockfile
 digest when one exists, the lister name and version, and a blob digest for every listed test file.
@@ -86,7 +87,7 @@ digest when one exists, the lister name and version, and a blob digest for every
 - WHEN the record is read
 - THEN it carries the commit, config digest, lister version and one blob digest per test file
 
-- `TIV-V1-006`: (proposed 2026-11-09; delivery not-started) Absent inventory runs the declared full command
+- `TIV-V1-006`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Absent inventory runs the declared full command
 
 When the inventory file is missing, or has no record for a declared runner instance, that instance
 MUST run its declared full command and the plan MUST print reason `inventory-absent`.
@@ -96,7 +97,7 @@ MUST run its declared full command and the plan MUST print reason `inventory-abs
 - WHEN `corvint affected` plans any change
 - THEN every declared runner instance is selected in full with reason `inventory-absent`
 
-- `TIV-V1-007`: (proposed 2026-11-09; delivery not-started) Config, lockfile or lister change makes the instance stale
+- `TIV-V1-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Config, lockfile or lister change makes the instance stale
 
 When the config file digest, the lockfile digest, the lister version or the inventory profile
 differs from the record, every test of that instance MUST run and the plan MUST print reason
@@ -107,7 +108,7 @@ differs from the record, every test of that instance MUST run and the plan MUST 
 - WHEN `corvint affected` plans the change
 - THEN every Vitest test of that instance is selected with reason `inventory-stale`
 
-- `TIV-V1-008`: (proposed 2026-11-09; delivery not-started) A changed test file makes only its tests unassigned
+- `TIV-V1-008`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) A changed test file makes only its tests unassigned
 
 When a listed test file's blob digest differs from the record, or a new test file appears under the
 instance root, every test in that file MUST run and be counted `unassigned`. Other files keep their
@@ -118,7 +119,7 @@ entries.
 - WHEN `corvint affected` plans the change
 - THEN `spec/user_spec.rb` runs as `unassigned` and other RSpec files are planned from their entries
 
-- `TIV-V1-009`: (proposed 2026-11-09; delivery not-started) Invalid inventory runs every test
+- `TIV-V1-009`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Invalid inventory runs every test
 
 When the inventory file cannot be read, fails schema validation or has an unknown profile, every test
 of every declared runner MUST run and the plan MUST print reason `inventory-invalid`.
@@ -128,7 +129,7 @@ of every declared runner MUST run and the plan MUST print reason `inventory-inva
 - WHEN `corvint affected` plans any change
 - THEN every declared runner runs in full with reason `inventory-invalid`
 
-- `TIV-V1-010`: (proposed 2026-11-09; delivery not-started) Refresh refuses drift
+- `TIV-V1-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Refresh refuses drift
 
 `corvint inventory refresh` MUST record HEAD and the source digest before and after each lister and
 MUST refuse with `inventory-refresh-drift`, leaving the previous file unchanged, if either moved.
@@ -138,7 +139,7 @@ MUST refuse with `inventory-refresh-drift`, leaving the previous file unchanged,
 - WHEN refresh finishes the lister
 - THEN it refuses with `inventory-refresh-drift` and the old inventory is kept
 
-- `TIV-V1-011`: (proposed 2026-11-09; delivery not-started) Refresh bounds output and records lister failures
+- `TIV-V1-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Refresh bounds output and records lister failures
 
 Refresh MUST refuse with `inventory-too-large` when the file would exceed its size cap. When one
 lister fails, refresh MUST write the other instances, omit the failed instance and record the
@@ -150,7 +151,7 @@ failure, so readers treat that instance as absent.
 - THEN the pytest instance is omitted with the error recorded and the next plan runs pytest in
   full with `inventory-absent`
 
-- `TIV-V1-012`: (proposed 2026-11-09; delivery not-started) Add-only schema
+- `TIV-V1-012`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Add-only schema
 
 New fields MAY be added to `corvint-test-inventory/0`; existing fields MUST NOT change meaning. A
 reader MUST ignore fields it does not know. A change of meaning requires a new profile, which old
@@ -163,13 +164,61 @@ readers treat as `inventory-invalid`.
 
 ## Surfaces
 
-Not built yet; ticket V1-5406 records them here as each task lands.
+Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory.md`):
+
+- `internal/testinventory` (tests layer) holds the schema, the canonical writer and the reader
+  (TIV-V1-001, TIV-V1-003, TIV-V1-012): every list sorted, two-space indented JSON, one trailing
+  newline; a member it does not know is kept and written back, never read. An instance is declared
+  by its config file (`go.mod`; `vitest.config.*`; `jest.config.*`; `playwright.config.*`;
+  `pytest.ini`, or a `pyproject.toml`, `tox.ini` or `setup.cfg` pytest section; `.rspec` or
+  `spec/spec_helper.rb`; `test/test_helper.rb`), one per runner and root, outside `node_modules`,
+  `vendor`, `testdata` and hidden directories; the lockfile is the nearest one of the runner's
+  ecosystem at or above the root. Files are named by Git blob object ID from the commit tree or the
+  working tree, read with lock-free, hermetic Git that never rewrites the index.
+- Listers (TIV-V1-004, TIV-V1-005): Go `go-ast` (static: top-level `Test`, `Fuzz` and runnable
+  `Example` functions per package directory, build constraints not evaluated; an unparseable file is
+  its package ID with `test-id-unmapped`); RSpec `rspec-static` (static, file level); Minitest
+  `minitest-static` (static: `def test_` methods of a top-level class deriving directly from
+  `Minitest::Test`, otherwise file level); Vitest `vitest list --json`, Jest `jest --listTests` (file
+  level), Playwright `playwright test --list --reporter=json` converted through
+  `playwright-discovery/0` (its source digest is recorded), pytest `--collect-only -q -p
+  no:cacheprovider` (all executing, from the project's own `node_modules/.bin` or `.venv`). Each
+  record binds the commit, config and lockfile blobs, the lister identity and every candidate or
+  listed test file's blob.
+- `corvint inventory refresh [--runner RUNNER] [--root DIR]` (TIV-V1-002, TIV-V1-010,
+  TIV-V1-011) is the only writer: it replaces the file through a temporary file in the same
+  directory, refuses `inventory-refresh-drift` when the working tree's source digest or HEAD moved
+  after any lister, refuses `inventory-too-large` over 8 MiB, and records a failed lister in
+  `failures` with the instance left out.
+- Readers (TIV-V1-002, TIV-V1-006 to TIV-V1-009) judge the file and never run a lister or write:
+  `corvint affected --summary` (`affected-summary/1`, member `inventory` and `inventory` text
+  lines) and the `corvint.affected` MCP tool, which returns that verdict, against HEAD for a based
+  plan and the working tree otherwise; `corvint test` at HEAD (`corvint-test: INVENTORY` on stderr,
+  an `inventory:` summary line, the dry-run JSON `inventory` member); `corvint watch` against the
+  working tree on every save (plan event member `Inventory`). The frozen `affected-plan/0` and
+  `affected-plan/1` documents are not extended. A verdict never narrows: an instance runs in full
+  with its reason, or is planned from its record with every unassigned file added.
+- `CORVINT_SELECTION=full:<runner>` (TIV-V1-003): `Verdict.ForceFull` marks every instance of the
+  runner full with `selection-full`; parsing the variable belongs to change
+  `narrowing-measurement`, which owns its grammar and refusal, and no command reads it yet.
+- NOT_PRODUCED: the GitHub Action refresh step (task 7, change `github-action`).
 
 ## Traceability
 
 | Requirement | Evidence |
 |---|---|
-| TIV-V1-001 to TIV-V1-012 | NOT_PRODUCED: not built yet |
+| TIV-V1-001 | `TestTIVV1001RoundTripCanonicalBytes` (`internal/testinventory`); `TestTIVV1001InventoryRefreshCLI` (`cmd/corvint`, one Go module and one Vitest project) |
+| TIV-V1-002 | `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (affected, watch and test read only), `TestTIVV1002InventoryHelpAndRefusals` (`cmd/corvint`); the GitHub Action part is NOT_PRODUCED (task 7) |
+| TIV-V1-003 | `TestTIVV1003SeveralInstancesOfOneRunner`, `TestTIVV1003DetectInstances`, `TestTIVV1003ForceFullCoversEveryInstance`, `TestTIVV1004JestListerTwoRoots` (`internal/testinventory`) |
+| TIV-V1-004 | `TestTIVV1004GoStaticLister`, `TestTIVV1004RSpecStaticLister`, `TestTIVV1004MinitestStaticLister`, `TestTIVV1004VitestLister`, `TestTIVV1004JestListerTwoRoots`, `TestTIVV1004PlaywrightLister`, `TestTIVV1004PytestLister` (`internal/testinventory`; each refreshes twice to identical bytes) |
+| TIV-V1-005 | `requireBinding` in every TIV-V1-004 lister test; `TestTIVV1005TreesNameFilesByBlobID` (`internal/testinventory`) |
+| TIV-V1-006 | `TestTIVV1006To009ReaderRules` rows `absent file`, `absent record`, `absent after lister failure`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`absent`) |
+| TIV-V1-007 | `TestTIVV1006To009ReaderRules` rows `stale config`, `stale lockfile`, `stale lockfile appeared`, `stale lister version`, `stale config moved`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`stale`) |
+| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
+| TIV-V1-009 | `TestTIVV1006To009ReaderRules` rows `invalid truncated`, `invalid profile`, `invalid oversize`; `TestTIVV1009DecodeRefusesInvalid`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`invalid`) |
+| TIV-V1-010 | `TestTIVV1010RefreshRefusesDrift` (`internal/testinventory`, source and HEAD drift); `TestTIVV1010InventoryRefreshDriftCLI` (`cmd/corvint`) |
+| TIV-V1-011 | `TestTIVV1011ListerFailureRecorded`, `TestTIVV1011EncodeRefusesOversize` (`internal/testinventory`); `TestTIVV1011InventoryRefreshTooLargeCLI` (`cmd/corvint`) |
+| TIV-V1-012 | `TestTIVV1012UnknownAddedFieldPreserved` (`internal/testinventory`) |
 
 ## Non-goals
 

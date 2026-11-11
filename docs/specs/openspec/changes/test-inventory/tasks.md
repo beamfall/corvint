@@ -23,5 +23,5 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    file changes, and a plan for each reason.
 - [ ] 7 Add the refresh step to the GitHub Action before planning (with change `github-action`).
    Requirements: TIV-V1-002. Proof: the Action's fixture workflow shows refresh before the plan.
-- [ ] 8 Record the trace and the delivery state in the spec.
+- [x] 8 Record the trace and the delivery state in the spec.
    Requirements: all. Proof: the trace check maps every TIV-V1 ID to a test.
