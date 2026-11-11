@@ -6,7 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 const (
@@ -346,37 +346,37 @@ func stabilityTopologyEqual(left, right StabilityTopology) bool {
 	return left.CINodes == right.CINodes && left.CIShards == right.CIShards && left.PlaywrightWorkersPerNode == right.PlaywrightWorkersPerNode && left.DatabaseMode == right.DatabaseMode && slices.Equal(left.Projects, right.Projects) && left.SplitAlgorithm == right.SplitAlgorithm && left.SplitVersion == right.SplitVersion && left.ResourceClass == right.ResourceClass
 }
 
-func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate StabilityAggregate, contribution StabilityContribution) (testvaliditydoc.Test, *jstestreceipt.Receipt, error) {
+func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate StabilityAggregate, contribution StabilityContribution) (testvaliditymodel.Test, *jstestreceipt.Receipt, error) {
 	input := contribution.Receipt
 	if !validPath(input.Path) || !wire.IsGitOid(input.Revision) || !wireDigest(input.SHA256) {
-		return testvaliditydoc.Test{}, nil, fail("invalid stability receipt identity")
+		return testvaliditymodel.Test{}, nil, fail("invalid stability receipt identity")
 	}
 	source, exists := c.sources[inputKey(input.Revision, input.Path)]
 	if !exists || Digest(source.Data) != input.SHA256 {
-		return testvaliditydoc.Test{}, nil, fail("stale stability receipt")
+		return testvaliditymodel.Test{}, nil, fail("stale stability receipt")
 	}
-	decoded, err := testvaliditydoc.Decode(source.Data)
+	decoded, err := testvaliditymodel.Decode(source.Data)
 	if err != nil {
-		return testvaliditydoc.Test{}, nil, fail("invalid stability receipt")
+		return testvaliditymodel.Test{}, nil, fail("invalid stability receipt")
 	}
-	document := testvaliditydoc.Project(decoded)
+	document := testvaliditymodel.Project(decoded)
 	if document.Playwright == nil || document.TestsOmitted != 0 || document.Run.Execution.State == testvalidity.ExecutionInfrastructure || document.Run.Execution.State == testvalidity.ExecutionCancelled || document.Run.Freshness.State == testvalidity.FreshnessStale || document.Playwright.Cancelled || document.Playwright.StaleAppBuild || document.Playwright.External == nil || !document.Playwright.External.InputsUnchanged {
-		return testvaliditydoc.Test{}, nil, fail("partial or stale stability receipt")
+		return testvaliditymodel.Test{}, nil, fail("partial or stale stability receipt")
 	}
-	matches := []testvaliditydoc.Test{}
+	matches := []testvaliditymodel.Test{}
 	for _, test := range document.Tests {
 		if test.ID == aggregate.TestID && test.Project != nil && test.Project.Name == contribution.Identity.Project {
 			matches = append(matches, test)
 		}
 	}
 	if len(matches) != 1 {
-		return testvaliditydoc.Test{}, nil, fail("stability test/project join is not exact")
+		return testvaliditymodel.Test{}, nil, fail("stability test/project join is not exact")
 	}
 	test := matches[0]
 	receipt := document.Playwright
 	native, exact := stabilityNativeOutcome(*receipt, aggregate.TestID, contribution.Identity.Project)
 	if !exact || !jstestreceipt.QualifiedReceiptBindingReady(*receipt, *native) || !stabilityOutcomeMatchesAttempts(*native) || !stabilityProjectionMatches(*native) {
-		return testvaliditydoc.Test{}, nil, fail("unqualified stability test outcome")
+		return testvaliditymodel.Test{}, nil, fail("unqualified stability test outcome")
 	}
 	identity := contribution.Identity
 	applicationRevision, applicationQualified := jstestreceipt.QualifiedApplicationRevision(*receipt, *native)
@@ -386,30 +386,30 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 		// revision is bound by the qualified attestation, not this corpus index.
 		applicationRevisionDeclared = wire.IsGitOid(applicationRevision)
 		if receipt.TestRepositoryAtStart.Revision != identity.TestRevision {
-			return testvaliditydoc.Test{}, nil, fail("contradictory attested test revision")
+			return testvaliditymodel.Test{}, nil, fail("contradictory attested test revision")
 		}
 	}
 	environmentSHA256, err := hashValue(receipt.Identity.Environment)
 	if err != nil || !applicationQualified || !applicationRevisionDeclared || !wire.IsGitOid(identity.TestRevision) || !wire.IsSha256(identity.ConfigSHA256) || !wire.IsSha256(identity.ContractSHA256) || identity.ApplicationRevision != applicationRevision || identity.TestRevision != behavior.SourceRevision || identity.ConfigSHA256 != receipt.Identity.ConfigDigest || identity.ContractSHA256 != behavior.ContractSHA256 || identity.Runner != receipt.Identity.RunnerName || identity.RunnerVersion != receipt.Identity.RunnerVersion || identity.Browser != test.Project.Browser || identity.Project != test.Project.Name || identity.EnvironmentSHA256 != environmentSHA256 || identity.FixtureSHA256 != Digest(test.Project.Use) {
-		return testvaliditydoc.Test{}, nil, fail("contradictory stability receipt identity")
+		return testvaliditymodel.Test{}, nil, fail("contradictory stability receipt identity")
 	}
 	for _, value := range []string{identity.WorkerPolicy, identity.RetryPolicy, identity.EnvironmentClass, identity.FixtureSchema} {
 		if !textOK(value) {
-			return testvaliditydoc.Test{}, nil, fail("incomplete stability receipt identity")
+			return testvaliditymodel.Test{}, nil, fail("incomplete stability receipt identity")
 		}
 	}
 	if !c.stabilityInputsBound(identity.TestRevision, contribution.SourcePaths, receipt.Identity) || !stabilityBehaviorTestBound(behavior, contribution, test, *receipt, *native) {
-		return testvaliditydoc.Test{}, nil, fail("stability test/config source binding mismatch")
+		return testvaliditymodel.Test{}, nil, fail("stability test/config source binding mismatch")
 	}
 	if !words("passed failed unknown")[contribution.Cleanup] || len(contribution.Attempts) != len(test.Attempts) || len(contribution.Attempts) == 0 {
-		return testvaliditydoc.Test{}, nil, fail("stability cleanup or attempt evidence incomplete")
+		return testvaliditymodel.Test{}, nil, fail("stability cleanup or attempt evidence incomplete")
 	}
 	for i, attempt := range test.Attempts {
 		if attempt.Retry != i {
-			return testvaliditydoc.Test{}, nil, fail("noncontiguous stability retry ordinal")
+			return testvaliditymodel.Test{}, nil, fail("noncontiguous stability retry ordinal")
 		}
 		if err := validateStabilityAttempt(contribution.Attempts[i], attempt, receipt.Tests, aggregate.TestID); err != nil {
-			return testvaliditydoc.Test{}, nil, err
+			return testvaliditymodel.Test{}, nil, err
 		}
 	}
 	return test, receipt, nil
@@ -501,7 +501,7 @@ func (c *compiler) stabilityInputsBound(revision string, sourcePaths map[string]
 	return true
 }
 
-func stabilityBehaviorTestBound(behavior BehaviorRegistry, contribution StabilityContribution, observed testvaliditydoc.Test, receipt jstestreceipt.Receipt, native jstestreceipt.TestOutcome) bool {
+func stabilityBehaviorTestBound(behavior BehaviorRegistry, contribution StabilityContribution, observed testvaliditymodel.Test, receipt jstestreceipt.Receipt, native jstestreceipt.TestOutcome) bool {
 	var declared *BehaviorTest
 	for i := range behavior.Tests {
 		if behavior.Tests[i].ID == native.ID {
@@ -599,7 +599,7 @@ func stabilityIdentityMatches(left, right StabilityIdentity, matrix []string) bo
 	return true
 }
 
-func countStabilityOutcome(counts *StabilityCounts, outcome testvaliditydoc.Test, receipt *jstestreceipt.Receipt, contribution StabilityContribution) {
+func countStabilityOutcome(counts *StabilityCounts, outcome testvaliditymodel.Test, receipt *jstestreceipt.Receipt, contribution StabilityContribution) {
 	failed := outcome.State == string(jstestreceipt.StateFailed)
 	timedOut := outcome.State == string(jstestreceipt.StateTimedOut)
 	interrupted := outcome.State == string(jstestreceipt.StateInterrupted)

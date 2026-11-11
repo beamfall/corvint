@@ -13,7 +13,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/jstestreceipt"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // Run-verified navigation (docs/specs/run-verified-navigation-v0.md, RVN-V0): passing and failing
@@ -81,9 +81,9 @@ func verifyError(code, format string, args ...any) error {
 // blocking on a FIFO, unchanged in identity, size and modification time while read, within the
 // PWP bound.
 func readReceipt(filename string) ([]byte, error) {
-	raw, ok := readRegular(filename, testvaliditydoc.MaxInputBytes)
+	raw, ok := readRegular(filename, testvaliditymodel.MaxInputBytes)
 	if !ok {
-		return nil, verifyError("appmap-verify-invalid-receipt", "--receipt must name a regular file of at most %d bytes, unchanged while read", testvaliditydoc.MaxInputBytes)
+		return nil, verifyError("appmap-verify-invalid-receipt", "--receipt must name a regular file of at most %d bytes, unchanged while read", testvaliditymodel.MaxInputBytes)
 	}
 	return raw, nil
 }
@@ -162,11 +162,11 @@ func LoadPlanVerification(maps []*Map, receiptFiles, binds []string) (*Verificat
 		if err != nil {
 			return nil, err
 		}
-		in, err := testvaliditydoc.Decode(raw)
+		in, err := testvaliditymodel.Decode(raw)
 		if err != nil {
 			return nil, verifyError("appmap-verify-invalid-receipt", "--receipt is not a canonical Playwright external provider document")
 		}
-		doc := testvaliditydoc.Project(in)
+		doc := testvaliditymodel.Project(in)
 		if doc.Playwright == nil {
 			return nil, verifyError("appmap-verify-invalid-receipt", "--receipt is not a Playwright external (PWP) receipt")
 		}

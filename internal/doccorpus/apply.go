@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/pinnedread"
 )
 
 // Publication is confined to a pinned parent and never replaces a competing
@@ -38,7 +38,7 @@ func applyCorpusPage(root, page string, before, next []byte, checkpoint func(str
 	if err != nil || !original.Mode().IsRegular() {
 		return "", fail("maintenance page is not regular")
 	}
-	current, err := testvaliditydoc.ReadFile(parent, name)
+	current, err := pinnedread.ReadFile(parent, name)
 	if err != nil || !bytes.Equal(current, before) {
 		return "", fail("maintenance page changed")
 	}
@@ -95,7 +95,7 @@ func applyCorpusPage(root, page string, before, next []byte, checkpoint func(str
 	if err != nil || !os.SameFile(original, captured) || !captured.Mode().IsRegular() {
 		return refuse("maintenance destination replaced")
 	}
-	capturedBytes, err := testvaliditydoc.ReadFile(parent, recovery)
+	capturedBytes, err := pinnedread.ReadFile(parent, recovery)
 	if err != nil || !bytes.Equal(capturedBytes, before) {
 		return refuse("maintenance destination changed")
 	}
