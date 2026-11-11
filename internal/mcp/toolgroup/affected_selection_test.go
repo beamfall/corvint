@@ -82,3 +82,31 @@ func TestMTTV1008AffectedToolReadsTheKillSwitch(t *testing.T) {
 		t.Fatalf("unset switch: %#v %#v runs=%d", result, failure, *runs)
 	}
 }
+
+// MTT-V1-011: when the planner refuses a stale binary, the tool answers a
+// successful select-all with reason self-binary-stale, the planner's message
+// as its detail and a one-line rebuild hint; any other refusal stays the tool
+// error.
+func TestMTTV1011AffectedToolOnAStaleBinarySelectsAll(t *testing.T) {
+	group, _ := selectionGroup(t, "")
+	group.Run = func(_ context.Context, _, base string, _, stderr io.Writer) int {
+		if base == "other" {
+			_, _ = fmt.Fprintln(stderr, `{"code": "unknown-base", "error": "argument --base: unknown", "ok": false}`)
+			return 2
+		}
+		_, _ = fmt.Fprintln(stderr, `{"code": "self-binary-stale", "error": "this binary was built from commit abc1234; rebuild it", "ok": false}`)
+		return 2
+	}
+	result, failure := group.Call(context.Background(), AffectedTool, map[string]any{})
+	structured, _ := result["structuredContent"].(map[string]any)
+	hint, _ := structured["hint"].(string)
+	if failure != nil || result["isError"] != false || structured["profile"] != AffectedSelectAllProfile || structured["selectAll"] != true ||
+		structured["reason"] != AffectedStaleCode || structured["detail"] != "this binary was built from commit abc1234; rebuild it" ||
+		hint == "" || strings.Contains(hint, "\n") || structured["selection"] != nil {
+		t.Fatalf("stale: %#v %#v", result, failure)
+	}
+	result, _ = group.Call(context.Background(), AffectedTool, map[string]any{"base": "other"})
+	if structured, _ := result["structuredContent"].(map[string]any); result["isError"] != true || structured["code"] != "unknown-base" {
+		t.Fatalf("other refusal: %#v", result)
+	}
+}

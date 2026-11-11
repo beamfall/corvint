@@ -1484,6 +1484,7 @@
         "--workspace"
       ],
       "schemaIds": [
+        "affected-select-all/1",
         "affected-summary/1"
       ],
       "inputs": null,
