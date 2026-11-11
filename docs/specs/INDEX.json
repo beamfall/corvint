@@ -3059,8 +3059,8 @@
     "path": "docs/specs/unplanned-read-events-v0.md",
     "title": "Unplanned Read Events V0",
     "reqPrefix": "URE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0594)",
+    "delivery": "retired",
     "claim": "an explicitly opt-in local ledger counts reads Corvint failed to prevent, so packet quality has a number instead of an impression.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"

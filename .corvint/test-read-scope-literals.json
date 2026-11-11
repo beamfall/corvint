@@ -200,7 +200,6 @@
       "internal/trace": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/tracerecordrepo": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/tracerepopaths": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/unplannedread": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/untrackedallowance": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/update": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/versionline": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
