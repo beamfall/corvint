@@ -167,6 +167,43 @@ tests, fail on 45152cea1):
 - `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles` and `TestTIVV1004VitestDeclaredByPackageScript`:
   a real refresh through a stub lister.
 
+## Review fixes (round 3, V1-5425): pytest TOML keys, config order, script flags
+
+An independent review found three cases where an instance was reported proven while a runnable test
+was unassigned. All three are fixed by failing closed.
+- **pytest TOML keys.** The proof matched an unindented, unquoted key and needed an unindented
+  header, so `python_files` went unseen when it was indented or quoted, when its header was
+  indented, when it was a dotted key under `[tool]`, or when it sat in the pytest 9 native
+  `[tool.pytest]` table. TOML configs are now scanned for each key's full path
+  (`internal/testinventory/pytestconfig.go`). A file the scanner cannot read, an escaped key, or
+  the pytest table set inline is unproven. INI files are now read as pytest's `iniconfig` reads
+  them: a header may carry a comment, and an indented line is a continuation. An indented line that
+  holds the pytest header is unproven, because a reader that trims lines would see a section there.
+- **Config order.** pytest's documented search order (docs.pytest.org `reference/customize`,
+  stable, checked 2026-11-11) is `pytest.toml`, `.pytest.toml`, `pytest.ini`, `.pytest.ini`,
+  `pyproject.toml`, `tox.ini`, `setup.cfg`. The first four match even when empty. Detection follows
+  that order. An older pytest ignores the names it predates, so the proof checks every declaring
+  config in the root, not only the first.
+- **Script flags.** Orchestrator decision: fail closed. A Jest or Vitest script in the
+  `package.json` of the root, or of any directory above it, that passes the runner a flag outside a
+  safe list leaves the instance unproven. The safe list covers output, reporting, coverage, watch,
+  parallelism, timeout, snapshot and filter flags. A shell expansion or Vitest's `bench` or
+  `typecheck` command also leaves it unproven. Long flags are compared without case, dashes or a
+  `no-` prefix, so `--test-match` counts as `--testMatch`. Positional arguments only filter the
+  configured files and are allowed.
+- The unproven cause used to say "every changed or new file". It now says every file the record
+  does not bind, or binds at another blob, which is what the verdict reports.
+
+Tests: 18 new `TestTIVV1008UnprovenConfigFailsClosed` rows, `TestTIVV1003PytestConfigPrecedence`,
+five new `TestTIVV1008ProvenDefaultControl` rows (safe Jest and Vitest script flags, `pytest.toml`,
+a realistic `pyproject.toml`, a `tox.ini` header with a comment), and a cause-wording assertion. Each
+of the 18 rows fails on 676c335b0. One row, `pytest.ini` beside `pytest.toml`, fails there only on
+its cause text, because that base already read the config as unproven. The Jest, Vitest and
+`pyproject.toml` controls pass on that base too: they guard against over-refusal, not a miss.
+
+Not covered: a Playwright script's `-c`/`--config`. The parent-directory search that pytest itself
+does is also not modelled; only configs in an instance's own root are proven.
+
 ## Assertions extended
 
 Every plan now prints its inventory line, so five exact expectations name the absent
