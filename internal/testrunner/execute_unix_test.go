@@ -404,32 +404,40 @@ func TestExecuteRetiresDescendants(t *testing.T) {
 	for _, mode := range []string{"timeout", "interrupt"} {
 		t.Run(mode, func(t *testing.T) {
 			r, inv := executorRequest(t)
-			r.TimeoutSeconds = 1
+			// Both modes end when the descendant's heartbeat exists: the interrupt cancels and
+			// the timeout expires there, not after a wall-clock bound a loaded host can overrun
+			// before the helpers start. TimeoutSeconds is only the hang bound (V1-1434).
+			r.TimeoutSeconds = 120
 			heartbeat := filepath.Join(r.Root, "heartbeat")
 			inv.Environment["CORVINT_EXEC_MODE"] = "parent"
 			inv.Environment["CORVINT_EXEC_TARGET"] = heartbeat
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			done := make(chan struct{})
-			if mode == "interrupt" {
-				go func() {
-					defer close(done)
-					for {
-						if _, e := os.Stat(heartbeat); e == nil {
-							cancel()
-							return
-						}
-						select {
-						case <-ctx.Done():
-							return
-						case <-time.After(5 * time.Millisecond):
-						}
-					}
-				}()
-			} else {
-				close(done)
+			release := make(chan struct{})
+			if mode == "timeout" {
+				expireLimitAt(t, release)
 			}
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				for {
+					if st, e := os.Stat(heartbeat); e == nil && st.Size() > 0 {
+						if mode == "interrupt" {
+							cancel()
+						} else {
+							close(release)
+						}
+						return
+					}
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(5 * time.Millisecond):
+					}
+				}
+			}()
 			out, err := Execute(ctx, r, inv)
+			cancel()
 			<-done
 			if err != nil {
 				t.Fatal(err)
@@ -621,8 +629,10 @@ func TestGracefulInterruptLifecycle(t *testing.T) {
 				if mode == "postbinding" {
 					inv.Environment["CORVINT_GRACE_MUTATE"] = filepath.Join(r.Root, "source")
 				}
-				if mode == "interrupt" {
-					// Readiness drives the cancellation; the deadline only detects a hang.
+				if mode == "interrupt" || mode == "overflow" {
+					// Readiness or the output overflow drives the cancellation; the deadline only
+					// detects a hang. A one-second deadline can fire on a loaded host before the
+					// helper has written past MaxReportBytes, leaving no overflow to observe.
 					r.TimeoutSeconds = 60
 				}
 				ctx, cancel := context.WithCancel(context.Background())
