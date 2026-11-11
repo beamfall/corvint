@@ -12,7 +12,7 @@ import (
 )
 
 var flowsArguments = []string{"--tool-profile", "flows"}
-var flowsToolNames = []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.flows.status", "corvint.help", "corvint.impact", "corvint.status"}
+var flowsToolNames = []string{"corvint.flows_coverage", "corvint.flows_gaps", "corvint.flows_impact", "corvint.flows_map", "corvint.flows_navigate", "corvint.flows_status", "corvint.help", "corvint.impact", "corvint.status"}
 
 func flowsFixture(t *testing.T) string {
 	t.Helper()
@@ -30,7 +30,7 @@ func flowsFixture(t *testing.T) string {
 }
 
 func flowCall(name string, args map[string]any) map[string]any {
-	return map[string]any{"_meta": requestMeta(), "name": "corvint.flows." + name, "arguments": args}
+	return map[string]any{"_meta": requestMeta(), "name": "corvint.flows_" + name, "arguments": args}
 }
 
 // AFU-V1-034 and AFU-V1-035: compiled stdio traffic preserves the opt-in registry,
@@ -103,7 +103,7 @@ func TestAFUV1034FlowsOfficialSchema(t *testing.T) {
 	checkOfficialExchanges(t, schema, client, 1400, exchanges)
 }
 
-// V1-0280: corvint.flows.coverage, the fifth flows tool, needs a committed denominator and run
+// V1-0280: corvint.flows_coverage, the fifth flows tool, needs a committed denominator and run
 // receipts, so it runs against the flowcoverage fixture: compiled stdio traffic returns its page
 // only inside the untrusted envelope, writes nothing, and (with the pinned schema) matches the
 // official CallToolResult definition.
@@ -188,7 +188,7 @@ func assertCoveragePage(t *testing.T, text, head string) {
 		t.Fatalf("coverage document is not JSON: %v: %s", err, document)
 	}
 	receipt := page.Receipt
-	if page.Schema != "corvint-mcp-bridge-result/0" || page.Tool != "corvint.flows.coverage" || page.State != "READY" || page.Abstention.Active || page.Abstention.Reason != "NONE" || page.Mutates || page.Repository.CommitRevision != head {
+	if page.Schema != "corvint-mcp-bridge-result/0" || page.Tool != "corvint.flows_coverage" || page.State != "READY" || page.Abstention.Active || page.Abstention.Reason != "NONE" || page.Mutates || page.Repository.CommitRevision != head {
 		t.Fatalf("coverage bridge result is not a READY HEAD-bound read: %s", document)
 	}
 	if receipt.Schema != "application-flow-coverage/1" || receipt.Revision != head || len(receipt.ReportSHA) != 64 {

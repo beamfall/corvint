@@ -10,7 +10,7 @@ import (
 // MCPV0-8300: replay a host's launch argv with no launch worktree. Older
 // root-fatal servers close before initialize; these calls must still answer.
 func TestMCPV08300UnavailableLaunchHandshake(t *testing.T) {
-	declared := []string{"--root", "${CLAUDE_PROJECT_DIR}", "--protocol-version", "2025-11-25", "--tool-profile", "test-validity,docs"}
+	declared := []string{"--root", "${CLAUDE_PROJECT_DIR}", "--protocol-version", "2025-11-25", "--tool-profile", "test-evidence"}
 	launch := t.TempDir()
 	t.Chdir(launch)
 	for _, tc := range []struct{ name, root, reason string }{

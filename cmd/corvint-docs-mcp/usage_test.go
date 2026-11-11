@@ -8,13 +8,14 @@ import (
 )
 
 // MMR-V0-016: --help and -h alone print usage on stdout and exit 0; the
-// usage names the unified corvint-mcp equivalent for the one-release alias.
+// usage names the unified corvint-docs mcp equivalent for the one-release
+// alias (MTT-V1-004).
 func TestMMRV0016HelpPrintsUsage(t *testing.T) {
 	for _, flag := range []string{"--help", "-h"} {
 		var stdout, stderr bytes.Buffer
 		exit := run(context.Background(), []string{flag}, strings.NewReader(""), &stdout, &stderr)
 		if exit != 0 || stderr.Len() != 0 || !strings.HasPrefix(stdout.String(), "usage: corvint-docs-mcp ") ||
-			!strings.Contains(stdout.String(), "corvint-mcp --root ROOT --tool-profile docs") {
+			!strings.Contains(stdout.String(), "corvint-docs mcp --root ROOT") {
 			t.Fatalf("%s exit=%d stdout=%q stderr=%q", flag, exit, stdout.String(), stderr.String())
 		}
 	}

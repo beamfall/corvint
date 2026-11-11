@@ -108,8 +108,8 @@ Goals
    match_anchor. search lists query words nothing holds in unmatched_terms.
    A generated claim that names code carries a claim_mentions check of whether
    its cited spans hold those names. Generated evidence grants no task or
-   test-selection authority. The corpus is also served by corvint-mcp
-   --tool-profile corpus, whose corvint.docs_search takes kind and include.
+   test-selection authority. The corpus is also served by corvint-docs mcp
+   --corpus-artifact PATH, whose corvint.docs_search takes kind and include.
 
 10. Regenerate generated claims only where sources changed
    corvint-docs docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl

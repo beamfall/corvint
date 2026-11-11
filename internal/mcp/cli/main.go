@@ -17,7 +17,6 @@ import (
 	"github.com/Beamfall/corvint/internal/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
-	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"github.com/Beamfall/corvint/internal/mcp/server"
@@ -42,11 +41,6 @@ const (
 	// toolProfileFlows is the one value of the closed
 	// --tool-profile selector (MCPV0-026, decision 0374, amended by AFU-V1-034).
 	toolProfileFlows = "flows"
-	// toolProfileTestValidity, toolProfileDocs and toolProfileCorpus are the
-	// tool groups a --tool-profile list may add (MMR-V0-012).
-	toolProfileTestValidity = "test-validity"
-	toolProfileDocs         = "docs"
-	toolProfileCorpus       = "corpus"
 	// toolProfileTestEvidence adds the opt-in test-evidence reader (RSP-V0-051).
 	toolProfileTestEvidence = "test-evidence"
 	// toolProfileAffected adds corvint.affected, which only `corvint mcp` can
@@ -71,16 +65,16 @@ const usage = "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-
 	"       corvint-mcp --root ABSOLUTE_ROOT --follow-ref REF\n" +
 	"       corvint-mcp --root ALIAS=ABSOLUTE_ROOT ... --follow-ref ALIAS=REF [--follow-ref ALIAS=REF ...]\n" +
 	"       corvint-mcp --workspace FILE [--follow-ref ALIAS=REF ...]\n" +
-	"       corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]\n" +
+	"       corvint-mcp ROOTS... --tool-profile LIST\n" +
 	"       corvint-mcp --version\n" +
 	"A local read-only stdio MCP server. Each --root must be an absolute path to a Git worktree.\n" +
 	"One plain --root that does not exist serves the Git worktree enclosing the launch directory, with a notice.\n" +
 	"--follow-ref keeps a detached linked worktree on the commit REF names, moving it before each call;\n" +
 	"with aliased roots, ALIAS=REF selects the root that follows and the others serve their checkout.\n" +
 	"--workspace reads the corvint-workspace/0 declaration FILE and serves each alias as --root ALIAS=ROOT.\n" +
-	"--tool-profile LIST is a comma list of the profile flows\n" +
-	"and the groups test-validity, test-evidence, docs, corpus and affected; corpus needs --corpus-artifact, a path relative\n" +
-	"to the root (ALIAS=PATH with aliased roots); affected (corvint.affected) is served only by corvint mcp.\n" +
+	"--tool-profile LIST is a comma list of the profile flows and the groups test-evidence and affected;\n" +
+	"affected (corvint.affected) is served only by corvint mcp. The docs and corpus groups moved to\n" +
+	"corvint-docs mcp and test-validity was removed (MTT-V1-005): asking for one exits 2 naming that.\n" +
 	"Without --tool-profile the default tools are listed.\n" +
 	"Example: corvint-mcp --root /absolute/repo --tool-profile flows"
 
@@ -132,14 +126,17 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 		_, _ = fmt.Fprintln(stdout, usage)
 		return 0
 	}
+	if reason := removedGroupReason(arguments); reason != "" { // MTT-V1-005: a typed refusal, never an empty surface.
+		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments: "+reason)
+		return 2
+	}
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
 	arguments, profile, profileOK := extractToolProfile(arguments)
 	arguments, reasonClass, errorProfileOK := extractErrorProfile(arguments)
 	arguments, followSelectors, followReason := extractFollowRef(arguments)
-	arguments, corpusArtifact, corpusReason := extractCorpusArtifact(arguments)
 	arguments, workspaceReason := expandWorkspace(arguments, stderr)
 	roots, versionOnly, ok := parseArguments(arguments)
-	if !protocolOK || !profileOK || !errorProfileOK || (cmp.Or(followReason, corpusReason, workspaceReason) == "" && !ok) {
+	if !protocolOK || !profileOK || !errorProfileOK || (cmp.Or(followReason, workspaceReason) == "" && !ok) {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments")
 		return 2
 	}
@@ -149,7 +146,7 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 	if slices.Contains(groups, toolProfileAffected) && hooks.Affected == nil { // MMR-V0-1118: only corvint mcp holds the planner.
 		affectedReason = affectedReasonUnserved
 	}
-	if reason := cmp.Or(followReason, corpusReason, workspaceReason, bindReason, affectedReason); reason != "" { // MMR-V0-011: name the reason.
+	if reason := cmp.Or(followReason, workspaceReason, bindReason, affectedReason); reason != "" { // MMR-V0-011: name the reason.
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments: "+reason)
 		return 2
 	}
@@ -160,25 +157,18 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 	single, unavailable := len(roots) == 1 && roots[0].alias == "", ""
 	for index, declared := range roots {
 		// MCPV0-950: a root inside a worktree binds its toplevel, and an unusable
-		// root's reason is named. Only a plain root that neither follows a ref nor
-		// binds a corpus artifact starts unavailable instead of exiting.
+		// root's reason is named. Only a plain root that does not follow a ref
+		// starts unavailable instead of exiting.
 		toplevel, reason := rootbind.Resolve(declared.root)
-		if reason != "" && (!single || len(followRefs) != 0 || corpusArtifact != "") {
+		if reason != "" && (!single || len(followRefs) != 0) {
 			_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable: "+reason)
 			return 2
 		}
 		roots[index].root, roots[index].below, unavailable = cmp.Or(toplevel, declared.root), belowToplevel(declared.root, toplevel), reason
 	}
-	// The corpus artifact binds the resolved toplevel, so a subdirectory root
-	// reads the same artifact its toplevel would (MCPV0-950, MMR-V0-014).
-	corpusRoot, corpusPath, corpusBindReason := bindCorpusArtifact(roots, groups, corpusArtifact)
-	if corpusBindReason != "" {
-		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments: "+corpusBindReason)
-		return 2
-	}
 	// MCPV0-115, MCPV0-861: a missing or non-worktree plain --root falls back to the launch
 	// worktree, visibly.
-	fallbackRoot, substitution, substituted := missingRootFallback(roots, unavailable, len(followRefs) != 0, corpusArtifact != "", os.Getwd)
+	fallbackRoot, substitution, substituted := missingRootFallback(roots, unavailable, len(followRefs) != 0, os.Getwd)
 	if substituted {
 		// The launch worktree replaces the declared root's MCPV0-950 outcome: it is
 		// resolved as a direct --root would be, so an unusable candidate is served
@@ -234,7 +224,7 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 	}
 	if unavailable != "" {
 		handler.startUnavailable(profile, groups, unavailable, stderr)
-	} else if refusal := handler.openGroups(groups, corpusRoot, corpusPath, stderr); refusal != "" {
+	} else if refusal := handler.openGroups(groups); refusal != "" {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: "+refusal)
 		return 2
 	}
@@ -383,11 +373,6 @@ type toolHandler struct {
 	// tool names to its group's index (MMR-V0-013).
 	groups     map[string][]toolgroup.Group
 	groupTools map[string]int
-	// corpus is the workspace-level corpus group and corpusTools every corpus
-	// tool name, listed or not, so none can reach a followed ref; nil unless
-	// the corpus group is selected (MMR-V0-014, MMR-V0-017).
-	corpus      *corpusbridge.Artifact
-	corpusTools map[string]bool
 	// unavailable is the single root's failure reason and unbound its
 	// profile's tool surface while the server serves no repository (MCPV0-950).
 	unavailable string
@@ -433,9 +418,6 @@ func (handler *toolHandler) listTools() []bridge.ToolDescriptor {
 	if len(handler.follows) != 0 {
 		tools = followRefRootsTools(tools, slices.Sorted(maps.Keys(handler.follows)))
 	}
-	if handler.corpus != nil { // MMR-V0-014: workspace-level, so never alias-routed or follow-marked.
-		tools = append(tools, handler.corpus.Tools()...)
-	}
 	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
 	return bridge.WithOutputSchemas(tools)
 }
@@ -464,9 +446,6 @@ func (handler *toolHandler) dispatch(ctx context.Context, params map[string]any)
 	}
 	if !nameOK || name == "" {
 		return nil, protocol.InvalidParams("Invalid params")
-	}
-	if handler.corpusTools[name] { // MMR-V0-014: the corpus artifact never binds a followed ref.
-		return handler.corpus.Call(ctx, name, arguments)
 	}
 	if follow, registry := handler.followFor(arguments); follow != nil && name != bridge.ToolHelp { // MCPV0-100: help reads only the binary, so it never binds the ref.
 		return follow.bound(ctx, func(state followState, code string) (map[string]any, *protocol.RPCError) {

@@ -35,7 +35,7 @@ func (g TestEvidence) Tools() []bridge.ToolDescriptor {
 	for _, s := range []string{"path", "lines", "test", "explain", "revision", "base", "index"} {
 		props[s] = map[string]any{"type": "string", "minLength": 1, "maxLength": 4096}
 	}
-	return []bridge.ToolDescriptor{{Name: TestEvidenceTool, Description: "Read existing test evidence for path (optional lines START:END), test, or explain with base; revision defaults to HEAD. Missing inventory/context abstains UNKNOWN; unqualified runners are FULL. Same projection as corvint test-evidence; never collects or writes.", Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}, InputSchema: map[string]any{"type": "object", "properties": props, "additionalProperties": false}}}
+	return []bridge.ToolDescriptor{{Name: TestEvidenceTool, Description: "Preview: read existing test evidence for path (optional lines START:END), test, or explain with base; revision defaults to HEAD. Missing inventory/context abstains UNKNOWN; unqualified runners are FULL. Same projection as corvint test-evidence; never collects or writes.", Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}, InputSchema: map[string]any{"type": "object", "properties": props, "additionalProperties": false}}}
 }
 func (g TestEvidence) Call(ctx context.Context, name string, args map[string]any) (map[string]any, *protocol.RPCError) {
 	if name != TestEvidenceTool {

@@ -8,9 +8,7 @@ import (
 	"slices"
 
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
-	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
-	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/mcp/toolgroup"
 )
 
@@ -57,10 +55,6 @@ func (handler *toolHandler) startUnavailable(profile string, groups []string, re
 			group = unavailableGroup{toolgroup.TestEvidence{}.Tools, toolgroup.TestEvidenceErrorProfile, reason}
 		case toolProfileAffected:
 			group = unavailableGroup{toolgroup.Affected{}.Tools, toolgroup.AffectedErrorProfile, reason}
-		case toolProfileTestValidity:
-			group = unavailableGroup{(&testvaliditybridge.Registry{}).Tools, toolgroup.TestValidityErrorProfile, reason}
-		case toolProfileDocs:
-			group = unavailableGroup{(&docsbridge.Registry{}).Tools, toolgroup.DocsErrorProfile, reason}
 		default:
 			continue
 		}

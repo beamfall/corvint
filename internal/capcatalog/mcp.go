@@ -3,6 +3,7 @@ package capcatalog
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -122,16 +123,21 @@ func MCPToolsFor(server string) []MCPTool {
 	return rows
 }
 
+// toolName is the one naming convention, corvint.<area>_<verb> with exactly
+// one dot (MTT-V1-007): a lower-case area word, then lower-case words joined
+// by underscores.
+var toolName = regexp.MustCompile(`^corvint\.[a-z]+(_[a-z]+)*$`)
+
 var (
 	knownServers      = []string{ServerCore, ServerDocs, ServerTestValidity, ServerNone}
 	knownAvailability = []string{AvailabilityStable, AvailabilityExperimental, AvailabilityPreview, AvailabilityDeprecated, AvailabilityPlanned}
 )
 
 // CheckMCPTools returns one problem per broken table rule (MTT-V1-001,
-// MTT-V1-006), each naming its row: a duplicate name across the
+// MTT-V1-006, MTT-V1-007), each naming its row: a duplicate name across the
 // servers, an unknown server or availability, a missing column, a summary two
 // rows share, an input property without a description, a row without the
-// shared error codes, or a table without its
+// shared error codes, a name off the convention, or a table without its
 // "no MCP tool" row for Tasks.
 func CheckMCPTools(rows []MCPTool) []string {
 	var problems []string
@@ -167,6 +173,9 @@ func CheckMCPTools(rows []MCPTool) []string {
 			}
 			tasksRow = tasksRow || strings.Contains(row.Name, "tasks")
 			continue
+		}
+		if !toolName.MatchString(row.Name) {
+			problems = append(problems, row.Name+": name is not corvint.<area>_<verb> with one dot")
 		}
 		for _, code := range []string{ErrorServerBusy, ErrorCancelled} {
 			if !slices.Contains(row.Errors, code) {
@@ -264,11 +273,13 @@ var (
 	corpusPaths = in("paths", "A batch of repository paths or symbols to look up; give path or paths, not both.")
 )
 
+// flowsRow is one flow-report row; name is the tool's earlier
+// corvint.flows.<verb> name, which the row replaces (MTT-V1-007).
 func flowsRow(name, verb, summary, profile string, inputs ...MCPInput) MCPTool {
 	return MCPTool{
-		Name: name, Server: ServerCore, Availability: AvailabilityExperimental, Summary: summary,
+		Name: "corvint.flows_" + verb, Server: ServerCore, Availability: AvailabilityExperimental, Summary: summary,
 		OptIn: flowsOptIn, InputSchema: flowsSource, Inputs: inputs, OutputProfile: profile, Errors: flowsErrors,
-		CLIEquivalent: "corvint-docs flows " + verb,
+		CLIEquivalent: "corvint-docs flows " + verb, Replaces: []string{name},
 	}
 }
 

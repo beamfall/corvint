@@ -17,7 +17,7 @@ const mcpHelp = `Serve the local read-only stdio MCP server (AHI-373, experiment
 Usage:
   corvint mcp --root ABSOLUTE_ROOT [--protocol-version 2026-07-28|2025-11-25]
   corvint mcp --root ALIAS=ABSOLUTE_ROOT [--root ALIAS=ABSOLUTE_ROOT ...]
-  corvint mcp --root ABSOLUTE_ROOT --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]
+  corvint mcp --root ABSOLUTE_ROOT --tool-profile LIST
   corvint mcp --root ABSOLUTE_ROOT --tool-profile affected
   corvint mcp --root ABSOLUTE_ROOT --follow-ref REF
   corvint mcp --workspace FILE [--follow-ref ALIAS=REF ...]
@@ -33,6 +33,11 @@ option. The affected group (--tool-profile affected) adds corvint.affected, whic
 answers which tests a change requires with the affected-summary/1 verdict that the
 summary form of the affected verb prints, for a base or for the dirty worktree;
 only this verb serves it, because the planner lives in this binary (MMR-V0-1118).
+LIST is a comma list of the profile flows and the groups test-evidence and
+affected. The documentation tools moved to corvint-docs mcp: asking for the
+docs or corpus group, or passing --corpus-artifact, exits 2 with a
+profile-moved reason naming it, and the removed test-validity group exits 2
+with group-removed (MTT-V1-005). docs/MCP-SERVER.md lists every tool.
 One planner runs at a time per root; a verdict too large for one MCP message is
 the tool error verdict-oversized, read with the CLI instead. The server keeps the
 binary it started with: when a call answers the tool error self-binary-stale,
