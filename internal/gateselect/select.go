@@ -67,6 +67,15 @@ type Receipt struct {
 			Paths        []string `json:"paths"`
 			Unreferenced []string `json:"unreferenced"`
 		} `json:"goAdditive"`
+		// Selected is the planner's selections; a unit whose witness
+		// names a dirty path is a runner's attribution of that path
+		// (unattributedPath, RNC-V1-004).
+		Selected []struct {
+			UnitID  string `json:"unitId"`
+			Witness struct {
+				DirtyPath string `json:"dirtyPath"`
+			} `json:"witness"`
+		} `json:"selected"`
 	} `json:"plan"`
 	Provider struct {
 		Go struct {
@@ -325,6 +334,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		narrowed = additiveNarrowing(plan, module)
 		taken = planReaders(plan, index, module, root)
 	}
+	attributed := map[string]bool{}
 	for i, dirty := range dirties {
 		rules := index.attribute(dirty, readers[i])
 		if unreferenced, ok := narrowed[dirty]; ok && !strings.HasSuffix(dirty, "_test.go") && index.packages[parentDirectory(dirty)] != nil {
@@ -335,6 +345,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		}
 		for _, rule := range rules {
 			if rule.kind == "documentation" || rule.kind == "evidence" {
+				attributed[dirty] = true // the plan's own readers of a declared path
 				lines = append(lines, rule.kind+" "+dirty)
 				continue
 			}
@@ -347,6 +358,9 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 				rule.directories = slices.DeleteFunc(slices.Clone(rule.directories), func(directory string) bool {
 					return !recordAllows(directory, dirty)
 				})
+			}
+			if len(rule.directories) != 0 {
+				attributed[dirty] = true
 			}
 			add(rule.directories, rule.kind, " <- "+dirty)
 		}
@@ -367,12 +381,20 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		declared[directory] = index.packages[directory] != nil
 	}
 	for _, directory := range sortedKeys(declared) {
+		first := true
 		for _, dirty := range sortedUnique(plan.Plan.Dirty) {
 			if declared[directory] && declaredBears(directory, scopes, prior, dirty) && recordAllows(directory, dirty) {
-				add([]string{directory}, "declared", " <- "+dirty)
-				break
+				attributed[dirty] = true
+				if first {
+					add([]string{directory}, "declared", " <- "+dirty)
+					first = false
+				}
 			}
 		}
+	}
+	// Both forms: the attribution does not read rule (d) (unattributedPath).
+	if dirty, ok := unattributedPath(plan, attributed); ok {
+		return fallback(UnownedPathFallback + ": " + dirty)
 	}
 	selected := sortedKeys(packages)
 	for _, pkg := range selected {
@@ -421,8 +443,9 @@ func boundedReaders(directories []string, scopes, prior map[string][]string, dir
 // `suite <language> <- <detail>` lines name, one per language for its first
 // entry, as the shadow runs it (AFP-V0-2750); it never widens the Go selection. CI narrows only the Go shards; rules (b) and (c)
 // select every package that encloses or names a dirty path and rule (d) every
-// package whose reads no literal bounds; an UNOWNED_DIRTY_PATH falls back with
-// UnownedPathFallback (RNC-V1-004); a frontier names what a language model cannot see inside units
+// package whose reads no literal bounds, so every Go reader of an unowned path
+// is selected, and selectPackagesFrom falls back with UnownedPathFallback for an
+// unowned path none of those rules attributes (RNC-V1-004); a frontier names what a language model cannot see inside units
 // the dirty paths already reach; and a unit with no selectable test gets no
 // test from a FULL run either. Any other unknown, a malformed reason, and an
 // UNKNOWN plan that names no unknown return the fallback reason.
@@ -445,8 +468,6 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 			continue
 		case entry.Reason == "UNINDEXED_SOURCE_PATH" && deletedGoSource(plan, index, root, entry.Detail):
 			continue
-		case entry.Reason == "UNOWNED_DIRTY_PATH":
-			return UnownedPathFallback, nil
 		}
 		reason := entry.Reason
 		if !unknownReason.MatchString(reason) {
@@ -459,6 +480,39 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 		lines = append(lines, "suite "+language+" <- "+suites[language])
 	}
 	return "", lines
+}
+
+// unattributedPath returns the first UNOWNED_DIRTY_PATH of plan, in plan
+// order, that no Go rule attributes, and false when every one is attributed
+// (RNC-V1-004, owner decision R32). Rules (b) and (c) and the read-scope
+// declarations attribute a path when they select a package for it
+// (attributed); the planner's documentation and evidence readers count too,
+// and so does any unit the plan selected with the path as its witness.
+// A path an unobserved-module frontier names is run by that nested module's
+// own suite (STR-V0-064). Rule (d), the packages whose reads no literal
+// bounds, is selected for every dirty path and so attributes none: a path only
+// it would read is one no runner instance owns, and runs every test.
+func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
+	for _, selection := range plan.Plan.Selected {
+		// The planner's own declared readers (an existence reader, a
+		// runtime reader, an ownership obligation) select a unit whose
+		// witness names the path.
+		if selection.UnitID != "" && selection.Witness.DirtyPath != "" {
+			attributed[selection.Witness.DirtyPath] = true
+		}
+	}
+	nested := map[string]bool{}
+	for _, entry := range plan.Plan.Unknown {
+		if directory, ok := UnobservedModule(entry.Reason, entry.Detail); ok {
+			nested[strings.TrimPrefix(entry.Detail, "go:unobserved-module:"+directory+":")] = true
+		}
+	}
+	for _, entry := range plan.Plan.Unknown {
+		if entry.Reason == "UNOWNED_DIRTY_PATH" && !attributed[entry.Detail] && !nested[entry.Detail] {
+			return entry.Detail, true
+		}
+	}
+	return "", false
 }
 
 // frontierSuite records in suites the first frontier of each language

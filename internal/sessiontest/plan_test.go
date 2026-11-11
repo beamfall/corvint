@@ -68,12 +68,17 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		noSuite    []string
 	}{
 		{name: "narrowed", edit: func(*Input) {}, scope: ScopeNarrowed, units: whole("a")},
+		// An UNOWNED_DIRTY_PATH under a Go verdict of run is one the selector
+		// attributed to a Go package, so the Go instance owns it
+		// (RNC-V1-004, owner decision R32).
 		{name: "allowlisted unknowns stay narrowed", edit: func(in *Input) {
-			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "NO_SELECTABLE_TEST", Detail: "go:example.test/m/b"}}
+			in.Unknown = []Unknown{{Reason: "UNOWNED_DIRTY_PATH", Detail: "notes.txt"}, {Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "NO_SELECTABLE_TEST", Detail: "go:example.test/m/b"}}
 		}, scope: ScopeNarrowed, units: whole("a")},
-		// RNC-V1-004, owner decision R32: a changed path no runner owns
-		// runs every test with the named reason.
-		{name: "an unowned path runs every test", edit: func(in *Input) {
+		// RNC-V1-004, owner decision R32: a changed path no Go rule
+		// attributes runs every test with the named reason, from the
+		// selector's fallback or, with no Go universe, from Build itself.
+		{name: "an unattributed unowned path runs every test", edit: func(in *Input) {
+			in.GoSelection = "FALLBACK unowned-path: a changed path no runner instance owns runs every test (UNOWNED_DIRTY_PATH): notes.txt"
 			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "UNOWNED_DIRTY_PATH", Detail: "notes.txt"}}
 		}, scope: ScopeFull, reason: "unowned-path: a changed path no runner instance owns runs every test (UNOWNED_DIRTY_PATH): notes.txt", units: whole("a", "b", "c")},
 		// RNC-V1-004: a runner the inventory or the declaration still names

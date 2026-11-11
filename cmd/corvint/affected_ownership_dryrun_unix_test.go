@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -54,10 +53,7 @@ func TestOwnershipNamedDryRun_AZU_V0_9900(t *testing.T) {
 			if unit.Unit != "go:example.test/m/internal/liveverify/affected" {
 				continue
 			}
-			// The addition is a path no runner owns, so the plan runs every
-			// test (RNC-V1-004, owner decision R32); FULL keeps the named
-			// obligation on the whole package (AZU-V0-9900).
-			if unit.Slice != sessiontest.SliceWhole || !strings.Contains(unit.Reason, "FULL") || !strings.Contains(unit.Reason, "required "+affected.OwnershipAuditTest+" via data/new.txt (AZU-V0-9900)") || !slices.Contains(inv.Argv, "example.test/m/internal/liveverify/affected") {
+			if unit.Slice != sessiontest.SliceSelected || unit.Pattern != "^("+affected.OwnershipAuditTest+")$" || !strings.Contains(unit.Reason, "AZU-V0-9900") || !strings.Contains(strings.Join(inv.Argv, " "), affected.OwnershipAuditTest) {
 				t.Fatalf("gate unit=%+v argv=%q", unit, inv.Argv)
 			}
 			return
