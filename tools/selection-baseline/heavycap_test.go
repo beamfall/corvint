@@ -130,6 +130,8 @@ esac
 		if err != nil {
 			t.Fatal(err)
 		}
+		// ASC-V0-782: TIMING lines carry wall seconds and the worker count by design.
+		diagnostics, _ = splitTimingLines(diagnostics)
 		if result.Summary.Misses != 1 || len(result.Results) != 3 {
 			t.Fatalf("lost replay evidence: %+v", result)
 		}
