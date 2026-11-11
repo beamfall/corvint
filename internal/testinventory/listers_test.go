@@ -142,8 +142,7 @@ func ExampleQuiet() {}
 	}
 }
 
-// TIV-V1-004: the static RSpec lister names each spec file at file level
-// (RBR-V1-001).
+// TIV-V1-004: the static RSpec lister names each spec file at file level.
 func TestTIVV1004RSpecStaticLister(t *testing.T) {
 	root, git := gitRepo(t, map[string]string{
 		".rspec":                    "--require spec_helper\n",
