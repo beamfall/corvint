@@ -192,7 +192,7 @@ func TestCorvintTestUnqualifiedLineIndexIsShadow(t *testing.T) {
 // static plan rather than narrowing under a runner the index never named.
 func TestCorvintTestUncarriedGoFlagKeepsStaticPlan(t *testing.T) {
 	declaration := `{"profile": "corvint-test-commands/0", "go": {"env": {"GOTOOLCHAIN": "local"}, "flags": ["-count=1", "-shuffle=on"]}, "languages": {}}`
-	root, base, index := lineFixtureRepository(t, map[string]string{".github/cishards/test-commands.json": declaration})
+	root, base, index := lineFixtureRepository(t, map[string]string{".corvint/test-commands.json": declaration})
 	lineCommit(t, root, "calc/calc.go", "return n * 2", "return n * 3")
 	read := func(args ...string) (string, []string, []string) {
 		manifest := filepath.Join(t.TempDir(), "manifest.json")
@@ -246,7 +246,7 @@ func TestCorvintTestUncarriedGoFlagKeepsStaticPlan(t *testing.T) {
 func TestCorvintTestDeclaredVerbosityKeepsInverseVerboseTest(t *testing.T) {
 	declaration := `{"profile": "corvint-test-commands/0", "go": {"env": {"GOTOOLCHAIN": "local"}, "flags": ["-count=1", "-v=false"]}, "languages": {}}`
 	root, base, index := lineFixtureRepository(t, map[string]string{
-		".github/cishards/test-commands.json": declaration,
+		".corvint/test-commands.json": declaration,
 		"calc/quiet_test.go": `package calc
 import "testing"
 func TestQuiet(t *testing.T) {

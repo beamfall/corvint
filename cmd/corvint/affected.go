@@ -1877,7 +1877,14 @@ func withFocusedNextStep(advice affectedAdvice, root, base string, plan affected
 	if base == "" || len(plan.Dirty) == 0 {
 		return advice
 	}
-	if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))); err != nil || !info.Mode().IsRegular() {
+	// The adopter declaration (RNC-V1-013) or Corvint's own old path. The
+	// unknown's text is frozen Core output (CCF-V1-006) and still names the
+	// old path.
+	declared := func(name string) bool {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(name)))
+		return err == nil && info.Mode().IsRegular()
+	}
+	if !declared(sessiontest.CommandsPath) && !declared(sessiontest.DeclarationPath) {
 		advice.Unknown = sortedUniqueStrings(append(advice.Unknown, adviceFocusedUndeclared))
 		return advice
 	}
