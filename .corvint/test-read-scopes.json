@@ -2156,10 +2156,13 @@
     ],
     "tools/flow-guide-check": [
       ".claude/skills/corvint-lane-flow/SKILL.md",
+      ".corvint/test-read-scope-trees.json",
       "Makefile",
       "cmd/",
       "docs/LANE-ORCHESTRATION.md",
       "internal/",
+      "internal/capcatalog/trees/",
+      "internal/dogfoodflow/",
       "script/",
       "tools/"
     ],
