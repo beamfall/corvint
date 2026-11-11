@@ -281,7 +281,11 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 				l.heredoc(body, inFunction())
 			}
 			pending = nil
-		case c == ' ' || c == '\t' || c == '\r':
+		case c == ' ' || c == '\t':
+			// Only space and tab are blanks. A carriage return is word text
+			// in bash, dash, zsh and POSIX sh, so `a\r#` is one word and its
+			// `#` starts no comment that could hide what follows
+			// (AFP-V0-9970).
 			endWord()
 			l.pos++
 		case c == '#' && start < 0:
@@ -544,7 +548,11 @@ func (l *lexer) heredocOperator() (heredoc, bool) {
 	raw := l.src[begin:l.pos]
 	body.delimiter = unquote(raw)
 	body.expands = !strings.ContainsAny(raw, `'"\\`)
-	return body, body.delimiter != ""
+	// A quoted empty delimiter (`<<''`, `<<""`) is a here-document whose
+	// body ends at the first empty line, as in bash and dash; its body is
+	// data, never commands (AFP-V0-9971). Only a missing delimiter word is
+	// no here-document.
+	return body, raw != ""
 }
 
 // heredoc consumes one heredoc body, from pos to its delimiter line, as data.
@@ -560,7 +568,10 @@ func (l *lexer) heredoc(body heredoc, inFunction bool) {
 		} else {
 			l.pos = len(l.src)
 		}
-		check := strings.TrimSuffix(line, "\r")
+		// The delimiter line must match byte for byte: a shell does not
+		// trim a trailing carriage return, so `EOF\r` does not end a body
+		// delimited by `EOF` (AFP-V0-9970).
+		check := line
 		if body.dash {
 			check = strings.TrimLeft(check, "\t")
 		}

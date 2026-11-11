@@ -2972,15 +2972,18 @@ in build-log entry `docs/build-log/2026-11-11-shellwalk.md`.
   `getline`, a redirection or an `r` command no word of the test names. Every word before `--`
   is read as a possible option, past option values and the program operand.
 - **AFP-V0-9975:** (proposed 2026-11-11; delivery experimental; V1-5226)
-  When a command's first word (past assignments) is a command prefix (`env`, `sudo`, `timeout`,
-  `exec`, `command`, `nohup`, `time`, ...) or a wrapper runner (`nice`, `ionice`, `stdbuf`,
-  `setsid`, `taskset`, `flock`, `xargs`, `strace`, `valgrind`, `unshare` and the others named in
-  `wrapperRunners`), and the command word the plugin otherwise reads is not one it classifies,
-  the first later word that is a shell, a toolchain, a tree walker, git, awk or sed SHALL be
-  classified as the command, so `sudo -u u bash x.sh` links `x.sh`, `nice -n 5 go test` runs a
-  toolchain and `env -u X find .` walks the tree. Every later word of such a command that holds
-  a `/` SHALL be linked as a repository script when it names one. `command -v` and `-V` stay
-  lookups. Write detection (NSA-V0-016) does not look through these wrappers.
+  When a command's first word (past assignments) runs its operand as an external command (`env`,
+  `sudo`, `timeout`, `exec`, `command`, `nohup`, `time`, `run`, `xcrun`) or is a wrapper runner
+  (`nice`, `ionice`, `stdbuf`, `setsid`, `taskset`, `flock`, `xargs`, `strace`, `valgrind`,
+  `unshare` and the others named in `wrapperRunners`), the first later word that is a shell, a
+  toolchain, a tree walker, git, awk or sed SHALL be classified as a command too, in addition to
+  the command word the plugin reads on the base, so `sudo -u u bash x.sh` links `x.sh`,
+  `nice -n 5 go test` runs a toolchain and `env -u X find .` walks the tree, while the script of
+  `exec script/heavy.sh go test` keeps its edge. Unless that command word is already a path or
+  computed word, every later word of such a command that holds a `/` SHALL be linked as a
+  repository script when it names one. Control words (`if`, `then`, `!`, ...) lead no wrapper,
+  and `command -v` and `-V` stay lookups. Write detection (NSA-V0-016) does not look through
+  these wrappers.
 - **AFP-V0-9976:** (proposed 2026-11-11; delivery experimental; V1-5226)
   A shell file SHALL be an unbounded reader with the reason `shell:dynamic-source` when any of
   its commands assigns or exports an interpreter startup name: `BASH_ENV`, `ENV`, `ZDOTDIR`,
@@ -2993,7 +2996,9 @@ in build-log entry `docs/build-log/2026-11-11-shellwalk.md`.
   `declare`, `typeset`, `readonly`, `local`, `read`, `printf`, `getopts`, `for`, `select`,
   `mapfile` or `readarray`, and a `${NAME=...}` or `${NAME:=...}` expansion. The interpreter
   then reads a file no word links. A helper source holding one is a dynamic source for every
-  file that sources it.
+  file that sources it. An assignment whose unquoted value is empty, which clears the name, or a
+  `:`-separated list of absolute literal paths names no repository file, as a `source` of an
+  absolute literal names none, and is not counted.
 - **AFP-V0-9977:** (proposed 2026-11-11; delivery experimental; V1-5226)
   NSA-V0-016's dropping of the written operands of `mkdir`, `cp` and `mv` SHALL apply only when
   those names run the standard utilities: in a file that defines a function named `cp`, `mv`,
@@ -3292,7 +3297,9 @@ AFP-V0-9974 (V1-5217): `TestWalkerOptionValues_AFPV09972`, `TestGitPathOutputWal
 and `TestAwkProgramFiles_AFPV09974`. AFP-V0-9975 to AFP-V0-9977 (V1-5226):
 `TestWrappedCommands_AFPV09975`, `TestInterpreterStartupNames_AFPV09976` and
 `TestRedefinedUtilitiesKeepOperands_AFPV09977`, each in `internal/liveverify/affected/shell`
-with bounded controls. The census of repository tests the git rule holds is
+with bounded controls. `TestHeavyShEditKeepsShellReaders_V14170` now admits a docs edit selecting
+`script/analyzer-schema_test.sh` only by its own `shell:tree-walk` read and checks its and
+`script/codex-review_test.sh`'s import chains to `script/heavy.sh` directly. The census of repository tests the git rule holds is
 `make unbounded-readers-check` against `.corvint/unbounded-readers.json`; the lane entry is
 `docs/build-log/2026-11-11-shellwalk.md`.
 
