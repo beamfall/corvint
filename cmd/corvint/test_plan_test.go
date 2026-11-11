@@ -35,7 +35,9 @@ func runTestPlanCLI(t *testing.T, arguments ...string) (int, string, string) {
 
 func testPlanGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	c := fixtureGitCommand(args...)
+	// A commit must not spawn detached auto maintenance: its maintenance.lock comes and goes
+	// under .git while snapshotTree walks the fixture (V1-5363).
+	c := fixtureGitCommand(append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	c.Dir, c.Env = root, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 	out, err := c.CombinedOutput()
 	if err != nil {
