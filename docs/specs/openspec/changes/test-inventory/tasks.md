@@ -8,7 +8,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 2 Add the inventory schema, canonical writer and reader with instance keys.
    Requirements: TIV-V1-001, TIV-V1-003, TIV-V1-012. Proof: round-trip unit tests; an unknown added
    field from a newer writer is preserved on read.
-- [ ] 3 Add the absent, stale, per-file and invalid rules to the reader.
+- [x] 3 Add the absent, stale, per-file and invalid rules to the reader.
    Requirements: TIV-V1-006, TIV-V1-007, TIV-V1-008, TIV-V1-009. Proof: table-driven tests, one row
    per cause, each with its reason string.
 - [ ] 4 Add the listers: Go static, Vitest, Jest, Playwright (reusing `playwright-discovery/0`),
