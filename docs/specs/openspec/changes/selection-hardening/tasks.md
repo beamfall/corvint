@@ -19,7 +19,7 @@ requirement IDs and its proof.
 - [x] 6 Literal Vitest and Jest configuration evaluation, with the five added key-shaped markers
    (R42 A6). Requirements: SLF-V1-005. Proof: literal and computed config fixtures, a `roots:`
    fixture; dirty-config fixture runs in full.
-- [ ] 6a Run the finding 11 settle experiment (Go-only edit, TypeScript unknowns) now; if confirmed,
+- [x] 6a Run the finding 11 settle experiment (Go-only edit, TypeScript unknowns) now; if confirmed,
     fix it as a blocker before the Go replay (R42 A8). Proof: the settle record and, if confirmed,
     the fixture test of the fix.
 - [ ] 7 One effect and verdict function; affected, test and MCP print it; non-empty hints.
