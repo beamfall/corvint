@@ -60,6 +60,8 @@ AFP-V0-2610 here for the same reason. Lane selgo (2026-11-06; native tickets V1-
 V1-4933, build-log entry `2026-11-06-selgo`) adds AFP-V0-2740 to AFP-V0-2750 here for the same
 reason, including the rows that amend the CI selector (CIN-V0-860) and `corvint test` (STR-V0-064);
 its review fix rounds add AFP-V0-2746 to AFP-V0-2750.
+Lane ghci3 (2026-11-11; V1-5211) adds AFP-V0-2830 and AFP-V0-2831 here for the same reason; see
+build-log entry `2026-11-11-ghci3-orphaned-ci`.
 Lane ci-speed (2026-11-06; V1-4815) adds AFP-V0-2700 to AFP-V0-2702 here for the same reason; see
 build-log entry `2026-11-06-ci-speed`. Lane selgh (2026-11-06; V1-4930, V1-4934) adds AFP-V0-2720
 to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`.
@@ -2922,6 +2924,41 @@ Copied from the OpenSpec change `hub-read-scopes`; the build log entry
   The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
   `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
 
+### Proven pull-request base for shell-test and web-flows selection (V1-5211)
+
+Intent (V1-5211, P2): the narrowing shadow already plans a pull request from the tested merge's
+proven first parent (AFP-V0-800), but `shell-test-selected` and `web-flows-plan` diffed from the raw
+event `base.sha`. Lane ghci3 reproduced the suspected defect on retained run evidence: run
+42965249854 attempt 2 (pull request branch `claude/context-path-build`, 2026-11-11) logged
+`BASE_SHA` `02c66d0e2` while its checkout tested `Merge 02cf02136 into 993c60eba`; `02c66d0e2` is an
+ancestor of `993c60eba`, four commits and two files behind. A stale base only over-selects, so the
+fix narrows the range to the change; it repairs no missed coverage.
+
+- **AFP-V0-2830:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5211;
+  effective only after the owner's `ci-control-plane` review of the `.github` change) Shell-test
+  selection base. GitHub keeps a pull request's `base.sha` from the event that started the run, while
+  a re-run tests a merge rebuilt on the moved base: run 42965249854 attempt 2 received `base.sha`
+  `02c66d0e2` and tested a merge whose first parent was `993c60eba`, four commits later. On a
+  pull request the `shell-test-selected` job (CIN-V0-2320) SHALL plan from the tested merge's first
+  parent proven by the event base's `.github/forward-rows/pr-base.sh` (the AFP-V0-800 proof:
+  two parents, the second the event head, the event base an ancestor of the first), never from the
+  raw event base, and SHALL run every shell-test step when the proof is refused. A merge-queue entry
+  keeps `merge-base(HEAD, base_sha)`: its first parent can be an earlier queue entry. Non-goals: the
+  stale base only over-selected (a superset of the true range), so this narrows the range to the
+  change, not a coverage repair. Failure modes: a refused proof runs every step (latency only).
+  Acceptance: `test_AFPV02830_pull_request_plans_from_the_proven_first_parent` and
+  `test_AFPV02830_unproven_first_parent_runs_every_step` in
+  `.github/shell-tests/trusted_selection_test.py`; hosted run `NOT_OBSERVED`. Rollback returns the
+  step to `git merge-base HEAD BASE_SHA`.
+- **AFP-V0-2831:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5211;
+  effective only after the owner's `ci-control-plane` review of the `.github` change) Web-flows plan
+  base. On a pull request the `web-flows-plan` job SHALL diff from the tested merge's first parent
+  proven by the event base's `pr-base.sh`, as AFP-V0-2830, and SHALL require the web-flows consumer
+  (`required=true`, the planner not run) when the proof is refused. A merge-queue entry keeps its
+  `base_sha` and a push its `event.before`. Acceptance: the three run cases and the bindings test of
+  `.github/web-flows/plan_base_test.py`; `TestCINV07504WebFlowsConsumerJob` still passes; hosted run
+  `NOT_OBSERVED`. Rollback restores the raw event base.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -3359,6 +3396,8 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9732 | `gateselect.PlannedRunSet` through `testPlanRunSet` in `cmd/corvint/test.go` (AFP-V0-2402, unchanged) | `TestV14361RangeAffectedAndTestSelectTheSameGoPackages_AFPV09732` in `cmd/corvint/selection_agreement_replay_test.go` (100 Go packages on both sides, NARROWED; skipped where the commits are absent; in CI it runs only in the `go-product-shard` job, `fetch-depth: 0`, when `cmd/corvint` is in the shard's run set); `TestAFPV02402RunSetIsThePlanGoSelection`; the CLI replay in `../build-log/2026-11-09-seldis.md` |
 | AFP-V0-11033 | `parseAcceptStaleBinary` in `cmd/corvint/affected.go`; `staleBinaryGate` in `cmd/corvint/self_binary.go`; its calls and the flag in `parseAffectedJobsOptions` and `runAffectedJobs` (`cmd/corvint/affected_jobs.go`) and `parseAffectedAuditOptions` and `runAffectedAudit` (`cmd/corvint/affected_audit.go`); the `Degradations` and `DegradationDetails` members of `jobinputs.Plan` (`internal/jobinputs/jobinputs.go`) and `affectedAuditReport` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go`, the `jobs` and `audit` forms (refused on separate and merged streams with the subcommand's `go run` recovery, accepted documents carry the members with the stderr line exactly when the streams differ, repeated flag refused; it fails on the exit-0 and exit-3 documents); `TestAffectedJobsCLI`; `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445`; `TestAffectedAuditMissingObservationIsUnknown_AFPV0447`; `make capabilities-check` |
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
+| AFP-V0-2830 | `.github/shell-tests/run.sh` (the `pr-base.sh` proof before planning) | `test_AFPV02830_pull_request_plans_from_the_proven_first_parent`, `test_AFPV02830_unproven_first_parent_runs_every_step` in `.github/shell-tests/trusted_selection_test.py`; hosted run `NOT_OBSERVED` |
+| AFP-V0-2831 | the `Select web-flows consumer` step of `ci.yml` | `.github/web-flows/plan_base_test.py` (proven parent, refused proof requires the consumer, merge queue keeps its base, bindings); hosted run `NOT_OBSERVED` |
 
 ## Rollback
 

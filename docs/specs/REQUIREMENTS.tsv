@@ -394,6 +394,8 @@ AFP-V0-107	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delive
 AFP-V0-108	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery delivered; V1-5201)	unrecorded	-
 AFP-V0-109	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery delivered; V1-5201)	unrecorded	-
 AFP-V0-110	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery partial; V1-5201)	unrecorded	-
+AFP-V0-2830	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-5211;	standing	2026-10-11; V1-5211
+AFP-V0-2831	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-5211;	standing	2026-10-11; V1-5211
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -2331,6 +2333,11 @@ AFP-V0-104	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standin
 AFP-V0-105	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4234)	standing	2026-10-11; V1-4234
 AFP-V0-106	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4234)	standing	2026-10-11; V1-4234
 CIN-V0-2320	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3489;	standing	2026-10-11; V1-3489
+CIN-V0-8724	docs/specs/ci-narrowing-v0.md	(proposed; experimental under the owner's standing lane auto-accept	standing	-
+CIN-V0-8725	docs/specs/ci-narrowing-v0.md	(proposed; experimental under the owner's standing lane auto-accept	standing	-
+CIN-V0-8726	docs/specs/ci-narrowing-v0.md	(proposed; experimental under the owner's standing lane auto-accept	standing	-
+CIN-V0-8727	docs/specs/ci-narrowing-v0.md	(proposed; experimental under the owner's standing lane auto-accept	standing	-
+CIN-V0-8728	docs/specs/ci-narrowing-v0.md	(proposed; experimental under the owner's standing lane auto-accept	standing	-
 CIN-V0-4750	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
 CIN-V0-4751	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
 CIN-V0-4752	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
