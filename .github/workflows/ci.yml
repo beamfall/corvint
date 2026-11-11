@@ -22,6 +22,14 @@ concurrency:
 permissions:
   contents: read
 
+# CIN-V0-8425 (V1-5092): every run step executes under `bash --noprofile --norc -eo pipefail`, as
+# `shell: bash` makes GitHub do, instead of the `bash -e` default without pipefail, so a failed
+# stage of a pipeline fails its step; the extract-and-run tests derive this shell from here
+# (CIN-V0-8426). A step that must read a pipeline's status itself keeps `set +e` and PIPESTATUS.
+defaults:
+  run:
+    shell: bash
+
 # AFP-V0-2724 (V1-4934): the narrowing pins are workflow-wide, because the shard-plan job builds
 # the same trusted tools before the shards do; every `env.` read in the shard steps, the pin-main
 # resolution and the pin-lag check are unchanged.
@@ -140,9 +148,11 @@ jobs:
     needs: [doc-gates-reuse, cadence-plan]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
-    # 30, not 15 (V1-4482): the documentation gates alone took 9-14.5 minutes on main
-    # (selection-baseline replays most of it), so a loaded runner hit the old cap.
-    timeout-minutes: 30
+    # 45, not 30 (V1-5162): the selection-baseline replay alone took 1331 s in PR 185's queue run
+    # and had finished 50 of its 58 cases when PR 190's run reached the 30-minute cap with every
+    # gate passing. The cap detects a hang; it is not a performance budget. It was 15 before
+    # V1-4482, when the gates took 9-14.5 minutes on main.
+    timeout-minutes: 45
     env:
       GOTOOLCHAIN: local
       GOPROXY: "off"
@@ -594,6 +604,7 @@ jobs:
             [ -n "$main" ] && git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null || main=
           fi
           for pair in "tool $CORVINT_PR_TOOL_SOURCE" "shadow $CORVINT_TEST_SHADOW_SOURCE"; do
+            # shellcheck disable=SC2086 # the word split of the fixed NAME VALUE list is the point
             set -- $pair
             use=${2:-}
             if [ -n "$main" ] && [ -n "$use" ] && git merge-base --is-ancestor "$use" "$main" 2> /dev/null; then use=$main; fi
@@ -728,7 +739,11 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-shard-plan
-          path: ${{ runner.temp }}/corvint-narrowing/narrowing.json
+          # CIN-V0-8421 (V1-5196): decision.json keeps the mode and reason codes of a FULL decision
+          # whose record narrow.sh dropped, so full-reasons.sh can tally FULL causes.
+          path: |
+            ${{ runner.temp }}/corvint-narrowing/narrowing.json
+            ${{ runner.temp }}/corvint-narrowing/decision.json
           if-no-files-found: ignore
           retention-days: 90
 
@@ -1038,6 +1053,7 @@ jobs:
             [ -n "$main" ] && git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null || main=
           fi
           for pair in "tool $CORVINT_PR_TOOL_SOURCE" "shadow $CORVINT_TEST_SHADOW_SOURCE"; do
+            # shellcheck disable=SC2086 # the word split of the fixed NAME VALUE list is the point
             set -- $pair
             use=${2:-}
             if [ -n "$main" ] && [ -n "$use" ] && git merge-base --is-ancestor "$use" "$main" 2> /dev/null; then use=$main; fi
@@ -1288,7 +1304,12 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-narrowing-${{ strategy.job-index }}
-          path: ${{ runner.temp }}/corvint-narrowing/narrowing.json
+          # CIN-V0-8421 (V1-5196): decision.json beside the record names the mode and reason codes,
+          # also for a FULL decision whose record narrow.sh dropped; the collectors read only
+          # narrowing.json, and full-reasons.sh tallies decision.json over run history.
+          path: |
+            ${{ runner.temp }}/corvint-narrowing/narrowing.json
+            ${{ runner.temp }}/corvint-narrowing/decision.json
           if-no-files-found: error
           retention-days: 90
       - name: Line-level selection (GLS-V0-040..043; narrows only while CORVINT_LINECOV_NARROWING is on)
@@ -1423,9 +1444,10 @@ jobs:
           # merge queue's deciding full suite and AFP-V0-428 seed producer among them, keeps
           # -p 1, the ci profile's argv (STR-V0-012).
           SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
-          # AFP-V0-2702 (V1-4923): the one place the live test tier skips. The confine wrapper passes
-          # it to the test binaries; the merge-queue go-live job, local runs, corvint test, make gate
-          # and batch-precheck do not set it, so they run the tier.
+          # AFP-V0-2702 (V1-4923): the one place of this workflow where the live test tier skips
+          # (main-miss.yml's confirmation reruns repeat this step's setting, CIN-V0-7922). The
+          # confine wrapper passes it to the test binaries; the merge-queue go-live job, local runs,
+          # corvint test, make gate and batch-precheck do not set it, so they run the tier.
           CORVINT_SKIP_LIVE_TIER: "1"
         run: |
           test "$(go env GOVERSION)" = "go1.27.3"
@@ -1786,8 +1808,9 @@ jobs:
           overwrite: true
       - name: Classify a failed main shard's packages for the main-miss link (AFP-V0-983)
         # V1-3750: a failed full push shard of main keeps failed.jq's classification of its
-        # capture, so the ci-control-plane main-miss job can link the failed packages back to the
-        # narrowed pull requests that skipped them. It never changes the shard's status.
+        # capture, so the main-miss workflow (main-miss.yml, CIN-V0-7922) can link the failed packages
+        # back to the narrowed pull requests that skipped them and confirm each link by reruns. It
+        # never changes the shard's status.
         if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         continue-on-error: true
         timeout-minutes: 2
@@ -1796,7 +1819,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/main-failed"
           # A failed classification leaves no file, so the upload below retains nothing rather
-          # than an empty document the main-miss job would read as no failed package.
+          # than an empty document the main-miss workflow would read as no failed package.
           jq -R -s -c -f .github/forward-rows/failed.jq "$RUNNER_TEMP/shard-costs/shard-${{ strategy.job-index }}.json" \
             > "$RUNNER_TEMP/main-failed/failed.json.tmp" &&
             mv "$RUNNER_TEMP/main-failed/failed.json.tmp" "$RUNNER_TEMP/main-failed/failed.json"
@@ -1899,6 +1922,7 @@ jobs:
         run: |
           for s in "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE fetch $TOOL_CAPTURE" "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE build $TOOL_BUILD" \
             "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE fetch $SHADOW_CAPTURE" "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE build $SHADOW_BUILD"; do
+            # shellcheck disable=SC2086 # the word split of the fixed NAME VALUE list is the point
             set -- $s
             if [ "$4" = failure ]; then
               echo "::error title=CI pin unreachable (CIN-V0-002)::$1 $2 failed to $3; every forward row of this run is INCOMPLETE until it is repinned"
@@ -2440,9 +2464,13 @@ jobs:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
         run: |
           d="$RUNNER_TEMP/shard-costs"
-          have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
-          # AFP-V0-422: a shard on the self-hosted runner retains only a marker.
-          boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f 2>/dev/null | wc -l | tr -d ' ')
+          # No downloaded cost directory is zero of each, not a failed find (CIN-V0-8425: pipefail).
+          have=0 boxed=0
+          if [ -d "$d" ]; then
+            have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f | wc -l | tr -d ' ')
+            # AFP-V0-422: a shard on the self-hosted runner retains only a marker.
+            boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f | wc -l | tr -d ' ')
+          fi
           # AFP-V0-460: the advisory balance report reads the markers on every event, a pull request too.
           if [ "$SHARDS_RESULT" = success ] && [ "$boxed" -ne 0 ] && [ "$boxed" -eq "$SHARDS" ]; then
             echo 'boxed=1' >> "$GITHUB_OUTPUT"
@@ -2473,7 +2501,9 @@ jobs:
           d="$RUNNER_TEMP/shard-costs"
           sums="" n=0 i=0
           while [ "$i" -lt "$SHARDS" ]; do
-            s=$(sed -n 's/^packageSeconds=\([0-9][0-9]*\)$/\1/p' "$d/shard-$i.self-hosted" 2>/dev/null | head -n 1)
+            # A shard that ran hosted left no marker: no sum, not a failed sed (CIN-V0-8425: pipefail).
+            s=""
+            [ ! -f "$d/shard-$i.self-hosted" ] || s=$(sed -n 's/^packageSeconds=\([0-9][0-9]*\)$/\1/p' "$d/shard-$i.self-hosted" | head -n 1)
             [ -z "$s" ] || { sums="$sums $s"; n=$((n + 1)); }
             i=$((i + 1))
           done

@@ -15,6 +15,14 @@
 # runs its part of the AFP-V0-590 balanced placement of the selection. Every
 # failure here is FULL; this script never fails the shard. AFP-V0-2724: the
 # shard-plan job runs this script too, through shard-plan.sh beside it.
+# CIN-V0-8421 (V1-5196): every decision line goes to the job log (stdout) as well as the step
+# summary, a FULL one as `AFP-V0-098 shard N: FULL (REASON; ...); reason codes: CODE, ...`, and
+# decision.json beside the record (corvint-pr-narrowing-decision/0: mode, reasonCodes, reasons,
+# shard, run) is written for every decision, including the FULL fallbacks below that drop the
+# record, so full-reasons.sh can tally FULL causes over run history from the uploaded artifact.
+# CIN-V0-8423, CIN-V0-8424 (V1-5202): github-guard.sh classifies each changed input as global
+# (FULL) or mapped to the test packages that consume it; a range changing only mapped inputs
+# narrows when the selection holds every named consumer, else it is FULL naming the omission.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 out="$RUNNER_TEMP/corvint-narrowing"
@@ -65,16 +73,26 @@ if [ -z "${SELECTION:-}" ]; then
 fi
 # AFP-V0-2720 (V1-4930; amends AFP-V0-933): only a change to a trusted narrowing input under
 # .github/ forces FULL. github-guard.sh beside this script, from the same trusted checkout, names
-# the inputs and reads the range with git alone: 0 no input changed, 1 an input changed (the
-# inputs follow, first five recorded), anything else unreadable. A missing guard is unreadable.
+# the inputs and reads the range with git alone: 0 no input changed, 1 a global input changed (the
+# inputs follow, first five recorded), mapped only mapped inputs changed (CIN-V0-8423: each
+# follows as `INPUT CONSUMER...`, checked against the selection below), anything else unreadable.
+# A missing guard is unreadable.
 github=unreadable
 github_inputs=""
+github_mapped=""
+github_missing=""
+: > "$out/github-mapped"
 if [ -n "$effective_base" ] && guard=$(sh "$here/github-guard.sh" "$effective_base" "$TESTED_MERGE" 2> /dev/null); then
   case $(printf '%s\n' "$guard" | sed -n 1p) in
   0) github=0 ;;
   1)
     github=1
     github_inputs=$(printf '%s\n' "$guard" | sed -n '2,6p' | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+    ;;
+  mapped)
+    github=mapped
+    printf '%s\n' "$guard" | sed -n '2,$p' | sed '/^$/d' > "$out/github-mapped"
+    [ -s "$out/github-mapped" ] || github=unreadable
     ;;
   esac
 fi
@@ -99,6 +117,26 @@ if jq -r '.Packages[]? | select(type == "string")' "$out/driver/selection.json" 
   fi
 fi
 [ "$selected_ok" = 1 ] || : > "$out/selected"
+# CIN-V0-8424 (V1-5202): a range that changes only mapped .github/ inputs narrows only when the
+# selection within the universe holds every consumer package the guard names for each input;
+# a missing consumer, an unreadable module path or a malformed guard line is FULL.
+if [ "$github" = mapped ]; then
+  module=$(sed -n 's/^module[[:space:]]\{1,\}\([^[:space:]]\{1,\}\)[[:space:]]*$/\1/p' go.mod 2> /dev/null | head -n 1)
+  if ! printf '%s' "$module" | grep -Eqx '[A-Za-z0-9][A-Za-z0-9._~/-]*'; then
+    github=unreadable
+  else
+    while IFS=' ' read -r input consumers; do
+      [ -n "$input" ] && [ -n "$consumers" ] || { github_missing="$github_missing, $input: no consumer named"; continue; }
+      github_mapped="$github_mapped, $input: $consumers"
+      for consumer in $consumers; do
+        grep -Fqx "$module/$consumer" "$out/selected" 2> /dev/null || github_missing="$github_missing, $input: $consumer"
+      done
+    done < "$out/github-mapped"
+    github_mapped=${github_mapped#, }
+    github_missing=${github_missing#, }
+    [ -z "$github_missing" ] || github=consumer
+  fi
+fi
 balanced=0
 if "$CI_SHARDS" --shard "$SHARD" --shards "$SHARDS" --select "$out/selected" < "$out/universe" > "$out/balanced-packages" 2> /dev/null &&
   "$CI_SHARDS" --shard "$SHARD" --shards "$SHARDS" --select "$out/selected" --slices < "$out/universe" > "$out/balanced-slices" 2> /dev/null; then
@@ -109,9 +147,28 @@ else
 fi
 sample_k=${CORVINT_PR_SAMPLE_K:-}
 [ -z "${SELECTION:-}" ] || sample_k=""
-# full REASON: drop the record and its sidecar, so the shard runs whole.
+# say LINE: one decision line, to the job log and, when set, the step summary (CIN-V0-8421).
+say() {
+  echo "$1"
+  [ -z "${GITHUB_STEP_SUMMARY:-}" ] || echo "$1" >> "$GITHUB_STEP_SUMMARY"
+}
+# decision MODE CODES REASONS: write decision.json beside the record (CIN-V0-8421). CODES and
+# REASONS are newline-separated and parallel. A failed write leaves no sidecar; the mode output
+# and the record are unaffected.
+decision() {
+  jq -n -c --arg mode "$1" --arg codes "$2" --arg reasons "$3" --arg shard "$SHARD" --arg shards "$SHARDS" \
+    --arg runId "$GITHUB_RUN_ID" --arg runAttempt "$GITHUB_RUN_ATTEMPT" --arg pr "$PR_NUMBER" --arg head "$PR_HEAD" --arg target "$TESTED_MERGE" \
+    'def num: if type == "string" and test("^[0-9]+$") then tonumber else null end;
+     {profile: "corvint-pr-narrowing-decision/0", mode: $mode,
+      reasonCodes: [$codes | split("\n")[] | select(length > 0)], reasons: [$reasons | split("\n")[] | select(length > 0)],
+      shard: ($shard | num), shards: ($shards | num), runId: ($runId | num), runAttempt: ($runAttempt | num),
+      pr: ($pr | num), head: $head, target: $target}' > "$out/decision.json" 2> /dev/null || /bin/rm -f "$out/decision.json"
+}
+# full CODE REASON: drop the record and its sidecar, so the shard runs whole; the decision
+# sidecar and the log line keep the cause (CIN-V0-8421).
 full() {
-  echo "AFP-V0-098 shard $SHARD: FULL ($1)" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+  decision FULL "$1" "$2"
+  say "AFP-V0-098 shard $SHARD: FULL ($2); reason codes: $1"
   /bin/rm -f "$out/narrowing.json" "$out/executed"
   echo "mode=FULL" >> "$GITHUB_OUTPUT"
   exit 0
@@ -121,20 +178,25 @@ if ! jq -n -c --slurpfile driver "$out/driver/selection.json" --slurpfile shadow
   --rawfile selected "$out/selected" --rawfile balancedPackages "$out/balanced-packages" \
   --rawfile balancedSlices "$out/balanced-slices" --arg balanced "$balanced" \
   --rawfile universe "$out/universe" --arg selectedOk "$selected_ok" \
-  --arg github "$github" --arg githubInputs "$github_inputs" --arg mergeQueue "$queue" --arg baseRef "$BASE_REF" --arg base "$effective_base" --arg eventBase "$event_base" \
+  --arg github "$github" --arg githubInputs "$github_inputs" --arg githubMapped "$github_mapped" --arg githubMissing "$github_missing" --arg mergeQueue "$queue" --arg baseRef "$BASE_REF" --arg base "$effective_base" --arg eventBase "$event_base" \
   --arg head "$PR_HEAD" --arg target "$TESTED_MERGE" --arg pr "$PR_NUMBER" --arg runId "$GITHUB_RUN_ID" \
   --arg runAttempt "$GITHUB_RUN_ATTEMPT" --arg shard "$SHARD" --arg shards "$SHARDS" \
   --arg toolSource "$TOOL_SOURCE" --arg verdictRun "$VERDICT_RUN" \
   --arg sampleK "$sample_k" --arg sampleSeed "${CORVINT_PR_SAMPLE_SEED:-}" \
   -f "$here/narrow.jq" > "$out/narrowing.json" 2> "$out/narrow.err"; then
-  full "the narrowing decision failed: $(head -c 200 "$out/narrow.err")"
+  full decision-failed "the narrowing decision failed: $(head -c 200 "$out/narrow.err")"
 fi
-mode=$(jq -r '.mode' "$out/narrowing.json" 2> /dev/null) || full "the narrowing record is unreadable"
+mode=$(jq -r '.mode' "$out/narrowing.json" 2> /dev/null) || full record-unreadable "the narrowing record is unreadable"
 # The tests step narrows only when this sidecar equals the record's `executed` line for line.
 jq -r '.executed[]' "$out/narrowing.json" > "$out/executed" 2> /dev/null ||
-  full "the executed list could not be written beside the record"
+  full sidecar-unwritable "the executed list could not be written beside the record"
 [ "$(jq -r '.executed | join("\n")' "$out/narrowing.json" 2> /dev/null)" = "$(cat "$out/executed" 2> /dev/null)" ] ||
-  full "the executed list beside the record disagrees with it"
-jq -r --arg shard "$SHARD" '"AFP-V0-098 shard \($shard): \(.mode) (\(.placement)), \(.executed | length) package(s), shard partition \(.shardPackages); driver \(.driverSelected), shadow \(.shadowSelected)\(if (.overSelectedCount // 0) > 0 then ", over-selected \(.overSelectedCount) (AFP-V0-9510): \(.overSelected[0:5] | join(", "))" else "" end)\(if ((.reused // []) | length) > 0 then ", reused \(.reused | length) from run \(.reuse.recordRunId) (AFP-V0-814)" elif (.reuse | type) == "object" and .reuse.applied != true then "; no reuse (AFP-V0-816): \(.reuse.reason)" else "" end)\(if (.reasons | length) > 0 then "; " + (.reasons | join("; ")) else "" end)"' \
-  "$out/narrowing.json" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+  full sidecar-mismatch "the executed list beside the record disagrees with it"
+# CIN-V0-8421: the FULL line names every reason and its code, in the log and the summary.
+codes=$(jq -r '.reasonCodes[]?' "$out/narrowing.json" 2> /dev/null) || codes=""
+reasons=$(jq -r '.reasons[]?' "$out/narrowing.json" 2> /dev/null) || reasons=""
+decision "$mode" "$codes" "$reasons"
+[ "$mode" != FULL ] || say "AFP-V0-098 shard $SHARD: FULL ($(printf '%s\n' "$reasons" | sed '/^$/d' | paste -sd ';' - | sed 's/;/; /g')); reason codes: $(printf '%s\n' "$codes" | sed '/^$/d' | paste -sd ',' - | sed 's/,/, /g')"
+say "$(jq -r --arg shard "$SHARD" '"AFP-V0-098 shard \($shard): \(.mode) (\(.placement)), \(.executed | length) package(s), shard partition \(.shardPackages); driver \(.driverSelected), shadow \(.shadowSelected)\(if (.overSelectedCount // 0) > 0 then ", over-selected \(.overSelectedCount) (AFP-V0-9510): \(.overSelected[0:5] | join(", "))" else "" end)\(if ((.reused // []) | length) > 0 then ", reused \(.reused | length) from run \(.reuse.recordRunId) (AFP-V0-814)" elif (.reuse | type) == "object" and .reuse.applied != true then "; no reuse (AFP-V0-816): \(.reuse.reason)" else "" end)\(if ((.githubMapped // []) | length) > 0 then "; mapped .github/ inputs (CIN-V0-8423): " + (.githubMapped | join(", ")) else "" end)\(if (.reasons | length) > 0 then "; " + (.reasons | join("; ")) else "" end)"' \
+  "$out/narrowing.json" 2> /dev/null)"
 echo "mode=$mode" >> "$GITHUB_OUTPUT"

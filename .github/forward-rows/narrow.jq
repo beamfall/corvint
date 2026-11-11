@@ -2,9 +2,12 @@
 # AFP-V0-098: one shard's corvint-pr-narrowing/0 decision. A pull-request shard
 # narrows (mode NARROWED) only when every condition holds; otherwise it runs the
 # full shard (mode FULL) and the record names every reason:
-#   the base branch is main, the change touches no trusted narrowing input under
-#   .github/ (AFP-V0-2720: github-guard.sh names them; --arg githubInputs lists
-#   the changed ones for the record), main has a
+#   the base branch is main, the change touches no global trusted narrowing input
+#   under .github/ (AFP-V0-2720: github-guard.sh names them; --arg githubInputs
+#   lists the changed ones for the record) and the selection holds every named
+#   consumer of each mapped input it touches (CIN-V0-8423, CIN-V0-8424:
+#   --arg githubMapped lists "INPUT: CONSUMER..." for the record and
+#   --arg githubMissing the consumers the selection omits), main has a
 #   merge-queue rule, the deciding driver's selection (corvint-pr-tests --mode
 #   plan) is complete and names this base, head and target, the shadow
 #   `corvint test --dry-run` of the same (base, head) over the whole universe is
@@ -16,7 +19,8 @@
 #   --rawfile selected SELECTED --rawfile balancedPackages BALANCED_PACKAGES
 #   --rawfile balancedSlices BALANCED_SLICES --arg balanced (1|other)
 #   --rawfile universe UNIVERSE --arg selectedOk (1|other)
-#   --arg github (0|1|other) --arg mergeQueue (1|0|other) --arg baseRef --arg base
+#   --arg github (0|1|mapped|consumer|other) [--arg githubInputs --arg githubMapped --arg githubMissing]
+#   --arg mergeQueue (1|0|other) --arg baseRef --arg base
 #   --arg eventBase (original PR base; optional for historical callers)
 #   --arg head --arg target --arg pr --arg runId --arg runAttempt --arg shard
 #   --arg shards --arg toolSource --arg verdictRun [--arg sampleK K --arg sampleSeed SEED] -f narrow.jq
@@ -34,6 +38,9 @@
 # whose passed result an admitted narrowed pull-request record already holds, with that record in
 # Reuse. They are disjoint from the selection, count toward the shadow superset, run nowhere and
 # are recorded as `reused` and `reuse`, never as `skipped`. Reused with no applied Reuse is FULL.
+# CIN-V0-8421 (V1-5196): every reason carries a stable code from the closed set below, recorded
+# as `reasonCodes` in the same order as `reasons`, so FULL frequency by cause can be tallied
+# over run history (full-reasons.sh) without matching prose.
 def num: if type == "string" and test("^[0-9]+$") then tonumber else null end;
 def hex40: type == "string" and test("^[0-9a-f]{40}$");
 def limit_only: test("^[a-z][a-z0-9_+-]*: no qualified adapter and ") and (startswith("go: ") | not);
@@ -59,52 +66,57 @@ def hexval: explode | map(if . >= 97 then . - 87 else . - 48 end) | reduce .[] a
 | (if ($d | type) == "object" then $d.Reused // [] else [] end) as $Rraw
 | (if ($Rraw | type) == "array" and all($Rraw[]; type == "string") then $Rraw | unique else null end) as $R
 | (if $D != null and $S != null then $S - $D - ($R // []) else [] end) as $omitted
-| [ (if $baseRef != "main" then "the base branch is \($baseRef), not main" else empty end),
-    (if $github == "1" then "the change touches .github/ narrowing inputs (AFP-V0-2720)" + (($ARGS.named.githubInputs // "") | if length > 0 then ": " + . else "" end)
-     elif $github != "0" then "the change set is unreadable, so a .github/ change to the narrowing inputs cannot be excluded" else empty end),
-    (if $mergeQueue == "0" then "main has no merge-queue rule"
-     elif $mergeQueue != "1" then "the rules of main are unreadable" else empty end),
-    (if ($base | hex40 | not) or ($head | hex40 | not) or ($target | hex40 | not) then "the base, head or target is not a full commit id" else empty end),
-    (if $d == null then "the driver wrote no selection"
-     elif ($d | type) != "object" then "the driver selection is not an object"
-     elif ($d.Reason // "") != "" then "driver: \($d.Reason | .[0:300])"
-     elif $D == null or $D == ["./..."] then "the driver selected the whole universe"
-     elif $d.Base != $base or $d.Head != $head or $d.Target != $target then "the driver planned another base, head or target"
+| [ (if $baseRef != "main" then {code: "base-not-main", text: "the base branch is \($baseRef), not main"} else empty end),
+    (if $github == "1" then {code: "github-input", text: ("the change touches .github/ narrowing inputs (AFP-V0-2720)" + (($ARGS.named.githubInputs // "") | if length > 0 then ": " + . else "" end))}
+     elif $github == "mapped" then empty
+     elif $github == "consumer" then {code: "github-consumer-unselected", text: ("the selection omits a consumer of a mapped .github/ narrowing input (CIN-V0-8424): " + ($ARGS.named.githubMissing // ""))}
+     elif $github != "0" then {code: "github-unreadable", text: "the change set is unreadable, so a .github/ change to the narrowing inputs cannot be excluded"} else empty end),
+    (if $mergeQueue == "0" then {code: "no-merge-queue-rule", text: "main has no merge-queue rule"}
+     elif $mergeQueue != "1" then {code: "rules-unreadable", text: "the rules of main are unreadable"} else empty end),
+    (if ($base | hex40 | not) or ($head | hex40 | not) or ($target | hex40 | not) then {code: "commit-id-invalid", text: "the base, head or target is not a full commit id"} else empty end),
+    (if $d == null then {code: "driver-no-selection", text: "the driver wrote no selection"}
+     elif ($d | type) != "object" then {code: "driver-not-object", text: "the driver selection is not an object"}
+     elif ($d.Reason // "") != "" then {code: "driver-reason", text: "driver: \($d.Reason | .[0:300])"}
+     elif $D == null or $D == ["./..."] then {code: "driver-whole-universe", text: "the driver selected the whole universe"}
+     elif $d.Base != $base or $d.Head != $head or $d.Target != $target then {code: "driver-range-mismatch", text: "the driver planned another base, head or target"}
      else empty end),
-    (if $s == null then "the shadow wrote no plan"
-     elif ($s | type) != "object" then "the shadow plan is not an object"
+    (if $s == null then {code: "shadow-no-plan", text: "the shadow wrote no plan"}
+     elif ($s | type) != "object" then {code: "shadow-not-object", text: "the shadow plan is not an object"}
      else
-       (if $shadowExit != "0" and $shadowExit != "3" then "corvint test --dry-run exited \($shadowExit)" else empty end),
-       (if ($s.scope | IN("NARROWED", "FULL", "NOTHING")) | not then "the shadow scope is \($s.scope)" else empty end),
-       ([($s.incomplete // [])[] | select(type != "string" or (limit_only | not))] | if length > 0 then "the shadow plan is incomplete: \(map(tostring) | join("; ") | .[0:300])" else empty end)
+       (if $shadowExit != "0" and $shadowExit != "3" then {code: "shadow-exit", text: "corvint test --dry-run exited \($shadowExit)"} else empty end),
+       (if ($s.scope | IN("NARROWED", "FULL", "NOTHING")) | not then {code: "shadow-scope", text: "the shadow scope is \($s.scope)"} else empty end),
+       ([($s.incomplete // [])[] | select(type != "string" or (limit_only | not))] | if length > 0 then {code: "shadow-incomplete", text: "the shadow plan is incomplete: \(map(tostring) | join("; ") | .[0:300])"} else empty end)
      end),
-    (if $R == null then "the reused list is not a list of packages"
+    (if $R == null then {code: "reused-invalid", text: "the reused list is not a list of packages"}
      elif ($R | length) == 0 then empty
      elif ($d.Reuse | type) != "object" or $d.Reuse.applied != true or ($d.Reuse.recordRunId | type) != "number"
        or ($d.Reuse.recordJobId | type) != "number" or ($d.Reuse.recordBase | hex40 | not) or ($d.Reuse.queueBase | hex40 | not)
-       or ($d.Reuse.reused != ($R | length)) then "the reused packages name no applied reuse record"
-     elif $D != null and ($D - ($D - $R) | length) > 0 then "a reused package is also selected"
+       or ($d.Reuse.reused != ($R | length)) then {code: "reuse-unrecorded", text: "the reused packages name no applied reuse record"}
+     elif $D != null and ($D - ($D - $R) | length) > 0 then {code: "reused-also-selected", text: "a reused package is also selected"}
      else empty end),
     (if ($omitted | length) > 0 then
-       "the driver selection is not a superset of the shadow selection: it omits \($omitted | length) package(s) (\($omitted[0:5] | join(", ")))"
+       {code: "shadow-superset-violated", text: "the driver selection is not a superset of the shadow selection: it omits \($omitted | length) package(s) (\($omitted[0:5] | join(", ")))"}
      else empty end),
-    (if $selectedOk != "1" then "the selection within the universe could not be computed"
+    (if $selectedOk != "1" then {code: "selection-uncomputed", text: "the selection within the universe could not be computed"}
      elif $D == null then empty
-     elif $sel != ($D - ($D - $U)) then "the recorded selection is not the driver selection within the universe"
-     elif ($D | length) > 0 and ($sel | length) == 0 then "the driver selection names no package of the universe"
+     elif $sel != ($D - ($D - $U)) then {code: "selection-mismatch", text: "the recorded selection is not the driver selection within the universe"}
+     elif ($D | length) > 0 and ($sel | length) == 0 then {code: "selection-empty", text: "the driver selection names no package of the universe"}
      else empty end),
-    (if $balanced != "1" then "the balanced placement of the selection failed"
-     elif ($placed - $sel | length) > 0 then "the balanced placement names an unselected package" else empty end)
-  ] as $reasons
-| (($reasons | length) == 0 and $sampleK != null and $sampleK >= 2 and $sampleSeed != null and ($head | hex40)
+    (if $balanced != "1" then {code: "placement-failed", text: "the balanced placement of the selection failed"}
+     elif ($placed - $sel | length) > 0 then {code: "placement-unselected", text: "the balanced placement names an unselected package"} else empty end)
+  ] as $causes
+| (($causes | length) == 0 and $sampleK != null and $sampleK >= 2 and $sampleSeed != null and ($head | hex40)
    and ((($head[0:8] | hexval) + $sampleSeed) % $sampleK == 0)) as $sampled
-| (if $sampled then $reasons + ["sampled for the AFP-V0-984 miss-rate estimate (1 in \($sampleK))"] else $reasons end) as $reasons
+| (if $sampled then $causes + [{code: "sampled", text: "sampled for the AFP-V0-984 miss-rate estimate (1 in \($sampleK))"}] else $causes end) as $causes
+| ($causes | map(.text)) as $reasons
+| ($causes | map(.code)) as $reasonCodes
 | (if ($reasons | length) == 0 then "NARROWED" else "FULL" end) as $mode
 | (if $mode == "NARROWED" then $placed else $shardSet end) as $executed
 | {profile: "corvint-pr-narrowing/0",
    mode: $mode,
    placement: (if $mode == "NARROWED" then "BALANCED" else "PARTITION" end),
    reasons: $reasons,
+   reasonCodes: $reasonCodes,
    pr: ($pr | num), base: $base, eventBase: ($ARGS.named.eventBase // $base), effectiveBase: $base, head: $head, target: $target,
    runId: ($runId | num), runAttempt: ($runAttempt | num),
    shard: ($shard | num), shards: ($shards | num),
@@ -116,6 +128,7 @@ def hexval: explode | map(if . >= 97 then . - 87 else . - 48 end) | reduce .[] a
    overSelectedCount: (if $D != null and $S != null and $selectedOk == "1" then ($sel - $S - ($R // []) | length) else null end),
    shardPackages: ($shardSet | length),
    githubInputs: [(($ARGS.named.githubInputs // "") | split(", ")[] | select(length > 0))],
+   githubMapped: [(($ARGS.named.githubMapped // "") | split(", ")[] | select(length > 0))],
    selected: (if $mode == "NARROWED" then $sel else [] end),
    executed: $executed,
    skipped: (if $mode == "NARROWED" then $shardSet - $D - $R else [] end),
