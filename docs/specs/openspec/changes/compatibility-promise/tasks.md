@@ -9,10 +9,12 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [x] 1.2 First commit: create `docs/specs/compatibility-promise-v1.md` from the spec delta, add
       its row to `docs/specs/README.md`, regenerate the index and run
       `make spec-requirements-check`. Requirements: CMP-V1-001 to 006. Proof: check output.
-- [ ] 2.1 List the surfaces of CMP-V1-003 with the contract test that covers each, and read each
+- [x] 2.1 List the surfaces of CMP-V1-003 with the contract test that covers each, and read each
       stable format's label from the code. Stop and report to the owner if fewer than half have
       a test. Requirements: CMP-V1-002, CMP-V1-003. Proof: the list, with counts, in the
       build-log entry.
+      Done: 7 of 22 surfaces have a contract test, so the lane stopped before 2.2
+      (`docs/build-log/2026-11-11-compatibility-promise.md`).
 - [ ] 2.2 Write the generator and generate `docs/COMPATIBILITY.md`. Requirements: CMP-V1-001,
       CMP-V1-002, CMP-V1-003, CMP-V1-005. Proof: a second run leaves the page byte-identical.
 - [ ] 2.3 Write the stable and preview rules and the label rule above the table. Requirements:
