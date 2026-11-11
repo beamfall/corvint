@@ -67,8 +67,11 @@ func parseDocsCheckArgs(options docsOptions, arguments []string) (docsOptions, e
 }
 
 // runDocsCheck composes the existing docs checks over the whole repository and prints one
-// corvint-docs-check/0 report: exit 1 when any part is STALE, 0 otherwise (a NOT_CHECKED part is
-// reported but does not fail), 2 when the repository cannot be read (DMF-V1-002).
+// corvint-docs-check/0 report whose status is STALE when any part is STALE, else NOT_CHECKED when
+// any part is NOT_CHECKED, else PASS: exit 1 when any part is STALE, 0 otherwise (a NOT_CHECKED
+// part is reported and named by the status but does not fail), 2 when the repository cannot be
+// read or a part could not run: a cancelled or expired context, or a Git or I/O failure, is never
+// reported as NOT_CHECKED (DMF-V1-002).
 func runDocsCheck(ctx context.Context, options docsOptions, stdout, stderr io.Writer) int {
 	ctx = gitstatus.WithIsolation(ctx)
 	pages, commit, err := docmaintain.MarkerPages(ctx, options.root)
@@ -95,8 +98,11 @@ func runDocsCheck(ctx context.Context, options docsOptions, stdout, stderr io.Wr
 	}
 	report.Worktree = docworktree.Observe(ctx, options.root, docworktree.Head, nil)
 	for _, p := range report.Parts {
-		if p.State == docsCheckStale {
+		switch {
+		case p.State == docsCheckStale:
 			report.Status = docsCheckStale
+		case p.State == docsCheckNotChecked && report.Status == docsCheckPass:
+			report.Status = docsCheckNotChecked
 		}
 	}
 	encoded, err := gokernel.CanonicalJSON(report)
@@ -117,6 +123,10 @@ func docsCheckError(err error) error {
 	var refusal *docmaintain.Refusal
 	var typed *doccorpus.Error
 	switch {
+	case errors.Is(err, context.Canceled):
+		return &gokernel.Error{Code: "cancelled", Message: "docs check was cancelled before every part ran"}
+	case errors.Is(err, context.DeadlineExceeded):
+		return &gokernel.Error{Code: "cancelled", Message: "docs check ran out of time before every part ran"}
 	case errors.As(err, &refusal):
 		message := refusal.Message
 		if message == "" {
@@ -179,9 +189,14 @@ func docsCheckMarkers(ctx context.Context, root string, pages []string) (docsChe
 	return part, nil
 }
 
+// docsCheckRevision is the flows check docsCheckFlows runs; tests replace it to inject failures.
+var docsCheckRevision = flowdocs.CheckRevision
+
 // docsCheckFlows runs docs flows check at HEAD for every tracked generation manifest, against the
-// output directory it records. A manifest whose output cannot be compared, or whose check refuses,
-// is NOT_CHECKED with its reason, never PASS.
+// output directory it records. A manifest whose output cannot be compared, or whose check refuses
+// (a flow-docs refusal about the manifest or its source), is NOT_CHECKED with its reason, never
+// PASS. Any other error (a cancelled or expired context, a Git or I/O failure) means the part did
+// not run and fails the whole check (DMF-V1-002).
 func docsCheckFlows(ctx context.Context, root, commit string) (docsCheckPart, error) {
 	part := newDocsCheckPart("flows")
 	manifests, err := flowdocs.TrackedManifests(ctx, root, commit)
@@ -189,8 +204,11 @@ func docsCheckFlows(ctx context.Context, root, commit string) (docsCheckPart, er
 		return part, err
 	}
 	for _, m := range manifests {
-		check, err := flowdocs.CheckRevision(ctx, root, m.Raw, commit, "")
+		check, err := docsCheckRevision(ctx, root, m.Raw, commit, "")
 		if err != nil {
+			if ctx.Err() != nil || !flowdocs.Refused(err) {
+				return part, err
+			}
 			part.NotChecked = append(part.NotChecked, docsCheckItem{Path: m.Path, Detail: err.Error()})
 			continue
 		}
@@ -256,10 +274,13 @@ NOT_CHECKED with a reason, and each stale item with its path and line:
              the output directory it records (docs flows check); a manifest whose
              output cannot be compared is NOT_CHECKED, never PASS
   citations  every line citation in tracked Markdown (docs citations check)
-A part with nothing to check is NOT_CHECKED with reason none-found. Every part and
-the report carry a worktree member; answers stay about committed or indexed
-content. Exit 1 when any part is STALE, 0 otherwise (a NOT_CHECKED part does not
-fail the run), 2 when the repository cannot be read. It writes nothing.
+A part with nothing to check is NOT_CHECKED with reason none-found. The report
+status is STALE when any part is STALE, else NOT_CHECKED when any part is
+NOT_CHECKED, else PASS. Every part and the report carry a worktree member;
+answers stay about committed or indexed content. Exit 1 when any part is STALE,
+0 otherwise (a NOT_CHECKED part does not fail the run), 2 when the repository
+cannot be read or a part could not run (cancelled, timed out, or a Git or I/O
+failure). It writes nothing.
 
 Contract: docs/specs/docs-mcp-hardening-v1.md (DMF-V1-002)
 `
