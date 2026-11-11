@@ -206,7 +206,7 @@ whether it was cut at 64 items, and every item names the link that put it
 there. Nothing is ranked. A missing optional source (corvint-tasks, CODEOWNERS,
 the flows file, test evidence, the requirement-link file) is named in its
 section and never fails the command. --path takes no task text, ticket or
-change range; the report for a change range is corvint impact --base <sha>.
+change range; the report for a change range is the corvint impact command.
 
 Writes nothing; Go-only (task-context-packet-v0, experimental). The packet lists
 files admitted by relations a term search cannot express, each with one

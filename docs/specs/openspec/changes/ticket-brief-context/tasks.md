@@ -6,8 +6,9 @@ Build tasks in order. Each names its requirement IDs and its proof.
 
 - [ ] 1 Reserve `TBC-V1` 001 to 008; file the ticket; set `requirementRefs`. Proof: `corvint-tasks
       ticket show`.
-- [ ] 2 First commit: create the spec, its README entry and the index. Proof: `make
-      spec-requirements`.
+- [x] 2 First commit: create the spec, its README entry and the index. Proof: `make
+      spec-requirements`. Done 2026-11-10 with the path form, not as the first commit:
+      `docs/specs/ticket-brief-v1.md` holds TBC-V1-001 to TBC-V1-014.
 - [ ] 3 Brief builder reading `corvint-tasks ticket show --json` (TBC-V1-001 to 004, 007). Proof:
       fixture tickets for each item and each missing-link case.
 - [ ] 4 Remove the ranking files and the ranked path (TBC-V1-005). Proof: the build-after-removal
@@ -25,18 +26,22 @@ Build tasks in order. Each names its requirement IDs and its proof.
 Tasks of the amendment of 2026-11-10 (the owner accepted PROD-INT-032 into 1.0 on 2026-11-10).
 Task 9 runs first and needs only the frozen task list of task 6; it needs neither the export nor
 the builder. Tasks 10 to 12 run after task 3 and only if task 9 meets the bar the owner sets.
+Tasks 10 and 11 were built on 2026-11-10 before task 3, once the owner had set the bar: the path
+form reads no ticket and shares no code with the ticket form, so it does not need task 3.
 
 - [x] 9 Link-coverage check of the `tests` and `requirements` sections on the frozen task set, by a
       scratch script over existing commands and the sealed records, with no agent run
       (TBC-V1-013). Proof: the build-log record and the owner's bar. Run and recorded on
       2026-11-10 in `docs/build-log/2026-11-10-path-brief-link-coverage-check.md` (V1-5300); the
       owner set the proposed bar on 2026-11-10 and the result meets it (16 of 20).
-- [ ] 10 One-time export of the sealed requirement links to `.corvint/requirement-links.json`
+- [x] 10 One-time export of the sealed requirement links to `.corvint/requirement-links.json`
       (TBC-V1-012). Proof: the two-run byte-identity scenario; input commit and output hash in the
-      build log.
-- [ ] 11 Path brief builder with six sections; the ticket form is not changed (TBC-V1-009 to
+      build log. Done 2026-11-10: `docs/build-log/2026-11-10-path-brief-builder-and-link-export.md`.
+- [x] 11 Path brief builder with six sections; the ticket form is not changed (TBC-V1-009 to
       TBC-V1-011). Proof: fixture repositories for each section and each absent source, one with
-      no Corvint files.
+      no Corvint files. Built 2026-11-10 as `corvint context --path`; the `flows` reader and the
+      completed-ticket source are not built and are stated as missing in the output (same
+      build-log entry).
 - [x] 12 Verify whether a completed ticket's commits can be read from its `progress` and
       `completion` fields; file a Tasks ticket if they cannot. Done 2026-11-10 by a read of all
       2,562 completed tickets, not of a fixture: they cannot in general; filed as V1-5301.

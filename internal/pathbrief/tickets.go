@@ -42,6 +42,7 @@ func ExecTickets(root string) func(context.Context) ([]Ticket, error) {
 			return nil, errTasks
 		}
 		var tickets []Ticket
+		seen := map[string]bool{}
 		for page := 0; page < ticketPages; page++ {
 			result := runProcess(ctx, procgroup.Spec{
 				Argv: []string{executable, "--root", root, "ticket", "search", "--status", "OPEN",
@@ -56,7 +57,13 @@ func ExecTickets(root string) func(context.Context) ([]Ticket, error) {
 			if err != nil {
 				return nil, errTasks
 			}
-			tickets = append(tickets, items...)
+			// Pages are separate reads, so a ticket can come back on two of them.
+			for _, item := range items {
+				if !seen[item.ID] {
+					seen[item.ID] = true
+					tickets = append(tickets, item)
+				}
+			}
 			if !more || len(items) == 0 {
 				return tickets, nil
 			}

@@ -184,7 +184,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
-          "sha256": "3727eaee6f66486be7d11160028f58395fa0fbececc53a016f26f380e47fdce1"
+          "sha256": "982806ec3ea5a41110c3f2035d56e86fefd990ccfcee05d6329976b7c94c80b4"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-TASK-ORIENTATION.json",
