@@ -394,6 +394,12 @@ AFP-V0-107	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delive
 AFP-V0-108	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery delivered; V1-5201)	unrecorded	-
 AFP-V0-109	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery delivered; V1-5201)	unrecorded	-
 AFP-V0-110	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery partial; V1-5201)	unrecorded	-
+AFP-V0-3660	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) Amending AFP-V0-012	unrecorded	-
+AFP-V0-3661	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) A source value SHALL be	unrecorded	-
+AFP-V0-3662	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) A location joined to	unrecorded	-
+AFP-V0-3663	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) A held source SHALL give	unrecorded	-
+AFP-V0-3664	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) A location whose only use	unrecorded	-
+AFP-V0-3665	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) The residuals of the	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
