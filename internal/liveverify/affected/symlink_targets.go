@@ -80,6 +80,19 @@ func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit s
 		return Symlinks{}
 	}
 	root := filepath.ToSlash(physical)
+	// A snapshot plan's tree is not the repository: a target that reaches
+	// the repository's physical path is the repository path it reaches, as
+	// one naming the repository literally is.
+	roots := []string{root}
+	if repository != tree {
+		physicalRepository, err := filepath.EvalSymlinks(repository)
+		if err != nil {
+			return Symlinks{}
+		}
+		if other := filepath.ToSlash(physicalRepository); other != root {
+			roots = append(roots, other)
+		}
+	}
 	deadline, cancel := context.WithTimeout(ctx, StatusDeadline)
 	defer cancel()
 	raw, err := boundedGitRunner(gitExecutable)(deadline, repository, MaxStatusBytes, "ls-tree", "-r", "-z", "--full-tree", commit)
@@ -108,7 +121,7 @@ func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit s
 			changed[name] = true
 			continue
 		}
-		links.Targets[name] = linkTarget(repository, tree, root, name)
+		links.Targets[name] = linkTarget(repository, tree, roots, name)
 	}
 	for _, relative := range dirty {
 		if !ValidRelativePath(relative) {
@@ -118,7 +131,7 @@ func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit s
 		switch {
 		case err == nil && info.Mode()&fs.ModeSymlink != 0:
 			changed[relative] = true
-			links.Targets[relative] = linkTarget(repository, tree, root, relative)
+			links.Targets[relative] = linkTarget(repository, tree, roots, relative)
 		case err != nil && !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, syscall.ENOTDIR):
 			// A path whose kind cannot be read may be a link.
 			changed[relative] = true
@@ -134,7 +147,7 @@ func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit s
 		reached, err := physicalPath(position)
 		if err != nil {
 			reentered[link] = "."
-		} else if relative, inside := physicalTarget(reached, root); inside {
+		} else if relative, inside := physicalTarget(reached, roots); inside {
 			reentered[link] = relative
 		}
 	}
@@ -187,21 +200,26 @@ func insideRoot(physical, root string) (string, bool) {
 }
 
 // physicalTarget is the Targets value of a link that reaches the physical
-// slash path reached: the repository path when it is root or lies below it,
-// and "." when it does so only under a case fold, or when either holds a
-// byte past ASCII, whose folding and normalisation are not modelled. A
-// case-insensitive file system opens `../REPO/x` beside repo, and
-// EvalSymlinks keeps the case it was given (AFP-V0-9965). It returns false
-// for a path outside.
-func physicalTarget(reached, root string) (string, bool) {
-	if inside, ok := insideRoot(reached, root); ok {
-		return inside, true
+// slash path reached: the repository path when it is one of roots (the
+// tree's physical path, then the repository's when the tree is a snapshot)
+// or lies below one, and "." when it does so only under a case fold, or when
+// either holds a byte past ASCII, whose folding and normalisation are not
+// modelled. A case-insensitive file system opens `../REPO/x` beside repo,
+// and EvalSymlinks keeps the case it was given (AFP-V0-9965). It returns
+// false for a path outside every root.
+func physicalTarget(reached string, roots []string) (string, bool) {
+	for _, root := range roots {
+		if inside, ok := insideRoot(reached, root); ok {
+			return inside, true
+		}
 	}
-	if !asciiText(reached) || !asciiText(root) {
-		return ".", true
-	}
-	if _, ok := insideRoot(strings.ToLower(reached), strings.ToLower(root)); ok {
-		return ".", true
+	for _, root := range roots {
+		if !asciiText(reached) || !asciiText(root) {
+			return ".", true
+		}
+		if _, ok := insideRoot(strings.ToLower(reached), strings.ToLower(root)); ok {
+			return ".", true
+		}
 	}
 	return "", false
 }
@@ -209,10 +227,10 @@ func physicalTarget(reached, root string) (string, bool) {
 // linkTarget is the Targets value of the link at relative in tree: its text
 // joined to its directory, or the rest of an absolute text below tree or
 // repository by name, neither cleaned; for any other absolute text, the
-// repository path it reaches on the file system from the
-// physical root (an alias of an ancestor), empty when it reaches none, and "."
-// when the text or that path cannot be read.
-func linkTarget(repository, tree, root, relative string) string {
+// repository path it reaches on the file system from one of the physical
+// roots (an alias of an ancestor), empty when it reaches none, and "." when
+// the text or that path cannot be read.
+func linkTarget(repository, tree string, roots []string, relative string) string {
 	text, err := os.Readlink(filepath.Join(tree, filepath.FromSlash(relative)))
 	if err != nil || text == "" {
 		return "."
@@ -236,7 +254,7 @@ func linkTarget(repository, tree, root, relative string) string {
 		if err != nil {
 			return "."
 		}
-		if inside, ok := physicalTarget(reached, root); ok {
+		if inside, ok := physicalTarget(reached, roots); ok {
 			return inside
 		}
 		return ""
