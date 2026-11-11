@@ -56,14 +56,17 @@ const (
 )
 
 type caseResult struct {
-	ID             string        `json:"id"`
-	Kind           string        `json:"kind"`
-	PR             int           `json:"pr"`
-	HeadSHA        string        `json:"headSha"`
-	Status         string        `json:"status"`
-	ExcludedReason string        `json:"excludedReason,omitempty"`
-	Error          string        `json:"error,omitempty"`
-	Faults         []faultResult `json:"faults"`
+	ID             string `json:"id"`
+	Kind           string `json:"kind"`
+	PR             int    `json:"pr"`
+	HeadSHA        string `json:"headSha"`
+	Status         string `json:"status"`
+	ExcludedReason string `json:"excludedReason,omitempty"`
+	// ExcludedEvidence is the pin-unavailable refusal the run recorded:
+	// the head and the failed checkout or rev-parse.
+	ExcludedEvidence string        `json:"excludedEvidence,omitempty"`
+	Error            string        `json:"error,omitempty"`
+	Faults           []faultResult `json:"faults"`
 }
 
 // baselineRuns holds the three full-suite runs at one head and their
@@ -178,7 +181,10 @@ type runConfig struct {
 
 // harness carries the baselines measured so far, one per head.
 type harness struct {
-	cfg       runConfig
+	cfg runConfig
+	// git runs the clone's Git steps; nil is the real git. Tests replace it
+	// to stop a step deterministically.
+	git       func(ctx context.Context, root string, args ...string) (string, error)
 	baselines map[string]baselineRuns
 	order     []string // heads in the order their baselines ran
 }
@@ -205,7 +211,10 @@ func (h *harness) runCase(ctx context.Context, c harnessCase) (r caseResult) {
 		root, cleanup, err := h.clone(ctx, c.ID, c.HeadSHA)
 		if err != nil {
 			if refusalCode(err) == "pin-unavailable" {
-				r.Status, r.ExcludedReason = caseExcluded, "pin-unavailable"
+				// The refusal names the unavailable head and the failed
+				// checkout or rev-parse; verdict admits the exclusion only
+				// with it (review P2-A).
+				r.Status, r.ExcludedReason, r.ExcludedEvidence = caseExcluded, "pin-unavailable", err.Error()
 				return nil
 			}
 			return err
@@ -296,10 +305,10 @@ func (h *harness) runFault(ctx context.Context, root string, c harnessCase, f fa
 	for i := 0; i < confirmRuns; i++ {
 		run, err := h.cfg.Adapter.Run(ctx, root, nil)
 		if err != nil {
-			// Cancellation or the harness's own wall timeout says nothing
-			// about the fault: it is a failed measurement, so the verdict
+			// Cancellation, the harness's own wall timeout or an unproved
+			// process cleanup says nothing about the fault: it is a failed measurement, so the verdict
 			// is INVALID (G3).
-			if ctx.Err() != nil || errors.Is(err, errWallTimeout) {
+			if stopped(ctx, err) {
 				return fail(fmt.Errorf("faulted run %d: %w", i+1, err))
 			}
 			// A fault-induced build failure or crash, including the
@@ -348,20 +357,26 @@ func (h *harness) clone(ctx context.Context, id, sha string) (string, func() err
 		return "", nil, fmt.Errorf("clone destination already exists or is unreadable: %s: %w", root, err)
 	}
 	cleanup := func() error { return os.RemoveAll(root) }
-	if _, err := git(ctx, parent, "clone", "--quiet", "--no-hardlinks", "--shared", "--no-checkout", source, root); err != nil {
-		return "", nil, errors.Join(err, cleanup())
+	run := h.git
+	if run == nil {
+		run = git
 	}
-	if _, err := git(ctx, root, "checkout", "--quiet", "--detach", sha); err != nil {
-		if ctx.Err() != nil || errors.Is(err, errWallTimeout) {
-			// A stopped checkout is a failed measurement, not an
-			// unreproducible pin inside the exclusion budget.
-			return "", nil, errors.Join(err, cleanup())
+	if _, err := run(ctx, parent, "clone", "--quiet", "--no-hardlinks", "--shared", "--no-checkout", source, root); err != nil {
+		return "", nil, errors.Join(ctx.Err(), err, cleanup())
+	}
+	// A checkout or rev-parse stopped by cancellation, the wall bound or an
+	// unproved cleanup is a failed measurement, not an unreproducible pin
+	// inside the exclusion budget. ctx.Err() leads each join so a cancelled
+	// step whose own error is nil still returns an error.
+	if _, err := run(ctx, root, "checkout", "--quiet", "--detach", sha); err != nil {
+		if stopped(ctx, err) {
+			return "", nil, errors.Join(ctx.Err(), err, cleanup())
 		}
 		return "", nil, errors.Join(refuse("pin-unavailable", "%s: %v", sha, err), cleanup())
 	}
-	if head, err := git(ctx, root, "rev-parse", "HEAD"); err != nil || head != sha {
-		if ctx.Err() != nil || errors.Is(err, errWallTimeout) {
-			return "", nil, errors.Join(err, cleanup())
+	if head, err := run(ctx, root, "rev-parse", "HEAD"); err != nil || head != sha {
+		if stopped(ctx, err) {
+			return "", nil, errors.Join(ctx.Err(), err, cleanup())
 		}
 		return "", nil, errors.Join(refuse("pin-unavailable", "clone head %s is not %s", head, sha), err, cleanup())
 	}

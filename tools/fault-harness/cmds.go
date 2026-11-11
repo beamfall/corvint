@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -192,9 +193,53 @@ type results struct {
 	Cases                 []caseResult     `json:"cases"`
 }
 
+const runRecordProfile = "fault-harness-run/1"
+
+// runRecord is written by `run` beside its results and read by `verdict`. It
+// binds the results to the sealed fault set and the pre-registration through
+// the SHA-256 of the results' canonical bytes (review P2-B). The digest is
+// unkeyed: it refuses results edited after the run without the record being
+// rewritten to match, and is not tamper resistance against whoever can
+// rewrite both files.
+type runRecord struct {
+	Profile               string `json:"profile"`
+	Runner                string `json:"runner"`
+	PreregistrationSHA256 string `json:"preregistrationSha256"`
+	FaultSetSHA256        string `json:"faultSetSha256"`
+	ResultsSHA256         string `json:"resultsSha256"`
+}
+
+// resultsDigest is the SHA-256 of the compact JSON encoding of res. Results
+// are decoded strictly into the same struct before the digest is recomputed,
+// so whitespace and key order do not change it and every field is covered.
+func resultsDigest(res results) (string, error) {
+	body, err := json.Marshal(res)
+	if err != nil {
+		return "", err
+	}
+	return sha(body), nil
+}
+
+// checkRunRecord refuses results that are not the ones the run recorded for
+// this pre-registration and sealed set.
+func checkRunRecord(p loadedPreregistration, seal sealRecord, rec runRecord, res results) error {
+	if rec.Profile != runRecordProfile || rec.Runner != p.Runner || rec.PreregistrationSHA256 != p.SHA256 || rec.FaultSetSHA256 != seal.FaultSetSHA256 {
+		return refuse("results-digest-mismatch", "the run record is %s for runner %q, pre-registration %s and fault set %s, not %s, %q, %s and the sealed %s",
+			rec.Profile, rec.Runner, rec.PreregistrationSHA256, rec.FaultSetSHA256, runRecordProfile, p.Runner, p.SHA256, seal.FaultSetSHA256)
+	}
+	digest, err := resultsDigest(res)
+	if err != nil {
+		return err
+	}
+	if digest != rec.ResultsSHA256 {
+		return refuse("results-digest-mismatch", "the results have canonical SHA-256 %s, the run recorded %s", digest, rec.ResultsSHA256)
+	}
+	return nil
+}
+
 func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
-	fs := flags("run", "--preregistration FILE --hash FILE --set FILE --seal FILE --root DIR --clones DIR [--corvint BIN] [--go-test ARGV] [--unrunnable ID]... [--out FILE]",
-		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --set go.faults.json --seal go.seal.json --root REPO_DIR --clones /tmp/fh-clones --out go.results.json", w)
+	fs := flags("run", "--preregistration FILE --hash FILE --set FILE --seal FILE --root DIR --clones DIR --record FILE [--corvint BIN] [--go-test ARGV] [--unrunnable ID]... [--out FILE]",
+		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --set go.faults.json --seal go.seal.json --root REPO_DIR --clones /tmp/fh-clones --record go.run.json --out go.results.json", w)
 	prereg := fs.String("preregistration", "", "pre-registration file")
 	hash := fs.String("hash", "", "committed SHA-256 file of the pre-registration")
 	setPath := fs.String("set", "", "sealed fault set")
@@ -205,9 +250,10 @@ func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 	goTest := fs.String("go-test", "go test", "space-separated argv prefix that runs `go test`")
 	timeout := fs.Duration("timeout", 30*time.Minute, "wall bound per adapter command")
 	out := fs.String("out", "", "write the results JSON (default stdout)")
+	recordPath := fs.String("record", "", "write the run record ("+runRecordProfile+") holding the results' SHA-256")
 	var unrunnable multiFlag
 	fs.Var(&unrunnable, "unrunnable", "test ID declared unrunnable in the pinned image (repeatable)")
-	if code := parse(fs, args, prereg, setPath, sealPath, root, clones); code >= 0 {
+	if code := parse(fs, args, prereg, setPath, sealPath, root, clones, recordPath); code >= 0 {
 		return code
 	}
 	// Every refusal below happens before any clone or test run.
@@ -246,7 +292,17 @@ func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 		res.Cases = append(res.Cases, r)
 	}
 	res.Baselines = h.baselineRecords()
+	digest, err := resultsDigest(res)
+	if err != nil {
+		fmt.Fprintln(w, err)
+		return 2
+	}
 	if err := report(w, *out, res); err != nil {
+		fmt.Fprintln(w, err)
+		return 2
+	}
+	record := runRecord{Profile: runRecordProfile, Runner: p.Runner, PreregistrationSHA256: p.SHA256, FaultSetSHA256: setSHA, ResultsSHA256: digest}
+	if err := report(w, *recordPath, record); err != nil {
 		fmt.Fprintln(w, err)
 		return 2
 	}
@@ -254,15 +310,16 @@ func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 }
 
 func runVerdictCommand(_ context.Context, args []string, w io.Writer) int {
-	fs := flags("verdict", "--preregistration FILE --hash FILE --set FILE --seal FILE --results FILE [--out FILE]",
-		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --set go.faults.json --seal go.seal.json --results go.results.json --out go.verdict.json", w)
+	fs := flags("verdict", "--preregistration FILE --hash FILE --set FILE --seal FILE --results FILE --record FILE [--out FILE]",
+		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --set go.faults.json --seal go.seal.json --results go.results.json --record go.run.json --out go.verdict.json", w)
 	prereg := fs.String("preregistration", "", "pre-registration file")
 	hash := fs.String("hash", "", "committed SHA-256 file of the pre-registration")
 	setPath := fs.String("set", "", "sealed fault set the results were measured on")
 	sealPath := fs.String("seal", "", "seal record written by `fault-harness seal`")
 	resultsPath := fs.String("results", "", "results written by `fault-harness run`")
+	recordPath := fs.String("record", "", "run record written by `fault-harness run` beside the results")
 	out := fs.String("out", "", "also write the verdict JSON to this file")
-	if code := parse(fs, args, prereg, setPath, sealPath, resultsPath); code >= 0 {
+	if code := parse(fs, args, prereg, setPath, sealPath, resultsPath, recordPath); code >= 0 {
 		return code
 	}
 	p, err := loadPreregistration(*prereg, *hash)
@@ -285,7 +342,18 @@ func runVerdictCommand(_ context.Context, args []string, w io.Writer) int {
 	if res.PreregistrationSHA256 != p.SHA256 || res.Runner != p.Runner || res.ExclusionBudget != p.ExclusionBudget {
 		return refused(w, refuse("preregistration-changed", "the results were measured under pre-registration %s, not %s", res.PreregistrationSHA256, p.SHA256))
 	}
+	recBody, err := boundedRead(*recordPath, 1<<20)
+	if err != nil {
+		return refused(w, err)
+	}
+	var runRec runRecord
+	if err := decodeStrict(recBody, &runRec); err != nil {
+		return refused(w, refuse("results-digest-mismatch", "run record: %v", err))
+	}
 	if err := checkResultsSealed(set, setSHA, rec, res); err != nil {
+		return refused(w, err)
+	}
+	if err := checkRunRecord(p, rec, runRec, res); err != nil {
 		return refused(w, err)
 	}
 	v := buildVerdict(res)

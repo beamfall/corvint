@@ -17,9 +17,11 @@ GOTOOLCHAIN=local go build -o /tmp/fault-harness ./tools/fault-harness
   --rule tools/fault-harness/revert-rule.json --candidates go.candidates.json \
   --set go.faults.json --out go.seal.json
 /tmp/fault-harness run --preregistration go.prereg.json --hash go.prereg.json.sha256 \
-  --set go.faults.json --seal go.seal.json --root REPO_DIR --clones /tmp/fh-clones --out go.results.json
+  --set go.faults.json --seal go.seal.json --root REPO_DIR --clones /tmp/fh-clones \
+  --record go.run.json --out go.results.json
 /tmp/fault-harness verdict --preregistration go.prereg.json --hash go.prereg.json.sha256 \
-  --set go.faults.json --seal go.seal.json --results go.results.json --out go.verdict.json
+  --set go.faults.json --seal go.seal.json --results go.results.json --record go.run.json \
+  --out go.verdict.json
 /tmp/fault-harness parity --root . --clones /tmp/fh-clones --out /tmp/parity.json
 ```
 
@@ -41,15 +43,25 @@ Files, each one strict JSON with a `profile`:
 - `fault-harness-fault-set/1`, sealed into `fault-harness-seal/1`; `run` and `verdict` refuse a
   set or pre-registration whose hash differs from the seal, and `verdict` refuses results that are
   not the measurement of exactly the sealed cases and faults (`fault-set-changed`,
-  `results-not-sealed`) or a set sealed with fewer than 30 non-code cases.
-- `fault-harness-results/1` and `fault-harness-verdict/1`.
+  `results-not-sealed`) or a set sealed with fewer than 30 non-code cases. A case result must be
+  one the run could have written: an `EXCLUDED` case only with reason `pin-unavailable`, no fault
+  results and the recorded refusal naming its head; a `KILLED` fault names its killing tests and
+  plan kind, and its misses are among its kills under a `NARROWED` plan; a `NO_KILL` fault lists no
+  kills or misses; a case status agrees with its faults.
+- `fault-harness-results/1` and `fault-harness-run/1`: `run` writes the run record beside the
+  results with the SHA-256 of the results' compact JSON encoding, the runner, the pre-registration
+  and the sealed fault-set hash; `verdict` recomputes the digest and refuses a mismatch
+  (`results-digest-mismatch`). The digest is unkeyed: it refuses results edited without the record
+  being rewritten, not someone who rewrites both, so it is not tamper resistance.
+- `fault-harness-verdict/1`.
 
 Fail-closed rules: a baseline needs three runs, and a test that does not pass in all three is
 quarantined; a kill needs three of three failures of a test that passed every baseline run; a
 faulted tree that does not build or crashes (including the runner's own test timeout) kills
-nothing and is dropped; a faulted run stopped by cancellation or the harness's own wall bound, and
-a selected-run failure after a confirmed kill, are failed measurements that make the verdict
-`INVALID`; a miss is never waived.
+nothing and is dropped; a faulted run or clone step stopped by cancellation, the harness's own wall
+bound or an unproved process cleanup, and a selected-run failure after a confirmed kill, are failed
+measurements that make the verdict `INVALID`; an excluded case counts toward neither N nor the
+non-code minimum of 30 measured cases; a miss is never waived.
 The release sentence is printed only for a `ZERO_MISS` verdict.
 
 Only the Go adapter exists. `--go-test` sets the argv prefix that runs `go test` (Corvint runs use

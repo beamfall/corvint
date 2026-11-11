@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 const (
@@ -203,35 +204,82 @@ func checkResultsSealed(set faultSet, setSHA string, rec sealRecord, res results
 	return nil
 }
 
-// checkCaseFaults refuses a counted or dropped case whose faults are not the
-// sealed faults in their sealed order, or whose status disagrees with them, so
-// a fault with a miss cannot be removed or its case relabelled as dropped.
+// checkCaseFaults refuses a case result that the run could not have written
+// for its sealed case: an exclusion without the pin-unavailable evidence the
+// run records, or a counted or dropped case whose faults are not the sealed
+// faults in their sealed order, whose fault contents contradict their status,
+// or whose status disagrees with its faults. A fault with a miss can then be
+// neither removed, nor relabelled as no kill, nor its case relabelled as
+// dropped or excluded (review P2-1, P2-A, P2-B). These checks are structural;
+// an edit that keeps every result self-consistent, such as emptying a killed
+// fault's misses, is caught only by the results digest of the run record.
 func checkCaseFaults(c harnessCase, r caseResult) error {
+	bad := func(format string, args ...any) error {
+		return refuse("results-not-sealed", "case %q: "+format, append([]any{r.ID}, args...)...)
+	}
+	if r.Status != caseExcluded && (r.ExcludedReason != "" || r.ExcludedEvidence != "") {
+		return bad("status %s with an exclusion reason or evidence", r.Status)
+	}
 	switch r.Status {
-	case caseExcluded, caseError:
+	case caseExcluded:
+		// Only an unavailable pin excludes a case, before any fault is
+		// put in, and the run records the refusal that names the head.
+		switch {
+		case r.ExcludedReason != "pin-unavailable":
+			return bad("excluded with reason %q, only pin-unavailable excludes", r.ExcludedReason)
+		case len(r.Faults) != 0:
+			return bad("excluded with %d fault results; an unavailable pin runs no fault", len(r.Faults))
+		case !strings.HasPrefix(r.ExcludedEvidence, "pin-unavailable: ") || !strings.Contains(r.ExcludedEvidence, c.HeadSHA):
+			return bad("excluded without the recorded pin-unavailable refusal for head %s", c.HeadSHA)
+		}
+		return nil
+	case caseError:
+		if r.Error == "" {
+			return bad("ERROR without the recorded error")
+		}
 		return nil
 	case caseCounted, caseDropped:
 	default:
-		return refuse("results-not-sealed", "case %q has status %q", r.ID, r.Status)
+		return bad("status %q", r.Status)
 	}
 	if len(r.Faults) != len(c.Faults) {
-		return refuse("results-not-sealed", "case %q has %d fault results for %d sealed faults", r.ID, len(r.Faults), len(c.Faults))
+		return bad("%d fault results for %d sealed faults", len(r.Faults), len(c.Faults))
 	}
 	killed := false
 	for i, f := range r.Faults {
 		if f.ID != c.Faults[i].ID {
-			return refuse("results-not-sealed", "case %q: fault result %q where %q was sealed", r.ID, f.ID, c.Faults[i].ID)
+			return bad("fault result %q where %q was sealed", f.ID, c.Faults[i].ID)
 		}
 		switch f.Status {
 		case faultKilled:
 			killed = true
+			// A kill names its killing tests and was planned; misses are
+			// confirmed kills a NARROWED plan's selected run did not see.
+			if len(f.Kills) == 0 {
+				return bad("fault %q is KILLED without a killing test", f.ID)
+			}
+			if !f.Planned || !slices.Contains([]string{"NARROWED", "FULL", "UNKNOWN"}, f.PlanKind) {
+				return bad("fault %q is KILLED without a recorded plan kind", f.ID)
+			}
+			if len(f.Misses) > 0 && f.PlanKind != "NARROWED" {
+				return bad("fault %q lists misses under a %s plan", f.ID, f.PlanKind)
+			}
+			for _, m := range f.Misses {
+				if !slices.Contains(f.Kills, m) {
+					return bad("fault %q misses %q, which is not one of its kills", f.ID, m)
+				}
+			}
 		case faultNoKill:
+			// No confirmed kill: nothing killed, nothing missed.
+			if len(f.Kills) != 0 || len(f.Misses) != 0 {
+				return bad("fault %q is NO_KILL but lists %d kills and %d misses", f.ID, len(f.Kills), len(f.Misses))
+			}
 		default:
-			return refuse("results-not-sealed", "case %q: fault %q has status %q in a %s case", r.ID, f.ID, f.Status, r.Status)
+			return bad("fault %q has status %q in a %s case", f.ID, f.Status, r.Status)
 		}
 	}
 	if killed != (r.Status == caseCounted) {
-		return refuse("results-not-sealed", "case %q has status %s but its faults say otherwise", r.ID, r.Status)
+		return bad("status %s but its faults say otherwise", r.Status)
 	}
 	return nil
 }

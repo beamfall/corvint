@@ -134,10 +134,14 @@ with fewer than 30 non-code faults (`non-code-faults-below-minimum`), or, for Pl
 20 flow-reaching faults. `generate-go` places Go mutants. The verdict keeps code and non-code faults
 in separate sections, each with its own N, its own 3/N bound and its own sentence, and `verdict`
 applies the non-code minimum again: it refuses a set sealed with fewer than 30 non-code cases
-(`non-code-faults-below-minimum`). Observing the PR
+(`non-code-faults-below-minimum`). This requirement does not say whether a case excluded with
+`pin-unavailable` counts toward the non-code minimum; the verdict fails closed: an excluded case is
+not measured, so it counts toward neither N nor the minimum, and fewer than 30 measured non-code
+cases (sealed minus excluded) make the verdict `INVALID`. Observing the PR
 facts on a pinned repository, the Playwright flow manifest and the non-code fault generators are
 tasks 6 and 8 and not yet built. Tests: `TestRevertRule_FIH_V1_002`, `TestSeal_FIH_V1_002_014`,
-`TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictBoundToSeal_FIH_V1_002_007_014`.
+`TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictBoundToSeal_FIH_V1_002_007_014`,
+`TestVerdictFailClosed_FIH_V1_004_014`.
 
 - `FIH-V1-003`: (accepted automatically under G14, decision 0596; V1-5405) Faults sit on changed lines
 
@@ -200,10 +204,13 @@ at least one confirmed kill. (G3)
 Delivery: delivered. `confirmKills` counts a test only when it fails in three of three faulted runs
 and passed in all three baseline runs; a faulted tree that does not build or crashes (including the
 runner's own test-timeout panic) is no kill and joins the dropped count. A faulted run stopped by
-cancellation or by the harness's own wall bound is not fault-induced: the fault is `ERROR`, the case
-a failed measurement and the verdict `INVALID`, and a clone checkout stopped the same way is a
-failed measurement, not `pin-unavailable`. Tests: `TestKillConfirmationAndMiss_FIH_V1_005_006`,
-`TestGoOutcomesFailClosed_FIH_V1_005`, `TestFaultedRunStopped_FIH_V1_005_014`.
+cancellation, by the harness's own wall bound or with its process cleanup unproved is not
+fault-induced: the fault is `ERROR`, the case a failed measurement and the verdict `INVALID`. A
+command whose cleanup is unproved after its wall bound fired keeps both marks. A clone checkout or
+rev-parse stopped the same way is a failed measurement, not `pin-unavailable`, and returns an
+error even when the stopped step reported none. Tests: `TestKillConfirmationAndMiss_FIH_V1_005_006`,
+`TestGoOutcomesFailClosed_FIH_V1_005`, `TestFaultedRunStopped_FIH_V1_005_014`,
+`TestStopError_FIH_V1_005`, `TestCloneStopped_FIH_V1_005_008_014`.
 
 - `FIH-V1-006`: (accepted automatically under G14, decision 0596; V1-5405) A miss blocks
 
@@ -244,8 +251,20 @@ verdict other than `ZERO_MISS`. `verdict` requires the sealed set and its seal r
 (`fault-set-changed`), seal counts that differ from the set (`fault-set-invalid`), or a case list
 that is not the sealed one, each sealed case exactly once with its kind, PR and head, no unsealed
 case, and every counted or dropped case holding its sealed faults in order with a status that
-agrees with them (`results-not-sealed`). Tests: `TestVerdictCountsAndSentence_FIH_V1_007_014`,
-`TestVerdictCommand_FIH_V1_007`, `TestVerdictBoundToSeal_FIH_V1_002_007_014`.
+agrees with them (`results-not-sealed`). Each case result must be one the run could have written:
+an `EXCLUDED` case only with reason `pin-unavailable`, no fault results and the recorded
+`excludedEvidence` (the refusal naming its head and the failed checkout or rev-parse); an `ERROR`
+case with its recorded error; a `KILLED` fault naming at least one killing test and its plan kind,
+with misses only among its kills and only under a `NARROWED` plan; a `NO_KILL` fault with no kills
+and no misses; and no exclusion reason on any other case (`results-not-sealed`). `run` also writes
+a run record, `fault-harness-run/1` (`--record`), holding the SHA-256 of the results' compact JSON
+encoding with the runner, pre-registration and sealed fault-set hashes; `verdict` requires it
+(`--record`), recomputes the digest after a strict decode and refuses any mismatch
+(`results-digest-mismatch`), which covers self-consistent edits the structural checks cannot see,
+such as an emptied miss list. The digest is unkeyed: it binds the results to the run record, not
+against someone who rewrites both files, so it is not tamper resistance. Tests:
+`TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictCommand_FIH_V1_007`,
+`TestVerdictBoundToSeal_FIH_V1_002_007_014`, `TestRunSealedSet_FIH_V1_004_005_006`.
 
 - `FIH-V1-008`: (accepted automatically under G14, decision 0596; V1-5405) One adapter per runner on the compiled-in contract
 
@@ -275,7 +294,8 @@ SHA, image digest) on Linux or macOS. (G1)
 
 Delivery: not yet built (task 6): the PRR-V1 manifest pins and the `pin-mismatch` refusal. The
 harness checks out each case at its full commit SHA and excludes a case whose pin cannot be checked
-out as `pin-unavailable`.
+out as `pin-unavailable`, recording the refusal as the case's `excludedEvidence`. Test:
+`TestCloneStopped_FIH_V1_005_008_014`.
 
 - `FIH-V1-010`: (accepted automatically under G14, decision 0596; V1-5405) Cost check in two steps, then one PR per runner first
 
@@ -404,11 +424,14 @@ Delivery: delivered in the tool. The pre-registration must over-sample at least 
 (`over-sample-not-met`). The verdict prints the four counts (sealed, dropped with no kill, plan FULL
 or UNKNOWN, narrowed with a confirmed kill) and is `INVALID` when N is below 100; excluded and
 failed-measurement cases are reported beside them, and exclusions over the pre-registered budget or
-any failed measurement also make it `INVALID`. The counts are taken over the sealed case list only:
+any failed measurement also make it `INVALID`. An excluded case is admitted only with its recorded
+`pin-unavailable` evidence and counts toward neither N, the Wilson bound nor the non-code minimum
+(see FIH-V1-002 and FIH-V1-007). The counts are taken over the sealed case list only:
 `verdict` refuses results with a sealed case missing, repeated or replaced. Nothing in the tool
 lowers N or the over-sample. Tests: `TestSeal_FIH_V1_002_014`,
 `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictFailClosed_FIH_V1_004_014`,
-`TestVerdictBoundToSeal_FIH_V1_002_007_014`, `TestFaultedRunStopped_FIH_V1_005_014`.
+`TestVerdictBoundToSeal_FIH_V1_002_007_014`, `TestFaultedRunStopped_FIH_V1_005_014`,
+`TestCloneStopped_FIH_V1_005_008_014`.
 
 - `FIH-V1-015`: (accepted automatically under G14, decision 0596; V1-5405) Line-level proven
 
@@ -433,19 +456,19 @@ proven` until it does. Test: `TestVerdictGranularity_FIH_V1_015`.
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
 | FIH-V1-001 | 4 | `tools/fault-harness/prereg.go`, `cmds.go` | `TestPreregistrationHash_FIH_V1_001` |
-| FIH-V1-002 | 4, 7 | `tools/fault-harness/prereg.go`, `seal.go`, `verdict.go`, `revert-rule.json` | `TestRevertRule_FIH_V1_002`, `TestSeal_FIH_V1_002_014`, `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictBoundToSeal_FIH_V1_002_007_014` |
+| FIH-V1-002 | 4, 7 | `tools/fault-harness/prereg.go`, `seal.go`, `verdict.go`, `revert-rule.json` | `TestRevertRule_FIH_V1_002`, `TestSeal_FIH_V1_002_014`, `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictBoundToSeal_FIH_V1_002_007_014`, `TestVerdictFailClosed_FIH_V1_004_014` |
 | FIH-V1-003 | 3 | `tools/fault-harness/faults.go` | `TestChangedLineSites_FIH_V1_003`, `TestFaultsOnChangedLinesInGit_FIH_V1_003` |
 | FIH-V1-004 | 5 | `tools/fault-harness/baseline.go`, `run.go`, `verdict.go` | `TestBaselineQuarantine_FIH_V1_004`, `TestRunSealedSet_FIH_V1_004_005_006`, `TestVerdictFailClosed_FIH_V1_004_014` |
-| FIH-V1-005 | 3 | `tools/fault-harness/run.go`, `adapter.go`, `exec.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoOutcomesFailClosed_FIH_V1_005`, `TestFaultedRunStopped_FIH_V1_005_014` |
+| FIH-V1-005 | 3 | `tools/fault-harness/run.go`, `adapter.go`, `exec.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoOutcomesFailClosed_FIH_V1_005`, `TestFaultedRunStopped_FIH_V1_005_014`, `TestStopError_FIH_V1_005`, `TestCloneStopped_FIH_V1_005_008_014` |
 | FIH-V1-006 | 3 | `tools/fault-harness/run.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoParityWithOracle_FIH_V1_011` |
-| FIH-V1-007 | 7 | `tools/fault-harness/verdict.go`, `cmds.go`, `seal.go` | `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictCommand_FIH_V1_007`, `TestVerdictBoundToSeal_FIH_V1_002_007_014` |
-| FIH-V1-008 | 6 | `tools/fault-harness/adapter.go` (Go adapter only) | `TestAdapterContract_FIH_V1_008`; six adapters not yet built |
+| FIH-V1-007 | 7 | `tools/fault-harness/verdict.go`, `cmds.go`, `seal.go` | `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictCommand_FIH_V1_007`, `TestVerdictBoundToSeal_FIH_V1_002_007_014`, `TestRunSealedSet_FIH_V1_004_005_006` |
+| FIH-V1-008 | 6 | `tools/fault-harness/adapter.go` (Go adapter only) | `TestAdapterContract_FIH_V1_008`, `TestCloneStopped_FIH_V1_005_008_014`; six adapters not yet built |
 | FIH-V1-009 | 6 | not yet built | not yet built |
 | FIH-V1-010 | 6 | not yet built | not yet built |
 | FIH-V1-011 | 3 | `tools/fault-harness/aeo.go`, `main.go` | `TestGoParityWithOracle_FIH_V1_011` |
 | FIH-V1-012 | 9 | not yet built | not yet built |
 | FIH-V1-013 | 3 | `tools/fault-harness` | `TestImports_FIH_V1_013` |
-| FIH-V1-014 | 4, 7 | `tools/fault-harness/seal.go`, `verdict.go`, `run.go` | `TestSeal_FIH_V1_002_014`, `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictFailClosed_FIH_V1_004_014`, `TestVerdictBoundToSeal_FIH_V1_002_007_014`, `TestFaultedRunStopped_FIH_V1_005_014` |
+| FIH-V1-014 | 4, 7 | `tools/fault-harness/seal.go`, `verdict.go`, `run.go` | `TestSeal_FIH_V1_002_014`, `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictFailClosed_FIH_V1_004_014`, `TestVerdictBoundToSeal_FIH_V1_002_007_014`, `TestFaultedRunStopped_FIH_V1_005_014`, `TestCloneStopped_FIH_V1_005_008_014` |
 | FIH-V1-015 | 7 | `tools/fault-harness/verdict.go` | `TestVerdictGranularity_FIH_V1_015` |
 
 Release evidence (seven sealed pre-registrations, the cost-check reports, seven verdicts at the RC
