@@ -5,9 +5,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -23,13 +20,18 @@ import (
 // the path's own help (GPK-V0-062, GPK-V0-064); notHelp lists vectors where --help is a value or
 // follows "--" and so is not a help request. ownsRoot marks a verb that takes its own --root
 // after the verb (AHI-373), so a global --root before it is refused, even with --help.
+// helpContains lists text the path's help must carry beyond the generic checks (a flag or usage
+// form a reader relies on); processRefuse lists vectors after the path that a separate corvint
+// process (the second entry point, candidateCommand) must refuse with the row's code.
 type cliKitRow struct {
-	path         string
-	refusal      string
-	ownsRoot     bool
-	refuse       [][]string
-	helpAnywhere [][]string
-	notHelp      [][]string
+	path          string
+	refusal       string
+	ownsRoot      bool
+	refuse        [][]string
+	helpAnywhere  [][]string
+	notHelp       [][]string
+	helpContains  []string
+	processRefuse [][]string
 }
 
 // cliKitStdoutVerdict marks `cem verify-stable`, whose stable contract (CEM-V1-017) prints a
@@ -48,8 +50,10 @@ const cliKitInvalidRoot = "/definitely/not/a/repository"
 var cliKitTable = []cliKitRow{
 	{path: "", refusal: "invalid-arguments",
 		refuse:       [][]string{{"help", "not-a-command"}, {"version"}},
-		helpAnywhere: [][]string{{"--help", "context"}, {"-h", "context"}}},
-	{path: "adopt", refusal: "invalid-arguments", refuse: [][]string{{"--revision"}}},
+		helpAnywhere: [][]string{{"--help", "context"}, {"-h", "context"}},
+		helpContains: []string{"\n    cem  ", "\n    test-plan  ", "\n    adopt  ", "\n    init  alias of adopt\n"}},
+	{path: "adopt", refusal: "invalid-arguments", refuse: [][]string{{"--revision"}},
+		helpContains: []string{"--full-receipt"}, processRefuse: [][]string{{"--unknown"}}},
 	{path: "affected", refusal: "invalid-arguments"},
 	{path: "affected audit", refusal: "invalid-arguments"},
 	{path: "affected cache", refusal: "invalid-arguments"},
@@ -80,7 +84,8 @@ var cliKitTable = []cliKitRow{
 	{path: "impact", refusal: "invalid-arguments",
 		helpAnywhere: [][]string{{"path/a.go", "--help"}}, notHelp: [][]string{{"--", "--help"}}},
 	{path: "index", refusal: "invalid-arguments", helpAnywhere: [][]string{{"--if-stale", "--help"}}},
-	{path: "init", refusal: "invalid-arguments", refuse: [][]string{{"--revision"}}},
+	{path: "init", refusal: "invalid-arguments", refuse: [][]string{{"--revision"}},
+		helpContains: []string{"--full-receipt"}, processRefuse: [][]string{{"--revision"}}},
 	{path: "mcp", refusal: "invalid-arguments", ownsRoot: true},
 	{path: "overview", refusal: "invalid-arguments"},
 	{path: "review", refusal: "invalid-arguments"},
@@ -101,8 +106,10 @@ var cliKitTable = []cliKitRow{
 	{path: "test shards", refusal: "invalid-arguments"},
 	{path: "test verify-shards", refusal: "invalid-arguments"},
 	{path: "test-evidence", refusal: "invalid-arguments",
-		refuse: [][]string{{}, {"--explain", "x"}, {"x", "--lines", "0:0"}}},
-	{path: "test-plan", refusal: "test-plan-invalid-arguments", refuse: [][]string{{}}},
+		refuse:       [][]string{{}, {"--explain", "x"}, {"x", "--lines", "0:0"}},
+		helpContains: []string{"--explain"}},
+	{path: "test-plan", refusal: "test-plan-invalid-arguments", refuse: [][]string{{}},
+		helpContains: []string{"test-plan consolidate --input FILE"}},
 	{path: "test-plan check", refusal: "test-plan-invalid-arguments"},
 	{path: "test-plan consolidate", refusal: "test-plan-invalid-arguments"},
 	{path: "test-plan page-state", refusal: "test-plan-invalid-arguments"},
@@ -143,21 +150,26 @@ func cliKitRun(args []string) cliKitInvocation {
 // argument-class diagnostic and no output (CAP-V0-057), and the table covers exactly the tree
 // (CAP-V0-055). Run one command with -run 'TestCLIKit/^cem_begin$'.
 func TestCLIKit(t *testing.T) {
-	// PATH holds only Git, so the docs, flows and how shims find no corvint-docs on any host and
-	// their refusal is the same everywhere; the repository fixture is made before PATH narrows.
+	// PATH is an empty directory, so the docs, flows and how shims find no corvint-docs on any
+	// host and their refusal is the same everywhere. No help or refusal path the kit drives starts
+	// Git (the kit passes with no Git on PATH), so nothing is linked or copied in and no platform
+	// skips it. The repository fixture is made before PATH narrows.
 	root := cliRepository(t)
-	gitPath, err := exec.LookPath("git")
-	if err != nil {
-		t.Fatal(err)
-	}
-	bin := t.TempDir()
-	if err := os.Symlink(gitPath, filepath.Join(bin, filepath.Base(gitPath))); err != nil {
-		t.Skipf("cannot isolate PATH: %v", err)
-	}
-	t.Setenv("PATH", bin)
+	t.Setenv("PATH", t.TempDir())
 
 	tree := commandTree()
 	t.Run("CAP-V0-055 the table covers exactly the command tree", func(t *testing.T) {
+		for _, problem := range clitree.Problems(tree) {
+			t.Errorf("command tree problem: %s", problem)
+		}
+		seen := map[string]bool{}
+		for _, node := range tree.Nodes {
+			if path := strings.Join(node.Path, " "); seen[path] {
+				t.Errorf("command tree lists node %q twice", path)
+			} else {
+				seen[path] = true
+			}
+		}
 		rows := map[string]bool{}
 		for _, row := range cliKitTable {
 			if rows[row.path] {
@@ -229,6 +241,11 @@ func cliKitHelp(t *testing.T, nodes []clitree.Node, row cliKitRow, path []string
 	if !strings.HasSuffix(want, "\n") {
 		t.Errorf("%q help lacks a terminal LF", path)
 	}
+	for _, text := range row.helpContains {
+		if !strings.Contains(want, text) {
+			t.Errorf("%q help does not contain %q", path, text)
+		}
+	}
 	var forms [][]string
 	for _, prefix := range [][]string{nil, {"--root", cliKitInvalidRoot}, {"--root=" + cliKitInvalidRoot}} {
 		for _, flag := range []string{"--help", "-h"} {
@@ -287,6 +304,11 @@ func cliKitRefusals(t *testing.T, root string, row cliKitRow, path []string) {
 			continue
 		}
 		cliKitEnvelope(t, args, got, row.refusal)
+	}
+	for _, tail := range row.processRefuse {
+		args := slices.Concat([]string{"--root", root}, path, tail)
+		result := execute(t, candidateCommand(args...))
+		cliKitEnvelope(t, args, cliKitInvocation{exit: result.exit, stdout: string(result.stdout), stderr: string(result.stderr)}, row.refusal)
 	}
 	// Under a root that is not a repository the command still refuses with an envelope, before or
 	// after it would open the root, and never reads stdin.
