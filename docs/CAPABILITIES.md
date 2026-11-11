@@ -440,7 +440,8 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-analyzer-swift help` | Show command help or the offline machine catalog. | `corvint-cli --binary corvint-analyzer-swift help --json` | `corvint-cli --binary corvint-analyzer-swift help --help`; [corvint-analyzer-swift](../internal/capcatalog/trees/corvint-analyzer-swift.json) |
 | `corvint-cli` | usage: corvint-cli --binary BINARY [ARGS...] | `corvint-cli --binary BINARY` | `corvint-cli --help`; [corvint-cli](../internal/capcatalog/trees/corvint-cli.json) |
 | `corvint-cli help` | Show command help or the offline machine catalog. | `corvint-cli help --json` | `corvint-cli help --help`; [corvint-cli](../internal/capcatalog/trees/corvint-cli.json) |
-| `corvint-docs docs` | Experimental source documentation orientation | `corvint-docs docs citations check` | `corvint-docs docs --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
+| `corvint-docs docs` | Experimental source documentation orientation | `corvint-docs docs check` | `corvint-docs docs --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
+| `corvint-docs docs check` | Check every piece of the repository's documentation in one pass | `corvint-docs docs check` | `corvint-docs docs check --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs docs citations` |  | `corvint-docs docs citations check` | `corvint-docs docs citations --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs docs citations check` |  | `corvint-docs docs citations check` | `corvint-docs docs citations check --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs docs consume` |  | `corvint-docs docs consume --source PATH --package DIRECTORY --task TEXT < draft.md` | `corvint-docs docs consume --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |

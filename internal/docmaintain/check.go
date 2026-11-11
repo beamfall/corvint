@@ -176,3 +176,75 @@ func committedPage(ctx context.Context, budget *gitrun.Budget, root, commit, pag
 	}
 	return raw, true, nil
 }
+
+// Discovery bounds of MarkerPages.
+const (
+	maxDiscoveryFiles = 1 << 16
+	maxDiscoveryBytes = 256 << 20
+)
+
+// MarkerPages lists, sorted, every tracked Markdown page at HEAD whose committed bytes carry a
+// generated-block begin marker, with the HEAD commit it read (DMF-V1-002). A marker inside fenced
+// code still lists the page; Check then finds no block there.
+func MarkerPages(ctx context.Context, root string) ([]string, string, error) {
+	budget := gitrun.NewBudget(3, 2*time.Minute)
+	run := func(stdin []byte, limit int, args ...string) ([]byte, error) {
+		return gitrun.Run(ctx, budget, gitrun.Options{Dir: root, Env: gokernel.SanitizedGitEnvironment(), Stdin: stdin, StdoutLimit: limit},
+			append([]string{"--no-replace-objects", "-c", "core.quotePath=false"}, args...)...)
+	}
+	head, err := run(nil, 256, "rev-parse", "--verify", "HEAD^{commit}")
+	if err != nil {
+		return nil, "", refuse("repository-unavailable")
+	}
+	commit := strings.TrimSpace(string(head))
+	listing, err := run(nil, 64<<20, "ls-tree", "-r", "-z", "-l", "--full-tree", commit)
+	if err != nil {
+		return nil, "", refuse("repository-unavailable")
+	}
+	type blob struct{ path, oid string }
+	var blobs []blob
+	total := 0
+	for record := range bytes.SplitSeq(bytes.TrimSuffix(listing, []byte{0}), []byte{0}) {
+		meta, name, ok := strings.Cut(string(record), "\t")
+		fields := strings.Fields(meta)
+		if !ok || len(fields) != 4 || fields[1] != "blob" || !strings.HasPrefix(fields[0], "100") || !strings.HasSuffix(strings.ToLower(name), ".md") {
+			continue
+		}
+		size := 0
+		fmt.Sscan(fields[3], &size)
+		total += size
+		blobs = append(blobs, blob{name, fields[2]})
+	}
+	if len(blobs) > maxDiscoveryFiles || total > maxDiscoveryBytes {
+		return nil, "", &Refusal{Code: "discovery-too-large", Message: fmt.Sprintf("%d tracked Markdown files (%d bytes) exceed the discovery bound", len(blobs), total)}
+	}
+	if len(blobs) == 0 {
+		return []string{}, commit, nil
+	}
+	var request strings.Builder
+	for _, b := range blobs {
+		request.WriteString(b.oid + "\n")
+	}
+	raw, err := run([]byte(request.String()), maxDiscoveryBytes+len(blobs)*128, "cat-file", "--batch")
+	if err != nil {
+		return nil, "", refuse("repository-unavailable")
+	}
+	pages := []string{}
+	marker := []byte(beginMarkerPrefix)
+	for _, b := range blobs {
+		header, rest, ok := bytes.Cut(raw, []byte{'\n'})
+		fields := strings.Fields(string(header))
+		size := 0
+		if ok && len(fields) == 3 {
+			fmt.Sscan(fields[2], &size)
+		}
+		if !ok || len(fields) != 3 || fields[0] != b.oid || len(rest) < size+1 {
+			return nil, "", refuse("repository-unavailable")
+		}
+		if bytes.Contains(rest[:size], marker) {
+			pages = append(pages, b.path)
+		}
+		raw = rest[size+1:]
+	}
+	return pages, commit, nil
+}

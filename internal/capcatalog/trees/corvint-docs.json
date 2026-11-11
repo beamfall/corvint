@@ -56,6 +56,8 @@
       "command": "corvint-docs docs",
       "summary": "Experimental source documentation orientation",
       "usage": [
+        "corvint-docs [--root PATH] docs check                      (corvint-docs help docs check)",
+        "corvint-docs [--root PATH] docs check",
         "corvint-docs [--root PATH] docs citations check [--json] [PATH...]",
         "corvint-docs [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md",
         "corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)",
@@ -210,8 +212,26 @@
         "--workspace"
       ],
       "required": [],
-      "example": "corvint-docs docs citations check",
+      "example": "corvint-docs docs check",
       "help": "corvint-docs docs --help"
+    },
+    {
+      "path": [
+        "docs",
+        "check"
+      ],
+      "command": "corvint-docs docs check",
+      "summary": "Check every piece of the repository's documentation in one pass",
+      "usage": [
+        "corvint-docs [--root PATH] docs check                      (corvint-docs help docs check)",
+        "corvint-docs [--root PATH] docs check"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint-docs docs check",
+      "help": "corvint-docs docs check --help"
     },
     {
       "path": [
