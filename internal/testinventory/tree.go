@@ -165,23 +165,15 @@ func (git Git) ObjectFormat(ctx context.Context) (string, error) {
 	}
 }
 
-// requireTopLevel refuses a Root that is not the working tree's top level.
+// requireTopLevel refuses a Root that is not the working tree's top level:
+// Git prints Root's path below the top level, empty at the top level.
 func (git Git) requireTopLevel(ctx context.Context) error {
-	out, err := git.Output(ctx, "rev-parse", "--show-toplevel")
+	out, err := git.Output(ctx, "rev-parse", "--show-prefix")
 	if err != nil {
 		return err
 	}
-	top := filepath.FromSlash(strings.TrimRight(string(out), "\r\n"))
-	topInfo, err := os.Stat(top)
-	if err != nil {
-		return err
-	}
-	rootInfo, err := os.Stat(git.Root)
-	if err != nil {
-		return err
-	}
-	if !os.SameFile(topInfo, rootInfo) {
-		return fmt.Errorf("root %s is not the Git top level %s; run from the top level", git.Root, top)
+	if prefix := strings.TrimRight(string(out), "\r\n"); prefix != "" {
+		return fmt.Errorf("root %s is %s below the Git top level; run from the top level", git.Root, prefix)
 	}
 	return nil
 }
