@@ -32,9 +32,12 @@ independent review, is left to the orchestrator.
   `docs_draft` and `docs_consume` name each other. No tool is pruned (R42 B9).
 - DMF-V1-009: `corvint.docs_recommend_tests` is removed; descriptions send test questions to
   `corvint.affected` on `corvint mcp` (R42 B2).
-- DMF-V1-010: one error shape (`code`, `message`, `retryable`, `next`) on every tool error and every
-  `-32602` data object; `server-busy` and `cancelled` replace `-32603`; a failed `corvint-docs`
-  child keeps its last stderr line.
+- DMF-V1-010: one error shape (`code`, `message`, `retryable`, `next`) on every docs, corpus,
+  test-validity and affected tool error and every `-32602` data object; `server-busy` and
+  `cancelled` replace `-32603`; a failed `corvint-docs` child keeps its last stderr line. Not
+  delivered: the `corvint-mcp` code-tool objects `corvint-mcp-tool-error/0` and `/1` keep their
+  exact bytes, since decision 0383 and the `conformance/mcp-2026-07-28` vectors freeze them; adding
+  the members there needs a new profile version and a decision amendment (left to the owner).
 - DMF-V1-011: a rebuilt corpus artifact is verified with the first-call read and served without a
   restart; a failed verification is refused with its reason and the old artifact is never served. A
   live `corvint-mcp` session that rebuilt the artifact between two `docs_search` calls is kept in
