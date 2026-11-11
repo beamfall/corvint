@@ -849,11 +849,14 @@ owner's standing lane auto-accept (2026-10-11).
   `DECLARED_RUNTIME_READERS` path whose literal, scoped and unbounded readers are selected, with no
   `UNOWNED_DIRTY_PATH` and no frontier fan-out; a `*-changed` frontier such a declaration already
   raises (`go:gated-root-locators-changed`, `shell:read-scopes-changed`,
-  `shell:foreign-callers-changed`, `shell:test-inputs-changed`) is unchanged. `Makefile`,
-  `.github/` workflow and action files, `.corvint/documentation-paths.json`,
-  `.corvint/runtime-readers.json` and
-  `.corvint/unbounded-reader-exclusions.json` stay `UNOWNED_DIRTY_PATH`: no sound mapping exists,
-  because a driver input runs every step it defines and a declaration would classify itself.
+  `shell:foreign-callers-changed`, `shell:test-inputs-changed`) is unchanged. `Makefile` and
+  `.github/` workflow and action files stay `UNOWNED_DIRTY_PATH`: no sound mapping exists, because
+  a driver input runs every step it defines. The parser-owned control declarations
+  (`.corvint/documentation-paths.json`, `.corvint/runtime-readers.json`,
+  `.corvint/unbounded-reader-exclusions.json` and the others AZU-V0-8910 names) are declared only by
+  their exact AZU-V0-8910 entries, so an edit to one, including a change that adds an entry to
+  `.corvint/runtime-readers.json`, is `DECLARED_RUNTIME_READERS` with its readers selected; without
+  its exact entry each keeps `UNOWNED_DIRTY_PATH` (V1-5009).
 - **AFP-V0-2405:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-3480) An `UNOWNED_DIRTY_PATH` entry whose path is a driver input (a make file, a
   `.github/workflows/` or `.github/actions/` file) and that carries no hint SHALL carry the hint
