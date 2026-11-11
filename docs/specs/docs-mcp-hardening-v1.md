@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-11
 Requirement prefix: `DMF-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5409)
-Delivery status: not-started
+Delivery status: implemented
 Authoritative inputs: change folder `docs/specs/openspec/changes/docs-mcp-hardening/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/docs-mcp-hardening/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-DOCS-001, 003, 005, 007 and 009) and
@@ -12,9 +12,9 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/docs-mcp-harden
 
 ## Agent digest
 - Claim: One docs check reports staleness honestly; docs MCP tools get distinct descriptions, one actionable error shape and a corpus reload without restart.
-- Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5409) / not-started
-- Exists: the change folder only.
-- Blocked on: tasks 3 to 14 of the change.
+- Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5409) / implemented
+- Exists: `corvint-docs docs check`, `docs maintain --check`, `docs citations check --json`, the `worktree` member, WAIVED flow-doc marks, flow byte detail, the recorded flows output directory, distinct docs tool descriptions, the shared MCP error shape, corpus reload and the stale consume message; `docs_recommend_tests` is removed.
+- Blocked on: the independent review of the whole change (task 15).
 - Read next: Requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
