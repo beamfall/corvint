@@ -187,6 +187,9 @@ type affectedInvocation struct {
 	// JobsDeclaration is set only by `affected jobs`: the CI job input
 	// declaration evaluated over the range (AFP-V0-2341).
 	JobsDeclaration string
+	// ProposeDataMap is set only by `affected --propose-data-map`: the
+	// recorded-reads file the proposal is written from (NCM-V1-003).
+	ProposeDataMap string
 }
 
 type playwrightAffectedReceipt struct {
@@ -395,6 +398,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(rest) != 0 && rest[0] == "jobs" {
 		return parseAffectedJobsOptions(rest[1:])
+	}
+	if len(rest) != 0 && (rest[0] == "--propose-data-map" || strings.HasPrefix(rest[0], "--propose-data-map=")) {
+		return parseAffectedProposeDataMapOptions(rest)
 	}
 	invocation := affectedInvocation{}
 	baseSet := false
@@ -881,6 +887,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	}
 	if invocation.JobsDeclaration != "" {
 		return runAffectedJobs(ctx, invocation, stdout, stderr)
+	}
+	if invocation.ProposeDataMap != "" {
+		return runAffectedProposeDataMap(invocation, stdout, stderr)
 	}
 	invocation.sharedVia = !invocation.Full
 	if invocation.ByPath {

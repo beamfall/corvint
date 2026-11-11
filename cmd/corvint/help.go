@@ -439,6 +439,7 @@ Usage:
   corvint [--root PATH] affected cache [--format json|doctor-plugin]
   corvint [--root PATH] affected audit --changes FILE [--accept-stale-binary]
   corvint [--root PATH] affected --ownership-audit
+  corvint [--root PATH] affected --propose-data-map RECORDED
   corvint [--root PATH] affected jobs --base FULL_COMMIT_ID [--declaration PATH]
           [--accept-stale-binary]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
@@ -669,6 +670,15 @@ claimant or a project declaration claims: the paths a plan reports as
 UNOWNED_DIRTY_PATH. It refuses a dirty worktree, builds the graph without the
 cache, writes nothing, and exits 0 when no path is unowned, 1 when some path
 is, and 2 on an error.
+
+affected --propose-data-map RECORDED (experimental, NCM-V1-003) reads recorded
+test reads, one JSON object {"test": ID, "path": PATH} per line, and writes to
+stdout a corvint-data-map/0 document with one proposed entry per read path. A
+proposed entry has no accepted_by, accepted_at, pinned_commit or proof, so it
+narrows nothing until a person copies it into .corvint/data-map.json, accepts
+it and an FIH-V1 fault case proves it. It writes no file; an invalid map is
+refused with data-map-invalid and exit 2. Example:
+  corvint affected --propose-data-map reads.jsonl > proposal.json
 
 affected jobs (experimental, AFP-V0-2340 to AFP-V0-2346) evaluates the
 project-owned input declaration of non-test CI jobs (--declaration, default
