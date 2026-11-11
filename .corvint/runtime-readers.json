@@ -54,6 +54,10 @@
       "reason": "record-directory reader ratchet record (AFP-V0-2745); read through path literals by tools/unbounded-readers and tools/declaration-compat-check and by the root-locating repository tests the unbounded-reader rule selects; never a selection input or loaded by a computed name or a build or CI driver"
     },
     {
+      "path": ".corvint/requirement-links.json",
+      "reason": "committed path-to-requirement links (TBC-V1-012), written by internal/pathbrief/cmd/requirement-links-export and read by `corvint context --path` (internal/pathbrief) through a path-literal constant; never executed or imported, and never read by the test planner or selector"
+    },
+    {
       "path": ".corvint/runtime-edges.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
