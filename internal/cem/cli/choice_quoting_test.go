@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // A hostile invalid choice is rendered as a Python repr, as argparse's %r does,

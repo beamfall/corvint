@@ -374,7 +374,7 @@ structural-refusal compatibility evidence only; they are not current build/CI qu
 | complete policy and receipt | 003..007 | internal/tracerecordrepo/aggregate_outcome_test.go and adapter_test.go; full current-policy parity and independently expected fields |
 | pending restart and terminal reuse | 008..011 | internal/localcompletion lifecycle/storage/Unix tests; actual new-process load/status/event/Finish at every boundary, read-only hashes |
 | writer contention and preservation | 012..016 | internal/dogfoodoperation/lock_test.go; internal/dogfoodflow change/check/worker tests; exact old identity, state-before closure, fault and capacity refusal |
-| physical budget and owned cleanup | 017..019 | internal/cem/gitrun/operation_budget_test.go; internal/contextindex/git_test.go; unchanged Owner tests and actual native RELEASED witnesses |
+| physical budget and owned cleanup | 017..019 | internal/gitrun/operation_budget_test.go; internal/contextindex/git_test.go; unchanged Owner tests and actual native RELEASED witnesses |
 | dispatch and predecessor | 020 | cmd/corvint event/portable/worker tests; console/receiptbundle tests; actual original-main predecessor refuses genuine /1 state and legacy /0 still works |
 | source-bound qualification | 021,022 | immutable candidate manifests/raw argv/exit/stdout/stderr, fresh process phase snapshots, independent review, CEM/OCM and native gate receipts |
 | transport-adapted held recovery | 023..026 | cmd/corvint/transport_recovery_test.go TestTransportAdaptedRecoveryNative (removed); internal/localcompletion/transport_recovery_test.go TestTransportRecoveryRequestClosedCanonical (removed), TestTransportRecoveryAdmissionsClosed (removed); refusals with unchanged evidence bytes, pending disagreement, public-check refusal, recorded A/B identities, committed refusal |
@@ -478,7 +478,7 @@ The requirement definition positions above are preserved for the separately owne
   `planDigest`, `profile`, `qualification` and `session`, as `json.Marshal` bytes plus one LF.
   The only admission is #443's key/plan with BASE `406f9dc3`/tree `e0dfeaa5`, HELD
   `a79439af`/tree `d6d6b890` and the two pinned adapter patch digests (`c610b712`, `6f58ea18`;
-  owner-widened to `internal/cem/gitrun/session.go` on 2026-10-04); tests link extra rows only
+  owner-widened to `internal/gitrun/session.go` on 2026-10-04); tests link extra rows only
   with `-ldflags -X`. Verifiers still run through the `dogfood-verifier-worker` route; their public
   route refuses. Request provenance is returned on stdout, not stored in local-completion state.
   Refusals are `transport-recovery-request-unavailable`, `transport-recovery-request-invalid`,

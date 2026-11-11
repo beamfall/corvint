@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 func TestAuthorityDirectoryFIFORefusal(t *testing.T) {

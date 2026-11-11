@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/coverprofile"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 const whisperTarget = importReorderTarget + "\n// Whisper lower-cases s.\nfunc Whisper(s string) string { return strings.ToLower(s) }\n"

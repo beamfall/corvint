@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // Held member access (CEM-V1-244, V1-2106). A caller that judges a root by its

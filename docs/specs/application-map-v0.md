@@ -73,6 +73,41 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 
 ## Requirements
 
+- `AMAP-V0-8780`: (experimental under the standing lane auto-accept, 2026-11-11; V1-4838) Revision
+  resolution MUST retain an underlying Git process failure instead of reporting that
+  the revision is not a commit. Resolution runs `rev-parse --quiet --verify`. A plain
+  exit 1 is Git's verified answer that no such commit exists. A plain exit 128 is also
+  a revision defect when, and only when, a second probe `rev-parse --git-dir` in the
+  same root exits 0: Git could read the repository, so the 128 came from the revision
+  itself (a reflog entry the repository lacks such as `HEAD@{1}` in a one-commit
+  repository, or `@{u}` with no upstream configured). Neither rule reads Git's
+  localised stderr. Both keep each caller's existing refusal
+  (`appmap-invalid-revision`, `appmap-invalid-query` for an impact revision,
+  `appmap-root-unavailable` for an aliased root) with the message
+  "evaluated revision is not a commit". Every other outcome (a start, timeout,
+  cancellation or output-overflow error, which retains its error chain; an exit 128
+  whose repository probe fails or does not run cleanly; or another nonzero exit, which
+  names its exit status) refuses with the owned code `appmap-source-unavailable`, and
+  every revision caller (build, incremental build, impact, aliased roots, `branches`,
+  `actions`, the route blocker and page-object checks) MUST surface it unchanged.
+  Behaviour change: a `--root` Git cannot read, including a plain directory outside
+  every repository, is a source failure (`appmap-source-unavailable`); before this
+  requirement the callers above reported it as `appmap-invalid-revision`.
+  Platform refusals retain their existing code and message. Empty and option-like
+  revisions still refuse as invalid input, and successful resolution keeps its
+  existing bytes. Raw Git stderr MUST NOT enter product diagnostics; a bounded test
+  diagnostic MAY retain it for the hosted macos-15 investigation. Other Git reader
+  diagnostics and JSON shapes are unchanged. The hosted cause and qualification
+  remain NOT_OBSERVED until the go-macos run records the original stderr.
+  Tests: `TestResolveRetainsGitFailureClass`, `TestRevisionCallersSurfaceGitSourceFailure`,
+  `TestResolveHostGitDiagnostics` (real Git: `HEAD@{1}` in a one-commit repository and `@{u}`
+  with no upstream are invalid revisions; a plain directory is a source failure),
+  `TestAMAPV0110BranchesReadOnlyContract` and `TestAMAPV0100ActionsReadOnlyContract` (a plain
+  directory root), and
+  `TestGitPlatformRefusalIsNotReportedAsARevisionDefect` in `internal/appmap`.
+  Rollback: restore the resolve fallback, the callers' platform-only passthrough and
+  the `appmap-source-unavailable` code.
+
 AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016 is proposed
 (V1-0981; GitHub #669) and awaits owner acceptance; AMAP-V0-021 to AMAP-V0-023 are accepted
 (decision 0460; V1-1027; GitHub #685); AMAP-V0-024 to AMAP-V0-026 are accepted (decision 0475;
@@ -2380,6 +2415,7 @@ optional `note`, `count` and `tests` of `test`, `basis` and optional `route`, an
 | --- | --- |
 | `appmap-invalid-manifest` | The manifest is absent, not closed, over its bound, or names an escaping path, unknown dialect, directory outside `tests.root`, or declared directory absent at the revision. |
 | `appmap-invalid-revision` | The build revision does not resolve to a commit, or a `refs`, `actions` or `branches` map revision is not a commit of `--root` or its manifest does not match the map's manifest anchor. |
+| `appmap-source-unavailable` | Git could not answer a revision lookup: it failed to start, timed out, was cancelled, overflowed its output bound, or exited other than with its verified "no such commit" status (AMAP-V0-8780). |
 | `appmap-invalid-flows` | A flow intent under the manifest's `flows` directory does not decode. |
 | `appmap-invalid-map` | A map file is not a regular file, is over 64 MiB, is not closed, has trailing data, a wrong schema, a member this binary does not decode (AMAP-V0-960), or a digest mismatch. |
 | `appmap-invalid-query` | `--budget` is out of range or combined with `--full`, a `find` query is not 2..128 bytes, or a `refs` `--source` list is empty, over 16, duplicated, escaping or not a directory at the map revision, or a `branches` `--cite` list is empty, over 16, duplicated, escaping, not Ruby, absent, out of range or outside every application root. |
@@ -2664,6 +2700,10 @@ Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-appmap-injected-state-names.md` (AMAP-V0-021..023,
 `internal/appmap/stateinject.go`), `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-09-v1-1061-appmap-enum-barrel.md`
 (AMAP-V0-024..026).
+
+| Requirement | Implementation and test evidence |
+| --- | --- |
+| AMAP-V0-8780 | `internal/appmap/gitread.go` (`resolve`, `orProcessFailure`) and its callers in `compile.go`, `incremental.go`, `impact.go`, `sourceroots.go`, `branch_tests.go`, `route_handlers.go`, `route_blocker.go`; `TestResolveRetainsGitFailureClass` (exit 1/128/129, exit 128 with a readable and an unreadable repository probe, start/timeout/cancel/overflow/platform, valid and invalid inputs); `TestRevisionCallersSurfaceGitSourceFailure` (ten callers under exit 128 and timeout, plus each caller's verified-missing refusal); `TestResolveHostGitDiagnostics` (real Git: HEAD, a missing ref, `HEAD@{1}` in a one-commit repository, `@{u}` without an upstream, an unreadable repository, a plain directory, bounded stderr); `TestAMAPV0110BranchesReadOnlyContract`, `TestAMAPV0100ActionsReadOnlyContract` (plain directory root). Hosted qualification pending. |
 
 ## Rollout, rollback and compatibility
 

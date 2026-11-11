@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // PublishSecure publishes through held directory descriptors. It rejects

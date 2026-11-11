@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitrun"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 

@@ -3,7 +3,7 @@ package patch
 import (
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestCEMV1930ModeChangeGrammar pins CEM-V1-930 (V1-3404): a modification or
