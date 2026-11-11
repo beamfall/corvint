@@ -1,7 +1,7 @@
 # Context replay and requirement-link count behind the path-brief amendment
 
 Finding recorded for the amendment of 2026-11-10 to change `ticket-brief-context` (TBC-V1-009 to
-TBC-V1-014, PROD-INT-032, all proposed). Read at `origin/main`
+TBC-V1-014, PROD-INT-032; proposed when this was measured, see "Owner acceptance" below). Read at `origin/main`
 `f6be4233cf209f251d7a039515c3e832cdad8c33` with the installed `corvint` build 144. Scratch scripts,
 not committed. Nothing here proves a requirement of the amendment; it is why the amendment was
 drafted.
@@ -52,6 +52,14 @@ change `source-removal` deletes them. TBC-V1-012 proposes a one-time export of t
 partial (442 of 1,847 files, and about a quarter of the links name no requirement), so TBC-V1-010
 never reports the `requirements` section as complete. The count does not show that an agent does
 better with the links; TBC-V1-013 and TBC-V1-014 are the checks for that.
+
+## Owner acceptance
+
+On 2026-11-10 the owner was asked "Do you accept PROD-INT-032 so the coverage check can run?" and
+answered "Accept into 1.0". PROD-INT-032 now carries the marker `(accepted 2026-11-10; V1-5299)`
+and an `owner` row in `docs/specs/openspec/acceptance-log.tsv`, written by the lane on that
+instruction. The answer does not set the coverage bar of TBC-V1-013 and does not answer the other
+questions listed in the change's `design.md`; those stay open.
 
 ## Not run
 

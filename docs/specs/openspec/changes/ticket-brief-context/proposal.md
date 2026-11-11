@@ -12,11 +12,12 @@ exist yet; the lane creates it in its first commit.
 Requirement IDs this change adds: TBC-V1-001 to TBC-V1-008 (TBC-V1-008 added 2026-11-09 for owner
 decision R30). `TBC-` has no entry in
 `docs/specs/REQUIREMENTS.tsv` (checked 2026-11-09 on `claude/layers-integ` at `9ec3a29d0`).
-Amendment of 2026-11-10 (proposed, not accepted): TBC-V1-009 to TBC-V1-014 add a path form of the
-brief that needs no ticket, keep the requirement links of the sealed change records, and move a
-coverage check and a pilot ahead of the build. They serve PROD-INT-032, which is proposed and has a
-`pending-owner` row in `docs/specs/openspec/acceptance-log.tsv`. PROD-INT-030 and TBC-V1-001 to
-TBC-V1-008 are unchanged. Nothing of the amendment is built before the owner accepts PROD-INT-032.
+Amendment of 2026-11-10: TBC-V1-009 to TBC-V1-014 add a path form of the brief that needs no
+ticket, keep the requirement links of the sealed change records, and move a coverage check and a
+pilot ahead of the build. They serve PROD-INT-032, which the owner accepted into 1.0 on 2026-11-10
+("Accept into 1.0") and which has an `owner` row in `docs/specs/openspec/acceptance-log.tsv`.
+PROD-INT-030 and TBC-V1-001 to TBC-V1-008 are unchanged. The coverage check runs first; the export
+and the builder are written only if it meets the owner's bar, which is not set yet.
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started. Release label: ships in 1.0 as redesigned and non-blocking, with no
 claim of measured benefit; the keep-or-remove measurement in TBC-V1-006 runs in 1.0.x (owner
@@ -71,7 +72,7 @@ is something an agent or a person asks for, never something a hook inserts.
 There is no ranking, no term matching and no learned weighting. Every item states which link
 produced it. The ranking code is removed whether or not the brief is kept (G25 "still removed").
 
-### Amendment of 2026-11-10: a path form for agents with no ticket (proposed)
+### Amendment of 2026-11-10: a path form for agents with no ticket
 
 The owner asked on 2026-11-10 for a context command that is useful to every agent. The ticket form
 above needs a Corvint Tasks ticket, so an agent in a repository with no ticket store gets nothing
@@ -113,7 +114,7 @@ A report keyed on a change range is not added: `corvint impact` (CRI-V1) is that
 ### New Capabilities
 
 - `ticket-brief`.
-- Path brief (proposed 2026-11-10): the `--path` form of the same command, part of `ticket-brief`.
+- Path brief (added 2026-11-10): the `--path` form of the same command, part of `ticket-brief`.
 
 ### Modified Capabilities
 
@@ -133,8 +134,8 @@ A report keyed on a change range is not added: `corvint impact` (CRI-V1) is that
 - If the brief is offered over MCP, its tool follows its row in the table of change `mcp-tool-table`
   (owner decision R30).
 
-- Amendment of 2026-11-10, if accepted: added, the path brief builder, the one-time link export
-  and the committed `.corvint/requirement-links.json`. The export reads `.corvint/changes` at a
+- Amendment of 2026-11-10, if the coverage check meets the bar: added, the path brief builder, the
+  one-time link export and the committed `.corvint/requirement-links.json`. The export reads `.corvint/changes` at a
   named commit, so `source-removal` need not wait for it. Reading `CODEOWNERS` and nested
   instruction files is new code; the other four sections reuse the affected engine, the retained
   test evidence, `.corvint/flows.json` and `corvint-tasks`.
