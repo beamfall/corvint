@@ -7519,6 +7519,24 @@ RVN-V0-005	docs/specs/run-verified-navigation-v0.md	The status MUST be exactly o
 RVN-V0-006	docs/specs/run-verified-navigation-v0.md	When receipts are supplied, the `screen` and `flow` projections MUST print the	unrecorded	-
 RVN-V0-007	docs/specs/run-verified-navigation-v0.md	The fact and its text MUST always carry authority `learned`. A run status MUST N	unrecorded	-
 RVN-V0-008	docs/specs/run-verified-navigation-v0.md	Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate	unrecorded	-
+RNC-V1-001	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) One compiled-in contract	unrecorded	-
+RNC-V1-002	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Discovery is explicit and pinned	unrecorded	-
+RNC-V1-003	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Selection is exact or labelled not e	unrecorded	-
+RNC-V1-004	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) All seven runners run through `corvi	unrecorded	-
+RNC-V1-005	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Per-test results from machine report	unrecorded	-
+RNC-V1-006	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Missing results are `NOT_RUN`	unrecorded	-
+RNC-V1-007	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Runners supply kind signals	unrecorded	-
+RNC-V1-008	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Kill switch per runner on every surf	unrecorded	-
+RNC-V1-009	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) External protocol removed	unrecorded	-
+RNC-V1-010	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Jest proven end to end	unrecorded	-
+RNC-V1-011	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Tier and fallback printed and record	unrecorded	-
+RNC-V1-012	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Canonical test ID	unrecorded	-
+RNC-V1-013	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Full command declared by the adopter	unrecorded	-
+RNC-V1-014	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Runner instances keyed by root	unrecorded	-
+RNC-V1-015	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Deterministic sharding for the Actio	unrecorded	-
+RNC-V1-016	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Argument length bounded	unrecorded	-
+RNC-V1-017	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Provider binaries retired	unrecorded	-
+RNC-V1-018	docs/specs/runner-contract-v1.md	(proposed 2026-11-09; delivery not-started) Shell provider status	unrecorded	-
 RSP-V0-001	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
 RSP-V0-002	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
 RSP-V0-003	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Ev	standing	2026-10-11; decision 0592
