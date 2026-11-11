@@ -11,7 +11,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
 - [x] 3 Waived claims render as WAIVED in generation and check (DMF-V1-001). Proof: fixture test
    with a waived PROVEN claim shows the mark in the page and the sidecar; flow-doc goldens
    re-recorded.
-- [ ] 4 `docs maintain --check` (DMF-V1-003). Proof: fixture test, stale block exits 1, fresh exits
+- [x] 4 `docs maintain --check` (DMF-V1-003). Proof: fixture test, stale block exits 1, fresh exits
    0, `--preview` still exits 0.
 - [ ] 5 Citation check changes and `--json` (DMF-V1-004). Proof: fixture tests for a missing
    top-level file, a fenced citation and an unpinned citation; JSON output test.
