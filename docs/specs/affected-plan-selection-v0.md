@@ -2947,7 +2947,10 @@ AFP-V0-003, AFP-V0-398 and RGV-V0-015, so the headline goes to stderr.
   `--format text` quotes it. Stdout SHALL stay byte for byte the AFP-V0-398 document. The
   headline SHALL be left out when stdout and stderr are the same pipe or regular file (as after
   `2>&1`), as AFP-V0-871 leaves out the degradation line, so the merged output still parses as
-  one document, and when stderr is not a file (an in-process caller). A refusal writes no
+  one document, when stderr is not a file (an in-process caller), and when stderr is a pipe or
+  socket, where a write to a closed reader raises SIGPIPE and would end the run before the plan
+  reaches stdout; only a terminal or a regular file receives it, and a write failure there is
+  ignored. A refusal writes no
   headline. Non-goals: any change to stdout, to the selection or to the other output forms; a
   headline in the merged-stream case, which no single byte stream can carry without breaking
   the `2>&1` readers AFP-V0-871 protects. Failure mode: a harness that captures stdout and stderr
