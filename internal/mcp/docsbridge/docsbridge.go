@@ -15,11 +15,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -49,7 +49,10 @@ const (
 // Error is a closed, sanitized transport-level failure: malformed arguments,
 // an unknown tool name, cancellation, or an app process that answered with no
 // envelope. It never carries repository paths or process output.
-type Error struct{ Code string }
+// Error is a transport failure. Message and Next are set only for a failed
+// corvint-docs process: its last stderr line and the command that may fix it
+// (DMF-V1-010).
+type Error struct{ Code, Message, Next string }
 
 func (failure *Error) Error() string { return failure.Code }
 
@@ -192,7 +195,8 @@ func (registry *Registry) run(ctx context.Context, executable, name string, argu
 	var result docsenvelope.ToolResult
 	command := exec.CommandContext(ctx, executable, docsenvelope.ToolVerb, "--root", registry.root, name)
 	command.Stdin = bytes.NewReader(arguments)
-	command.Stderr = io.Discard
+	stderr := &tailWriter{limit: stderrTailBytes}
+	command.Stderr = stderr
 	command.Env = procprofile.ChildEnvironment(os.Environ())
 	docsenvelope.StopOnCancel(command, waitDelay)
 	var stdout bytes.Buffer
@@ -201,7 +205,7 @@ func (registry *Registry) run(ctx context.Context, executable, name string, argu
 		if ctx.Err() != nil {
 			return result, failure("cancelled")
 		}
-		return result, failure("internal-error")
+		return result, childFailure(registry.root, name, err, stderr.lastLine())
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil || result.Schema != docsenvelope.ToolSchema || result.Tool != name {
 		if ctx.Err() != nil {
@@ -256,3 +260,48 @@ func objectSchema(properties map[string]any, required []any) map[string]any {
 }
 
 func failure(code string) *Error { return &Error{Code: code} }
+
+// ChildFailedCode is the transport failure of a corvint-docs process that exited non-zero
+// (DMF-V1-010).
+const ChildFailedCode = "child-process-failed"
+
+// stderrTailBytes bounds the stderr a failed call keeps; only its last line is reported.
+const stderrTailBytes = 4 << 10
+
+// childFailure names what failed with the child's last stderr line and the next step: building
+// the corpus artifact when the line names one, else rerunning the protocol verb to read the full
+// error (DMF-V1-010).
+func childFailure(root, name string, err error, line string) *Error {
+	message := "corvint-docs " + docsenvelope.ToolVerb + " failed for " + name + ": " + err.Error()
+	if line != "" {
+		message += ": " + line
+	}
+	next := "run corvint-docs " + docsenvelope.ToolVerb + " --root " + root + " " + name + " < arguments.json to read the full error"
+	if strings.Contains(strings.ToLower(line), "corpus") {
+		next = "build the corpus artifact: corvint-docs docs corpus build --manifest FILE"
+	}
+	return &Error{Code: ChildFailedCode, Message: message, Next: next}
+}
+
+// tailWriter keeps the last limit bytes written to it.
+type tailWriter struct {
+	limit int
+	tail  []byte
+}
+
+func (writer *tailWriter) Write(p []byte) (int, error) {
+	writer.tail = append(writer.tail, p...)
+	if over := len(writer.tail) - writer.limit; over > 0 {
+		writer.tail = writer.tail[over:]
+	}
+	return len(p), nil
+}
+
+// lastLine is the last non-empty stderr line, trimmed and bounded to valid UTF-8.
+func (writer *tailWriter) lastLine() string {
+	text := strings.TrimRight(string(writer.tail), " \t\r\n")
+	if index := strings.LastIndexByte(text, '\n'); index >= 0 {
+		text = text[index+1:]
+	}
+	return strings.ToValidUTF8(strings.TrimSpace(text), "")
+}

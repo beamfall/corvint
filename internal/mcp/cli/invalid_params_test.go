@@ -3,6 +3,7 @@ package cli
 import (
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -57,7 +58,7 @@ func TestMCPV0952InvalidParamsCarryReasonAndField(t *testing.T) {
 	}
 	for index, test := range cases {
 		failure, _ := responses[float64(index+1)]["error"].(map[string]any)
-		if failure["code"] != float64(-32602) || failure["message"] != "Invalid params" || !reflect.DeepEqual(failure["data"], test.want) {
+		if failure["code"] != float64(-32602) || failure["message"] != "Invalid params" || !reflect.DeepEqual(mcpv0952Members(failure["data"]), test.want) || !dmfDescribed(failure["data"], test.want) {
 			t.Errorf("%s: error=%#v, want data %#v", test.name, failure, test.want)
 		}
 	}
@@ -70,7 +71,47 @@ func TestMCPV0952LegacyInitializeInvalidParamsCarryField(t *testing.T) {
 	exit, responses, _ := legacySession(t, []string{"--root", root},
 		map[string]any{"method": "ping", "params": map[string]any{"x": 1}})
 	failure, _ := responses[1]["error"].(map[string]any)
-	if exit != 0 || failure["code"] != float64(-32602) || !reflect.DeepEqual(failure["data"], map[string]any{"reason": "unknown-param", "field": "params"}) {
+	want := map[string]any{"reason": "unknown-param", "field": "params"}
+	if exit != 0 || failure["code"] != float64(-32602) || !reflect.DeepEqual(mcpv0952Members(failure["data"]), want) || !dmfDescribed(failure["data"], want) {
 		t.Fatalf("ping error=%#v", failure)
+	}
+}
+
+// mcpv0952Members is the closed MCPV0-952 part of a -32602 data object: reason, field, allowed and
+// rule, without the DMF-V1-010 members added beside them.
+func mcpv0952Members(data any) map[string]any {
+	object, _ := data.(map[string]any)
+	kept := map[string]any{}
+	for _, key := range []string{"reason", "field", "allowed", "rule"} {
+		if value, ok := object[key]; ok {
+			kept[key] = value
+		}
+	}
+	return kept
+}
+
+// dmfDescribed reports whether a -32602 data object carries the DMF-V1-010 members: the reason as
+// code, a message that differs from it and names the field, retryable false and a next step.
+func dmfDescribed(data any, want map[string]any) bool {
+	object, _ := data.(map[string]any)
+	message, _ := object["message"].(string)
+	next, _ := object["next"].(string)
+	field, _ := want["field"].(string)
+	return object["code"] == want["reason"] && message != "" && message != object["code"] && strings.Contains(message, field) &&
+		object["retryable"] == false && next != ""
+}
+
+// DMF-V1-010: an invalid argument is a -32602 whose data carries code, a message saying what is
+// wrong with which argument, retryable false and the change that fixes it.
+func TestDMFV1010InvalidArgumentError(t *testing.T) {
+	root := filepath.Clean(t.TempDir())
+	gitInit(t, root)
+	exit, responses, stderr := legacySession(t, []string{"--root", root},
+		map[string]any{"method": "tools/call", "params": map[string]any{"name": "corvint.status", "arguments": map[string]any{"verbose": true}}})
+	failure, _ := responses[1]["error"].(map[string]any)
+	data, _ := failure["data"].(map[string]any)
+	if exit != 0 || failure["code"] != float64(-32602) || data["code"] != "unknown-argument" || data["message"] != "Invalid params: arguments.verbose is not accepted here" ||
+		data["retryable"] != false || data["next"] != "remove arguments.verbose" {
+		t.Fatalf("invalid argument %#v %s", failure, stderr)
 	}
 }

@@ -522,8 +522,8 @@ func (handler *toolHandler) answer(ctx context.Context, name string, arguments m
 		if bridgeErr.Code == "invalid-arguments" || bridgeErr.Code == "unsupported-tool" {
 			return nil, protocol.InvalidParams("Invalid params")
 		}
-		if bridgeErr.Code == "cancelled" || ctx.Err() != nil {
-			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+		if bridgeErr.Code == toolgroup.CancelledCode || ctx.Err() != nil {
+			return handler.toolFailure(name, toolgroup.CancelledCode, "") // DMF-V1-010
 		}
 		return handler.withWorktreeNotice(registry)(handler.toolFailure(name, bridgeErr.Code, bridgeErr.ReasonClass))
 	}
@@ -574,7 +574,7 @@ func (handler *toolHandler) toolErrorObject(name, code, reasonClass string) map[
 		value["profile"] = toolErrorReasonClass
 		value["reasonClass"] = cmp.Or(reasonClass, unclassified)
 	}
-	return value
+	return toolgroup.Describe(value) // DMF-V1-010: message, retryable and next
 }
 
 // structuredResult returns the structuredContent object, its full canonical
