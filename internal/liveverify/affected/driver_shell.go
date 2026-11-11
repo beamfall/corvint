@@ -1393,7 +1393,16 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		// pipe, a heredoc whose body this scanner skips, or a redirect
 		// (AFP-V0-2958).
 		operand := false
-		for index := 1; index < len(words); index++ {
+		// AFP-V0-3602: `node --test` over literal existing files runs those
+		// files, as `node FILE` runs its script operand.
+		nodeTest := base == "node" && len(words) > 2 && words[1].text == "--test" && s.driverNodeTestFiles(words[2:], cwd)
+		if nodeTest {
+			for _, word := range words[2:] {
+				s.pathWord(word.text, cwd)
+			}
+			operand = true
+		}
+		for index := 1; index < len(words) && !nodeTest; index++ {
 			arg := words[index].text
 			if driverShells[base] && strings.HasPrefix(arg, "-") && strings.Contains(arg[1:], "c") && !strings.HasPrefix(arg, "--") {
 				if index+1 < len(words) {
@@ -1472,6 +1481,26 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	s.pathWord(head, cwd)
 	s.embedded(words, cwd)
 	return cwd
+}
+
+// driverNodeTestFiles reports `node --test` operands that are each a literal
+// relative path to an existing regular `.js`, `.mjs` or `.cjs` file recorded
+// as a repository edge (AFP-V0-3602): Node runs exactly those files as tests.
+// No operand, an option, a glob, a directory or a missing file refuses.
+func (s *driverShellScanner) driverNodeTestFiles(words []driverWord, cwd string) bool {
+	for _, word := range words {
+		text := word.text
+		if driverDynamic(text) || strings.HasPrefix(text, "-") || strings.ContainsAny(text, "*?[]{}") ||
+			!(strings.HasSuffix(text, ".js") || strings.HasSuffix(text, ".mjs") || strings.HasSuffix(text, ".cjs")) ||
+			!s.driverOperandRecorded(text, cwd) {
+			return false
+		}
+		info, err := s.scan.source.Lstat(driverJoin(cwd, text))
+		if err != nil || !info.Mode().IsRegular() {
+			return false
+		}
+	}
+	return len(words) != 0
 }
 
 // driverPureCommands read no file, whatever their operands (AFP-V0-3128).
