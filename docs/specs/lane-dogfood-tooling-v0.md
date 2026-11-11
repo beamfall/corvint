@@ -143,7 +143,9 @@ BASE-only CEM evidence and the opaque immutable backend's bounded-open requireme
   survives SIGKILL of the invoking test binary. Cleanup MUST include command-substitution
   descendants; SIGKILL cannot rely on the killed process's cleanup handlers. Every real group
   signal MUST be sent through the unreaped-leader owner (`groupreap.Owner`); after the reap only
-  signal-0 probes may follow, so no numeric signal can name a reused PID or group.
+  signal-0 probes may follow, so no numeric signal can name a reused PID or group. The owner
+  MUST set `RepeatKillWhileLive` (`PGO-V0-017`), because bash can be forking when it is stopped
+  and one Darwin group SIGKILL can miss the member that fork adds.
 
 ## Non-goals and failure modes
 

@@ -61,7 +61,10 @@ func TestDTLV0018ScratchProcessHelper(t *testing.T) {
 }
 
 // scratchHost is the supervisor's groupreap host; tests record its calls.
-var scratchHost = groupreap.Primitives{}
+// Bash can be forking when it is stopped, and on Darwin one group SIGKILL can
+// miss the member that fork adds, so the kill repeats while a member is live
+// and the leader is still unreaped (PGO-V0-017).
+var scratchHost = groupreap.Primitives{RepeatKillWhileLive: true}
 
 // scratchRetireBound bounds retirement after bash's exit was observed.
 const scratchRetireBound = 30 * time.Second
@@ -182,11 +185,14 @@ func (r *scratchRecorder) primitives() groupreap.Primitives {
 		QuietProof: real.QuietProof,
 		ProbeGroup: func(leader int) (groupreap.Probe, error) { r.add("probe"); return real.ProbeGroup(leader) },
 		Reap:       func(command *exec.Cmd) error { r.add("reap"); return command.Wait() },
+		// As scratchHost: the recording host retires the group the same way.
+		RepeatKillWhileLive: true,
 	}
 }
 
-// DTL-V0-018: with an injected recording host, the supervisor's one group
-// SIGKILL precedes the single reap and only signal-0 probes follow it, both
+// DTL-V0-018: with an injected recording host, every group SIGKILL of the
+// supervisor (one, or repeats while a member is still live) precedes the
+// single reap and only signal-0 probes follow it, both
 // when the lifeline closes while bash runs and when it closes after the reap.
 func TestDTLV0018ScratchSupervisorNoSignalAfterReap(t *testing.T) {
 	for name, tc := range map[string]struct {
@@ -227,8 +233,8 @@ func TestDTLV0018ScratchSupervisorNoSignalAfterReap(t *testing.T) {
 			if reap < 0 || slices.Contains(calls[reap+1:], "reap") {
 				t.Fatalf("calls = %v, want exactly one reap", calls)
 			}
-			if kills := slices.Index(calls, "kill"); kills < 0 || kills > reap || slices.Contains(calls[kills+1:], "kill") {
-				t.Fatalf("calls = %v, want one kill before the reap", calls)
+			if !slices.Contains(calls[:reap], "kill") {
+				t.Fatalf("calls = %v, want a kill before the reap", calls)
 			}
 			for _, call := range calls[reap+1:] {
 				if call != "probe" {
