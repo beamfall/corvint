@@ -299,17 +299,17 @@ Delivery: `ConsumeDraft` keeps its strict byte comparison; on a mismatch, `stale
 
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
-| DMF-V1-001 | 3 | `internal/appflows/docs.go`, `internal/command/flows/flows_docs.go` | `TestDMFV1001*` |
-| DMF-V1-002 | 9 | `cmd/corvint-docs/docs_check.go`, `docmaintain.MarkerPages`, `flowdocs.TrackedManifests` | `TestDMFV1002*`; `.agent-evidence/docs-mcp-hardening/docs-check-corvint.json` |
-| DMF-V1-003 | 4 | `internal/docmaintain/check.go`, `cmd/corvint-docs/docs_maintain.go` | `TestDMFV1003*` |
-| DMF-V1-004 | 5 | `internal/doccitations/check.go`, `cmd/corvint-docs/docs.go` | `TestDMFV1004*` |
-| DMF-V1-005 | 6 | `internal/docworktree`, the four check reports | `TestDMFV1005*` |
+| DMF-V1-001 | 3 | `internal/appflows/docs.go`, `internal/command/flows/flows_docs.go` | `TestDMFV1001WaiverErrorLine`, `TestDMFV1001WaiverMarks` (`internal/appflows`); `TestDMFV1001WaivedClaimRendersWaived` (`internal/command/flows`) |
+| DMF-V1-002 | 9 | `cmd/corvint-docs/docs_check.go`, `docmaintain.MarkerPages`, `flowdocs.TrackedManifests` | `TestDMFV1002DocsCheckFlowsFailureIsNotNotChecked`, `TestDMFV1002DocsCheckNothingFound`, `TestDMFV1002DocsCheckPassThenOneStaleBlock` (`cmd/corvint-docs`); `.agent-evidence/docs-mcp-hardening/docs-check-corvint.json` |
+| DMF-V1-003 | 4 | `internal/docmaintain/check.go`, `cmd/corvint-docs/docs_maintain.go` | `TestDMFV1003MaintainCheckExitCode` (`cmd/corvint-docs`); `TestDMFV1003CheckStates` (`internal/docmaintain`) |
+| DMF-V1-004 | 5 | `internal/doccitations/check.go`, `cmd/corvint-docs/docs.go` | `TestDMFV1004CitationsCheckJSON` (`cmd/corvint-docs`); `TestDMFV1004CitationsMissingFencedUnpinned`, `TestDMFV1004UnclosedFenceFails` (`internal/doccitations`) |
+| DMF-V1-005 | 6 | `internal/docworktree`, the four check reports | `TestDMFV1005DocsCheckFlowsWorktree`, `TestDMFV1005DocsFlowsCheckWorktree`, `TestDMFV1005MaintainAndCitationsWorktree` (`cmd/corvint-docs`); `TestDMFV1005FlowsDocsCheckWorktree` (`internal/command/flows`); `TestDMFV1005CitationsWorktree` (`internal/doccitations`); `TestDMFV1005ObserveRepository`, `TestDMFV1005ParseStatus` (`internal/docworktree`) |
 | DMF-V1-006 | 7 | `internal/appflows/docs.go` (`byteDetail`), `internal/command/flows/flows_docs.go` | `TestDMFV1006ByteFailureNamesChangedClaims` |
-| DMF-V1-007 | 8 | `internal/flowdocs/generate.go`, `internal/flowdocs/check.go`, `cmd/corvint-docs/docs_flows.go` | `TestDMFV1007*` |
+| DMF-V1-007 | 8 | `internal/flowdocs/generate.go`, `internal/flowdocs/check.go`, `cmd/corvint-docs/docs_flows.go` | `TestDMFV1007DocsFlowsCheckRecordedOutput` (`cmd/corvint-docs`); `TestDMFV1007RecordedOutputDirectory` (`internal/flowdocs`) |
 | DMF-V1-008 | 10 | `internal/mcp/corpusbridge/descriptions.go`, `internal/mcp/docsbridge/docsbridge.go` | `TestDMFV1008DistinctToolDescriptions`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
 | DMF-V1-009 | 11 | `internal/mcp/corpusbridge/corpusbridge.go`, `internal/capcatalog/mcp.go` | `TestDMFV1009NoDocsTestSelectionTool`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
-| DMF-V1-010 | 12 | `internal/mcp/toolgroup/errordetail.go`, `internal/mcp/protocol/types.go`, `internal/mcp/server/server.go`, `internal/mcp/docsbridge/docsbridge.go`, the corpus group and the `corvint-mcp` handler | `TestDMFV1010*` |
-| DMF-V1-011 | 13 | `internal/mcp/corpusbridge/corpusbridge.go` (`reload`) | `TestDMFV1011*`; `.agent-evidence/docs-mcp-hardening/live-reload.txt` |
+| DMF-V1-010 | 12 | `internal/mcp/toolgroup/errordetail.go`, `internal/mcp/protocol/types.go`, `internal/mcp/server/server.go`, `internal/mcp/docsbridge/docsbridge.go`, the corpus group and the `corvint-mcp` handler | `TestDMFV1010InvalidArgumentError` (`internal/mcp/cli`); `TestDMFV1010ChildFailureKeepsStderr` (`internal/mcp/docsbridge`); `TestDMFV1010ServerBusy` (`internal/mcp/server`); `TestDMFV1010CancelledAndChildFailure` (`internal/mcp/toolgroup`) |
+| DMF-V1-011 | 13 | `internal/mcp/corpusbridge/corpusbridge.go` (`reload`) | `TestDMFV1011ArgumentsJudgedByReloadedHeader`, `TestDMFV1011CorruptRebuildRefused`, `TestDMFV1011RebuiltArtifactServedWithoutRestart`, `TestDMFV1011StaleReloadNeverReplacesNewerArtifact` (`internal/mcp/corpusbridge`); `.agent-evidence/docs-mcp-hardening/live-reload.txt` |
 | DMF-V1-013 | 14 | `internal/doccompiler/draft.go` (`staleDraftMessage`) | `TestDMFV1013ConsumeStaleNamesBothRevisions` |
 
 ## Rollback
