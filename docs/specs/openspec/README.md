@@ -37,9 +37,11 @@ wire format, or the release bar waits for the owner (G14). Unaccepted work stays
   reported and do not fail. On 2026-11-10 strict mode gave 188 warnings in 41 of the 45 folders: 152
   for requirement text over 500 characters, 21 for text above the first section and 15 for text
   before the first requirement.
-- The exact stage rules are proposed in `changes/openspec-check/`: a Go check of the stages
-  (OSC-V1-001 to OSC-V1-011) and a Make target that runs the OpenSpec command (OSC-V1-012). Until
-  they land, the stages rest on review and on running the command by hand.
+- `make openspec-check` (`tools/openspec-check`, part of `make doc-gates`) checks the layout, IDs,
+  stages, the one root and the spec `Health:` lines (OSC-V1-001 to OSC-V1-011 in
+  `docs/specs/openspec-check-v1.md`); `OPENSPEC_BASE=<rev>` adds the commit rules, and folders in
+  `tools/openspec-check/baseline.txt` are reported only. `make openspec-validate` runs the pinned
+  command (OSC-V1-012) and reports NOT_RUN where it is not installed.
 - Each proposal header names its change, ticket, the plan requirements it serves, the owning
   capability spec, the requirement IDs it adds, its intent status and its delivery status. IDs are
   reserved before the lane's first commit and are never reused.
