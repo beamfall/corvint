@@ -19,8 +19,10 @@ func TestMTTV1002StalenessCheckFailsOnAHandEdit(t *testing.T) {
 	if code := run([]string{"-out", out}, &stdout, &stderr); code != 0 {
 		t.Fatalf("write exit %d: %s", code, &stderr)
 	}
-	if code := run([]string{"-check", "-out", out}, &stdout, &stderr); code != 0 {
-		t.Fatalf("check of fresh output exit %d: %s", code, &stderr)
+	// The fresh file passes the staleness half of -check; its parity half
+	// reads the repository and is TestMTTV1009MissingParityTestIsNamed's.
+	if err := Check(out, Render(capcatalog.MCPTools())); err != nil {
+		t.Fatalf("check of fresh output: %v", err)
 	}
 	generated, err := os.ReadFile(out)
 	if err != nil {
@@ -77,5 +79,26 @@ func TestUsage(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"extra"}, &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "usage:") {
 		t.Fatalf("exit %d: %s", code, &stderr)
+	}
+}
+
+// MTT-V1-009: a row whose parity test its package directory does not define
+// is named; one that is defined passes.
+func TestMTTV1009MissingParityTestIsNamed(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "tool"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cmd", "tool", "x_test.go"), []byte("package main\n\nfunc TestPresent(t *testing.T) {\n}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rows := []capcatalog.MCPTool{
+		{Name: "corvint.present_tool", ParityTest: "cmd/tool TestPresent"},
+		{Name: "corvint.absent_tool", ParityTest: "cmd/tool TestAbsent"},
+		{Name: "corvint.other_tool"},
+	}
+	missing := MissingParityTests(root, rows)
+	if len(missing) != 1 || !strings.HasPrefix(missing[0], "corvint.absent_tool: parity test TestAbsent is not defined in cmd/tool") {
+		t.Fatalf("missing=%q", missing)
 	}
 }

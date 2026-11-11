@@ -121,6 +121,7 @@ Which tests a change requires: the affected-summary/1 verdict for a base or for 
 - Input `base`: Optional base revision; with it the plan is base..HEAD plus the dirty worktree, without it the dirty worktree alone.
 - Output profile: `affected-summary/1, affected-select-all/1`
 - Tool errors: `cancelled`, `server-busy`, `affected-failed`, `invalid-root`, `not-served`, `verdict-oversized`
+- Parity test: `cmd/corvint TestV15254MCPAffectedMatchesCLI`
 - Note: a planner refusal carries the CLI's own error code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)
 
 ### `corvint.flows_coverage`
@@ -134,6 +135,7 @@ Complete accepted flow variation coverage, bound to immutable bytes; the page ve
 - Input `receipts`: Repository-relative run receipts file.
 - Output profile: `application-flow-coverage/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI`
 - Replaces: `corvint.flows.coverage`
 
 ### `corvint.flows_gaps`
@@ -147,6 +149,7 @@ Flows at HEAD without passing test evidence and, with a provider, the E2E tests 
 - Input `registry`: Repository-relative E2E test registry file.
 - Output profile: `application-flow-gaps/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI`
 - Replaces: `corvint.flows.gaps`
 
 ### `corvint.flows_impact`
@@ -158,6 +161,7 @@ The flows the base..HEAD changed paths reach through links and the impact graph.
 - Input `flows`: Repository-relative directory holding the flow intent files.
 - Output profile: `application-flow-impact/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI`
 - Replaces: `corvint.flows.impact`
 
 ### `corvint.flows_map`
@@ -172,6 +176,7 @@ Flow intents at HEAD with their links and test evidence, or the flows one path o
 - Input `testKey`: Test key whose flows to look up.
 - Output profile: `application-flow-map/1, application-flow-lookup/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI`
 - Replaces: `corvint.flows.map`
 
 ### `corvint.flows_navigate`
@@ -187,6 +192,7 @@ The navigation map of the flow intents, or the ordered packet that reaches one g
 - Input `traffic`: Repository-relative recorded traffic files.
 - Output profile: `application-navigation-map/0, application-navigation-packet/0`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI`
 - Replaces: `corvint.flows.navigate`
 
 ### `corvint.flows_status`
@@ -199,6 +205,7 @@ Each flow at HEAD, its variations, attached tests and the last recorded result o
 - Input `flows`: Repository-relative directory holding the flow intent files.
 - Output profile: `application-flow-status/0`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI`
 - Replaces: `corvint.flows.status`
 
 ### `corvint.help`
@@ -211,6 +218,7 @@ Corvint's agent guide, one command's catalog entry, or the full command catalog,
 - Also served by: `corvint-docs mcp`
 - Output profile: `corvint-mcp-help/0`
 - Tool errors: `cancelled`, `server-busy`, `internal-error`
+- Parity test: `cmd/corvint TestMTTV1009HelpToolMatchesCLI`
 
 ### `corvint.impact`
 
@@ -223,6 +231,7 @@ Revision-bound impact evidence for Go, Ruby, JavaScript and TypeScript paths, wi
 - Input `snapshot`: Optional commit and tree binding the answer must match.
 - Output profile: `corvint-mcp-bridge-result/0`
 - Tool errors: `cancelled`, `server-busy`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint TestMTTV1009ImpactToolMatchesCLI`
 
 ### `corvint.status`
 
@@ -248,6 +257,7 @@ Retained test evidence for a path, a test, or a test's explanation against a bas
 - Input `test`: Test whose dependencies to read.
 - Output profile: `corvint-test-evidence-query/1`
 - Tool errors: `cancelled`, `server-busy`, `internal-error`, `invalid-root`
+- Parity test: `cmd/corvint TestMTTV1009TestEvidenceToolMatchesCLI`
 
 ## `corvint-docs mcp`: documentation
 
@@ -264,7 +274,7 @@ and consume tools run the `corvint-docs` executable's `docs-tool` verb. The depr
 |---|---|---|---|---|
 | `corvint.docs_claims` | experimental | `--corpus-artifact PATH` | Claims about a path, claims ranked by text, or supplied status claims by state, qualifier and run, filterable by claim kind | `corvint-docs docs corpus claims --artifact PATH` |
 | `corvint.docs_concept` | experimental | `--corpus-artifact PATH` | One concept's record, found by name | `corvint-docs docs corpus concept --artifact PATH` |
-| `corvint.docs_consume` | experimental | default | Recheck a draft's exact bytes against source and return the bounded task match | `corvint-docs docs consume --source PATH --package DIR --task TEXT --draft FILE` |
+| `corvint.docs_consume` | experimental | default | Recheck a draft's exact bytes against source and return the bounded task match | `corvint-docs docs consume --source PATH --package DIR --task TEXT < DRAFT` |
 | `corvint.docs_coverage` | experimental | `--corpus-artifact PATH` | Documentation coverage counts per outcome | `corvint-docs docs corpus coverage --artifact PATH` |
 | `corvint.docs_dependencies` | experimental | `--corpus-artifact PATH` | What one subject depends on | `corvint-docs docs corpus dependencies --artifact PATH` |
 | `corvint.docs_draft` | experimental | default | A source-pinned documentation draft of a module directory; dry_run previews an untracked or inline owner as NOT_ADMISSIBLE | `corvint-docs docs draft --source PATH --package DIR` |
@@ -306,6 +316,7 @@ Claims about a path, claims ranked by text, or supplied status claims by state, 
 - Input `state`: Supplied status state to filter by.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_concept`
 
@@ -319,6 +330,7 @@ One concept's record, found by name.
 - Input `query`: Text to rank records against.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_consume`
 
@@ -331,6 +343,7 @@ Recheck a draft's exact bytes against source and return the bounded task match.
 - Input `task`: Task text to match against the draft.
 - Output profile: `corvint-mcp-docsbridge-result/0`
 - Tool errors: `cancelled`, `server-busy`, `documentation-limit-exceeded`, `internal-error`, `not-installed`, `repository-unavailable`, `stale-documentation-draft`, `unsupported-documentation-source`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestMTTV1009DocsConsumeToolMatchesCLI`
 
 ### `corvint.docs_coverage`
 
@@ -343,6 +356,7 @@ Documentation coverage counts per outcome.
 - Input `retirement`: Which retired records to include: the corpus retirement filter.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_dependencies`
 
@@ -356,6 +370,7 @@ What one subject depends on.
 - Input `id`: Subject id, or legacy case id, to read.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_draft`
 
@@ -368,6 +383,7 @@ A source-pinned documentation draft of a module directory; dry_run previews an u
 - Input `source`: Repository-relative owner Markdown source.
 - Output profile: `corvint-mcp-docsbridge-result/0`
 - Tool errors: `cancelled`, `server-busy`, `documentation-limit-exceeded`, `internal-error`, `not-installed`, `repository-unavailable`, `stale-documentation-draft`, `unsupported-documentation-source`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestDocsToolVerbAnswersInOneEnvelope`
 
 ### `corvint.docs_find_related`
 
@@ -381,6 +397,7 @@ Subjects related to one subject.
 - Input `id`: Subject id, or legacy case id, to read.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_flow`
 
@@ -396,6 +413,7 @@ One documented flow, its sections and records.
 - Input `section`: Flow section name, or list of names, to return.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_gaps`
 
@@ -410,6 +428,7 @@ Producer gap claims, optionally for one subject or gap kind.
 - Input `kind`: Gap kind, or list of kinds, to keep.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_get`
 
@@ -423,6 +442,7 @@ One subject and its links, by id or legacy case id.
 - Input `id`: Subject id, or legacy case id, to read.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_get_journey`
 
@@ -436,6 +456,7 @@ One user journey of a subject.
 - Input `id`: Subject id, or legacy case id, to read.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_get_stability`
 
@@ -449,6 +470,7 @@ Stability records of one subject.
 - Input `id`: Subject id, or legacy case id, to read.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_how`
 
@@ -469,6 +491,7 @@ The corpus header, revision and capabilities.
 - Input `retirement`: Which retired records to include: the corpus retirement filter.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_intent`
 
@@ -482,6 +505,7 @@ Intent records of one subject, or every intent comparison.
 - Input `id`: Optional subject id; without it every intent comparison is listed.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_inventory`
 
@@ -494,6 +518,7 @@ A page of the corpus inventory of a schema /2 artifact.
 - Input `retirement`: Which retired records to include: the corpus retirement filter.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_locate`
 
@@ -511,6 +536,7 @@ Where a path is documented, or module and symbol subjects ranked by a query, wit
 - Input `repository`: Optional root-commit identity of a declared repository the paths belong to.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_navigation`
 
@@ -525,6 +551,7 @@ Navigation structure of one flow, or of the flows a query selects by name or lin
 - Input `query`: Text matched to flow names and linked tests; give id or query.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_recommend_tests`
 
@@ -540,6 +567,7 @@ Tests the corpus links to a path and the subjects documenting it.
 - Input `repository`: Optional root-commit identity of a declared repository the paths belong to.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_search`
 
@@ -556,6 +584,7 @@ Search the corpus: a compact receipt by default, the full one on request.
 - Input `receipt`: compact (the default) or full.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_trace`
 
@@ -570,6 +599,7 @@ Relations walked from one subject to a depth.
 - Input `id`: Subject id, or legacy case id, to read.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_validate`
 
@@ -582,6 +612,7 @@ Validation of the corpus artifact itself.
 - Input `retirement`: Which retired records to include: the corpus retirement filter.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ### `corvint.docs_vocabulary`
 
@@ -595,6 +626,7 @@ Corpus vocabulary entries matching a term.
 - Input `query`: Text to rank records against.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
+- Parity test: `cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd`
 
 ## `corvint-test-validity-mcp`: retiring
 
@@ -604,7 +636,7 @@ its removal batch takes the `corvint-test-validity-mcp` binary off the release l
 
 | Tool | Availability | Opt-in | Description | Same answer on the command line |
 |---|---|---|---|---|
-| `corvint.test_validity` | deprecated | default | Five-axis projection of retained test evidence | `corvint test-validity` |
+| `corvint.test_validity` | deprecated | default | Five-axis projection of retained test evidence | none |
 
 ### `corvint.test_validity`
 
@@ -615,7 +647,7 @@ Five-axis projection of retained test evidence.
 - Input `receipt`: Retained test receipt to project.
 - Output profile: `corvint-mcp-test-validity-result/0`
 - Tool errors: `cancelled`, `server-busy`, `internal-error`, `repository-unavailable`
-- Note: removed from corvint mcp with the G24 batch (M12); served only by the retiring corvint-test-validity-mcp binary until its removal batch (MTT-V1-010)
+- Note: removed from corvint mcp with the G24 batch (M12); served only by the retiring corvint-test-validity-mcp binary until its removal batch (MTT-V1-010), so no CLI parity is claimed for it
 
 ## No MCP tool
 

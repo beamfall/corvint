@@ -23,7 +23,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       MTT-V1-007. Proof: tool-list test, refusal test and unknown-tool test for `test_validity`.
 - [x] 2.6 `CORVINT_SELECTION` handling in the `affected` tool. Requirements: MTT-V1-008. Proof: an
       unknown value returns all tests with the reason; `full:go` selects all Go tests.
-- [ ] 2.7 Parity tests for rows with a CLI equivalent. Requirements: MTT-V1-009. Proof: one parity
+- [x] 2.7 Parity tests for rows with a CLI equivalent. Requirements: MTT-V1-009. Proof: one parity
       test per row.
 - [ ] 2.8 No tasks tools; retire MCP binaries from `binaries.json` in their removal batch.
       Requirements: MTT-V1-006, MTT-V1-010. Proof: tool-list test and the release binaries check.

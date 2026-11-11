@@ -67,6 +67,9 @@ type MCPTool struct {
 	// CLIEquivalent is the command that returns the same records
 	// (PROD-DOCS-010, PROD-TEST-009, MTT-V1-009); empty when none exists.
 	CLIEquivalent string `json:"cliEquivalent,omitempty"`
+	// ParityTest names the test that proves the tool and CLIEquivalent
+	// return the same records, as "PACKAGE_DIR TestName" (MTT-V1-009).
+	ParityTest string `json:"parityTest,omitempty"`
 	// Replaces lists the tool's earlier names (MTT-V1-007).
 	Replaces []string `json:"replaces,omitempty"`
 	// Note says why a row has no CLI equivalent, no server, or a planned or
@@ -127,6 +130,10 @@ func MCPToolsFor(server string) []MCPTool {
 // one dot (MTT-V1-007): a lower-case area word, then lower-case words joined
 // by underscores.
 var toolName = regexp.MustCompile(`^corvint\.[a-z]+(_[a-z]+)*$`)
+
+// parityTest is a ParityTest value: a repository-relative package directory
+// and one top-level test function name.
+var parityTest = regexp.MustCompile(`^[a-z0-9][a-z0-9_./-]* Test[A-Za-z0-9_]+$`)
 
 var (
 	knownServers      = []string{ServerCore, ServerDocs, ServerTestValidity, ServerNone}
@@ -196,6 +203,12 @@ func CheckMCPTools(rows []MCPTool) []string {
 		if row.Availability == AvailabilityPlanned {
 			continue
 		}
+		switch {
+		case row.CLIEquivalent != "" && row.ParityTest == "":
+			problems = append(problems, row.Name+": has a CLI equivalent but no parity test (MTT-V1-009)")
+		case row.ParityTest != "" && (row.CLIEquivalent == "" || !parityTest.MatchString(row.ParityTest)):
+			problems = append(problems, fmt.Sprintf("%s: parity test %q needs a CLI equivalent and the form PACKAGE_DIR TestName", row.Name, row.ParityTest))
+		}
 		if strings.TrimSpace(row.InputSchema) == "" {
 			problems = append(problems, row.Name+": missing input schema reference")
 		}
@@ -263,6 +276,7 @@ func corpusRow(name, summary, cli string, own ...MCPInput) MCPTool {
 		OptIn: corpusOptIn, InputSchema: corpusSource, Inputs: corpusInputs(own...),
 		OutputProfile: corpusProfile, Errors: corpusErrors,
 		CLIEquivalent: "corvint-docs docs corpus " + cli + " --artifact PATH",
+		ParityTest:    "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd",
 	}
 }
 
@@ -280,6 +294,7 @@ func flowsRow(name, verb, summary, profile string, inputs ...MCPInput) MCPTool {
 		Name: "corvint.flows_" + verb, Server: ServerCore, Availability: AvailabilityExperimental, Summary: summary,
 		OptIn: flowsOptIn, InputSchema: flowsSource, Inputs: inputs, OutputProfile: profile, Errors: flowsErrors,
 		CLIEquivalent: "corvint-docs flows " + verb, Replaces: []string{name},
+		ParityTest: "cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI",
 	}
 }
 
@@ -303,6 +318,7 @@ func mcpToolRows() []MCPTool {
 			},
 			OutputProfile: "corvint-mcp-help/0", Errors: errorsOf("internal-error"),
 			CLIEquivalent: "corvint help guide | corvint help --json COMMAND | corvint help --json",
+			ParityTest:    "cmd/corvint TestMTTV1009HelpToolMatchesCLI",
 		},
 		{
 			Name: "corvint.impact", Server: ServerCore, Availability: AvailabilityExperimental,
@@ -316,6 +332,7 @@ func mcpToolRows() []MCPTool {
 			},
 			OutputProfile: "corvint-mcp-bridge-result/0", Errors: bridgeErrors,
 			CLIEquivalent: "corvint impact --language-profile non-go-syntax-v0 --limit N PATH...",
+			ParityTest:    "cmd/corvint TestMTTV1009ImpactToolMatchesCLI",
 		},
 		{
 			Name: "corvint.status", Server: ServerCore, Availability: AvailabilityExperimental,
@@ -334,6 +351,7 @@ func mcpToolRows() []MCPTool {
 			},
 			OutputProfile: "affected-summary/1, affected-select-all/1", Errors: errorsOf("affected-failed", "invalid-root", "not-served", "verdict-oversized"),
 			CLIEquivalent: "corvint affected --summary [--base REV]",
+			ParityTest:    "cmd/corvint TestV15254MCPAffectedMatchesCLI",
 			Note:          "a planner refusal carries the CLI's own error code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)",
 		},
 		{
@@ -352,6 +370,7 @@ func mcpToolRows() []MCPTool {
 			},
 			OutputProfile: "corvint-test-evidence-query/1", Errors: errorsOf("internal-error", "invalid-root"),
 			CLIEquivalent: "corvint test-evidence",
+			ParityTest:    "cmd/corvint TestMTTV1009TestEvidenceToolMatchesCLI",
 		},
 		flowsRow("corvint.flows.coverage", "coverage", "Complete accepted flow variation coverage, bound to immutable bytes; the page verdict covers the full inventory", "application-flow-coverage/1",
 			in("denominator", "Repository-relative accepted variation denominator file."),
@@ -454,6 +473,7 @@ func mcpToolRows() []MCPTool {
 			},
 			OutputProfile: "corvint-mcp-docsbridge-result/0", Errors: docsErrors,
 			CLIEquivalent: "corvint-docs docs draft --source PATH --package DIR",
+			ParityTest:    "cmd/corvint-docs TestDocsToolVerbAnswersInOneEnvelope",
 		},
 		{
 			Name: "corvint.docs_consume", Server: ServerDocs, Availability: AvailabilityExperimental,
@@ -466,7 +486,8 @@ func mcpToolRows() []MCPTool {
 				in("task", "Task text to match against the draft."),
 			},
 			OutputProfile: "corvint-mcp-docsbridge-result/0", Errors: docsErrors,
-			CLIEquivalent: "corvint-docs docs consume --source PATH --package DIR --task TEXT --draft FILE",
+			CLIEquivalent: "corvint-docs docs consume --source PATH --package DIR --task TEXT < DRAFT",
+			ParityTest:    "cmd/corvint-docs TestMTTV1009DocsConsumeToolMatchesCLI",
 		},
 		{
 			Name: "corvint.docs_how", Server: ServerDocs, Availability: AvailabilityPlanned,
@@ -486,8 +507,7 @@ func mcpToolRows() []MCPTool {
 				in("receipt", "Retained test receipt to project."),
 			},
 			OutputProfile: "corvint-mcp-test-validity-result/0", Errors: errorsOf("internal-error", "repository-unavailable"),
-			CLIEquivalent: "corvint test-validity",
-			Note:          "removed from corvint mcp with the G24 batch (M12); served only by the retiring corvint-test-validity-mcp binary until its removal batch (MTT-V1-010)",
+			Note: "removed from corvint mcp with the G24 batch (M12); served only by the retiring corvint-test-validity-mcp binary until its removal batch (MTT-V1-010), so no CLI parity is claimed for it",
 		},
 		{
 			Name: "corvint-tasks", Server: ServerNone, Availability: AvailabilityStable,
