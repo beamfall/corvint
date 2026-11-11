@@ -54,7 +54,7 @@
     "shell:script/gen-spec-requirements_test.sh": {
       "reads": [],
       "reason": "script/gen-spec-requirements_test.sh uses docs/build-log in expected intent-status prose inside scratch spec/index fixtures. It does not read this checkout's log directory.",
-      "sourceSha256": "c1ff4c54123ebd55ab74a41cee74114c194a89a213b0d2fb805f7671aa212ca7"
+      "sourceSha256": "6d54e967ea550afc81ec6cbf41a0aaa74c0f20552a4b4fb1a31259188d551cdc"
     },
     "shell:script/lane-scripts_test.sh": {
       "reads": [],
