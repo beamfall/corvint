@@ -235,7 +235,7 @@ accepted by decision 0373 and the amendment it requires are stated.
   them. No third party is needed.
 - Amendment required: add to `public-release-v0.md` (0.6 local-workflow scope, extended to 1.0)
   one sentence: "The 1.0 Core candidate additionally requires the three Core jobs on one
-  owner-selected untouched public repository with cases frozen before execution." The ticket
+  owner-selected untouched public repository with cases frozen before execution." (Three Core jobs: two since decision 0597.) The ticket
   type of V1-0019 changes from EXTERNAL to MANUAL.
 - Frozen cases: one harness, `benchmarks/untouched-repository-v1/harness.py`, runs the Core
   jobs (historical since decision 0594, whose removals include `dogfood`, and decision 0597, which removed the
@@ -319,7 +319,7 @@ accepted by decision 0373 and the amendment it requires are stated.
   Go foreground, test-validity MCP, docs, Tasks roadmap, named-browser console) Core installed
   qualification.
 - Proposed disposition: move to companion. Core installed qualification becomes the native archive
-  lifecycle of `stable-operations-v0.md` plus the three Core jobs run on the exact installed bytes.
+  lifecycle of `stable-operations-v0.md` plus the three Core jobs (two since decision 0597) run on the exact installed bytes.
 - Amendment required: `PUB-V0-004`, `-005`, `-006`, `-009`, `-010` and `-020`, `PUB-V0-022`'s
   companion input, and the 2026-09-16 clause "missing core installed ... evidence blocks release"
   bind only the companion profile for 1.0. The existing combined manifest reader and installer do
@@ -329,7 +329,7 @@ accepted by decision 0373 and the amendment it requires are stated.
 ## Requirements
 
 - `PRS-V1-001`: Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the local
-  change-evidence loop, the CEM/OCM/frontier proof wire, the dogfood loop, the three Core jobs of
+  change-evidence loop, the CEM/OCM/frontier proof wire, the dogfood loop, the three Core jobs (two since decision 0597) of
   decision 0332, and the native release artifact and its lifecycle.
 - `PRS-V1-002`: Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 readers
   or deterministic migrations). Companion, experimental, deferred, rejected and post-1.0 surfaces
@@ -357,10 +357,10 @@ accepted by decision 0373 and the amendment it requires are stated.
   any host MUST NOT block Core.
 - `PRS-V1-007`: Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
   passes with at least one non-Corvint producer and two independent consumers.
-- `PRS-V1-008`: The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and one
+- `PRS-V1-008`: The 1.0 Core candidate MUST pass the three Core jobs (two since decision 0597) on Corvint, Beamfall and one
   owner-selected untouched public repository, with cases frozen before execution.
 - `PRS-V1-009`: Core installed qualification MUST be the native archive lifecycle of
-  `stable-operations-v0.md` plus the three Core jobs on the exact installed bytes. It MUST NOT
+  `stable-operations-v0.md` plus the three Core jobs (two since decision 0597) on the exact installed bytes. It MUST NOT
   depend on the companion bundle `/2`.
 - `PRS-V1-010`: Any new shipped verb, binary or integration tree MUST be added to the
   classification table with one label and a one-line reason in the same change that ships it.

@@ -82,7 +82,7 @@ on this repository, does not beat grep.
 | Instruction doctor (`context --instruction-*`) | KEEP, re-homed | the load-set prediction under its own verb `corvint instructions` | the `--task` prerequisite; `context --instruction-*` stays one release as an alias with a stderr deprecation line |
 | `context --path` (path brief) | SPLIT | `instructions` (authority), `tests` (linked tests and plan verdict), `requirements` (kept links), each capped at 64 with state, reason and unknowns | `owners`, `flows`, `tickets`, and the completed-ticket and claim-scope prefix matches |
 | `review --base` | SPLIT | the affected compact receipt and its digest, the declared repository gate, the deterministic branch overlap and skipped refs | the inferred feature list and `changedFeatures` |
-| `context --task`, `context --worktree-overlay` | CUT | nothing | the ranked task packet and its flags |
+| `context --task`, `context --worktree-overlay` | CUT | nothing; the retained Core jobs are `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` | the ranked task packet and its flags, and with them the treatment of the `UC-TASK-ORIENTATION` Core job, which is retired (literally `UNPROVEN`, no replacement) |
 | `feature`, `features`, `overview` | CUT | nothing (0596 G25 folds them into flows) | the verbs, the regex feature inventory, `internal/genesis/guidance.go` where only they read it |
 | Ranking code in `internal/contextindex` | CUT | every file and symbol a KEEP user still reaches | the task-packet compiler and whatever only it reaches |
 | `internal/trace`, `tracerecordrepo`, `tracerepopaths`, `unplannedread` | CUT | nothing | the packages |
