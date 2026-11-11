@@ -516,8 +516,8 @@ IDs `GLS-V0-051..060` are reserved for this block; `GLS-V0-055..060` are unused.
   `SwigCXXFiles`), every record of that package binds the whole environment (`*`) as
   `collector-modified`. A record that started an instrumented child binds it too when any
   non-standard dependency of the module compiles such sources. Those tests are always kept, and
-  their package runs whole as `environment` (`GLS-V0-018`). A listing that fails fails
-  collection. Standard-library cgo is not covered by this rule: the `net` package reads the
+  their package runs whole as `environment` (`GLS-V0-018`). A package the listing cannot load
+  counts as compiling such sources; a listing that fails outright fails collection. Standard-library cgo is not covered by this rule: the `net` package reads the
   resolver variables (`LOCALDOMAIN`, `RES_OPTIONS`, `HOSTALIASES`) through `os`, so the audit
   binds them, and `os/user` reads none.
 - `GLS-V0-054`: (proposed 2026-11-11; V1-4514; delivery experimental) `linecov qualify` runs each
