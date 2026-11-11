@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-11
 Requirement prefix: `MTT-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5447)
-Delivery status: not-started
+Delivery status: experimental; partially delivered
 Authoritative inputs: change folder `docs/specs/openspec/changes/mcp-tool-table/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/mcp-tool-table/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-DOCS-001, PROD-DOCS-010, PROD-TASK-007, PROD-TEST-009),
@@ -13,9 +13,9 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/mcp-tool-table/
 
 ## Agent digest
 - Claim: One table fixes every MCP tool; MCP-SERVER.md is generated from it; corvint-docs mcp serves docs tools, corvint mcp testing and flow tools.
-- Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5447) / not-started
-- Exists: the change folder only.
-- Blocked on: the table, the generated document, the drift test, the `corvint-docs mcp` server and the profile removal (tasks 2.1 to 2.9).
+- Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5447) / experimental; partially delivered
+- Exists: the table in `internal/capcatalog/mcp.go` with its rules, the generated `docs/MCP-SERVER.md` and its doc gate, the drift and parity tests, `corvint-docs mcp` (`internal/mcp/docsserver`), the narrowed `corvint mcp`, the renamed flow tools, and the `affected` select-all for `CORVINT_SELECTION` and a stale binary (tasks 2.1 to 2.7, 2.9).
+- Blocked on: the removal batch that takes `corvint-mcp` and `corvint-test-validity-mcp` off the release list (MTT-V1-010, task 2.8); the plan row of task 3.1.
 - Read next: Requirements; Superseded requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
