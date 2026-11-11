@@ -7603,6 +7603,14 @@ SCL-V0-900	docs/specs/scope-lease-v0.md	(proposed; V1-2489) On a deferred platfo
 SCL-V0-009	docs/specs/scope-lease-v0.md	`scopelease.Check(root, paths)` MUST report, without writing, every touched path	unrecorded	-
 SCL-V0-010	docs/specs/scope-lease-v0.md	Every action MUST emit one deterministic canonical JSON line on stdout with a st	unrecorded	-
 SCL-V0-011	docs/specs/scope-lease-v0.md	An unreadable or unparsable lease document MUST NOT block actions on other lease	unrecorded	-
+SLF-V1-001	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Python import roots from configuration an	owner	decision 0596; V1-5401
+SLF-V1-002	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Unresolved in-repository absolute import	owner	decision 0596; V1-5401
+SLF-V1-003	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Glob imports	owner	decision 0596; V1-5401
+SLF-V1-004	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Manual mocks	owner	decision 0596; V1-5401
+SLF-V1-005	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Literal Vitest and Jest configuration	owner	decision 0596; V1-5401
+SLF-V1-006	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Fault injection before a new rule narrows	owner	decision 0596; V1-5401
+SLF-V1-007	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) One verdict and one effect per unknown	owner	decision 0596; V1-5401
+SLF-V1-008	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Test and driver counts reported separatel	owner	decision 0596; V1-5401
 SOL-V0-001	docs/specs/self-observation-ledger-v0.md	Event handlers for `session-start`, `user-prompt`, and `file-change` MUST attemp	unrecorded	-
 SOL-V0-002	docs/specs/self-observation-ledger-v0.md	Rows MUST contain no task text, source body, command, credential, or agent-memor	unrecorded	-
 SOL-V0-003	docs/specs/self-observation-ledger-v0.md	Each row is at most 2 KiB; the ledger is at most 128 KiB. On overflow, the write	unrecorded	-

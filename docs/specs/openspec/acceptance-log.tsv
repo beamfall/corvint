@@ -145,3 +145,4 @@ O65	o-row	owner	2026-11-10	decision 0596; R36	accepted by the owner in decision 
 O66	o-row	owner	2026-11-10	decision 0596; R42	accepted by the owner in decision 0596 (H15, "accepted")
 O67	o-row	owner	2026-11-10	decision 0596; R42	accepted by the owner in decision 0596 (H15, "accepted")
 acceptance-record	change	auto	2026-11-10	standing auto-accept (2026-10-11); V1-5272	lane-drafted spec ACR-V1-001 to 012; identity by convention, NOT_VERIFIED
+selection-hardening	change	auto	2026-11-11	decision 0596; G14; V1-5401	implements accepted PROD-TEST-001, 002, 009, 014, 015 and 016 only; SLF-V1-001 to 008 in selection-hardening-v1.md
