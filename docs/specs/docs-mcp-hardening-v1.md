@@ -93,7 +93,7 @@ Serves PROD-DOCS-003. (finding 1; `cmd/corvint-docs/docs_maintain.go`)
 - WHEN `corvint-docs docs check` runs
 - THEN it exits 0 and every part is `NOT_CHECKED` with reason `none-found`
 
-Delivery: not yet built.
+Delivery: `corvint-docs [--root PATH] docs check` takes no arguments and prints `corvint-docs-check/0`: parts `markers` (every committed Markdown page carrying a begin marker, through `docmaintain.Check`), `flows` (every tracked `generation.json` of the flows schema, checked at HEAD against its recorded output directory through `flowdocs.CheckRevision`; a manifest whose output cannot be compared is `NOT_CHECKED`, never `PASS`) and `citations` (`doccitations.Check` over tracked Markdown), each `PASS`, `STALE` or `NOT_CHECKED` with a reason and stale items with path and line, plus `worktree` per part where the composed check gives one and for the report. Exit 1 on any `STALE` part, 0 otherwise, 2 when the repository cannot be read. "The flows manifest" is read as the tracked `docs flows` generation manifests: `flows docs` claim pages need their intents directory and evidence files, which no committed file names, so they are not discovered here. Tests: `TestDMFV1002DocsCheckNothingFound`, `TestDMFV1002DocsCheckPassThenOneStaleBlock` (`cmd/corvint-docs`); the run on this repository is kept as evidence.
 
 - `DMF-V1-003`: (accepted automatically under G14, decision 0596; V1-5409) Maintain check exit code
 
@@ -296,7 +296,7 @@ Delivery: not yet built.
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
 | DMF-V1-001 | 3 | `internal/appflows/docs.go`, `internal/command/flows/flows_docs.go` | `TestDMFV1001*` |
-| DMF-V1-002 | 9 | not yet built | not yet built |
+| DMF-V1-002 | 9 | `cmd/corvint-docs/docs_check.go`, `docmaintain.MarkerPages`, `flowdocs.TrackedManifests` | `TestDMFV1002*`; `.agent-evidence/docs-mcp-hardening/docs-check-corvint.json` |
 | DMF-V1-003 | 4 | `internal/docmaintain/check.go`, `cmd/corvint-docs/docs_maintain.go` | `TestDMFV1003*` |
 | DMF-V1-004 | 5 | `internal/doccitations/check.go`, `cmd/corvint-docs/docs.go` | `TestDMFV1004*` |
 | DMF-V1-005 | 6 | `internal/docworktree`, the four check reports | `TestDMFV1005*` |
