@@ -3,6 +3,7 @@
 package shell
 
 import (
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -23,11 +24,13 @@ import (
 // Every path operand must be a bare directory name (listedDirectories) or,
 // for a recursive form, `.` or `./`; a computed or slashed operand keeps the
 // content read. Every later stage of the command's pipeline must be a
-// stdin-only filter (nameFilter), and every other command of the file must
-// read only what a literal token bounds (nameListingAdmitted, plainCommand):
-// otherwise a name the listing prints, or a computed read anywhere, may
-// reach a file's content by a name no token holds, and today the listing's
-// own token, or the walker's unbounded reads, select the test for it.
+// stdin-only filter (nameFilter), and the whole file must pass a closed
+// grammar (nameListingAdmitted): no construct that writes a variable, changes
+// the directory, runs a program or opens a file by a name no literal token
+// holds. Anything the grammar does not recognise keeps the content read:
+// otherwise a name the listing prints, or a computed read anywhere, may reach
+// a file's content, and today the listing's own token, or the walker's
+// unbounded reads, select the test for it.
 
 // The option and count shapes the closed list admits.
 var (
@@ -36,11 +39,7 @@ var (
 	sortFlags     = regexp.MustCompile(`^-[rnuf]+$`)
 	lineCount     = regexp.MustCompile(`^-n?[0-9]+$`)
 	digits        = regexp.MustCompile(`^[0-9]+$`)
-	// environmentName is a name by the environment convention, which a
-	// program may read; environmentDefault is an expansion that assigns one.
-	environmentName    = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
-	environmentDefault = regexp.MustCompile(`\$\{[A-Z_][A-Z0-9_]*:?=`)
-	grepFlags          = regexp.MustCompile(`^-[vcqiEFxwn]+$`)
+	grepFlags     = regexp.MustCompile(`^-[vcqiEFxwn]+$`)
 )
 
 // controlPrefixes are the leading words that only make a command
@@ -184,22 +183,34 @@ func nameListingPipeline(parsed script, index int) (int, bool) {
 }
 
 // nameListingAdmitted reports whether a file may hold name-listing reads at
-// all (AFP-V0-9961): a test that assigns no environment-style (upper-case)
-// name, since PATH may put a stub ahead of a listing utility or a filter and
-// a variable such as CLICOLOR_FORCE or GREP_OPTIONS makes one read more than
-// names, and whose every command outside an admitted name-listing pipeline
-// is one plainCommand admits. A program, a
-// helper, a sourced file, a function call, a directory change or a computed
-// read anywhere in the file may read below a listed directory, or below the
-// tree a name-only walker lists, by a name no token holds, so such a file
-// keeps every listing a content read. Where a listing's names go then does
-// not matter: no remaining command can open a file by a computed name.
+// all (AFP-V0-9961). The rule is a closed grammar: it states what is
+// admitted, and every construct it does not recognise keeps every listing a
+// content read. A test file is admitted only when
+//
+//   - it defines no function and holds no here-document, `case` statement or
+//     `((` arithmetic command, which the lexer folds away without commands
+//     whose words the rules below could see;
+//   - every word of every command passes gateWord, so no word assigns a
+//     variable or holds an expansion that can write one; and
+//   - every command outside an admitted name-listing pipeline has a shape
+//     gateCommand admits.
+//
+// No admitted construct can write a variable, change the working directory,
+// run a program other than the named utilities, or open a file by a name no
+// literal token holds, so where a listing's names go does not matter and no
+// write needs to be judged environment-style. The environment the runner
+// exports before the unit starts is outside the unit's words and is not
+// modelled.
 func nameListingAdmitted(parsed script, test bool) bool {
-	if !test {
+	if !test || len(parsed.functions) != 0 || len(parsed.data) != 0 || parsed.cases != 0 || parsed.arithmetic != 0 {
 		return false
 	}
-	covered := map[int]bool{}
-	for index := range parsed.commands {
+	covered, listed := map[int]bool{}, map[string]bool{}
+	for index, cmd := range parsed.commands {
+		word, args := directCommandWord(plainWords(cmd.words))
+		for _, directory := range listedDirectories(word, args) {
+			listed[directory] = true
+		}
 		if last, ok := nameListingPipeline(parsed, index); ok {
 			for stage := index; stage <= last; stage++ {
 				covered[stage] = true
@@ -207,65 +218,275 @@ func nameListingAdmitted(parsed script, test bool) bool {
 		}
 	}
 	for index, cmd := range parsed.commands {
-		for _, raw := range cmd.words {
-			if match := assignment.FindStringSubmatch(raw); match != nil && environmentName.MatchString(match[1]) {
-				return false
-			}
-			if environmentDefault.MatchString(raw) {
-				return false
-			}
+		if slices.ContainsFunc(cmd.words, func(raw string) bool { return !gateWord(raw) }) {
+			return false
 		}
-		if !covered[index] && !plainCommand(cmd.words) {
+		if !covered[index] && !gateCommand(cmd.words, listed) {
 			return false
 		}
 	}
 	return true
 }
 
-// outputBuiltins are the commands that print, test values or set shell
-// state and open no file but a redirection target. `export` is not one: it
-// changes what a later program reads from its environment.
-var outputBuiltins = map[string]bool{
-	"echo": true, "printf": true, "true": true, "false": true, ":": true, "exit": true,
-	"return": true, "set": true, "shift": true, "local": true, "readonly": true,
-	"unset": true, "read": true, "for": true, "fi": true, "done": true,
-	"esac": true,
+// braceName is a `{name}` word, which before a redirection operator makes
+// bash allocate a descriptor and assign its number to name.
+var braceName = regexp.MustCompile(`^\{[A-Za-z_][A-Za-z0-9_]*\}$`)
+
+// gateWord reports a word that writes no variable and holds only read-only
+// expansions: not an assignment word (`x=1`, `x+=1`, `x[0]=1`) in any
+// position or case, not a `{name}` redirection word, no backtick or process
+// substitution, no arithmetic expansion, and every `$` one readExpansion
+// admits or a `$(…)` substitution, whose inner commands are commands of the
+// file held to the same gate.
+func gateWord(raw string) bool {
+	switch {
+	case assignment.MatchString(raw), braceName.MatchString(raw):
+		return false
+	case strings.Contains(raw, "`"), strings.Contains(raw, "<("), strings.Contains(raw, ">("):
+		return false
+	case strings.Contains(raw, "$(("):
+		// Refused wherever it stands, quoted or not: scanExpansions would
+		// read it as a command substitution.
+		return false
+	}
+	end, ok := scanExpansions(raw, 0, false)
+	return ok && end == len(raw)
 }
 
-// assignsEnvironment reports an output builtin that sets an
-// environment-style name without an assignment word: `read NAME`,
-// `for NAME in`, `printf -v NAME`.
-func assignsEnvironment(word string, args []string) bool {
+// readExpansion is the text after a `$` that only reads: a name, `{name}`,
+// `{name:-text}` or `{name-text}` with literal text, `#`, `?` or a single
+// digit. `${name=text}`, `${name:=text}`, `${!name}`, `${name[i]}` (an
+// arithmetic subscript), `$'…'`, `$"…"` and every other form are not.
+var readExpansion = regexp.MustCompile(`^(?:[A-Za-z_][A-Za-z0-9_]*|[#?0-9]|\{[A-Za-z_][A-Za-z0-9_]*(?::?-[^$` + "`" + `}\\'"]*)?\})`)
+
+// scanExpansions scans raw from at, tracking quotes, and reports whether
+// every `$` it meets is a readExpansion or a `$(…)` substitution. nested
+// scans a substitution's text and returns the index past its closing
+// parenthesis; the top level returns len(raw) when the word is complete.
+func scanExpansions(raw string, at int, nested bool) (int, bool) {
+	double, depth := false, 0
+	for at < len(raw) {
+		switch c := raw[at]; {
+		case c == '\\':
+			at += 2
+		case c == '\'' && !double:
+			end := strings.IndexByte(raw[at+1:], '\'')
+			if end < 0 {
+				return at, false
+			}
+			at += end + 2
+		case c == '"':
+			double = !double
+			at++
+		case c == '$' && strings.HasPrefix(raw[at:], "$("):
+			end, ok := scanExpansions(raw, at+2, true)
+			if !ok {
+				return at, false
+			}
+			at = end
+		case c == '$':
+			match := readExpansion.FindString(raw[at+1:])
+			if match == "" {
+				return at, false
+			}
+			at += 1 + len(match)
+		case nested && !double && c == '(':
+			depth++
+			at++
+		case nested && !double && c == ')':
+			if depth == 0 {
+				return at + 1, true
+			}
+			depth--
+			at++
+		default:
+			at++
+		}
+	}
+	return at, !nested && !double
+}
+
+// expanding reports a word with an expansion or substitution in it.
+func expanding(raw string) bool {
+	return strings.ContainsAny(raw, "$`")
+}
+
+// fixedWord reports a word that expands to itself alone: no expansion, glob,
+// brace or tilde character, quoted or not.
+func fixedWord(raw string) bool {
+	return !strings.ContainsAny(raw, "$`*?[{~")
+}
+
+// singleField reports a word that expands to exactly one field: every
+// expansion and glob character in it is inside double quotes.
+func singleField(raw string) bool {
+	double := false
+	for at := 0; at < len(raw); at++ {
+		switch c := raw[at]; {
+		case c == '\\':
+			at++
+		case c == '\'' && !double:
+			end := strings.IndexByte(raw[at+1:], '\'')
+			if end < 0 {
+				return false
+			}
+			at += end + 1
+		case c == '"':
+			double = !double
+		case double && strings.HasPrefix(raw[at:], "$("):
+			end, ok := scanExpansions(raw, at+2, true)
+			if !ok {
+				return false
+			}
+			at = end - 1
+		case !double && strings.IndexByte("$`*?[{~", c) >= 0:
+			return false
+		}
+	}
+	return !double
+}
+
+// gateCommand reports a command shape the closed grammar admits, outside an
+// admitted name-listing pipeline:
+//
+//   - control words and redirections alone (`then`, `else`, `fi`, `done`,
+//     whose only arguments can be redirections);
+//   - `echo`, `true`, `false`, `:` or `exit` with any arguments;
+//   - `printf` whose first argument is fixed and does not begin with `-`,
+//     since bash's printf reads options only before its first operand;
+//   - `test`, `[` or `[[` as testArguments and conditionalArguments admit;
+//   - an operand reader (`cat`, `head`, `tail`, `wc`, `sort`, `cmp`) or a
+//     non-recursive grep with no expansion in any argument, as
+//     plainOperands admits.
+//
+// Every redirection target is a descriptor, `-`, `/dev/null` or a literal
+// operand (literalOperand). An expansion therefore stands only in an argument
+// of an output or test builtin. Everything else, `set`, `read`, `for`, `cd`,
+// `export`, `eval`, `exec`, `source`, `diff`, a checksum tool, a function call
+// or any other program included, is not admitted.
+func gateCommand(words []string, listed map[string]bool) bool {
+	plain := literalWords(words)
+	for index := 0; index < len(plain); index++ {
+		if plain[index] != redirect && plain[index] != writeRedirect {
+			continue
+		}
+		index++
+		if index >= len(plain) {
+			return false
+		}
+		switch target := plain[index]; target {
+		case "1", "2", "&1", "&2", "-", "/dev/null":
+		default:
+			if !literalOperand(target, listed) {
+				return false
+			}
+		}
+	}
+	word, args := directCommandWord(plainWords(plain))
 	switch word {
-	case "read":
-		for _, arg := range args {
-			if environmentName.MatchString(unquote(arg)) {
-				return true
-			}
-		}
-	case "for":
-		return len(args) > 0 && environmentName.MatchString(unquote(args[0]))
+	case "", "fi", "done", "echo", "true", "false", ":", "exit":
+		return true
 	case "printf":
-		for index, arg := range args {
-			if unquote(arg) == "-v" {
-				return index+1 >= len(args) || environmentName.MatchString(unquote(args[index+1]))
-			}
-		}
+		return len(args) > 0 && fixedWord(args[0]) && !strings.HasPrefix(unquote(args[0]), "-")
+	case "test", "[":
+		return testArguments(word, args)
+	case "[[":
+		return conditionalArguments(args)
+	}
+	if operandReaders[word] || patternReaders[word] {
+		return !slices.ContainsFunc(args, expanding) && plainOperands(word, args, listed)
 	}
 	return false
 }
 
-// testBuiltins are the conditional commands; testOperators are the operators
-// they may use, which compare values or read an entry's existence or kind
-// only. A size, time, permission or ownership test can change with an edit.
+// testOperators are the operators a test builtin may use, which compare
+// values or read an entry's existence or kind only: a size, time, permission
+// or ownership test can change with an edit, and `-v` reads a variable.
+// valueTests and valueOperators are the unary and binary operators an
+// expanded argument may stand beside; fileOperators read an entry.
 var (
-	testBuiltins  = map[string]bool{"test": true, "[": true, "[[": true}
 	testOperators = map[string]bool{
 		"-e": true, "-f": true, "-d": true, "-h": true, "-L": true, "-z": true, "-n": true,
 		"-eq": true, "-ne": true, "-lt": true, "-le": true, "-gt": true, "-ge": true,
 		"-a": true, "-o": true,
 	}
+	valueTests     = map[string]bool{"!": true, "-z": true, "-n": true}
+	valueOperators = map[string]bool{
+		"=": true, "==": true, "!=": true,
+		"-eq": true, "-ne": true, "-lt": true, "-le": true, "-gt": true, "-ge": true,
+	}
+	fileOperators = map[string]bool{"-e": true, "-f": true, "-d": true, "-h": true, "-L": true, "-a": true}
 )
+
+// testArguments reports `test` or `[` arguments the gate admits. With every
+// argument fixed, each one whose value begins with `-` is a testOperators
+// operator. An argument with an expansion must be a double-quoted single
+// field and stand where test reads it as an operand, never as an operator
+// or a file name: `[ X ]`, `[ ! X ]`, `[ -z X ]`, `[ -n X ]`, or `[ X OP Y ]`
+// with a valueOperators OP, which test, given three arguments, applies
+// before any other reading. test compares integers without arithmetic
+// evaluation, so `-eq` writes nothing.
+func testArguments(word string, args []string) bool {
+	if word == "[" {
+		if len(args) == 0 || unquote(args[len(args)-1]) != "]" {
+			return false
+		}
+		args = args[:len(args)-1]
+	}
+	if !slices.ContainsFunc(args, func(raw string) bool { return !fixedWord(raw) }) {
+		for _, arg := range args {
+			if value := unquote(arg); strings.HasPrefix(value, "-") && len(value) > 1 && !testOperators[value] {
+				return false
+			}
+		}
+		return true
+	}
+	for _, arg := range args {
+		if !fixedWord(arg) && !singleField(arg) {
+			return false
+		}
+	}
+	switch len(args) {
+	case 1:
+		return true
+	case 2:
+		return fixedWord(args[0]) && valueTests[unquote(args[0])]
+	case 3:
+		return fixedWord(args[1]) && valueOperators[unquote(args[1])]
+	}
+	return false
+}
+
+// conditionalArguments reports `[[ … ]]` arguments the gate admits. `[[`
+// fixes its operators before expansion and splits no field, so an expanded
+// argument is always an operand; it is admitted only when no fileOperators
+// operator could make it a file name no token holds. The operators are
+// testOperators less the integer ones, whose operands `[[` evaluates
+// arithmetically (`[[ x++ -eq 0 ]]` assigns), and `=~`, which sets
+// BASH_REMATCH, is refused.
+func conditionalArguments(args []string) bool {
+	if len(args) == 0 || args[len(args)-1] != "]]" {
+		return false
+	}
+	args = args[:len(args)-1]
+	computed, file := false, false
+	for _, arg := range args {
+		value := unquote(arg)
+		switch {
+		case value == "=~":
+			// Judged before fixedWord, which its `~` would fail.
+			return false
+		case !fixedWord(arg):
+			computed = true
+		case strings.HasPrefix(value, "-") && len(value) > 1:
+			if !testOperators[value] || valueOperators[value] {
+				return false
+			}
+			file = file || fileOperators[value]
+		}
+	}
+	return !(computed && file)
+}
 
 // operandReaders are the utilities that read only their file operands, or
 // standard input without one, and fail on a directory operand;
@@ -279,59 +500,12 @@ var (
 	patternReaders = map[string]bool{"grep": true, "egrep": true, "fgrep": true}
 )
 
-// plainCommand reports a command whose every read a literal token bounds or
-// that reads no file at all: an output builtin or an existence or kind test,
-// whose redirections only write or duplicate a descriptor, or an operand
-// reader whose operands and input redirections are literal path-shaped words
-// (each a token of its own) and whose options are short letters with no
-// recursion. A bare control word or assignment list is plain too. Anything
-// else, a computed operand, a program, a function call, a directory change
-// or a long option included, is not.
-func plainCommand(words []string) bool {
-	plain := literalWords(words)
-	for index := 0; index < len(plain); index++ {
-		if plain[index] != redirect && plain[index] != writeRedirect {
-			continue
-		}
-		index++
-		if index >= len(plain) || plain[index-1] == writeRedirect {
-			continue
-		}
-		switch target := unquote(plain[index]); target {
-		case "1", "2", "&1", "&2", "-", "/dev/null":
-		default:
-			// An input redirection reads its target, which must then be a
-			// literal path-shaped word.
-			if !literalPathWord(plain[index]) {
-				return false
-			}
-		}
-	}
-	word, args := directCommandWord(plainWords(plain))
-	if word == "" {
-		return true
-	}
-	switch {
-	case outputBuiltins[word]:
-		return !assignsEnvironment(word, args)
-	case testBuiltins[word]:
-		for _, arg := range args {
-			if value := unquote(arg); arg == value && strings.HasPrefix(value, "-") && !testOperators[value] {
-				return false
-			}
-		}
-		return true
-	case operandReaders[word], patternReaders[word]:
-		return plainOperands(word, args)
-	}
-	return false
-}
-
-// plainOperands reports operand-reader arguments plainCommand admits: short
-// options with no recursion (`grep -r`) and no other pattern
-// source (`grep -e`, `-f`), a digit count after `head` or `tail` -n or -c,
-// a grep's pattern, and literal path-shaped file operands.
-func plainOperands(word string, args []string) bool {
+// plainOperands reports operand-reader arguments the gate admits: short
+// options, judged by their unquoted value, with no recursion (`grep -r`) and
+// no other pattern source (`grep -e`, `-f`), a digit count after `head` or
+// `tail` -n or -c, a grep's pattern as one field with no glob a shell could
+// expand into operands, and literal file operands (literalOperand).
+func plainOperands(word string, args []string, listed map[string]bool) bool {
 	pattern := patternReaders[word]
 	count := false
 	for _, arg := range args {
@@ -342,7 +516,7 @@ func plainOperands(word string, args []string) bool {
 				return false
 			}
 			count = false
-		case arg == value && strings.HasPrefix(value, "-") && len(value) > 1:
+		case strings.HasPrefix(value, "-") && len(value) > 1:
 			switch {
 			case strings.HasPrefix(value, "--"):
 				return false
@@ -352,12 +526,31 @@ func plainOperands(word string, args []string) bool {
 				count = true
 			}
 		case pattern:
+			if !singleField(arg) {
+				return false
+			}
 			pattern = false
-		case !literalPathWord(arg):
+		case !literalOperand(arg, listed):
 			return false
 		}
 	}
 	return !count
+}
+
+// literalOperand reports a literal path-shaped word (literalPathWord) a
+// reader may open: one that does not end in `/` or `/.` and does not name a
+// directory a listing of the file names, so no admitted reader is handed a
+// listed directory. A reader handed another directory fails on it and reads
+// nothing below it.
+func literalOperand(raw string, listed map[string]bool) bool {
+	if !literalPathWord(raw) {
+		return false
+	}
+	value := unquote(raw)
+	if strings.HasSuffix(value, "/") || strings.HasSuffix(value, "/.") {
+		return false
+	}
+	return !listed[path.Clean(value)]
 }
 
 // literalPathWord reports a word with no expansion, substitution or glob
@@ -385,7 +578,7 @@ func literalWords(words []string) []string {
 // nameFilter reports a pipeline stage that reads names only as text from its
 // standard input and opens no file a name could reach: `wc` with count
 // flags, `sort` with ordering flags, `head` or `tail` with a line count, and
-// a non-recursive `grep` given one pattern. Anything else, `xargs`, `while`,
+// a non-recursive `grep` given one literal pattern. Anything else, `xargs`, `while`,
 // `tee`, `sed` and every long option included, is not one.
 func nameFilter(words []string) bool {
 	plain := literalWords(words)
@@ -418,6 +611,10 @@ func nameFilter(words []string) bool {
 			switch {
 			case args[index] == value && grepFlags.MatchString(value):
 			case strings.HasPrefix(value, "-"):
+				return false
+			case expanding(args[index]) || !singleField(args[index]):
+				// A computed pattern, or a glob the shell could expand into
+				// file operands, is not a stdin-only filter.
 				return false
 			default:
 				pattern++

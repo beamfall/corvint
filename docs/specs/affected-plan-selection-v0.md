@@ -181,33 +181,33 @@ measure. None of them drops a unit the change can reach.
   pipeline is one of: control words and redirections alone (`if`, `then`, `else`, `elif`,
   `fi`, `while`, `until`, `do`, `done`, `!`, `{ }`, `( )` joined by `;`, `&`, `&&`, `||` or
   `|`); `echo`, `true`, `false`, `:` or `exit`; `printf` whose first argument is literal and
-  does not begin with `-`; `test` or `[` whose literal arguments beginning with `-` are
-  `-e -f -d -h -L -z -n -eq -ne -lt -le -gt -ge -a -o`, where an argument holding an expansion
-  is a double-quoted single field and appears only as `[ X ]`, `[ ! X ]`, `[ -z X ]`,
-  `[ -n X ]` or `[ X OP Y ]` with OP one of `= == != -eq -ne -lt -le -gt -ge`; `[[` with the
-  same unary operators and string comparisons but no integer operator (whose operands `[[`
-  evaluates arithmetically) and no `=~` (which sets `BASH_REMATCH`), and with an expansion
-  only when no file operator is present; or `cat`, `head`, `tail`, `wc`, `sort`, `cmp`, `grep`,
-  `egrep` or `fgrep` with short options only (no `-r`, `-R`, `-d`, `-e` or `-f` for a grep,
-  judged by the unquoted value), a digit count after `head` or `tail` `-n` or `-c`, a literal
-  grep pattern, and literal path-shaped operands. (4) An expansion appears only in an argument
-  of `echo`, `printf` after the first, `test`, `[`, `[[`, `:` or `exit`; a redirection target
-  is `1`, `2`, `&1`, `&2`, `-`, `/dev/null` or a literal path-shaped word. (5) A reader
-  operand or input redirection target that ends in `/` or `/.`, or that names a directory a
-  listing of the test names, MUST be refused. Under this grammar no command can write a
-  variable, change the working directory, run a program other than the named utilities, or
-  open a file by a name no literal token holds, so no write needs to be judged
+  does not begin with `-`; `test` or `[` whose literal arguments beginning with `-` are `-e -f
+  -d -h -L -z -n -eq -ne -lt -le -gt -ge -a -o`, where an argument holding an expansion is a
+  double-quoted single field and appears only as `[ X ]`, `[ ! X ]`, `[ -z X ]`, `[ -n X ]` or
+  `[ X OP Y ]` with OP one of `= == != -eq -ne -lt -le -gt -ge`; `[[` with the same unary
+  operators and string comparisons but no integer operator (whose operands `[[` evaluates
+  arithmetically) and no `=~` (which sets `BASH_REMATCH`), and with an expansion only when no
+  file operator is present; or `cat`, `head`, `tail`, `wc`, `sort`, `cmp`, `grep`, `egrep` or
+  `fgrep` with short options only (no `-r`, `-R`, `-d`, `-e` or `-f` for a grep, judged by the
+  unquoted value), a digit count after `head` or `tail` `-n` or `-c`, a literal grep pattern
+  with no unquoted glob, and literal path-shaped operands. (4) An expansion appears only in an
+  argument of `echo`, `printf` after the first, `test`, `[`, `[[`, `:` or `exit`; a
+  redirection target is `1`, `2`, `&1`, `&2`, `-`, `/dev/null` or a literal path-shaped word.
+  (5) A reader operand or redirection target that ends in `/` or `/.`, or that names a
+  directory a listing of the test names, MUST be refused. Under this grammar no command can
+  write a variable, change the working directory, run a program other than the named
+  utilities, or open a file by a name no literal token holds, so no write needs to be judged
   environment-style. `diff`, a checksum tool, `set`, `read`, `for`, `cd` and every other
   command are refused as unrecognised. Not modelled, with the limit each leaves: the
-  environment the test runner exports before the unit starts (`PATH`, `BASH_ENV`,
-  `SHELLOPTS`, `CLICOLOR_FORCE`, `GREP_OPTIONS`, positional parameters) is outside the unit's
-  words, so a runner that exports one changes reads this gate cannot see; variables the shell
-  itself maintains (`_`, `?`, `PIPESTATUS`, `LINENO`) are written by every shell and no word
-  of the unit names them as a write; a reader operand naming a directory without a trailing
-  slash that no listing of the test names is admitted because every admitted reader fails on a
-  directory operand and reads nothing below it; and an operand that is a tracked symbolic
-  link is matched by its own path and not by its target's, so a link into a listed directory
-  is not seen as a content read of it.
+  environment the test runner exports before the unit starts (`PATH`, `BASH_ENV`, `SHELLOPTS`,
+  `CLICOLOR_FORCE`, `GREP_OPTIONS`, positional parameters) is outside the unit's words, so a
+  runner that exports one changes reads this gate cannot see; variables the shell itself
+  maintains (`_`, `?`, `PIPESTATUS`, `LINENO`) are written by every shell and no word of the
+  unit names them as a write; a reader operand naming a directory without a trailing slash
+  that no listing of the test names is admitted because every admitted reader fails on a
+  directory operand and reads nothing below it; and an operand that is a tracked symbolic link
+  is matched by its own path and not by its target's, so a link into a listed directory is not
+  seen as a content read of it.
 - **AFP-V0-9962:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
   A name-listing read MUST select its unit for a dirty path within the read's depth whose
   status is `added`, `deleted`, `type-changed` or `unknown`, and MUST NOT select it for a path
@@ -3259,7 +3259,10 @@ AFP-V0-9960: `TestClassifyChange_AFPV09960` and `TestChangeStatuses_AFPV09960` (
 renamed, file to directory, changed symlink, modified, untracked, no base, unreadable base);
 `TestAffectedChangeStatusCLI_AFPV09960` runs `corvint affected` with and without `--base`.
 AFP-V0-9961: `TestNameListingForms_AFPV09961` (one row per admitted and refused form, the
-pipeline and unit-gate refusals included) and `TestNameListingContentDecides_AFPV09961`.
+pipeline and unit-gate refusals included, one `grammar_` row per construct outside the closed
+grammar and one `r2_` row per round-2 review path), `TestNameListingGrammarPositions_AFPV09961`
+(each refused construct before and after a listing, bare and inside `if`, a subshell, a brace
+group and a command substitution) and `TestNameListingContentDecides_AFPV09961`.
 AFP-V0-9962: `TestNameListingSelection_AFPV09962`. AFP-V0-9963:
 `TestNameOnlyTreeWalker_AFPV09963`. AFP-V0-9964: `TestGraphCacheNameListings_AFPV09964`. The
 mutation evidence and measurements are in `docs/build-log/2026-11-11-affstatus.md`.

@@ -138,7 +138,7 @@ No variable can be written by any admitted construct, so `assignsEnvironment`,
 
 ### Directory operands of readers (round-2 item 4)
 
-A reader operand or input redirection target that ends in `/` or `/.`, or whose cleaned path
+A reader operand or redirection target that ends in `/` or `/.`, or whose cleaned path
 (leading `./` and trailing `/` removed) equals a directory a listing of the test names, is
 refused. An operand naming some other directory cannot be recognised statically; it is kept,
 because every admitted reader (GNU and BSD `cat`, `head`, `tail`, `wc`, `sort`, `cmp`, and `grep`
