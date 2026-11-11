@@ -63,6 +63,10 @@ type Event struct {
 	// event: the in-process save-to-answer latency (PRB-V0-1014).
 	ReplanMillis float64 `json:",omitempty"`
 	Message      string  `json:",omitempty"`
+	// Inventory is what Options.Inventory read for this plan: the committed
+	// test inventory judged against the working tree (TIV-V1-002). It is
+	// read on every save and never refreshed here.
+	Inventory any `json:",omitempty"`
 }
 
 // Options configures one loop.
@@ -85,6 +89,9 @@ type Options struct {
 	// NonGo plans the working tree of an index whose Language is not Go;
 	// nil refuses such an index before the first save.
 	NonGo func(ctx context.Context, diffs []linecov.FileDiff) (any, error)
+	// Inventory, when set, reads the state each plan event reports beside
+	// the plan; it must only read.
+	Inventory func(ctx context.Context) any
 }
 
 // ErrSourceStopped wraps the event source failure the loop ends with.
@@ -148,7 +155,11 @@ func Run(ctx context.Context, o Options) error {
 			return replanErr(ctx, err)
 		}
 		p.ElapsedMS = time.Since(start).Milliseconds()
-		if err := emit(Event{Kind: "plan", Plan: &p, LanguagePlan: lp, ReplanMillis: linecov.Millis(time.Since(start))}); err != nil {
+		var inventory any
+		if o.Inventory != nil {
+			inventory = o.Inventory(ctx)
+		}
+		if err := emit(Event{Kind: "plan", Plan: &p, LanguagePlan: lp, ReplanMillis: linecov.Millis(time.Since(start)), Inventory: inventory}); err != nil {
 			return err
 		}
 		if o.Run == nil {

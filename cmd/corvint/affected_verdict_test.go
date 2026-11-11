@@ -60,7 +60,9 @@ func TestAFPV0872AffectedSummaryVerdict(t *testing.T) {
 	}
 	lines := strings.Split(strings.TrimSuffix(text.String(), "\n"), "\n")
 	if !strings.HasPrefix(lines[0], "affected "+plan["summary"].(map[string]any)["line"].(string)+" revision=") ||
-		lines[1] != "tiers "+planTiers["summary"].(string) || len(lines) != 2+len(want[0])+len(want[1]) || lines[2] != "tier0 "+want[0][0].(string) {
+		lines[1] != "tiers "+planTiers["summary"].(string) || len(lines) != 4+len(want[0])+len(want[1]) || lines[2] != "tier0 "+want[0][0].(string) ||
+		// TIV-V1-006: the fixture commits no test inventory, so its one Go instance runs in full.
+		lines[len(lines)-2] != "inventory absent reasons=inventory-absent full=1/1 unassigned=0" || lines[len(lines)-1] != "inventory go@. full inventory-absent" {
 		t.Fatalf("text verdict:\n%s", text.String())
 	}
 

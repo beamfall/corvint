@@ -17,7 +17,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 5 Add `corvint inventory refresh` with drift refusal and the size cap.
    Requirements: TIV-V1-002, TIV-V1-010, TIV-V1-011. Proof: CLI tests for the happy path, drift and
    oversize.
-- [ ] 6 Make `corvint affected`, `corvint test`, `corvint watch` and the MCP affected tool read the
+- [x] 6 Make `corvint affected`, `corvint test`, `corvint watch` and the MCP affected tool read the
    inventory and print its reasons.
    Requirements: TIV-V1-002, TIV-V1-006 to TIV-V1-009. Proof: a read-only test showing no repository
    file changes, and a plan for each reason.
