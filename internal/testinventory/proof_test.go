@@ -154,6 +154,91 @@ func TestTIVV1008UnprovenConfigFailsClosed(t *testing.T) {
 			"vitest.config.ts": "export default { test: { '\\u0069nclude': ['src/**/*.check.ts'] } }\n",
 			"src/a.check.ts":   "test('a', () => {})\n",
 		}},
+		// V1-5425: every later case fails on 676c335b0.
+		{"pytest indented key in pyproject.toml", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[tool.pytest.ini_options]\n  python_files = [\"check_*.py\"]\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"pytest quoted key in pyproject.toml", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[tool.pytest.ini_options]\n\"python_files\" = \"check_*.py\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"pytest indented header in pyproject.toml", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[project]\nname = \"x\"\n\n  [tool.pytest.ini_options]\npython_files = \"check_*.py\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"pytest quoted and spaced header in pyproject.toml", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[ tool . \"pytest\" . ini_options ]\npython_files = \"check_*.py\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"pytest dotted key under [tool]", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[tool]\npytest.ini_options.python_files = \"check_*.py\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"pytest 9 native [tool.pytest] table", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[tool.pytest]\npython_files = [\"check_*.py\"]\n\n[tool.pytest.ini_options]\naddopts = \"-q\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"pytest.toml over pyproject.toml", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pytest.toml":      "[pytest]\npython_files = [\"check_*.py\"]\n",
+			"pyproject.toml":   "[tool.pytest.ini_options]\naddopts = \"-q\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{".pytest.ini over pyproject.toml", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			".pytest.ini":      "[pytest]\npython_files = check_*.py\n",
+			"pyproject.toml":   "[tool.pytest.ini_options]\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{".pytest.toml over setup.cfg", "pytest@svc", "svc/tests/check_b.py", []string{"sets testpaths"}, MapTree{
+			"svc/.pytest.toml":       "[pytest]\ntestpaths = [\"checks\"]\n",
+			"svc/setup.cfg":          "[tool:pytest]\n",
+			"svc/tests/check_a.py":   "def test_a(): pass\n",
+			"svc/tests/test_dflt.py": "def test_d(): pass\n",
+		}},
+		{"pytest.ini an older pytest reads beside pytest.toml", "pytest@.", "tests/check_b.py", []string{"pytest.ini sets python_files"}, MapTree{
+			"pytest.toml":      "[pytest]\n",
+			"pytest.ini":       "[pytest]\npython_files = check_*.py\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"tox.ini section header with a comment", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"tox.ini":          "[tox]\nenvlist = py3\n\n[pytest] # pytest options\npython_files = check_*.py\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"tox.ini indented header above setup.cfg", "pytest@.", "tests/check_b.py", []string{"an indented [pytest] line", "setup.cfg sets python_files"}, MapTree{
+			"tox.ini":          "[tox]\nenvlist =\n  py3\n  [pytest]\n",
+			"setup.cfg":        "[tool:pytest]\npython_files = check_*.py\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"jest script --testMatch", "jest@.", "src/b.check.js", []string{`package.json script "test" runs jest with --testMatch`}, MapTree{
+			"jest.config.js": "module.exports = { testEnvironment: 'node' }\n",
+			"package.json":   `{"scripts": {"test": "jest --testMatch '**/*.check.js'"}}`,
+			"src/a.check.js": "test('a', () => {})\n",
+		}},
+		{"jest script kebab --root-dir after another command", "jest@.", "src/b.check.js", []string{`script "test" runs jest with --root-dir`}, MapTree{
+			"jest.config.json": `{"testEnvironment": "node"}`,
+			"package.json":     `{"scripts": {"test": "npm run build && npx jest@29 --ci --root-dir=src"}}`,
+			"src/a.check.js":   "test('a', () => {})\n",
+		}},
+		{"jest script expansion", "jest@.", "src/b.check.js", []string{"runs jest with the expansion $JEST_ARGS"}, MapTree{
+			"jest.config.js": "module.exports = {}\n",
+			"package.json":   `{"scripts": {"test": "jest $JEST_ARGS"}}`,
+			"src/a.check.js": "test('a', () => {})\n",
+		}},
+		{"vitest script -c", "vitest@.", "src/b.check.ts", []string{`script "test:ci" runs vitest with -c`}, MapTree{
+			"vitest.config.ts": "export default {}\n",
+			"package.json":     `{"scripts": {"test:ci": "cross-env CI=1 vitest run -c vitest.ci.config.ts"}}`,
+			"src/a.check.ts":   "test('a', () => {})\n",
+		}},
+		{"vitest script --root in the manifest above", "vitest@web", "web/src/b.check.ts", []string{`package.json script "test" runs vitest with --root`}, MapTree{
+			"package.json":         `{"scripts": {"test": "vitest run --root web"}}`,
+			"web/vitest.config.ts": "export default {}\n",
+			"web/src/a.check.ts":   "test('a', () => {})\n",
+		}},
+		{"vitest script unmodelled flag", "vitest@.", "src/b.check.ts", []string{"runs vitest with --mode"}, MapTree{
+			"vitest.config.ts": "export default {}\n",
+			"package.json":     `{"scripts": {"test": "vitest --mode staging"}}`,
+			"src/a.check.ts":   "test('a', () => {})\n",
+		}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -175,6 +260,9 @@ func TestTIVV1008UnprovenConfigFailsClosed(t *testing.T) {
 			if want := append(slices.Clone(before.Unassigned), c.added); !sameSet(instance.Unassigned, want) {
 				t.Fatalf("unassigned %v, want %v", instance.Unassigned, want)
 			}
+			if !strings.Contains(instance.Cause, "that the record does not bind, or binds at another blob, is unassigned") {
+				t.Fatalf("cause %q does not say which files are unassigned", instance.Cause)
+			}
 			for _, cause := range c.causes {
 				if !strings.Contains(instance.Cause, cause) || !strings.Contains(instance.Cause, "not proven to keep the default test-file names") {
 					t.Fatalf("cause %q does not name %q", instance.Cause, cause)
@@ -184,6 +272,46 @@ func TestTIVV1008UnprovenConfigFailsClosed(t *testing.T) {
 				t.Fatalf("reasons %v", verdict.Reasons())
 			}
 		})
+	}
+}
+
+// TIV-V1-003, V1-5425: one pytest instance per root, its config the first
+// present of pytest's documented search order (pytest.toml, .pytest.toml,
+// pytest.ini, .pytest.ini, pyproject.toml, tox.ini, setup.cfg); the shared
+// files only with a pytest table or section. Fails on 676c335b0.
+func TestTIVV1003PytestConfigPrecedence(t *testing.T) {
+	tree := MapTree{
+		"pytest.toml":     "",
+		".pytest.toml":    "[pytest]\n",
+		"pytest.ini":      "",
+		".pytest.ini":     "[pytest]\n",
+		"pyproject.toml":  "[tool.pytest]\n",
+		"tox.ini":         "[pytest]\n",
+		"setup.cfg":       "[tool:pytest]\n",
+		"tests/test_a.py": "def test_a(): pass\n",
+	}
+	for _, want := range []string{"pytest.toml", ".pytest.toml", "pytest.ini", ".pytest.ini", "pyproject.toml", "tox.ini", "setup.cfg"} {
+		files, _ := tree.Files()
+		var got []Declared
+		for _, instance := range Detect(files, tree.Read) {
+			if instance.Runner == "pytest" {
+				got = append(got, instance)
+			}
+		}
+		if len(got) != 1 || got[0].Key != "pytest@." || got[0].Config != want || got[0].Pattern != "" {
+			t.Fatalf("with %s first: pytest instances %+v", want, got)
+		}
+		delete(tree, want)
+	}
+	files, _ := tree.Files()
+	if got := Detect(files, tree.Read); len(got) != 0 {
+		t.Fatalf("no config left: %+v", got)
+	}
+	// A shared file with no pytest table or section declares nothing.
+	shared := MapTree{"pyproject.toml": "[tool.black]\nline-length = 100\n", "tox.ini": "[tox]\n", "setup.cfg": "[metadata]\nname = x\n"}
+	sharedFiles, _ := shared.Files()
+	if got := Detect(sharedFiles, shared.Read); len(got) != 0 {
+		t.Fatalf("shared configs with no pytest section: %+v", got)
 	}
 }
 
@@ -218,6 +346,28 @@ func TestTIVV1008ProvenDefaultControl(t *testing.T) {
 		{"playwright device spread", "playwright@.", "e2e/helpers.ts", "e2e/b.spec.ts", MapTree{
 			"playwright.config.ts": "import { defineConfig, devices } from '@playwright/test'\nexport default defineConfig({\n  testDir: './e2e',\n  retries: process.env.CI ? 2 : 0,\n  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],\n})\n",
 			"e2e/a.spec.ts":        "test('a', async () => {})\n",
+		}},
+		{"jest safe script flags", "jest@.", "src/lib.js", "src/b.test.js", MapTree{
+			"jest.config.js": "module.exports = {}\n",
+			"package.json":   `{"scripts": {"test": "jest --ci --coverage --maxWorkers=2 -i --no-cache", "test:watch": "jest --watch src/", "lint": "eslint --ext .js ."}}`,
+			"src/a.test.js":  "test('a', () => {})\n",
+		}},
+		{"vitest safe script flags", "vitest@.", "src/lib.ts", "src/b.test.ts", MapTree{
+			"vitest.config.ts": "export default {}\n",
+			"package.json":     `{"scripts": {"test": "vitest run --coverage.provider=v8 --reporter=dot", "dev": "vitest watch --pool forks"}}`,
+			"src/a.test.ts":    "test('a', () => {})\n",
+		}},
+		{"pytest.toml safe addopts", "pytest@.", "pkg/calc.py", "tests/test_b.py", MapTree{
+			"pytest.toml":     "[pytest]\naddopts = [\"-ra\", \"-q\"]\n",
+			"tests/test_a.py": "def test_a(): pass\n",
+		}},
+		{"pyproject.toml indented, quoted and other tables", "pytest@.", "pkg/calc.py", "tests/test_b.py", MapTree{
+			"pyproject.toml":  "[build-system]\nrequires = [\"hatchling>=1.0\"]\n\n[project]\nname = \"x\"\nauthors = [{ name = \"A\", email = \"a@example.com\" }]\nreleased = 1979-05-27 07:32:00Z\nversion = '1.0'\nlicense = { text = \"Apache-2.0\" }\nreadme = ''''\nraw [tool.pytest.ini_options] \\ text\n'''\ndescription = \"\"\"\npython_files = \"x\"\n\"\"\"\n\n[[tool.hatch.envs]]\nscripts = { test = \"pytest --doctest-modules\" }\n\n  [tool.pytest.ini_options]\n  \"addopts\" = \"-q\"\n  markers = [\n    \"slow\",  # a comment\n  ]\n\n[tool.other]\npython_files = \"check_*.py\"\n",
+			"tests/test_a.py": "def test_a(): pass\n",
+		}},
+		{"tox.ini section header with a comment", "pytest@.", "pkg/calc.py", "tests/test_b.py", MapTree{
+			"tox.ini":         "[tox]\nenvlist = py3\n\n[pytest] ; options\naddopts = -q\n",
+			"tests/test_a.py": "def test_a(): pass\n",
 		}},
 		{"pytest safe addopts", "pytest@.", "pkg/calc.py", "tests/test_b.py", MapTree{
 			"pyproject.toml":    "[project]\nname = 'x'\n\n[tool.pytest.ini_options]\naddopts = \"-ra -q --strict-markers --tb=short\"\nmarkers = [\"slow\"]\n",

@@ -199,7 +199,7 @@ func judgeInstance(instance Declared, record Instance, files map[string]string, 
 	}
 	sort.Strings(verdict.Unassigned)
 	if instance.Pattern != "" && len(verdict.Unassigned) != 0 {
-		verdict.Cause = fmt.Sprintf("config %s is not proven to keep the default test-file names (%s); every changed or new %s file under %s that the record does not bind is unassigned",
+		verdict.Cause = fmt.Sprintf("config %s is not proven to keep the default test-file names (%s); every %s file under %s that the record does not bind, or binds at another blob, is unassigned",
 			instance.Config, instance.Pattern, languageOf(instance), instance.Root)
 	}
 	for _, test := range record.Tests {
