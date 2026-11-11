@@ -571,6 +571,9 @@ func (connection *connection) writeResultContext(ctx context.Context, id protoco
 }
 
 // busyDetail is the server-busy error object: retryable, naming the concurrency limit (DMF-V1-010).
+// It is a server-level object outside every tool group's closed tool-error profile: the server
+// answers it before the request is routed to a group, so it carries exactly code, message,
+// retryable and next, and no profile or tool member; a client recognises it by code server-busy.
 func (connection *connection) busyDetail() map[string]any {
 	return map[string]any{
 		"code": protocol.ServerBusyCode, "retryable": true, "next": "retry the same call when an earlier one finishes",

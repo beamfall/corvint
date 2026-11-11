@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -62,6 +64,12 @@ func TestDMFV1010ServerBusy(t *testing.T) {
 		message, _ := detail["message"].(string)
 		if detail["code"] != protocol.ServerBusyCode || detail["retryable"] != true || !strings.Contains(message, "concurrency limit") || !strings.Contains(message, "1") || detail["next"] == "" || detail["next"] == nil {
 			t.Fatalf("%s busy detail %#v", where, detail)
+		}
+		// The busy object is outside the tool-group profiles: exactly these members, no profile
+		// or tool.
+		members := slices.Sorted(maps.Keys(detail))
+		if !slices.Equal(members, []string{"code", "message", "next", "retryable"}) {
+			t.Fatalf("%s busy members %v", where, members)
 		}
 	}
 	call := responses["call"]
