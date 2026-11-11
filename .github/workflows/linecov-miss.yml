@@ -122,7 +122,8 @@ jobs:
             say "GLS-V0-046: run $RUN_ID retained no ci-failed-push artifact; its failed tests are unknown, so no miss is suspected"
             exit 0
           fi
-          mapfile -t failed < <(find "$d/failed" -name failed.json -type f | sort)
+          failed=() # no mapfile: this step's script also runs under the macOS gate's Bash 3.2 (ASD-V0-750)
+          while IFS= read -r f; do failed+=("$f"); done < <(find "$d/failed" -name failed.json -type f | sort)
           [ ${#failed[@]} -gt 0 ] || { say "GLS-V0-046: no failed.json in run $RUN_ID"; exit 0; }
           green=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=50" \
             --jq "[.workflow_runs[] | select(.id < $RUN_ID) | .head_sha] | first // empty") || green=""
@@ -202,7 +203,8 @@ jobs:
           # a suspect whose runner differs or names no deadline stays suspected.
           wrapper_id="sha256:$(sha256sum "$RUNNER_TEMP/test-confine" | cut -d' ' -f1)"
           arch_vars=(GO386 GOAMD64 GOARM GOARM64 GOFIPS140 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM) # linecov.ArchFeatureVars
-          mapfile -t arch_values < <(GOFLAGS=-race go env "${arch_vars[@]}")
+          arch_values=() # no mapfile: the macOS gate runs this script under Bash 3.2 (ASD-V0-750)
+          while IFS= read -r v; do arch_values+=("$v"); done < <(GOFLAGS=-race go env "${arch_vars[@]}")
           arch=""
           for i in "${!arch_vars[@]}"; do
             [ -z "${arch_values[i]:-}" ] || arch="${arch:+$arch }${arch_vars[i]}=${arch_values[i]}"
