@@ -163,8 +163,12 @@ func fileDigest(name string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// key is the record key of change c: the run's stamp and the whole change entry.
+// key is the record key of change c: the run's stamp and the change entry
+// less its recorded CI scope and verdict, which measure never reads: Moved
+// compares them with the Result after the cache, so re-recording a moved
+// change reuses its record (ASC-V0-9851, V1-5162).
 func (c *resultCache) key(ch change) string {
+	ch.Recorded = nil
 	entry, _ := json.Marshal(ch)
 	h := sha256.New()
 	h.Write(c.stamp)

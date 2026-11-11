@@ -186,12 +186,58 @@ func TestResultCacheEqualsReplay_ASCV0778(t *testing.T) {
 		}
 	})
 	os.Remove(count)
-	set.Changes[0].Recorded = &recorded{CIScope: "FULL", Verdict: "run"}
+	set.Changes[0].Failures = []failure{{Run: 3, Job: 4, Package: "example.com/fixture/x"}}
 	if _, err := replay(ctx, root, set, "changes.json", corvint, selector); err != nil {
 		t.Fatal(err)
 	}
 	if got := invocations(t, count); !reflect.DeepEqual(got, []string{"--version", "affected", "test"}) {
 		t.Fatalf("a changed change entry: want only that change replayed, got %q", got)
+	}
+	// ASC-V0-9851: the recorded scope and verdict are not replay inputs.
+	os.Remove(count)
+	set.Changes[0].Recorded = &recorded{CIScope: "FULL", Verdict: "run"}
+	if _, err := replay(ctx, root, set, "changes.json", corvint, selector); err != nil {
+		t.Fatal(err)
+	}
+	if got := invocations(t, count); !reflect.DeepEqual(got, []string{"--version"}) {
+		t.Fatalf("a re-recorded change replayed: %q", got)
+	}
+}
+
+// TestResultCacheKeyMissesOnEveryInput_ASCV9851 (V1-5162): each field of the
+// change entry that measure reads, and the run's stamp (planner, selector and
+// tool bytes, costs, go, git and environment; openCache's inputs, each
+// replayed in TestResultCacheEqualsReplay_ASCV0778), moves the record key;
+// the recorded scope and verdict, which measure never reads, do not.
+func TestResultCacheKeyMissesOnEveryInput_ASCV9851(t *testing.T) {
+	cache := &resultCache{stamp: []byte("stamp")}
+	ch := change{ID: "c", Kind: "merged", Base: strings.Repeat("a", 40), Head: strings.Repeat("b", 40), PR: 7, Failures: []failure{{Run: 1, Job: 2, Package: "p"}}}
+	key := cache.key(ch)
+	for name, edit := range map[string]func(*change){
+		"id":          func(c *change) { c.ID = "d" },
+		"kind":        func(c *change) { c.Kind = "failed-ci" },
+		"base":        func(c *change) { c.Base = strings.Repeat("c", 40) },
+		"head":        func(c *change) { c.Head = strings.Repeat("c", 40) },
+		"pr":          func(c *change) { c.PR = 8 },
+		"failures":    func(c *change) { c.Failures = []failure{{Run: 1, Job: 2, Package: "q"}} },
+		"no failures": func(c *change) { c.Failures = nil },
+	} {
+		other := ch
+		edit(&other)
+		if cache.key(other) == key {
+			t.Errorf("%s: key unchanged", name)
+		}
+	}
+	if (&resultCache{stamp: []byte("stamp2")}).key(ch) == key {
+		t.Error("stamp: key unchanged")
+	}
+	rerecorded := ch
+	rerecorded.Recorded = &recorded{CIScope: "NARROW", Verdict: "run"}
+	if cache.key(rerecorded) != key {
+		t.Error("recorded: key moved")
+	}
+	if ch.Recorded != nil || rerecorded.Recorded == nil {
+		t.Fatal("key mutated its argument")
 	}
 }
 
@@ -267,5 +313,33 @@ func TestResultCacheKeysTheCostBytesReplayRead_ASCV0778(t *testing.T) {
 	}
 	if stamp(b) == sa {
 		t.Fatal("other cost bytes kept the key")
+	}
+}
+
+// TestResultCacheColdLine_ASCV9852 (V1-5162): an empty cache directory prints
+// the cold line, never the off line, and a warm rerun prints REUSE.
+func TestResultCacheColdLine_ASCV9852(t *testing.T) {
+	root, corvint, selector, _, set := cacheFixture(t)
+	stderr := func() string {
+		t.Helper()
+		f, err := os.CreateTemp(t.TempDir(), "stderr")
+		if err != nil {
+			t.Fatal(err)
+		}
+		saved := os.Stderr
+		os.Stderr = f
+		_, err = replay(context.Background(), root, set, "changes.json", corvint, selector)
+		os.Stderr = saved
+		f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return mustReadFile(t, f.Name())
+	}
+	if got := stderr(); !strings.Contains(got, "result cache cold: 0 of 2 change results") || strings.Contains(got, "cache off") {
+		t.Fatalf("cold run stderr:\n%s", got)
+	}
+	if got := stderr(); !strings.Contains(got, "REUSE 2 of 2") || strings.Contains(got, "cache cold") {
+		t.Fatalf("warm run stderr:\n%s", got)
 	}
 }
