@@ -354,7 +354,7 @@ func TestGoTestRecordsAPackagePassOnlyOnAnUnmovedTree_GLV0786(t *testing.T) {
 // waitSignal is a run's log that closes waited once the run prints its WAIT
 // line, so a test releases a held lock only after the run found it held.
 type waitSignal struct {
-	bytes.Buffer
+	buf    bytes.Buffer // named, so no promoted write path skips Write (GPK-V0-9930)
 	once   sync.Once
 	waited chan struct{}
 }
@@ -363,7 +363,7 @@ func (w *waitSignal) Write(p []byte) (int, error) {
 	if bytes.Contains(p, []byte("WAIT ")) {
 		w.once.Do(func() { close(w.waited) })
 	}
-	return w.Buffer.Write(p)
+	return w.buf.Write(p)
 }
 
 // recordAside runs args once to record a genuine pass on the current tree,
@@ -429,9 +429,9 @@ func lockWaitRun(t *testing.T, key, lockStep string, whileHeld func(), args ...s
 	select {
 	case <-log.waited:
 	default:
-		t.Fatalf("the run never waited for the held lock: %q", log.String())
+		t.Fatalf("the run never waited for the held lock: %q", log.buf.String())
 	}
-	return code, log.String()
+	return code, log.buf.String()
 }
 
 // TestLockWaiterRerunsAStepWhosePassWasRecordedWhileItWaited_GLV0786 replays

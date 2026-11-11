@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 func stableFileRoot(f *os.File) (*os.Root, error) {

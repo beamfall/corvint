@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cemcode"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // CapacityCode is the typed refusal of a documented corpus capacity limit

@@ -121,7 +121,7 @@ member.
   reader that ignores the new members reads the same units, scope and unknown reasons as before.
   The compact plan carries both members unchanged, `--format text` prints one `e2e` line per entry
   and one `e2e-unknown` line per E2E unknown after the `selected` lines, and the `affected-summary/1`
-  verdict is unchanged.
+  verdict gains only the reduced member of `APK-V0-9970`.
 - `APK-V0-006`: (proposed 2026-11-09; V1-5251; delivery experimental) Deterministic, bounded and
   read-only. The joined plan MUST be byte-identical for identical inputs (entries sorted by project
   then path, rows and reasons sorted), MUST apply the existing flow read bounds (AFU-V1-037, the
@@ -134,6 +134,24 @@ member.
   every flow in the `corvint flows impact` report (AFU-V1-017) MUST be a `testKeys` entry of some
   `plan.e2e.selected` row, and every `variations` entry of that flow a `variation` of one of its
   `flows` rows.
+- `APK-V0-9970`: (proposed 2026-11-11; V1-5254; delivery experimental; amends APK-V0-005 and
+  AFP-V0-872) The verdict names the E2E selections. When the compact plan carries `plan.e2e`, the
+  `affected-summary/1` verdict of `corvint affected --summary` MUST carry the member `e2e`:
+  `scope` (the plan's E2E scope), `inventory` (the inventory count), `selected` (one
+  `{path, project}` per `plan.e2e.selected` entry in plan order, `project` omitted when the entry
+  has none), `variations` (the distinct `{flow, variation}` pairs of every entry's `flows` rows,
+  sorted by flow then variation, empty when no flow hit selected a file) and `unknown` (the
+  distinct reasons of `plan.e2e.unknown`, sorted, omitted when none). `--summary --format text`
+  MUST print after the tier lines `e2e-scope SCOPE inventory=N selected=M`, one
+  `e2e-variation FLOW VARIATION` line per pair, one `e2e PATH` line (ending ` project P` when the
+  entry has one) per selection and one `e2e-unknown REASON` line per reason. A plan without
+  `plan.e2e` MUST give a verdict byte-identical to the verdict before this requirement. Test keys,
+  changed paths, targets, reasons and unknown details stay in the plan, which `detail` names. The
+  `corvint.affected` MCP tool answers the verdict bytes (`MMR-V0-1118`), so its answer carries the
+  same member and still equals the CLI's. Non-goals: test keys or changed paths in the verdict.
+  Failure mode: a repository with thousands of selected E2E files gets a verdict of that size; the
+  MCP answer size bound of `MMR-V0-1118` still applies. Rollback: drop the member and its text
+  lines.
 
 ## Wire
 
@@ -199,12 +217,13 @@ declaration and a bound discovery receipt. One Go test per requirement, named fo
 | APK-V0-005 | `TestAPKV0005MembersAreAdditive_V15251` |
 | APK-V0-006 | `TestAPKV0006DeterministicAndReadOnly_V15251` |
 | APK-V0-007 | `TestAPKV0007AgreesWithFlowsImpact_V15251` |
+| APK-V0-9970 | `TestAPKV09970SummaryNamesE2ESelections_V15254`, `TestV15254MCPAffectedCarriesFlowSelections` |
 
 ## Rollout, rollback, and compatibility
 
 Rollout: experimental; a repository opts in by committing `.corvint/flows.json`. Rollback: remove
 the file to return to today's plan; to withdraw the change, revert its commits and retire
-`APK-V0-001` to `APK-V0-007` without reuse. Compatibility: additive members under the unchanged
+`APK-V0-001` to `APK-V0-007` and `APK-V0-9970` without reuse. Compatibility: additive members under the unchanged
 profile names (APK-V0-005).
 
 ## Traceability
@@ -213,10 +232,11 @@ profile names (APK-V0-005).
 |---|---|---|
 | APK-V0-001 to APK-V0-004, APK-V0-006, APK-V0-007 | `internal/appflows/flowplan.go`; `planAffectedGraph` in `cmd/corvint/affected.go` | tests above |
 | APK-V0-005 | `affected.Plan.E2E`, `affected.Selection.TestKind`, `cmd/corvint/affected_compact.go`, `cmd/corvint/affected_text.go` | `TestAPKV0005MembersAreAdditive_V15251` |
+| APK-V0-9970 | `affectedVerdictE2EOf` and `renderAffectedVerdictText` in `cmd/corvint/affected_verdict.go` | `TestAPKV09970SummaryNamesE2ESelections_V15254` (verdict member and text lines; the twin without a declaration has no member), `TestV15254MCPAffectedCarriesFlowSelections` (the MCP answer equals `--summary` on the flows fixture and names its flows and variations) |
 
 ## Unresolved decisions and promotion or kill criteria
 
-Owner acceptance of the intent; whether the `affected-summary/1` verdict should count E2E
-selections (left unchanged here); whether a snapshot plan should read a declaration from the
+Owner acceptance of the intent; the reduced `affected-summary/1` member of `APK-V0-9970`, which
+V1-5254 needed so the `corvint.affected` MCP answer names the flow and variation selections; whether a snapshot plan should read a declaration from the
 snapshot's own revision. Promote when an adopter repository runs on the member for one release
 with no E2E test dropped; kill if the member is unused by every caller after 1.0.

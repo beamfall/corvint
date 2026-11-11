@@ -3,9 +3,9 @@ package doccorpus
 import (
 	"context"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // CallerRevision relates the caller's checkout commit to the corpus source

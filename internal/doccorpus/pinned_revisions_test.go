@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cemcode"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // TestDCRV1975PinnedRevisionsOneBatchPerCheckout: a checkout's pinned

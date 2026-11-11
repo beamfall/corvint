@@ -128,6 +128,15 @@ output directories outside the checkout; the reproducibility script refuses one 
    V1-3177: the `v0.8.1` and `v1.0.0-rc.1` baselines are not in this repository). Cite that run's
    `core-n1-replay-<release>-ubuntu-24.04` artifact, or run the command below for another tag.
 
+   To bind linux/amd64 evidence to the candidate bytes (decision 0420 item 2, `PRS-V1-1900`),
+   dispatch Release gates at the candidate's commit with `candidate_sums_sha256` set to the digest
+   field of `shasum -a 256 /abs/release/X.Y.Z/core/SHA256SUMS`. `linux-core` rebuilds the archives
+   at that commit and fails unless its `SHA256SUMS` has exactly that digest. Retain its
+   `candidate-identity` log, which must hold `verdict=CANDIDATE_BYTES` and end
+   `candidate-identity EXIT 0`, and its `report-index` log. A run without the input says
+   `SOURCE_ONLY`, and a dispatch form without that input predates the binding; either leaves
+   linux/amd64 FALLBACK.
+
    The first release of this repository, `v1.0.0-rc.3`, has no N-1. When no prior tag is reachable
    and no published release could precede the candidate, the replay gate and `linux-core`'s N-1
    fetch, N-1 install lifecycle and host lifecycle upgrade case each report `FIRST_RELEASE` not

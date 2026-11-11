@@ -1137,7 +1137,27 @@ func candidateExecutables() []candidateExecutable {
 	}
 }
 
-func buildCandidate(t testing.TB, candidate candidateExecutable) string {
+// candidateBuildGrace is how long before the package test deadline a candidate build is stopped,
+// so its process tree is killed and the failure names the build instead of the test binary's
+// timeout panic.
+const candidateBuildGrace = 10 * time.Second
+
+// candidateBuildHangBound bounds a candidate build only when the package has no test deadline
+// (`go test -timeout 0`); it is GO_TEST_TIMEOUT, a hang detector (decision 0082).
+const candidateBuildHangBound = 30 * time.Minute
+
+// candidateBuildDeadline is the NJB-007 bound on a cold candidate build: the package test deadline
+// less candidateBuildGrace, else candidateBuildHangBound from now. No fixed wall-clock budget
+// applies, because three cold builds in parallel on a loaded hosted macOS runner outlasted 30 s and
+// 60 s contexts while healthy (V1-4786). Per-request CLI deadlines are separate and unchanged.
+func candidateBuildDeadline(testDeadline time.Time, hasDeadline bool, now time.Time) time.Time {
+	if !hasDeadline {
+		return now.Add(candidateBuildHangBound)
+	}
+	return testDeadline.Add(-candidateBuildGrace)
+}
+
+func buildCandidate(t *testing.T, candidate candidateExecutable) string {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), candidate.name)
 	if runtime.GOOS == "windows" {
@@ -1145,10 +1165,10 @@ func buildCandidate(t testing.TB, candidate candidateExecutable) string {
 		binary += ".exe"
 	}
 	cache := filepath.Join(t.TempDir(), "gocache")
-	// Each candidate builds cold (its own empty GOCACHE) in parallel with the others, so on a
-	// 3-core macOS runner a correct build took over 30 s (PR #105). This bound is a hang
-	// detector, not a performance budget (decision 0082).
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Each candidate builds cold (its own empty GOCACHE) in parallel with the others, so only the
+	// package test deadline bounds it (NJB-007, V1-4786).
+	testDeadline, hasDeadline := t.Deadline()
+	ctx, cancel := context.WithDeadline(context.Background(), candidateBuildDeadline(testDeadline, hasDeadline, time.Now()))
 	defer cancel()
 	// The target is spelled as a literal joined to a range over the candidate names, so
 	// test-read-scopes-check lists exactly the three executables' closures (ASD-V0-611,
@@ -1167,6 +1187,27 @@ func buildCandidate(t testing.TB, candidate candidateExecutable) string {
 		t.Fatalf("%s build: %v\n%s", candidate.name, err, output)
 	}
 	return binary
+}
+
+// NJB-007 (V1-4786): the cold candidate build is bounded by the package test deadline, never by a
+// fixed wall-clock budget, and falls back to the GO_TEST_TIMEOUT hang bound only under -timeout 0.
+func TestCandidateBuildBoundIsPackageDeadline(t *testing.T) {
+	t.Run("NJB-007", func(t *testing.T) {
+		now := time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)
+		for _, remaining := range []time.Duration{time.Minute, 30 * time.Minute, 3 * time.Hour} {
+			if got, want := candidateBuildDeadline(now.Add(remaining), true, now), now.Add(remaining-candidateBuildGrace); !got.Equal(want) {
+				t.Fatalf("remaining=%v build deadline=%v want %v", remaining, got, want)
+			}
+		}
+		if got, want := candidateBuildDeadline(time.Time{}, false, now), now.Add(30*time.Minute); !got.Equal(want) {
+			t.Fatalf("no test deadline: build deadline=%v want %v", got, want)
+		}
+		if testDeadline, ok := t.Deadline(); ok {
+			if got := candidateBuildDeadline(testDeadline, ok, time.Now()); !got.Equal(testDeadline.Add(-candidateBuildGrace)) {
+				t.Fatalf("live build deadline=%v test deadline=%v", got, testDeadline)
+			}
+		}
+	})
 }
 
 func boundedCombinedOutput(ctx context.Context, command *exec.Cmd) ([]byte, error) {

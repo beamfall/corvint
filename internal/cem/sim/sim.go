@@ -12,8 +12,8 @@ import (
 	"hash"
 	"strconv"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // BlobSource reads base-tree blobs through Git object identity.

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // pathsRepo commits one directory holding a gitlink, a symlink, nested trees,

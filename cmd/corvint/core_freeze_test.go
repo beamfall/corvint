@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // frozenCoreVerbs is the CCF-V1-001 Core boundary from decision 0332, in the order root help lists it.

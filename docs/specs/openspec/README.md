@@ -59,7 +59,7 @@ proposal, and differences from the proposal headers: "Proposal traceability" in 
 
 Status "proposed" means the folder has a `proposal.md` and its intent is proposed only. Status
 "planned" means the plan names the change and no `proposal.md` is written yet; no folder is planned
-now. The table has one row for each of the 46 folders under `changes/`. The PROD column gives the
+now. The table has one row for each of the 48 folders under `changes/`. The PROD column gives the
 plan requirements the proposal header serves.
 
 | Change | Purpose | PROD requirements | Status |
@@ -107,6 +107,8 @@ plan requirements the proposal header serves.
 | `test-inventory` | One committed inventory under `.corvint/` for all seven runners, written by `corvint inventory refresh` (R10) | PROD-TEST-017 | proposed |
 | `ticket-brief-context` | Ticket brief through `corvint context`, non-blocking (R28, R29) | PROD-TASK-006; PROD-INT-002 | proposed |
 | `ticket-taxonomy` | Ticket categories, identity key, required fields and search; built in the Tasks repository (R42, C18 to C21) | PROD-TASK-005, 006, 007; PROD-INT-005, 011 | proposed |
+| `traceability-gate-upgrade` | The traceability gate resolves `TestX/REQ-ID` citations against the test body and refuses the removal of a requirement's last test citation (V1-4803) | PROD-INT-005 | proposed |
+| `trusted-shell-selection` | CI shell-test selection and the doc-gates target list come from the base tree, so a PR cannot weaken its own checks (V1-5097) | none named (V1-5097 acceptance criteria) | proposed |
 | `user-docs` | User documents: first run, configuration, upgrade, errors, release notes and policy statements (product gaps) | PROD-INT-004, 006, 015, 017, 018 | proposed |
 | `watch-flows-hardening` | Watch survives planning errors; flow-linked E2E selection leaves no linked test out | PROD-TEST-002, 003, 004, 005, 007 | proposed |
 | `watch-seven-runners` | Watch mode for the seven blocking runners | PROD-TEST-007 | proposed |

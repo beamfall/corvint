@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 func TestRevisionFSImmutableAndBounds(t *testing.T) {

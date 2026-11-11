@@ -11,11 +11,11 @@ import (
 	"encoding/hex"
 	"math"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/sim"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // DriftStatus enumerates the frozen same-path drift states.
