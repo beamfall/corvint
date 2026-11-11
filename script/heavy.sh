@@ -57,6 +57,14 @@
 #                        A relative .git/REL resolves to Git's path (linked worktrees); when M
 #                        admits nothing, one `HEAVY_SELECTION=M not admitted: REASON` line says why
 #                        (ASD-V0-722). A `go test -c` only compiles and needs no reason (ASD-V0-721).
+#                        A FULL manifest prints one `heavy.sh: FULL-selection: ...` stderr line with
+#                        its recorded reason and incomplete entries on every go test and --plan
+#                        (ASD-V0-5190); every log line under it carries `scope=S` and every --plan
+#                        command `HEAVY_SELECTION_SCOPE=S` (S FULL, NARROWED, NOTHING or UNKNOWN for
+#                        a manifest without one; ASD-V0-5191).
+#   HEAVY_SELECTION_SCOPE  the scope a recorded --plan command claims; a go test whose
+#                        HEAVY_SELECTION manifest is unset, unreadable or of another scope is refused
+#                        with exit 2 before it runs (selection-scope-mismatch, ASD-V0-5192).
 #   HEAVY_REUSE          a `corvint test reuse decide --out D` decision of HEAD; `--plan M` then prints
 #                        `# reused go:P: ...` instead of a command for each package D decides REUSE
 #                        (AFP-V0-2326). A decision of another head or an unreadable one is not applied,
@@ -1764,12 +1772,23 @@ run_selects_all() {
 manifest_perl='
 use strict; use warnings; use JSON::PP;
 my ($path, $mode, $key, $skip, @pkgs) = @ARGV;
-sub nope { print STDERR $mode eq "admit" ? "heavy.sh: HEAVY_SELECTION=$ARGV[0] not admitted: $_[0]\n" : "heavy.sh: REFUSE $_[0]\n"; exit $_[1] }
+sub nope { exit $_[1] if $mode eq "scope"; print STDERR $mode eq "admit" ? "heavy.sh: HEAVY_SELECTION=$ARGV[0] not admitted: $_[0]\n" : "heavy.sh: REFUSE $_[0]\n"; exit $_[1] }
 open(my $fh, "<", $path) or nope("manifest-unreadable $path", 2);
 my $m = eval { local $/; JSON::PP->new->decode(<$fh>) };
 ref $m eq "HASH" && ($m->{profile} // "") eq "corvint-test-manifest/0" && ref $m->{units} eq "ARRAY"
   or nope("manifest-invalid $path (want corvint-test-manifest/0)", 2);
 my $digest = ($m->{planDigest} // "") =~ /^sha256:([0-9a-f]{12})/ ? $1 : "unknown";
+# ASD-V0-5190/5191 (V1-5019): the scope, UNKNOWN unless the manifest records one Corvint writes; a
+# FULL manifest is disclosed with its recorded reason and incomplete entries, cleaned and bounded.
+my $scope = defined $m->{scope} && !ref $m->{scope} && $m->{scope} =~ /^(FULL|NARROWED|NOTHING)$/ ? $m->{scope} : "UNKNOWN";
+sub clean { my $v = shift; return "" unless defined $v && !ref $v; $v =~ s/[\x00-\x1f\x7f]/?/g; length($v) > 512 ? substr($v, 0, 512) . "...(" . length($v) . " bytes)" : $v }
+sub full_notice {
+  return if $scope ne "FULL";
+  my $why = clean($m->{reason}); $why = "NOT_RECORDED" if $why eq "";
+  my @inc = ref $m->{incomplete} eq "ARRAY" ? grep { $_ ne "" } map { clean($_) } @{ $m->{incomplete} } : ();
+  print STDERR "heavy.sh: FULL-selection: HEAVY_SELECTION=$path (planDigest $digest) is scope FULL: every package runs whole, so this run is coverage, not narrowing evidence; reason: $why" . (@inc ? "; incomplete: " . join("; ", @inc) : "") . " (ASD-V0-5190)\n";
+}
+if ($mode eq "scope") { full_notice(); print "$scope\n"; exit 0 }
 if ($mode eq "admit") {
   my $head = ref $m->{source} eq "HASH" ? $m->{source}{head} // "" : "";
   $head eq $key or nope("source.head $head is not HEAD $key (regenerate the manifest after this commit)", 1);
@@ -1781,6 +1800,7 @@ if ($mode eq "admit") {
 }
 sub sq { (my $v = shift) =~ s/\x27/\x27\\\x27\x27/g; "\x27$v\x27" } # shell single quotes
 my ($n, $r, %reused) = (0, 0);
+full_notice();
 if ($skip ne "") {
   my $why;
   my $mhead = ref $m->{source} eq "HASH" ? $m->{source}{head} // "" : "";
@@ -1818,7 +1838,7 @@ for my $u (@{ $m->{units} }) {
     if (($flag ne "-run" && $flag ne "-skip") || $pattern eq "") { print "# skipped $unit: slice $slice has no -run/-skip pattern\n"; next }
     $sel = " $flag " . sq($pattern);
   }
-  print "HEAVY_SELECTION=", sq($path), " script/heavy.sh go test -count=1 -timeout 30m$sel $rel\n"; $n++;
+  print "HEAVY_SELECTION=", sq($path), " HEAVY_SELECTION_SCOPE=$scope script/heavy.sh go test -count=1 -timeout 30m$sel $rel\n"; $n++;
 }
 print STDERR "heavy.sh: plan $n units from $path (planDigest $digest)" . ($r ? ", $r reused from $skip" : "") . "\n";
 '
@@ -2084,19 +2104,49 @@ print_plan() {
   perl -e "$manifest_perl" "$manifest" plan "$mod" "${HEAVY_REUSE-}" "$fresh"
 }
 
+# selection_scope COMMAND...: ASD-V0-5190..5192 (V1-5019). For a go test under HEAVY_SELECTION, sets
+# heavy_selection_scope to the manifest's scope (UNREADABLE when it cannot be read), printing the
+# FULL-selection notice for a FULL one before any admission rule. With HEAVY_SELECTION_SCOPE set,
+# returns 1 after one refusal line unless HEAVY_SELECTION is set and has exactly that scope.
+selection_scope() {
+  heavy_selection_scope=
+  [[ -n ${HEAVY_SELECTION-} || -n ${HEAVY_SELECTION_SCOPE-} ]] || return 0
+  case " $* " in *" go test "*) ;; *) return 0 ;; esac
+  local fix='fix: rerun script/heavy.sh --plan M for the current manifest M and run the commands it prints, each with its own HEAVY_SELECTION_SCOPE (ASD-V0-5192)'
+  if [[ -z ${HEAVY_SELECTION-} ]]; then
+    printf 'heavy.sh: refused: HEAVY_SELECTION_SCOPE=%s names no HEAVY_SELECTION manifest (ASD-V0-5192)\n%s\n' "$HEAVY_SELECTION_SCOPE" "$fix" >&2
+    return 1
+  fi
+  heavy_selection_scope=$(perl -e "$manifest_perl" "$(selection_manifest "$HEAVY_SELECTION")" scope "" "") || heavy_selection_scope=UNREADABLE
+  [[ -n ${HEAVY_SELECTION_SCOPE-} ]] || return 0
+  case $HEAVY_SELECTION_SCOPE in
+    FULL | NARROWED | NOTHING | UNKNOWN) ;;
+    *)
+      printf 'heavy.sh: refused: HEAVY_SELECTION_SCOPE=%s is not FULL, NARROWED, NOTHING or UNKNOWN (ASD-V0-5192)\n%s\n' "$HEAVY_SELECTION_SCOPE" "$fix" >&2
+      return 1
+      ;;
+  esac
+  [[ $heavy_selection_scope == "$HEAVY_SELECTION_SCOPE" ]] && return 0
+  printf 'heavy.sh: refused: HEAVY_SELECTION_SCOPE=%s but HEAVY_SELECTION=%s is scope %s: the recorded command no longer matches its manifest (ASD-V0-5192)\n%s\n' \
+    "$HEAVY_SELECTION_SCOPE" "$HEAVY_SELECTION" "$heavy_selection_scope" "$fix" >&2
+  return 1
+}
+
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run
 # that matches every test) without HEAVY_WHOLE_REASON (ASD-V0-030, ASD-V0-860). Returns 1 on refusal.
 selection_policy() {
-  local now cause='it names no -run, so every test in the package runs'
+  local now cause='it names no -run, so every test in the package runs' sf=
+  # ASD-V0-5191: under HEAVY_SELECTION every line records the manifest's scope.
+  [[ -z ${heavy_selection_scope-} ]] || sf=" scope=$heavy_selection_scope"
   case " $* " in *" go test "*) ;; *) return 0 ;; esac
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   # ASD-V0-721 (V1-3845) and ASD-V0-910 (V1-3739): `go test -c` only compiles the test binary and runs no test.
   if compile_only "$@"; then
-    selection_log "$now whole reason=compile-only pwd=$PWD cmd=$*"
+    selection_log "$now whole reason=compile-only$sf pwd=$PWD cmd=$*"
     return 0
   fi
   if list_only "$@"; then
-    selection_log "$now whole reason=list-only pwd=$PWD cmd=$*"
+    selection_log "$now whole reason=list-only$sf pwd=$PWD cmd=$*"
     return 0
   fi
   case " $* " in
@@ -2106,7 +2156,7 @@ selection_policy() {
       elif flags_terminated "$@"; then
         cause='a -- argument ends the test binary flags, so a -run after it is ignored (DTL-V0-007)'
       elif ! run_selects_all "$@"; then
-        selection_log "$now selected pwd=$PWD cmd=$*"
+        selection_log "$now selected$sf pwd=$PWD cmd=$*"
         return 0
       else
         cause='its -run pattern matches every test name, such as ., .*, Test or an empty pattern (ASD-V0-860)'
@@ -2117,30 +2167,30 @@ selection_policy() {
   if [[ -z ${HEAVY_WHOLE_REASON-} ]] && source_tests_unfiltered whole "$@"; then unfiltered=1; fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && small=$(small_package_bytes "$@"); then
     heavy_selection_mode=whole
-    selection_log "$now whole reason=small-package:${small}B pwd=$PWD cmd=$*"
+    selection_log "$now whole reason=small-package:${small}B$sf pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && digest=$(new_package_base "$@"); then
     heavy_selection_mode=whole
-    selection_log "$now whole reason=new-package:$digest pwd=$PWD cmd=$*"
+    selection_log "$now whole reason=new-package:$digest$sf pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && digest=$(changed_source_base "$@"); then
     heavy_selection_mode=whole
-    selection_log "$now whole reason=changed-source:$digest pwd=$PWD cmd=$*"
+    selection_log "$now whole reason=changed-source:$digest$sf pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n ${HEAVY_SELECTION-} ]] && digest=$(manifest_admits "$@"); then
     heavy_selection_mode=manifest
-    selection_log "$now whole reason=corvint-selection:$digest pwd=$PWD cmd=$*"
+    selection_log "$now whole reason=corvint-selection:$digest$sf pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
     printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON: $cause (V1-4064, ASD-V0-822). Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>' in heavy.sh's own environment or as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...). A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason; a brand-new package (no Go file at the merge base of HEAD and origin/main, ASD-V0-2400) needs none either; any other internal/ or cmd/ package needs a selection or a reason." >&2
-    selection_log "$now refused pwd=$PWD cmd=$*"
+    selection_log "$now refused$sf pwd=$PWD cmd=$*"
     return 1
   fi
-  selection_log "$now whole reason=$(printf %q "$HEAVY_WHOLE_REASON") pwd=$PWD cmd=$*"
+  selection_log "$now whole reason=$(printf %q "$HEAVY_WHOLE_REASON")$sf pwd=$PWD cmd=$*"
 }
 
 # env_reasons COMMAND...: ASD-V0-910 (V1-3739). The lane reasons given as leading NAME=VALUE words
@@ -2793,7 +2843,7 @@ main() {
   else
     unset HEAVY_CLASS
   fi
-  local remote_hosts=() h heavy_selection_mode=
+  local remote_hosts=() h heavy_selection_mode= heavy_selection_scope=
   if [[ -n $heavy_admit_only ]]; then
     # A make dry run (-n) still executes $(MAKE) recipe lines; it takes no slot.
     [[ ${MAKEFLAGS-} =~ ^-?[A-Za-z]*n[A-Za-z]*([[:space:]]|$) ]] && exec "$@"
@@ -2804,6 +2854,12 @@ main() {
     local missing=()
     env_reasons "$@"
     local asked=("$@")
+    if ! selection_scope "$@"; then
+      selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) refused pwd=$PWD cmd=$*"
+      printf 'heavy.sh: REFUSED selection-scope-mismatch (exit 2)\n' # stdout marker (V1-3213)
+      heavy_cause=refused
+      return 2
+    fi
     selection_policy "$@" || missing+=(whole-reason-missing)
     go_test_timeout "$@"
     set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
