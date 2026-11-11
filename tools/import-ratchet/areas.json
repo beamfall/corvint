@@ -6,7 +6,7 @@
     {
       "name": "shared",
       "layer": 0,
-      "summary": "Git pinning, the index, flows and E2E mapping, CLI and MCP plumbing: library only, imports no other layer",
+      "summary": "Git pinning, the index and the affected impact graph, flows and E2E mapping, the documentation corpus and flow-doc generator the flow readers verify against, the provider receipt models, CLI and MCP plumbing: library only, imports no other layer",
       "prefixes": [
         "internal/appflows",
         "internal/appmap",
@@ -20,10 +20,12 @@
         "internal/companioncli",
         "internal/contextindex",
         "internal/diagnostic",
+        "internal/doccorpus",
         "internal/docsenvelope",
         "internal/execfile",
         "internal/extevidence",
         "internal/flowcoverage",
+        "internal/flowdocs",
         "internal/genesis",
         "internal/gitancestry",
         "internal/gitprobe",
@@ -169,7 +171,7 @@
     {
       "name": "docs",
       "layer": 1,
-      "summary": "documentation generation, corpus reads and the flows verbs: corvint-docs-mcp, corvint-web-flows and the docs code still inside corvint",
+      "summary": "documentation commands, compilers and maintenance, and the flows verbs: corvint-docs, corvint-docs-mcp and corvint-web-flows",
       "prefixes": [
         "cmd/corvint-docs",
         "cmd/corvint-docs-mcp",
@@ -177,12 +179,9 @@
         "internal/command",
         "internal/doccitations",
         "internal/doccompiler",
-        "internal/doccorpus",
         "internal/docmaintain",
         "internal/docstools",
         "internal/docviews",
-        "internal/flowdocs",
-        "internal/mcp/corpusbridge",
         "internal/requestpath"
       ]
     },
