@@ -170,7 +170,9 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   (TIV-V1-001, TIV-V1-003, TIV-V1-012): every list sorted, two-space indented JSON, one trailing
   newline; a member it does not know is kept and written back, never read. An instance is declared
   by its config file (`go.mod`; `vitest.config.*`; `jest.config.*`; `playwright.config.*`;
-  `pytest.ini`, or a `pyproject.toml`, `tox.ini` or `setup.cfg` pytest section; `.rspec` or
+  `pytest.toml`, `.pytest.toml`, `pytest.ini` or `.pytest.ini`, or a `pyproject.toml` `tool.pytest`
+  or `tool.pytest.ini_options` table or a `tox.ini` or `setup.cfg` pytest section, first present in
+  pytest's documented search order, in that order; `.rspec` or
   `spec/spec_helper.rb`; `test/test_helper.rb`), one per runner and root, outside `node_modules`,
   `vendor`, `testdata` and hidden directories; the lockfile is the nearest one of the runner's
   ecosystem at or above the root. Files are named by Git blob object ID from the commit tree or the
@@ -201,12 +203,24 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   member in the `package.json` beside it. A `package.json` with a `jest` member, or a script that
   runs vitest, declares the runner's instance when its directory holds no config file of that
   runner (last in precedence); such an instance is always unproven, and the Vitest lister then runs
-  without `--config`. A pytest section is proven when it sets no `python_files` and no `testpaths`,
-  its `addopts` hold only output, reporting, strictness, failure and import-mode options (a
-  positional path, `-p`, `--doctest-modules` or `--doctest-glob` is none of them), and no
-  `conftest.py` under the root defines a collection hook (`pytest_collect_file`,
+  without `--config`. A Jest or Vitest instance also needs every script of the `package.json` in its
+  root and each directory above it that runs the runner to pass only output, reporting, coverage,
+  watch, parallelism, timeout, snapshot and filter flags (long flags compared without case, dashes or
+  a `no-` prefix, so `--test-match` is `--testMatch`): a script passing `--testMatch`, `--testRegex`,
+  `--dir`, `--root`, `--rootDir`, `--roots`, `--config`, `-c`, any flag outside that list, a shell
+  expansion, or Vitest's `bench` or `typecheck` command makes the instance unproven, its cause naming
+  the manifest, the script and the flag (V1-5425). A pytest section is proven when it sets no
+  `python_files` and no `testpaths`, its `addopts` hold only output, reporting, strictness, failure
+  and import-mode options (a positional path, `-p`, `--doctest-modules` or `--doctest-glob` is none
+  of them), and no `conftest.py` under the root defines a collection hook (`pytest_collect_file`,
   `pytest_pycollect_makemodule`, `pytest_collect_directory`, `pytest_ignore_collect`) or
-  `pytest_plugins`. An unreadable config is unproven.
+  `pytest_plugins`. Every pytest config in the root that declares pytest is proven, not only the
+  first, because which one pytest reads depends on its version. An INI file is read as pytest's
+  `iniconfig` reads it (a header starts at column 0 and may carry a comment; an indented line
+  continues the value above), and an indented line holding the pytest header is unproven. A TOML file
+  is scanned for each key's full path, so an indented, quoted or dotted key or header counts; a TOML
+  file the scanner cannot read, an escaped key, or the pytest table set inline is unproven. An
+  unreadable config is unproven.
 - Unproven instances (TIV-V1-005, TIV-V1-008): refresh binds only the files the lister names, so the
   record stays small in a large root. The verdict judges every file under the root with one of the
   instance's candidate extensions that the record does not bind (its config and lockfile aside) as
@@ -252,12 +266,12 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
 |---|---|
 | TIV-V1-001 | `TestTIVV1001RoundTripCanonicalBytes` (`internal/testinventory`); `TestTIVV1001InventoryRefreshCLI` (`cmd/corvint`, one Go module and one Vitest project) |
 | TIV-V1-002 | `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (affected, watch and test read only), `TestTIVV1002InventoryHelpAndRefusals` (`cmd/corvint`); the GitHub Action part is NOT_PRODUCED (task 7) |
-| TIV-V1-003 | `TestTIVV1003SeveralInstancesOfOneRunner`, `TestTIVV1003DetectInstances`, `TestTIVV1003ForceFullCoversEveryInstance`, `TestTIVV1004JestListerTwoRoots`, `TestTIVV1004VitestDeclaredByPackageScript` (`internal/testinventory`) |
+| TIV-V1-003 | `TestTIVV1003SeveralInstancesOfOneRunner`, `TestTIVV1003DetectInstances`, `TestTIVV1003PytestConfigPrecedence`, `TestTIVV1003ForceFullCoversEveryInstance`, `TestTIVV1004JestListerTwoRoots`, `TestTIVV1004VitestDeclaredByPackageScript` (`internal/testinventory`) |
 | TIV-V1-004 | `TestTIVV1004GoStaticLister`, `TestTIVV1004GoUnmappedFilesCollapse`, `TestTIVV1004RSpecStaticLister`, `TestTIVV1004MinitestStaticLister`, `TestTIVV1004VitestLister`, `TestTIVV1004JestListerTwoRoots`, `TestTIVV1004PlaywrightLister`, `TestTIVV1004PytestLister` (`internal/testinventory`; each refreshes twice to identical bytes) |
 | TIV-V1-005 | `requireBinding` in every TIV-V1-004 lister test; `TestTIVV1005TreesNameFilesByBlobID`, `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles`, `TestTIVV1005UnprovenRecordHoldsOnlyListedFiles` (a 150,000-file root stays under MaxBytes), `TestTIVV1005WorkTreeRefusesSubdirectoryRoot` (`internal/testinventory`) |
 | TIV-V1-006 | `TestTIVV1006To009ReaderRules` rows `absent file`, `absent record`, `absent after lister failure`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`absent`) |
 | TIV-V1-007 | `TestTIVV1006To009ReaderRules` rows `stale config`, `stale lockfile`, `stale lockfile appeared`, `stale lister version`, `stale config moved`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`stale`) |
-| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1008UnprovenConfigFailsClosed` (custom patterns, a Vitest workspace file, `mergeConfig` from a package, `includeSource`, a Jest preset, `package.json` jest and vitest declarations, pytest doctest options and a conftest hook, a skipped-directory include, a computed key, an escape), `TestTIVV1008ProvenDefaultControl`, `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles` (`internal/testinventory`); `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
+| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1008UnprovenConfigFailsClosed` (custom patterns, a Vitest workspace file, `mergeConfig` from a package, `includeSource`, a Jest preset, `package.json` jest and vitest declarations, pytest doctest options and a conftest hook, a skipped-directory include, a computed key, an escape; V1-5425: indented, quoted, dotted and native pytest TOML keys and headers, `pytest.toml`, `.pytest.toml` and `.pytest.ini` precedence, INI header comments and indented headers, and `package.json` script flags), `TestTIVV1008ProvenDefaultControl`, `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles` (`internal/testinventory`); `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
 | TIV-V1-009 | `TestTIVV1006To009ReaderRules` rows `invalid truncated`, `invalid profile`, `invalid oversize`; `TestTIVV1009DecodeRefusesInvalid`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`invalid`) |
 | TIV-V1-010 | `TestTIVV1010RefreshRefusesDrift` (`internal/testinventory`, source and HEAD drift), `TestTIVV1010FinalDriftCheckBeforeWrite`, `TestTIVV1010TemporaryInventoryFileIsNotDrift`; `TestTIVV1010InventoryRefreshDriftCLI` (`cmd/corvint`) |
 | TIV-V1-011 | `TestTIVV1011ListerFailureRecorded`, `TestTIVV1011EncodeRefusesOversize` (`internal/testinventory`); `TestTIVV1011InventoryRefreshTooLargeCLI` (`cmd/corvint`) |
