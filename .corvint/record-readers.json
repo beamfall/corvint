@@ -7,7 +7,9 @@
     },
     "docs/build-log/": {
       "cmd/corvint": "its affected record-class tests name build-log entries of fixture repositories; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
-      "internal/liveverify/affected/liverepo": "the documentation and replay tests moved from internal/liveverify/affected (V1-5201) plan build-log entries of this checkout; an unbounded reader, so no read scope is declared"
+      "internal/liveverify/affected/liverepo": "the documentation and replay tests moved from internal/liveverify/affected (V1-5201) plan build-log entries of this checkout; an unbounded reader, so no read scope is declared",
+      "script/check-decision-numbers_test.sh": "its fixture repository writes decision files under docs/build-log/ of a temporary checkout; an unbounded reader since AFP-V0-9973 holds its git path output (V1-5217), so no read scope is declared",
+      "script/repin-use-case-receipts_test.sh": "its fixture names docs/build-log/ of a temporary checkout; an unbounded reader since AFP-V0-9973 holds its git path output (V1-5217), so no read scope is declared"
     }
   },
   "profile": "corvint-record-readers/0"
