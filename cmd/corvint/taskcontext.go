@@ -115,6 +115,10 @@ func parseInstructionArguments(options taskContextOptions, rest []string, prefix
 			continue
 		case flag == "--subject":
 		case strings.HasPrefix(flag, prefix) && (name == "host" || name == "host-version" || name == "cwd" || name == "profile"):
+		case options.deprecatedAlias && options.ignoredFlags:
+			// A removed packet flag came first (e.g. `--worktree-overlay --path a`): name the cut,
+			// not the flag it hid.
+			return options, argumentError(contextTaskRemoved)
 		default:
 			return options, argumentError("unrecognized arguments: " + rest[index])
 		}
