@@ -6862,6 +6862,15 @@ OCL-V0-005	docs/specs/outcome-calibration-v0.md	Where records carry a relevance 
 OCL-V0-006	docs/specs/outcome-calibration-v0.md	When a proposal is emitted it MUST report the decile edge that would have	unrecorded	-
 OCL-V0-007	docs/specs/outcome-calibration-v0.md	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and	unrecorded	-
 OCL-V0-008	docs/specs/outcome-calibration-v0.md	Output MUST be deterministic for a fixed store and invocation in both formats:	unrecorded	-
+PTD-V1-001	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) Duration	standing	2026-10-11; V1-5449
+PTD-V1-002	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) One name	standing	2026-10-11; V1-5449
+PTD-V1-003	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) Missing	standing	2026-10-11; V1-5449
+PTD-V1-004	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) File-gra	standing	2026-10-11; V1-5449
+PTD-V1-005	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) Invocati	standing	2026-10-11; V1-5449
+PTD-V1-006	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) Retries	standing	2026-10-11; V1-5449
+PTD-V1-007	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) Invalid	standing	2026-10-11; V1-5449
+PTD-V1-008	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) Run evid	standing	2026-10-11; V1-5449
+PTD-V1-009	docs/specs/per-test-durations-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5449) Consumer	standing	2026-10-11; V1-5449
 PRB-V0-8000	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4231)	standing	2026-10-11; V1-4231
 PRB-V0-001	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The `cor	standing	2026-10-11; V1-2475
 PRB-V0-002	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) Both kno	standing	2026-10-11; V1-2475
