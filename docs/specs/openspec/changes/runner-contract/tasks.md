@@ -24,7 +24,7 @@ R38 (2026-11-09) build order).
    one scenario per surface.
 - [ ] 8 Sharding for the Action and argv bounds. Requirements: RNC-V1-015, 016. Proof: shard
    determinism and over-limit fixtures.
-- [ ] 9 Unowned path and removed runner run all tests; remove `UNOWNED_DIRTY_PATH` from the
+- [x] 9 Unowned path and removed runner run all tests; remove `UNOWNED_DIRTY_PATH` from the
    allowlist. Requirements: RNC-V1-004 (fallback), owner decision R32. Proof: removed-runner
    fixture.
 - [ ] 10 Remove the external protocol packages and tools. Requirements: RNC-V1-009. Proof: build and

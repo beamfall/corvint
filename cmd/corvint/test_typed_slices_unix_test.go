@@ -84,7 +84,10 @@ func TestAFPV02370DryRunNarrowsAnAllowListedDependent(t *testing.T) {
 			if !ok {
 				t.Fatal("p is not selected for the dependency change")
 			}
-			if got.Slice != sessiontest.SliceWhole || !strings.Contains(got.Reason, tc.reason) {
+			// A data file no runner owns runs every test whole, with no
+			// slice reason (RNC-V1-004, owner decision R32); either way p is
+			// never sliced.
+			if got.Slice != sessiontest.SliceWhole || (got.Reason != "" && !strings.Contains(got.Reason, tc.reason)) {
 				t.Fatalf("p %+v, want whole naming %q", got, tc.reason)
 			}
 		})

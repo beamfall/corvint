@@ -148,3 +148,21 @@ func TestRNCV1013FullRunsInstanceDefaults(t *testing.T) {
 		t.Fatalf("ci checks %v %v", m.Checks, err)
 	}
 }
+
+// RNC-V1-004: the inventory's records for undeclared instances, instance
+// entries with no declared instance and runner entries with no instance of
+// their runner are removed runners.
+func TestRNCV1004RemovedRunners(t *testing.T) {
+	instances := []contract.Instance{{Runner: "jest", Root: "apps/web"}, {Runner: "pytest", Root: "."}}
+	declared := Declared{
+		Instances: []RunnerCommand{{Argv: []string{"x"}, Key: "jest@apps/web"}, {Argv: []string{"x"}, Key: "jest@apps/admin"}},
+		Runners:   []RunnerCommand{{Argv: []string{"x"}, Key: "pytest"}, {Argv: []string{"x"}, Key: "rspec"}},
+	}
+	got := RemovedRunners(declared, instances, []string{"vitest@web"})
+	if !slices.Equal(got, []string{"jest@apps/admin", "rspec", "vitest@web"}) {
+		t.Fatalf("removed %v", got)
+	}
+	if got := RemovedRunners(BuiltInDeclared(), instances, nil); len(got) != 0 {
+		t.Fatalf("nothing removed: %v", got)
+	}
+}

@@ -583,7 +583,10 @@ func TestSTRV0008CLIBalancedShards(t *testing.T) {
 
 // AFP-V0-050 (V1-1399): `corvint test` narrows an edit of the read-scope
 // declaration against the plan's base, as the planner does: declaring a new
-// package runs only that package, not every declared one.
+// package runs only that package, not every declared one. The fixture
+// declares the file a runtime-reader input, as this repository's
+// .corvint/runtime-readers.json does: an unowned changed path runs every
+// test (RNC-V1-004, owner decision R32).
 func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
 	root, _, _ := sessionFixture(t, "pass")
 	declaration := func(packages string) string {
@@ -593,6 +596,7 @@ func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
 		"c/c.go":                         "package c\n\nfunc C() int { return 4 }\n",
 		"c/c_test.go":                    "package c\n\nimport \"testing\"\n\nfunc TestC(t *testing.T) { _ = C() }\n",
 		".corvint/test-read-scopes.json": declaration(`"a":["docs/"],"b":["docs/"]`),
+		".corvint/runtime-readers.json":  `{"profile":"corvint-runtime-readers/0","entries":[{"path":".corvint/test-read-scopes.json","reason":"read-scope declaration read by the affected planner through a path literal"}]}`,
 	} {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
 			t.Fatal(err)
