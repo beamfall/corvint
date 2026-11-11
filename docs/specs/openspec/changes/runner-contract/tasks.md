@@ -18,8 +18,10 @@ R38 (2026-11-09) build order).
    the Jest end-to-end fixture and one fixture per runner.
 - [x] 6 Read the full command from `.corvint/test-commands.json` with built-in defaults and instance
    entries; move Corvint's own declaration there and keep the old path for one release.
-   Requirements: RNC-V1-013. Proof: the RNC-V1-013 scenarios. Corvint's own declaration stays at
-   the old path, read with a notice: moving it edits `.github/`, so the build log records that step.
+   Requirements: RNC-V1-013. Proof: the RNC-V1-013 scenarios. Corvint's own declaration is now
+   also at `.corvint/test-commands.json`, kept byte-identical to the old path by
+   `tools/test-commands-check`; deleting the old file and moving its readers edits `.github/`, so
+   the build log records that step.
 - [ ] 7 Kill switch on every surface using the NMS-V1-008 parser. Requirements: RNC-V1-008. Proof:
    one scenario per surface.
 - [ ] 8 Sharding for the Action and argv bounds. Requirements: RNC-V1-015, 016. Proof: shard
