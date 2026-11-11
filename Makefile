@@ -553,6 +553,19 @@ ci-least-privilege-check:
 ci-least-privilege-test:
 	@script/check-ci-least-privilege_test.sh
 
+# compatibility-table regenerates docs/COMPATIBILITY.md, the 1.x compatibility promise, from
+# tools/compatibility-table/surfaces.json. compatibility-check fails, naming the row, when the page
+# differs from the generated one, a stable row names a contract test that does not exist, a row's
+# stability does not follow from its class and tests, or the list holds a surface CMP-V1-003 and
+# CMP-V1-005 do not name or misses one they do (docs/specs/compatibility-promise-v1.md).
+.PHONY: compatibility-table
+compatibility-table: ## Regenerate docs/COMPATIBILITY.md from tools/compatibility-table/surfaces.json
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/compatibility-table --write
+
+.PHONY: compatibility-check
+compatibility-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/compatibility-table >/dev/null
+
 # spec-toolchain-conformance installs the OpenSpec and Spec Kit releases pinned in
 # interop/spec-toolchains/versions.json with checksum verification, runs their validators, and
 # asserts that Corvint's derived obligations equal upstream's own view (STA-V0-011,
@@ -1191,6 +1204,7 @@ DOC_GATE_TARGETS := \
   binary-blobs-check \
   capabilities-check \
   ci-least-privilege-check \
+  compatibility-check \
   conflict-markers-check \
   decision-numbers-check \
   declaration-compat-check \

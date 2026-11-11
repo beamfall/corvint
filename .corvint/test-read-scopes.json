@@ -2061,6 +2061,7 @@
       "internal/procgroup/",
       "tools/compat-trial/"
     ],
+    "tools/compatibility-table": [],
     "tools/conflict-markers-check": [],
     "tools/corvint-pr-tests": [
       ".github/cishards/",

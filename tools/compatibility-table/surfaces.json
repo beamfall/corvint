@@ -1,0 +1,367 @@
+{
+  "surfaces": [
+    {
+      "id": "corvint-verbs",
+      "surface": "`corvint` verbs",
+      "kind": "command table",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./cmd/corvint",
+          "name": "TestCAPV0045CatalogLinksCurrentTreeSnapshots"
+        },
+        {
+          "package": "./tools/capabilities-check",
+          "name": "TestCAPV0047RepositoryCommandTreesMatchDispatch"
+        }
+      ],
+      "notes": "Every command node of the frozen tree `internal/capcatalog/trees/corvint.json` (`corvint help --tree`)."
+    },
+    {
+      "id": "corvint-flags",
+      "surface": "`corvint` flags",
+      "kind": "command table",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./cmd/corvint",
+          "name": "TestCAPV0045CatalogLinksCurrentTreeSnapshots"
+        },
+        {
+          "package": "./tools/capabilities-check",
+          "name": "TestCAPV0047RepositoryCommandTreesMatchDispatch"
+        }
+      ],
+      "notes": "The flags each node of the same tree names. The tree is read from help text: a flag the parser drops while help still names it is caught only by that verb's own tests."
+    },
+    {
+      "id": "corvint-exit-codes",
+      "surface": "`corvint` exit codes",
+      "kind": "command table",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./conformance/cli-errors-v0",
+          "name": "TestCMPV1003CorvintExitCodes"
+        }
+      ],
+      "notes": "Every node exits 0 for `--help` and 2 for an undefined flag; the root exits 0 for `--help` and `--version` and 2 for an unknown verb. Other codes a verb's help documents (such as 1 for findings or 3 for UNKNOWN) are not in this row."
+    },
+    {
+      "id": "corvint-docs-verbs",
+      "surface": "`corvint-docs` verbs",
+      "kind": "command table",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./conformance/cli-errors-v0",
+          "name": "TestCAPV07700ShippedHelp"
+        }
+      ],
+      "notes": "Every command node of the frozen tree `internal/capcatalog/trees/corvint-docs.json` (`corvint-docs help --json`)."
+    },
+    {
+      "id": "corvint-docs-flags",
+      "surface": "`corvint-docs` flags",
+      "kind": "command table",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./conformance/cli-errors-v0",
+          "name": "TestCAPV07700ShippedHelp"
+        }
+      ],
+      "notes": "The flags each node of the same tree names."
+    },
+    {
+      "id": "corvint-docs-exit-codes",
+      "surface": "`corvint-docs` exit codes",
+      "kind": "command table",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./conformance/cli-errors-v0",
+          "name": "TestCMPV1003CorvintDocsExitCodes"
+        }
+      ],
+      "notes": "Every node exits 0 for `--help` and 2 for an undefined flag; the root exits 0 for `--help` and `--version` and 2 for an unknown verb. Other codes a verb's help documents are not in this row."
+    },
+    {
+      "id": "corvint-tasks-verbs",
+      "surface": "`corvint-tasks` verbs",
+      "kind": "command table",
+      "class": "other-repo",
+      "stability": "not-promised",
+      "waitsOn": "the corvint-tasks repository (change `tasks-conformance`)",
+      "notes": "corvint-tasks ships from its own repository (decision 0594), which publishes its supported-command list."
+    },
+    {
+      "id": "corvint-tasks-flags",
+      "surface": "`corvint-tasks` flags",
+      "kind": "command table",
+      "class": "other-repo",
+      "stability": "not-promised",
+      "waitsOn": "the corvint-tasks repository (change `tasks-conformance`)",
+      "notes": "corvint-tasks ships from its own repository (decision 0594), which publishes its supported-command list."
+    },
+    {
+      "id": "corvint-tasks-exit-codes",
+      "surface": "`corvint-tasks` exit codes",
+      "kind": "command table",
+      "class": "other-repo",
+      "stability": "not-promised",
+      "waitsOn": "the corvint-tasks repository (change `tasks-conformance`)",
+      "notes": "corvint-tasks ships from its own repository (decision 0594), which publishes its supported-command list."
+    },
+    {
+      "id": "flow-file",
+      "surface": "Flow file `.corvint/flows.json`",
+      "kind": "`--json` format",
+      "class": "in-repo",
+      "stability": "stable",
+      "label": "corvint-flows/0",
+      "labelSource": "internal/appflows/flowplan.go",
+      "tests": [
+        {
+          "package": "./internal/appflows",
+          "name": "TestAPKV0001OnePlanForEveryKind_V15251"
+        },
+        {
+          "package": "./internal/appflows",
+          "name": "TestAPKV0004FlowEvidenceFailsClosed_V15251"
+        }
+      ],
+      "notes": "Read by a closed decoder over fixed fixtures; an unknown member is refused."
+    },
+    {
+      "id": "plan",
+      "surface": "Plan of `corvint affected`",
+      "kind": "`--json` format",
+      "class": "in-repo",
+      "stability": "stable",
+      "label": "affected-plan/1",
+      "labelSource": "cmd/corvint/affected.go",
+      "tests": [
+        {
+          "package": "./cmd/corvint",
+          "name": "TestCoreVerbsEmitTheFrozenProfiles"
+        }
+      ],
+      "notes": "Goldens under `cmd/corvint/testdata/core-freeze/`, compared member by member and by type. `--full` still writes `affected-plan/0`."
+    },
+    {
+      "id": "test-run-receipt",
+      "surface": "Test-run receipt of `corvint test`",
+      "kind": "`--json` format",
+      "class": "in-repo",
+      "stability": "stable",
+      "label": "corvint-test-run/0",
+      "labelSource": "internal/sessiontest/manifest.go",
+      "tests": [
+        {
+          "package": "./internal/sessiontest",
+          "name": "TestCMPV1003TestRunReceiptContract"
+        }
+      ],
+      "notes": "One receipt per shard (default `<git-dir>/corvint/test-run[.I].json`); the fixture `internal/sessiontest/testdata/corvint-test-run-0.contract.json` holds every documented member."
+    },
+    {
+      "id": "run-evidence",
+      "surface": "Run evidence",
+      "kind": "`--json` format",
+      "class": "not-yet",
+      "stability": "not-promised",
+      "waitsOn": "change `run-evidence`",
+      "notes": "The run-evidence format does not exist yet; `test-run-evidence/0` is a different record, the flow-coverage evidence."
+    },
+    {
+      "id": "ticket-schema-v1",
+      "surface": "Ticket schema v1",
+      "kind": "`--json` format",
+      "class": "other-repo",
+      "stability": "not-promised",
+      "waitsOn": "the corvint-tasks repository (change `tasks-conformance`)",
+      "notes": "corvint-tasks publishes it (proposed label `taskman-ticket/1`)."
+    },
+    {
+      "id": "receipt-reference-v1",
+      "surface": "Receipt reference v1",
+      "kind": "`--json` format",
+      "class": "other-repo",
+      "stability": "not-promised",
+      "waitsOn": "the corvint-tasks repository (change `tasks-conformance`)",
+      "notes": "corvint-tasks publishes it (proposed label `taskman-receipt-ref/1`)."
+    },
+    {
+      "id": "corvint-dir-files",
+      "surface": "Documented files under `.corvint/`",
+      "kind": "file",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./internal/liveverify/affected",
+          "name": "TestCMPV1003TestSelectionFileContract"
+        },
+        {
+          "package": "./internal/jobinputs",
+          "name": "TestCMPV1003CIJobInputsFileContract"
+        },
+        {
+          "package": "./internal/workspace",
+          "name": "TestCMPV1003WorkspaceFileContract"
+        }
+      ],
+      "notes": "The project files the user guides document: `test-selection.json` (`corvint-test-selection/0`), `ci-job-inputs.json` (`corvint-ci-job-inputs/0`) and `workspace.json` (`corvint-workspace/0`); `flows.json` has its own row. Change evidence maps follow the CEM specs, and the index, the ledgers and this repository's own development declarations have no row."
+    },
+    {
+      "id": "tasks-store-files",
+      "surface": "Files in the Tasks store",
+      "kind": "file",
+      "class": "other-repo",
+      "stability": "not-promised",
+      "waitsOn": "the corvint-tasks repository (change `tasks-conformance`)",
+      "notes": "The `.taskman/` layout is owned by corvint-tasks."
+    },
+    {
+      "id": "action-inputs",
+      "surface": "GitHub Action inputs",
+      "kind": "action",
+      "class": "not-yet",
+      "stability": "not-promised",
+      "waitsOn": "change `github-action`",
+      "notes": "There is no `action.yml` in this repository yet."
+    },
+    {
+      "id": "action-outputs",
+      "surface": "GitHub Action outputs",
+      "kind": "action",
+      "class": "not-yet",
+      "stability": "not-promised",
+      "waitsOn": "change `github-action`",
+      "notes": "There is no `action.yml` in this repository yet."
+    },
+    {
+      "id": "action-major-tag",
+      "surface": "GitHub Action major tag",
+      "kind": "action",
+      "class": "not-yet",
+      "stability": "not-promised",
+      "waitsOn": "change `github-action`",
+      "notes": "There is no `action.yml` in this repository yet."
+    },
+    {
+      "id": "agent-package-version-range",
+      "surface": "Corvint version range of each agent package",
+      "kind": "package metadata",
+      "class": "not-yet",
+      "stability": "not-promised",
+      "waitsOn": "change `agent-packages`",
+      "notes": "`integrations/claude-code`, `integrations/codex` and `extensions/vscode` declare no Corvint range yet."
+    },
+    {
+      "id": "mcp-tool-names",
+      "surface": "MCP tool names",
+      "kind": "MCP",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./internal/mcp/cli",
+          "name": "TestAFUV1034FlowsToolProfile"
+        },
+        {
+          "package": "./internal/mcp/cli",
+          "name": "TestMMRV0012GroupsToolsListGolden"
+        },
+        {
+          "package": "./cmd/corvint-docs-mcp",
+          "name": "TestServeToolsListAndCallRoundTripsDocsDraftAndConsume"
+        },
+        {
+          "package": "./conformance/mcp-test-validity-v0",
+          "name": "TestToolCatalogueIsExactlyOneReadOnlyTool"
+        }
+      ],
+      "notes": "The tool names of `corvint-mcp`, `corvint-docs-mcp` and `corvint-test-validity-mcp`; their input and output schemas are preview. The tool table of change `mcp-tool-table` does not exist yet."
+    },
+    {
+      "id": "feature-map",
+      "surface": "Feature map `corvint-feature-map/0`",
+      "kind": "`--json` format",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005). The format is not in the code yet."
+    },
+    {
+      "id": "data-map",
+      "surface": "Data map `corvint-data-map/0`",
+      "kind": "`--json` format",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005). The format is not in the code yet."
+    },
+    {
+      "id": "change-report",
+      "surface": "Change report `corvint-change-report/0`",
+      "kind": "`--json` format",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005). The format is not in the code yet."
+    },
+    {
+      "id": "review-check",
+      "surface": "Review check `corvint-review-check/0`",
+      "kind": "`--json` format",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005). The format is not in the code yet."
+    },
+    {
+      "id": "flow-link-proposals",
+      "surface": "Flow link proposals `corvint-flow-link-proposals/0`",
+      "kind": "`--json` format",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005). The format is not in the code yet."
+    },
+    {
+      "id": "harness-event",
+      "surface": "Harness event",
+      "kind": "`--json` format",
+      "stability": "preview",
+      "label": "corvint-harness-event/0",
+      "labelSource": "internal/gokernel/harness.go",
+      "notes": "Preview by name (CMP-V1-005)."
+    },
+    {
+      "id": "mcp-schemas",
+      "surface": "MCP input and output schemas",
+      "kind": "MCP",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005); the tool names are a separate row."
+    },
+    {
+      "id": "go-packages",
+      "surface": "Go packages",
+      "kind": "library",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005)."
+    },
+    {
+      "id": "index",
+      "surface": "Index",
+      "kind": "store",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005)."
+    },
+    {
+      "id": "caches",
+      "surface": "Every cache",
+      "kind": "store",
+      "stability": "preview",
+      "notes": "Preview by name (CMP-V1-005), including the private `affected` cache under the user cache directory."
+    }
+  ]
+}
