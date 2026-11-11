@@ -17,7 +17,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `ROA
 ## User job and verified current state
 
 The user requested Corvint generate and consume its own documentation; Corvint must be its first user. Existing `doccompiler.Plan` requires an actual
-MkDocs environment; `docviews` consumes a real HDC plan. Neither seam justifies fabricating a plan
+MkDocs environment; the retired `docviews` (removed by V1-4804) consumed one. Neither justifies fabricating a plan
 or qualification receipt. This smaller experimental profile produces an ordinary Markdown
 orientation draft using Corvint's immutable source index and checks actual emitted bytes when the
 next task consumes it. It does not implement a Markdown renderer or claim HDC delivery.
