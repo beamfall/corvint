@@ -172,7 +172,11 @@ arguments, and requires only `git` and `perl` on `PATH`.
   cell as cited. A name demoted to `(PLANNED)` does not resolve, so a requirement whose only
   citation is demoted counts as not cited at HEAD. The gate MUST fail for every requirement that is
   cited at the merge base and not cited at HEAD, unless at HEAD the ID appears in no
-  `docs/specs/*.md` file that is not retired, or TTG-V0-963 applies. The failure line MUST be
+  `docs/specs/*.md` file that is not retired, or its specs were retired, or TTG-V0-963 applies. Its
+  specs were retired when every spec file that cited it at the merge base is retired at HEAD and no
+  traceability row of a spec that is not retired at HEAD holds the ID in full in its first cell;
+  prose of another spec that still names the ID does not then keep the requirement. The failure
+  line MUST be
   `REQ-ID: last test citation removed (MERGE-BASE path:line: TestName)`, naming one citation it had
   at the merge base by its 12-character commit prefix. Non-goal: expanding a written range of IDs;
   only IDs written in full count. Failure mode: until CI runs the range form, the rule holds only
@@ -217,6 +221,7 @@ exit code.
 | A capitalized table-row word that happens to start with the matched prefix but names no verification function | fail, indistinguishable from a real citation; see TTG-V0-005 |
 | An untracked or Git-ignored `_test.go` file declares the only matching function | its declarations are invisible to TTG-V0-001; the citing row fails, naming the untracked file and the staging fix (TTG-V0-012); an ignored file gets no hint |
 | A subtest citation's ID appears in the test only after a raw-string line that is exactly `}` in column 0 | the body ends at that line, the citation is refused, and the failure line names the files and says the body was read to the first column-0 `}` (TTG-V0-961) |
+| A spec is retired and its tests deleted while another spec still names its requirement IDs | pass when the other spec names them only in prose; fail when a traceability row of a spec that is not retired holds the ID, or when a spec that cited it at the merge base is not retired at HEAD (TTG-V0-962) |
 | The range form's BASE has moved past the point HEAD branched from | the comparison uses `git merge-base BASE HEAD`; no merge base is refused naming both revisions (TTG-V0-962) |
 | A spec-first commit cites a test its change adds in the next commit | the index check fails at that commit naming the row and the `TRACE_RANGE=BASE..HEAD` route; the range check passes once the test is in HEAD, and fails naming the first citing commit when it never lands (TTG-V0-950) |
 | An unstaged edit adds or removes a declaration in a tracked `_test.go` file | the edit is invisible; the gate continues to evaluate the indexed blob per TTG-V0-002; an added declaration's failure names the file and the staging fix (TTG-V0-012) |
@@ -243,7 +248,7 @@ but not after a heading at or above the opening depth.
 | TTG-V0-952 | `script/check-traceability-tests_test.sh` removed fixture: an undeclared name marked `(removed)` passes and is counted; a declared name with the marker fails naming the row |
 | TTG-V0-950 | `script/check-traceability-tests_test.sh` spec-first fixture: the spec-only index check fails with the range hint, `--range BASE..HEAD` passes once the next commit adds the test and fails for a range that ends before it, and a never-landing test is named once at its first citing commit |
 | TTG-V0-960, TTG-V0-961 | `script/check-traceability-tests_test.sh` subtest fixtures: an ID-suffixed citation whose body holds the ID resolves and is counted; a body without the ID fails naming the row; a suffix that is not an ID is checked by name only; an ID that is a prefix of a longer one fails; an ID in the function after a one-line declaration does not count; an ID after a column-0 `}` in a raw string is refused with the read-to note; a second declaration holding the ID resolves; each exempt marker skips the subtest check |
-| TTG-V0-962, TTG-V0-963 | `script/check-traceability-tests_test.sh` last-citation fixtures: the range form fails when the only citing test is deleted and its row edited, and passes when a second citation remains, the spec is retired, the requirement text is removed, or the row states `(untested: REASON)`; an empty reason fails; a citation demoted to `(PLANNED)` fails; a stale sibling BASE compares at the merge base; a BASE that is not a commit and a BASE with no merge base are refused with exit 2 |
+| TTG-V0-962, TTG-V0-963 | `script/check-traceability-tests_test.sh` last-citation fixtures: the range form fails when the only citing test is deleted and its row edited, and passes when a second citation remains, the spec is retired, the spec is retired while another spec names the ID in prose, the requirement text is removed, or the row states `(untested: REASON)`; a retired spec's requirement held in a checked row of another spec fails, and so does one that a second spec, not retired at HEAD, cited at BASE; an empty reason fails; a citation demoted to `(PLANNED)` fails; a stale sibling BASE compares at the merge base; a BASE that is not a commit and a BASE with no merge base are refused with exit 2 |
 
 ## Traceability
 

@@ -295,6 +295,8 @@ case "$output" in *"--range must be BASE..HEAD"*) ;; *) fail "the malformed rang
 # requirement whose last test citation the range removed, naming its citation at BASE. A second
 # citation, a retired spec, a requirement no longer stated, or `(untested: REASON)` with a reason
 # passes; an empty reason does not. The index form does not apply the rule.
+# A retired spec exempts its requirement only when every spec that cited it at BASE is retired at
+# HEAD and no row of a spec not retired holds the ID.
 lc=$test_root/last
 mkdir -p "$lc/script" "$lc/docs/specs" "$lc/internal/demo"
 cp "$source_root/script/check-traceability-tests.sh" "$lc/script/"
@@ -350,6 +352,35 @@ output=$(lc_range) || fail "a requirement no longer stated in any spec was repor
 # shellcheck disable=SC2016
 lc_scenario 'Delivery status: retired' '- `REQ-1`: first.' '| REQ-1 | no test |' 'retire the spec'
 output=$(lc_range) || fail "a requirement of a retired spec was reported: $output"
+# A retired spec's requirement stays exempt when another spec, not retired, still names the ID in
+# prose: every spec that cited it at BASE is retired at HEAD and no checked row holds it.
+lc_other() { printf '%s\n' '# Other' '' 'Delivery status: implemented' '' "$@" > "$lc/docs/specs/other.md"; }
+lc_other 'REQ-1 was removed with its spec.'
+lc_commit 'name the retired requirement in prose'
+output=$(lc_range) || fail "prose naming a retired spec's requirement was reported (TTG-V0-962): $output"
+# A traceability row of a spec that is not retired keeps the requirement alive.
+lc_other '## Traceability' '' '| Requirement | Evidence |' '|---|---|' '| REQ-1 | no test |'
+lc_commit 'hold the retired requirement in a checked row'
+output=$(lc_range) && fail "a checked row holding a retired spec's requirement passed (TTG-V0-962)"
+case "$output" in *"REQ-1: last test citation removed"*) ;; *) fail "the row-held requirement was not named: $output" ;; esac
+# A second spec that cited the requirement at BASE and is not retired at HEAD keeps the rule.
+git -C "$lc" reset -q --hard "$lc_base"
+# shellcheck disable=SC2016
+lc_other '## Traceability' '' '| Requirement | Evidence |' '|---|---|' '| REQ-1 | `TestX` |'
+lc_commit 'second citing spec'
+lc_first_base=$lc_base
+lc_base=$(git -C "$lc" rev-parse HEAD)
+lc_tests 'func TestY() {}'
+# shellcheck disable=SC2016
+lc_spec 'Delivery status: retired' '- `REQ-1`: first.' '| REQ-1 | no test |' '| REQ-2 | `TestY` |'
+lc_other 'REQ-1 lost its row here.'
+lc_commit 'retire one of two citing specs'
+output=$(lc_range) && fail "a requirement one live spec cited at BASE passed after the other spec retired (TTG-V0-962)"
+case "$output" in
+  *"REQ-1: last test citation removed ($(printf '%.12s' "$lc_base") docs/specs/other.md:9: TestX)"*) ;;
+  *) fail "the requirement of the spec that is not retired was not named: $output" ;;
+esac
+lc_base=$lc_first_base
 # A citation demoted to (PLANNED) does not resolve, so the requirement is no longer cited at HEAD.
 # shellcheck disable=SC2016
 lc_scenario 'Delivery status: implemented' '- `REQ-1`: first.' '| REQ-1 | `TestX` (PLANNED) |' 'demote TestX'

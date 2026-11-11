@@ -211,9 +211,10 @@ sub is_retired {
 
 # scan_rows calls $row->($file, $line_number, $line) for every table row of a traceability section
 # (TTG-V0-003, TTG-V0-004, TTG-V0-007) in REF's spec files that are not retired, and $spec->($file,
-# \@lines) once per such file when given. It returns the number of retired specs it skipped.
+# \@lines) once per such file when given, and $skipped->($file) once per retired spec when given. It
+# returns the number of retired specs it skipped.
 sub scan_rows {
-    my ($ref, $row, $spec) = @_;
+    my ($ref, $row, $spec, $skipped) = @_;
     my $retired = 0;
     for my $file (tracked_spec_docs($ref)) {
         my ($active, $level, $line_number) = (0, 0, 0);
@@ -222,6 +223,7 @@ sub scan_rows {
         # of removed code, so its rows name tests that left with that code; it is not checked.
         if (is_retired(\@lines)) {
             ++$retired;
+            $skipped->($file) if $skipped;
             next;
         }
         $spec->($file, \@lines) if $spec;
@@ -354,13 +356,17 @@ for my $spec_ref (@spec_refs) {
 # holds its ID in full in the first cell beside a checked test name that resolves in that tree, or
 # when a resolving subtest citation names it. It also returns the IDs whose row states
 # `(untested: REASON)` with a non-blank reason (TTG-V0-963) and the text of the specs not retired.
+# For the retired-spec rule of TTG-V0-962 it returns three more maps: every spec file that cites each
+# ID, the IDs written in full in the first cell of any traceability row of a spec not retired, and
+# the retired spec files.
 sub cited_requirements {
     my ($tests) = @_;
-    my (%cited, %untested, $text);
+    my (%cited, %untested, $text, %citing, %rowed, %retired_files);
     scan_rows($tests->{ref}, sub {
         my ($file, $line_number, $line) = @_;
         my ($cell) = $line =~ /^\s*\|([^|]*)/;
         my @ids = ($cell // '') =~ /(?<![A-Za-z0-9-])($req_id)/g;
+        $rowed{$_} = 1 for @ids;
         if ($line =~ /\(untested:([^)]*)\)/ && $1 =~ /\S/) {
             $untested{$_} = 1 for @ids;
         }
@@ -368,18 +374,25 @@ sub cited_requirements {
             my ($name, $kind, $id) = @{$cited}{qw(name kind sub)};
             next unless $kind eq 'name' && $tests->{decl}{$name};
             next if defined $id && !body_has_id($tests, $name, $id);
-            $cited{$_} //= "$file:$line_number: $name" for @ids, defined $id ? $id : ();
+            for my $req (@ids, defined $id ? $id : ()) {
+                $cited{$req} //= "$file:$line_number: $name";
+                $citing{$req}{$file} = 1;
+            }
         }
-    }, sub { $text .= join '', @{ $_[1] } });
-    return (\%cited, \%untested, $text // '');
+    }, sub { $text .= join '', @{ $_[1] } }, sub { $retired_files{ $_[0] } = 1 });
+    return (\%cited, \%untested, $text // '', \%citing, \%rowed, \%retired_files);
 }
 
 # TTG-V0-962: a requirement cited at BASE and not at HEAD fails unless HEAD's specs no longer state
-# it or its row states `(untested: REASON)` (TTG-V0-963).
+# it, its row states `(untested: REASON)` (TTG-V0-963), or its specs were retired: every spec file
+# that cited it at BASE is retired at HEAD and no traceability row of a spec not retired at HEAD
+# holds the ID in its first cell. Prose in another spec that still names a retired requirement does
+# not keep it alive; a row does.
 my (@lost, $base_count, $untested_count);
 if ($base_ref ne '') {
-    my ($base_cited) = cited_requirements(load_tests($base_ref));
-    my ($head_cited, $head_untested, $head_text) = cited_requirements($head_tests);
+    my ($base_cited, undef, undef, $base_citing) = cited_requirements(load_tests($base_ref));
+    my ($head_cited, $head_untested, $head_text, undef, $head_rowed, $head_retired) =
+        cited_requirements($head_tests);
     my $at = substr($base_ref, 0, 12);
     ($base_count, $untested_count) = (scalar(keys %$base_cited), 0);
     for my $id (sort keys %$base_cited) {
@@ -389,6 +402,7 @@ if ($base_ref ne '') {
             next;
         }
         next unless $head_text =~ /(?<![A-Za-z0-9-])\Q$id\E(?![A-Za-z0-9])/;
+        next if !$head_rowed->{$id} && !grep { !$head_retired->{$_} } keys %{ $base_citing->{$id} };
         push @lost, "$id: last test citation removed ($at $base_cited->{$id})";
     }
 }
