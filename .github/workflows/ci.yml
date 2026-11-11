@@ -22,6 +22,14 @@ concurrency:
 permissions:
   contents: read
 
+# CIN-V0-8425 (V1-5092): every run step executes under `bash --noprofile --norc -eo pipefail`, as
+# `shell: bash` makes GitHub do, instead of the `bash -e` default without pipefail, so a failed
+# stage of a pipeline fails its step; the extract-and-run tests derive this shell from here
+# (CIN-V0-8426). A step that must read a pipeline's status itself keeps `set +e` and PIPESTATUS.
+defaults:
+  run:
+    shell: bash
+
 # AFP-V0-2724 (V1-4934): the narrowing pins are workflow-wide, because the shard-plan job builds
 # the same trusted tools before the shards do; every `env.` read in the shard steps, the pin-main
 # resolution and the pin-lag check are unchanged.
@@ -2469,9 +2477,13 @@ jobs:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
         run: |
           d="$RUNNER_TEMP/shard-costs"
-          have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
-          # AFP-V0-422: a shard on the self-hosted runner retains only a marker.
-          boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f 2>/dev/null | wc -l | tr -d ' ')
+          # No downloaded cost directory is zero of each, not a failed find (CIN-V0-8425: pipefail).
+          have=0 boxed=0
+          if [ -d "$d" ]; then
+            have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f | wc -l | tr -d ' ')
+            # AFP-V0-422: a shard on the self-hosted runner retains only a marker.
+            boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f | wc -l | tr -d ' ')
+          fi
           # AFP-V0-460: the advisory balance report reads the markers on every event, a pull request too.
           if [ "$SHARDS_RESULT" = success ] && [ "$boxed" -ne 0 ] && [ "$boxed" -eq "$SHARDS" ]; then
             echo 'boxed=1' >> "$GITHUB_OUTPUT"
@@ -2502,7 +2514,9 @@ jobs:
           d="$RUNNER_TEMP/shard-costs"
           sums="" n=0 i=0
           while [ "$i" -lt "$SHARDS" ]; do
-            s=$(sed -n 's/^packageSeconds=\([0-9][0-9]*\)$/\1/p' "$d/shard-$i.self-hosted" 2>/dev/null | head -n 1)
+            # A shard that ran hosted left no marker: no sum, not a failed sed (CIN-V0-8425: pipefail).
+            s=""
+            [ ! -f "$d/shard-$i.self-hosted" ] || s=$(sed -n 's/^packageSeconds=\([0-9][0-9]*\)$/\1/p' "$d/shard-$i.self-hosted" | head -n 1)
             [ -z "$s" ] || { sums="$sums $s"; n=$((n + 1)); }
             i=$((i + 1))
           done
