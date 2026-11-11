@@ -60,41 +60,6 @@ func TestGPKV0095StripWebNonCodeBlanksNestedTemplates(t *testing.T) {
 	}
 }
 
-// TestGPKV0095DependencyLinksIgnoreCallsInsideNestedTemplates is the
-// reproduction through the GPK-V0-047 dependency-link stage that reads the
-// mask: a call spelled inside a template nested in a substitution is string
-// data and links nothing, while a real call in the same body still links.
-func TestGPKV0095DependencyLinksIgnoreCallsInsideNestedTemplates(t *testing.T) {
-	root := impactRepositoryWithFiles(t, map[string]string{
-		"lib/root.js": "export function rootValue(input) {\n  const label = `${`decoyHelper(input)`}`;\n  return realHelper(label);\n}\n" +
-			"export function decoyHelper(input) { return input; }\n" +
-			"export function realHelper(input) { return input; }\n",
-	})
-	index, err := Build(context.Background(), root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var caller Symbol
-	for _, symbol := range index.Symbols {
-		if symbol.Path == "lib/root.js" && symbol.Name == "rootValue" {
-			caller = symbol
-		}
-	}
-	if caller.Name == "" {
-		t.Fatal("rootValue not indexed")
-	}
-	names := map[string]bool{}
-	for _, call := range webDirectCalls(index, caller) {
-		names[call.callee.Name] = true
-	}
-	if names["decoyHelper"] {
-		t.Fatalf("a call inside a nested template linked: %v", names)
-	}
-	if !names["realHelper"] {
-		t.Fatalf("the real call no longer links: %v", names)
-	}
-}
-
 // TestGPKV0095ImpactReadsNoImportInsideNestedTemplates is the impact
 // reproduction V1-3140 asked for. `corvint impact` reads web imports with the
 // nested-aware web lexer (webimports.go), not stripWebNonCode, so an import

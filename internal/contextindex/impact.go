@@ -736,16 +736,6 @@ func withholdUnverifiedADRAuthority(result map[string]any) {
 	}
 }
 
-// recordResult renders a feature/scenario as a ranked evidence record.
-// recordResultWithSortedPaths is the same computation with the index's source
-// paths supplied pre-sorted, so a caller ranking many records (Impact, up to
-// maxImpactPaths changed paths) builds that slice once instead of once per ADR
-// ID per record (V1-0054).
-func recordResult(index *Index, record Record, score int, reason string) map[string]any {
-	result, _ := recordResultWithSortedPaths(index, record, score, reason, nil)
-	return result
-}
-
 // recordResultWithSortedPaths also returns how many evidence rows the
 // maxEvidence ceiling dropped: a governing ADR, a marker past the reserved
 // limit, a composing scenario, or the final slice (MCPV0-112).

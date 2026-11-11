@@ -70,8 +70,8 @@
     },
     {
       "command": "feature",
-      "status": "PASS",
-      "reason": "the canonical-id context surface replays byte-exactly for a known id, an unknown id, and a bounded budget, with three argument negatives"
+      "status": "RETIRED",
+      "reason": "decision 0597 removes the corvint feature command: every feature case is RETIRED and none replays; the frozen expectations are kept unchanged"
     },
     {
       "command": "harness",
@@ -2091,6 +2091,10 @@
       "fixtureSha256": "a948d6506615ec64a74961d19d9a8ac960ba1931039121312391fb76a5b72018",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0597",
+        "reason": "decision 0597 removes the corvint feature command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "06d9ded65ea6d65353ac009ab772ce26bbabfda7875e83c57fa3b2f38e35c02d",
@@ -2125,6 +2129,10 @@
       "fixtureSha256": "a948d6506615ec64a74961d19d9a8ac960ba1931039121312391fb76a5b72018",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0597",
+        "reason": "decision 0597 removes the corvint feature command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "06d9ded65ea6d65353ac009ab772ce26bbabfda7875e83c57fa3b2f38e35c02d",
@@ -2161,6 +2169,10 @@
       "fixtureSha256": "a948d6506615ec64a74961d19d9a8ac960ba1931039121312391fb76a5b72018",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0597",
+        "reason": "decision 0597 removes the corvint feature command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "06d9ded65ea6d65353ac009ab772ce26bbabfda7875e83c57fa3b2f38e35c02d",
@@ -2194,6 +2206,10 @@
       "fixtureSha256": "a948d6506615ec64a74961d19d9a8ac960ba1931039121312391fb76a5b72018",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0597",
+        "reason": "decision 0597 removes the corvint feature command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "06d9ded65ea6d65353ac009ab772ce26bbabfda7875e83c57fa3b2f38e35c02d",
@@ -2228,6 +2244,10 @@
       "fixtureSha256": "a948d6506615ec64a74961d19d9a8ac960ba1931039121312391fb76a5b72018",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0597",
+        "reason": "decision 0597 removes the corvint feature command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "06d9ded65ea6d65353ac009ab772ce26bbabfda7875e83c57fa3b2f38e35c02d",
@@ -2263,6 +2283,10 @@
       "fixtureSha256": "a948d6506615ec64a74961d19d9a8ac960ba1931039121312391fb76a5b72018",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0597",
+        "reason": "decision 0597 removes the corvint feature command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "06d9ded65ea6d65353ac009ab772ce26bbabfda7875e83c57fa3b2f38e35c02d",

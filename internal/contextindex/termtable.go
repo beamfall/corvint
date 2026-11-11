@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"runtime"
-	"slices"
 	"sort"
 	"sync"
 )
@@ -33,34 +32,6 @@ type TermTable struct {
 	// (identgraph.go, TCP-V0-030), built with SymbolWindows by the full
 	// compile.
 	IdentGraph *identGraph
-
-	// lengths and averageLength are each source's body token count and their
-	// mean, derived once from the counted postings for BM25 length
-	// normalisation. They are unexported so neither gob nor the snapshot
-	// carries them: the snapshot format is unchanged.
-	lengthsReady  bool
-	lengths       []uint32
-	averageLength float64
-}
-
-// documentLengths returns each source's body token count and the mean over
-// every source, computed on first use from Terms.Counts. Like vocabulary(),
-// it assumes one goroutine reads the index at a time.
-func (table *TermTable) documentLengths() ([]uint32, float64) {
-	if !table.lengthsReady {
-		lengths := make([]uint32, len(table.Paths))
-		var total uint64
-		for index, source := range table.Terms.Sources {
-			lengths[source] += table.Terms.Counts[index]
-			total += uint64(table.Terms.Counts[index])
-		}
-		table.lengths = lengths
-		if len(lengths) > 0 {
-			table.averageLength = float64(total) / float64(len(lengths))
-		}
-		table.lengthsReady = true
-	}
-	return table.lengths, table.averageLength
 }
 
 // termPostings is one inverted table in four flat slices so the snapshot
@@ -444,54 +415,6 @@ func isASCIIUpper(c byte) bool { return c >= 'A' && c <= 'Z' }
 
 func isWordByte(c byte) bool { return isASCIIAlnum(c) || c == '_' }
 
-// countTerms is lexicalTerms with occurrence counts and without the
-// allocation: a term is a maximal ASCII alphanumeric run, split where a
-// lowercase letter meets an uppercase one (contextCamel), lowercased, of at
-// least two bytes (contextToken and the length rule in lexicalTerms).
-func countTerms(text string) map[string]uint32 {
-	return newOneShotTermCounter(text).count(text)
-}
-
-// matchTerms is the sorted distinct countTerms terms of text that wanted
-// holds, without materialising text's term counts: each run is looked up
-// from the byte buffer and only a match becomes a string (CRK-V0-002).
-func matchTerms(text string, wanted map[string]struct{}) []string {
-	matched := make([]string, 0)
-	var scratch [64]byte
-	buffer := scratch[:0]
-	match := func() {
-		if len(buffer) >= 2 {
-			if _, ok := wanted[string(buffer)]; ok && !slices.Contains(matched, string(buffer)) {
-				matched = append(matched, string(buffer))
-			}
-		}
-		buffer = buffer[:0]
-	}
-	for index := 0; index < len(text); index++ {
-		c := text[index]
-		if !isASCIIAlnum(c) {
-			match()
-			continue
-		}
-		if isASCIIUpper(c) {
-			if index > 0 && isASCIILower(text[index-1]) {
-				match()
-			}
-			c += 'a' - 'A'
-		}
-		buffer = append(buffer, c)
-	}
-	match()
-	sort.Strings(matched)
-	return matched
-}
-
-// scanWords is the identifier vocabulary of a source: every maximal run of
-// ASCII word bytes of at least three, as written (contextIdentifier's shape).
-func scanWords(text string) map[string]struct{} {
-	return newOneShotTermCounter(text).scan(text)
-}
-
 // tokeniser is one tokenising worker's reusable state: a term counter and
 // a word counter, each interning across the worker's sources.
 type tokeniser struct {
@@ -528,13 +451,6 @@ const interningHint = 1 << 13
 
 func newTermCounter() *termCounter {
 	return &termCounter{ids: make(map[string]uint32, interningHint)}
-}
-
-// newOneShotTermCounter sizes a counter that reads only text: a term takes at
-// least three bytes of text with its separator, so the interner is sized from
-// the text instead of a worker's window (CRK-V0-001). Its terms are the same.
-func newOneShotTermCounter(text string) *termCounter {
-	return &termCounter{ids: make(map[string]uint32, min(interningHint, len(text)/3+1))}
 }
 
 // count is countTerms: maximal ASCII alphanumeric runs, split where a

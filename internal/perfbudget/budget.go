@@ -15,10 +15,10 @@ const BudgetSchema = "corvint-perf-budget/0"
 
 // ScenarioIDs are the measured reads GitHub #1602 names (less the corpus MCP pair the hosted cut
 // removed, decision 0594), then the unchanged-pair delta of
-// GitHub #1634 (PRB-V0-050), then the code-repository index, context and Go and TypeScript
-// affected scenarios (PRB-V0-057; the lifecycle hook left with the adapters, decision 0594), in
-// report order.
-var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "full-delta", "affected-path", "unchanged-delta", "index-cold-build", "index-warm-build", "context-query", "affected-go", "affected-ts", "watch-replan", "watch-replan-self"}
+// GitHub #1634 (PRB-V0-050), then the code-repository index and Go and TypeScript affected
+// scenarios (PRB-V0-057; the lifecycle hook left with the adapters, decision 0594, and the
+// context query with the task packet it measured, decision 0597), in report order.
+var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "full-delta", "affected-path", "unchanged-delta", "index-cold-build", "index-warm-build", "affected-go", "affected-ts", "watch-replan", "watch-replan-self"}
 
 // Metrics a limit may bound.
 const (

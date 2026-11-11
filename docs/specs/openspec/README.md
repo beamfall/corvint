@@ -59,8 +59,9 @@ proposal, and differences from the proposal headers: "Proposal traceability" in 
 
 Status "proposed" means the folder has a `proposal.md` and its intent is proposed only. Status
 "planned" means the plan names the change and no `proposal.md` is written yet; no folder is planned
-now. The table has one row for each of the 46 folders under `changes/`. The PROD column gives the
-plan requirements the proposal header serves.
+now. Status "archived" means every task is ticked and the folder is under `changes/archive/`. The
+table has one row for each of the 46 folders under `changes/` and for each archived change. The PROD
+column gives the plan requirements the proposal header serves.
 
 | Change | Purpose | PROD requirements | Status |
 |---|---|---|---|
@@ -70,6 +71,7 @@ plan requirements the proposal header serves.
 | `canonical-test-id` | One canonical test ID for every runner (RNC-V1-012, fresh IDs per R11) | PROD-TEST-006 | proposed |
 | `change-report-impact` | Impact section of the change report | PROD-TEST-003, 010; PROD-INT-001, 002 | proposed |
 | `compatibility-promise` | The 1.x compatibility promise: `docs/COMPATIBILITY.md` table of stable and preview surfaces (R42 D10, D10a) | plan gap (g); checklist O30, O64 | proposed |
+| `context-proven-only` | Cut the unproven context surfaces (task packet, features, overview, ranking, traces, context benches) and keep the proven ones; re-home the instruction doctor; reduce the path brief (decision 0597) | decision 0594 item 1; PROD-TASK-006 | archived 2026-11-11 (`changes/archive/2026-11-11-context-proven-only/`) |
 | `docs-mcp-hardening` | Honest docs checks and usable docs MCP tools | PROD-DOCS-001, 003, 005, 007, 009 | proposed |
 | `e2e-inventory-discovery` | Discovery of browser E2E tests into the inventory | PROD-TEST-004 | proposed |
 | `fault-injection-harness` | Planted faults on the held-out repositories to test the no-missed-test claim (R19) | PROD-TEST-002, 011; PROD-INT-008 | proposed |

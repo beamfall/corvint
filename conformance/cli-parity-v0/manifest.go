@@ -292,7 +292,7 @@ func validateInventory(entries []commandInventoryEntry) error {
 	// 0308; its executed cases still replay byte-exactly. RETIRED names a
 	// command decision 0594 removed: none of its cases replays.
 	want := map[string]string{
-		"adopt": "PASS", "cem": "PARTIAL", "eval": "RETIRED", "feature": "PASS",
+		"adopt": "PASS", "cem": "PARTIAL", "eval": "RETIRED", "feature": "RETIRED",
 		"harness": "RETIRED", "impact": "PASS", "init": "PASS", "lrf": "RETIRED",
 		"migrate-traces": "RETIRED", "ocm": "RETIRED", "query": "RETIRED", "record": "RETIRED",
 	}
@@ -903,7 +903,7 @@ func wideningMemberShape(candidate string) bool {
 // carries the retired product name as a tooling term; plus the two cases
 // decision 0525 retires (retiredCaseDecisions) and the cases decision 0594
 // retires (decision0594RetiredCases).
-var retiredCases = withDecision0594Cases(map[string]bool{
+var retiredCases = withDecision0597Cases(withDecision0594Cases(map[string]bool{
 	"cem-cite-empty-span": true, "cem-cite-evidence": true, "cem-cite-invalid-line-range": true,
 	"cem-cite-line-range-out-of-range": true, "cem-cite-lines-span": true, "cem-cite-missing-evidence": true,
 	"cem-cite-span-out-of-range": true, "cem-mark-hunk-mechanical": true, "cem-mark-hunk-unknown": true,
@@ -915,7 +915,7 @@ var retiredCases = withDecision0594Cases(map[string]bool{
 	"query-repository-agent-tooling": true, "query-repository-trace-budget-selection": true,
 	"query-repository-trace-matching": true, "query-repository-trace-nonmatching-nonpassed": true,
 	"record-create-trace": true, "lrf-evaluate-supported": true, "cem-begin-map": true,
-})
+}))
 
 // retiredCaseDecisions names the pinned case retired under a decision other
 // than 0308: decision 0525 (CEM-V1-210, CEM-V1-212) admits cem/1.0 only. The
@@ -923,7 +923,7 @@ var retiredCases = withDecision0594Cases(map[string]bool{
 // `unsupported-spec`; the cem begin case froze the cem/0.2 map begin wrote by
 // default, and begin now writes cem/1.0 (CEM-V1-216). Neither frozen
 // expectation can be reached; each stays in the manifest unchanged.
-var retiredCaseDecisions = withDecision0594Decisions(map[string]string{"lrf-evaluate-supported": "0525", "cem-begin-map": "0525"})
+var retiredCaseDecisions = withDecision0597Decisions(withDecision0594Decisions(map[string]string{"lrf-evaluate-supported": "0525", "cem-begin-map": "0525"}))
 
 // decision0594RetiredCases is every case of a command decision 0594 removes
 // (query, harness, ocm, migrate-traces, eval, record, lrf) that no earlier
@@ -954,6 +954,27 @@ var decision0594RetiredCases = []string{
 	"record-untracked-changed",
 }
 
+// decision0597RetiredCases is every case of the feature command decision 0597 removes. The
+// candidate refuses it as an invalid command choice; each case stays in the manifest unchanged.
+var decision0597RetiredCases = []string{
+	"feature-budget-bounded", "feature-known-id", "feature-limit-zero", "feature-missing-id",
+	"feature-unknown-id", "feature-unrecognized-argument",
+}
+
+func withDecision0597Cases(cases map[string]bool) map[string]bool {
+	for _, id := range decision0597RetiredCases {
+		cases[id] = true
+	}
+	return cases
+}
+
+func withDecision0597Decisions(decisions map[string]string) map[string]string {
+	for _, id := range decision0597RetiredCases {
+		decisions[id] = "0597"
+	}
+	return decisions
+}
+
 func withDecision0594Cases(cases map[string]bool) map[string]bool {
 	for _, id := range decision0594RetiredCases {
 		cases[id] = true
@@ -969,10 +990,10 @@ func withDecision0594Decisions(decisions map[string]string) map[string]string {
 }
 
 // retiredBeforeDecision0594 reports a retirement that excludes a divergence
-// declaration. A decision 0594 retirement withdraws a removed command, so the
+// declaration. A decision 0594 or 0597 retirement withdraws a removed command, so the
 // declarations its cases carried stay inert in the manifest.
 func retiredBeforeDecision0594(item parityCase) bool {
-	return item.Retired != nil && item.Retired.Decision != "0594"
+	return item.Retired != nil && item.Retired.Decision != "0594" && item.Retired.Decision != "0597"
 }
 
 // validRetired admits a retirement only for a pinned case, only under its

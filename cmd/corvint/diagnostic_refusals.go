@@ -64,14 +64,6 @@ func enclosingRepositoryRoot(root string) string {
 	return ""
 }
 
-func featurePlatformRefusal(platform string) error {
-	return refused("unsupported-feature-platform", "native Go feature is qualified only on Darwin and Linux", diagnostic.Refusal{
-		Subject:  diagnostic.Subject{Kind: "host-capability", Value: "native-platform"},
-		Evidence: []diagnostic.Evidence{{Name: "platform", Value: platform}},
-		Terminal: "unsupported-platform",
-	})
-}
-
 func genesisPlatformRefusal(platform string) error {
 	return refused("unsupported-genesis-platform", "native Go Genesis inventory is qualified only on Darwin and Linux", diagnostic.Refusal{
 		Subject:  diagnostic.Subject{Kind: "host-capability", Value: "native-platform"},

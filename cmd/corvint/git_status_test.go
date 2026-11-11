@@ -45,8 +45,6 @@ func TestStandaloneReadsRefuseGitFiltersWithoutMutation(t *testing.T) {
 					args  []string
 					input string
 				}{
-					{[]string{"context", "--task", "find Split", "--limit", "1"}, ""},
-					{[]string{"feature", "split"}, ""},
 					{[]string{"impact", "cache/demux.go"}, ""},
 					{[]string{"affected"}, ""},
 				} {
@@ -134,7 +132,7 @@ func TestStandaloneReadNamesUnsupportedRepositoryFeature(t *testing.T) {
 					t.Fatalf("configure %s: %v %s", test.name, err, data)
 				}
 				var stdout, stderr bytes.Buffer
-				code := runContext(context.Background(), []string{"--root", root, "context", "--task", "find Split", "--limit", "1"}, strings.NewReader(""), &stdout, &stderr)
+				code := runContext(context.Background(), []string{"--root", root, "impact", "cache/demux.go"}, strings.NewReader(""), &stdout, &stderr)
 				if test.name == "gitlink" {
 					if code != 0 || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"ok":true`) || strings.Contains(stdout.String(), `"path":"child"`) {
 						t.Fatalf("opaque gitlink boundary missing: %d %q %q", code, stdout.String(), stderr.String())

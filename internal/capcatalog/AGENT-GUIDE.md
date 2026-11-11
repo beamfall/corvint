@@ -15,9 +15,11 @@ option and schema named here in step with the binary.
 
 Goals
 
-1. Find the files to read for a task
-   corvint context --task "fix the retry loop in the uploader" --subject internal/upload/retry.go
-   Output: one task-context packet on stdout. Writes nothing; Go-only.
+1. Find the files to read for a path
+   corvint context --path internal/upload/retry.go
+   Output: corvint-path-brief/1: the instructions, tests and requirements
+   linked to the path, each section with its state. Writes nothing; nothing is
+   ranked.
 
 2. See what a changed path reaches
    corvint impact internal/upload/retry.go
