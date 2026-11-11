@@ -11,7 +11,7 @@ R38 (2026-11-09) build order).
 - [x] 3 Define the interface from `RunnerPlugin`, keyed by canonical test ID and runner instance;
    adapt Go, Vitest and Playwright. Requirements: RNC-V1-001, 003, 005, 006, 012, 014. Proof:
    per-runner fixtures.
-- [ ] 4 Supply each runner's lister to `corvint inventory refresh`, marked static or executing; Ruby
+- [x] 4 Supply each runner's lister to `corvint inventory refresh`, marked static or executing; Ruby
    static. Requirements: RNC-V1-002. Proof: no child process from `corvint affected`; lister kind in
    the inventory.
 - [ ] 5 Implement Jest, pytest, RSpec and Minitest. Requirements: RNC-V1-004, 005, 007, 010. Proof:
