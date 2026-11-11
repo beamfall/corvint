@@ -1211,8 +1211,6 @@
         "go:github.com/Beamfall/corvint/internal/worktreeimpact",
         "go:github.com/Beamfall/corvint/tools/capabilities-check",
         "go:github.com/Beamfall/corvint/tools/cem-release-suites",
-        "go:github.com/Beamfall/corvint/tools/heading-nav-bench",
-        "go:github.com/Beamfall/corvint/tools/retrieval-bench",
         "go:github.com/Beamfall/corvint/tools/runner-plugin"
       ],
       "maySelect": [],
@@ -1504,8 +1502,6 @@
         "go:github.com/Beamfall/corvint/internal/worktreeimpact",
         "go:github.com/Beamfall/corvint/tools/capabilities-check",
         "go:github.com/Beamfall/corvint/tools/cem-release-suites",
-        "go:github.com/Beamfall/corvint/tools/heading-nav-bench",
-        "go:github.com/Beamfall/corvint/tools/retrieval-bench",
         "go:github.com/Beamfall/corvint/tools/runner-plugin"
       ],
       "why": "internal/runtimeenv/environment.go implements behavior asserted by ^TestResolveNamespace$ in its own package. Same-module importers may run because they compile/use that package; their IDs come from pinned source imports, not planner selections.",
@@ -1690,8 +1686,6 @@
         "go:github.com/Beamfall/corvint/tools/cem-release-suites",
         "go:github.com/Beamfall/corvint/tools/ci-shard-costs",
         "go:github.com/Beamfall/corvint/tools/gate-affected-select",
-        "go:github.com/Beamfall/corvint/tools/heading-nav-bench",
-        "go:github.com/Beamfall/corvint/tools/retrieval-bench",
         "go:github.com/Beamfall/corvint/tools/runner-plugin",
         "go:github.com/Beamfall/corvint/tools/runner-qualification",
         "go:github.com/Beamfall/corvint/tools/selection-baseline",

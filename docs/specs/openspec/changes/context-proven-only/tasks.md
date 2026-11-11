@@ -11,7 +11,7 @@ Build tasks in order, one commit each. Each names its requirement IDs and its pr
 - [x] 2 Re-home the instruction doctor as `corvint instructions` with the `context --instruction-*`
       alias, and reduce the path brief to three sections (IID-V0-001, TBC-V1-009 to TBC-V1-011).
       Proof: focused `cmd/corvint` and `internal/pathbrief` tests.
-- [ ] 3 Delete the context bench layer and its inventory rows (RBD-V0, CWT-V0, HNE-V0, CEP-V0,
+- [x] 3 Delete the context bench layer and its inventory rows (RBD-V0, CWT-V0, HNE-V0, CEP-V0,
       TRJ-V0 retired). Proof: build, vet, line-citation inventories consistent.
 - [ ] 4 Delete the ranking code and the trace packages that no KEEP user reaches (CRK-V0, LTA-V0,
       URE-V0 retired). Proof: build, vet, focused `internal/contextindex` tests.
