@@ -4533,5 +4533,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/test-inventory-v1.md",
+    "title": "Test inventory V1",
+    "reqPrefix": "TIV-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "One committed inventory lists every test of the seven blocking runners by canonical ID; a missing or doubtful list runs everything.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
