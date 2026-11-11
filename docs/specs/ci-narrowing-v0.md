@@ -901,8 +901,14 @@ snapshot proves ticket status only at that snapshot, so renewals require an oper
 the seed expires on 2026-11-15 the two V1-4549 tests stop being forgiven: a shard where either
 fails first and passes on rerun fails from 2026-11-15 00:00 UTC. For CIN-V0-8721, absent or failed
 skip producers and skipped merge-queue integrity jobs block go-product, and go-product now waits
-for the archive gate (up to its 30-minute limit) on runs that build archives. Rollback: revert the
-corresponding workflow and helper change; neither change migrates product state.
+for the archive gate (up to its 30-minute limit) on runs that build archives. The new
+`.github/forward-rows` files of CIN-V0-8720 to CIN-V0-8723 (`known-flakes.py`, `known-flakes.tsv`
+and the Python workflow tests) are unmapped, so global, `github-guard.sh` inputs (CIN-V0-8423): a
+change to any of them runs every shard FULL. The Go fixtures of the `go-product` step accept the
+needs list with and without the two new needs only while the `.github` half is not on `main`
+(the two halves land as separate pull requests, ASD-V0-706); the old form is then removed.
+Rollback: revert the corresponding workflow and helper change; neither change migrates product
+state.
 
 ### Line-level selection with the trusted planner (CIN-V0-8722; V1-5258)
 
@@ -933,7 +939,8 @@ plan.
   qualification, NARROWED/SHADOW admission or kill switches; a pull request that changes the
   selection code itself is planned by `main`'s selector, as it was before AFP-V0-9730.
   Non-goals: building the planner from the tested tree; reading `degradationDetails`. Failure
-  modes: a future degradation code falls back until this step names it; a hosted run is the only
+  modes: a future degradation code falls back until this step names it; a `tools` commit older
+  than `--accept-stale-binary` refuses the flag, so that run falls back; a hosted run is the only
   evidence that the step now reaches the line-level decision (not observed by this change).
   Rollback: drop `--accept-stale-binary` and the degradation check; the step then falls back on
   every Go source change again.
