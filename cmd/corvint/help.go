@@ -225,6 +225,8 @@ func topicText(topic string) string {
 		return testsHelp
 	case "watch":
 		return watchHelp
+	case "inventory":
+		return inventoryHelp
 	case "context":
 		return taskContextHelp + cpuProfileHelpNote
 	case "index":
@@ -272,6 +274,7 @@ Commands:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
     watch  rerun the tests a save can affect (LPCV-V0)
+    inventory  refresh the committed test inventory (TIV-V1)
     test-plan  test consolidation plan (TCN-V0)
     test-evidence  read retained test dependencies (RSP-V0)
     test-validity  project a live-test receipt (MTV-V0)
