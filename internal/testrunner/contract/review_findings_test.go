@@ -182,17 +182,17 @@ func TestRNCV1003FileFilterIsNeverAFlag(t *testing.T) {
 // false for -args or a flag it cannot model.
 func TestRNCV1003GoFlagValuesSurvive(t *testing.T) {
 	root := Instance{Runner: testid.Go, Root: ".", Config: "go.mod"}
-	got := command(t, Request{Instance: root, Full: []string{"go", "test", "-coverprofile", "./c.out", "-o", "./x", "-count=1", "-tags", "a,b", "./..."}, Tests: []string{"go:a"}})
+	got := command(t, Request{Instance: root, Full: []string{"go", "test", "-coverprofile", "./c.out", "-o", "./x", "-count=1", "-tags", "a,b", goEveryPackage}, Tests: []string{"go:a"}})
 	if want := []string{"go", "test", "-json", "-coverprofile", "./c.out", "-o", "./x", "-count=1", "-tags", "a,b", "./a"}; !slices.Equal(got.Argv, want) || !got.Exact {
 		t.Fatalf("argv %q exact %v, want %q", got.Argv, got.Exact, want)
 	}
 	for name, full := range map[string][]string{
-		"-args":        {"go", "test", "./...", "-args", "-update", "./golden"},
-		"unknown flag": {"go", "test", "-update", "./..."},
-		"no value":     {"go", "test", "./...", "-run"},
+		"-args":        {"go", "test", goEveryPackage, "-args", "-update", "golden"},
+		"unknown flag": {"go", "test", "-update", goEveryPackage},
+		"no value":     {"go", "test", goEveryPackage, "-run"},
 	} {
 		got := command(t, Request{Instance: root, Full: full, Tests: []string{"go:a"}})
-		if got.Exact || got.Reason == "" || got.Tier != TierFull || !slices.Contains(got.Argv, "./...") {
+		if got.Exact || got.Reason == "" || got.Tier != TierFull || !slices.Contains(got.Argv, goEveryPackage) {
 			t.Errorf("%s: %+v, want the full command with exact false", name, got)
 		}
 	}
