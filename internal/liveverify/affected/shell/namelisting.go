@@ -187,6 +187,9 @@ func nameListingPipeline(parsed script, index int) (int, bool) {
 // admitted, and every construct it does not recognise keeps every listing a
 // content read. A test file is admitted only when
 //
+//   - its first line is no `#!` line, or one shellInterpreter admits: the
+//     lexer reads `#!` as a comment, and another interpreter would run the
+//     file under a grammar the lexer does not model;
 //   - it defines no function and holds no here-document, `case` statement or
 //     `((` arithmetic command, which the lexer folds away without commands
 //     whose words the rules below could see;
@@ -201,8 +204,8 @@ func nameListingPipeline(parsed script, index int) (int, bool) {
 // write needs to be judged environment-style. The environment the runner
 // exports before the unit starts is outside the unit's words and is not
 // modelled.
-func nameListingAdmitted(parsed script, test bool) bool {
-	if !test || len(parsed.functions) != 0 || len(parsed.data) != 0 || parsed.cases != 0 || parsed.arithmetic != 0 {
+func nameListingAdmitted(parsed script, firstLine string, test bool) bool {
+	if !test || !shellInterpreter(firstLine) || len(parsed.functions) != 0 || len(parsed.data) != 0 || parsed.cases != 0 || parsed.arithmetic != 0 {
 		return false
 	}
 	covered, listed := map[int]bool{}, map[string]bool{}
@@ -226,6 +229,28 @@ func nameListingAdmitted(parsed script, test bool) bool {
 		}
 	}
 	return true
+}
+
+// lexedShells are the interpreters whose grammar the lexer reads.
+var lexedShells = map[string]bool{"sh": true, "bash": true, "dash": true, "zsh": true, "ksh": true}
+
+// shellInterpreter reports a first line that is no `#!` line, or one that
+// runs a shell the lexer reads: `#!/path/<shell>`, or `#!/usr/bin/env
+// <shell>` with no option and no NAME=value field. Every other `#!` line,
+// with an argument, another program or another env form, is refused.
+func shellInterpreter(firstLine string) bool {
+	rest, ok := strings.CutPrefix(strings.TrimSuffix(firstLine, "\r"), "#!")
+	if !ok {
+		return true
+	}
+	fields := strings.Fields(rest)
+	switch {
+	case len(fields) == 1 && strings.HasPrefix(fields[0], "/"):
+		return lexedShells[path.Base(fields[0])]
+	case len(fields) == 2 && fields[0] == "/usr/bin/env":
+		return lexedShells[fields[1]]
+	}
+	return false
 }
 
 // braceName is a `{name}` word, which before a redirection operator makes
