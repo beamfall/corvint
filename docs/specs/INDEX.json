@@ -4462,5 +4462,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/docs-mcp-hardening-v1.md",
+    "title": "Docs MCP Hardening V1",
+    "reqPrefix": "DMF-V1",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5409)",
+    "delivery": "not-started",
+    "claim": "One docs check reports staleness honestly; docs MCP tools get distinct descriptions, one actionable error shape and a corpus reload without restart.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

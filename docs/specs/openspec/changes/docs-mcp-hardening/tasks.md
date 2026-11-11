@@ -2,10 +2,10 @@
 
 Build tasks in order. Each names its requirement IDs and its proof.
 
-- [ ] 1 File the ticket in `.taskman/` (milestone `v1-0`), reserve prefix `DMF-V1` and set
+- [x] 1 File the ticket in `.taskman/` (milestone `v1-0`), reserve prefix `DMF-V1` and set
    `requirementRefs` to DMF-V1-001 to DMF-V1-011 and DMF-V1-013 (R42 B1 to B5 decide the open
-   questions). Proof: `corvint-tasks ticket show` lists the twelve IDs.
-- [ ] 2 First commit: create `docs/specs/docs-mcp-hardening-v1.md`, its `docs/specs/README.md` row
+   questions). Proof: `corvint-tasks ticket show` lists the twelve IDs. V1-5409 filed; DMF-V1 reserved.
+- [x] 2 First commit: create `docs/specs/docs-mcp-hardening-v1.md`, its `docs/specs/README.md` row
    and the regenerated index (DMF-V1-001 to 011 and 013). Proof: `make spec-requirements` output
    lists the twelve IDs.
 - [ ] 3 Waived claims render as WAIVED in generation and check (DMF-V1-001). Proof: fixture test
