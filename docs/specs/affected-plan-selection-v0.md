@@ -183,7 +183,10 @@ measure. None of them drops a unit the change can reach.
   when ASCII letter case is folded, or that is evaluated when it or one of those physical
   paths holds a byte outside ASCII, MUST resolve to the repository root, since a
   case-insensitive file system opens it there; the byte check comes first, so a non-ASCII
-  target below a physical path by exact prefix resolves to the root too. When the tree's physical path, or in a
+  target below a physical path by exact prefix resolves to the root too. This fails closed at
+  a precision cost: a non-ASCII target that stays outside the repository, or any evaluated
+  target while a physical path holds a non-ASCII byte, also resolves to the root, so the plan
+  carries the frontier for every dirty path. When the tree's physical path, or in a
   snapshot plan the repository's, cannot be read the links count as not listed. Not modelled: a link Git ignores; a link inside a submodule; an untracked link a
   `--path` plan does not name; a reader of a plugin other than shell and Go that names a path
   through a link (the Go plugin resolves its literals through links itself); a link outside
@@ -3234,7 +3237,8 @@ absolute targets through an alias, a `..` after an outside or in-tree link, a da
 re-entry; each over the physical tree and its alias), `TestSymlinksRootEdges_AFPV09965` (a
 trailing `/` after the tree, a case-folded re-entry, and a snapshot tree with the repository
 given physically and by alias), `TestSymlinksPhysicalTarget_AFPV09965` (a non-ASCII target or
-physical root resolves to the root before any exact match) and
+physical root resolves to the root before any exact match, and one outside every root
+still does) and
 `TestAffectedSymlinkTargetCLI_AFPV09965`
 (`corvint affected` with and without `--base`). The mutation evidence and measurements are in
 `docs/build-log/2026-11-11-affsym-operand.md` and, for the fix rounds,

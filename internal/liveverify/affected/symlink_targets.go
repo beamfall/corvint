@@ -200,14 +200,17 @@ func insideRoot(physical, root string) (string, bool) {
 }
 
 // physicalTarget is the Targets value of a link that reaches the physical
-// slash path reached: "." when it or one of roots (the tree's physical path,
-// then the repository's when the tree is a snapshot) holds a byte past
-// ASCII, whose folding and normalisation are not modelled, even where it
-// lies below a root exactly; otherwise the repository path when it is one of
-// roots or lies below one, and "." when it does so only under a case fold. A
-// case-insensitive file system opens `../REPO/x` beside repo, and
-// EvalSymlinks keeps the case it was given (AFP-V0-9965). It returns false
-// for a path outside every root.
+// slash path reached: "." and true when it or one of roots (the tree's
+// physical path, then the repository's when the tree is a snapshot) holds a
+// byte past ASCII, whose folding and normalisation are not modelled, whether
+// it lies below a root exactly or outside every root. That fails closed: a
+// non-ASCII target that stays outside the repository still widens the plan
+// to every dirty path, a precision cost AFP-V0-9965 accepts. Otherwise it is
+// the repository path when reached is one of roots or lies below one, and
+// "." when it does so only under a case fold; a case-insensitive file system
+// opens `../REPO/x` beside repo, and EvalSymlinks keeps the case it was
+// given. It returns false for an ASCII path outside every root under any
+// case.
 func physicalTarget(reached string, roots []string) (string, bool) {
 	if !asciiText(reached) || slices.ContainsFunc(roots, func(root string) bool { return !asciiText(root) }) {
 		return ".", true
