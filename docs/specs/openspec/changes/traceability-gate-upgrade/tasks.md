@@ -11,12 +11,12 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [ ] 2.1 Measure before the change: list every subtest citation on the lane base and whether the
       cited body holds the ID. Requirements: TTG-V0-960, TTG-V0-961. Proof: the list, kept in the
       build-log entry.
-- [ ] 2.2 Subtest citation and body check in `script/check-traceability-tests.sh`, with fixtures:
+- [x] 2.2 Subtest citation and body check in `script/check-traceability-tests.sh`, with fixtures:
       a `TestX/REQ-1` citation that resolves, a citation whose test body lacks the ID, a suffix that
       is not a requirement ID, an ID that is a prefix of a longer ID, two declarations of one name,
       and each exempt marker. Requirements: TTG-V0-960, TTG-V0-961. Proof:
       `make traceability-tests-test` passes.
-- [ ] 2.3 Last-citation rule and the `(untested: REASON)` marker in the range form, with fixtures:
+- [x] 2.3 Last-citation rule and the `(untested: REASON)` marker in the range form, with fixtures:
       the only citing test of a requirement is deleted and its row edited, a second citation remains,
       the spec is retired, the requirement text is removed, the marker with and without a reason.
       Requirements: TTG-V0-962, TTG-V0-963. Proof: `make traceability-tests-test` passes.

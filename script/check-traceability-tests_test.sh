@@ -180,6 +180,53 @@ esac
 stage internal/demo/ghost_test.go
 run >/dev/null || fail "the staged edit did not satisfy the row: $(run)"
 
+# TTG-V0-960, TTG-V0-961 (V1-4803): a citation `TestName/REQ-ID` resolves only when a declaration of
+# TestName holds REQ-ID in its body, from its `func` line to the next column-0 `}`. A doc comment, a
+# later function and a longer ID do not count; a second declaration in another file does. A suffix
+# that is not a requirement ID, and a name the existing rules exempt, are checked as before.
+printf '%s\n' 'package demo' '' '// TestSub covers REQ-9 only in this doc comment.' 'func TestSub() {' \
+  '	_ = "REQ-1_case"' '}' '' 'func TestLonger() {' '	_ = "REQ-12 and REQ-7"' '}' \
+  > "$test_root/internal/demo/sub_test.go"
+# shellcheck disable=SC2016
+printf '%s\n' '# Sub' '' '## Traceability' '' '| Requirement | Evidence |' '|---|---|' \
+  '| REQ-1 | `TestSub/REQ-1` resolves |' \
+  '| FIX-V0-013 | `TestSub/happy_path`, `pkg.TestSub/REQ-404`, `TestSubPlanned` (PLANNED), `TestSubWord` (not a test), `TestSubGone` (removed) |' \
+  > "$test_root/docs/specs/sub.md"
+stage internal/demo/sub_test.go
+stage docs/specs/sub.md
+output=$(run) || fail "a subtest citation whose body holds the ID failed (TTG-V0-960): $output"
+case "$output" in
+  *"traceability tests: 1 planned"*"traceability subtest citations: 1 checked"*) ;;
+  *) fail "the subtest citation was not counted once after the unchanged summary line (TTG-V0-963): $output" ;;
+esac
+# shellcheck disable=SC2016
+printf '%s\n' '| REQ-1 | `TestLonger/REQ-1` holds only REQ-12 |' '| REQ-9 | `TestSub/REQ-9` |' \
+  '| REQ-7 | `TestSub/REQ-7` |' '| REQ-8 | `TestNoSuchSub/REQ-8` |' >> "$test_root/docs/specs/sub.md"
+stage docs/specs/sub.md
+output=$(run) && fail "a subtest citation whose body lacks the ID passed (TTG-V0-961)"
+for expected in \
+  'docs/specs/sub.md:9: TestLonger/REQ-1 (no declaration of TestLonger contains REQ-1)' \
+  'docs/specs/sub.md:10: TestSub/REQ-9 (no declaration of TestSub contains REQ-9)' \
+  'docs/specs/sub.md:11: TestSub/REQ-7 (no declaration of TestSub contains REQ-7)' \
+  'docs/specs/sub.md:12: TestNoSuchSub
+'; do
+  case "$output
+" in
+    *"  $expected"*) ;;
+    *) fail "the row was not reported as: $expected: $output" ;;
+  esac
+done
+case "$output" in *"TestNoSuchSub/REQ-8"*) fail "an undeclared name got a second, subtest failure: $output" ;; esac
+case "$output" in *"traceability subtest citations: 4 checked"*) ;; *) fail "the subtest citations were not counted: $output" ;; esac
+printf '%s\n' '//go:build other' '' 'package demo' '' 'func TestSub() {' '	_ = "REQ-7"' '}' \
+  > "$test_root/internal/demo/sub_other_test.go"
+stage internal/demo/sub_other_test.go
+output=$(run) && fail "the remaining subtest failures passed"
+case "$output" in *"TestSub/REQ-7"*) fail "a second declaration holding the ID did not resolve the citation: $output" ;; esac
+case "$output" in *"TestLonger/REQ-1"*) ;; *) fail "the longer-ID row stopped failing: $output" ;; esac
+git -C "$test_root" rm -q --cached -- docs/specs/sub.md
+/bin/rm -f "$test_root/docs/specs/sub.md"
+
 # TTG-V0-950 (V1-3586): a spec-first commit citing a test that the next commit adds fails the index
 # check with the range hint, and passes --range BASE..HEAD, which resolves every commit's rows
 # against the change head; a cited test that never lands fails at the head and is named once, at
@@ -221,5 +268,80 @@ test "$(printf '%s\n' "$output" | grep -c TestNeverLands)" = 1 || fail "the neve
 case "$output" in *TestLandsNext*) fail "the landed test was reported: $output" ;; esac
 output=$(range "$base") && fail "a range without .. was accepted"
 case "$output" in *"--range must be BASE..HEAD"*) ;; *) fail "the malformed range was not named: $output" ;; esac
+
+# TTG-V0-962, TTG-V0-963 (V1-4803): the range form compares BASE's tree with HEAD's and fails for a
+# requirement whose last test citation the range removed, naming its citation at BASE. A second
+# citation, a retired spec, a requirement no longer stated, or `(untested: REASON)` with a reason
+# passes; an empty reason does not. The index form does not apply the rule.
+lc=$test_root/last
+mkdir -p "$lc/script" "$lc/docs/specs" "$lc/internal/demo"
+cp "$source_root/script/check-traceability-tests.sh" "$lc/script/"
+git -C "$lc" init -q -b main
+lc_commit() { git -C "$lc" add -A && git -C "$lc" -c user.name=t -c user.email=t@example.invalid commit -q -m "$1"; }
+lc_range() { (cd "$lc" && script/check-traceability-tests.sh --range "$lc_base..HEAD" 2>&1); }
+lc_tests() { printf '%s\n' 'package demo' '' "$@" > "$lc/internal/demo/a_test.go"; }
+# shellcheck disable=SC2016
+lc_spec() {
+  { printf '%s\n' '# Req' '' "$1" '' '## Requirements' '' '- `REQ-2`: second.' '- `REQ-3`: third.'
+    test -z "$2" || printf '%s\n' "$2"
+    printf '%s\n' '' '## Traceability' '' '| Requirement | Evidence |' '|---|---|' "$3" "$4" '| REQ-3 | `TestY` |'
+  } > "$lc/docs/specs/req.md"
+}
+lc_tests 'func TestX() {}' 'func TestY() {}'
+# shellcheck disable=SC2016
+lc_spec 'Delivery status: implemented' '- `REQ-1`: first.' '| REQ-1 | `TestX` |' '| REQ-2 | `TestX`, `TestY` |'
+lc_commit base
+lc_base=$(git -C "$lc" rev-parse HEAD)
+lc_scenario() {
+  git -C "$lc" reset -q --hard "$lc_base"
+  lc_tests 'func TestY() {}'
+  # shellcheck disable=SC2016
+  lc_spec "$1" "$2" "$3" '| REQ-2 | `TestY` |'
+  lc_commit "$4"
+}
+# shellcheck disable=SC2016
+lc_scenario 'Delivery status: implemented' '- `REQ-1`: first.' '| REQ-1 | no test |' 'delete TestX'
+output=$(lc_range) && fail "deleting the only citing test of a requirement passed the range form (TTG-V0-962)"
+case "$output" in
+  *"REQ-1: last test citation removed ($(printf '%.12s' "$lc_base") docs/specs/req.md:15: TestX)"*) ;;
+  *) fail "the lost requirement was not named with its citation at BASE: $output" ;;
+esac
+case "$output" in *REQ-2:*) fail "a requirement that kept a second citation was reported: $output" ;; esac
+case "$output" in
+  *"traceability last citations: 3 requirements cited at BASE, 0 untested"*) ;;
+  *) fail "the last-citation counts were not printed: $output" ;;
+esac
+(cd "$lc" && script/check-traceability-tests.sh > /dev/null 2>&1) || fail "the index form applied the last-citation rule"
+# shellcheck disable=SC2016
+lc_scenario 'Delivery status: implemented' '- `REQ-1`: first.' '| REQ-1 | (untested: covered by the measured run) |' 'state it'
+output=$(lc_range) || fail "a removal stated with (untested: REASON) failed (TTG-V0-963): $output"
+case "$output" in
+  *"3 requirements cited at BASE, 1 untested"*) ;;
+  *) fail "the untested requirement was not counted: $output" ;;
+esac
+# shellcheck disable=SC2016
+lc_scenario 'Delivery status: implemented' '- `REQ-1`: first.' '| REQ-1 | (untested: ) |' 'no reason'
+output=$(lc_range) && fail "an (untested: ) marker without a reason passed"
+case "$output" in *"REQ-1: last test citation removed"*) ;; *) fail "the reasonless marker did not name REQ-1: $output" ;; esac
+lc_scenario 'Delivery status: implemented' '' '' 'drop the requirement'
+output=$(lc_range) || fail "a requirement no longer stated in any spec was reported: $output"
+# shellcheck disable=SC2016
+lc_scenario 'Delivery status: retired' '- `REQ-1`: first.' '| REQ-1 | no test |' 'retire the spec'
+output=$(lc_range) || fail "a requirement of a retired spec was reported: $output"
+git -C "$lc" reset -q --hard "$lc_base"
+lc_tests 'func TestX() {}' 'func TestY() {}' 'func TestZ() {' '	_ = "REQ-3"' '}'
+# shellcheck disable=SC2016
+lc_spec 'Delivery status: implemented' '- `REQ-1`: first.' '| REQ-1 | `TestX` |' '| REQ-2 | `TestX`, `TestZ/REQ-3` |'
+# shellcheck disable=SC2016
+printf '%s\n' '- `REQ-4`: fourth, whose BASE citation never resolved.' '| REQ-4 | `TestZ/REQ-4` |' >> "$lc/docs/specs/req.md"
+lc_commit 'subtest citation'
+lc_base=$(git -C "$lc" rev-parse HEAD)
+lc_tests 'func TestX() {}' 'func TestZ() {' '	_ = "REQ-3"' '}'
+# shellcheck disable=SC2016
+printf '%s\n' '# Req' '' 'Delivery status: implemented' '' '## Requirements' '' '- `REQ-1`: first.' '- `REQ-2`: second.' \
+  '- `REQ-3`: third.' '' '## Traceability' '' '| Requirement | Evidence |' '|---|---|' '| REQ-1 | `TestX` |' \
+  '| REQ-2 | `TestX`, `TestZ/REQ-3` |' '| REQ-3 | none |' '- `REQ-4`: fourth.' '| REQ-4 | none |' > "$lc/docs/specs/req.md"
+lc_commit 'delete TestY'
+output=$(lc_range) || fail "a resolving subtest citation did not keep its requirement cited, or a BASE subtest citation that never resolved counted (TTG-V0-962): $output"
 
 echo "check-traceability-tests_test.sh: ok"
