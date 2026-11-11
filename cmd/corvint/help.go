@@ -68,8 +68,14 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	case directTopic != "":
 		return directTopic, true, nil
 	case len(rest) > 1 && rest[0] == "help":
-		// `corvint help flows appmap build` names one subcommand of the tree (CAP-V0-042).
+		// `corvint help flows appmap build` names one subcommand of the tree (CAP-V0-042) and
+		// prints what `corvint flows appmap build --help` prints (CAP-V0-056).
 		if _, ok := findTreeNode(rest[1:]); ok {
+			if rest[1] != "help" {
+				if topic, requested, err := parseHelpInvocation(append(slices.Clone(rest[1:]), "--help")); requested && err == nil {
+					return topic, true, nil
+				}
+			}
 			return nodeHelpPrefix + strings.Join(rest[1:], " "), true, nil
 		}
 		return "", true, unknownHelpTopic(rest[1:])

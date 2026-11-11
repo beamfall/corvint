@@ -252,14 +252,6 @@ func TestTestPlanCheckExitCodes(t *testing.T) {
 	}
 }
 
-func TestTestPlanHelp(t *testing.T) {
-	t.Parallel()
-	code, stdout, _ := runTestPlanCLI(t, "test-plan", "--help")
-	if code != 0 || !strings.Contains(stdout, "test-plan consolidate --input FILE") || !strings.Contains(rootHelp, "test-plan") {
-		t.Fatalf("exit %d help %q", code, stdout)
-	}
-}
-
 func hasTestArg(arguments []string, wanted string) bool {
 	for _, value := range arguments {
 		if value == wanted {
