@@ -1,10 +1,98 @@
-# V1-5434: compatibility-promise stopped at the CMP-V1-003 count (7 of 22 surfaces tested)
+# V1-5434: compatibility-promise stopped at 7 of 22, resumed with 11 stable, 11 not-promised rows
 
 Change `docs/specs/openspec/changes/compatibility-promise/`, ticket V1-5434, base
 `87c57df657cbe6fe132f2cc8ed31b37824991ac0`, branch `claude/cmp`. Owner decisions D10 and D10a
 (2026-11-09, under R42) are recorded in decision 0596. The spec
 `docs/specs/compatibility-promise-v1.md` (CMP-V1-001 to CMP-V1-006) was created from the change's
 spec delta (task 1.2).
+
+## Orchestrator decision on the task 2.1 stop (2026-11-11)
+
+Recorded as an orchestrator decision under the owner's delegation of 2026-11-02. The stop below was
+reported; the orchestrator chose: **add contract tests first for the surfaces that exist in this
+repository, and do not promise surfaces that do not exist yet or that live in another repository.**
+
+1. The 22 surfaces are split as in the table below (MCP tool names are one surface), and each is
+   classified `in-repo` (ships from this repository today), `not-yet` (does not exist: no
+   `action.yml`, change `run-evidence` not landed, agent packages not landed) or `other-repo`
+   (corvint-tasks verbs, flags, exit codes, store files, ticket schema v1 and receipt reference v1,
+   which the corvint-tasks repository publishes under its change `tasks-conformance`).
+2. Every `in-repo` surface without a contract test gets one now.
+3. The table lists all 22 rows. `in-repo` rows with a contract test are `stable`; `not-yet` and
+   `other-repo` rows are `not-promised` and name the change or repository they wait on. The check
+   refuses a `stable` row with no named, existing test function, and refuses an unlisted surface.
+4. CMP-V1-001 and CMP-V1-003 did not admit `not-promised` rows, so their wording was amended
+   minimally, IDs kept, in its own commit ("allow not-promised rows"), together with the
+   non-goal on contract tests, which now excludes only surfaces that do not ship here.
+5. The acceptance markers take the G14 form of the fault-injection-harness and flow-schema-version
+   specs: `accepted automatically under G14 (decision 0596, ...; V1-5434)`.
+
+## Result after the decision
+
+| # | Surface | Class | Row | Contract tests (package) or what it waits on |
+|---:|---|---|---|---|
+| 1 | `corvint` verbs | in-repo | stable | `TestCAPV0045CatalogLinksCurrentTreeSnapshots` (`./cmd/corvint`), `TestCAPV0047RepositoryCommandTreesMatchDispatch` (`./tools/capabilities-check`) |
+| 2 | `corvint` flags | in-repo | stable | the same |
+| 3 | `corvint` exit codes | in-repo | stable | **new** `TestCMPV1003CorvintExitCodes` (`./conformance/cli-errors-v0`) |
+| 4 | `corvint-docs` verbs | in-repo | stable | `TestCAPV07700ShippedHelp` (`./conformance/cli-errors-v0`) |
+| 5 | `corvint-docs` flags | in-repo | stable | the same |
+| 6 | `corvint-docs` exit codes | in-repo | stable | **new** `TestCMPV1003CorvintDocsExitCodes` (`./conformance/cli-errors-v0`) |
+| 7 | `corvint-tasks` verbs | other-repo | not-promised | the corvint-tasks repository (change `tasks-conformance`) |
+| 8 | `corvint-tasks` flags | other-repo | not-promised | the same |
+| 9 | `corvint-tasks` exit codes | other-repo | not-promised | the same |
+| 10 | Flow file (`corvint-flows/0`) | in-repo | stable | `TestAPKV0001OnePlanForEveryKind_V15251`, `TestAPKV0004FlowEvidenceFailsClosed_V15251` (`./internal/appflows`) |
+| 11 | Plan (`affected-plan/1`) | in-repo | stable | `TestCoreVerbsEmitTheFrozenProfiles` (`./cmd/corvint`) |
+| 12 | Test-run receipt (`corvint-test-run/0`) | in-repo | stable | **new** `TestCMPV1003TestRunReceiptContract` (`./internal/sessiontest`) |
+| 13 | Run evidence | not-yet | not-promised | change `run-evidence` |
+| 14 | Ticket schema v1 | other-repo | not-promised | the corvint-tasks repository (change `tasks-conformance`) |
+| 15 | Receipt reference v1 | other-repo | not-promised | the same |
+| 16 | Documented files under `.corvint/` | in-repo | stable | **new** `TestCMPV1003TestSelectionFileContract` (`./internal/liveverify/affected`), `TestCMPV1003CIJobInputsFileContract` (`./internal/jobinputs`), `TestCMPV1003WorkspaceFileContract` (`./internal/workspace`) |
+| 17 | Files in the Tasks store | other-repo | not-promised | the corvint-tasks repository (change `tasks-conformance`) |
+| 18 | Action inputs | not-yet | not-promised | change `github-action` |
+| 19 | Action outputs | not-yet | not-promised | the same |
+| 20 | Action major tag | not-yet | not-promised | the same |
+| 21 | Corvint range per agent package | not-yet | not-promised | change `agent-packages` |
+| 22 | MCP tool names | in-repo | stable | `TestAFUV1034FlowsToolProfile`, `TestMMRV0012GroupsToolsListGolden` (`./internal/mcp/cli`), `TestServeToolsListAndCallRoundTripsDocsDraftAndConsume` (`./cmd/corvint-docs-mcp`), `TestToolCatalogueIsExactlyOneReadOnlyTool` (`./conformance/mcp-test-validity-v0`) |
+
+Counts: 11 in-repo, all `stable`; 5 not-yet and 6 other-repo, all `not-promised`. The labels read
+from code are unchanged from the list below: `corvint-flows/0`, `affected-plan/1` and
+`corvint-test-run/0`; the check confirms each is a string literal in its label source.
+
+What each new contract test pins, and how it was shown to fail when its surface changes:
+
+- `TestCMPV1003CorvintExitCodes` and `TestCMPV1003CorvintDocsExitCodes` build the binary (corvint
+  with corvint-docs beside it, so the shims forward deterministically) and require, for every node
+  of the frozen command tree, exit 0 for `--help` and exit 2 for an undefined flag, and at the root
+  exit 0 for `--help` and `--version` and exit 2 for an unknown verb. Fail proof: making
+  `corvint affected` argument refusals exit 1 (`cmd/corvint/main.go`, temporary) failed the
+  corvint test on the five `affected` nodes; reverted. Limit: the verb-specific codes that help
+  documents (1 for findings, 3 for UNKNOWN) are not in the row, which says so.
+- `TestCMPV1003TestRunReceiptContract` compares the encoder's output with the committed fixture
+  `internal/sessiontest/testdata/corvint-test-run-0.contract.json` byte for byte, reads it back
+  through the strict reader, compares its member paths and JSON types with a fixed list of 52, and
+  requires refusal of an unknown member and of `corvint-test-run/1`. Fail proof: renaming the
+  `envDigest` JSON tag (`internal/sessiontest/run.go`, temporary) failed the byte comparison;
+  reverted.
+- The three `.corvint/` file tests read a declaration naming every member through the product
+  reader, compare the result field by field, and require refusal of an unknown member and of the
+  next profile digit. Fail proof: renaming the `mustRun` JSON tag of the test-selection file
+  (`internal/liveverify/affected/testselection.go`, temporary) made the reader refuse the fixture
+  ("unknown object member name \"mustRun\""); reverted.
+
+The `.corvint/` row covers the project files the user guides document (`docs/CAPABILITIES.md`,
+`docs/APPLICATION-MAP.md`): `test-selection.json`, `ci-job-inputs.json` and `workspace.json`;
+`flows.json` has its own row. Not in it, so preview by the no-row rule: the change evidence maps
+(`change.cem.json`, `changes/*.cem.json`; the guide calls the working map `cem/0.2` while the
+stable reader is cem/1.0 under the unpromoted `docs/specs/cem-stable-v1.md`), the index (preview
+by name), the ledgers `self-observations.jsonl` and the unplanned-read marker, and the planner
+declarations this repository keeps for its own development (`tools/declaration-compat-check`
+lists them). Whether "documented files" was meant to include any of those is UNVERIFIED; adding one
+is a new row with its own contract test.
+
+The generator `tools/compatibility-table` reads `tools/compatibility-table/surfaces.json`, writes
+`docs/COMPATIBILITY.md` (`make compatibility-table`) and checks it (`make compatibility-check`,
+in `DOC_GATE_TARGETS`). It has no test against the repository's own page: the doc gate is that
+check, and a Go test of it would need a read scope over every named test package.
 
 ## Outcome: stop rule of CMP-V1-003
 
