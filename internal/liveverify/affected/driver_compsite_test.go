@@ -3,6 +3,8 @@
 package affected
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 	"testing/fstest"
@@ -208,5 +210,109 @@ func TestDriverGoSelectionAssignmentsFailClosed_AFP_V0_3601(t *testing.T) {
 	reasons := driverComputedReasons(t, memorySource(t, files))
 	if !slices.Contains(reasons["driver:ci:.github/workflows/ci.yml#job"], "shell:github-env-file") {
 		t.Fatalf("GITHUB_ENV reasons %v; want shell:github-env-file", reasons)
+	}
+}
+
+// compsiteNodeFiles is a repository with Node test files, a directory whose
+// name ends in .mjs and a text file, whose make target `check` runs recipe.
+func compsiteNodeFiles(recipe string) map[string]string {
+	return map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"conformance/a.test.mjs":    "import test from 'node:test'\n",
+		"conformance/b.test.js":     "const test = require('node:test')\n",
+		"conformance/c.test.cjs":    "const test = require('node:test')\n",
+		"conformance/dir.mjs/x.mjs": "export {}\n",
+		"conformance/notes.txt":     "notes\n",
+		"Makefile":                  "check:\n\t" + recipe + "\nall: check\n",
+	}
+}
+
+// AFP-V0-3602: `node --test` over literal existing test files is no inline
+// interpreter program; each file is a path edge that selects the target.
+func TestDriverNodeTestFiles_AFP_V0_3602(t *testing.T) {
+	for _, recipe := range []string{
+		"node --test conformance/a.test.mjs",
+		"node --test conformance/a.test.mjs conformance/b.test.js conformance/c.test.cjs",
+		"cd conformance && node --test a.test.mjs",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			files := compsiteNodeFiles(recipe)
+			if reasons := driverComputedReasons(t, memorySource(t, files)); len(reasons) != 0 {
+				t.Fatalf("reasons %v; want none", reasons)
+			}
+			fsys := fstest.MapFS{}
+			for name, body := range files {
+				fsys[name] = &fstest.MapFile{Data: []byte(body)}
+			}
+			graph, err := BuildFS(fsys, Driver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			selected := witnesses(Select(graph, []string{"conformance/a.test.mjs"}))
+			for _, id := range []string{"driver:make:Makefile#check", "driver:make:Makefile#all"} {
+				if _, found := selected[id]; !found {
+					t.Errorf("a test file change lost %s: %v", id, selected)
+				}
+			}
+			if selected := witnesses(Select(graph, []string{"docs/build-log/2026-11-11-probe.md"})); len(selected) != 0 {
+				t.Errorf("an unrelated path selected %v", selected)
+			}
+		})
+	}
+}
+
+// AFP-V0-3602 fail-closed neighbours: no file operand, another option, a
+// glob, a directory, a missing file, another extension, an expansion, a make
+// value, an unknown directory and an option before --test keep the site.
+func TestDriverNodeTestFilesFailClosed_AFP_V0_3602(t *testing.T) {
+	for _, recipe := range []string{
+		"node --test",
+		"node --test --test-reporter=./conformance/a.test.mjs conformance/b.test.js",
+		"node --test conformance/a.test.mjs --import ./conformance/b.test.js",
+		"node --import ./conformance/b.test.js --test conformance/a.test.mjs",
+		"node --test=conformance conformance/a.test.mjs",
+		"node --test 'conformance/*.test.mjs'",
+		"node --test conformance/dir.mjs",
+		"node --test conformance/missing.test.mjs",
+		"node --test conformance/notes.txt",
+		"node --test $$FILE",
+		"node --test $(FILE)",
+		"node --test /abs/a.test.mjs",
+		"node --test ../a.test.mjs",
+		"cd $$DIR && node --test a.test.mjs",
+		"node -e 'require(\"x\")'",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			reasons := driverComputedReasons(t, memorySource(t, compsiteNodeFiles(recipe)))
+			if _, computed := reasons["driver:make:Makefile#check"]; !computed {
+				t.Fatalf("check is no computed site: %v", reasons)
+			}
+		})
+	}
+	// A file reached through a linked directory is a regular file to Lstat,
+	// but no edge records the link's target (AFP-V0-9051).
+	for _, recipe := range []string{"node --test linked/a.test.mjs", "node --test conformance/link.test.mjs"} {
+		t.Run(recipe, func(t *testing.T) {
+			root := t.TempDir()
+			for name, body := range compsiteNodeFiles(recipe) {
+				file := filepath.Join(root, filepath.FromSlash(name))
+				if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(file, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.Symlink("conformance", filepath.Join(root, "linked")); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			if err := os.Symlink("a.test.mjs", filepath.Join(root, "conformance", "link.test.mjs")); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			reasons := driverComputedReasons(t, DiskSource(root))
+			if _, computed := reasons["driver:make:Makefile#check"]; !computed {
+				t.Fatalf("check is no computed site: %v", reasons)
+			}
+		})
 	}
 }
