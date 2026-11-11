@@ -134,6 +134,16 @@ BASE-only CEM evidence and the opaque immutable backend's bounded-open requireme
   override that default. Invalid values fall through to the next source; the change count bounds
   workers, with at least one. JSON bytes, diagnostics order, floor, miss and fallback results MUST
   be independent of the admitted worker count.
+- `DTL-V0-018`: (experimental under the standing lane auto-accept, 2026-11-11; V1-4694; refines DTL-V0-014)
+  The free-space ancestor walk MUST make progress or terminate for a relative scratch root
+  and a missing bare name, including Linux heavy-runner TMPDIR layouts. Every iteration MUST
+  shorten the candidate or reach `/` or `.` even if PWD is unavailable or relative.
+  The relative-scratch regression MUST run bash in a separate process group (Setpgid, on Linux
+  and Darwin), kill the group on timeout and cleanup, and demonstrate that no bash descendant
+  survives SIGKILL of the invoking test binary. Cleanup MUST include command-substitution
+  descendants; SIGKILL cannot rely on the killed process's cleanup handlers. Every real group
+  signal MUST be sent through the unreaped-leader owner (`groupreap.Owner`); after the reap only
+  signal-0 probes may follow, so no numeric signal can name a reused PID or group.
 
 ## Non-goals and failure modes
 
@@ -175,6 +185,7 @@ handback. Full repository and external interoperability qualification are outsid
 | DTL-V0-013 | internal/liveverify/affected/source.go | TestDTLV0013MapFSBounded; TestDTLV0013BuildMapFS; TestDTLV0013FakeLanguageBuildCached |
 | DTL-V0-014 | script/heavy.sh; lane-binary-check.sh; lane-stage-inputs.sh | TestDTLV0014DiskHeadroom; TestDTLV0014ScratchRootRecovery; TestDTLV0014RelativeScratchRootTerminates; lane admission fixtures |
 | DTL-V0-015 | script/requirement-ids-free.sh; requirement-id-collisions.sh | TestDTLV0015FourDigitBlocks; TestDTLV0015FourDigitOpenRefCollision; retained charter-block checks |
+| DTL-V0-018 | script/heavy.sh; tools/test-commands-check/scratch_process_unix_test.go; scratch_process_linux_test.go; scratch_process_darwin_test.go | TestDTLV0014RelativeScratchRootTerminates; TestDTLV0018ScratchParentSIGKILL; TestDTLV0018ScratchSupervisorNoSignalAfterReap |
 | DTL-V0-016 | internal/dogfoodflow/check.go; .gitignore; docs/DOGFOOD.md | TestDTLV0016ReportPublication (removed); retained cross-mount check |
 | DTL-V0-017 | `replayJobs` in tools/selection-baseline | `TestDTLV0017ReplayJobs`, `TestDTLV0017ReplayBytesIndependentOfWorkers`: real cloned replays at 1, 2, 3 and 8 workers preserve JSON and diagnostics |
 
@@ -187,3 +198,6 @@ Reverting DTL-V0-016 restores Git-directory staging and its cross-filesystem ref
 unfinished local report temporary ignored until its operator disposes of it.
 
 Revert DTL-V0-017 to restore the DTL-V0-006 CPU- and memory-bounded replay default; no result format migration is needed.
+
+Revert DTL-V0-018 to restore the previous walk and test subprocess lifetime; no evidence or traces
+are removed.
