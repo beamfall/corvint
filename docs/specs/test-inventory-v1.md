@@ -239,7 +239,10 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   no instance), refuses `inventory-too-large` over 8 MiB, and records a failed lister in `failures`
   with the instance left out. The source digest leaves out the inventory file and its temporary
   files (`.corvint/.test-inventory-*.tmp`). The working-tree reader refuses a `--root` that is not
-  the Git top level, and refresh then fails `inventory-unavailable`.
+  the Git top level, and refresh then fails `inventory-unavailable`. A missing or unknown
+  subcommand, an unknown flag or extra argument, a `--runner` outside the seven runners, or a
+  `--root` filter that is not a clean repository-relative directory exits 2 with
+  `inventory-invalid-arguments` and writes nothing.
 - Readers (TIV-V1-002, TIV-V1-006 to TIV-V1-009) judge the file and never run a lister or write:
   `corvint affected --summary` (`affected-summary/1`, member `inventory` and `inventory` text
   lines) and the `corvint.affected` MCP tool, which returns that verdict, against HEAD for a based
