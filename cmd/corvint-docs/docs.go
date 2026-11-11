@@ -23,6 +23,7 @@ type docsOptions struct {
 	page                                                        int
 	ownerSection                                                string
 	citationPaths                                               []string
+	citationJSON                                                bool
 }
 
 func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
@@ -118,26 +119,44 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 	return options, true, err
 }
 
-// parseDocsCitationsArgs parses `docs citations check [PATH...]` (SDD-V0-633).
+// parseDocsCitationsArgs parses `docs citations check [--json] [PATH...]` (SDD-V0-633, DMF-V1-004).
 func parseDocsCitationsArgs(options docsOptions, arguments []string) (docsOptions, error) {
 	if len(arguments) == 0 || arguments[0] != "check" {
 		return options, argumentError("docs citations requires check")
 	}
+	paths := []string{}
 	for _, argument := range arguments[1:] {
+		if argument == "--json" && !options.citationJSON {
+			options.citationJSON = true
+			continue
+		}
 		if strings.HasPrefix(argument, "-") {
 			return options, argumentError("unrecognized docs citations argument: " + argument)
 		}
 		if clean := path.Clean(argument); clean != argument || clean == "." || path.IsAbs(argument) || strings.HasPrefix(argument, "../") {
 			return options, argumentError("docs citations check paths must be repository-relative: " + argument)
 		}
+		paths = append(paths, argument)
 	}
-	options.citationPaths = arguments[1:]
+	options.citationPaths = paths
 	root, err := resolveExplicitRoot(options.root)
 	options.root = root
 	return options, err
 }
 
-// runDocsCitations prints one line per failure and a summary; exit 1 on any failure.
+// citationsReport is the corvint-docs-citations-check/0 object `--json` prints: one object per
+// failure, the unpinned citations and the counts (DMF-V1-004).
+func citationsReport(report doccitations.Report) map[string]any {
+	return map[string]any{
+		"profile":   "corvint-docs-citations-check/0",
+		"documents": report.Documents, "citations": report.Citations,
+		"failures": report.Failures, "unpinned": report.Unpinned,
+		"counts": map[string]any{"failures": len(report.Failures), "unpinned": len(report.Unpinned), "fenced_skipped": report.Fenced},
+	}
+}
+
+// runDocsCitations prints one line per failure and a summary, or with --json the
+// corvint-docs-citations-check/0 object; exit 1 on any failure.
 func runDocsCitations(ctx context.Context, options docsOptions, stdout, stderr io.Writer) int {
 	report, err := doccitations.Check(gitstatus.WithIsolation(ctx), options.root, options.citationPaths)
 	if err != nil {
@@ -145,10 +164,21 @@ func runDocsCitations(ctx context.Context, options docsOptions, stdout, stderr i
 		return 2
 	}
 	var output strings.Builder
-	for _, failure := range report.Failures {
-		output.WriteString(failure.String() + "\n")
+	if options.citationJSON {
+		encoded, encodeErr := gokernel.CanonicalJSON(citationsReport(report))
+		if encodeErr != nil {
+			emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot encode the citations report"})
+			return 2
+		}
+		output.Write(encoded)
+		output.WriteString("\n")
+	} else {
+		for _, failure := range report.Failures {
+			output.WriteString(failure.String() + "\n")
+		}
+		fmt.Fprintf(&output, "docs citations check: %d citations in %d documents, %d failures, %d unpinned, %d in fenced code skipped\n",
+			report.Citations, report.Documents, len(report.Failures), len(report.Unpinned), report.Fenced)
 	}
-	fmt.Fprintf(&output, "docs citations check: %d citations in %d documents, %d failures\n", report.Citations, report.Documents, len(report.Failures))
 	if _, err := io.WriteString(stdout, output.String()); err != nil {
 		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write docs output"})
 		return 2
@@ -271,7 +301,7 @@ Usage:
   corvint-docs [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
   corvint-docs [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
   corvint-docs [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md
-  corvint-docs [--root PATH] docs citations check [PATH...]
+  corvint-docs [--root PATH] docs citations check [--json] [PATH...]
   corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)
   corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)
   corvint-docs [--root PATH] docs flows generate|check|finalize ...  (corvint-docs help docs flows)
@@ -302,10 +332,13 @@ Owner section (SDD-V0-633): --owner-section HEADING drafts an owner with no Agen
   exactly one literal "## HEADING" outside fenced code, excerpted alone (64 lines, 4 KiB),
   and the header names it. The default keeps the preamble through ## Agent digest.
 
-Citations (SDD-V0-633): docs citations check scans tracked Markdown (or the named tracked
-  files) for backticked path:N, path:N-M or path:N,M tokens with an optional @HEX anchor and
-  reports out-of-range, trivial-span, anchor-mismatch and missing-file citations against
-  the index blobs. Exit 0 clean, 1 on failures, 2 on errors. It reads only.
+Citations (SDD-V0-633, DMF-V1-004): docs citations check scans tracked Markdown (or the
+  named tracked files) for backticked path:N, path:N-M or path:N,M tokens with an optional
+  @HEX anchor and reports out-of-range, trivial-span, anchor-mismatch and missing-file
+  (any cited path that is not tracked) citations against the index blobs. Tokens inside
+  fenced code are skipped and counted; citations with no @HEX pin are counted as unpinned,
+  not failures. --json prints corvint-docs-citations-check/0: one object per failure, the
+  unpinned citations and the counts. Exit 0 clean, 1 on failures, 2 on errors. It reads only.
 
 Paging (SDD-V0-632): declarations and importers each show at most 64 entries per page.
   A larger package prints "Page: N of P" and a TRUNCATED limitation naming the shown

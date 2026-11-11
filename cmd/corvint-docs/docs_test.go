@@ -596,12 +596,53 @@ func TestSDDV0633DocsCLIOwnerSectionAndCitationsCheck(t *testing.T) {
 	if code, out, stderr := run("cited.md"); code != 1 || !strings.Contains(out, "cited.md:1  `owner.md:3`  trivial-span: ") || !strings.Contains(out, "2 citations in 1 documents, 1 failures") {
 		t.Fatalf("failing check: %d %q %s", code, out, stderr)
 	}
-	if code, out, stderr := run("clean.md"); code != 0 || out != "docs citations check: 1 citations in 1 documents, 0 failures\n" {
+	if code, out, stderr := run("clean.md"); code != 0 || out != "docs citations check: 1 citations in 1 documents, 0 failures, 1 unpinned, 0 in fenced code skipped\n" {
 		t.Fatalf("clean check: %d %q %s", code, out, stderr)
 	}
 	for _, paths := range [][]string{{"missing.md"}, {"../x.md"}, {"--bogus"}} {
 		if code, out, stderr := run(paths...); code != 2 || out != "" || stderr == "" {
 			t.Fatalf("check %v: %d %q", paths, code, out)
 		}
+	}
+}
+
+// DMF-V1-004: --json prints one object per failure, the unpinned citations and the counts; a
+// fenced citation is skipped and a top-level untracked path is missing-file.
+func TestDMFV1004CitationsCheckJSON(t *testing.T) {
+	t.Parallel()
+	root := docsRepository(t)
+	doc := "Cited `owner.md:4`.\n\n```\nExample `owner.md:999`.\n```\n\nGone `ABSENT.md:10`.\n"
+	if err := os.WriteFile(filepath.Join(root, "cited.md"), []byte(doc), 0644); err != nil {
+		t.Fatal(err)
+	}
+	docsCommit(t, root)
+	var out, errOut bytes.Buffer
+	code := runContext(context.Background(), []string{"--root", root, "docs", "citations", "check", "--json", "cited.md"}, strings.NewReader(""), &out, &errOut)
+	var report struct {
+		Profile  string `json:"profile"`
+		Failures []struct {
+			Document, Token, Kind string
+			Line                  int
+		} `json:"failures"`
+		Unpinned []struct {
+			Document, Token string
+			Line            int
+		} `json:"unpinned"`
+		Counts struct {
+			Failures      int `json:"failures"`
+			Unpinned      int `json:"unpinned"`
+			FencedSkipped int `json:"fenced_skipped"`
+		} `json:"counts"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("json %d %q %s: %v", code, out.String(), errOut.String(), err)
+	}
+	if code != 1 || report.Profile != "corvint-docs-citations-check/0" || len(report.Failures) != 1 || report.Failures[0].Kind != "missing-file" ||
+		report.Failures[0].Token != "`ABSENT.md:10`" || report.Failures[0].Line != 7 || len(report.Unpinned) != 1 || report.Unpinned[0].Line != 1 ||
+		report.Counts.Failures != 1 || report.Counts.Unpinned != 1 || report.Counts.FencedSkipped != 1 {
+		t.Fatalf("report %d %+v", code, report)
+	}
+	if code := runContext(context.Background(), []string{"--root", root, "docs", "citations", "check", "--json", "--json"}, strings.NewReader(""), &out, &errOut); code != 2 {
+		t.Fatalf("duplicate --json exited %d", code)
 	}
 }

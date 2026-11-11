@@ -56,7 +56,7 @@
       "command": "corvint-docs docs",
       "summary": "Experimental source documentation orientation",
       "usage": [
-        "corvint-docs [--root PATH] docs citations check [PATH...]",
+        "corvint-docs [--root PATH] docs citations check [--json] [PATH...]",
         "corvint-docs [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md",
         "corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)",
         "corvint-docs [--root PATH] docs corpus OPERATION [OPTIONS]",
@@ -152,6 +152,7 @@
         "--include",
         "--input",
         "--inspect-python",
+        "--json",
         "--kind",
         "--limit",
         "--manifest",
@@ -220,9 +221,10 @@
       "command": "corvint-docs docs citations",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] docs citations check [PATH...]"
+        "corvint-docs [--root PATH] docs citations check [--json] [PATH...]"
       ],
       "flags": [
+        "--json",
         "--root"
       ],
       "required": [],
@@ -238,9 +240,10 @@
       "command": "corvint-docs docs citations check",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] docs citations check [PATH...]"
+        "corvint-docs [--root PATH] docs citations check [--json] [PATH...]"
       ],
       "flags": [
+        "--json",
         "--root"
       ],
       "required": [],
