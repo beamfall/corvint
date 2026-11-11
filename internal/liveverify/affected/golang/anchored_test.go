@@ -153,9 +153,11 @@ func TestRuntimeRootedDirectoryWalkStaysSelected_AFPV02203(t *testing.T) {
 }
 
 // TestParentBackslashKeepsWrittenTokens_AFPV0506 is round 9's review
-// counterexample: a test reads `os.Getenv("FIXTURES") +
-// strings.Split("foo..\\notes", "\\")[1]`, so with FIXTURES naming the root
-// it reads the root file notes. The `..\` rewrite (AFP-V0-506) adds the
+// counterexample: a test reads `fixtures +
+// strings.Split("foo..\\notes", "\\")[1]`, so with fixtures naming the root
+// it reads the root file notes. The root is a package variable: an
+// environment root joined to computed text is held whole by rule (d)
+// (AFP-V0-3660). The `..\` rewrite (AFP-V0-506) adds the
 // climbing `foo../notes` and keeps the written `foo..` and `notes`, so the
 // reader stays selected. The module-path rewrite is additive too: a walk of
 // `filepath.Join(os.Getenv("SRC"), "example.test/m")` keeps the written
@@ -164,7 +166,7 @@ func TestRuntimeRootedDirectoryWalkStaysSelected_AFPV02203(t *testing.T) {
 // read neither path. The selector half is gateselect's
 // TestRuleCParentBackslashKeepsWrittenTokens.
 func TestParentBackslashKeepsWrittenTokens_AFPV0506(t *testing.T) {
-	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(os.Getenv(\"FIXTURES\") + strings.Split(%q, \"\\\\\")[1]); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
+	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nvar fixtures string\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(fixtures + strings.Split(%q, \"\\\\\")[1]); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
 	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) {\n\t_ = filepath.WalkDir(filepath.Join(os.Getenv(\"SRC\"), %q), func(string, fs.DirEntry, error) error { return nil })\n}\n"
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
