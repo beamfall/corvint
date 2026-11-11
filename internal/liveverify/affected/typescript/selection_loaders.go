@@ -8,8 +8,9 @@ import (
 	"strings"
 )
 
-// FrontierMockTarget reports a jest.mock, jest.doMock, vi.mock or vi.doMock
-// call whose target is not a string literal (SLF-V1-004): the module it
+// FrontierMockTarget reports a mock call (jest.mock, jest.doMock,
+// jest.setMock, jest.unstable_mockModule, jest.requireMock, vi.mock, vi.doMock
+// or vi.importMock) whose target is not a string literal (SLF-V1-004): the module it
 // replaces, and so which tests observe the mock, is not visible in source
 // text. It is DISCOVERY at the calling file.
 const FrontierMockTarget = "typescript:mock-target-unresolved"
@@ -22,7 +23,7 @@ const globExpansionBound = 1024
 const (
 	loaderGlob    = "glob"    // import.meta.glob or import.meta.globEager
 	loaderContext = "context" // require.context
-	loaderMock    = "mock"    // jest.mock, jest.doMock, vi.mock, vi.doMock
+	loaderMock    = "mock"    // a jest or vi mock call; see jestMockMembers and viMockMembers
 )
 
 // loaderCall is one glob or mock call an import scan found in code position:
@@ -75,9 +76,15 @@ func memberCallAt(body string, index int, object string, members ...string) (int
 	return 0, false
 }
 
-// loaderCallee reports a `require.context` callee or a `jest.mock`,
-// `jest.doMock`, `vi.mock` or `vi.doMock` callee at index, its kind and the
-// offset past it.
+// jestMockMembers and viMockMembers are the mock calls whose first argument
+// names the module replaced or returned mocked (SLF-V1-004).
+var (
+	jestMockMembers = []string{"mock", "doMock", "setMock", "unstable_mockModule", "requireMock"}
+	viMockMembers   = []string{"mock", "doMock", "importMock"}
+)
+
+// loaderCallee reports a `require.context` callee or a jest or vi mock callee
+// at index, its kind and the offset past it.
 func loaderCallee(body string, index int) (int, string, bool) {
 	switch body[index] {
 	case 'r':
@@ -85,11 +92,11 @@ func loaderCallee(body string, index int) (int, string, bool) {
 			return end, loaderContext, true
 		}
 	case 'j':
-		if end, found := memberCallAt(body, index, "jest", "mock", "doMock"); found {
+		if end, found := memberCallAt(body, index, "jest", jestMockMembers...); found {
 			return end, loaderMock, true
 		}
 	case 'v':
-		if end, found := memberCallAt(body, index, "vi", "mock", "doMock"); found {
+		if end, found := memberCallAt(body, index, "vi", viMockMembers...); found {
 			return end, loaderMock, true
 		}
 	}
@@ -328,6 +335,11 @@ func globSource(glob string) (string, bool) {
 				return "", false
 			}
 			class := glob[index+1 : index+1+closing]
+			if strings.IndexByte(class, '[') >= 0 {
+				// A POSIX class such as `[[:alpha:]]` ends at its second `]`,
+				// which the first-`]` scan cannot see: refuse it.
+				return "", false
+			}
 			if strings.HasPrefix(class, "!") {
 				class = "^" + class[1:]
 			}
@@ -335,7 +347,9 @@ func globSource(glob string) (string, bool) {
 			index += closing + 1
 		case character == '{':
 			closing := matchingClose(glob, index, '{', '}')
-			if closing < 0 {
+			if closing < 0 || strings.Contains(glob[index+1:closing], "..") {
+				// A numeric or letter range such as `{1..3}` is not a list
+				// of literals; reading it as one would narrow silently.
 				return "", false
 			}
 			var alternatives []string
@@ -483,9 +497,12 @@ func expandLoader(relative string, call loaderCall, files []string, owns func(st
 		if !inside || strings.ContainsAny(root, "*?[{") {
 			return globExpansion{}, false
 		}
-		if recursive {
+		switch {
+		case recursive || root == ".":
+			// The root's `/*` already matches every path; `/*/*` would miss
+			// a file at the root itself.
 			globs = append(globs, anchoredDirectory(root))
-		} else {
+		default:
 			globs = append(globs, anchoredDirectory(root)+"/*")
 		}
 		match = func(file string) bool {
@@ -534,7 +551,7 @@ func membershipGlobs(glob string) []string {
 	var expanded []string
 	if opening := strings.IndexByte(glob, '{'); opening >= 0 {
 		closing := matchingClose(glob, opening, '{', '}')
-		if closing < 0 {
+		if closing < 0 || strings.Contains(glob[opening+1:closing], "..") {
 			return []string{anchoredDirectory(literalDirectory(glob))}
 		}
 		for _, alternative := range splitTopLevel(glob[opening+1:closing], ',') {
@@ -546,11 +563,36 @@ func membershipGlobs(glob string) []string {
 		return []string{anchoredDirectory(literalDirectory(glob))}
 	}
 	for _, component := range strings.Split(glob, "/") {
-		if _, err := path.Match(component, ""); err != nil {
+		if _, err := path.Match(component, ""); err != nil || !pathMatchReadsClasses(component) {
 			return []string{anchoredDirectory(literalDirectory(glob))}
 		}
 	}
 	return []string{"/" + glob}
+}
+
+// pathMatchReadsClasses reports whether path.Match reads every character
+// class in component as the glob dialect does: it takes `[!x]` as the
+// characters `!` and `x` rather than a negation, and ends a POSIX class such
+// as `[[:alpha:]]` at its first `]`.
+func pathMatchReadsClasses(component string) bool {
+	for index := 0; index < len(component); index++ {
+		switch component[index] {
+		case '\\':
+			index++
+		case '[':
+			closing := strings.IndexByte(component[index+1:], ']')
+			if closing <= 0 {
+				// path.Match reads a `]` that opens a class as a member.
+				return false
+			}
+			class := component[index+1 : index+1+closing]
+			if strings.HasPrefix(class, "!") || strings.IndexByte(class, '[') >= 0 {
+				return false
+			}
+			index += closing + 1
+		}
+	}
+	return true
 }
 
 // literalDirectory is the leading run of glob components with no wildcard.
