@@ -4,8 +4,6 @@
     "cmd/corvint-docs -> internal/testsource",
     "internal/appflows -> internal/doccorpus",
     "internal/appmap -> internal/doccorpus",
-    "internal/appmap -> internal/testvaliditydoc",
-    "internal/doccorpus -> internal/testvaliditydoc",
     "internal/flowcoverage -> internal/doccorpus",
     "internal/flowcoverage -> internal/flowdocs",
     "internal/mcp/cli -> internal/mcp/corpusbridge",

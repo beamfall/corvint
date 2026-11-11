@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // subjectKinds is Core's closed generic subject vocabulary; job and event name asynchronous work
@@ -320,7 +320,7 @@ func (c *compiler) observation(link ObservationLink) (Observation, error) {
 	if !declared || link.SourceRevision != c.manifest.Repository.Revision || link.RunID != Digest(source.Data) {
 		return Observation{}, fail("observation source/run identity mismatch")
 	}
-	input, err := testvaliditydoc.Decode(source.Data)
+	input, err := testvaliditymodel.Decode(source.Data)
 	if err != nil {
 		return Observation{}, fail("unsupported retained observation")
 	}
@@ -343,7 +343,7 @@ func (c *compiler) observation(link ObservationLink) (Observation, error) {
 			return Observation{}, fail("independent step evidence input not declared")
 		}
 	}
-	document := testvaliditydoc.ProjectPinned(input, func(original string) ([]byte, bool) {
+	document := testvaliditymodel.ProjectPinned(input, func(original string) ([]byte, bool) {
 		p := original
 		if mapped, ok := link.SourcePaths[original]; ok {
 			p = mapped
@@ -572,7 +572,7 @@ func (c *compiler) validateRecords() error {
 	}
 	return validateAlternateIDs(a.Subjects, ids)
 }
-func observationMatches(test testvaliditydoc.Test, link ObservationLink) bool {
+func observationMatches(test testvaliditymodel.Test, link ObservationLink) bool {
 	if test.Name != link.Test || test.Package != link.Package {
 		return false
 	}

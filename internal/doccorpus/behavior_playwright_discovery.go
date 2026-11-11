@@ -12,7 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/repopath"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // PlaywrightDiscoverySchema and PlaywrightDiscoveryMode name the live discovery record the
@@ -283,18 +283,18 @@ func adoptedPlaywrightIDs(raw []byte, configPath string, config playwrightPinned
 // qualifiedPlaywrightReceipt decodes a canonical qualified Playwright receipt and returns its
 // projection with the absolute run-root prefix that maps its paths onto repository paths through
 // configPath.
-func qualifiedPlaywrightReceipt(raw []byte, configPath string) (testvaliditydoc.Document, string, error) {
-	decoded, err := testvaliditydoc.Decode(raw)
+func qualifiedPlaywrightReceipt(raw []byte, configPath string) (testvaliditymodel.Document, string, error) {
+	decoded, err := testvaliditymodel.Decode(raw)
 	if err != nil {
-		return testvaliditydoc.Document{}, "", fail("receipt is not a canonical qualified provider document")
+		return testvaliditymodel.Document{}, "", fail("receipt is not a canonical qualified provider document")
 	}
-	document := testvaliditydoc.Project(decoded)
+	document := testvaliditymodel.Project(decoded)
 	if document.Playwright == nil {
-		return testvaliditydoc.Document{}, "", fail("receipt is not a qualified Playwright receipt")
+		return testvaliditymodel.Document{}, "", fail("receipt is not a qualified Playwright receipt")
 	}
 	prefix, ok := strings.CutSuffix(document.Playwright.Identity.ConfigFile, "/"+configPath)
 	if !ok {
-		return testvaliditydoc.Document{}, "", fail("qualified receipt config is not " + configPath)
+		return testvaliditymodel.Document{}, "", fail("qualified receipt config is not " + configPath)
 	}
 	return document, prefix + "/", nil
 }

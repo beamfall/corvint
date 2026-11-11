@@ -19,8 +19,8 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/pinnedread"
 	"github.com/Beamfall/corvint/internal/repopath"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
 // ExtractorProfileSchema names a repository-declared extractor profile and
@@ -386,7 +386,7 @@ const callerProfileLimitation = "the extractor profile is caller-owned configura
 var callerProfileSupported = runtime.GOOS == "darwin" || runtime.GOOS == "linux"
 
 // readCallerProfileFile is the pinned no-follow read; tests observe the window after the check.
-var readCallerProfileFile = testvaliditydoc.ReadAbsoluteFileBounded
+var readCallerProfileFile = pinnedread.ReadAbsoluteFileBounded
 
 // readCallerProfile reads a caller-owned profile outside the repository root, no larger than the
 // input bound, and admits it only when its exact bytes hash to digest (DCX-V1-478, DCX-V1-504).

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/jstestreceipt"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // PlaywrightWitnessImportSchema names the importer's closed output bundle.
@@ -129,7 +129,7 @@ type playwrightReportEntry struct {
 type playwrightWitnessContext struct {
 	request  BehaviorAdapterRequest
 	registry BehaviorRegistry
-	receipt  testvaliditydoc.Document
+	receipt  testvaliditymodel.Document
 	prefix   string
 	digest   string
 	input    BehaviorAdapterInput
@@ -337,16 +337,16 @@ func (c playwrightWitnessContext) witness(test BehaviorTest) (PlaywrightWitness,
 	return PlaywrightWitness{TestID: test.ID, Project: test.Project, Title: test.Title, Retry: *result.Retry, ReportTestID: entry.id, ReportSHA256: c.reportID, RunSHA256: c.digest, Document: string(document), SHA256: Digest(document), Observation: link}, "", "", nil
 }
 
-func (c playwrightWitnessContext) observedTest(test BehaviorTest) (testvaliditydoc.Test, bool) {
+func (c playwrightWitnessContext) observedTest(test BehaviorTest) (testvaliditymodel.Test, bool) {
 	for _, observed := range c.receipt.Tests {
 		if observed.ID == test.ID && observed.Project != nil && observed.Project.Name == test.Project {
 			return observed, true
 		}
 	}
-	return testvaliditydoc.Test{}, false
+	return testvaliditymodel.Test{}, false
 }
 
-func playwrightReceiptState(observed testvaliditydoc.Test) (string, string) {
+func playwrightReceiptState(observed testvaliditymodel.Test) (string, string) {
 	switch observed.State {
 	case "passed":
 	case "skipped":
