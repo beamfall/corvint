@@ -165,6 +165,27 @@ func (git Git) ObjectFormat(ctx context.Context) (string, error) {
 	}
 }
 
+// requireTopLevel refuses a Root that is not the working tree's top level.
+func (git Git) requireTopLevel(ctx context.Context) error {
+	out, err := git.Output(ctx, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return err
+	}
+	top := filepath.FromSlash(strings.TrimRight(string(out), "\r\n"))
+	topInfo, err := os.Stat(top)
+	if err != nil {
+		return err
+	}
+	rootInfo, err := os.Stat(git.Root)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(topInfo, rootInfo) {
+		return fmt.Errorf("root %s is not the Git top level %s; run from the top level", git.Root, top)
+	}
+	return nil
+}
+
 // CommitTree is the Tree of one commit, read from the object store.
 type CommitTree struct {
 	Git      Git
@@ -224,13 +245,18 @@ type WorkTree struct {
 	files map[string]string
 }
 
-// NewWorkTree lists the working tree once.
+// NewWorkTree lists the working tree once. It refuses a Git.Root that is
+// not the repository's top level: Git lists paths from the top level and
+// the tree reads them below Git.Root, so the two must be one directory.
 func NewWorkTree(ctx context.Context, git Git) (*WorkTree, error) {
+	if err := git.requireTopLevel(ctx); err != nil {
+		return nil, err
+	}
 	format, err := git.ObjectFormat(ctx)
 	if err != nil {
 		return nil, err
 	}
-	staged, err := git.Output(ctx, "ls-files", "-s", "-z")
+	staged, err := git.Output(ctx, "ls-files", "--full-name", "-s", "-z")
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +281,7 @@ func NewWorkTree(ctx context.Context, git Git) (*WorkTree, error) {
 	if err != nil {
 		return nil, err
 	}
-	untracked, err := git.Output(ctx, "ls-files", "-o", "--exclude-standard", "-z")
+	untracked, err := git.Output(ctx, "ls-files", "--full-name", "-o", "--exclude-standard", "-z")
 	if err != nil {
 		return nil, err
 	}
