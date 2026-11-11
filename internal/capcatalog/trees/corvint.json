@@ -649,9 +649,9 @@
       "command": "corvint flows test-evidence",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] flows test-evidence --flows DIR PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--format json|text]",
-        "corvint [--root PATH] flows test-evidence --flows DIR --test TEST [--revision COMMIT] [--index FILE] [--format json|text]",
-        "corvint [--root PATH] flows test-evidence --flows DIR --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--format json|text]"
+        "corvint [--root PATH] flows test-evidence --flows DIR PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]",
+        "corvint [--root PATH] flows test-evidence --flows DIR --test TEST [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]",
+        "corvint [--root PATH] flows test-evidence --flows DIR --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]"
       ],
       "flags": [
         "--base",
@@ -660,6 +660,7 @@
         "--format",
         "--index",
         "--lines",
+        "--no-store",
         "--revision",
         "--root",
         "--test"
@@ -1286,9 +1287,9 @@
       "command": "corvint test-evidence",
       "summary": "Read retained test dependencies at an immutable commit",
       "usage": [
-        "corvint [--root PATH] test-evidence PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--format json|text]",
-        "corvint [--root PATH] test-evidence --test TEST [--revision COMMIT] [--index FILE] [--format json|text]",
-        "corvint [--root PATH] test-evidence --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--format json|text]"
+        "corvint [--root PATH] test-evidence PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]",
+        "corvint [--root PATH] test-evidence --test TEST [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]",
+        "corvint [--root PATH] test-evidence --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]"
       ],
       "flags": [
         "--base",
@@ -1296,6 +1297,7 @@
         "--format",
         "--index",
         "--lines",
+        "--no-store",
         "--revision",
         "--root",
         "--test"
