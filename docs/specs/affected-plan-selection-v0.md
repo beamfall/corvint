@@ -2925,6 +2925,38 @@ Copied from the OpenSpec change `hub-read-scopes`; the build log entry
   The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
   `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
 
+### A bounded stderr headline for the default plan (V1-4321)
+
+Intent (lane bin-w32 friction, 2026-11-02; lane affread charter, 2026-11-11; V1-4321): the
+default `corvint affected` stdout is one canonical JSON line (AFP-V0-003, AFP-V0-398) that measured
+255,266 bytes for this repository's `main~1` plan, so an agent reading its terminal could not see
+the verdict without a JSON tool. AFP-V0-872's `--summary` is opt-in. The stdout bytes stay pinned by
+AFP-V0-003, AFP-V0-398 and RGV-V0-015, so the headline goes to stderr.
+
+- **AFP-V0-3642:** (proposed; experimental under the owner's standing lane auto-accept
+  (2026-10-11); V1-4321) When `corvint affected` writes the compact `affected-plan/1` JSON plan
+  (no `--full`, `--summary`, `--format text`, `--by-path` or `--playwright-config`), it SHALL
+  first write to stderr a headline of at most ten lines, each at most 200 bytes and starting
+  `corvint affected: `: the AFP-V0-510 summary line with `revision=` and, for a range,
+  `base=`; `tiers` with the AFP-V0-162 counts when anything is selected; one
+  `unknown REASON xCOUNT: DETAIL` line for each of the five most frequent unknown reasons (count
+  descending, then reason), with that reason's first detail, then one line counting the reasons
+  and entries left out; `warning` with the receipt warning when present; and a last line naming
+  `--format text` and `--summary --format text` as the ways to read the plan without a JSON
+  tool. A longer line is cut to 200 bytes ending `...`; a control character is quoted as
+  `--format text` quotes it. Stdout SHALL stay byte for byte the AFP-V0-398 document. The
+  headline SHALL be left out when stdout and stderr are the same pipe or regular file (as after
+  `2>&1`), as AFP-V0-871 leaves out the degradation line, so the merged output still parses as
+  one document, and when stderr is not a file (an in-process caller). A refusal writes no
+  headline. Non-goals: any change to stdout, to the selection or to the other output forms; a
+  headline in the merged-stream case, which no single byte stream can carry without breaking
+  the `2>&1` readers AFP-V0-871 protects. Failure mode: a harness that captures stdout and stderr
+  into one file (this lane's agent shell does) shows no headline; the reader then runs
+  `--summary --format text`, or sends stdout to a file. A reader that greps stderr on success
+  sees the new lines. Acceptance evidence: `TestAffectedHeadlineIsBounded_AFPV03642` and
+  `TestAffectedHeadlineOnSeparateStderr_AFPV03642` in `cmd/corvint`. Rollback: delete
+  `cmd/corvint/affected_headline.go` and its call in `runAffected`.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -3151,6 +3183,12 @@ prove non-impact. Rollback replaces tree metadata objects with their reason stri
 read-scope declaration remains string-only throughout.
 
 ## Acceptance evidence and traceability
+
+V1-4321: `TestAffectedHeadlineIsBounded_AFPV03642` pins the headline's text shape and its
+ten-line, 200-byte-per-line bound; `TestAffectedHeadlineOnSeparateStderr_AFPV03642` pins that
+stdout is unchanged byte for byte, that a separate stderr file carries the headline, and that a
+merged stream and an in-process writer carry none. `../build-log/2026-11-11-affread.md` records the
+design choice and the live output.
 
 AFP-V0-3350 to AFP-V0-3352 are covered by `TestTestOnlyEmbedSelectsNonImportedSource_AFPV03350`,
 `TestTestOnlyEmbedMalformedFailsClosed_AFPV03350`, `TestTestEmbedReadersStayTestScoped_AFPV03350`,
