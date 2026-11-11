@@ -202,9 +202,9 @@ Corvint's agent guide, one command's catalog entry, or the full command catalog,
 - Input schema: `internal/mcp/bridge/help.go`
 - Input `command`: Command name whose catalog entry to return, with topic command.
 - Input `topic`: guide (the default), command or catalog.
+- Also served by: `corvint-docs mcp`
 - Output profile: `corvint-mcp-help/0`
 - Tool errors: `cancelled`, `server-busy`, `internal-error`
-- Note: corvint-docs mcp lists the same tool from the same code
 
 ### `corvint.impact`
 
@@ -279,6 +279,7 @@ and consume tools run the `corvint-docs` executable's `docs-tool` verb. The depr
 | `corvint.docs_trace` | experimental | `--corpus-artifact PATH` | Relations walked from one subject to a depth | `corvint-docs docs corpus trace --artifact PATH` |
 | `corvint.docs_validate` | experimental | `--corpus-artifact PATH` | Validation of the corpus artifact itself | `corvint-docs docs corpus validate --artifact PATH` |
 | `corvint.docs_vocabulary` | experimental | `--corpus-artifact PATH` | Corpus vocabulary entries matching a term | `corvint-docs docs corpus vocabulary --artifact PATH` |
+| `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
 
 ### `corvint.docs_claims`
 

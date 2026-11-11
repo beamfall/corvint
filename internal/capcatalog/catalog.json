@@ -3143,6 +3143,9 @@
     {
       "name": "corvint.help",
       "server": "corvint mcp",
+      "alsoOn": [
+        "corvint-docs mcp"
+      ],
       "availability": "experimental",
       "summary": "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers",
       "inputSchema": "internal/mcp/bridge/help.go",
@@ -3162,8 +3165,7 @@
         "server-busy",
         "internal-error"
       ],
-      "cliEquivalent": "corvint help guide | corvint help --json COMMAND | corvint help --json",
-      "note": "corvint-docs mcp lists the same tool from the same code"
+      "cliEquivalent": "corvint help guide | corvint help --json COMMAND | corvint help --json"
     },
     {
       "name": "corvint.impact",
