@@ -313,6 +313,76 @@ func TestTIVV1008ScriptRunsFailClosed(t *testing.T) {
 	})
 }
 
+// TIV-V1-008, V1-5435: a wrapper passing flags after a standalone "--" or
+// through a {@}, {*} or {N} placeholder, a runner or forwarded word holding
+// a backslash, brace or expansion, a backslash-escaped runner name, a Vitest
+// bench or typecheck command forwarded as a positional through a package
+// manager, and a pyproject.toml the scanner cannot read whose escaped table
+// name spells pytest leave the instance unproven. Every case fails on
+// 88c6f838c.
+func TestTIVV1008ScriptEscapesFailClosed(t *testing.T) {
+	jest := func(scripts string) MapTree {
+		return MapTree{
+			"jest.config.js": "module.exports = {}\n",
+			"package.json":   `{"scripts": {` + scripts + `}}`,
+			"src/a.check.js": "test('a', () => {})\n",
+		}
+	}
+	vitest := func(scripts string) MapTree {
+		return MapTree{
+			"vitest.config.ts": "export default {}\n",
+			"package.json":     `{"scripts": {` + scripts + `}}`,
+			"src/a.check.ts":   "test('a', () => {})\n",
+		}
+	}
+	assertUnproven(t, []unprovenCase{
+		{"concurrently {@} with flags after the outer --", "jest@.", "src/b.check.js",
+			[]string{`script "dev" runs jest through concurrently with --testMatch after --`, `script "dev" runs jest through concurrently with the placeholder {@}`},
+			jest(`"dev": "concurrently \"jest {@}\" -- --testMatch x"`)},
+		{"concurrently {*}", "vitest@.", "src/b.check.ts",
+			[]string{`script "dev" runs vitest through concurrently with the placeholder {*}`},
+			vitest(`"dev": "concurrently \"vitest run {*}\" -- --dir src"`)},
+		{"concurrently {1}", "jest@.", "src/b.check.js",
+			[]string{`script "dev" runs jest through concurrently with the placeholder {1}`, `script "dev" runs jest through concurrently with --config after --`},
+			jest(`"dev": "concurrently --kill-others \"jest --ci {1}\" -- --config=ci.js"`)},
+		{"flags after the outer -- with no placeholder", "jest@.", "src/b.check.js",
+			[]string{`script "dev" runs jest through concurrently with --testMatch after --`},
+			jest(`"dev": "concurrently \"jest --ci\" -- --testMatch x"`)},
+		{"bash -c with flags after --", "vitest@.", "src/b.check.ts",
+			[]string{`script "ci" runs vitest through bash with --root after --`},
+			vitest(`"ci": "bash -c 'vitest run' -- --root web"`)},
+		{"backslash-escaped runner flag", "jest@.", "src/b.check.js",
+			[]string{`script "ci" runs jest with the escaped or braced word \-\-config=ci.js`},
+			jest(`"ci": "jest \\-\\-config=ci.js"`)},
+		{"brace-expanded runner flag", "jest@.", "src/b.check.js",
+			[]string{`script "ci" runs jest with the escaped or braced word {--config,ci.js}`},
+			jest(`"ci": "jest {--config,ci.js}"`)},
+		{"backslash-escaped flag forwarded through npm", "jest@.", "src/b.check.js",
+			[]string{`script "ci" forwards \-\-config through npm to "test"`},
+			jest(`"test": "jest", "ci": "npm test -- \\-\\-config=ci.js"`)},
+		{"expansion forwarded through npm", "jest@.", "src/b.check.js",
+			[]string{`script "ci" forwards $JEST_FLAGS through npm to "test"`},
+			jest(`"test": "jest", "ci": "npm test -- $JEST_FLAGS"`)},
+		{"backslash-escaped runner name", "jest@.", "src/b.check.js",
+			[]string{`script "ci" runs jest through the unmodelled command j\est`},
+			jest(`"ci": "j\\est --config ci.js"`)},
+		{"vitest bench forwarded through npm", "vitest@.", "src/b.check.ts",
+			[]string{`script "perf" forwards the bench command through npm to "test"`},
+			vitest(`"test": "vitest", "perf": "npm test bench"`)},
+		{"vitest typecheck forwarded through yarn", "vitest@.", "src/b.check.ts",
+			[]string{`script "types" forwards the typecheck command through yarn to "test"`},
+			vitest(`"test": "vitest", "types": "yarn test typecheck"`)},
+		{"vitest bench forwarded through pnpm run", "vitest@.", "src/b.check.ts",
+			[]string{`script "perf" forwards the bench command through pnpm to "test"`},
+			vitest(`"test": "vitest", "perf": "pnpm run test bench"`)},
+		{"byte order mark and an escaped pytest table name", "pytest@.", "tests/check_b.py",
+			[]string{"a TOML document the reader cannot scan"}, MapTree{
+				"pyproject.toml":   "\ufeff[tool.\"py\\u0074est\".ini_options]\npython_files = \"check_*.py\"\n",
+				"tests/check_a.py": "def test_a(): pass\n",
+			}},
+	})
+}
+
 // TIV-V1-008, V1-5427: pytest configs with a UTF-8 byte order mark, CRLF
 // line ends, literal-string keys, comments inside a multi-line value, a
 // table below the pytest table, or an escaped table name stay unproven when
@@ -489,6 +559,11 @@ func TestTIVV1008ProvenDefaultControl(t *testing.T) {
 			"jest.config.js": "module.exports = {}\n",
 			"package.json":   `{"scripts": {"build": "tsc -p .", "build:watch": "npm run build -- --watch", "dev": "concurrently \"yarn build --watch\" \"jest --watch\"", "ci": "sh -c 'jest --ci --findRelatedTests src/a.test.js'", "test": "jest", "test:all": "npm test", "setup": "npm install --no-audit", "ci:yarn": "yarn jest --ci", "ci:npm": "npm exec jest -- --ci --coverage"}}`,
 			"src/a.test.js":  "test('a', () => {})\n",
+		}},
+		{"forwarded positionals and wrappers that do not reach the runner", "vitest@.", "src/lib.ts", "src/b.test.ts", MapTree{
+			"vitest.config.ts": "export default {}\n",
+			"package.json":     `{"scripts": {"test": "vitest run", "one": "npm test src/a", "perf": "node perf.js", "bench": "npm run perf bench", "dev": "concurrently \"tsc -w\" -- --preserveWatchOutput"}}`,
+			"src/a.test.ts":    "test('a', () => {})\n",
 		}},
 		{"vitest safe script flags", "vitest@.", "src/lib.ts", "src/b.test.ts", MapTree{
 			"vitest.config.ts": "export default {}\n",

@@ -245,21 +245,30 @@ func flagSet(names ...string) map[string]bool {
 //   - The runner is the first word whose base name, less a version and a
 //     .js, .mjs or .cjs suffix, is the runner (jest, npx jest@29,
 //     node_modules/.bin/vitest, jest/bin/jest.js); each argument after it
-//     that is a flag outside safeScriptFlags or holds a shell expansion (it
-//     may expand to a flag), and for Vitest a bench or typecheck command, is
-//     unproven. Positional arguments filter the configured files and are
-//     allowed.
+//     that is a flag outside safeScriptFlags, holds a shell expansion (it
+//     may expand to a flag) or a backslash or brace (shellCommands models
+//     neither escapes nor brace expansion), and for Vitest a bench or
+//     typecheck command, is unproven. Positional arguments filter the
+//     configured files and are allowed.
 //   - A package-manager script run (npm, yarn, pnpm or bun, a concurrently
 //     npm:name word, or npm-run-all, run-s or run-p) that forwards a
-//     "-"-prefixed word is unproven (forwardedFlags), unless the script it
-//     runs is one of scripts that reaches neither the runner nor a package
-//     manager. A run before the runner (yarn jest, npm exec jest --) is
-//     judged on the words before the runner only.
+//     "-"-prefixed word, a word holding an expansion, backslash or brace, or
+//     for Vitest a bench or typecheck positional, is unproven
+//     (forwardedFlags), unless the script it runs is one of scripts that
+//     reaches neither the runner nor a package manager. A run before the
+//     runner (yarn jest, npm exec jest --) is judged on the words before the
+//     runner only.
 //   - With neither, a modelled wrapper (scriptWrappers: sh -c,
 //     concurrently, nodemon --exec) is unproven when a word of it that
 //     holds no whitespace mentions the runner (a backslash-escaped word,
 //     say), and any other command that mentions the runner anywhere is a
 //     wrapper the reader cannot model, and is unproven.
+//   - A modelled wrapper before the runner whose words reach it is also
+//     unproven for each "-"-prefixed word after a standalone "--" and each
+//     {@}, {*} or {N} placeholder in a word that reaches it (wrapperArgs),
+//     since concurrently passes those words into the command it runs.
+//
+// A word mentions the runner with any backslash removed.
 //
 // Every quoted word holding whitespace is also split and scanned again as a
 // script, since a wrapper may run it as a command.
@@ -282,7 +291,7 @@ func scanScript(runner, script string, scripts map[string]string, depth int, fou
 		return
 	}
 	spaced := func(word string) bool { return strings.ContainsAny(word, " \t\n\r") }
-	mentions := func(word string) bool { return strings.Contains(strings.ToLower(word), runner) }
+	mentions := func(word string) bool { return mentionsRunner(runner, word) }
 	isRunner := func(word string) bool { return !strings.HasPrefix(word, "-") && runnerWord(word) == runner }
 	isWrapper := func(word string) bool { return scriptWrappers[runnerWord(word)] }
 	for _, words := range shellCommands(script) {
@@ -315,7 +324,47 @@ func scanScript(runner, script string, scripts map[string]string, depth int, fou
 		case slices.ContainsFunc(words, mentions):
 			*found = append(*found, fmt.Sprintf("runs %s through the unmodelled command %s", runner, words[0]))
 		}
+		if wrapper >= 0 && (at < 0 || wrapper < at) {
+			*found = append(*found, wrapperArgs(runner, words[wrapper], words[wrapper+1:], depth)...)
+		}
 	}
+}
+
+// mentionsRunner reports whether word names runner, case aside and with any
+// backslash removed (j\est is jest to the shell).
+func mentionsRunner(runner, word string) bool {
+	return strings.Contains(strings.ToLower(strings.ReplaceAll(word, `\`, "")), runner)
+}
+
+// argumentPlaceholder matches a concurrently or npm-run-all argument
+// placeholder, which takes the words after a standalone "--".
+var argumentPlaceholder = regexp.MustCompile(`\{(@|\*|[0-9]+)\}`)
+
+// wrapperArgs judges the words after a modelled wrapper whose words reach
+// runner (a word mentions it or starts a package-manager script run): each
+// "-"-prefixed word after a standalone "--" may reach the runner as a flag,
+// and so may the words a {@}, {*} or {N} placeholder in a word that reaches
+// it takes, so either is unproven.
+func wrapperArgs(runner, wrapper string, words []string, depth int) []string {
+	reaches := func(word string) bool { return reachesRunner(runner, word, depth+1) }
+	if !slices.ContainsFunc(words, reaches) {
+		return nil
+	}
+	var found []string
+	if dash := slices.Index(words, "--"); dash >= 0 {
+		for _, word := range words[dash+1:] {
+			if strings.HasPrefix(word, "-") && word != "--" {
+				name, _, _ := strings.Cut(word, "=")
+				found = append(found, fmt.Sprintf("runs %s through %s with %s after --", runner, wrapper, name))
+			}
+		}
+	}
+	for _, word := range words {
+		if placeholder := argumentPlaceholder.FindString(word); placeholder != "" && reaches(word) {
+			found = append(found, fmt.Sprintf("runs %s through %s with the placeholder %s", runner, wrapper, placeholder))
+		}
+	}
+	return found
 }
 
 // runnerArgs judges the arguments a script passes the runner.
@@ -326,6 +375,10 @@ func runnerArgs(runner string, args []string) []string {
 		switch {
 		case strings.ContainsAny(arg, "$`"):
 			found = append(found, "runs "+runner+" with the expansion "+arg)
+		case strings.ContainsAny(arg, `\{`):
+			// shellCommands models neither a backslash escape nor a brace
+			// expansion: \-\-config or {--config,ci.js} may be a flag.
+			found = append(found, "runs "+runner+" with the escaped or braced word "+arg)
 		case arg == "--":
 		case strings.HasPrefix(arg, "-"):
 			if !safeScriptFlag(runner, arg) {
@@ -376,31 +429,45 @@ func scriptRunWord(word string) bool {
 }
 
 // forwardedFlags judges a package-manager script run (words from the
-// package manager on): each "-"-prefixed word it forwards to the script is
-// unproven, unless the script is resolved and exempt (exemptScript). npm
-// forwards only the words after "--"; yarn, pnpm and bun forward every word
+// package manager on): each word it forwards to the script that is
+// "-"-prefixed or holds what the reader does not model ($, a backtick, a
+// backslash or a brace, any of which may become a flag), and for Vitest a
+// forwarded bench or typecheck positional (the script's vitest may take it as
+// its command), is unproven, unless the script is resolved and exempt
+// (exemptScript). npm forwards the positionals after the script name, and
+// only the flags after "--"; a flag before "--" may move the script it runs,
+// so it leaves the target unresolved. yarn, pnpm and bun forward every word
 // after the script name, which is the first word after the manager (or after
-// run), and is unresolved when a flag precedes it. A run-all command
-// forwards the words inside each quoted script argument, and the words after
-// "--" to every script.
+// run), and is unresolved when a flag precedes it. A run-all command forwards
+// the words inside each quoted script argument, and the words after "--" to
+// every script.
 func forwardedFlags(runner string, words []string, scripts map[string]string) []string {
 	if manager, name, ok := strings.Cut(words[0], ":"); ok && packageManagers[manager] {
 		words = append([]string{manager, "run", name}, words[1:]...)
 	}
 	manager, args := runnerWord(words[0]), words[1:]
 	type run struct {
-		target    string
-		forwarded []string
+		target                string
+		forwarded, positional []string
 	}
 	var runs []run
-	flags := func(words []string) []string {
-		var flags []string
+	flagLike := func(word string) bool {
+		return word != "--" && (strings.HasPrefix(word, "-") || strings.ContainsAny(word, "$`\\{"))
+	}
+	split := func(words []string) (flags, positional []string) {
 		for _, word := range words {
-			if strings.HasPrefix(word, "-") && word != "--" {
+			switch {
+			case flagLike(word):
 				flags = append(flags, word)
+			case word != "--":
+				positional = append(positional, word)
 			}
 		}
-		return flags
+		return flags, positional
+	}
+	forward := func(target string, words []string) {
+		flags, positional := split(words)
+		runs = append(runs, run{target: target, forwarded: flags, positional: positional})
 	}
 	switch {
 	case runAllCommands[manager]:
@@ -408,28 +475,43 @@ func forwardedFlags(runner string, words []string, scripts map[string]string) []
 		if dash < 0 {
 			dash = len(args)
 		} else {
-			runs = append(runs, run{forwarded: flags(args[dash+1:])})
+			forward("", args[dash+1:])
 		}
 		for _, arg := range args[:dash] {
 			if fields := strings.Fields(arg); len(fields) > 1 && !strings.HasPrefix(arg, "-") {
-				runs = append(runs, run{target: fields[0], forwarded: flags(fields[1:])})
+				forward(fields[0], fields[1:])
 			}
 		}
 	case manager == "npm":
 		dash := slices.Index(args, "--")
-		if dash < 0 {
-			return nil
+		before, after := args, []string(nil)
+		if dash >= 0 {
+			before, after = args[:dash], args[dash+1:]
 		}
-		target := ""
-		if script, ok := npmScriptCommands[args[0]]; ok && dash > 0 {
-			switch {
-			case script != "" && dash == 1:
-				target = script
-			case script == "" && dash == 2 && !strings.HasPrefix(args[1], "-"):
-				target = args[1]
+		script, ok := "", false
+		if len(before) > 0 {
+			script, ok = npmScriptCommands[before[0]]
+		}
+		if !ok {
+			// Not a script run (npm exec, npm install): only the words after
+			// "--" are forwarded.
+			if dash >= 0 {
+				flags, _ := split(after)
+				runs = append(runs, run{forwarded: flags})
 			}
+			break
 		}
-		runs = append(runs, run{target: target, forwarded: flags(args[dash+1:])})
+		rest := before[1:]
+		target := script
+		if script == "" && len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
+			target, rest = rest[0], rest[1:]
+		}
+		_, positional := split(rest)
+		if slices.ContainsFunc(before[1:], flagLike) {
+			target = ""
+		}
+		flags, afterPositional := split(after)
+		runs = append(runs, run{target: target, forwarded: flags, positional: append(positional, afterPositional...)})
 	default:
 		at := 0
 		if len(args) > 0 && (args[0] == "run" || args[0] == "run-script") {
@@ -443,25 +525,36 @@ func forwardedFlags(runner string, words []string, scripts map[string]string) []
 			if first < 0 {
 				return nil
 			}
-			runs = append(runs, run{forwarded: flags(args[first+1:])})
+			forward("", args[first+1:])
 		case at == 0 && managerCommands[args[0]]:
 			return nil
 		default:
-			runs = append(runs, run{target: args[at], forwarded: flags(args[at+1:])})
+			forward(args[at], args[at+1:])
 		}
 	}
 	var found []string
 	for _, r := range runs {
-		if len(r.forwarded) == 0 || (r.target != "" && exemptScript(runner, r.target, scripts)) {
+		var commands []string
+		if runner == testid.Vitest {
+			for _, word := range r.positional {
+				if unsafeVitestCommands[word] {
+					commands = append(commands, word)
+				}
+			}
+		}
+		if len(r.forwarded)+len(commands) == 0 || (r.target != "" && exemptScript(runner, r.target, scripts)) {
 			continue
+		}
+		to := ""
+		if r.target != "" {
+			to = fmt.Sprintf(" to %q", r.target)
 		}
 		for _, flag := range r.forwarded {
 			name, _, _ := strings.Cut(flag, "=")
-			if r.target == "" {
-				found = append(found, fmt.Sprintf("forwards %s through %s", name, manager))
-			} else {
-				found = append(found, fmt.Sprintf("forwards %s through %s to %q", name, manager, r.target))
-			}
+			found = append(found, fmt.Sprintf("forwards %s through %s%s", name, manager, to))
+		}
+		for _, command := range commands {
+			found = append(found, fmt.Sprintf("forwards the %s command through %s%s", command, manager, to))
 		}
 	}
 	return found
@@ -481,7 +574,7 @@ func reachesRunner(runner, script string, depth int) bool {
 	}
 	for _, words := range shellCommands(script) {
 		for _, word := range words {
-			if scriptRunWord(word) || strings.Contains(strings.ToLower(word), runner) ||
+			if scriptRunWord(word) || mentionsRunner(runner, word) ||
 				(strings.ContainsAny(word, " \t\n\r") && reachesRunner(runner, word, depth+1)) {
 				return true
 			}
