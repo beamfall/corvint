@@ -225,7 +225,7 @@ MUST be removed, and the docs tool descriptions MUST point test questions to the
 - WHEN an agent asks a docs tool which tests cover a changed path
 - THEN no docs tool offers that question, and the docs tool descriptions name `corvint mcp`
 
-Delivery: not yet built.
+Delivery: `corvint.docs_recommend_tests` is gone from the corpus tool table, its repository qualifier branch, the MCP catalog row, `catalog.json` and `docs/CAPABILITIES.md`; a call to it is refused `unsupported-tool`. Every docs tool description names `corvint.affected` on `corvint mcp` for test questions. The `docs corpus recommend-tests` CLI read and its doccorpus operation stay (DMF-V1-009 governs MCP tools; removing the CLI read is outside this change). DCS-V1-595, DCP-V1-195, DCP-V1-310 and the corpus guide are amended. Tests: `TestDMFV1009NoDocsTestSelectionTool` (`internal/mcp/corpusbridge`); the callers in `cmd/corvint-docs`, `internal/doccorpus` and `internal/mcp/corpusbridge` tests now exercise the CLI read or the refusal; the `tools/list` golden is re-recorded without the tool.
 
 - `DMF-V1-010`: (accepted automatically under G14, decision 0596; V1-5409) Actionable tool errors
 
@@ -303,7 +303,7 @@ Delivery: not yet built.
 | DMF-V1-006 | 7 | `internal/appflows/docs.go` (`byteDetail`), `internal/command/flows/flows_docs.go` | `TestDMFV1006ByteFailureNamesChangedClaims` |
 | DMF-V1-007 | 8 | `internal/flowdocs/generate.go`, `internal/flowdocs/check.go`, `cmd/corvint-docs/docs_flows.go` | `TestDMFV1007*` |
 | DMF-V1-008 | 10 | `internal/mcp/corpusbridge/descriptions.go`, `internal/mcp/docsbridge/docsbridge.go` | `TestDMFV1008DistinctToolDescriptions`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
-| DMF-V1-009 | 11 | not yet built | not yet built |
+| DMF-V1-009 | 11 | `internal/mcp/corpusbridge/corpusbridge.go`, `internal/capcatalog/mcp.go` | `TestDMFV1009NoDocsTestSelectionTool`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
 | DMF-V1-010 | 12 | not yet built | not yet built |
 | DMF-V1-011 | 13 | not yet built | not yet built |
 | DMF-V1-013 | 14 | not yet built | not yet built |
