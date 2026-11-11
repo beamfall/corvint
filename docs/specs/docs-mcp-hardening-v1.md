@@ -107,7 +107,7 @@ Delivery: not yet built.
 - WHEN `docs maintain --check` runs on it
 - THEN it exits 1 and names the block
 
-Delivery: not yet built.
+Delivery: `corvint-docs docs maintain --check --page PATH [--source PATH --package DIRECTORY]` needs no `--enable`, reads the page as committed at HEAD and drafts at HEAD (`docmaintain.Check`), prints `corvint-docmaintain-check/0` and exits 1 naming each stale, missing or uncheckable block by page line, 0 when none, 2 when it cannot run. `--preview` keeps exit 0. Tests: `TestDMFV1003MaintainCheckExitCode` (`cmd/corvint-docs`) and `TestDMFV1003CheckStates` (`internal/docmaintain`).
 
 - `DMF-V1-004`: (accepted automatically under G14, decision 0596; V1-5409) Complete citation check
 
@@ -297,7 +297,7 @@ Delivery: not yet built.
 |---|---|---|---|
 | DMF-V1-001 | 3 | `internal/appflows/docs.go`, `internal/command/flows/flows_docs.go` | `TestDMFV1001*` |
 | DMF-V1-002 | 9 | not yet built | not yet built |
-| DMF-V1-003 | 4 | not yet built | not yet built |
+| DMF-V1-003 | 4 | `internal/docmaintain/check.go`, `cmd/corvint-docs/docs_maintain.go` | `TestDMFV1003*` |
 | DMF-V1-004 | 5 | not yet built | not yet built |
 | DMF-V1-005 | 6 | not yet built | not yet built |
 | DMF-V1-006 | 7 | not yet built | not yet built |

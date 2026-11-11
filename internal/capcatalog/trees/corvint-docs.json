@@ -128,6 +128,7 @@
         "corvint-docs [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]",
         "corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)",
         "corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]",
+        "corvint-docs [--root PATH] docs maintain --check --page PATH [--source PATH --package DIRECTORY]",
         "corvint-docs [--root PATH] docs nav --trusted-project --request FILE",
         "corvint-docs [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON"
       ],
@@ -1655,10 +1656,12 @@
       "summary": "Experimental automatic maintenance of one human documentation page",
       "usage": [
         "corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)",
-        "corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]"
+        "corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]",
+        "corvint-docs [--root PATH] docs maintain --check --page PATH [--source PATH --package DIRECTORY]"
       ],
       "flags": [
         "--apply",
+        "--check",
         "--enable",
         "--max-wall-clock",
         "--max-writes",
