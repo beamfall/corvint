@@ -21,6 +21,25 @@ Build tasks in order. Each names its requirement IDs and its proof.
 - [ ] 8 In 1.0.x: run both arms on the owner's machines, record the result, keep or remove
       (TBC-V1-006).
 
+Tasks of the amendment of 2026-11-10 (proposed; none starts before the owner accepts
+PROD-INT-032). Task 9 runs first and needs only the frozen task list of task 6; it needs neither
+the export nor the builder. Tasks 10 to 12 run after task 3 and only if task 9 meets the bar.
+
+- [ ] 9 Link-coverage check of the `tests` and `requirements` sections on the frozen task set, by a
+      scratch script over existing commands and the sealed records, with no agent run
+      (TBC-V1-013). Proof: the build-log record and the owner's bar.
+- [ ] 10 One-time export of the sealed requirement links to `.corvint/requirement-links.json`
+      (TBC-V1-012). Proof: the two-run byte-identity scenario; input commit and output hash in the
+      build log.
+- [ ] 11 Path brief builder with six sections; the ticket form is not changed (TBC-V1-009 to
+      TBC-V1-011). Proof: fixture repositories for each section and each absent source, one with
+      no Corvint files.
+- [ ] 12 Verify whether a completed ticket's commits can be read from its `progress` and
+      `completion` fields; file a Tasks ticket if they cannot. Proof: `corvint-tasks ticket show`
+      on a completed fixture ticket.
+- [ ] 13 Pilot on the first 8 tasks with arms A, B and C before the release candidate, or record
+      NOT_RUN (TBC-V1-014). Proof: the pilot record.
+
 Earlier task list, kept for traceability:
 
 - 1.1 Reserve `TBC-V1` 001..007; file the ticket; set `requirementRefs`.

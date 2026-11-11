@@ -76,6 +76,7 @@ PROD-INT-028	prod	owner	2026-11-10	decision 0596; G25	accepted by the owner in d
 PROD-INT-029	prod	owner	2026-11-10	decision 0596; G25; R4	accepted by the owner in decision 0596 (H15, "accepted")
 PROD-INT-030	prod	owner	2026-11-10	decision 0596; G25; R28; R29	accepted by the owner in decision 0596 (H15, "accepted")
 PROD-INT-031	prod	owner	2026-11-10	decision 0596; G25	accepted by the owner in decision 0596 (H15, "accepted")
+PROD-INT-032	prod	pending-owner	2026-11-10	owner request 2026-11-10 (a request, not an acceptance)	lane-drafted path form of the context brief (TBC-V1-009 to 014); awaiting the owner; PROD-INT-030 unchanged
 O1	o-row	owner	2026-11-10	decision 0596; R1	accepted by the owner in decision 0596 (H15, "accepted")
 O2	o-row	owner	2026-11-10	decision 0596; R17	accepted by the owner in decision 0596 (H15, "accepted")
 O3	o-row	owner	2026-11-10	decision 0596; R8	accepted by the owner in decision 0596 (H15, "accepted")
