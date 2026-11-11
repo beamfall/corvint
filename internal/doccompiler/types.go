@@ -1,25 +1,17 @@
 package doccompiler
 
-import (
-	"time"
-)
-
 const (
-	Profile              = "corvint-human-documentation-compiler/0"
-	PlanProfile          = "corvint-human-documentation-plan/0"
-	ReceiptProfile       = "corvint-human-documentation-receipt/0"
-	MaterialProfile      = "mkdocs-material/qualified-p0"
-	defaultCommandBytes  = 256 << 10
-	defaultConfigBytes   = 1 << 20
-	defaultSourceBytes   = 8 << 20
-	defaultCorpusBytes   = 64 << 20
-	defaultOutputBytes   = 128 << 20
-	defaultOutputFiles   = 10_000
-	defaultBuildDuration = 2 * time.Minute
+	Profile             = "corvint-human-documentation-compiler/0"
+	PlanProfile         = "corvint-human-documentation-plan/0"
+	ReceiptProfile      = "corvint-human-documentation-receipt/0"
+	MaterialProfile     = "mkdocs-material/qualified-p0"
+	defaultCommandBytes = 256 << 10
+	defaultConfigBytes  = 1 << 20
+	defaultSourceBytes  = 8 << 20
 )
 
-// ExperimentalPatchPlanProfile names the experimental PatchPlan that Plan emits
-// and Build consumes. It is not the HDCV0-027 wire (decision 0240).
+// ExperimentalPatchPlanProfile names the experimental PatchPlan that Plan emits.
+// It is not the HDCV0-027 wire (decision 0240).
 const ExperimentalPatchPlanProfile = "corvint-human-documentation-experimental-patch-plan/0"
 
 // DiscoverOptions names a project-owned environment explicitly. No PATH lookup
@@ -194,18 +186,6 @@ type PatchPlan struct {
 	PlanSHA256   string          `json:"plan_sha256"`
 }
 
-type BuildOptions struct {
-	OutputParent     string
-	Timeout          time.Duration
-	MaxStdoutBytes   int
-	MaxStderrBytes   int
-	MaxSourceBytes   int64
-	MaxCorpusBytes   int64
-	MaxOutputBytes   int64
-	MaxOutputFiles   int
-	TrustAttestation EnvironmentTrustAttestation
-}
-
 type EnvironmentTrustAttestation struct {
 	Profile           string `json:"profile"`
 	EnvironmentSHA256 string `json:"environment_sha256"`
@@ -228,14 +208,6 @@ type BuildResult struct {
 	OfflineEnforcement      string   `json:"offline_enforcement"`
 	ProcessContainment      string   `json:"process_containment"`
 	Uncertainty             []string `json:"uncertainty"`
-}
-
-type OfflineAttestation struct {
-	Profile           string `json:"profile"`
-	BuildSHA256       string `json:"build_sha256"`
-	Authority         string `json:"authority"`
-	Method            string `json:"method"`
-	AttestationSHA256 string `json:"attestation_sha256"`
 }
 
 type Compiler struct{}

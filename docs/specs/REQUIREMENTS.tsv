@@ -5741,13 +5741,13 @@ HDCV0-029	docs/specs/human-documentation-compiler-v0.md	P0 does not replace exis
 HDCV0-030	docs/specs/human-documentation-compiler-v0.md	`edit_nav` MUST bind both the exact config-source bytes and the authority snapsh	unrecorded	-
 HDCV0-031	docs/specs/human-documentation-compiler-v0.md	The output root contains only `plan.json`, `proposal.patch`, `draft/`, `build/si	unrecorded	-
 HDCV0-032	docs/specs/human-documentation-compiler-v0.md	P0 MUST NOT expose an apply mode. It MUST perform no repository write, Git opera	unrecorded	-
-HDCV0-033	docs/specs/human-documentation-compiler-v0.md	The candidate snapshot MUST be created from the frozen manifest outside the repo	unrecorded	-
-HDCV0-034	docs/specs/human-documentation-compiler-v0.md	The build argv is an argument vector, never a shell string: the exact pinned MkD	unrecorded	-
-HDCV0-035	docs/specs/human-documentation-compiler-v0.md	Build environment is constructed from an allowlist, not inherited wholesale. It	unrecorded	-
-HDCV0-036	docs/specs/human-documentation-compiler-v0.md	One aggregate deadline covers identity probe, config authority load, candidate c	unrecorded	-
-HDCV0-037	docs/specs/human-documentation-compiler-v0.md	Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST al	unrecorded	-
-HDCV0-038	docs/specs/human-documentation-compiler-v0.md	`OFFLINE_QUALIFIED=PASS` requires an independently identified external network-d	unrecorded	-
-HDCV0-039	docs/specs/human-documentation-compiler-v0.md	If executable JavaScript, custom templates, plugins, hooks, or extensions can co	unrecorded	-
+HDCV0-033	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-034	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-035	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-036	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-037	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-038	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-039	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
 HDCV0-040	docs/specs/human-documentation-compiler-v0.md	The receipt profile is `corvint-human-documentation-receipt/0`. It MUST bind the	unrecorded	-
 HDCV0-041	docs/specs/human-documentation-compiler-v0.md	Canonical JSON is valid UTF-8: exactly one JSON value, no insignificant whitespa	unrecorded	-
 HDCV0-042	docs/specs/human-documentation-compiler-v0.md	Receipt limits, failures, `NOT_RUN`, `NOT_OBSERVED`, `UNKNOWN`, contradictions,	unrecorded	-
