@@ -6,7 +6,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    spec delta as `(proposed 2026-11-09; delivery not-started)`, and regenerate
    `docs/specs/REQUIREMENTS.tsv`. Requirements: CTI-V1-001 to CTI-V1-012. Proof: the spec toolchain
    check passes; the new rows appear in the generated file.
-- [ ] 2 Add the ID package: format, parse, escape and file-level match.
+- [x] 2 Add the ID package: format, parse, escape and file-level match.
    Requirements: CTI-V1-001, CTI-V1-002, CTI-V1-008. Proof: table-driven unit tests, including a
    round trip of every escape case.
 - [ ] 3 Add the per-runner name path mapping from each runner's machine report.
