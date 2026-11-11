@@ -2,7 +2,7 @@
 
 Build in this order. Each task names its requirement IDs and the proof that closes it.
 
-- [ ] 1 Create `docs/specs/test-inventory-v1.md` with TIV-V1-001 to TIV-V1-012 from the spec delta
+- [x] 1 Create `docs/specs/test-inventory-v1.md` with TIV-V1-001 to TIV-V1-012 from the spec delta
    as proposed, and regenerate `docs/specs/REQUIREMENTS.tsv`. Requirements: TIV-V1-001 to
    TIV-V1-012. Proof: the spec toolchain check passes.
 - [ ] 2 Add the inventory schema, canonical writer and reader with instance keys.
