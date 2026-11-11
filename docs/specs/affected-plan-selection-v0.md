@@ -3166,14 +3166,16 @@ AFP-V0-003, AFP-V0-398 and RGV-V0-015, so the headline goes to stderr.
   `--format text` quotes it. Stdout SHALL stay byte for byte the AFP-V0-398 document. The
   headline SHALL be left out when stdout and stderr are the same pipe or regular file (as after
   `2>&1`), as AFP-V0-871 leaves out the degradation line, so the merged output still parses as
-  one document, and when stderr is not a file (an in-process caller). A refusal writes no
-  headline. Non-goals: any change to stdout, to the selection or to the other output forms; a
+  one document, when stderr is not a file (an in-process caller), and when stderr is neither a
+  terminal nor a regular file (a pipe, whose closed reader would raise SIGPIPE and kill the
+  process before the plan is written). A refusal writes no headline. Non-goals: any change to stdout, to the selection or to the other output forms; a
   headline in the merged-stream case, which no single byte stream can carry without breaking
   the `2>&1` readers AFP-V0-871 protects. Failure mode: a harness that captures stdout and stderr
   into one file (this lane's agent shell does) shows no headline; the reader then runs
   `--summary --format text`, or sends stdout to a file. A reader that greps stderr on success
   sees the new lines. Acceptance evidence: `TestAffectedHeadlineIsBounded_AFPV03642` and
-  `TestAffectedHeadlineOnSeparateStderr_AFPV03642` in `cmd/corvint`. Rollback: delete
+  `TestAffectedHeadlineOnSeparateStderr_AFPV03642` and
+  `TestAffectedHeadlineClosedStderrPipe_AFPV03642` in `cmd/corvint`. Rollback: delete
   `cmd/corvint/affected_headline.go` and its call in `runAffected`.
 
 ### Flat selection, one witness shape, `--json` and `--head` replay (lane affux, 2026-11-11; V1-4399)
@@ -3811,7 +3813,9 @@ itself, and a directory is refused by the regular-file proof.
 V1-4321: `TestAffectedHeadlineIsBounded_AFPV03642` pins the headline's text shape and its
 ten-line, 200-byte-per-line bound; `TestAffectedHeadlineOnSeparateStderr_AFPV03642` pins that
 stdout is unchanged byte for byte, that a separate stderr file carries the headline, and that a
-merged stream and an in-process writer carry none. `../build-log/2026-11-11-affread.md` records the
+merged stream and an in-process writer carry none; `TestAffectedHeadlineClosedStderrPipe_AFPV03642`
+pins that an stderr pipe whose reader has closed leaves the plan on stdout with exit 0 (it died of
+SIGPIPE before batch 1111g). `../build-log/2026-11-11-affread.md` records the
 design choice and the live output.
 
 AFP-V0-3600 to AFP-V0-3602 (V1-5179): `evaluatedCacheOnly`, `strictWords` and `leak` in
