@@ -92,8 +92,12 @@ falls back to the current behaviour.
   select the test for computed reads that no token holds (`cat "script/$f"`, `cd script`, a
   helper, `git ls-files | xargs cat`). An admitted form therefore records a name-listing read
   only when every later stage of its pipeline is a standard-input filter and every other command
-  of the test is a closed-list builtin or reads only literal path-shaped operands. This is
-  stricter than the closed list alone and is written into AFP-V0-9961.
+  of the test is a closed-list builtin or a closed-list reader (`cat`, `head`, `tail`, `wc`,
+  `sort`, `cmp`, a non-recursive `grep`) of literal path-shaped operands, and the test sets no
+  upper-case name and runs no `export`. `diff` and the checksum tools are not readers here: a
+  directory operand or a check mode reads files no token names (review repair, 2026-11-11). This
+  is stricter than the closed list alone and is written into AFP-V0-9961. A tracked symbolic
+  link operand is a known limit: the plugin's source interface carries no link targets.
 - Depth. A name-listing read selects on every non-`modified` path below the directory, at any
   depth: an added `script/sub/new.sh` creates the `sub` entry that `ls script` lists. Depth never
   narrows; a `modified` path cannot change a listing at any depth.

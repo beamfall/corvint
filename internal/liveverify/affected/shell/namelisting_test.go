@@ -71,8 +71,30 @@ func TestNameListingForms_AFPV09961(t *testing.T) {
 		"git":           "ls script | wc -l\ngit diff --quiet\n",
 		"grep_e":        "ls script | wc -l\ngrep -e x script/a.sh\n",
 		"diff_r":        "ls script | wc -l\ndiff -r script/x script/y\n",
-		"input_var":     "ls script | wc -l\nwhile read -r l; do echo \"$l\"; done < \"$list\"\n",
-		"subshell_fn":   "count() { ls script | wc -l; }\ntest \"$(count)\" -eq 1\n",
+		// A directory operand makes diff read every file below it, and a
+		// checksum tool's check mode reads the files its sums file names;
+		// neither read has a token of its own.
+		"diff_dir":      "ls script | wc -l\ndiff script/ golden/\n",
+		"diff_dot":      "ls script | wc -l\ndiff -q ./script ./golden\n",
+		"diff_file_dir": "ls script | wc -l\ndiff docs/a.sh script/\n",
+		"diff_files":    "ls script | wc -l\ndiff docs/a.sh docs/b.sh\n",
+		"sha_check":     "ls script | wc -l\nsha256sum -c docs/sums.sha256\n",
+		"shasum_check":  "ls script | wc -l\nshasum -c docs/sums.sha256\n",
+		"md5_check":     "ls script | wc -l\nmd5sum -c docs/sums.md5\n",
+		"sha_file":      "ls script | wc -l\nsha256sum docs/x.md\n",
+		// BSD ls colours an entry by its mode bits when forced to.
+		"clicolor":      "export CLICOLOR_FORCE=1 CLICOLOR=1\nls script\n",
+		"clicolor_bare": "CLICOLOR_FORCE=1\nexport CLICOLOR_FORCE\nls script\n",
+		"clicolor_cmd":  "CLICOLOR_FORCE=1 ls script | wc -l\n",
+		// Every other way to set an environment-style name is refused too.
+		"grep_options": "GREP_OPTIONS=-r\nls script | grep -c a\n",
+		"export_name":  "preload=x\nexport preload\nls script\n",
+		"read_env":     "read -r PATH < docs/x.md\nls script | wc -l\n",
+		"for_env":      "for PATH in docs/x.md; do echo x; done\nls script | wc -l\n",
+		"printf_env":   "printf -v PATH '%s' stub\nls script | wc -l\n",
+		"default_env":  ": \"${CLICOLOR_FORCE:=1}\"\nls script\n",
+		"input_var":    "ls script | wc -l\nwhile read -r l; do echo \"$l\"; done < \"$list\"\n",
+		"subshell_fn":  "count() { ls script | wc -l; }\ntest \"$(count)\" -eq 1\n",
 	}
 	root := t.TempDir()
 	write(t, root, "script/a.sh", "true\n")
@@ -242,6 +264,10 @@ func TestNameOnlyTreeWalker_AFPV09963(t *testing.T) {
 		// A name-only walk beside a computed read keeps the unbounded read.
 		"find_computed_read": "find . -name '*.md' | wc -l\nfor f in $(git ls-files '*.md'); do cat \"$f\"; done\n",
 		"find_cd":            "test \"$(find . -name '*.md' | wc -l)\" -eq 1\ncd docs && cat a.md\n",
+		// A name-only walk beside a directory diff or a checksum check,
+		// which read files no token names.
+		"walk_diff": "find . -type f | wc -l\ndiff -q ./docs ./golden\n",
+		"walk_sha":  "find . -name '*.md' | wc -l\nsha256sum -c sums.sha256\n",
 	}
 	root := t.TempDir()
 	write(t, root, "internal/x.go", "package x\n")

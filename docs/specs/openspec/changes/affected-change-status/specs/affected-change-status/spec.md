@@ -41,9 +41,14 @@ Every other form MUST stay a content read. When a unit holds a content read and 
 read of the same directory, the content read MUST decide. A computed read may be of that
 directory, so an admitted form MUST also stay a content read unless every later stage of its
 pipeline is a standard-input filter (`wc`, `sort`, `head`, `tail`, a non-recursive `grep`) and
-every other command of the test is an output or existence-test builtin or reads only literal
-path-shaped operands, with no sourced file, function call, directory change, program or PATH
-assignment.
+every other command of the test is an output or existence-test builtin, or one of `cat`, `head`,
+`tail`, `wc`, `sort`, `cmp` or a non-recursive `grep` reading only literal path-shaped operands,
+with no sourced file, function call, directory change, program, `export`, or assignment to an
+upper-case (environment-style) name by any form. `diff`, which reads the files below a directory
+operand, and a checksum tool, whose check mode reads the files its operand names, are programs
+here and MUST keep the listing a content read. Known limit: an operand that is a tracked
+symbolic link is matched by its own path and not by its target's, so a link into a listed
+directory is not seen as a content read of it.
 
 #### Scenario: Long listing is a content read
 

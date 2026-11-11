@@ -43,11 +43,31 @@ a.sh`, a helper run, or `find . -name '*.md' | wc -l` beside `git ls-files '*.md
 "$f"` (selected today only by the walker's unbounded reads). So a file records name-listing
 reads only when every command outside an admitted pipeline is an output builtin, an existence or
 kind test (`-e -f -d -h -L` and value comparisons; not `-s`, `-nt`, `-x` or other attribute
-tests), or an operand reader (`cat`, `head`, `tail`, `wc`, `sort`, `cmp`, `diff` without `-r`,
-checksums, non-recursive `grep` without `-e`/`-f`) whose operands and input redirections are
-literal path-shaped words, and the file assigns no `PATH`. A sourced file, a function call, a
-directory change, `exec`, `run`, `env`, a program or a computed operand anywhere keeps every
-listing a content read. The sentence is added to AFP-V0-9961 in the spec and the delta.
+tests), or an operand reader (`cat`, `head`, `tail`, `wc`, `sort`, `cmp`, non-recursive `grep`
+without `-e`/`-f`) whose operands and input redirections are literal path-shaped words, and the
+file sets no environment-style name. A sourced file, a function call, a directory change,
+`exec`, `run`, `env`, a program or a computed operand anywhere keeps every listing a content
+read. The sentence is added to AFP-V0-9961 in the spec and the delta.
+
+### Review repair (2026-11-11)
+
+The independent review found the unit gate fail-open, and failing rows confirmed it before the
+repair. The first version admitted `diff` without `-r` and the checksum tools as operand
+readers. `diff script/ golden/` reads every file below its directory operands, and
+`sha256sum -c sums` reads the files the sums file names; neither read has a token below the
+listed directory, so with `ls script | wc -l` beside it a `modified` `script/a.sh` dropped the
+unit (`diff_dir`, `diff_dot`, `diff_file_dir`, `sha_check`, `shasum_check`, `md5_check`), and a
+name-only walker beside one stayed names-only (`walk_diff`, `walk_sha`). Both tool families are
+now programs to the gate, in every form. The gate also refused only a `PATH` assignment;
+`CLICOLOR_FORCE=1` makes BSD `ls` colour by mode bits and `GREP_OPTIONS=-r` makes a filter
+recurse. It now refuses `export` and every way of setting an upper-case name (an assignment
+word, `read NAME`, `for NAME in`, `printf -v NAME`, a `${NAME:=...}` expansion).
+
+Known limit, not repaired: the shell plugin matches an operand that is a tracked symbolic link
+by the link's own path. `cat fixture.txt`, where `fixture.txt` links to `script/a.sh`, beside
+`ls script | wc -l` is therefore admitted, and a `modified` `script/a.sh` does not select the
+unit. Before this capability the listing's content read covered that case by accident. The
+plugin's source interface carries no link targets; this is ticketed, not fixed here.
 
 Depth never narrows: an added `script/sub/new.sh` creates the `sub` entry `ls script` lists, so
 a name-listing read selects on every non-`modified` path below its directory.
