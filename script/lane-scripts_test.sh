@@ -628,6 +628,18 @@ got=$(env -u HEAVY_NICE HEAVY_SLOTS=1 "$heavy" sh -c 'ps -o nice= -p $$' 2> /dev
 [[ $got == $((want > 10 ? want : 10)) ]] || fail "heavy.sh default niceness $got, want 10 or the caller's higher $want"
 got=$(HEAVY_NICE=0 HEAVY_SLOTS=1 "$heavy" sh -c 'ps -o nice= -p $$' 2> /dev/null | tr -d ' ')
 [[ $got == "$want" ]] || fail "heavy.sh HEAVY_NICE=0 niceness $got, want the caller's $want"
+# ASD-V0-9950 (V1-4841): the announced TMPDIR follows the command's own env words, and behind an
+# env option heavy.sh does not read (-v here) it is reported as unknown, never guessed.
+HEAVY_SLOTS=1 "$heavy" env TMPDIR="$tmp" sh -c 'printf "saw=%s\n" "$TMPDIR"' > "$tmp/out" 2> "$tmp/err"
+[[ $(cat "$tmp/out") == "saw=$tmp" ]] && grep -qxF "heavy.sh: TMPDIR=$tmp" "$tmp/err" ||
+  fail "heavy.sh did not name an env-assigned TMPDIR: $(cat "$tmp/out" "$tmp/err")"
+HEAVY_SLOTS=1 "$heavy" env -u TMPDIR sh -c 'printf "saw=%s\n" "${TMPDIR-none}"' > "$tmp/out" 2> "$tmp/err"
+[[ $(cat "$tmp/out") == saw=none ]] && grep -qx 'heavy.sh: TMPDIR=unset' "$tmp/err" ||
+  fail "heavy.sh did not name an unset TMPDIR: $(cat "$tmp/out" "$tmp/err")"
+HEAVY_SLOTS=1 "$heavy" env -v TMPDIR="$tmp" sh -c 'printf "saw=%s\n" "$TMPDIR"' > "$tmp/out" 2> "$tmp/err"
+[[ $(cat "$tmp/out") == "saw=$tmp" && $(grep -c '^heavy.sh: TMPDIR=' "$tmp/err") == 1 ]] &&
+  grep -qx 'heavy.sh: TMPDIR=unknown' "$tmp/err" ||
+  fail "heavy.sh guessed a TMPDIR behind an unread env option: $(cat "$tmp/out" "$tmp/err")"
 # ASD-V0-915 (V1-3618): an expected refusal's stdout REFUSED marker is captured and checked, so a
 # passing run prints no unlabelled REFUSED line.
 HEAVY_NICE=20 "$heavy" true > "$tmp/out" 2> "$tmp/err"

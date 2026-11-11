@@ -508,7 +508,7 @@ printf STDERR "heavy.sh: no private TMPDIR under %s; the run uses it directly\n"
 # The remote runner adds exactly this timeout prefix. env/leading assignments are the local
 # forms normalized by main; inspect argv, never words embedded in a shell command or prompt.
 my $test_at = @cmd >= 2 && $cmd[0] eq "timeout" ? 2 : 0;
-my ($assigned_tmp, $test_env, $env_tmp);
+my ($assigned_tmp, $test_env, $env_tmp, $env_opaque);
 if (($cmd[$test_at] // "") eq "env") {
     $test_env = 1;
     ++$test_at;
@@ -523,7 +523,12 @@ if (($cmd[$test_at] // "") eq "env") {
             $unset = $cmd[++$test_at];
         } elsif ($a =~ /^(?:-u|--unset=)(.+)$/s) {
             $unset = $1;
-        } else { last }
+        } else {
+            # An option this scan does not read (env -C DIR, -S STRING, -P PATH) hides the words
+            # after it, a TMPDIR= word included: the command's TMPDIR is then not known here.
+            $env_opaque = 1 if $a =~ /^-/;
+            last;
+        }
         ($assigned_tmp, $env_tmp) = ("/tmp", "") if defined($unset) && $unset eq "TMPDIR";
         ++$test_at;
     }
@@ -572,7 +577,9 @@ if ($go_test) {
 }
 # ASD-V0-9950 (V1-4841): say which TMPDIR the command gets. An env word (-i, -u TMPDIR, TMPDIR=)
 # wins over the environment, except the Go test namespace, spliced after the command's own words.
+# Behind an env option the scan above does not read, the value is reported as unknown, not guessed.
 my $cmd_tmp = $go_test && $ttmp ? $ttmp : $env_tmp // ($go_test ? undef : $rtmp) // $ENV{TMPDIR};
+$cmd_tmp = "unknown" if $env_opaque;
 printf STDERR "heavy.sh: TMPDIR=%s\n", length($cmd_tmp // "") ? $cmd_tmp : "unset";
 my $pid = fork;
 unless (defined $pid) {

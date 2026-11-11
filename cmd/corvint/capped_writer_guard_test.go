@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -225,10 +224,6 @@ func TestCappedWritersEmbedNoBuffer_GPKV09930(t *testing.T) {
 		source, err := os.ReadFile(name)
 		if err != nil {
 			return err
-		}
-		// Only a file that names bytes or declares a method can contribute.
-		if !bytes.Contains(source, []byte(`"bytes"`)) && !bytes.Contains(source, []byte(") Write(")) {
-			return nil
 		}
 		rel, err := filepath.Rel(root, name)
 		if err != nil {
