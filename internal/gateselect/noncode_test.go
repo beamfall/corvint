@@ -131,7 +131,7 @@ func TestNCMV1SelectorNeverNarrowed(t *testing.T) {
 	})
 	requireVerdict(t, ncmPlan([]string{"package-lock.json"}, planUnknown{"UNOWNED_DIRTY_PATH", "package-lock.json"}), root,
 		"FALLBACK never-narrowed-path package-lock.json", "noncode never-narrowed-path package-lock.json")
-	for _, p := range []string{".github/workflows/ci.yml", "Makefile", "app/testdata/out.golden", ".env.local", "ui/assets/app.css"} {
+	for _, p := range []string{".github/workflows/ci.yml", "Makefile", "app/testdata/out.golden", ".env.local", "ui/assets/app.css"} { //corvint:fixture-path
 		requireVerdict(t, ncmPlan([]string{p}), root, "FALLBACK never-narrowed-path "+p)
 	}
 }
@@ -140,7 +140,7 @@ func TestNCMV1SelectorNeverNarrowed(t *testing.T) {
 // the orchestrator's call keeps change evidence configuration.
 func TestNCMV1SelectorCorvintConfig(t *testing.T) {
 	root := ncmFixture(t, map[string]string{".corvint/data-map.json": `{"profile":"corvint-data-map/0","entries":[]}`})
-	for _, p := range []string{".corvint/data-map.json", ".corvint/test-read-scopes.json", ".corvint/runtime-readers.json", ".corvint/changes/x.cem.json", ".corvint/unplanned-reads.enabled"} {
+	for _, p := range []string{".corvint/data-map.json", ".corvint/test-read-scopes.json", ".corvint/runtime-readers.json", ".corvint/changes/x.cem.json", ".corvint/unplanned-reads.enabled"} { //corvint:fixture-path
 		requireVerdict(t, ncmPlan([]string{p}), root, "FALLBACK corvint-config "+p, "noncode corvint-config "+p)
 	}
 }
