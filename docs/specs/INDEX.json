@@ -4473,5 +4473,53 @@
     "closableToday": false,
     "implementation": [],
     "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/compatibility-promise-v1.md",
+    "title": "Compatibility Promise V1",
+    "reqPrefix": "CMP-V1",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5434)",
+    "delivery": "experimental",
+    "claim": "One generated table in docs/COMPATIBILITY.md marks each 1.x surface stable, preview or not-promised, and only a surface a named contract test covers is stable.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/fault-injection-harness-v1.md",
+    "title": "Fault Injection Harness V1",
+    "reqPrefix": "FIH-V1",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5405)",
+    "delivery": "experimental; partially delivered",
+    "claim": "Pre-registered, hashed fault sets per runner prove that a selected run executes every test that kills a fault on a changed line, with a fixed miss verdict.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/flow-schema-version-v1.md",
+    "title": "Flow Schema Version V1",
+    "reqPrefix": "FSV-V1",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5410)",
+    "delivery": "experimental",
+    "claim": "The flow file carries its schema version; one shared reader refuses unknown versions, so plans run every E2E test and flow reports print nothing partial.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/selection-hardening-v1.md",
+    "title": "Selection Hardening V1",
+    "reqPrefix": "SLF-V1",
+    "intent": "accepted (decision 0596, G14; V1-5401)",
+    "delivery": "experimental; partially delivered",
+    "claim": "Python and JavaScript selection raises a named frontier where it drops an edge today; new narrowing rules ship tested but held off until fault injection.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
