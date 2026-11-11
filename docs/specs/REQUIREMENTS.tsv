@@ -5757,13 +5757,13 @@ HDCV0-029	docs/specs/human-documentation-compiler-v0.md	P0 does not replace exis
 HDCV0-030	docs/specs/human-documentation-compiler-v0.md	`edit_nav` MUST bind both the exact config-source bytes and the authority snapsh	unrecorded	-
 HDCV0-031	docs/specs/human-documentation-compiler-v0.md	The output root contains only `plan.json`, `proposal.patch`, `draft/`, `build/si	unrecorded	-
 HDCV0-032	docs/specs/human-documentation-compiler-v0.md	P0 MUST NOT expose an apply mode. It MUST perform no repository write, Git opera	unrecorded	-
-HDCV0-033	docs/specs/human-documentation-compiler-v0.md	The candidate snapshot MUST be created from the frozen manifest outside the repo	unrecorded	-
-HDCV0-034	docs/specs/human-documentation-compiler-v0.md	The build argv is an argument vector, never a shell string: the exact pinned MkD	unrecorded	-
-HDCV0-035	docs/specs/human-documentation-compiler-v0.md	Build environment is constructed from an allowlist, not inherited wholesale. It	unrecorded	-
-HDCV0-036	docs/specs/human-documentation-compiler-v0.md	One aggregate deadline covers identity probe, config authority load, candidate c	unrecorded	-
-HDCV0-037	docs/specs/human-documentation-compiler-v0.md	Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST al	unrecorded	-
-HDCV0-038	docs/specs/human-documentation-compiler-v0.md	`OFFLINE_QUALIFIED=PASS` requires an independently identified external network-d	unrecorded	-
-HDCV0-039	docs/specs/human-documentation-compiler-v0.md	If executable JavaScript, custom templates, plugins, hooks, or extensions can co	unrecorded	-
+HDCV0-033	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-034	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-035	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-036	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-037	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-038	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
+HDCV0-039	docs/specs/human-documentation-compiler-v0.md	(retired 2026-11-11 by V1-4828 with the test-only site build; body kept as histo	unrecorded	-
 HDCV0-040	docs/specs/human-documentation-compiler-v0.md	The receipt profile is `corvint-human-documentation-receipt/0`. It MUST bind the	unrecorded	-
 HDCV0-041	docs/specs/human-documentation-compiler-v0.md	Canonical JSON is valid UTF-8: exactly one JSON value, no insignificant whitespa	unrecorded	-
 HDCV0-042	docs/specs/human-documentation-compiler-v0.md	Receipt limits, failures, `NOT_RUN`, `NOT_OBSERVED`, `UNKNOWN`, contradictions,	unrecorded	-
@@ -7567,6 +7567,7 @@ RSP-V0-031	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's
 RSP-V0-032	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
 RSP-V0-047	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Ev	standing	2026-10-11; decision 0592
 RSP-V0-064	docs/specs/runner-selection-plugins-v0.md	(experimental under the standing lane auto-accept (2026-11-11); V1-4824) The Go,	standing	2026-11-11; V1-4824
+RSP-V0-063	docs/specs/runner-selection-plugins-v0.md	(proposed (V1-5112); experimental, orchestrator-made under the 2026-11-02	unrecorded	-
 RSP-V0-042	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) CI	standing	2026-10-11; decision 0592
 RSP-V0-043	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Fo	standing	2026-10-11; decision 0592
 RSP-V0-044	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
@@ -8568,13 +8569,13 @@ TSA-V0-029	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-030	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1769) A helper MUST resolve by name to	standing	2026-10-11; V1-1769
 TSA-V0-031	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1769) `corvint tests lint --runs	standing	2026-10-11; V1-1769
 TSA-V0-032	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1769) Without split-capable evidence	standing	2026-10-11; V1-1769
-TSA-V0-033	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Actor-role resolution	standing	2026-10-11; V1-1770; #1115
-TSA-V0-034	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Request-to-ability	standing	2026-10-11; V1-1770; #1115
-TSA-V0-035	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Rule-set evaluation M	standing	2026-10-11; V1-1770; #1115
-TSA-V0-036	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A denied request MUST	standing	2026-10-11; V1-1770; #1115
-TSA-V0-037	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) The report (schema	standing	2026-10-11; V1-1770; #1115
-TSA-V0-038	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Every link that does	standing	2026-10-11; V1-1770; #1115
-TSA-V0-039	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A test that asserts a	standing	2026-10-11; V1-1770; #1115
+TSA-V0-033	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-034	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-035	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-036	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-037	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-038	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-039	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
 TSA-V0-045	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) In a JS/TS test file	standing	2026-10-11; V1-1783; #1123
 TSA-V0-046	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) `ISOLATED-IN-SERIAL`	standing	2026-10-11; V1-1783; #1123
 TSA-V0-047	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) An `ISOLATED-IN-SERIA	standing	2026-10-11; V1-1783; #1123

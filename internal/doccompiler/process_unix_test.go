@@ -89,10 +89,3 @@ func requireDescendantGone(t *testing.T, pid int) {
 	}
 	t.Fatalf("descendant %d survived cancellation in state %q", pid, state)
 }
-
-func TestUnixContainmentRemainsUnqualifiedForSessionEscapes(t *testing.T) {
-	qualified, description := descendantCleanupQualification()
-	if qualified || !strings.Contains(description, "setsid/session escapes") {
-		t.Fatalf("qualified=%v description=%q", qualified, description)
-	}
-}

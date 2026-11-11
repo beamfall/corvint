@@ -29,6 +29,14 @@ These external pages explain the profile but do not pin a project environment. A
 MUST discover and bind the exact locally installed MkDocs, Material, Markdown, PyMdown Extensions,
 theme, plugin, and hook environment actually used.
 
+Retired slice (2026-11-11): V1-4828 retires the test-only site execution path (`HDCV0-033` to
+`HDCV0-039`): the experimental `build`, its corpus staging, site validation, generated-asset scan,
+`QualifyOffline` and the descendant-containment gate had no caller outside the package's tests.
+Discovery, the trust attestation check, the experimental plan, clause admission, the admitted plan,
+canonical JSON, receipts, drafts and trusted navigation stay live; no site build is delivered. See
+`docs/build-log/2026-11-11-doccompiler-site-build-retirement.md`; restore `internal/doccompiler`
+from b55635262788687c3eea9a08a94378e4ab8856a4 to roll back.
+
 ## Agent digest
 - Claim: Human Documentation Compiler proposes evidence-bound operational plans whose rendered views cannot strengthen source claims.
 - Status: accepted (decision 0047, 2026-09-04)/partial (HDCV0-023..029, HDCV0-041)
@@ -834,41 +842,41 @@ accepted policy and is outside this profile.
 
 ### Build, offline, and receipt contracts
 
-- `HDCV0-033`: The candidate snapshot MUST be created from the frozen manifest outside the repository,
+- `HDCV0-033`: (retired 2026-11-11 by V1-4828 with the test-only site build; body kept as history) The candidate snapshot MUST be created from the frozen manifest outside the repository,
 without symlinks, then receive only the declared plan operations. Corvint MUST re-hash every consumed
 source before configuration load, before build, and after build. Any difference yields
 `STALE_SOURCE`, discards build qualification, and leaves the repository untouched.
 
-- `HDCV0-034`: The build argv is an argument vector, never a shell string: the exact pinned MkDocs
+- `HDCV0-034`: (retired 2026-11-11 by V1-4828 with the test-only site build; body kept as history) The build argv is an argument vector, never a shell string: the exact pinned MkDocs
 entry point, `build`, `--strict`, `--clean`, `--config-file`, the isolated copied config, `--site-dir`,
 and the fresh isolated site root. Corvint MUST set an explicit working directory and MUST reject
 configuration or child behavior that writes outside allowed output/temp roots.
 
-- `HDCV0-035`: Build environment is constructed from an allowlist, not inherited wholesale. It MUST
+- `HDCV0-035`: (retired 2026-11-11 by V1-4828 with the test-only site build; body kept as history) Build environment is constructed from an allowlist, not inherited wholesale. It MUST
 use isolated home/temp/XDG/cache roots, disable Python user site and bytecode writes, disable package
 indexes, set deterministic locale/timezone where supported, and omit credentials, tokens, SSH
 agents, cloud variables, proxy variables, and repository-external plugin paths. Environment
 sanitization is not network-denial evidence.
 
-- `HDCV0-036`: One aggregate deadline covers identity probe, config authority load, candidate copy,
+- `HDCV0-036`: (retired 2026-11-11 by V1-4828 with the test-only site build; body kept as history) One aggregate deadline covers identity probe, config authority load, candidate copy,
 and build. On cancellation, timeout, limit breach, or ordinary child return, Corvint MUST close pipes,
 terminate the entire verified process group, reap descendants, and prove cleanup with bounded
 observation. An OS implementation that can kill only the direct child is `UNSUPPORTED` for P0
 execution.
 
-- `HDCV0-037`: Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST also prove
+- `HDCV0-037`: (retired 2026-11-11 by V1-4828 with the test-only site build; body kept as history) Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST also prove
 the invoked environment pin, non-truncated logs, unchanged inputs, fresh bounded site root, at least
 one generated regular file including the expected entry page, no output escape/symlink/special file,
 and a complete output manifest. A fake or early-exiting command cannot pass.
 
-- `HDCV0-038`: `OFFLINE_QUALIFIED=PASS` requires an independently identified external network-denial
+- `HDCV0-038`: (retired 2026-11-11 by V1-4828 with the test-only site build; body kept as history) `OFFLINE_QUALIFIED=PASS` requires an independently identified external network-denial
 harness covering the complete config-load/build process, a PASS receipt from that harness, no
 forbidden fetch intent, and a bounded generated-site scan with no unapproved fetch-bearing remote
 reference. Config inspection, removed proxy variables, a local build, or strict exit zero alone
 produces `NOT_OBSERVED` or `UNKNOWN`, never PASS. The Docker execution capsule is not that external
 observer and always produces `NOT_OBSERVED` for the offline axis.
 
-- `HDCV0-039`: If executable JavaScript, custom templates, plugins, hooks, or extensions can construct
+- `HDCV0-039`: (retired 2026-11-11 by V1-4828 with the test-only site build; body kept as history) If executable JavaScript, custom templates, plugins, hooks, or extensions can construct
 runtime network requests beyond the static scanner's proof boundary, the receipt MUST state
 `UNKNOWN` unless the external observer covers a local-site runtime exercise. Ordinary external
 hyperlinks and `site_url` canonical links remain enumerated but do not by themselves fail the
@@ -1022,9 +1030,6 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 |---|---|---:|---|
 | `absence-unproven` | `internal/doccompiler/admittedplan.go:303@7b2dad06` | 1 | "index carries no tracked tree to prove <value> absent" |
 | `ambiguous-nav-owner` | `internal/doccompiler/plan.go:268@298c094e` | 1 | "config contains duplicate top-level nav keys" |
-| `build-encoding-failed` | `internal/doccompiler/build.go:411` | 1 | "cannot encode build result" |
-| `build-output-too-large` | `internal/doccompiler/build.go:364` | 1 | "build output exceeds its bounds" |
-| `byte-patch-digest-mismatch` | `internal/doccompiler/build.go:430` | 1 | "byte patch does not bind its original and replacement bytes" |
 | `canonical-json-duplicate-key` | `internal/doccompiler/canonical.go:73` | 1 | "object key <value> is duplicated" |
 | `canonical-json-invalid-utf8` | `internal/doccompiler/canonical.go:21` | 1 | "canonical JSON is not valid UTF-8" |
 | `canonical-json-missing-final-lf` | `internal/doccompiler/canonical.go:24` | 1 | "canonical JSON does not end with one LF" |
@@ -1039,8 +1044,6 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `command-output-too-large` | `internal/doccompiler/process.go:89` | 1 | "command output exceeds its stdout or stderr byte limit" |
 | `command-start-failed` | `internal/doccompiler/process.go:84` | 1 | "cannot start pinned command" |
 | `command-timeout` | `internal/doccompiler/process.go:92` | 1 | "command exceeded its deadline" |
-| `corpus-too-large` | `internal/doccompiler/build.go:255` | 2 | "staged corpus exceeds its byte limit" |
-| `corpus-unavailable` | `internal/doccompiler/build.go:244` | 3 | "cannot read staged document target" |
 | `documentation-limit-exceeded` | `internal/doccompiler/draft.go:248@9fd0f2ff` | 5 | "draft exceeds the DraftMaxBytes limit of <value> bytes (64 KiB): observed <value> bytes" |
 | `duplicate-claim` | `internal/doccompiler/plan.go:161@e2c46350` | 1 | "claim ID is duplicated: <value>" |
 | `duplicate-clause` | `internal/doccompiler/admission.go:115` | 2 | "clause ID is duplicated: <value>" |
@@ -1048,19 +1051,15 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `duplicate-nav-entry` | `internal/doccompiler/plan.go:198@e7ecb0af` | 1 | "nav path is duplicated: <value>" |
 | `duplicate-operation` | `internal/doccompiler/admittedplan.go:182@c5c36f25` | 2 | "operation ID is duplicated: <value>" |
 | `environment-inventory-invalid` | `internal/doccompiler/discover.go:154` | 1 | "pinned Python returned an invalid environment inventory" |
-| `environment-untrusted` | `internal/doccompiler/build.go:158` | 3 | "a project-owned environment trust attestation is required" |
-| `false-strict-pass` | `internal/doccompiler/build.go:391` | 1 | "mkdocs exited zero without producing index.html" |
+| `environment-untrusted` | `internal/doccompiler/discover.go:453@3823605e` | 3 | "a project-owned environment trust attestation is required" |
 | `file-too-large` | `internal/doccompiler/paths.go:136@3d65c311` | 1 | "<value> exceeds its byte limit" |
 | `file-unavailable` | `internal/doccompiler/paths.go:78@41a960a6` | 5 | "cannot inspect <value>" |
 | `immutable-evidence-unavailable` | `internal/doccompiler/plan.go:171@8c6af7e5` | 4 | "experimental planning cannot qualify <value> claim <value> without immutable evidence and authority verification" |
 | `invalid-build-evidence` | `internal/doccompiler/receipt.go:96` | 1 | "passing strict build lacks bounded output evidence" |
-| `invalid-build-output` | `internal/doccompiler/build.go:354` | 4 | "cannot inspect build output" |
 | `invalid-build-status` | `internal/doccompiler/receipt.go:89` | 1 | "BUILD_STRICT status is invalid" |
-| `invalid-byte-patch` | `internal/doccompiler/build.go:425` | 1 | "byte patch range is outside its target" |
 | `invalid-claim-status` | `internal/doccompiler/plan.go:165@46e95746` | 1 | "claim <value> has an invalid status" |
 | `invalid-claim` | `internal/doccompiler/plan.go:158@5f540871` | 1 | "claim ID and text are required" |
 | `invalid-clause` | `internal/doccompiler/admission.go:126` | 5 | "clause ID must be 1..<value> bytes of UTF-8 without whitespace, controls, or format characters" |
-| `invalid-corpus-entry` | `internal/doccompiler/build.go:294` | 1 | "staged corpus contains a non-file: <value>" |
 | `invalid-docs-dir` | `internal/doccompiler/plan.go:30@cccfd84c` | 1 | "docs_dir is not contained" |
 | `invalid-document-path` | `internal/doccompiler/plan.go:93@3515780d` | 1 | "document proposal must be Markdown: <value>" |
 | `invalid-environment` | `internal/doccompiler/plan.go:23@f31d881d` | 1 | "discovery environment is incomplete" |
@@ -1069,7 +1068,6 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `invalid-offline-evidence` | `internal/doccompiler/receipt.go:100` | 1 | "offline PASS is unavailable without a concrete build-bound external observer" |
 | `invalid-offline-status` | `internal/doccompiler/receipt.go:92` | 1 | "offline qualification is invalid" |
 | `invalid-operation` | `internal/doccompiler/admittedplan.go:179@3a80561f` | 4 | "operation ID must be 1..<value> bytes of UTF-8 without whitespace or controls" |
-| `invalid-output-parent` | `internal/doccompiler/build.go:183` | 3 | "cannot resolve output parent" |
 | `invalid-path` | `internal/doccompiler/paths.go:33` | 1 | "empty path" |
 | `invalid-project-root` | `internal/doccompiler/paths.go:14` | 4 | "project root is required" |
 | `invalid-receipt-digest` | `internal/doccompiler/receipt.go:103` | 1 | "receipt plan or config digest is invalid" |
@@ -1080,7 +1078,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `invalid-tool` | `internal/doccompiler/paths.go:177@86155ef1` | 1 | "<value> does not resolve to a regular file" |
 | `invalid-toolchain-inventory` | `internal/doccompiler/receipt.go:112` | 1 | "distribution count does not match inventory" |
 | `invalid-toolchain-pin` | `internal/doccompiler/receipt.go:106` | 2 | "receipt lacks an exact project lock and environment digest" |
-| `isolation-failed` | `internal/doccompiler/build.go:69@79813716` | 8 | "cannot create staged corpus root" |
+| `isolation-failed` | `internal/doccompiler/discover.go:131@a34c4dc7` | 2 | "cannot create discovery state root" |
 | `markdown-pin-mismatch` | `internal/doccompiler/discover.go:173` | 1 | "expected Python-Markdown <value>, found <value>" |
 | `material-pin-mismatch` | `internal/doccompiler/discover.go:170` | 1 | "expected Material <value>, found <value>" |
 | `material-version-unknown` | `internal/doccompiler/discover.go:161` | 1 | "mkdocs-material is absent from the pinned environment inventory" |
@@ -1097,33 +1095,23 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `mkdocs-version-mismatch` | `internal/doccompiler/discover.go:164` | 1 | "mkdocs executable and environment inventory disagree" |
 | `mkdocs-version-unknown` | `internal/doccompiler/discover.go:143` | 1 | "pinned mkdocs did not report an exact version" |
 | `nav-authority-required` | `internal/doccompiler/admittedplan.go:530@5f65f0b6` | 1 | "edit_nav <value> needs the HDCV0-030 configuration authority snapshot" |
-| `nav-candidate-mismatch` | `internal/doccompiler/build.go:110` | 1 | "MkDocs authority did not load the exact proposed nav" |
-| `offline-asset-scan-failed` | `internal/doccompiler/build.go:443` | 2 | "cannot inspect generated output" |
-| `offline-observer-required` | `internal/doccompiler/build.go:420` | 1 | "offline qualification requires an external observer around the complete build process" |
-| `output-inside-project` | `internal/doccompiler/build.go:190` | 1 | "output parent must be outside the project" |
 | `overlapping-operation` | `internal/doccompiler/admittedplan.go:190@4a3e1802` | 2 | "more than one operation targets <value>" |
-| `path-escape` | `internal/doccompiler/build.go:281@3289850e` | 7 | "cannot resolve corpus path" |
-| `plan-digest-mismatch` | `internal/doccompiler/build.go:45` | 1 | "patch plan bytes do not match their digest" |
+| `path-escape` | `internal/doccompiler/paths.go:36@cc4a8392` | 5 | "absolute path is not allowed" |
 | `plan-encoding-failed` | `internal/doccompiler/plan.go:415` | 1 | "cannot encode patch plan" |
-| `plan-environment-mismatch` | `internal/doccompiler/build.go:41` | 1 | "patch plan does not bind the discovered config" |
 | `plan-environment-unsupported` | `internal/doccompiler/admittedplan.go:519@8dacdc04` | 1 | "only the plan-only environment variant is admitted" |
 | `plan-limit-exceeded` | `internal/doccompiler/admittedplan.go:127@f159ccd3` | 3 | "more than <value> operations" |
 | `plan-not-reproducible` | `internal/doccompiler/admittedplan.go:509@a654944b` | 1 | "plan or proposal patch differs from its admitted recompilation" |
 | `plan-profile` | `internal/doccompiler/admittedplan.go:516@3019ed73` | 1 | "plan profile must be <value>" |
 | `plan-snapshot-unsupported` | `internal/doccompiler/admittedplan.go:522@1b2eca3d` | 1 | "a plan-only configuration snapshot is <value>" |
 | `plan-unknown-field` | `internal/doccompiler/admittedplan.go:489@9850c241` | 1 | "plan is not the closed <value> shape: <value>" |
-| `process-containment-unsupported` | `internal/doccompiler/build.go:32` | 1 | "<value>" |
-| `profile-unqualified` | `internal/doccompiler/build.go:35` | 1 | "Material P0 profile is not qualified: <value>" |
 | `project-lock-pin-mismatch` | `internal/doccompiler/discover.go:99` | 1 | "project-owned lock does not match its expected SHA-256" |
 | `project-lock-pin-required` | `internal/doccompiler/discover.go:85` | 1 | "an exact project-owned lock path and SHA-256 are required" |
-| `proposal-digest-mismatch` | `internal/doccompiler/build.go:252` | 1 | "document byte patch changed after planning: <value>" |
 | `pymdown-pin-mismatch` | `internal/doccompiler/discover.go:176` | 1 | "expected PyMdown Extensions <value>, found <value>" |
 | `receipt-encoding-failed` | `internal/doccompiler/receipt.go:75` | 1 | "cannot encode canonical receipt" |
 | `receipt-input-invalid` | `internal/doccompiler/receipt.go:37` | 1 | "environment and plan must be closed before receipt creation" |
 | `stale-documentation-draft` | `internal/doccompiler/draft.go:958@4090f21c` | 1 | "draft differs from original-source and policy rederivation" |
 | `stale-source` | `internal/doccompiler/admittedplan.go:498@9a12a50a` | 4 | "plan revision <value> is not the index revision" |
-| `stale-toolchain` | `internal/doccompiler/paths.go:199@08aa9ed3` | 1 | "<value> no longer matches its pin" |
-| `symlink-rejected` | `internal/doccompiler/build.go:288` | 3 | "staged corpus contains a symlink: <value>" |
+| `symlink-rejected` | `internal/doccompiler/paths.go:81@940c5291` | 2 | "<value> traverses a symlink" |
 | `target-conflict` | `internal/doccompiler/admittedplan.go:321@64b50e9f` | 2 | "target <value> is under the tracked file <value>" |
 | `target-unverified` | `internal/doccompiler/admittedplan.go:295@0222c3cb` | 1 | "target <value> is not a verified regular text blob" |
 | `tool-not-executable` | `internal/doccompiler/paths.go:161@0f40a530` | 1 | "<value> is not executable" |
@@ -1137,6 +1125,8 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `unsupported-documentation-source` | `internal/doccompiler/draft.go:195@ef17930c` | 16 | "package must name one repository-relative module directory" |
 | `unsupported-supported-claim` | `internal/doccompiler/plan.go:168@e67f76d8` | 1 | "SUPPORTED claim <value> has no evidence" |
 | `version-pins-required` | `internal/doccompiler/discover.go:88` | 1 | "exact MkDocs, Material, Python-Markdown, and PyMdown Extensions versions are required" |
+
+V1-4828 (2026-11-11) removed the test-only site build (`build`, its corpus staging, site validation, offline asset scan and descendant-containment gate). The codes only it emitted left the closed set: `build-encoding-failed`, `build-output-too-large`, `byte-patch-digest-mismatch`, `corpus-too-large`, `corpus-unavailable`, `false-strict-pass`, `invalid-build-output`, `invalid-byte-patch`, `invalid-corpus-entry`, `invalid-output-parent`, `nav-candidate-mismatch`, `offline-asset-scan-failed`, `offline-observer-required`, `output-inside-project`, `plan-digest-mismatch`, `plan-environment-mismatch`, `process-containment-unsupported`, `profile-unqualified`, `proposal-digest-mismatch`, `stale-toolchain`. Their rows, with the sites they cited, are in b55635262788687c3eea9a08a94378e4ab8856a4.
 
 ## Acceptance scenarios
 
@@ -1253,7 +1243,8 @@ gates.
 | `HDCV0-027..029` (delivered, plan-only) | `internal/doccompiler/admittedplan.go` `CompileAdmittedPlan`, `VerifyAdmittedPlan`, `StaleOperations` (decision 0231) | `TestAdmittedPlanWireIsClosedAndDeterministicHDCV0027` (byte-identical recompilation; plan-only pin, `NOT_RUN` snapshot, source identity, admitted clauses, limits, patch digest, no build/offline member; unknown field, experimental `PatchPlan`, foreign profile, duplicate key, non-canonical bytes, duplicate clause/operation IDs, unordered sources/operations/clause IDs, execution pin, snapshot status, `edit_nav`, `null` set, forged digest, and tampered patch refused), `TestAdmittedPlanOperationsBindPreconditionsHDCV0028` (absent/present preconditions with Git blob and SHA-256, clause IDs, reason, replacement digest; the patch applies with `git apply` to the bound bytes; malformed index revision, more than 2,000 operations, overlap (the same target, a target under another, or a case alias of another), tracked-unpinned, unproven absence, tracked-path conflicts including case aliases of a tracked page or directory, escape, non-Markdown, quoted, or `.git`-component targets in any case, unknown or missing clauses, control, format (zero-width space, bidi override), line-separator, or over-long reasons, and unverified target bytes refused), and `TestAdmittedPlanInsertsWithoutReplacingAndRetainsStaleOperationsHDCV0029` (zero-width insertions; an edited or newly tracked target, or a tracked path under an absent target, is reported stale and the plan is retained unchanged). Each refusal code is a row of the `HDCV0-052` secondary-code table. Not delivered: the execution environment pin and configuration snapshot (`HDCV0-001..010`, `HDCV0-CAP-001..004`) |
 | `HDCV0-030..032` | `internal/doccompiler` plan compiler | not delivered: `HDCV0-030` needs the MkDocs authority snapshot. The experimental `PatchPlan` `edit_nav` byte patch locates `nav` lexically, so it is not delivery. Required: exact nav byte patches, isolated candidate application, and non-mutation fixtures |
 | `HDCV0-041` (delivered) | `internal/doccompiler/canonical.go` `VerifyCanonicalJSON`, `CanonicalJSON` | `TestCanonicalJSONEmitsBytesTheVerifierAccepts` (every emitted document verifies; non-integer, unencodable, and over-8 MiB values refused) and `TestCanonicalJSONVerifierEnforcesHDCV0041` (UTF-8, single value, whitespace, final LF, key order and uniqueness, int64 shortest form, exact escape set, 10,000-level nesting, 8 MiB bound) |
-| `HDCV0-033..040`, `HDCV0-042` | `internal/doccompiler` snapshot, supervisor, manifests, receipts | stale, false-pass, bounds, generated-asset scan, and unconditional refusal of post-hoc offline promotion; concrete denial/cleanup integration remains `NOT_RUN` |
+| `HDCV0-033..039` (retired, V1-4828) | none: the test-only site build (`build`, corpus staging, site validation, generated-asset scan, containment gate) was removed on 2026-11-11 | retired; restore from b55635262788687c3eea9a08a94378e4ab8856a4 |
+| `HDCV0-040`, `HDCV0-042` | `internal/doccompiler` receipts | unconditional refusal of post-hoc offline promotion in receipt construction and verification; concrete denial/cleanup integration remains `NOT_RUN` |
 | `HDCV0-043..049`, `HDCV0-051..052` | `conformance/human-documentation-compiler-v0` and focused Go tests | deterministic runner, stdlib/executable-boundary audit, failure-code vectors, Go test/race/vet/cross-build, independent review |
 | `HDCV0-050` | Corvint contained corpus, then Beamfall shadow adapter | separate Corvint and Beamfall dogfood receipts; both initially absent |
 

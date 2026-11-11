@@ -85,8 +85,13 @@ func TestProductionEntrypointsCannotReachNativeExecution(t *testing.T) {
 		})
 	}
 
+	// V1-4828 retired the site execution sink `build`; keep its absence explicit so it cannot
+	// return without this closed routing test being updated deliberately.
+	if _, exists := functions["func:build"]; exists {
+		t.Fatal("retired site execution sink func:build must not return")
+	}
+
 	sinks := map[string]struct{}{
-		"func:build":      {},
 		"func:discover":   {},
 		"func:runCommand": {},
 	}
