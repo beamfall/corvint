@@ -105,6 +105,20 @@ func flowsInvalid(format string, args ...any) *FlowsRefusal {
 	return &FlowsRefusal{Reason: affected.UnknownFlowsDeclarationInvalid, Supported: FlowsSupportedVersions(), Message: fmt.Sprintf(format, args...)}
 }
 
+// Code is the refusal's command error code: the reason in lower kebab case
+// (flows-schema-unsupported or flows-declaration-invalid).
+func (r *FlowsRefusal) Code() string {
+	return strings.ToLower(strings.ReplaceAll(r.Reason, "_", "-"))
+}
+
+// ReportRefusal is the refusal a flow report gives before writing anything
+// (FSV-V1-005): nil without a declaration or with one this build reads, else
+// the reader's refusal, whose message begins with its reason.
+func ReportRefusal(root string) *FlowsRefusal {
+	_, err := ReadFlowsDeclaration(root)
+	return AsFlowsRefusal(err)
+}
+
 // AsFlowsRefusal returns err as the reader's typed refusal, or nil.
 func AsFlowsRefusal(err error) *FlowsRefusal {
 	var refusal *FlowsRefusal

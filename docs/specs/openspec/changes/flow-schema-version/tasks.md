@@ -17,7 +17,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       fails on a fixture package that opens `.corvint/flows.json` directly.
 - [x] 2.3 `FLOWS_SCHEMA_UNSUPPORTED` in the affected planner. Requirements: FSV-V1-004. Proof: a
       planner test where every E2E test is selected with the reason.
-- [ ] 2.4 Refusal in `corvint flows` reports and in the documentation product's flow reader.
+- [x] 2.4 Refusal in `corvint flows` reports and in the documentation product's flow reader.
       Requirements: FSV-V1-005. Proof: command tests showing a non-zero exit and no partial output.
 - [ ] 2.5 Writer and reader agreement. Requirements: FSV-V1-006. Proof: a round-trip test.
 - [ ] 2.6 Release smoke job with `corvint` installed alone. Requirements: FSV-V1-007. Proof: the job
