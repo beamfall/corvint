@@ -342,7 +342,7 @@ not a silent gap.
 | TBC-V1-009 | `internal/pathbrief/brief_test.go` (`TestNormalizePath`, `TestBuildAbsentPath`, `TestBuildLeavesTheRepositoryAlone`, `TestBuildNoCommitIsAnError`); `cmd/corvint/context_path_test.go` (`TestPathContextParse`, `TestRunPathContextRefusesOutsidePath`) | experimental |
 | TBC-V1-010 | `internal/pathbrief/brief_test.go` (`TestBuildStructureAndInstructions`, `TestBuildOwners`, `TestBuildTests`, `TestBuildTestsLimit`, `TestBuildFlows`, `TestBuildTickets`, `TestBuildRequirementsStates`); `owners_test.go`; `tickets_test.go` | experimental; `flows` reader and completed-ticket source not built |
 | TBC-V1-011 | `internal/pathbrief/brief_test.go` (`TestBuildNeverUsedCorvint`, `TestBuildRequirementsDamagedLinkFile`); `tickets_test.go` (`TestExecTicketsWithoutCompanion`); `cmd/corvint/context_path_test.go` (`TestPathContextNothingRetained`) | experimental |
-| TBC-V1-012 | `internal/pathbrief/export_test.go` (`TestExport`, `TestExportWithoutRecords`, `TestExportRefusals`); `links_test.go`; `brief_test.go` (`TestBuildRequirementsReportedEntry`); the run is in `docs/build-log/2026-11-10-path-brief-builder-and-link-export.md` | experimental |
+| TBC-V1-012 | `internal/pathbrief/export_test.go` (`TestExport`, `TestExportWithoutRecords`, `TestExportRefusals`, `TestExportSkipsDamagedRecords`); `links_test.go`; `brief_test.go` (`TestBuildRequirementsReportedEntry`); the run is in `docs/build-log/2026-11-10-path-brief-builder-and-link-export.md` | experimental |
 | TBC-V1-013 | `docs/build-log/2026-11-10-path-brief-link-coverage-check.md`: 16 of 20 tasks against the owner's bar of 10 | recorded; bar met |
 | TBC-V1-014 | none | `NOT_RUN` |
 
