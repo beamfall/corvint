@@ -24,7 +24,10 @@ type Graph struct {
 	// tokens is derived once from the immutable units, shared by every plan
 	// and selection-input copy of this graph. It is not part of the wire data.
 	tokens [][]pathToken
-	owner  map[string]string
+	// symlinks is the tree's symbolic links (AFP-V0-9965), nil when the
+	// caller gave none. It is a selection input only.
+	symlinks *Symlinks
+	owner    map[string]string
 	// embedded maps each file a unit's production or test embeds list to those units, in
 	// unit order (AFP-V0-600).
 	embedded   map[string][]string

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -78,14 +79,16 @@ func symlinkOperandTree(t *testing.T) string {
 	return root
 }
 
-// V1-5368: a shell unit that lists, or reads a file, through a tracked
-// symbolic link to a directory names the link's path, and the planner
-// matches tokens by path text, so a dirty path below the link's target is
-// matched by no token of the unit. Each row is one change; reads holds the
-// tests whose output that change can alter (the ground truth: `ls` follows a
-// link named as its operand, `ls -R` does not follow a link it meets while
-// recursing), and missed the subset today's plan neither selects nor covers
-// by an unknown. A test in missed is a missed test.
+// V1-5368, AFP-V0-9965: a shell unit that lists, or reads a file, through a
+// tracked symbolic link to a directory names the link's path, and the
+// planner matches tokens by path text, so a dirty path below the link's
+// target is matched by no token of the unit. Each row is one change; reads
+// holds the tests whose output that change can alter (the ground truth: `ls`
+// follows a link named as its operand, `ls -R` does not follow a link it
+// meets while recursing), and missed the subset a plan without the tree's
+// links (the base of V1-5368, and a library caller today) neither selects
+// nor covers by an unknown. A test in missed is a missed test. Given the
+// tree's links (AFP-V0-9965), no row misses a test.
 func TestSymlinkOperand_V15368(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("creating a symbolic link needs a privilege Windows test hosts do not grant")
@@ -138,24 +141,77 @@ func TestSymlinkOperand_V15368(t *testing.T) {
 		{"dangling_link_deleted", "dangle", changeDeleted, []string{"dangle_test.sh"}, nil},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			plan := affected.Select(graph, []string{row.dirty})
-			selected := plan.SelectedTests()
-			var missed []string
-			if plan.Scope != affected.ScopeUnknown {
-				for _, test := range row.reads {
-					if !slices.Contains(selected, test) {
-						missed = append(missed, test)
-					}
-				}
+			if missed := symlinkMisses(t, affected.Select(graph, []string{row.dirty}), row.reads); !slices.Equal(missed, row.missed) {
+				t.Errorf("%s %s without links: missed %v, want %v", row.dirty, row.status, missed, row.missed)
 			}
-			if !slices.Equal(missed, row.missed) {
-				t.Errorf("%s %s: missed %v, want %v (selected %v, unknown %v)", row.dirty, row.status, missed, row.missed, selected, plan.Unknown)
+			plan := affected.Select(graph.WithSymlinks(symlinkOperandLinks(row.dirty, row.status)), []string{row.dirty})
+			if missed := symlinkMisses(t, plan, row.reads); len(missed) != 0 {
+				t.Errorf("%s %s with links: missed %v (unknown %v)", row.dirty, row.status, missed, plan.Unknown)
 			}
-			for _, test := range selected {
-				if !slices.Contains(symlinkOperandTests, test) {
-					t.Errorf("%s: unexpected unit %s selected", row.dirty, test)
-				}
+			// A missed row is covered by the AFP-V0-9965 frontier on its
+			// own dirty path.
+			if len(row.missed) != 0 && !hasUnknown(plan, affected.UnknownLanguageFrontier, affected.FrontierShellSymlinkTarget+":"+row.dirty) {
+				t.Errorf("%s: no %s frontier: %v", row.dirty, affected.FrontierShellSymlinkTarget, plan.Unknown)
 			}
 		})
 	}
+	// A list that could not be read covers every row.
+	for _, dirty := range []string{"real/a.sh", "docs/elsewhere.md"} {
+		plan := affected.Select(graph.WithSymlinks(affected.Symlinks{}), []string{dirty})
+		if !hasUnknown(plan, affected.UnknownLanguageFrontier, affected.FrontierShellSymlinkInventoryUnknown) {
+			t.Errorf("%s with an unlisted tree: %v", dirty, plan.Unknown)
+		}
+	}
+	// A path no link reaches gains no frontier: the rule is not a blanket
+	// UNKNOWN.
+	plan := affected.Select(graph.WithSymlinks(symlinkOperandLinks("", "")), []string{"listed/a.sh"})
+	for _, entry := range plan.Unknown {
+		if entry.Reason == affected.UnknownLanguageFrontier && strings.HasPrefix(entry.Detail, "shell:symlink") {
+			t.Errorf("listed/a.sh, reached by no link: %v", plan.Unknown)
+		}
+	}
+}
+
+// symlinkMisses returns the tests of reads that plan neither selects nor
+// covers by an UNKNOWN scope.
+func symlinkMisses(t *testing.T, plan affected.Plan, reads []string) []string {
+	t.Helper()
+	selected := plan.SelectedTests()
+	for _, test := range selected {
+		if !slices.Contains(symlinkOperandTests, test) {
+			t.Errorf("unexpected unit %s selected", test)
+		}
+	}
+	if plan.Scope == affected.ScopeUnknown {
+		return nil
+	}
+	var missed []string
+	for _, test := range reads {
+		if !slices.Contains(selected, test) {
+			missed = append(missed, test)
+		}
+	}
+	return missed
+}
+
+// symlinkOperandLinks is the AFP-V0-9965 list affected.TreeSymlinks reads
+// for symlinkOperandTree and one change: each link with its text joined to
+// its directory, and a dirty link as Changed, absent from Targets when the
+// change deletes it.
+func symlinkOperandLinks(dirty string, status symlinkChange) affected.Symlinks {
+	links := affected.Symlinks{Listed: true, Targets: map[string]string{
+		"link":        "real",
+		"listed/out":  "listed/../ext",
+		"intolisted":  "listed/sub",
+		"dangle":      "missing",
+		"docslink":    "guide",
+		"guide/glink": "guide/../real",
+	}}
+	if _, link := links.Targets[dirty]; link {
+		links.Changed = []string{dirty}
+		if status == changeDeleted {
+			delete(links.Targets, dirty)
+		}
+	}
+	return links
 }
