@@ -13,7 +13,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [x] 2.1 Version parsing and the supported list in `internal/appflows`. Requirements: FSV-V1-001,
       FSV-V1-002. Proof: unit tests for version 0, an unsupported version and malformed profiles;
       the member-list test fails on a fixture that adds a member under version 0.
-- [ ] 2.2 Single reader and the source scan test. Requirements: FSV-V1-003. Proof: the scan test
+- [x] 2.2 Single reader and the source scan test. Requirements: FSV-V1-003. Proof: the scan test
       fails on a fixture package that opens `.corvint/flows.json` directly.
 - [ ] 2.3 `FLOWS_SCHEMA_UNSUPPORTED` in the affected planner. Requirements: FSV-V1-004. Proof: a
       planner test where every E2E test is selected with the reason.

@@ -5,6 +5,10 @@
       "cmd/": "conformance/cli-errors-v0/contract_test.go builds every catalog binary package (contracts[name].pkg), a list derived from the capability catalog rather than a literal (AFP-V0-3011 (3))",
       "internal/": "conformance/cli-errors-v0/contract_test.go builds every catalog binary package (contracts[name].pkg), a list derived from the capability catalog rather than a literal, so the import closures below internal/ are not modelled (AFP-V0-3011 (3))"
     },
+    "internal/appflows/flowsreaderscan": {
+      "cmd/": "internal/appflows/flowsreaderscan/scan_test.go secondFlowsReaders walks cmd/ and reads every non-test .go file outside testdata, so no package but internal/appflows names .corvint/flows.json (FSV-V1-003)",
+      "internal/": "internal/appflows/flowsreaderscan/scan_test.go secondFlowsReaders walks internal/ and reads every non-test .go file outside testdata, so no package but internal/appflows names .corvint/flows.json (FSV-V1-003)"
+    },
     "internal/diagnostic": {
       "cmd/": "internal/diagnostic/gate_test.go treeSources walks cmd/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))",
       "internal/": "internal/diagnostic/gate_test.go treeSources walks internal/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))"
