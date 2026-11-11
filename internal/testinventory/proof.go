@@ -158,9 +158,11 @@ func proveJavaScript(p *proof, runner, root, config string, files map[string]str
 
 // proveManifests proves the package.json manifests in root and every
 // directory above it: for Jest the root's has no jest member, and no script
-// in any of them runs the runner with a flag outside its safe list
-// (scriptFlags), since a script's --testMatch, --config or --root moves the
-// test files the config sets. An unreadable manifest is unproven.
+// in any of them runs the runner with a flag outside its safe list, forwards
+// a flag to it through a package manager, or runs it through a command the
+// reader cannot model (scriptFlags), since a script's --testMatch, --config
+// or --root moves the test files the config sets. An unreadable manifest is
+// unproven.
 func proveManifests(p *proof, runner, root string, files map[string]string, read func(name string, limit int) ([]byte, error)) {
 	for dir := root; ; dir = path.Dir(dir) {
 		manifest := path.Join(dir, packageJSON)
@@ -179,8 +181,8 @@ func proveManifests(p *proof, runner, root string, files map[string]string, read
 				}
 				sort.Strings(names)
 				for _, name := range names {
-					for _, flag := range scriptFlags(runner, members.scripts[name]) {
-						p.add(fmt.Sprintf("%s script %q runs %s with %s", manifest, name, runner, flag))
+					for _, cause := range scriptFlags(runner, members.scripts[name], members.scripts) {
+						p.add(fmt.Sprintf("%s script %q %s", manifest, name, cause))
 					}
 				}
 			}
@@ -198,7 +200,9 @@ func proveManifests(p *proof, runner, root string, files map[string]string, read
 // prefix removed, so --testMatch and --test-match are one flag; a Vitest
 // flag may also be a dotted coverage or sequence option. Every other flag,
 // --testMatch, --testRegex, --dir, --root, --rootDir, --roots, --config and
-// -c among them, is unproven.
+// -c among them, is unproven, and so is Jest's --runTestsByPath, which runs
+// the files it names whatever their names (--findRelatedTests only narrows
+// the configured files).
 var safeScriptFlags = map[string]map[string]bool{
 	testid.Jest: flagSet("-i", "-u", "-b", "-o", "-t", "-w", "-e",
 		"ci", "coverage", "collectcoverage", "collectcoveragefrom", "coverageprovider", "coveragereporters",
@@ -207,7 +211,7 @@ var safeScriptFlags = map[string]map[string]bool{
 		"updatesnapshot", "testtimeout", "logheapusage", "cache", "maxworkers", "onlychanged",
 		"changedsince", "lastcommit", "testnamepattern", "usestderr", "nostacktrace", "errorondeprecated",
 		"expand", "notify", "randomize", "seed", "showseed", "shard", "watchman", "detectleaks", "debug",
-		"findrelatedtests", "runtestsbypath", "testlocationinresults", "workeridlememorylimit",
+		"findrelatedtests", "testlocationinresults", "workeridlememorylimit",
 		"openhandlestimeout", "env", "testenvironment"),
 	testid.Vitest: flagSet("-u", "-w", "-t",
 		"run", "watch", "coverage", "reporter", "outputfile", "silent", "passwithnotests", "ui", "open",
@@ -233,42 +237,257 @@ func flagSet(names ...string) map[string]bool {
 	return set
 }
 
-// scriptFlags returns what makes a package.json script unproven for runner:
-// each flag outside safeScriptFlags it passes the runner, an argument holding
-// a shell expansion (it may expand to a flag), and for Vitest a bench or
-// typecheck command. The script is split into commands at shell operators;
-// in each, the runner is the first word whose base name, less a version and
-// a .js, .mjs or .cjs suffix, is the runner (jest, npx jest@29,
-// node_modules/.bin/vitest, jest/bin/jest.js), and the words after it are
-// its arguments. Positional arguments filter the configured files and are
-// allowed.
-func scriptFlags(runner, script string) []string {
+// scriptFlags returns what makes a package.json script unproven for runner,
+// each as the text after `script "name"` in the cause. scripts are the
+// manifest's scripts, which a package-manager run may name. The script is
+// split into commands at shell operators; in each:
+//
+//   - The runner is the first word whose base name, less a version and a
+//     .js, .mjs or .cjs suffix, is the runner (jest, npx jest@29,
+//     node_modules/.bin/vitest, jest/bin/jest.js); each argument after it
+//     that is a flag outside safeScriptFlags or holds a shell expansion (it
+//     may expand to a flag), and for Vitest a bench or typecheck command, is
+//     unproven. Positional arguments filter the configured files and are
+//     allowed.
+//   - A package-manager script run (npm, yarn, pnpm or bun, a concurrently
+//     npm:name word, or npm-run-all, run-s or run-p) that forwards a
+//     "-"-prefixed word is unproven (forwardedFlags), unless the script it
+//     runs is one of scripts that reaches neither the runner nor a package
+//     manager. A run before the runner (yarn jest, npm exec jest --) is
+//     judged on the words before the runner only.
+//   - With neither, a modelled wrapper (scriptWrappers: sh -c,
+//     concurrently, nodemon --exec) is unproven when a word of it that
+//     holds no whitespace mentions the runner (a backslash-escaped word,
+//     say), and any other command that mentions the runner anywhere is a
+//     wrapper the reader cannot model, and is unproven.
+//
+// Every quoted word holding whitespace is also split and scanned again as a
+// script, since a wrapper may run it as a command.
+func scriptFlags(runner, script string, scripts map[string]string) []string {
 	var found []string
+	scanScript(runner, script, scripts, 0, &found)
+	return found
+}
+
+// scriptWrappers are the commands that run a quoted argument as a command
+// or a script.
+var scriptWrappers = flagSet("sh", "bash", "zsh", "dash", "ksh", "concurrently", "nodemon", "cross-env-shell")
+
+// maxScriptDepth bounds how deep scanScript splits quoted words again.
+const maxScriptDepth = 8
+
+func scanScript(runner, script string, scripts map[string]string, depth int, found *[]string) {
+	if depth > maxScriptDepth {
+		*found = append(*found, "runs "+runner+" through quoting nested too deeply")
+		return
+	}
+	spaced := func(word string) bool { return strings.ContainsAny(word, " \t\n\r") }
+	mentions := func(word string) bool { return strings.Contains(strings.ToLower(word), runner) }
+	isRunner := func(word string) bool { return !strings.HasPrefix(word, "-") && runnerWord(word) == runner }
+	isWrapper := func(word string) bool { return scriptWrappers[runnerWord(word)] }
 	for _, words := range shellCommands(script) {
-		at := slices.IndexFunc(words, func(word string) bool { return !strings.HasPrefix(word, "-") && runnerWord(word) == runner })
-		if at < 0 {
+		for _, word := range words {
+			if spaced(word) {
+				scanScript(runner, word, scripts, depth+1, found)
+			}
+		}
+		// A script run before the runner forwards only the words before it;
+		// the runner judges the words after it.
+		run, wrapper := slices.IndexFunc(words, scriptRunWord), slices.IndexFunc(words, isWrapper)
+		at := slices.IndexFunc(words, isRunner)
+		if run >= 0 && (at < 0 || run < at) {
+			end := len(words)
+			if at >= 0 {
+				end = at
+			}
+			*found = append(*found, forwardedFlags(runner, words[run:end], scripts)...)
+		}
+		switch {
+		case at >= 0:
+			*found = append(*found, runnerArgs(runner, words[at+1:])...)
+		case run >= 0:
+		case wrapper >= 0:
+			for _, word := range words[wrapper+1:] {
+				if !spaced(word) && mentions(word) {
+					*found = append(*found, fmt.Sprintf("runs %s through %s with %s", runner, words[wrapper], word))
+				}
+			}
+		case slices.ContainsFunc(words, mentions):
+			*found = append(*found, fmt.Sprintf("runs %s through the unmodelled command %s", runner, words[0]))
+		}
+	}
+}
+
+// runnerArgs judges the arguments a script passes the runner.
+func runnerArgs(runner string, args []string) []string {
+	var found []string
+	positional := 0
+	for _, arg := range args {
+		switch {
+		case strings.ContainsAny(arg, "$`"):
+			found = append(found, "runs "+runner+" with the expansion "+arg)
+		case arg == "--":
+		case strings.HasPrefix(arg, "-"):
+			if !safeScriptFlag(runner, arg) {
+				name, _, _ := strings.Cut(arg, "=")
+				found = append(found, "runs "+runner+" with "+name)
+			}
+		default:
+			if positional == 0 && runner == testid.Vitest && unsafeVitestCommands[arg] {
+				found = append(found, "runs "+runner+" with the "+arg+" command")
+			}
+			positional++
+		}
+	}
+	return found
+}
+
+// packageManagers run a package.json script by name; runAllCommands run
+// several, each argument a script name that may carry its own arguments.
+var (
+	packageManagers = flagSet("npm", "yarn", "pnpm", "bun")
+	runAllCommands  = flagSet("npm-run-all", "run-s", "run-p")
+)
+
+// npmScriptCommands are the npm commands that run a script: the run aliases
+// (the script is the next word) and the ones that name their script.
+var npmScriptCommands = map[string]string{
+	"run": "", "run-script": "", "rum": "", "urn": "",
+	"test": "test", "t": "test", "tst": "test", "start": "start", "stop": "stop", "restart": "restart",
+}
+
+// managerCommands are the yarn, pnpm and bun commands that run no script, so
+// the flags after them are the package manager's own.
+var managerCommands = flagSet("install", "i", "add", "remove", "rm", "uninstall", "un", "ci", "upgrade", "up",
+	"update", "audit", "outdated", "why", "info", "list", "ls", "pack", "publish", "version", "init", "link",
+	"unlink", "config", "cache", "login", "logout", "prune", "dedupe", "import", "licenses", "help")
+
+// scriptRunWord reports a word that starts a package-manager script run: a
+// package manager, a run-all command, or a concurrently "npm:name" word.
+func scriptRunWord(word string) bool {
+	if strings.HasPrefix(word, "-") {
+		return false
+	}
+	name := runnerWord(word)
+	if manager, _, ok := strings.Cut(word, ":"); ok && packageManagers[manager] {
+		return true
+	}
+	return packageManagers[name] || runAllCommands[name]
+}
+
+// forwardedFlags judges a package-manager script run (words from the
+// package manager on): each "-"-prefixed word it forwards to the script is
+// unproven, unless the script is resolved and exempt (exemptScript). npm
+// forwards only the words after "--"; yarn, pnpm and bun forward every word
+// after the script name, which is the first word after the manager (or after
+// run), and is unresolved when a flag precedes it. A run-all command
+// forwards the words inside each quoted script argument, and the words after
+// "--" to every script.
+func forwardedFlags(runner string, words []string, scripts map[string]string) []string {
+	if manager, name, ok := strings.Cut(words[0], ":"); ok && packageManagers[manager] {
+		words = append([]string{manager, "run", name}, words[1:]...)
+	}
+	manager, args := runnerWord(words[0]), words[1:]
+	type run struct {
+		target    string
+		forwarded []string
+	}
+	var runs []run
+	flags := func(words []string) []string {
+		var flags []string
+		for _, word := range words {
+			if strings.HasPrefix(word, "-") && word != "--" {
+				flags = append(flags, word)
+			}
+		}
+		return flags
+	}
+	switch {
+	case runAllCommands[manager]:
+		dash := slices.Index(args, "--")
+		if dash < 0 {
+			dash = len(args)
+		} else {
+			runs = append(runs, run{forwarded: flags(args[dash+1:])})
+		}
+		for _, arg := range args[:dash] {
+			if fields := strings.Fields(arg); len(fields) > 1 && !strings.HasPrefix(arg, "-") {
+				runs = append(runs, run{target: fields[0], forwarded: flags(fields[1:])})
+			}
+		}
+	case manager == "npm":
+		dash := slices.Index(args, "--")
+		if dash < 0 {
+			return nil
+		}
+		target := ""
+		if script, ok := npmScriptCommands[args[0]]; ok && dash > 0 {
+			switch {
+			case script != "" && dash == 1:
+				target = script
+			case script == "" && dash == 2 && !strings.HasPrefix(args[1], "-"):
+				target = args[1]
+			}
+		}
+		runs = append(runs, run{target: target, forwarded: flags(args[dash+1:])})
+	default:
+		at := 0
+		if len(args) > 0 && (args[0] == "run" || args[0] == "run-script") {
+			at = 1
+		}
+		switch {
+		case at >= len(args):
+			return nil
+		case strings.HasPrefix(args[at], "-"):
+			first := slices.IndexFunc(args, func(arg string) bool { return !strings.HasPrefix(arg, "-") })
+			if first < 0 {
+				return nil
+			}
+			runs = append(runs, run{forwarded: flags(args[first+1:])})
+		case at == 0 && managerCommands[args[0]]:
+			return nil
+		default:
+			runs = append(runs, run{target: args[at], forwarded: flags(args[at+1:])})
+		}
+	}
+	var found []string
+	for _, r := range runs {
+		if len(r.forwarded) == 0 || (r.target != "" && exemptScript(runner, r.target, scripts)) {
 			continue
 		}
-		positional := 0
-		for _, arg := range words[at+1:] {
-			switch {
-			case strings.ContainsAny(arg, "$`"):
-				found = append(found, "the expansion "+arg)
-			case arg == "--":
-			case strings.HasPrefix(arg, "-"):
-				if !safeScriptFlag(runner, arg) {
-					name, _, _ := strings.Cut(arg, "=")
-					found = append(found, name)
-				}
-			default:
-				if positional == 0 && runner == testid.Vitest && unsafeVitestCommands[arg] {
-					found = append(found, "the "+arg+" command")
-				}
-				positional++
+		for _, flag := range r.forwarded {
+			name, _, _ := strings.Cut(flag, "=")
+			if r.target == "" {
+				found = append(found, fmt.Sprintf("forwards %s through %s", name, manager))
+			} else {
+				found = append(found, fmt.Sprintf("forwards %s through %s to %q", name, manager, r.target))
 			}
 		}
 	}
 	return found
+}
+
+// exemptScript reports whether forwarded flags cannot reach runner through
+// the script target: it is one of scripts, and no word of it (quoted words
+// split again) mentions the runner or starts a package-manager script run.
+func exemptScript(runner, target string, scripts map[string]string) bool {
+	text, ok := scripts[target]
+	return ok && !reachesRunner(runner, text, 0)
+}
+
+func reachesRunner(runner, script string, depth int) bool {
+	if depth > maxScriptDepth {
+		return true
+	}
+	for _, words := range shellCommands(script) {
+		for _, word := range words {
+			if scriptRunWord(word) || strings.Contains(strings.ToLower(word), runner) ||
+				(strings.ContainsAny(word, " \t\n\r") && reachesRunner(runner, word, depth+1)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func runnerWord(word string) string {
