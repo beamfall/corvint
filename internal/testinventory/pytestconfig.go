@@ -36,8 +36,8 @@ var pytestConfigs = map[string]pytestConfig{
 // declaresPytest reports whether the Python config file name declares
 // pytest: always for pytest.toml, .pytest.toml, pytest.ini and .pytest.ini;
 // for pyproject.toml a table or key under tool.pytest (tool.pytest.ini_options
-// or the pytest 9 native tool.pytest), or any "pytest" text when the reader
-// cannot scan the file; for tox.ini and setup.cfg the pytest section, or an
+// or the pytest 9 native tool.pytest), or any "pytest" text or an escaped key
+// when the reader cannot scan the file; for tox.ini and setup.cfg the pytest section, or an
 // indented line holding its header, which provePytest then refuses. A read
 // that fails declares nothing.
 func declaresPytest(name string, read func(name string, limit int) ([]byte, error)) bool {
@@ -55,7 +55,8 @@ func declaresPytest(name string, read func(name string, limit int) ([]byte, erro
 	if config.toml {
 		doc, cause := scanTOML(data)
 		if cause != "" {
-			return bytes.Contains(data, []byte("pytest"))
+			// An escaped key may spell tool."pytest" without the text.
+			return bytes.Contains(data, []byte("pytest")) || cause == tomlKeyEscape
 		}
 		atOrUnder := func(full []string) bool {
 			return len(full) >= len(pyprojectNative) && slices.Equal(full[:len(pyprojectNative)], pyprojectNative)
@@ -133,8 +134,9 @@ func provePytestKey(p *proof, prefix, key string) {
 
 // provePytestTOML proves a TOML pytest config from its scanned keys: every
 // key under the pytest table, at any indentation, bare, quoted or dotted.
-// A file the scanner cannot read, an escaped key, or a pytest table set
-// inline is unproven. In pytest.toml a top-level key counts as a pytest key
+// A file the scanner cannot read (one starting with a UTF-8 byte order mark
+// among them), an escaped key, or a pytest table set inline is unproven; a
+// table below the pytest table counts as setting the key it names. In pytest.toml a top-level key counts as a pytest key
 // too (fail closed).
 func provePytestTOML(p *proof, prefix, base string, data []byte) {
 	doc, cause := scanTOML(data)
@@ -142,6 +144,13 @@ func provePytestTOML(p *proof, prefix, base string, data []byte) {
 		p.add(prefix + cause)
 		p.docs = true
 		return
+	}
+	// A table below the pytest table sets the option it names to a table
+	// (pytest takes its text), even with no key under it.
+	for _, table := range doc.tables {
+		if key, whole := pytestTOMLKey(base, tomlEntry{path: table}); !whole {
+			provePytestKey(p, prefix, key)
+		}
 	}
 	for _, entry := range doc.entries {
 		key, whole := pytestTOMLKey(base, entry)
@@ -262,6 +271,9 @@ type tomlEntry struct {
 	strings []string
 	raw     string
 }
+
+// tomlKeyEscape is scanTOML's cause for an escape in a quoted key.
+const tomlKeyEscape = "an escape in a TOML key"
 
 // maxTOMLDepth bounds array and inline table nesting.
 const maxTOMLDepth = 64
@@ -400,7 +412,7 @@ func (s *tomlScanner) key() []string {
 			}
 			part := s.src[s.i+1 : s.i+1+end]
 			if c == '"' && strings.Contains(part, `\`) {
-				s.cause = "an escape in a TOML key"
+				s.cause = tomlKeyEscape
 				return nil
 			}
 			parts = append(parts, part)

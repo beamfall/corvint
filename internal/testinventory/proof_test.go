@@ -67,11 +67,7 @@ func listedInventory(t *testing.T, tree MapTree) string {
 // naming why. The first five cases are the custom patterns the old scan
 // caught; every later one fails on 45152cea1.
 func TestTIVV1008UnprovenConfigFailsClosed(t *testing.T) {
-	cases := []struct {
-		name, key, added string
-		causes           []string
-		tree             MapTree
-	}{
+	assertUnproven(t, []unprovenCase{
 		{"vitest include", "vitest@.", "src/b.check.ts", []string{"sets include"}, MapTree{
 			"vitest.config.ts": "export default { test: { include: ['src/**/*.check.ts'] } }\n",
 			"src/a.check.ts":   "test('a', () => {})\n", "src/lib.ts": "export const x = 1\n",
@@ -239,7 +235,144 @@ func TestTIVV1008UnprovenConfigFailsClosed(t *testing.T) {
 			"package.json":     `{"scripts": {"test": "vitest --mode staging"}}`,
 			"src/a.check.ts":   "test('a', () => {})\n",
 		}},
+	})
+}
+
+// TIV-V1-008, V1-5427: a package.json script that reaches Jest or Vitest
+// through a package-manager run forwarding a flag, inside a quoted wrapper
+// with a pattern or config flag, through a wrapper the reader cannot model,
+// or with Jest's --runTestsByPath leaves the instance unproven. Every case
+// fails on 42b0bd8a0.
+func TestTIVV1008ScriptRunsFailClosed(t *testing.T) {
+	jest := func(scripts string) MapTree {
+		return MapTree{
+			"jest.config.js": "module.exports = {}\n",
+			"package.json":   `{"scripts": {` + scripts + `}}`,
+			"src/a.check.js": "test('a', () => {})\n",
+		}
 	}
+	vitest := func(scripts string) MapTree {
+		return MapTree{
+			"vitest.config.ts": "export default {}\n",
+			"package.json":     `{"scripts": {` + scripts + `}}`,
+			"src/a.check.ts":   "test('a', () => {})\n",
+		}
+	}
+	assertUnproven(t, []unprovenCase{
+		{"npm run forwarding --testMatch", "jest@.", "src/b.check.js",
+			[]string{`script "test:ci" forwards --testMatch through npm to "test"`},
+			jest(`"test": "jest", "test:ci": "npm run test -- --testMatch '**/*.int.js'"`)},
+		{"npm test forwarding --config", "jest@.", "src/b.check.js",
+			[]string{`script "ci" forwards --config through npm to "test"`},
+			jest(`"test": "jest", "ci": "npm test -- --config jest.ci.js"`)},
+		{"yarn script forwarding --config", "jest@.", "src/b.check.js",
+			[]string{`script "ci" forwards --config through yarn to "test"`},
+			jest(`"test": "jest", "ci": "yarn test --config jest.ci.js"`)},
+		{"pnpm script forwarding --config", "vitest@.", "src/b.check.ts",
+			[]string{`script "ci" forwards --config through pnpm to "test"`},
+			vitest(`"test": "vitest run", "ci": "pnpm test --config vitest.ci.ts"`)},
+		{"pnpm run forwarding --dir after an env assignment", "vitest@.", "src/b.check.ts",
+			[]string{`script "ci" forwards --dir through pnpm to "test"`},
+			vitest(`"test": "vitest run", "ci": "cross-env CI=1 pnpm run test -- --dir src"`)},
+		{"package manager flag before the script", "vitest@.", "src/b.check.ts",
+			[]string{`script "ci" forwards --root through pnpm`},
+			vitest(`"test": "vitest run", "ci": "pnpm --filter web test --root src"`)},
+		{"forwarding to a script that runs a package manager", "jest@.", "src/b.check.js",
+			[]string{`script "ci" forwards --testRegex through yarn to "unit"`},
+			jest(`"test": "jest", "unit": "cross-env CI=1 yarn test", "ci": "yarn unit --testRegex x"`)},
+		{"sh -c", "jest@.", "src/b.check.js",
+			[]string{`script "ci" runs jest with --config`},
+			jest(`"ci": "sh -c \"jest --config ci.js\""`)},
+		{"bash -c", "vitest@.", "src/b.check.ts",
+			[]string{`script "ci" runs vitest with --root`},
+			vitest(`"ci": "bash -c 'vitest run --root web'"`)},
+		{"concurrently", "jest@.", "src/b.check.js",
+			[]string{`script "dev" runs jest with --config`},
+			jest(`"dev": "concurrently \"jest --config a.js\" \"vitest --dir b\""`)},
+		{"concurrently after a bare runner word", "jest@.", "src/b.check.js",
+			[]string{`script "dev" runs jest with --testMatch`},
+			jest(`"dev": "concurrently jest \"jest --testMatch x\""`)},
+		{"concurrently npm: shorthand", "jest@.", "src/b.check.js",
+			[]string{`script "dev" forwards --config through npm to "test"`},
+			jest(`"test": "jest", "dev": "concurrently \"npm:test -- --config x.js\""`)},
+		{"npm-run-all script arguments", "jest@.", "src/b.check.js",
+			[]string{`script "all" forwards --config through npm-run-all to "test"`},
+			jest(`"test": "jest", "all": "npm-run-all \"test -- --config x.js\""`)},
+		{"nodemon --exec", "vitest@.", "src/b.check.ts",
+			[]string{`script "watch" runs vitest with --dir`},
+			vitest(`"watch": "nodemon --exec \"vitest run --dir src\""`)},
+		{"unmodelled wrapper mentioning the runner", "jest@.", "src/b.check.js",
+			[]string{`script "ci" runs jest through the unmodelled command node`},
+			jest(`"ci": "node -e \"require('jest').run(['--config', 'ci.js'])\""`)},
+		{"escaped word in a wrapper", "jest@.", "src/b.check.js",
+			[]string{`script "ci" runs jest through sh with jest\`},
+			jest(`"ci": "sh -c jest\\ --config=ci.js"`)},
+		{"jest --runTestsByPath", "jest@.", "src/b.check.js",
+			[]string{`script "one" runs jest with --runTestsByPath`},
+			jest(`"one": "jest --runTestsByPath src/a.check.js"`)},
+	})
+}
+
+// TIV-V1-008, V1-5427: pytest configs with a UTF-8 byte order mark, CRLF
+// line ends, literal-string keys, comments inside a multi-line value, a
+// table below the pytest table, or an escaped table name stay unproven when
+// they may move the test files.
+func TestTIVV1008PytestConfigEdgesFailClosed(t *testing.T) {
+	assertUnproven(t, []unprovenCase{
+		{"byte order mark in pyproject.toml", "pytest@.", "tests/check_b.py", []string{"a TOML document the reader cannot scan"}, MapTree{
+			"pyproject.toml":   "\ufeff[tool.pytest.ini_options]\npython_files = \"check_*.py\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"byte order mark in pytest.toml", "pytest@.", "tests/check_b.py", []string{"a TOML document the reader cannot scan"}, MapTree{
+			"pytest.toml":      "\ufeff[pytest]\naddopts = \"-q\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"CRLF pyproject.toml", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[project]\r\nname = \"x\"\r\n\r\n[tool.pytest.ini_options]\r\naddopts = [\r\n  \"-q\",\r\n]\r\npython_files = \"check_*.py\"\r\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"CRLF pytest.ini", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pytest.ini":       "[pytest]\r\naddopts = -q\r\npython_files = check_*.py\r\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"literal-string key", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[tool.pytest.ini_options]\n'python_files' = 'check_*.py'\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"comments inside a multi-line addopts array", "pytest@.", "pkg/calc.py", []string{"addopts --doctest-modules"}, MapTree{
+			"pytest.toml":     "[pytest]\n# options\naddopts = [\n  \"-q\",  # quiet\n  # doctests too\n  \"--doctest-modules\",\n]\n",
+			"tests/test_a.py": "def test_a(): pass\n",
+		}},
+		{"comment inside an INI continuation", "pytest@.", "pkg/calc.py", []string{"addopts --doctest-modules"}, MapTree{
+			"pytest.ini":      "[pytest]\naddopts =\n    -q\n    # doctests too\n    --doctest-modules\n",
+			"tests/test_a.py": "def test_a(): pass\n",
+		}},
+		{"key under a table below ini_options", "pytest@.", "tests/check_b.py", []string{"sets python_files"}, MapTree{
+			"pyproject.toml":   "[tool.pytest.ini_options.python_files]\nx = \"check_*.py\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"empty table below ini_options", "pytest@.", "tests/check_b.py", []string{"sets testpaths"}, MapTree{
+			"pyproject.toml":   "[tool.pytest.ini_options]\naddopts = \"-q\"\n\n[tool.pytest.ini_options.testpaths]\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+		{"escaped quoted table name", "pytest@.", "tests/check_b.py", []string{"an escape in a TOML key"}, MapTree{
+			"pyproject.toml":   "[tool.\"py\\u0074est\".ini_options]\npython_files = \"check_*.py\"\n",
+			"tests/check_a.py": "def test_a(): pass\n",
+		}},
+	})
+}
+
+// unprovenCase is a tree whose instance key the reader leaves unproven:
+// adding the file added, which the record does not bind, makes it
+// unassigned, and the cause names every text in causes.
+type unprovenCase struct {
+	name, key, added string
+	causes           []string
+	tree             MapTree
+}
+
+func assertUnproven(t *testing.T, cases []unprovenCase) {
+	t.Helper()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			tree := MapTree{}
@@ -352,6 +485,11 @@ func TestTIVV1008ProvenDefaultControl(t *testing.T) {
 			"package.json":   `{"scripts": {"test": "jest --ci --coverage --maxWorkers=2 -i --no-cache", "test:watch": "jest --watch src/", "lint": "eslint --ext .js ."}}`,
 			"src/a.test.js":  "test('a', () => {})\n",
 		}},
+		{"jest scripts through package managers and wrappers", "jest@.", "src/lib.js", "src/b.test.js", MapTree{
+			"jest.config.js": "module.exports = {}\n",
+			"package.json":   `{"scripts": {"build": "tsc -p .", "build:watch": "npm run build -- --watch", "dev": "concurrently \"yarn build --watch\" \"jest --watch\"", "ci": "sh -c 'jest --ci --findRelatedTests src/a.test.js'", "test": "jest", "test:all": "npm test", "setup": "npm install --no-audit", "ci:yarn": "yarn jest --ci", "ci:npm": "npm exec jest -- --ci --coverage"}}`,
+			"src/a.test.js":  "test('a', () => {})\n",
+		}},
 		{"vitest safe script flags", "vitest@.", "src/lib.ts", "src/b.test.ts", MapTree{
 			"vitest.config.ts": "export default {}\n",
 			"package.json":     `{"scripts": {"test": "vitest run --coverage.provider=v8 --reporter=dot", "dev": "vitest watch --pool forks"}}`,
@@ -363,6 +501,11 @@ func TestTIVV1008ProvenDefaultControl(t *testing.T) {
 		}},
 		{"pyproject.toml indented, quoted and other tables", "pytest@.", "pkg/calc.py", "tests/test_b.py", MapTree{
 			"pyproject.toml":  "[build-system]\nrequires = [\"hatchling>=1.0\"]\n\n[project]\nname = \"x\"\nauthors = [{ name = \"A\", email = \"a@example.com\" }]\nreleased = 1979-05-27 07:32:00Z\nversion = '1.0'\nlicense = { text = \"Apache-2.0\" }\nreadme = ''''\nraw [tool.pytest.ini_options] \\ text\n'''\ndescription = \"\"\"\npython_files = \"x\"\n\"\"\"\n\n[[tool.hatch.envs]]\nscripts = { test = \"pytest --doctest-modules\" }\n\n  [tool.pytest.ini_options]\n  \"addopts\" = \"-q\"\n  markers = [\n    \"slow\",  # a comment\n  ]\n\n[tool.other]\npython_files = \"check_*.py\"\n",
+			"tests/test_a.py": "def test_a(): pass\n",
+		}},
+		{"CRLF pyproject.toml and pytest.ini", "pytest@.", "pkg/calc.py", "tests/test_b.py", MapTree{
+			"pytest.ini":      "[pytest]\r\naddopts =\r\n    -q\r\n    # quiet\r\n    --strict-markers\r\n",
+			"pyproject.toml":  "[project]\r\nname = \"x\"\r\n\r\n[tool.pytest.ini_options]\r\naddopts = [\r\n  \"-ra\",  # summary\r\n]\r\n",
 			"tests/test_a.py": "def test_a(): pass\n",
 		}},
 		{"tox.ini section header with a comment", "pytest@.", "pkg/calc.py", "tests/test_b.py", MapTree{
