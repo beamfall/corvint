@@ -107,6 +107,8 @@ func seal(p loadedPreregistration, sel revertSelection, set faultSet, setSHA str
 			rec.NonCodeCases++
 			if len(c.Faults) != 1 || c.Faults[0].Operator != "non-code" || !slices.Contains(nonCodeCategories, c.Faults[0].Category) {
 				add("fault-set-invalid", "%s: a non-code case holds one non-code fault in one of %v", c.ID, nonCodeCategories)
+			} else if f := c.Faults[0]; f.Revert != nil || validPath(f.Path) != nil || f.Line <= 0 || f.Before == "" {
+				add("fault-set-invalid", "%s: a non-code fault needs a path, line and recorded bytes", f.ID)
 			}
 		default:
 			add("fault-set-invalid", "%s: kind %q is not revert, mutants or non-code", c.ID, c.Kind)

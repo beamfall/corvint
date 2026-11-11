@@ -322,8 +322,9 @@ func TestSeal_FIH_V1_002_014(t *testing.T) {
 	bad.Cases[31].Faults[0].Operator = "constant-replacement-everywhere"
 	bad.Cases[24].FillsShortfall = false
 	bad.Cases[0], bad.Cases[1] = bad.Cases[1], bad.Cases[0]
+	bad.Cases[len(bad.Cases)-1].Faults[0].Line = 0
 	bad.PreregistrationSHA256 = strings.Repeat("0", 64)
-	if got := refusals(bad, p); !slices.Equal(got, []string{"preregistration-changed", "mutants-per-pr", "operator-not-registered", "reverts-not-rule", "shortfall-not-filled"}) {
+	if got := refusals(bad, p); !slices.Equal(got, []string{"preregistration-changed", "mutants-per-pr", "operator-not-registered", "fault-set-invalid", "reverts-not-rule", "shortfall-not-filled"}) {
 		t.Fatalf("bad set: %v", got)
 	}
 	// Too few flow-reaching faults in a Playwright set: 12 against 20.
