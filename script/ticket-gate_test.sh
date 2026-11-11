@@ -126,6 +126,8 @@ variant nokey 'del(.identityKey)'
 refused nokey KEY_REQUIRED 'no identityKey' --index "$root/empty.tsv"
 variant numkey '.identityKey = 123'
 refused numkey KEY_MISMATCH 'identityKey is not a string' --index "$root/empty.tsv"
+variant falsekey '.identityKey = false | .labels += ["key:affected.over.c-unindexed-source-path"]'
+refused falsekey KEY_MISMATCH 'identityKey is not a string' --index "$root/empty.tsv"
 variant mismatch '.identityKey = "release.fail.v-corvint-update"'
 refused mismatch KEY_MISMATCH 'key component release' --index "$root/empty.tsv"
 
