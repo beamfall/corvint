@@ -44,20 +44,21 @@ func TestDriverFrontierSiteWitnessNamesEdgeOrReason_AFPV09402(t *testing.T) {
 					continue
 				}
 				sites++
-				if len(witness.Via) == 0 || witness.Via[len(witness.Via)-1] != selection.UnitID {
-					t.Errorf("%s: FRONTIER_SITE witness names no edge ending at the unit: %+v", selection.UnitID, witness)
+				// A site is selected through itself: one edge, the site unit.
+				if len(witness.Via) != 1 || witness.Via[0] != selection.UnitID {
+					t.Errorf("%s: FRONTIER_SITE witness does not name the site as its one edge: %+v", selection.UnitID, witness)
 					continue
 				}
-				if witness.DirtyPath == "" {
-					t.Errorf("%s: FRONTIER_SITE witness names no dirty path: %+v", selection.UnitID, witness)
+				if witness.DirtyPath != dirty {
+					t.Errorf("%s: FRONTIER_SITE witness names dirty path %q, want %q", selection.UnitID, witness.DirtyPath, dirty)
 				}
 				site, found := graph.Unit(witness.Via[0])
 				if !found {
 					t.Errorf("%s: witness edge starts at an unknown unit %q", selection.UnitID, witness.Via[0])
 					continue
 				}
-				if len(site.Frontier) == 0 || slices.Contains(site.Frontier, "") {
-					t.Errorf("%s: frontier site %s carries no reason: %+v", selection.UnitID, site.ID, site)
+				if !slices.Contains(site.Frontier, FrontierDriverComputedInvocation) || slices.Contains(site.Frontier, "") {
+					t.Errorf("%s: frontier site %s does not carry the computed-invocation reason: %+v", selection.UnitID, site.ID, site.Frontier)
 				}
 			}
 			if sites != len(wantSites) {
@@ -70,8 +71,8 @@ func TestDriverFrontierSiteWitnessNamesEdgeOrReason_AFPV09402(t *testing.T) {
 			}
 			// The literal enumerator and the caller reached only through
 			// the sites keep a real edge instead of a frontier claim.
-			if got := selected["driver:make:Makefile#enumerate"]; got.Kind == WitnessFrontierSite || got.Kind == "" {
-				t.Errorf("literal enumerator: witness %+v, want a file-set or dependency edge", got)
+			if got := selected["driver:make:Makefile#enumerate"]; got.Kind != WitnessPathGlobReader || got.Glob == "" || got.DirtyPath != dirty {
+				t.Errorf("literal enumerator: witness %+v, want PATH_GLOB_READER naming its glob and %s", got, dirty)
 			}
 			for _, id := range []string{"driver:make:Makefile#all", "driver:ci:.github/workflows/ci.yml#caller"} {
 				if got := selected[id]; got.Kind != WitnessDependency || len(got.Via) < 2 {
