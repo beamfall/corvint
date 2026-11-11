@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gateselect"
@@ -101,12 +102,24 @@ func inputDecision(ctx context.Context, root, base string) (bool, string) {
 // reads, through the driver's own entry (ASC-V0-9850, V1-5162).
 const readScopesFile = ".corvint/test-read-scopes.json"
 
+// declarationLimit bounds each side of the declaration; a larger one is doubt.
+const declarationLimit = 1 << 20
+
 // driverDeclarationChange compares the declaration's profile and the driver's
 // entry (DIR's list, or its absence) at base and in the worktree. It returns ""
 // when both sides decode under the declaration's strict rules and agree, so an
 // edit confined to other packages' entries cannot move a replay; otherwise it
 // names the change or the doubt, and the caller runs (ASC-V0-9850).
 func driverDeclarationChange(ctx context.Context, root, base, dir string) string {
+	// Ask Git for the size first: run buffers a blob whole, so the limit has
+	// to hold before the read, not after it.
+	size, err := run(ctx, root, "git", "cat-file", "-s", base+":"+readScopesFile)
+	if err != nil {
+		return "the declaration is unreadable at " + base
+	}
+	if n, err := strconv.ParseInt(strings.TrimSpace(size), 10, 64); err != nil || n > declarationLimit {
+		return "the declaration is oversize at " + base
+	}
 	before, err := run(ctx, root, "git", "cat-file", "blob", base+":"+readScopesFile)
 	if err != nil {
 		return "the declaration is unreadable at " + base
@@ -117,6 +130,9 @@ func driverDeclarationChange(ctx context.Context, root, base, dir string) string
 	}
 	if err != nil || !info.Mode().IsRegular() {
 		return "the declaration is not a regular file"
+	}
+	if info.Size() > declarationLimit {
+		return "the declaration is oversize"
 	}
 	after, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(readScopesFile)))
 	if err != nil {
@@ -135,7 +151,7 @@ func compareDriverEntry(before, after []byte, dir string) string {
 	}
 	decode := func(data []byte) (declaration, bool) {
 		var d declaration
-		if len(data) > 1<<20 || jsonv2.UnmarshalRead(bytes.NewReader(data), &d, jsonv2.RejectUnknownMembers(true)) != nil {
+		if len(data) > declarationLimit || jsonv2.UnmarshalRead(bytes.NewReader(data), &d, jsonv2.RejectUnknownMembers(true)) != nil {
 			return d, false
 		}
 		return d, d.Profile == "corvint-test-read-scopes/0" && d.Packages != nil
