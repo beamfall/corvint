@@ -189,22 +189,33 @@ printf '%s\n' "$saved_tsv" > "$test_root/docs/specs/REQUIREMENTS.tsv"
 printf '%s\n' "$saved_alpha" > "$test_root/docs/specs/alpha.md"
 stage
 
-# RDG-V0-9980 (V1-5324): an id cited in a Go file, a Makefile or AGENTS.md that no live spec
-# defines fails, naming the id and its first citing line, unless the frozen baseline lists it;
-# a baseline line that is now defined or no longer cited fails as stale.
+# RDG-V0-9980 (V1-5324): an id cited in a Go file, a Makefile or AGENTS.md that no spec defines
+# fails, naming the id, its first citing line and the three remedies, unless the frozen baseline
+# or the reviewed allowlist lists it; a baseline or allowlist line that is now defined or no longer
+# cited fails as stale, and an allowlist line with no reason fails. A definition in a retired spec
+# counts as defined and is only counted. A cited id ends at its first three-digit group.
 mkdir -p "$test_root/cmd/zeta"
 printf 'package main\n\n// ZETA-V0-001: an undefined requirement.\nfunc main() {}\n' > "$test_root/cmd/zeta/main.go"
 stage
 if out=$(run); then fail "an undefined id cited in a Go file should fail"; fi
 case $out in
-    *"cited in Go code, a Makefile or AGENTS.md"*"ZETA-V0-001 cmd/zeta/main.go:3"*) ;;
-    *) fail "the undefined Go citation should be named, got: $out" ;;
+    *"cited in Go code, a Makefile or AGENTS.md"*"define the requirement"*"fix the citation"*"script/requirement-citations-allowlist.tsv"*"ZETA-V0-001 cmd/zeta/main.go:3"*) ;;
+    *) fail "the undefined Go citation should be named with the three remedies, got: $out" ;;
 esac
 # shellcheck disable=SC2016
 printf 'package main\n\n// ALPHA-V0-001 and `ALPHA-V0-002` are defined; ZETA-V0-0015 has four digits.\nfunc main() {}\n' \
     > "$test_root/cmd/zeta/main.go"
 stage
 out=$(run) || fail "a Go citation of defined ids, and a four-digit id, should pass, got: $out"
+# A range, a suffix and a slash pair read as the first id alone, so nothing is invented from them.
+printf 'package main
+
+// ALPHA-V0-001..003, ALPHA-V0-001-002, ALPHA-V0-001/002 and ALPHA-V0-001-foo.
+func main() {}
+' \
+    > "$test_root/cmd/zeta/main.go"
+stage
+out=$(run) || fail "a range, suffix or slash pair after a defined id should read as that id alone, got: $out"
 
 printf 'gate: ## ZETA-V0-002 builds the thing\n\ttrue\n' > "$test_root/Makefile"
 stage
@@ -245,7 +256,8 @@ case $out in
 esac
 rm "$test_root/script/requirement-citations-undefined.txt"
 
-# A definition in a retired spec is no live definition; a testdata citation is not read.
+# A definition in a retired spec counts as defined and is reported as a count only; a testdata
+# citation is not read.
 # shellcheck disable=SC2016
 printf '# Old\n\nDelivery status: retired\n\n## Requirements\n\n- `OLD-V0-001`: removed behaviour.\n' \
     > "$test_root/docs/specs/old.md"
@@ -253,15 +265,55 @@ printf '# Agents\n\nStill cites OLD-V0-001.\n' > "$test_root/AGENTS.md"
 mkdir -p "$test_root/cmd/zeta/testdata"
 printf 'package fixture\n\n// ZETA-V0-009 is fixture text.\n' > "$test_root/cmd/zeta/testdata/fixture.go"
 stage
-if out=$(run); then fail "an id defined only in a retired spec should fail"; fi
+out=$(run) || fail "an id defined in a retired spec should pass, and testdata should not be read, got: $out"
 case $out in
-    *"OLD-V0-001 AGENTS.md:3"*) ;;
-    *) fail "the retired-only citation should be named, got: $out" ;;
+    *"1 cited id(s) are defined only in a retired spec"*) ;;
+    *) fail "the retired-only citation should be counted, got: $out" ;;
 esac
+
+# The reviewed allowlist: a listed token passes, a line with no reason fails, a line whose token is
+# no longer cited or is now defined fails as stale, and a baseline line for a listed token is stale.
+printf '# Agents\n\nThe digest is SHA-256.\n' > "$test_root/AGENTS.md"
+stage
+if out=$(run); then fail "an unlisted SHA-256 token should fail"; fi
+printf '# reviewed\nSHA-256\thash algorithm name, not a requirement id\n' > "$test_root/script/requirement-citations-allowlist.tsv"
+stage
+out=$(run) || fail "an allowlisted token should pass, got: $out"
+printf '# reviewed\nSHA-256\n' > "$test_root/script/requirement-citations-allowlist.tsv"
+stage
+if out=$(run); then fail "an allowlist line with no reason should fail"; fi
 case $out in
-    *ZETA-V0-009*) fail "a testdata citation was read: $out" ;;
+    *"give no reason"*"script/requirement-citations-allowlist.tsv:2 SHA-256"*) ;;
+    *) fail "the reasonless allowlist line should be named, got: $out" ;;
 esac
-rm -r "$test_root/docs/specs/old.md" "$test_root/AGENTS.md" "$test_root/cmd"
+printf '# reviewed\nSHA-256\t \n' > "$test_root/script/requirement-citations-allowlist.tsv"
+stage
+if out=$(run); then fail "an allowlist line with a blank reason should fail"; fi
+printf '# reviewed\nSHA-256\thash algorithm name, not a requirement id\n' > "$test_root/script/requirement-citations-allowlist.tsv"
+printf 'SHA-256\n' > "$test_root/script/requirement-citations-undefined.txt"
+stage
+if out=$(run); then fail "a baseline line for an allowlisted token should fail as stale"; fi
+case $out in
+    *"requirement-citations-undefined.txt lines are stale"*"SHA-256"*) ;;
+    *) fail "the allowlisted baseline line should be named, got: $out" ;;
+esac
+rm "$test_root/script/requirement-citations-undefined.txt"
+printf '# Agents\n\nNo token here.\n' > "$test_root/AGENTS.md"
+stage
+if out=$(run); then fail "an allowlist line no longer cited should fail as stale"; fi
+case $out in
+    *"requirement-citations-allowlist.tsv lines are stale"*"SHA-256"*) ;;
+    *) fail "the stale allowlist line should be named, got: $out" ;;
+esac
+printf '# reviewed\nALPHA-V0-001\ta defined id is no token\n' > "$test_root/script/requirement-citations-allowlist.tsv"
+printf '# Agents\n\nCites ALPHA-V0-001.\n' > "$test_root/AGENTS.md"
+stage
+if out=$(run); then fail "an allowlist line whose id is defined should fail as stale"; fi
+case $out in
+    *"requirement-citations-allowlist.tsv lines are stale"*"ALPHA-V0-001"*) ;;
+    *) fail "the defined allowlist line should be named, got: $out" ;;
+esac
+rm -r "$test_root/docs/specs/old.md" "$test_root/AGENTS.md" "$test_root/cmd" "$test_root/script/requirement-citations-allowlist.tsv"
 stage
 run > /dev/null || fail "the fixture should pass again once the citations are gone"
 

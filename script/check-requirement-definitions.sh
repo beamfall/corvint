@@ -22,10 +22,15 @@ set -eu
 #
 # Cited-id scan (RDG-V0-9980, V1-5324): every id of the same shape cited in a tracked Go file, a
 # Makefile or AGENTS.md (testdata/, vendor/, docs/build-log/, docs/decisions/ and generated Go
-# files skipped) must have a definition in a live spec, one whose header does not say
-# `Delivery status: retired`. An undefined cited id fails unless it is listed in
-# script/requirement-citations-undefined.txt, a frozen baseline that may only shrink; a listed id
-# that is now defined or no longer cited fails as stale. CEM-CB-* stays exempt, as above.
+# files skipped) must have a definition in some spec. A definition in a retired spec (header
+# `Delivery status: retired`) counts as defined; those ids are only counted, as information. A
+# cited id ends at its first three-digit group. An undefined cited id fails unless it is listed in
+# script/requirement-citations-undefined.txt, a frozen baseline that may only shrink, or in
+# script/requirement-citations-allowlist.tsv, the reviewed `id<TAB>reason` list of tokens that
+# are not requirement ids (a checksum name, a standard, a test fixture id). A baseline line that is
+# defined, no longer cited or allowlisted fails as stale; an allowlist line with no reason fails,
+# and one whose id is defined or no longer cited fails as stale. CEM-CB-* stays exempt, as above.
+# Four-digit ids are outside the id shape, so this scan does not see them.
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -202,12 +207,14 @@ my @new_outside = grep { !$baseline{$_} } sort keys %outside;
 my @stale_baseline = grep { !$outside{$_} } sort keys %baseline;
 
 # RDG-V0-9980: the first citing path:line of every id cited in scope. The id must not continue a
-# longer token on either side, so a four-digit id is never read as its three-digit prefix.
+# longer token on either side, so a four-digit id is never read as its three-digit prefix, and it
+# ends at its first three-digit group: no segment before that group is three or more digits, so
+# `ABC-V0-001..003`, `ABC-V0-001-002` and `ABC-V0-001/002` each read as `ABC-V0-001` alone.
 my %cited;
 for my $file (tracked_citing_files()) {
     my $blob = index_blob($file);
     next if $file =~ /\.go\z/ && $blob =~ m{\A// Code generated .* DO NOT EDIT\.\r?\n};
-    while ($blob =~ /(?<![A-Za-z0-9-])([A-Z][A-Z0-9-]*-[0-9]{3})(?![0-9])/g) {
+    while ($blob =~ /(?<![A-Za-z0-9-])([A-Z][A-Z0-9]*(?:-(?![0-9]{3,}(?![A-Z0-9]))[A-Z0-9]+)*-[0-9]{3})(?![0-9])/g) {
         my $id = $1;
         next if $cited{$id} || $id =~ /^CEM-CB-/;
         my $line_number = 1 + (substr($blob, 0, $-[0]) =~ tr/\n//);
@@ -222,8 +229,26 @@ if (system("git cat-file -e :script/requirement-citations-undefined.txt 2>/dev/n
         $citation_baseline{$row} = 1;
     }
 }
-my @undefined_cited = grep { !$live{$_} && !$citation_baseline{$_} } sort keys %cited;
-my @stale_citation_baseline = grep { $live{$_} || !$cited{$_} } sort keys %citation_baseline;
+# The allowlist names cited tokens that are not requirement ids, each with the reviewed reason.
+my (%allowlist, @reasonless);
+if (system("git cat-file -e :script/requirement-citations-allowlist.tsv 2>/dev/null") == 0) {
+    my $row_number = 0;
+    for my $row (split /^/, index_blob('script/requirement-citations-allowlist.tsv')) {
+        ++$row_number;
+        chomp $row;
+        next if $row =~ /^\s*(?:#|\z)/;
+        my ($id, $reason) = $row =~ /\A([^\t]+)\t(.*)\z/ ? ($1, $2) : ($row, '');
+        if ($reason !~ /\S/) {
+            push @reasonless, "script/requirement-citations-allowlist.tsv:$row_number $id";
+            next;
+        }
+        $allowlist{$id} = 1;
+    }
+}
+my @undefined_cited = grep { !$defined{$_} && !$citation_baseline{$_} && !$allowlist{$_} } sort keys %cited;
+my @stale_citation_baseline = grep { $defined{$_} || !$cited{$_} || $allowlist{$_} } sort keys %citation_baseline;
+my @stale_allowlist = grep { $defined{$_} || !$cited{$_} } sort keys %allowlist;
+my $retired_only = grep { $defined{$_} && !$live{$_} } keys %cited;
 
 my @undefined;
 for my $row (split /^/, index_blob('docs/specs/REQUIREMENTS.tsv')) {
@@ -273,16 +298,32 @@ if (@stale_baseline) {
 }
 if (@undefined_cited) {
     $failed = 1;
-    print STDERR "requirement definitions: these ids are cited in Go code, a Makefile or AGENTS.md but no live spec defines them; "
-        . "define each in its spec's ## Requirements section, or cite the id that is defined (RDG-V0-9980):\n";
+    print STDERR "requirement definitions: these ids are cited in Go code, a Makefile or AGENTS.md but no spec defines them; "
+        . "for each, define the requirement in its spec's ## Requirements section, or fix the citation to the id that is defined, "
+        . "or, only for a token that is not a requirement id, add an `id<TAB>reason` line to "
+        . "script/requirement-citations-allowlist.tsv (RDG-V0-9980):\n";
     print STDERR "  $_ $cited{$_}\n" for @undefined_cited;
 }
 if (@stale_citation_baseline) {
     $failed = 1;
     print STDERR "requirement definitions: these script/requirement-citations-undefined.txt lines are stale, "
-        . "now defined in a live spec or no longer cited; delete them (RDG-V0-9980):\n";
+        . "now defined in a spec, no longer cited or allowlisted; delete them (RDG-V0-9980):\n";
     print STDERR "  $_\n" for @stale_citation_baseline;
 }
+if (@reasonless) {
+    $failed = 1;
+    print STDERR "requirement definitions: these script/requirement-citations-allowlist.tsv lines give no reason; "
+        . "write `id<TAB>reason` saying why the token is not a requirement id (RDG-V0-9980):\n";
+    print STDERR "  $_\n" for @reasonless;
+}
+if (@stale_allowlist) {
+    $failed = 1;
+    print STDERR "requirement definitions: these script/requirement-citations-allowlist.tsv lines are stale, "
+        . "now defined in a spec or no longer cited; delete them (RDG-V0-9980):\n";
+    print STDERR "  $_\n" for @stale_allowlist;
+}
+print "requirement definitions: $retired_only cited id(s) are defined only in a retired spec (RDG-V0-9980, information only)\n"
+    if $retired_only;
 @misshapen = map { $_->[1] } grep { !$defined{$_->[0]} } @misshapen;
 if (@misshapen) {
     $failed = 1;
