@@ -2092,6 +2092,7 @@
       "script/",
       "tools/"
     ],
+    "tools/flows-smoke": [],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
       "Makefile",
