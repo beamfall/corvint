@@ -229,3 +229,72 @@ func TestSymlinksReenter_AFPV09965(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-9965 (fix round 2): the edges of a target that names the repository
+// root. An absolute text that is the tree or the repository with a trailing
+// slash names the root, so it covers every dirty path. A target that reaches
+// the tree's root only under a case fold (`../REPO/c1` beside repo, which a
+// case-insensitive file system opens and EvalSymlinks leaves unnormalised) is
+// read as the root, case-sensitive or not. In a snapshot plan (the tree is
+// not the repository) a target that reaches the repository through its
+// physical path or an alias of it is the repository path it reaches, as a
+// target naming the repository literally is.
+func TestSymlinksRootEdges_AFPV09965(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating a symbolic link needs a privilege Windows test hosts do not grant")
+	}
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not installed")
+	}
+	outer, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	physical := filepath.Join(outer, "phys", "repo")
+	alias := filepath.Join(outer, "alias", "repo")
+	snapshot := filepath.Join(outer, "snap")
+	recordWrite(t, physical, "plain/a.sh", "true\n")
+	recordWrite(t, snapshot, "plain/a.sh", "true\n")
+	if err := os.Symlink(filepath.Join(outer, "phys"), filepath.Join(outer, "alias")); err != nil {
+		t.Fatal(err)
+	}
+	links := map[string]string{
+		"slash_physical": physical + "/",
+		"slash_alias":    alias + "/",
+		"case_rel":       "../REPO/c1",
+		"case_abs":       filepath.Join(outer, "phys", "REPO", "c2"),
+		"repo_physical":  physical + "/s1",
+		"repo_alias":     alias + "/s2",
+	}
+	recordGit(t, physical, "init", "-q")
+	for link, text := range links {
+		for _, tree := range []string{physical, snapshot} {
+			if err := os.Symlink(text, filepath.Join(tree, link)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	recordGit(t, physical, "add", "-A")
+	recordGit(t, physical, "commit", "-q", "-m", "base")
+	base := recordGit(t, physical, "rev-parse", "HEAD")
+	for _, run := range []struct {
+		name, repository, tree string
+		want                   map[string]string
+	}{
+		{"physical", physical, physical, map[string]string{"slash_physical": ".", "slash_alias": ".", "case_rel": ".", "case_abs": "."}},
+		{"alias", alias, alias, map[string]string{"slash_physical": ".", "slash_alias": ".", "case_rel": ".", "case_abs": "."}},
+		{"snapshot", physical, snapshot, map[string]string{"slash_physical": ".", "slash_alias": ".", "repo_physical": "s1", "repo_alias": "s2"}},
+		{"snapshot_alias", alias, snapshot, map[string]string{"slash_physical": ".", "slash_alias": ".", "repo_physical": "s1", "repo_alias": "s2"}},
+	} {
+		listed := TreeSymlinks(context.Background(), git, run.repository, run.tree, base, nil)
+		if !listed.Listed {
+			t.Fatalf("%s: not listed", run.name)
+		}
+		for link, want := range run.want {
+			if got := listed.Targets[link]; got != want {
+				t.Errorf("%s: %s -> %s: target %q, want %q", run.name, link, links[link], got, want)
+			}
+		}
+	}
+}
