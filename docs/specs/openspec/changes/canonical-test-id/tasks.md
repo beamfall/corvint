@@ -2,7 +2,7 @@
 
 Build in this order. Each task names its requirement IDs and the proof that closes it.
 
-- [ ] 1 Create `docs/specs/canonical-test-id-v1.md` with CTI-V1-001 to CTI-V1-012 copied from the
+- [x] 1 Create `docs/specs/canonical-test-id-v1.md` with CTI-V1-001 to CTI-V1-012 copied from the
    spec delta as `(proposed 2026-11-09; delivery not-started)`, and regenerate
    `docs/specs/REQUIREMENTS.tsv`. Requirements: CTI-V1-001 to CTI-V1-012. Proof: the spec toolchain
    check passes; the new rows appear in the generated file.
