@@ -1,18 +1,18 @@
 # Aggregate Local Outcome V0
 
 Owner: repository owner. Proposed build slice: V1-0611. Date: 2026-10-02.
-Intent status: proposed
-Delivery status: experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete
-Retirement note: decision 0594 (2026-11-09) deleted `internal/dogfoodflow`,
-`internal/dogfoodoperation` and `internal/localcompletion`; requirements naming them are retired.
+Intent status: retired 2026-11-11 (decision 0594)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0594 (2026-11-09) deleted `internal/dogfoodflow`, `internal/dogfoodoperation` and `internal/localcompletion` and removed the dogfood finish selector this profile served (item 4); its item 3 removes orphan packages that no kept binary reaches, and V1-5240 deleted `internal/tracerecordrepo`, which held the aggregate candidate, and `internal/tracerepopaths` as unreached code on 2026-11-11 (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Human job: finish a complete explicitly enrolled change whose current-path admission exceeds the
 legacy learning recorder's 200-path limit, retaining all evidence and refusing partial completion.
 
 ## Agent digest
 - Claim: Explicitly enrolled changes can preserve a complete bounded nonlearning outcome after a bound legacy admitted-path-limit refusal.
-- Status: proposed; experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete. Gate A passed the plan only.
-- Exists: legacy 200-path admission and an experimental explicit aggregate candidate with native focused witnesses.
-- Blocked on: remaining native qualification, independent source review, final gates and the held recovery attempt (transport-adapted lane admitted 2026-10-04, unexecuted; owner-widened adapter including gitrun/session.go passed cleanup witnesses; independent-review findings fixed with both adapted verifier binaries pinned; awaiting the owner's go).
+- Status: retired 2026-11-11 (decision 0594) / retired
+- Exists: nothing; the aggregate candidate in `internal/tracerecordrepo` and the dogfood finish selector were deleted (read them at b55635262).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Wire and authority; Publication and restart; Bounds and ownership; Acceptance and traceability.
 
 This slice proposes a separate, bounded **nonlearning** outcome and an explicit keyed Finish
@@ -368,16 +368,8 @@ Planned source paths are prospective, not existing test-symbol evidence. Go **1.
 current qualification toolchain. The two Go 1.24.13 results are historical portable-acceptance and
 structural-refusal compatibility evidence only; they are not current build/CI qualification.
 
-| Oracle | Requirement IDs | Planned witness paths / required observation |
-|---|---|---|
-| activation and trace isolation | 001,002 | cmd/corvint/dogfood_record_test.go; internal/trace/record_test.go; exact bound refusal, trace opener count zero, legacy bytes unchanged |
-| complete policy and receipt | 003..007 | internal/tracerecordrepo/aggregate_outcome_test.go and adapter_test.go; full current-policy parity and independently expected fields |
-| pending restart and terminal reuse | 008..011 | internal/localcompletion lifecycle/storage/Unix tests; actual new-process load/status/event/Finish at every boundary, read-only hashes |
-| writer contention and preservation | 012..016 | internal/dogfoodoperation/lock_test.go; internal/dogfoodflow change/check/worker tests; exact old identity, state-before closure, fault and capacity refusal |
-| physical budget and owned cleanup | 017..019 | internal/cem/gitrun/operation_budget_test.go; internal/contextindex/git_test.go; unchanged Owner tests and actual native RELEASED witnesses |
-| dispatch and predecessor | 020 | cmd/corvint event/portable/worker tests; console/receiptbundle tests; actual original-main predecessor refuses genuine /1 state and legacy /0 still works |
-| source-bound qualification | 021,022 | immutable candidate manifests/raw argv/exit/stdout/stderr, fresh process phase snapshots, independent review, CEM/OCM and native gate receipts |
-| transport-adapted held recovery | 023..026 | cmd/corvint/transport_recovery_test.go TestTransportAdaptedRecoveryNative (removed); internal/localcompletion/transport_recovery_test.go TestTransportRecoveryRequestClosedCanonical (removed), TestTransportRecoveryAdmissionsClosed (removed); refusals with unchanged evidence bytes, pending disagreement, public-check refusal, recorded A/B identities, committed refusal |
+Retired by decision 0594: this table cited code and tests deleted as unreached code.
+Read it at the last tree that held them: `git show b55635262:docs/specs/aggregate-local-outcome-v0.md`.
 
 Mandatory inventory includes: legacy 200 success/201 refusal; short-path aggregate 201/299/512
 success, 513 refusal (amended by `ALO-V0-027`: 513 and 4096 succeed), candidate 4097 refusal; byte exact/+1 independent of capacities; source/total

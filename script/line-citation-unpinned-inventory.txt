@@ -304,7 +304,6 @@ docs/specs/go-live-test-provider-v0.md	internal/liveverify/provider/receipt.go:7
 docs/specs/go-production-kernel-migration-v0.md	conformance/cli-parity-v0/runner.go:176-239
 docs/specs/go-production-kernel-migration-v0.md	conformance/cli-parity-v0/runner.go:99-150
 docs/specs/go-production-kernel-migration-v0.md	internal/contextindex/parse.go:300
-docs/specs/go-production-kernel-migration-v0.md	internal/tracerecordrepo/read.go:82
 docs/specs/harness-authority-relation-v0.md	docs/specs/agent-harness-integration-v0.md:106-107
 docs/specs/harness-authority-relation-v0.md	docs/specs/agent-harness-integration-v0.md:108-110
 docs/specs/harness-authority-relation-v0.md	docs/specs/agent-harness-integration-v0.md:113-114

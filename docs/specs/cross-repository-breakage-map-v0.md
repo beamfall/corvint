@@ -2,17 +2,19 @@
 
 Owner: Russell Lewis
 Date: 2026-09-29
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-11 (decision 0594)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) removed the `breakage` command, and its item 3 removes orphan packages that no kept binary reaches; V1-5240 deleted `internal/breakagemap` as unreached code on 2026-11-11 (b55635262 is the last tree with it). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner-approved six-feature wow slice, native ticket V1-0503,
 `AGENTS.md`, `docs/specs/external-evidence-provider-v1.md`,
 `docs/specs/external-evidence-provider-v2.md`.
 
 ## Agent digest
 - Claim: A selected API maps pinned Go syntax references and original declared provider relationships across explicit local repositories.
-- Status: proposed/experimental
-- Exists: `internal/breakagemap`, public `breakage` CLI dispatch/help and focused tests.
-- Blocked on: Behavioral breakage, adequate test coverage, complete inventory and V1-0417 promotion remain unqualified.
+- Status: retired 2026-11-11 (decision 0594) / retired
+- Exists: nothing; `internal/breakagemap` and the `breakage` command were deleted (read them at b55635262).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Failure modes; Acceptance evidence and rollback.
 
 ## Human-owned intent and user job
