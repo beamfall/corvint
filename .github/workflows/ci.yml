@@ -631,6 +631,7 @@ jobs:
             [ -n "$main" ] && git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null || main=
           fi
           for pair in "tool $CORVINT_PR_TOOL_SOURCE" "shadow $CORVINT_TEST_SHADOW_SOURCE"; do
+            # shellcheck disable=SC2086 # the word split of the fixed NAME VALUE list is the point
             set -- $pair
             use=${2:-}
             if [ -n "$main" ] && [ -n "$use" ] && git merge-base --is-ancestor "$use" "$main" 2> /dev/null; then use=$main; fi
@@ -1079,6 +1080,7 @@ jobs:
             [ -n "$main" ] && git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null || main=
           fi
           for pair in "tool $CORVINT_PR_TOOL_SOURCE" "shadow $CORVINT_TEST_SHADOW_SOURCE"; do
+            # shellcheck disable=SC2086 # the word split of the fixed NAME VALUE list is the point
             set -- $pair
             use=${2:-}
             if [ -n "$main" ] && [ -n "$use" ] && git merge-base --is-ancestor "$use" "$main" 2> /dev/null; then use=$main; fi
@@ -1946,6 +1948,7 @@ jobs:
         run: |
           for s in "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE fetch $TOOL_CAPTURE" "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE build $TOOL_BUILD" \
             "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE fetch $SHADOW_CAPTURE" "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE build $SHADOW_BUILD"; do
+            # shellcheck disable=SC2086 # the word split of the fixed NAME VALUE list is the point
             set -- $s
             if [ "$4" = failure ]; then
               echo "::error title=CI pin unreachable (CIN-V0-002)::$1 $2 failed to $3; every forward row of this run is INCOMPLETE until it is repinned"
