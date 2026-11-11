@@ -16,12 +16,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 func repoRoot(t *testing.T) string {

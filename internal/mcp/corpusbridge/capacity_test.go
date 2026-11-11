@@ -3,7 +3,7 @@ package corpusbridge
 import (
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 func TestDCPV1158BridgeTypesGitCapacityLikeTheCLI(t *testing.T) {

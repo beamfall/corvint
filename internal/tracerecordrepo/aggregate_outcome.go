@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitrun"
 	"reflect"
 	"slices"
 	"sort"

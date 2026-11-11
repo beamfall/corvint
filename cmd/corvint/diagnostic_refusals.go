@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 	"github.com/Beamfall/corvint/internal/diagnostic"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )

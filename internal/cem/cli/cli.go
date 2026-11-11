@@ -16,9 +16,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 type cemFlags struct {

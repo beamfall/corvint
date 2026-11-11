@@ -3204,7 +3204,7 @@
     "closableToday": false,
     "implementation": [
       "internal/tracerecordrepo",
-      "internal/cem/gitrun",
+      "internal/gitrun",
       "internal/contextindex",
       "internal/groupreap",
       "cmd/corvint"

@@ -4731,7 +4731,7 @@ Status: accepted under the owner's standing auto-accept of lane requirements (20
   command and the stable read. This amends the refusal code of `CEM-V1-030`, `CEM-V1-031`
   and `CEM-V1-143`. Retired `cem/0.x` maps and unknown specs still refuse `unsupported-spec`.
 - `CEM-V1-343`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2102) The code
-  `not-a-producer-map` MUST be registered in `internal/cem/cemcode` and named here, so that the
+  `not-a-producer-map` MUST be registered in `internal/cemcode` and named here, so that the
   error-code ownership check owns it. It MUST also be admitted as a dogfood `NOT_PRODUCED` reason
   (`internal/observations`).
 

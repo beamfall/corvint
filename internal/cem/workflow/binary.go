@@ -3,9 +3,9 @@ package workflow
 import (
 	"context"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/verify"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // binaryRows renders each binary group of the prepared patch, in patch order,

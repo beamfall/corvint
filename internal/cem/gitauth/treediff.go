@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // changedEntry is one path whose entry differs between two verified trees.

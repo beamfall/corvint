@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // CEM-PILOT-033: without advisory locks, Lock refuses publish-failed with the

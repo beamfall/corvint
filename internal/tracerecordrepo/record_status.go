@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitrun"
 	"github.com/Beamfall/corvint/internal/trace"
 )
 
