@@ -1396,7 +1396,6 @@
       "internal/worksource/",
       "internal/workspace/"
     ],
-    "internal/docviews": [],
     "internal/execfile": [],
     "internal/extevidence": [
       "examples/evidence-provider/",
