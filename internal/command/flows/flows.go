@@ -534,7 +534,10 @@ in the sidecar as "WAIVED until DATE (now STATE)"; an expired waiver never appli
 --check writes flow-doc-check/0 to stdout and writes nothing: it fails when a
 committed PROVEN claim is no longer PROVEN (unless an unexpired waiver names it) or
 the committed bytes differ from regeneration, and it fails on an unknown or invalid
-anchor; expired_waivers names each expired waiver it found.
+anchor; expired_waivers names each expired waiver it found. On a byte failure,
+byte_detail says whether the page, the sidecar or both differ, lists each claim
+whose state or detail changed (UNKNOWN when the committed sidecar is missing) and
+names the regenerate command. worktree says whether a read input differs from HEAD.
 
 Experimental maintenance (FDM-V0, proposed):
   corvint-docs [--root PATH] flows docs maintain --flows DIR --page FILE --claims FILE

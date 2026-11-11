@@ -123,6 +123,39 @@ type DocCheck struct {
 	// Worktree says whether the worktree differs from HEAD for the inputs the check read; the
 	// answer stays about HEAD (DMF-V1-005). The caller that knows the intents directory sets it.
 	Worktree *docworktree.Status `json:"worktree,omitempty"`
+	// ByteDetail explains a rendered-bytes-differ failure; the bytes stay the authority
+	// (DMF-V1-006).
+	ByteDetail *DocByteDetail `json:"byte_detail,omitempty"`
+}
+
+// Claim-list states of a byte-failure explanation (DMF-V1-006).
+const (
+	DocClaimsKnown   = "KNOWN"
+	DocClaimsUnknown = "UNKNOWN"
+	docClaimAbsent   = "ABSENT"
+)
+
+// DocByteDetail names which committed files differ (page, sidecar or both) and, from the committed
+// and regenerated sidecars, each claim whose state or recorded detail changed. ClaimsState is
+// UNKNOWN, with a reason and no claims, when the committed sidecar is missing or unreadable.
+// Regenerate is the command that rewrites both files; the caller that knows the intents directory
+// and evidence sets it.
+type DocByteDetail struct {
+	Differs     string           `json:"differs"`
+	ClaimsState string           `json:"claims_state"`
+	Reason      string           `json:"reason,omitempty"`
+	Claims      []DocClaimChange `json:"claims"`
+	Regenerate  string           `json:"regenerate,omitempty"`
+}
+
+// DocClaimChange is one claim that changed between the committed and regenerated sidecars: Change
+// is added, removed, state or detail (same state, other recorded members such as the waiver mark
+// or evidence changed). Old and New are states, ABSENT for a missing side.
+type DocClaimChange struct {
+	Claim  string `json:"claim"`
+	Change string `json:"change"`
+	Old    string `json:"old"`
+	New    string `json:"new"`
 }
 
 // DocExpiredWaiver is one waiver that expired and so no longer applies (DMF-V1-001).
@@ -209,11 +242,12 @@ func CheckDocs(ctx context.Context, root string, set IntentSet, o DocOptions, wa
 	if err != nil {
 		return DocCheck{}, err
 	}
-	failures := append(lost, bytesFailure(o.Page, committed.page, page)...)
-	failures = append(failures, bytesFailure(o.Claims, committed.sidecar, claims)...)
+	pageFailure, sidecarFailure := bytesFailure(o.Page, committed.page, page), bytesFailure(o.Claims, committed.sidecar, claims)
+	failures := append(append(lost, pageFailure...), sidecarFailure...)
 	failures = append(failures, b.failures...)
+	detail := byteDetail(len(pageFailure) != 0, len(sidecarFailure) != 0, committed, b.claims)
 	report := DocCheck{Schema: DocCheckSchema, Revision: b.revision, Status: "pass", Failures: failures, Waived: b.waived,
-		ExpiredWaivers: mergeExpired(b.expired, expired), Coverage: b.coverage}
+		ExpiredWaivers: mergeExpired(b.expired, expired), Coverage: b.coverage, ByteDetail: detail}
 	if len(failures) != 0 {
 		report.Status = "fail"
 	}
@@ -809,6 +843,56 @@ func lostProven(c DocClaim, state string, present bool, w DocWaiver, named bool)
 		detail += "; its waiver expired on " + w.Expires
 	}
 	return DocFailure{Code: DocLostProven, Claim: c.ID, Path: c.Source, Detail: detail}
+}
+
+// byteDetail explains which files differ and which claims changed, or nil when neither file differs
+// (DMF-V1-006). A missing or unreadable committed sidecar leaves the claim list UNKNOWN.
+func byteDetail(pageDiffers, sidecarDiffers bool, committed committedFiles, regenerated []DocClaim) *DocByteDetail {
+	if !pageDiffers && !sidecarDiffers {
+		return nil
+	}
+	d := &DocByteDetail{Differs: "both", ClaimsState: DocClaimsKnown, Claims: []DocClaimChange{}}
+	switch {
+	case !sidecarDiffers:
+		d.Differs = "page"
+	case !pageDiffers:
+		d.Differs = "sidecar"
+	}
+	if committed.claims == nil {
+		d.ClaimsState, d.Reason = DocClaimsUnknown, "the committed sidecar is missing or is not a readable "+DocClaimsSchema+" file"
+		return d
+	}
+	old := map[string]DocClaim{}
+	for _, c := range committed.claims {
+		old[c.ID] = c
+	}
+	now := map[string]DocClaim{}
+	for _, c := range regenerated {
+		now[c.ID] = c
+	}
+	for _, c := range regenerated {
+		before, ok := old[c.ID]
+		switch {
+		case !ok:
+			d.Claims = append(d.Claims, DocClaimChange{Claim: c.ID, Change: "added", Old: docClaimAbsent, New: c.State})
+		case before.State != c.State:
+			d.Claims = append(d.Claims, DocClaimChange{Claim: c.ID, Change: "state", Old: before.State, New: c.State})
+		case !sameClaim(before, c):
+			d.Claims = append(d.Claims, DocClaimChange{Claim: c.ID, Change: "detail", Old: before.State, New: c.State})
+		}
+	}
+	for _, c := range committed.claims {
+		if _, ok := now[c.ID]; !ok {
+			d.Claims = append(d.Claims, DocClaimChange{Claim: c.ID, Change: "removed", Old: c.State, New: docClaimAbsent})
+		}
+	}
+	slices.SortFunc(d.Claims, func(x, y DocClaimChange) int { return strings.Compare(x.Claim, y.Claim) })
+	return d
+}
+
+func sameClaim(a, b DocClaim) bool {
+	return a.Source == b.Source && a.Flow == b.Flow && a.Variation == b.Variation && a.Outcome == b.Outcome &&
+		a.WaivedUntil == b.WaivedUntil && a.Mark == b.Mark && slices.Equal(a.Evidence, b.Evidence)
 }
 
 func bytesFailure(name string, committed, regenerated []byte) []DocFailure {
