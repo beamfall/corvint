@@ -145,8 +145,9 @@ func (failure *gitSourceFailure) Error() string { return "application map Git so
 func (failure *gitSourceFailure) Unwrap() error { return failure.cause }
 
 // errRevisionNotCommit is Git's verified answer that a revision names no commit. `rev-parse
-// --quiet --verify` exits 1 for that alone; a repository, setup or process failure exits 128 or
-// does not run (AMAP-V0-8780).
+// --quiet --verify` exits 1 for most such revisions; it exits 128 for a bad reflog or upstream
+// revision and for a repository, setup or process failure, which readable tells apart
+// (AMAP-V0-8780).
 var errRevisionNotCommit = errors.New("evaluated revision is not a commit")
 
 // sourceUnavailable is a revision lookup whose Git process failed. It carries its own code and the
@@ -169,6 +170,13 @@ func newSourceUnavailable(class string, cause error) error {
 		Message: "application map Git source unavailable: " + class}}
 }
 
+// readable reports whether Git can read the repository at the root: `rev-parse --git-dir` exits 0.
+// It reads no stderr, so the answer does not depend on Git's message language (AMAP-V0-8780).
+func (r repo) readable() bool {
+	_, err := r.git(4096, nil, "rev-parse", "--git-dir")
+	return err == nil
+}
+
 // resolve names the commit a revision denotes. A revision Git verifies is no commit is
 // errRevisionNotCommit; any other Git failure keeps its class and never reads as an input defect.
 func (r repo) resolve(revision string) (string, error) {
@@ -189,6 +197,10 @@ func (r repo) resolve(revision string) (string, error) {
 	case failure.cause != nil:
 		return "", newSourceUnavailable(failure.cause.Error(), failure.cause)
 	case failure.exitStatus == 1:
+		return "", errRevisionNotCommit
+	case failure.exitStatus == 128 && r.readable():
+		// Git read the repository, so its 128 came from the revision itself: a reflog entry
+		// the repository lacks (HEAD@{1}) or @{u} with no upstream (AMAP-V0-8780).
 		return "", errRevisionNotCommit
 	default:
 		return "", newSourceUnavailable(fmt.Sprintf("exit status %d", failure.exitStatus), nil)
