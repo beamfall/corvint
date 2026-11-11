@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -36,13 +37,8 @@ var (
 	rspecBlockRefusal = map[string]bool{"raise": true, "fail": true, "enum_for": true, "to_enum": true}
 )
 
-// rspecHelper is one `def` read directly in an example group or at file level: its group and
-// its logical lines, the head and the closing `end` included.
-type rspecHelper struct {
-	group int
-	path  string
-	body  []rubyLine
-}
+// rspecHelper is testdiscovery.RSpecHelper, kept under its old name.
+type rspecHelper = testdiscovery.RSpecHelper
 
 // blockDefect is a BLOCK-NOT-CALLED helper: its name, block parameter (empty for a helper that
 // only checks block_given?), the line of the finding, and whether that line is an assertion whose
@@ -58,15 +54,15 @@ type blockDefect struct {
 
 // blockNotCalled reports each defective helper at its definition and each example in its scope
 // that calls it with a block (TSA-V0-054).
-func (r *rspecReader) blockNotCalled() []testvalidity.SourceFinding {
+func blockNotCalled(r *rspecReader) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
-	for h, helper := range r.helpers {
-		d := helperDefect(helper.body)
+	for h, helper := range r.Helpers {
+		d := helperDefect(helper.Body)
 		if !d.reported {
 			continue
 		}
-		path := helper.path
-		def := fmt.Sprintf("%s:%d", path, helper.body[0].line)
+		path := helper.Path
+		def := fmt.Sprintf("%s:%d", path, helper.Body[0].Line)
 		message := fmt.Sprintf("%s takes a block but never calls it on any path, so the block each example passes never runs and its expectations prove nothing; call it (block.call or yield) or pass it on with &%s", d.name, d.param)
 		if d.param == "" {
 			message = fmt.Sprintf("%s checks block_given? but never yields, so the block each example passes never runs and its expectations prove nothing; yield to the block", d.name)
@@ -78,45 +74,45 @@ func (r *rspecReader) blockNotCalled() []testvalidity.SourceFinding {
 			Rule: testvalidity.RuleBlockNotCalled, Severity: testvalidity.SeverityInvalid,
 			Test: def, Title: d.name, Location: fmt.Sprintf("%s:%d", path, d.line), Cause: def, Message: message,
 		})
-		for _, e := range r.examples {
-			out = append(out, r.blockNotCalledAt(e, h, d)...)
+		for _, e := range r.Examples {
+			out = append(out, blockNotCalledAt(r, e, h, d)...)
 		}
 	}
 	return out
 }
 
 // blockNotCalledFor returns the BLOCK-NOT-CALLED findings of one example only (TSA-V0-054).
-func (r *rspecReader) blockNotCalledFor(e rspecExample) []testvalidity.SourceFinding {
+func blockNotCalledFor(r *rspecReader, e rspecExample) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
-	for h, helper := range r.helpers {
-		if d := helperDefect(helper.body); d.reported {
-			out = append(out, r.blockNotCalledAt(e, h, d)...)
+	for h, helper := range r.Helpers {
+		if d := helperDefect(helper.Body); d.reported {
+			out = append(out, blockNotCalledAt(r, e, h, d)...)
 		}
 	}
 	return out
 }
 
 // blockNotCalledAt is the finding of example e when it passes defective helper h a block.
-func (r *rspecReader) blockNotCalledAt(e rspecExample, h int, d blockDefect) []testvalidity.SourceFinding {
-	call := helperCall(e.body, d.name)
+func blockNotCalledAt(r *rspecReader, e rspecExample, h int, d blockDefect) []testvalidity.SourceFinding {
+	call := helperCall(e.Body, d.name)
 	if call == 0 {
 		return nil
 	}
 	// The support-aware resolution decides; one that abstains is reported by vacuousFindings.
-	res := r.resolveAcross(e.group, d.name)
-	if !res.found || res.helper.path != r.helpers[h].path || res.helper.body[0].line != r.helpers[h].body[0].line {
+	res := resolveAcross(r, e.Group, d.name)
+	if !res.found || res.helper.Path != r.Helpers[h].Path || res.helper.Body[0].Line != r.Helpers[h].Body[0].Line {
 		return nil
 	}
-	def := fmt.Sprintf("%s:%d", r.helpers[h].path, r.helpers[h].body[0].line)
+	def := fmt.Sprintf("%s:%d", r.Helpers[h].Path, r.Helpers[h].Body[0].Line)
 	return []testvalidity.SourceFinding{{
 		Rule: testvalidity.RuleBlockNotCalled, Severity: testvalidity.SeverityInvalid,
-		Test: fmt.Sprintf("%s:%d", e.path, e.line), Title: e.title, Location: fmt.Sprintf("%s:%d", e.path, call), Cause: def,
+		Test: fmt.Sprintf("%s:%d", e.Path, e.Line), Title: e.Title, Location: fmt.Sprintf("%s:%d", e.Path, call), Cause: def,
 		Message: fmt.Sprintf("the block this example passes to %s never runs, because the helper at %s does not call it, so the example passes whatever the code under test does; fix the helper", d.name, def),
 	}}
 }
 
 func helperName(body []rubyLine) string {
-	head := stripRubyStrings(body[0].text)
+	head := stripRubyStrings(body[0].Text)
 	if rubyOneLine.MatchString(head) {
 		head, _, _ = strings.Cut(head, ";") // a one-line def (TSA-V0-084)
 	}
@@ -138,7 +134,7 @@ func helperDefect(body []rubyLine) blockDefect {
 	if len(body) < 2 {
 		return blockDefect{}
 	}
-	m := rspecDefHead.FindStringSubmatch(stripRubyStrings(body[0].text))
+	m := rspecDefHead.FindStringSubmatch(stripRubyStrings(body[0].Text))
 	if m == nil {
 		return blockDefect{}
 	}
@@ -153,8 +149,8 @@ func helperDefect(body []rubyLine) blockDefect {
 	inner := body[1 : len(body)-1]
 	texts := make([]string, len(inner))
 	for k, l := range inner {
-		texts[k] = strings.TrimSpace(stripRubyStrings(l.text))
-		if rspecDefLine.MatchString(texts[k]) || rspecHiddenText.MatchString(l.text) {
+		texts[k] = strings.TrimSpace(stripRubyStrings(l.Text))
+		if rspecDefLine.MatchString(texts[k]) || rspecHiddenText.MatchString(l.Text) {
 			return blockDefect{}
 		}
 	}
@@ -190,7 +186,7 @@ func helperDefect(body []rubyLine) blockDefect {
 		}
 	}
 	if !called {
-		d.line, d.reported = body[0].line, true
+		d.line, d.reported = body[0].Line, true
 	}
 	return d
 }
@@ -243,10 +239,10 @@ func vacuousAssertion(inner []rubyLine, texts []string, param string) int {
 			case strings.HasPrefix(after, "{"):
 				if end := closingBrace(after); end > 0 {
 					if ref.MatchString(strings.TrimSpace(rspecBraceParams.ReplaceAllString(after[1:end], ""))) {
-						return inner[k].line
+						return inner[k].Line
 					}
 				} else if rspecBraceOpener.MatchString(after) && k+2 < len(texts) && ref.MatchString(texts[k+1]) && strings.HasPrefix(texts[k+2], "}") {
-					return inner[k].line
+					return inner[k].Line
 				}
 			case rspecDoOpener.MatchString(after):
 				end := rubyBlockEnd(inner, k)
@@ -258,7 +254,7 @@ func vacuousAssertion(inner []rubyLine, texts []string, param string) int {
 					only = only && ref.MatchString(b)
 				}
 				if only {
-					return inner[k].line
+					return inner[k].Line
 				}
 			}
 		}
@@ -308,17 +304,17 @@ func closingBrace(text string) int {
 // (`name { }`, `name(args) { }`, `name args do`, `name(&blk)`), or 0.
 func helperCall(body []rubyLine, name string) int {
 	for _, l := range body {
-		t := stripRubyStrings(l.text)
+		t := stripRubyStrings(l.Text)
 		for _, loc := range rspecIdentifier.FindAllStringIndex(t, -1) {
 			if t[loc[0]:loc[1]] != name || loc[0] > 0 && strings.ContainsRune(".:@$", rune(t[loc[0]-1])) {
 				continue
 			}
 			rest := t[loc[1]:]
 			if args, ok := parenArguments(strings.TrimLeft(rest, " \t")); ok && rspecBlockArgument.MatchString(args) {
-				return l.line
+				return l.Line
 			}
 			if after, ok := afterArguments(rest); ok && (strings.HasPrefix(after, "{") || rspecDoOpener.MatchString(after)) {
-				return l.line
+				return l.Line
 			}
 		}
 	}

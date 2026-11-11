@@ -71,7 +71,7 @@ type stubTail struct {
 
 func readStubTail(t rubyText, from int) stubTail {
 	out := stubTail{}
-	m := t.masked
+	m := t.Masked
 	for at := from; ; {
 		trimmed := strings.TrimLeft(m[at:], " \t")
 		switch {
@@ -158,14 +158,14 @@ type stubSite struct {
 func (c *flowContext) stubSites() []stubSite {
 	r, e := c.r, c.e
 	chain := []int{}
-	for g := e.group; g >= 0; g = r.groups[g].parent {
+	for g := e.Group; g >= 0; g = r.Groups[g].Parent {
 		chain = append(chain, g)
 	}
 	slices.Reverse(chain)
 	out := []stubSite{}
 	add := func(lines []rubyLine, rank int, body bool) {
 		for i, l := range lines {
-			continued := i+1 < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[i+1].text), ".")
+			continued := i+1 < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[i+1].Text), ".")
 			for _, s := range rubyStubs([]rubyLine{l}) {
 				tail := readStubTail(s.t, s.end)
 				tail.unread = tail.unread || continued
@@ -174,11 +174,11 @@ func (c *flowContext) stubSites() []stubSite {
 		}
 	}
 	for rank, g := range chain {
-		for _, h := range r.groups[g].hooks {
-			add(h.body, rank, false)
+		for _, h := range r.Groups[g].Hooks {
+			add(h.Body, rank, false)
 		}
 	}
-	add(e.body, len(chain), true)
+	add(e.Body, len(chain), true)
 	return out
 }
 
@@ -195,14 +195,14 @@ func (c *flowContext) flagOf(s rubyStub, rc receiver) (testvalidity.FlagLookup, 
 	if class == "" {
 		return testvalidity.FlagLookup{}, false
 	}
-	return c.r.flags.Match(class, s.method)
+	return c.r.Flags.Match(class, s.method)
 }
 
 // stubFindings returns example e's TSA-V0-431, TSA-V0-433, TSA-V0-436 and TSA-V0-438 findings, in
 // that rule order and each in line order, and its flag conditions (TSA-V0-437).
 func (c *flowContext) stubFindings(test string) ([]testvalidity.SourceFinding, []testvalidity.FlagCondition) {
 	sites := c.stubSites()
-	slices.SortStableFunc(sites, func(a, b stubSite) int { return a.s.t.line - b.s.t.line })
+	slices.SortStableFunc(sites, func(a, b stubSite) int { return a.s.t.Line - b.s.t.Line })
 	plain, flags := []stubSite{}, []stubSite{}
 	lookups := map[int]testvalidity.FlagLookup{}
 	for _, site := range sites {
@@ -220,13 +220,13 @@ func (c *flowContext) stubFindings(test string) ([]testvalidity.SourceFinding, [
 }
 
 func (c *flowContext) finding(rule, severity, test string, location, cause int, message string) testvalidity.SourceFinding {
-	return testvalidity.SourceFinding{Rule: rule, Severity: severity, Test: test, Title: c.e.title,
+	return testvalidity.SourceFinding{Rule: rule, Severity: severity, Test: test, Title: c.e.Title,
 		Location: c.at(location), Cause: c.at(cause), Message: message}
 }
 
 // lineText is a line's trimmed source text, cut at maxStubText runes.
 func lineText(t rubyText) string {
-	text := strings.TrimSpace(t.raw)
+	text := strings.TrimSpace(t.Raw)
 	if utf8.RuneCountInString(text) > maxStubText {
 		text = string([]rune(text)[:maxStubText]) + "..."
 	}
@@ -244,10 +244,10 @@ type observed struct {
 // exampleLines is the example body after its declaring line, or the declaring line itself for a
 // one-line example (`it { ... }`).
 func (c *flowContext) exampleLines() []rubyLine {
-	if len(c.e.body) == 1 {
-		return c.e.body
+	if len(c.e.Body) == 1 {
+		return c.e.Body
 	}
-	return c.e.body[1:]
+	return c.e.Body[1:]
 }
 
 // noChanges returns the example body's negated change matchers whose observed value is one call
@@ -256,15 +256,15 @@ func (c *flowContext) noChanges() []observed {
 	out := []observed{}
 	for _, l := range c.exampleLines() {
 		t := maskRuby(l)
-		for _, loc := range rspecNoChange.FindAllStringSubmatchIndex(t.masked, -1) {
+		for _, loc := range rspecNoChange.FindAllStringSubmatchIndex(t.Masked, -1) {
 			open := loc[2]
-			close := balanced(t.masked, open)
+			close := balanced(t.Masked, open)
 			if close < 0 {
 				continue
 			}
 			o := observed{t: t, text: lineText(t)}
-			inner := t.masked[open+1 : close]
-			if t.masked[open] == '{' {
+			inner := t.Masked[open+1 : close]
+			if t.Masked[open] == '{' {
 				inner = strings.TrimSpace(rspecBlockArg.ReplaceAllString(strings.TrimSpace(inner), ""))
 				m := rspecObserved.FindStringSubmatch(inner)
 				if m == nil {
@@ -275,12 +275,12 @@ func (c *flowContext) noChanges() []observed {
 					o.calls = append(o.calls, call[1])
 				}
 			} else {
-				args := topLevelArgs(t.masked, [2]int{open + 1, close})
+				args := topLevelArgs(t.Masked, [2]int{open + 1, close})
 				if len(args) != 2 {
 					continue
 				}
-				root := t.masked[args[0][0]:args[0][1]]
-				attr := rspecChainSym.FindStringSubmatch(t.masked[args[1][0]:args[1][1]])
+				root := t.Masked[args[0][0]:args[0][1]]
+				attr := rspecChainSym.FindStringSubmatch(t.Masked[args[1][0]:args[1][1]])
 				if !rspecRootName.MatchString(root) || attr == nil {
 					continue
 				}
@@ -307,7 +307,7 @@ func (c *flowContext) stubDecides(test string, sites []stubSite) []testvalidity.
 			continue
 		}
 		for _, o := range matchers {
-			if o.root != s.recv || site.body && s.t.line >= o.t.line || s.anyInstance && !constant(o.root) {
+			if o.root != s.recv || site.body && s.t.Line >= o.t.Line || s.anyInstance && !constant(o.root) {
 				continue
 			}
 			read := o.calls
@@ -327,9 +327,9 @@ func (c *flowContext) stubDecides(test string, sites []stubSite) []testvalidity.
 			default:
 				continue
 			}
-			out = append(out, c.finding(testvalidity.RuleRBStubDecidesAssertion, testvalidity.SeverityAbstained, test, o.t.line, s.t.line, fmt.Sprintf(
+			out = append(out, c.finding(testvalidity.RuleRBStubDecidesAssertion, testvalidity.SeverityAbstained, test, o.t.Line, s.t.Line, fmt.Sprintf(
 				"the assertion at %s (%s) observes %s, and the stub at %s (%s) %s, so the stub, not the code under test, decides the assertion and it passes whatever that code does; hint: inject the failure below the operation, or assert state the stub cannot decide; whether the code under test reaches the stub is not read, so the example abstains instead of being refused",
-				c.at(o.t.line), o.text, o.root, c.at(s.t.line), lineText(s.t), how)))
+				c.at(o.t.Line), o.text, o.root, c.at(s.t.Line), lineText(s.t), how)))
 			break
 		}
 	}
@@ -353,19 +353,19 @@ func readChainStubs(lines []rubyLine) []chainStub {
 	out := []chainStub{}
 	for _, l := range lines {
 		t := maskRuby(l)
-		for _, loc := range rspecChainStub.FindAllStringSubmatchIndex(t.masked, -1) {
-			if t.masked[loc[2]:loc[3]] != "allow" {
+		for _, loc := range rspecChainStub.FindAllStringSubmatchIndex(t.Masked, -1) {
+			if t.Masked[loc[2]:loc[3]] != "allow" {
 				continue // expect(R).to receive_message_chain verifies the whole chain
 			}
 			open := loc[1] - 1
-			close := balanced(t.masked, open)
+			close := balanced(t.Masked, open)
 			if close < 0 {
 				continue
 			}
-			args := topLevelArgs(t.masked, [2]int{open + 1, close})
+			args := topLevelArgs(t.Masked, [2]int{open + 1, close})
 			chain := []string{}
 			for i, a := range args {
-				masked, raw := t.masked[a[0]:a[1]], t.raw[a[0]:a[1]]
+				masked, raw := t.Masked[a[0]:a[1]], t.Raw[a[0]:a[1]]
 				if m := rspecChainSym.FindStringSubmatch(masked); m != nil {
 					chain = append(chain, m[1])
 				} else if m := rspecChainStr.FindStringSubmatch(raw); m != nil {
@@ -378,7 +378,7 @@ func readChainStubs(lines []rubyLine) []chainStub {
 				}
 			}
 			if len(chain) >= 2 {
-				out = append(out, chainStub{t: t, recv: t.masked[loc[4]:loc[5]], chain: chain})
+				out = append(out, chainStub{t: t, recv: t.Masked[loc[4]:loc[5]], chain: chain})
 			}
 		}
 	}
@@ -391,41 +391,41 @@ func readChainStubs(lines []rubyLine) []chainStub {
 func (c *flowContext) chainPrefixes(test string) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
 	lines := []rubyLine{}
-	for g := c.e.group; g >= 0; g = c.r.groups[g].parent {
-		for _, h := range c.r.groups[g].hooks {
-			lines = append(lines, h.body...)
+	for g := c.e.Group; g >= 0; g = c.r.Groups[g].Parent {
+		for _, h := range c.r.Groups[g].Hooks {
+			lines = append(lines, h.Body...)
 		}
 	}
-	stubs := readChainStubs(append(lines, c.e.body...))
-	slices.SortStableFunc(stubs, func(a, b chainStub) int { return a.t.line - b.t.line })
+	stubs := readChainStubs(append(lines, c.e.Body...))
+	slices.SortStableFunc(stubs, func(a, b chainStub) int { return a.t.Line - b.t.Line })
 	for _, s := range stubs {
 		received := regexp.MustCompile(`\bexpect\s*\(\s*` + regexp.QuoteMeta(s.recv) + `\s*\)\s*\.\s*to\s*\(?\s*have_received\s*\(\s*:([A-Za-z_]\w*[?!]?)`)
 		final := s.chain[len(s.chain)-1]
 		named := regexp.MustCompile(`(?:^|[^\w])` + regexp.QuoteMeta(final) + `(?:[^\w?!]|$)`)
 		prefix, at, covered := "", 0, false
 		for _, l := range c.exampleLines() {
-			if l.line == s.t.line {
+			if l.Line == s.t.Line {
 				continue
 			}
 			t := maskRuby(l)
-			if !rspecExpectation.MatchString(t.masked) {
+			if !rspecExpectation.MatchString(t.Masked) {
 				continue
 			}
-			if named.MatchString(t.raw) {
+			if named.MatchString(t.Raw) {
 				covered = true
 			}
-			for _, m := range received.FindAllStringSubmatch(t.masked, -1) {
+			for _, m := range received.FindAllStringSubmatch(t.Masked, -1) {
 				if prefix == "" && slices.Contains(s.chain[:len(s.chain)-1], m[1]) {
-					prefix, at = m[1], l.line
+					prefix, at = m[1], l.Line
 				}
 			}
 		}
 		if prefix == "" || covered {
 			continue
 		}
-		out = append(out, c.finding(testvalidity.RuleRBMessageChainPrefixOnly, testvalidity.SeverityAbstained, test, at, s.t.line, fmt.Sprintf(
+		out = append(out, c.finding(testvalidity.RuleRBMessageChainPrefixOnly, testvalidity.SeverityAbstained, test, at, s.t.Line, fmt.Sprintf(
 			"%s stubs the message chain %s at %s, and the assertion at %s verifies only have_received(:%s), a prefix of it; no expectation names the final message %s, so removing or replacing it still passes; hint: use expect(%s).to receive_message_chain(...) for the whole chain, or return a verifying double from %s and assert have_received(:%s) on it",
-			s.recv, strings.Join(s.chain, "."), c.at(s.t.line), c.at(at), prefix, final, s.recv, s.chain[len(s.chain)-2], final)))
+			s.recv, strings.Join(s.chain, "."), c.at(s.t.Line), c.at(at), prefix, final, s.recv, s.chain[len(s.chain)-2], final)))
 	}
 	return out
 }
@@ -446,8 +446,8 @@ func (c *flowContext) flagConditions(test string, sites []stubSite, lookups map[
 		key, keyText := testvalidity.FlagAnyKey, ""
 		if site.tail.hasWith {
 			key = ""
-			if args := topLevelArgs(site.s.t.masked, site.tail.with); len(args) > 0 {
-				keyText = site.s.t.squash(args[0][0], args[0][1])
+			if args := topLevelArgs(site.s.t.Masked, site.tail.with); len(args) > 0 {
+				keyText = squash(site.s.t, args[0][0], args[0][1])
 				if v := rubyLiteralValue(keyText); flagKey.MatchString(v) {
 					key = v
 				}
@@ -481,15 +481,15 @@ func (c *flowContext) flagConditions(test string, sites []stubSite, lookups map[
 			} else if value != forced {
 				forced = ""
 			}
-			location = max(location, site.s.t.line)
+			location = max(location, site.s.t.Line)
 		}
 		if through == atTop {
 			continue // the effective stub calls through, so it forces nothing
 		}
 		condition := testvalidity.FlagCondition{Lookup: g.lookup, Key: g.key, Forced: forced, Location: c.at(location),
 			Qualifier: testvalidity.FlagQualifier(g.lookup, g.key, forced)}
-		if value, ok := c.r.flags.Defaults[g.key]; ok && g.key != "" && g.key != testvalidity.FlagAnyKey {
-			condition.Default, condition.DefaultFrom = value, c.r.flags.Source
+		if value, ok := c.r.Flags.Defaults[g.key]; ok && g.key != "" && g.key != testvalidity.FlagAnyKey {
+			condition.Default, condition.DefaultFrom = value, c.r.Flags.Source
 		}
 		conditions = append(conditions, condition)
 	}
@@ -532,7 +532,7 @@ func forcedValue(site stubSite) string {
 	case site.tail.values != 1:
 		return ""
 	}
-	return rubyLiteralValue(site.s.t.squash(site.tail.ret[0], site.tail.ret[1]))
+	return rubyLiteralValue(squash(site.s.t, site.tail.ret[0], site.tail.ret[1]))
 }
 
 // rubyLiteralValue is a literal's value: a symbol or string's text, or the literal itself; "" when
@@ -594,8 +594,8 @@ func DecodeFlagLookups(data []byte) (testvalidity.FlagLookups, error) {
 
 // flagLookups reads the committed flag lookup declaration at commit, or the built-in list when none
 // is committed (TSA-V0-435, TSA-V0-439).
-func (r Repo) flagLookups(commit string) (testvalidity.FlagLookups, error) {
-	data, found, err := r.readOne(commit, testvalidity.FlagLookupsPath, MaxFileBytes)
+func flagLookups(r Repo, commit string) (testvalidity.FlagLookups, error) {
+	data, found, err := readOne(r, commit, testvalidity.FlagLookupsPath, MaxFileBytes)
 	if err != nil {
 		return testvalidity.FlagLookups{}, err
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/rubytestprovider"
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -17,28 +18,35 @@ import (
 // provider receipt joined to the static test-validity verdict of the same example at the revision
 // the receipt ran on, keyed by a line-free example identity.
 
-const (
-	// ExampleJoinSchema names the report.
-	ExampleJoinSchema = "corvint-example-join/0"
-	// MaxJoinExamples bounds the receipt examples one join reads.
-	MaxJoinExamples = 2000
-	// MaxJoinFiles bounds the distinct committed files one join reads.
-	MaxJoinFiles = 256
-	// ExampleIdentityRSpec keys an RSpec example by its spec path and scoped id.
-	ExampleIdentityRSpec = "rspec-scoped-id"
-	// ExampleIdentityJS keys a JS example by its file, project and full title.
-	ExampleIdentityJS = "js-title-path"
+// ExampleJoinSchema is testdiscovery.ExampleJoinSchema, kept under its old name.
+const ExampleJoinSchema = testdiscovery.ExampleJoinSchema
 
-	joinReasonSourceUnbound     = "example-source-unbound"
-	joinReasonIdentityUnbound   = "example-identity-unbound"
-	joinReasonIdentityAmbiguous = "example-identity-ambiguous"
-	// joinReasonFileAmbiguous: a JS anchor file names more than one retained test-file digest and
-	// none of them is the anchor file itself (V1-2085).
-	joinReasonFileAmbiguous = "example-file-ambiguous"
-	// joinReasonFileOutsideRepository: the one retained digest a JS anchor names lies outside the
-	// repository root, so no committed file can bind it (V1-2085).
-	joinReasonFileOutsideRepository = "example-file-outside-repository"
-)
+// MaxJoinExamples is testdiscovery.MaxJoinExamples, kept under its old name.
+const MaxJoinExamples = testdiscovery.MaxJoinExamples
+
+// MaxJoinFiles is testdiscovery.MaxJoinFiles, kept under its old name.
+const MaxJoinFiles = testdiscovery.MaxJoinFiles
+
+// ExampleIdentityRSpec is testdiscovery.ExampleIdentityRSpec, kept under its old name.
+const ExampleIdentityRSpec = testdiscovery.ExampleIdentityRSpec
+
+// ExampleIdentityJS is testdiscovery.ExampleIdentityJS, kept under its old name.
+const ExampleIdentityJS = testdiscovery.ExampleIdentityJS
+
+// joinReasonSourceUnbound is testdiscovery.JoinReasonSourceUnbound, kept under its old name.
+const joinReasonSourceUnbound = testdiscovery.JoinReasonSourceUnbound
+
+// joinReasonIdentityUnbound is testdiscovery.JoinReasonIdentityUnbound, kept under its old name.
+const joinReasonIdentityUnbound = testdiscovery.JoinReasonIdentityUnbound
+
+// joinReasonIdentityAmbiguous is testdiscovery.JoinReasonIdentityAmbiguous, kept under its old name.
+const joinReasonIdentityAmbiguous = testdiscovery.JoinReasonIdentityAmbiguous
+
+// joinReasonFileAmbiguous is testdiscovery.JoinReasonFileAmbiguous, kept under its old name.
+const joinReasonFileAmbiguous = testdiscovery.JoinReasonFileAmbiguous
+
+// joinReasonFileOutsideRepository is testdiscovery.JoinReasonFileOutsideRepository, kept under its old name.
+const joinReasonFileOutsideRepository = testdiscovery.JoinReasonFileOutsideRepository
 
 // ExampleJoinOptions names the revision ("" reads HEAD), exactly one decoded receipt and the
 // caller's requirement selections (TSA-V0-417).
@@ -118,7 +126,7 @@ func (j *joiner) file(name string) (joinFile, error) {
 	if len(j.files) >= MaxJoinFiles {
 		return joinFile{}, refuse("tests-bound-exceeded", "more than %d source files", MaxJoinFiles)
 	}
-	data, blob, found, err := j.r.readOneBlob(j.commit, name, MaxFileBytes)
+	data, blob, found, err := readOneBlob(j.r, j.commit, name, MaxFileBytes)
 	if err != nil {
 		return joinFile{}, err
 	}
@@ -367,7 +375,7 @@ func (j *joiner) readSupport(prefix string, helpers map[string]bool, dirty bool,
 	if helpersUnbound != "" {
 		return joinSupport{support: testvalidity.RubySupport{Unbound: helpersUnbound}}, nil
 	}
-	entries, err := j.r.tree(j.commit, RubySupportPaths(prefix), MaxFiles)
+	entries, err := j.r.Tree(j.commit, RubySupportPaths(prefix), MaxFiles)
 	var refusal *Error
 	if errors.As(err, &refusal) && refusal.Code == "tests-bound-exceeded" {
 		// A support set past the listing budget is past the join's own file bound too, so it
@@ -379,15 +387,15 @@ func (j *joiner) readSupport(prefix string, helpers map[string]bool, dirty bool,
 	}
 	set := joinSupport{support: testvalidity.RubySupport{Files: map[string]string{}}}
 	for _, e := range entries {
-		if dirty && !helpers[e.path] {
+		if dirty && !helpers[e.Path] {
 			return joinSupport{support: testvalidity.RubySupport{Unbound: testvalidity.HygieneReasonRSpecSourceUnbound}}, nil
 		}
-		f, err := j.file(e.path)
+		f, err := j.file(e.Path)
 		if err != nil {
 			return joinSupport{}, err
 		}
-		set.support.Files[e.path] = f.text
-		set.files = append(set.files, ExampleJoinFile{Path: e.path, Blob: f.blob})
+		set.support.Files[e.Path] = f.text
+		set.files = append(set.files, ExampleJoinFile{Path: e.Path, Blob: f.blob})
 	}
 	slices.SortFunc(set.files, func(a, b ExampleJoinFile) int { return strings.Compare(a.Path, b.Path) })
 	return set, nil
@@ -488,8 +496,8 @@ func (j *joiner) underRoot(key string) (string, bool) {
 	if !filepath.IsAbs(key) {
 		return "", false
 	}
-	roots := []string{j.r.root}
-	if abs, err := filepath.Abs(j.r.root); err == nil {
+	roots := []string{j.r.Root}
+	if abs, err := filepath.Abs(j.r.Root); err == nil {
 		roots = append(roots, abs)
 		if resolved, err := filepath.EvalSymlinks(abs); err == nil {
 			roots = append(roots, resolved)

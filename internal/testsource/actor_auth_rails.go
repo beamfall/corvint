@@ -4,188 +4,46 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 )
 
 // This file reads the literal Rails and CanCanCan-style forms the actor-authorization check
 // supports (TSA-V0-034, TSA-V0-035). Anything outside those forms is recorded as unparsed, so a
 // conclusion that depends on it is UNKNOWN rather than authorized (TSA-V0-038).
 
-// rubyLine is one logical Ruby statement: comments removed, continuation lines joined, and the
-// 1-based line it starts on.
-type rubyLine struct {
-	line int
-	text string
-	// path is the file the line was read from; the RSpec reader sets it so that a shared group
-	// read through an inclusion keeps its own file's locations (TSA-V0-090).
-	path string
-}
+// rubyLine is testdiscovery.RubyLine, kept under its old name.
+type rubyLine = testdiscovery.RubyLine
 
-// rubyLines splits Ruby source into logical statements.
-func rubyLines(text string) []rubyLine {
-	out := []rubyLine{}
-	pending, start := "", 0
-	heredocs := []rubyHeredoc{}
-	for n, raw := range strings.Split(text, "\n") {
-		if len(heredocs) > 0 {
-			// A heredoc body is string text, not code (TSA-V0-396).
-			if heredocs[0].closes(raw) {
-				heredocs = heredocs[1:]
-			}
-			continue
-		}
-		stripped := strings.TrimSpace(stripRubyComment(raw))
-		heredocs = rubyHeredocs(stripped)
-		if pending == "" {
-			start = n + 1
-		}
-		if pending != "" {
-			pending += " "
-		}
-		pending += stripped
-		if strings.HasSuffix(pending, ",") || strings.HasSuffix(pending, "(") || strings.HasSuffix(pending, "[") || strings.HasSuffix(pending, "\\") {
-			pending = strings.TrimSuffix(pending, "\\")
-			continue
-		}
-		if pending != "" {
-			out = append(out, rubyLine{line: start, text: pending})
-		}
-		pending = ""
-	}
-	if pending != "" {
-		out = append(out, rubyLine{line: start, text: pending})
-	}
-	return out
-}
+// rubyLines is testdiscovery.RubyLines, kept under its old name.
+func rubyLines(text string) []rubyLine { return testdiscovery.RubyLines(text) }
 
-// rubyHeredoc is one heredoc a line opens: its terminator, and whether the terminator may be
-// indented (`<<~ID`, `<<-ID`) or must start the line (`<<ID`).
-type rubyHeredoc struct {
-	id       string
-	indented bool
-}
+// stripRubyComment is testdiscovery.StripRubyComment, kept under its old name.
+func stripRubyComment(line string) string { return testdiscovery.StripRubyComment(line) }
 
-// rubyHeredocStart is `<<~ID`, `<<-ID`, a quoted `<<'ID'` or `<<"ID"`, or a bare upper-case
-// `<<ID`; a shovel (`list << item`) has a space and a lower-case operand.
-var rubyHeredocStart = regexp.MustCompile(`<<([~-]?)(?:(['"])([A-Za-z_]\w*)['"]|([A-Za-z_]\w*))`)
+// rubyOpener is testdiscovery.RubyOpener, kept under its old name.
+var rubyOpener = testdiscovery.RubyOpener
 
-func rubyHeredocs(text string) []rubyHeredoc {
-	out := []rubyHeredoc{}
-	for _, m := range rubyHeredocStart.FindAllStringSubmatch(text, -1) {
-		id := m[3] + m[4]
-		if m[1] == "" && m[2] == "" && strings.ToUpper(id) != id {
-			continue
-		}
-		out = append(out, rubyHeredoc{id: id, indented: m[1] != ""})
-	}
-	return out
-}
+// rubyDo is testdiscovery.RubyDo, kept under its old name.
+var rubyDo = testdiscovery.RubyDo
 
-func (h rubyHeredoc) closes(raw string) bool {
-	raw = strings.TrimRight(raw, " \t\r")
-	if h.indented {
-		raw = strings.TrimSpace(raw)
-	}
-	return raw == h.id
-}
+// rubyEnd is testdiscovery.RubyEnd, kept under its old name.
+var rubyEnd = testdiscovery.RubyEnd
 
-// stripRubyComment drops a `#` comment outside a quoted string.
-func stripRubyComment(line string) string {
-	quote := byte(0)
-	for i := 0; i < len(line); i++ {
-		c := line[i]
-		switch {
-		case quote != 0 && c == '\\':
-			i++
-		case quote != 0 && c == quote:
-			quote = 0
-		case quote == 0 && (c == '\'' || c == '"'):
-			quote = c
-		case quote == 0 && c == '#':
-			return line[:i]
-		}
-	}
-	return line
-}
+// rubyOneLine is testdiscovery.RubyOneLine, kept under its old name.
+var rubyOneLine = testdiscovery.RubyOneLine
 
-var (
-	rubyOpener = regexp.MustCompile(`^(def|class|module|if|unless|case|while|until|begin|for)\b`)
-	rubyDo     = regexp.MustCompile(`\bdo(\s*\|[^|]*\|)?$`)
-	rubyEnd    = regexp.MustCompile(`^end\b`)
-	// rubyOneLine is a statement that opens and closes on one line, such as
-	// `def read_data; build_report_io; end`; it opens no block (TSA-V0-084).
-	rubyOneLine = regexp.MustCompile(`;\s*end$`)
-	// rubyEndlessDef is an endless method, `def name = expr` or `def name(args) = expr`; it opens
-	// no block. A setter (`def name=(v)`) and a comparison (`==`) are not one.
-	rubyEndlessDef = regexp.MustCompile(`^def\s+[A-Za-z_]\w*[?!]?(?:\s+|\([^()]*\)\s*)=(?:[^=~]|$)`)
-	// rubyValueOpener is if, unless, case, begin, while or until in value position, where it
-	// opens a block its own `end` closes: after an assignment (`=`, `||=`, `+=`), a hash `=>`, a
-	// label key (`key: if`), an append (`<< if`), an opening bracket, a comma, `&&` or `||`, a
-	// line-start `else` (`else if`, which nests a block), and case or begin after `return`. A
-	// modifier (`foo if bar`, `return if bar`) follows an expression or `return` and opens
-	// nothing, and a keyword argument (`if: x`) is not the keyword (TSA-V0-396, V1-2078).
-	rubyValueOpener = regexp.MustCompile(`(?:(?:=>?|[(\[,]|&&|\|\||\w:\s|<<\s|^else\s)\s*(if|unless|case|begin|while|until)|\breturn\s+(case|begin))(?:\s|[(;]|$)`)
-	// rubyLineEnd is an `end` word; after a value opener it closes the block on the same line
-	// unless it is a method or symbol (`.end`, `:end`, `end?`, `end:`), see rubyEndKeyword.
-	rubyLineEnd = regexp.MustCompile(`\bend\b`)
-)
+// rubyEndlessDef is testdiscovery.RubyEndlessDef, kept under its old name.
+var rubyEndlessDef = testdiscovery.RubyEndlessDef
 
-func rubyOpens(text string) bool {
-	if (rubyOpener.MatchString(text) || rubyDo.MatchString(text)) && !rubyOneLine.MatchString(text) && !rubyEndlessDef.MatchString(text) {
-		return true
-	}
-	return rubyValueOpens(text)
-}
+// rubyOpens is testdiscovery.RubyOpens, kept under its old name.
+func rubyOpens(text string) bool { return testdiscovery.RubyOpens(text) }
 
-// rubyValueOpens reports whether a line opens a block with a value-position keyword that the line
-// does not also close (`x = if a then 1 else 2 end`); string literals are ignored (TSA-V0-396).
-func rubyValueOpens(text string) bool {
-	return rubyValueKeyword(text) != ""
-}
+// rubyValueKeyword is testdiscovery.RubyValueKeyword, kept under its old name.
+func rubyValueKeyword(text string) string { return testdiscovery.RubyValueKeyword(text) }
 
-// rubyValueKeyword returns the value-position keyword whose block a line opens and leaves open,
-// or "" (TSA-V0-396).
-func rubyValueKeyword(text string) string {
-	text = stripRubyStrings(text)
-	m := rubyValueOpener.FindStringSubmatchIndex(text)
-	if m == nil || rubyEndKeyword(text[m[1]-1:]) {
-		return ""
-	}
-	if m[2] >= 0 {
-		return text[m[2]:m[3]]
-	}
-	return text[m[4]:m[5]]
-}
-
-// rubyEndKeyword reports whether text holds an `end` keyword, not a method call (`.end`, `end?`),
-// a symbol (`:end`), a hash key (`end:`) or a variable (`@end`).
-func rubyEndKeyword(text string) bool {
-	for _, at := range rubyLineEnd.FindAllStringIndex(text, -1) {
-		if at[0] > 0 && strings.ContainsRune(".:@$", rune(text[at[0]-1])) {
-			continue
-		}
-		if at[1] < len(text) && strings.ContainsRune("?!:", rune(text[at[1]])) && !strings.HasPrefix(text[at[1]:], "::") {
-			continue
-		}
-		return true
-	}
-	return false
-}
-
-// rubyBlockEnd returns the index of the `end` closing the block opened at lines[i], or len(lines).
-func rubyBlockEnd(lines []rubyLine, i int) int {
-	depth := 0
-	for j := i; j < len(lines); j++ {
-		if rubyOpens(lines[j].text) {
-			depth++
-		} else if rubyEnd.MatchString(lines[j].text) {
-			depth--
-			if depth == 0 {
-				return j
-			}
-		}
-	}
-	return len(lines)
-}
+// rubyBlockEnd is testdiscovery.RubyBlockEnd, kept under its old name.
+func rubyBlockEnd(lines []rubyLine, i int) int { return testdiscovery.RubyBlockEnd(lines, i) }
 
 // railsRoute is one literal route: method, path segments (`:name` for a dynamic segment) and the
 // controller action it reaches.
@@ -249,27 +107,27 @@ func parseRailsRoutes(path, text string) railsRoutes {
 	}
 	for _, l := range rubyLines(text) {
 		frame := top()
-		if rubyEnd.MatchString(l.text) {
+		if rubyEnd.MatchString(l.Text) {
 			if len(stack) > 0 {
 				stack = stack[:len(stack)-1]
 			}
 			continue
 		}
 		if frame.opaque {
-			if rubyOpens(l.text) {
+			if rubyOpens(l.Text) {
 				stack = append(stack, frame)
 			}
 			continue
 		}
-		if routesDraw.MatchString(l.text) {
+		if routesDraw.MatchString(l.Text) {
 			stack = append(stack, routeFrame{})
 			continue
 		}
-		if m := routeNamespace.FindStringSubmatch(l.text); m != nil {
+		if m := routeNamespace.FindStringSubmatch(l.Text); m != nil {
 			stack = append(stack, routeFrame{prefix: join(frame.prefix, m[1]), module: join(frame.module, m[1])})
 			continue
 		}
-		if m := routeResources.FindStringSubmatch(l.text); m != nil {
+		if m := routeResources.FindStringSubmatch(l.Text); m != nil {
 			name, filter, list := m[1], m[3], map[string]bool{}
 			parsed := true
 			for _, item := range strings.Split(m[4], ",") {
@@ -284,7 +142,7 @@ func parseRailsRoutes(path, text string) railsRoutes {
 				list[symbol[1]] = true
 			}
 			if !parsed {
-				result.unparsed = append(result.unparsed, l.line)
+				result.unparsed = append(result.unparsed, l.Line)
 				if m[5] != "" {
 					stack = append(stack, routeFrame{opaque: true})
 				}
@@ -295,23 +153,23 @@ func parseRailsRoutes(path, text string) railsRoutes {
 				if filter == "only" && !list[a.action] || filter == "except" && list[a.action] {
 					continue
 				}
-				add(a.method, join(join(frame.prefix, name), a.suffix), controller, a.action, l.line)
+				add(a.method, join(join(frame.prefix, name), a.suffix), controller, a.action, l.Line)
 			}
 			if m[5] != "" {
 				stack = append(stack, routeFrame{prefix: join(join(frame.prefix, name), ":"+singular(name)+"_id"), module: frame.module})
 			}
 			continue
 		}
-		if m := routeVerb.FindStringSubmatch(l.text); m != nil {
-			add(strings.ToUpper(m[1]), join(frame.prefix, m[2]), join(frame.module, m[4]), m[5], l.line)
+		if m := routeVerb.FindStringSubmatch(l.Text); m != nil {
+			add(strings.ToUpper(m[1]), join(frame.prefix, m[2]), join(frame.module, m[4]), m[5], l.Line)
 			continue
 		}
-		if m := routeRoot.FindStringSubmatch(l.text); m != nil {
-			add("GET", frame.prefix, join(frame.module, m[2]), m[3], l.line)
+		if m := routeRoot.FindStringSubmatch(l.Text); m != nil {
+			add("GET", frame.prefix, join(frame.module, m[2]), m[3], l.Line)
 			continue
 		}
-		result.unparsed = append(result.unparsed, l.line)
-		if rubyOpens(l.text) {
+		result.unparsed = append(result.unparsed, l.Line)
+		if rubyOpens(l.Text) {
 			stack = append(stack, routeFrame{opaque: true})
 		}
 	}
@@ -366,12 +224,12 @@ func controllerCheck(path, text, action string) (AbilityCheck, string, string) {
 	lines := rubyLines(text)
 	implicit := 0
 	for _, l := range lines {
-		if implicitAuthorize.MatchString(l.text) {
-			implicit = l.line
+		if implicitAuthorize.MatchString(l.Text) {
+			implicit = l.Line
 		}
 	}
 	for i, l := range lines {
-		m := rubyDef.FindStringSubmatch(l.text)
+		m := rubyDef.FindStringSubmatch(l.Text)
 		if m == nil || m[1] != "" || m[2] != action {
 			continue
 		}
@@ -379,30 +237,30 @@ func controllerCheck(path, text, action string) (AbilityCheck, string, string) {
 		checks := []AbilityCheck{}
 		depth, guard, conditional := 0, 0, ""
 		for _, s := range lines[i+1 : min(end, len(lines))] {
-			if authorizeCall.MatchString(s.text) {
-				c := authorizeLiteral.FindStringSubmatch(s.text)
+			if authorizeCall.MatchString(s.Text) {
+				c := authorizeLiteral.FindStringSubmatch(s.Text)
 				if c == nil {
-					return AbilityCheck{}, "check-not-literal", locate(path, s.line)
+					return AbilityCheck{}, "check-not-literal", locate(path, s.Line)
 				}
-				checks = append(checks, AbilityCheck{Action: c[1], Subject: c[2], Path: path, Line: s.line})
+				checks = append(checks, AbilityCheck{Action: c[1], Subject: c[2], Path: path, Line: s.Line})
 				switch {
 				case depth > 0 && conditional == "":
-					conditional = locate(path, s.line) + " authorize! is inside a nested block or clause"
+					conditional = locate(path, s.Line) + " authorize! is inside a nested block or clause"
 				case guard > 0 && conditional == "":
-					conditional = locate(path, s.line) + " authorize! follows an early exit at line " + strconv.Itoa(guard)
+					conditional = locate(path, s.Line) + " authorize! follows an early exit at line " + strconv.Itoa(guard)
 				}
 				continue
 			}
 			switch {
-			case rubyOpens(s.text):
+			case rubyOpens(s.Text):
 				depth++
-			case rubyEnd.MatchString(s.text):
+			case rubyEnd.MatchString(s.Text):
 				depth--
-			case depth == 0 && rubyBranch.MatchString(s.text):
+			case depth == 0 && rubyBranch.MatchString(s.Text):
 				depth++
 			}
-			if guard == 0 && rubyExit.MatchString(s.text) {
-				guard = s.line
+			if guard == 0 && rubyExit.MatchString(s.Text) {
+				guard = s.Line
 			}
 		}
 		switch {
@@ -415,7 +273,7 @@ func controllerCheck(path, text, action string) (AbilityCheck, string, string) {
 		case implicit > 0:
 			return AbilityCheck{}, "check-implicit", locate(path, implicit)
 		}
-		return AbilityCheck{}, "check-not-found", locate(path, l.line)
+		return AbilityCheck{}, "check-not-found", locate(path, l.Line)
 	}
 	return AbilityCheck{}, "action-not-found", path + " has no `def " + action + "`"
 }
@@ -468,7 +326,7 @@ func parseAbility(path, text string) abilityModel {
 	lines := rubyLines(text)
 	class := -1
 	for i, l := range lines {
-		if abilityClass.MatchString(l.text) {
+		if abilityClass.MatchString(l.Text) {
 			class = i
 			break
 		}
@@ -478,15 +336,15 @@ func parseAbility(path, text string) abilityModel {
 	}
 	classEnd := rubyBlockEnd(lines, class)
 	for i := class + 1; i < min(classEnd, len(lines)); i++ {
-		m := rubyDef.FindStringSubmatch(lines[i].text)
+		m := rubyDef.FindStringSubmatch(lines[i].Text)
 		if m == nil {
-			if rubyOpens(lines[i].text) {
+			if rubyOpens(lines[i].Text) {
 				i = rubyBlockEnd(lines, i)
 			}
 			continue
 		}
 		end := min(rubyBlockEnd(lines, i), len(lines))
-		target := &abilityRole{line: lines[i].line}
+		target := &abilityRole{line: lines[i].Line}
 		if m[2] == "initialize" {
 			target = &model.global
 		} else if m[1] == "" && m[3] == "" {
@@ -495,23 +353,23 @@ func parseAbility(path, text string) abilityModel {
 		for j := i + 1; j < end; j++ {
 			l := lines[j]
 			switch {
-			case target == &model.global && abilityDispatch.MatchString(l.text):
+			case target == &model.global && abilityDispatch.MatchString(l.Text):
 				model.dispatch = true
-			case abilityRuleStart.MatchString(l.text):
+			case abilityRuleStart.MatchString(l.Text):
 				readRule(target, l)
-				if rubyOpens(l.text) {
+				if rubyOpens(l.Text) {
 					j = rubyBlockEnd(lines, j)
 				}
-			case rubyOpens(l.text):
-				target.unparsed = append(target.unparsed, l.line)
+			case rubyOpens(l.Text):
+				target.unparsed = append(target.unparsed, l.Line)
 				j = rubyBlockEnd(lines, j)
-			case rubyMentionsRule.MatchString(l.text) || rubyKeyword.MatchString(l.text):
-				target.unparsed = append(target.unparsed, l.line)
-			case rubyBareCall.MatchString(l.text) && target != &model.global:
-				target.inherits = append(target.inherits, l.text)
-			case rubyIgnored.MatchString(l.text):
+			case rubyMentionsRule.MatchString(l.Text) || rubyKeyword.MatchString(l.Text):
+				target.unparsed = append(target.unparsed, l.Line)
+			case rubyBareCall.MatchString(l.Text) && target != &model.global:
+				target.inherits = append(target.inherits, l.Text)
+			case rubyIgnored.MatchString(l.Text):
 			default:
-				target.unparsed = append(target.unparsed, l.line)
+				target.unparsed = append(target.unparsed, l.Line)
 			}
 		}
 		i = end
@@ -522,19 +380,19 @@ func parseAbility(path, text string) abilityModel {
 // readRule records one literal `can`/`cannot` statement; extra arguments or a block make it
 // conditional, and a non-literal action or subject makes it unparsed.
 func readRule(target *abilityRole, l rubyLine) {
-	text := l.text
+	text := l.Text
 	conditional := abilityBlock.MatchString(text)
 	if conditional {
 		text = strings.TrimSpace(abilityBlock.ReplaceAllString(text, ""))
 	}
 	m := abilityRuleLine.FindStringSubmatch(text)
 	if m == nil {
-		target.unparsed = append(target.unparsed, l.line)
+		target.unparsed = append(target.unparsed, l.Line)
 		return
 	}
 	args := splitRuby(m[2])
 	if len(args) < 2 {
-		target.unparsed = append(target.unparsed, l.line)
+		target.unparsed = append(target.unparsed, l.Line)
 		return
 	}
 	actions, okActions := rubyList(args[0], func(s string) (string, bool) {
@@ -550,11 +408,11 @@ func readRule(target *abilityRole, l rubyLine) {
 		return s, rubyConstant.MatchString(s)
 	})
 	if !okActions || !okSubjects {
-		target.unparsed = append(target.unparsed, l.line)
+		target.unparsed = append(target.unparsed, l.Line)
 		return
 	}
 	target.rules = append(target.rules, abilityRule{actions: actions, subjects: subjects, cannot: m[1] == "cannot",
-		conditional: conditional || len(args) > 2, line: l.line})
+		conditional: conditional || len(args) > 2, line: l.Line})
 }
 
 // splitRuby splits arguments at top-level commas.

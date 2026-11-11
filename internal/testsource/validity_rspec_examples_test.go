@@ -229,7 +229,7 @@ end
 `
 	got := []string{}
 	for _, x := range rspecExclusions(map[string]string{"spec/spec_helper.rb": helper}) {
-		got = append(got, fmt.Sprintf("%s=%q %s", x.key, x.value, x.cause))
+		got = append(got, fmt.Sprintf("%s=%q %s", x.Key, x.Value, x.Cause))
 	}
 	want := []string{`slow="true" spec/spec_helper.rb:2`, `type=":feature" spec/spec_helper.rb:3`, `kind="" spec/spec_helper.rb:4`,
 		`speed="" spec/spec_helper.rb:5`, `tier="" spec/spec_helper.rb:6`}
