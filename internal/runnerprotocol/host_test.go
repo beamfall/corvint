@@ -6,7 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -177,6 +179,37 @@ func TestRSPV0063FailureLines(t *testing.T) {
 			t.Fatal("launched under an unsupported schema")
 		}
 		wantFail(t, h.Close(context.Background()), "unsupported-schema")
+	})
+	t.Run("unsupported-schema-with-candidate-edit", func(t *testing.T) {
+		pin, store, _ := hostPins(t)
+		trusted := []byte(`{"schema":"corvint-runner-plugins/2","plugins":[{"name":"reference","protocol":"corvint-runner/1","executable":"./corvint-runner-reference","sha256":"` + pin.SHA256 + `","runners":["` + ReferenceRunner + `"]}]}`)
+		candidate := []byte(`{"schema":"corvint-runner-plugins/2","plugins":[]}`)
+		h := OpenHost(context.Background(), HostInput{Required: []string{ReferenceRunner}, Plan: PlanDiscovery(trusted, candidate, true), Store: store, Options: hostOptions(t, "reference", Limits{})})
+		if h.Sessions() != 0 {
+			t.Fatal("launched a pin from an unsupported discovery schema")
+		}
+		wantFail(t, h.Close(context.Background()), "unsupported-schema")
+	})
+	t.Run("unrecognised-open-error", func(t *testing.T) {
+		pin, store, _ := hostPins(t)
+		options := hostOptions(t, "reference", Limits{})
+		options.Repository = filepath.Join(t.TempDir(), "missing-repository")
+		h := OpenHost(context.Background(), HostInput{Required: []string{ReferenceRunner}, Plan: DiscoveryPlan{Pins: []Pin{pin}}, Store: store, Options: options})
+		lines := h.Close(context.Background())
+		wantFail(t, lines, ReasonSessionOpenFailed)
+		if strings.ContainsAny(lines[0].Reason, "/ ") {
+			t.Fatalf("path or detail leaked into the reason: %q", lines[0].Reason)
+		}
+	})
+	t.Run("runner-in-two-pins", func(t *testing.T) {
+		pin, store, _ := hostPins(t)
+		other := pin
+		other.Name = "other"
+		h := OpenHost(context.Background(), HostInput{Required: []string{ReferenceRunner}, Plan: DiscoveryPlan{Pins: []Pin{pin, other}}, Store: store, Options: hostOptions(t, "reference", Limits{})})
+		if h.Sessions() != 0 {
+			t.Fatal("launched a plugin for a runner two pins claim")
+		}
+		wantFail(t, h.Close(context.Background()), ReasonRunnerClaimedTwice)
 	})
 	t.Run("duplicate-pin-name", func(t *testing.T) {
 		pin, store, _ := hostPins(t)

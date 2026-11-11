@@ -60,6 +60,22 @@ paths would mean cutting the snapshot cost (for example hashing only dirty paths
 index, which is a separate design). Frozen-repository measurement is NOT_RUN: no frozen corpus run
 was in scope for this lane.
 
+## Review fixes (fix round 1)
+
+The independent review found that a CI candidate pin edit overwrote `unsupported-schema` with
+`candidate-pins-changed`. The host then launched a pin from an unsupported discovery schema and
+reported `run` `ok`. `PlanDiscovery` now keeps an earlier per-runner cause. As a second guard, the
+host launches nothing for any discovery reason other than `candidate-pins-changed`. Three new
+`TestRSPV0063FailureLines` subtests failed before these changes and pass after:
+- `unsupported-schema-with-candidate-edit`: a session opened and the line read `ok`.
+- `unrecognised-open-error`: an unwrapped `lstat <temp path>` error was the reason; it is now the
+  fixed code `session-open-failed`.
+- `runner-in-two-pins`: a caller-built plan launched a plugin; the runner is now refused with
+  `runner-claimed-by-two-pins`.
+
+`Host` is documented as single-goroutine, matching its sequential sessions; no caller is
+concurrent.
+
 ## Remainder (not done here)
 
 - No production run path (`corvint test`, CI shard planner) opens the host or any runner plugin.
