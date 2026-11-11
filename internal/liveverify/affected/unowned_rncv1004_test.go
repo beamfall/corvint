@@ -134,3 +134,53 @@ func TestUnownedPathWithoutGoUniverseRunsAll_RNCV1004(t *testing.T) {
 		t.Fatalf("scope %s reason %q", manifest.Scope, manifest.Reason)
 	}
 }
+
+// TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004: the planner
+// witnesses an unbounded reader (rule (d), here a test that reads a path built
+// from os.Getwd) with whichever dirty path sorts first, whatever path it reads. A change of only the root Makefile, which no
+// package encloses or names, therefore selects the unbounded package with
+// Makefile as its witness; that selection attributes nothing, so every
+// selector still runs every test with the named reason unowned-path instead of
+// narrowing to the unbounded package.
+func TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004(t *testing.T) {
+	root, _ := selwideFiles(t, map[string]string{
+		"go.mod":                      "module example.test/m\n\ngo 1.27.0\n",
+		"Makefile":                    "all:\n",
+		"unbounded/unbounded.go":      "package unbounded\n",
+		"unbounded/unbounded_test.go": "package unbounded\nimport (\n\t\"os\"\n\t\"testing\"\n)\nfunc TestRead(t *testing.T) {\n\twd, _ := os.Getwd()\n\t_, _ = os.ReadFile(wd + \"/../in.json\")\n}\n",
+		"solo/solo.go":                "package solo\n",
+		"solo/solo_test.go":           "package solo\nimport \"testing\"\nfunc TestSolo(t *testing.T) {}\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"Makefile"})
+	if !slices.ContainsFunc(plan.Unknown, func(u affected.Unknown) bool {
+		return u.Reason == affected.UnknownUnownedDirtyPath && u.Detail == "Makefile"
+	}) {
+		t.Fatalf("Makefile is no longer UNOWNED_DIRTY_PATH, so the fixture proves nothing: %+v", plan.Unknown)
+	}
+	if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool {
+		return s.UnitID == "go:example.test/m/unbounded" && s.Witness.Kind == affected.WitnessUnboundedReader && s.Witness.DirtyPath == "Makefile"
+	}) {
+		t.Fatalf("the unbounded package is not witnessed by Makefile, so the fixture proves nothing: %+v", plan.Selected)
+	}
+	want := gateselect.UnownedPathFallback + ": Makefile"
+	for name, selector := range map[string]func(gateselect.Receipt, string, string) []string{"select": gateselect.Select, "structural": gateselect.SelectStructural, "qualified": gateselect.SelectQualified} {
+		t.Run(name, func(t *testing.T) {
+			verdict := ""
+			m := unownedSession(t, root, graph, func(receipt gateselect.Receipt, module, root string) []string {
+				lines := selector(receipt, module, root)
+				verdict = lines[len(lines)-1]
+				return lines
+			}, "Makefile")
+			if verdict != "FALLBACK "+want {
+				t.Fatalf("verdict %q, want %q", verdict, "FALLBACK "+want)
+			}
+			if m.Scope != sessiontest.ScopeFull || m.Reason != want {
+				t.Fatalf("scope %s reason %q, want FULL with %q", m.Scope, m.Reason, want)
+			}
+		})
+	}
+}

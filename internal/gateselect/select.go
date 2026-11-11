@@ -40,6 +40,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/taskprojection"
 )
 
@@ -67,12 +68,13 @@ type Receipt struct {
 			Paths        []string `json:"paths"`
 			Unreferenced []string `json:"unreferenced"`
 		} `json:"goAdditive"`
-		// Selected is the planner's selections; a unit whose witness
-		// names a dirty path is a runner's attribution of that path
-		// (unattributedPath, RNC-V1-004).
+		// Selected is the planner's selections; a unit whose witness is
+		// of a kind that reads the very path it names attributes that
+		// path (attributingWitness, unattributedPath, RNC-V1-004).
 		Selected []struct {
 			UnitID  string `json:"unitId"`
 			Witness struct {
+				Kind      string `json:"kind"`
 				DirtyPath string `json:"dirtyPath"`
 			} `json:"witness"`
 		} `json:"selected"`
@@ -487,17 +489,16 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 // (RNC-V1-004, owner decision R32). Rules (b) and (c) and the read-scope
 // declarations attribute a path when they select a package for it
 // (attributed); the planner's documentation and evidence readers count too,
-// and so does any unit the plan selected with the path as its witness.
-// A path an unobserved-module frontier names is run by that nested module's
-// own suite (STR-V0-064). Rule (d), the packages whose reads no literal
-// bounds, is selected for every dirty path and so attributes none: a path only
-// it would read is one no runner instance owns, and runs every test.
+// and so does a unit the plan selected through a witness attributingWitness
+// admits for that path. A path an unobserved-module frontier names is run by
+// that nested module's own suite (STR-V0-064). Rule (d), the packages whose
+// reads no literal bounds, attributes none: the planner witnesses such a unit
+// (UNBOUNDED_READER) with whichever dirty path sorts first, whatever path it
+// reads, so a path only it would read is one no runner instance owns, and runs
+// every test.
 func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
 	for _, selection := range plan.Plan.Selected {
-		// The planner's own declared readers (an existence reader, a
-		// runtime reader, an ownership obligation) select a unit whose
-		// witness names the path.
-		if selection.UnitID != "" && selection.Witness.DirtyPath != "" {
+		if selection.UnitID != "" && selection.Witness.DirtyPath != "" && attributingWitness[selection.Witness.Kind] {
 			attributed[selection.Witness.DirtyPath] = true
 		}
 	}
@@ -513,6 +514,20 @@ func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// attributingWitness holds the planner witness kinds whose dirty path is the
+// path the selected unit reads, encloses, declares or consumes, so the
+// selection attributes that path (RNC-V1-004). Any other kind, an
+// UNBOUNDED_READER, a MUST_RUN or FRONTIER_SITE seed witnessed by the first
+// dirty path, a declared existence reader whose declaration changed, and a
+// kind this list does not know, attributes none.
+var attributingWitness = map[string]bool{
+	affected.WitnessPathLiteralReader: true,
+	affected.WitnessPathGlobReader:    true,
+	affected.WitnessDeclaredReadScope: true,
+	affected.WitnessEnclosingPackage:  true,
+	"DECLARED_CONSUMER":               true,
 }
 
 // frontierSuite records in suites the first frontier of each language
