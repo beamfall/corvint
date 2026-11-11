@@ -218,6 +218,7 @@ var locationUseCases = []struct{ name, body, want string }{
 	{"environment to Env field", `func F(c *exec.Cmd) { c.Env = append(os.Environ(), "A=1") }`, ""},
 	{"environment to Env key", `func F() *exec.Cmd { return &exec.Cmd{Env: os.Environ()} }`, ""},
 	{"environment through local", `func F(c *exec.Cmd) { env := slices.Clip(append(os.Environ(), "A=1")); env = append(env, "B=2"); c.Env = env }`, ""},
+	{"environment length", `func F() bool { return len(os.Environ()) == 1 }`, ""},
 	{"environment to helper", `func run([]string) {}; func F() { run(os.Environ()) }`, "hold"},
 	{"environment ranged", `func F() { for _, e := range os.Environ() { os.ReadFile(e) } }`, "hold"},
 	{"stored in field", `type s struct{ root string }; func F(v *s) { v.root = os.Getenv("R") }`, "hold"},

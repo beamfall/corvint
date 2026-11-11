@@ -701,10 +701,13 @@ func (flow sourceFlow) listElement(expression ast.Expr) bool {
 func (flow sourceFlow) environmentSafe(expression ast.Expr, parent ast.Node) bool {
 	switch parent := parent.(type) {
 	case *ast.CallExpr:
-		// append(env, entries...), slices.Clip(env) and slices.Clone(env)
-		// are again an environment list.
+		// Its length is a number; append(env, entries...), slices.Clip(env)
+		// and slices.Clone(env) are again an environment list.
 		if len(parent.Args) == 0 || parent.Args[0] != expression {
 			return false
+		}
+		if ident, ok := parent.Fun.(*ast.Ident); ok && ident.Name == "len" && ident.Obj == nil && len(parent.Args) == 1 {
+			return true
 		}
 		if builtinAppend(parent) {
 			return flow.valueSafe(parent, sourceEnvironment)
