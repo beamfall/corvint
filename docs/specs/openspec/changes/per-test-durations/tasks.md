@@ -2,9 +2,11 @@
 
 Build in this order. Each task names its requirement IDs and the proof that closes it.
 
-- [ ] 1 Create `docs/specs/per-test-durations-v1.md` with PTD-V1-001 to PTD-V1-009 from the spec
+- [x] 1 Create `docs/specs/per-test-durations-v1.md` with PTD-V1-001 to PTD-V1-009 from the spec
    delta as proposed, and regenerate `docs/specs/REQUIREMENTS.tsv`. Requirements: PTD-V1-001 to
    PTD-V1-009. Proof: the spec toolchain check passes.
+   Done: V1-5449 filed; PTD-V1 reserved; `docs/specs/per-test-durations-v1.md` created and accepted
+   under G14 (acceptance-log row `per-test-durations`).
 - [ ] 2 Add the add-only receipt fields and the `NOT_MEASURED` and `duration-invalid` rules.
    Requirements: PTD-V1-001, PTD-V1-003, PTD-V1-007. Proof: schema round-trip tests; an older reader
    test that ignores the fields.
