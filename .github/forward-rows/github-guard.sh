@@ -26,9 +26,9 @@
 # and its tables (cishards), the confine wrapper (testconfine), local actions and every guarded
 # section of ci.yml. A mapped input only produces or reports the forward-row evidence
 # (collect.sh, classify.sh, row.jq, selection.jq, outcomes.*, tiers.*, failed.*, flaky.sh,
-# mainmiss.*, absence.jq, bar.sh, full-reasons.sh, infra-reclassified.txt) or is one of the two
-# workflows that run them on main; `consumers` below names the test packages that read each one
-# (every package whose .corvint/test-read-scopes.json entry covers the path; the
+# mainmiss.*, mainmiss-confirm.sh, absence.jq, bar.sh, full-reasons.sh, infra-reclassified.txt) or
+# is one of the two workflows that run them on main; `consumers` below names the test packages that
+# read each one (every package whose .corvint/test-read-scopes.json entry covers the path; the
 # tools/ci-forward-row tests check the table against that declaration), and narrow.sh narrows
 # such a range only when the selection holds every named consumer (CIN-V0-8424). An input in
 # neither list (a new forward-rows file, a renamed one, a non-ASCII name) is global: FULL.
@@ -104,8 +104,8 @@ consumers() {
   .github/forward-rows/absence.jq | .github/forward-rows/bar.sh | .github/forward-rows/classify.sh | \
     .github/forward-rows/collect.sh | .github/forward-rows/failed.jq | .github/forward-rows/failed.sh | \
     .github/forward-rows/flaky.sh | .github/forward-rows/full-reasons.sh | \
-    .github/forward-rows/infra-reclassified.txt | .github/forward-rows/mainmiss.jq | \
-    .github/forward-rows/mainmiss.sh | .github/forward-rows/outcomes.jq | .github/forward-rows/outcomes.sh | \
+    .github/forward-rows/infra-reclassified.txt | .github/forward-rows/mainmiss-confirm.sh | \
+    .github/forward-rows/mainmiss.jq | .github/forward-rows/mainmiss.sh | .github/forward-rows/outcomes.jq | .github/forward-rows/outcomes.sh | \
     .github/forward-rows/row.jq | .github/forward-rows/selection.jq)
     echo tools/ci-forward-row
     ;;
