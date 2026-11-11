@@ -439,6 +439,9 @@ export CORVINT_SCRATCH_ROOT=lane-scratch
 lock_dir=` + filepath.Join(work, "locks") + `
 [[ $(free_gb lane-scratch/x) =~ ^[0-9]+$ ]] || { echo "free_gb printed no size"; exit 4; }
 [[ $(free_gb missing) =~ ^[0-9]+$ ]] || { echo "free_gb printed no size for a bare name"; exit 4; }
+# Exercise the progress invariant independently of PWD normalization.
+[[ $(PWD= free_gb missing) =~ ^[0-9]+$ ]] || exit 4
+[[ $(PWD=relative free_gb missing) =~ ^[0-9]+$ ]] || exit 4
 writable_paths control env GOTOOLCHAIN=local go test ./x
 # An argv TMPDIR override that is a missing bare name reaches the same walk.
 writable_paths control env TMPDIR=rel-tmp go test ./x
@@ -449,6 +452,7 @@ tmpfs_defaults 2> /dev/null
 		defer cancel()
 		c := exec.CommandContext(ctx, "bash", "-c", script)
 		c.Dir, c.Env, c.WaitDelay = work, dogtoolsEnv(), 2*time.Second
+		guardScratchBash(t, c) // DTL-V0-018: also clean descendants on parent death.
 		out, err := c.CombinedOutput()
 		if ctx.Err() != nil {
 			t.Fatalf("relative scratch root hung the disk check: %s", out)
