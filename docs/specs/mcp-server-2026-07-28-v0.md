@@ -937,8 +937,10 @@ Each row cites the first emitting site and states only the condition checked the
   (`MMR-V0-013`). The message stays `Invalid params`; the server forwards only this closed data
   from a handler, and every refusal, protocol-level ones included, drops the data when its field is
   longer than 1,024 bytes, so an oversized key is still answered `-32602` and the session keeps
-  serving. Non-goals: data on other error codes,
-  diagnosing every runtime-only rule. Falsifier: a -32602 without `data.reason` and `data.field`,
+  serving. DMF-V1-010 adds four members after these, which keep their meaning: `code` (the reason),
+  `message` (what is wrong with which field), `retryable` (`false`) and `next` (the argument change
+  that fixes it); the server writer fills them on every `-32602` that carries data. Non-goals: data
+  on other error codes, diagnosing every runtime-only rule. Falsifier: a -32602 without `data.reason` and `data.field`,
   or a diagnosis that differs between the unified and a dedicated server. Rollback: drop
   `toolgroup.WithInvalidParamsData` and `InvalidParamsAt`, restoring bare errors.
 - `MCPV0-953`: (experimental under the standing lane auto-accept; V1-3701; amends `MCPV0-100`,

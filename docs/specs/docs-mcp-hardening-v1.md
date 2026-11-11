@@ -249,7 +249,7 @@ These SHALL NOT return `-32603 Internal error`. Serves PROD-DOCS-001. (finding 6
 - WHEN the docs bridge returns the error
 - THEN `message` contains that line and `next` names the build command
 
-Delivery: not yet built.
+Delivery: every tool-error object (`toolgroup.Failure`/`FailureResult`, the corpus `Failure` and the `corvint-mcp` tool-error object) keeps its members and adds `message` (the supplied message, or the code's own when the supplied one is empty or equals the code), `retryable` and `next` from one code table (`toolgroup.Detail`). A cancelled call is the `cancelled` tool error in the docs, test-validity, corpus, affected and help paths and in `corvint-mcp`. A request at the concurrency limit gets the `server-busy` tool error for `tools/call` and JSON-RPC error `-32000` with the same object otherwise, retryable and naming the limit. A failed `corvint-docs` process is `child-process-failed` with its last stderr line in `message` and a `next` (the corpus build command when the line names a corpus). Every `-32602` data object gains `code`, `message`, `retryable: false` and `next` after the MCPV0-952 members (amended there). Tests: `TestDMFV1010ServerBusy` (`internal/mcp/server`), `TestDMFV1010CancelledAndChildFailure` (`internal/mcp/toolgroup`), `TestDMFV1010ChildFailureKeepsStderr` (`internal/mcp/docsbridge`), `TestDMFV1010InvalidArgumentError` (`internal/mcp/cli`); the MCPV0-952 tests compare their closed members exactly and require the new ones.
 
 - `DMF-V1-011`: (accepted automatically under G14, decision 0596; V1-5409) Rebuilt corpus served without restart
 
@@ -304,7 +304,7 @@ Delivery: not yet built.
 | DMF-V1-007 | 8 | `internal/flowdocs/generate.go`, `internal/flowdocs/check.go`, `cmd/corvint-docs/docs_flows.go` | `TestDMFV1007*` |
 | DMF-V1-008 | 10 | `internal/mcp/corpusbridge/descriptions.go`, `internal/mcp/docsbridge/docsbridge.go` | `TestDMFV1008DistinctToolDescriptions`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
 | DMF-V1-009 | 11 | `internal/mcp/corpusbridge/corpusbridge.go`, `internal/capcatalog/mcp.go` | `TestDMFV1009NoDocsTestSelectionTool`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
-| DMF-V1-010 | 12 | not yet built | not yet built |
+| DMF-V1-010 | 12 | `internal/mcp/toolgroup/errordetail.go`, `internal/mcp/protocol/types.go`, `internal/mcp/server/server.go`, `internal/mcp/docsbridge/docsbridge.go`, the corpus group and the `corvint-mcp` handler | `TestDMFV1010*` |
 | DMF-V1-011 | 13 | not yet built | not yet built |
 | DMF-V1-013 | 14 | not yet built | not yet built |
 
