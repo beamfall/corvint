@@ -128,7 +128,7 @@ the counts. Serves PROD-DOCS-003. (finding 3; `internal/doccitations/check.go`)
 - WHEN the citation check runs with `--json`
 - THEN `a.go:3` is not checked, `b.go:4` is listed as unpinned and the JSON counts both groups
 
-Delivery: `internal/doccitations` reports `missing-file` for any untracked cited path, skips and counts tokens inside fenced code (`Report.Fenced`), and lists tracked citations with no pin in `Report.Unpinned`; `docs citations check --json` prints `corvint-docs-citations-check/0` (failures, unpinned, counts) and the text summary counts unpinned and fenced citations. SDD-V0-633 is amended to match. Tests: `TestDMFV1004CitationsMissingFencedUnpinned` (`internal/doccitations`), `TestDMFV1004CitationsCheckJSON` (`cmd/corvint-docs`).
+Delivery: `internal/doccitations` reports `missing-file` for any untracked cited path, skips and counts tokens inside fenced code (`Report.Fenced`), reports a fence still open at the end of its document as an `unclosed-fence` failure naming the document and the opening line (the skipped rest of the file is never passed as clean), and lists tracked citations with no pin in `Report.Unpinned`; `docs citations check --json` prints `corvint-docs-citations-check/0` (failures, unpinned, counts) and the text summary counts unpinned and fenced citations. SDD-V0-633 is amended to match. Tests: `TestDMFV1004CitationsMissingFencedUnpinned`, `TestDMFV1004UnclosedFenceFails` (`internal/doccitations`), `TestDMFV1004CitationsCheckJSON` (`cmd/corvint-docs`).
 
 - `DMF-V1-005`: (accepted automatically under G14, decision 0596; V1-5409) Reports say when the worktree differs
 

@@ -31,6 +31,9 @@ const (
 	TrivialSpan    = "trivial-span"
 	AnchorMismatch = "anchor-mismatch"
 	MissingFile    = "missing-file"
+	// UnclosedFence is a fenced code block still open at the end of its document: the
+	// citations after its opening line were skipped as code, so the document is not clean.
+	UnclosedFence = "unclosed-fence"
 )
 
 const (
@@ -135,7 +138,7 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 	for _, document := range documents {
 		var fence fenceState
 		for n, line := range splitLines(texts[document]) {
-			if fence.step(line) {
+			if fence.step(line, n+1) {
 				for _, match := range tokenPattern.FindAllStringSubmatch(line, -1) {
 					if citationPattern.MatchString(match[1]) {
 						report.Fenced++
@@ -173,6 +176,9 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 				citations = append(citations, c)
 				cited[path] = true
 			}
+		}
+		if fence.length > 0 {
+			report.Failures = append(report.Failures, Failure{document, fence.opened, fence.marker, UnclosedFence, fmt.Sprintf("fenced code opened at %s:%d is never closed; every line after it was skipped as code", document, fence.opened)})
 		}
 	}
 	var targets []string
@@ -250,15 +256,19 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 
 // fenceState follows CommonMark fenced code (``` or ~~~ after at most three
 // spaces, closed by the same character at least as long with nothing after
-// it) line by line, so a citation shown as example code is not checked.
+// it) line by line, so a citation shown as example code is not checked. A fence
+// still open at the end of the document is an unclosed-fence failure at the
+// line and marker that opened it.
 type fenceState struct {
 	char   byte
 	length int
+	opened int
+	marker string
 }
 
-// step reports whether line is inside fenced code, its opening and closing
-// fence lines included, and advances the state.
-func (f *fenceState) step(line string) bool {
+// step reports whether line, numbered number, is inside fenced code, its
+// opening and closing fence lines included, and advances the state.
+func (f *fenceState) step(line string, number int) bool {
 	trimmed := strings.TrimLeft(line, " ")
 	if len(line)-len(trimmed) > 3 {
 		return f.length > 0
@@ -278,7 +288,7 @@ func (f *fenceState) step(line string) bool {
 	if length < 3 || (char == '`' && strings.ContainsRune(trimmed[length:], '`')) {
 		return false
 	}
-	f.char, f.length = char, length
+	f.char, f.length, f.opened, f.marker = char, length, number, trimmed[:length]
 	return true
 }
 

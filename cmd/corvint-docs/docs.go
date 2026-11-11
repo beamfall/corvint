@@ -362,8 +362,9 @@ Citations (SDD-V0-633, DMF-V1-004): docs citations check scans tracked Markdown 
   named tracked files) for backticked path:N, path:N-M or path:N,M tokens with an optional
   @HEX anchor and reports out-of-range, trivial-span, anchor-mismatch and missing-file
   (any cited path that is not tracked) citations against the index blobs. Tokens inside
-  fenced code are skipped and counted; citations with no @HEX pin are counted as unpinned,
-  not failures. --json prints corvint-docs-citations-check/0: one object per failure, the
+  fenced code are skipped and counted; a fence still open at the end of a file is an
+  unclosed-fence failure at its opening line; citations with no @HEX pin are counted as
+  unpinned, not failures. --json prints corvint-docs-citations-check/0: one object per failure, the
   unpinned citations and the counts. Exit 0 clean, 1 on failures, 2 on errors. It reads only.
 
 Paging (SDD-V0-632): declarations and importers each show at most 64 entries per page.
