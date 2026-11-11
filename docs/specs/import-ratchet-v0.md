@@ -75,6 +75,24 @@ measured edges by layer pair and the per-layer test time are recorded in
   on the lane host over 438 packages; 0.09 s over 298 after decision 0594) and carry `//corvint:read-kinds .go go.mod` (AFP-V0-9000), so affected
   selection reruns it on any Go source or module-boundary edit. The manifest and baseline are
   `go:embed` inputs, so their edits select it as well.
+- `IRT-V0-020`: Every direct Git spawn in a production file of a module package outside
+  `internal/gitrun` SHALL be listed in `tools/import-ratchet/direct_git_allowlist.txt` with a
+  reason (V1-4807). A direct Git spawn is a call `exec.Command("git", ...)` or
+  `exec.CommandContext(ctx, "git", ...)` whose program argument is the string literal `"git"`,
+  with `exec` the file's name for `os/exec`. The packages are those of IRT-V0-003 (a nested module
+  such as `interop/cem01-go` is outside them), and every non-`_test.go` file counts whatever its
+  build constraints. Each allowlist line is `PATH:FUNC: REASON`, where `FUNC` is the enclosing
+  top-level function or `TYPE.METHOD`; a function holding N spawns is listed N times; lines are
+  sorted and every reason is non-blank. The test fails with `UNLISTED_DIRECT_GIT` for a spawn the
+  list does not cover, `STALE_DIRECT_GIT` for a listed spawn that no longer exists, and
+  `ALLOWLIST_FORMAT` for a malformed, unsorted or reasonless line. A spawn is routed through
+  `internal/gitrun` only when the result is unchanged: `gitrun` runs with an explicit environment
+  (empty unless given), a per-operation timeout inside a budget, bounded stdout and stderr,
+  process-group containment and typed `cemcode` errors, so a site that inherits the environment,
+  has no timeout, streams through a pipe, reads `exec.ExitError` or reports exec's error text stays
+  listed. The test carries the read-kinds directive of IRT-V0-006, and the list is a `go:embed`
+  input of the test. A spawn through a variable program name, a wrapper outside `os/exec` or
+  another module is not seen.
 - `IRT-V0-021`: No package outside the `tests` and `release` layers SHALL import
   `internal/liveverify/affected` in a production file only for the names `Language` and
   `ValidRelativePath` (V1-4808). `ValidRelativePath` forwards to the `shared` leaf
@@ -115,6 +133,7 @@ reviewed change.
 | IRT-V0-004 | `TestCheckNamesNewWrongWayEdges`, `TestCheckRefusesStaleAndMalformedBaselines` |
 | IRT-V0-005 | `TestImportRatchet` controls |
 | IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages; 0.09 s, 298 packages and 44 edges after the V1-5233 re-key) |
+| IRT-V0-020 | `TestIRTV0020DirectGitSpawnsAreAllowlisted` (checkout scan against `direct_git_allowlist.txt`, and a synthetic-module control naming an unlisted, a stale and a malformed entry) |
 | IRT-V0-021 | `TestIRTV0021NoLeafOnlyAffectedImport` (checkout graph and a synthetic-module control that fails a `Language`-only importer) |
 
 Area names are the layers of decision 0594 item 8: `shared`, `analyzers`, `tests`, `docs` and
