@@ -137,7 +137,7 @@ func UnselectedFiles(r Repo, options UnselectedOptions) (UnselectedReport, error
 	if err != nil {
 		return UnselectedReport{}, err
 	}
-	texts, _, err := r.readFiles(commit, func(name string) bool { return isRunnerConfigPath(name) || isTestCandidatePath(name) })
+	texts, _, err := readFiles(r, commit, func(name string) bool { return isRunnerConfigPath(name) || isTestCandidatePath(name) })
 	if err != nil {
 		return UnselectedReport{}, err
 	}
@@ -178,16 +178,16 @@ func UnselectedFiles(r Repo, options UnselectedOptions) (UnselectedReport, error
 // classifyFile classifies one candidate; ok is false when it declares no test or describe, so it
 // is not test-looking (TSA-V0-140, TSA-V0-144).
 func classifyFile(name string, s *source, set runnerSet, resolver *moduleResolver) (SelectionFile, bool) {
-	if !isTestCandidatePath(name) || !slices.ContainsFunc(s.decls, func(d decl) bool { return d.kind == "test" || d.kind == "describe" }) {
+	if !isTestCandidatePath(name) || !slices.ContainsFunc(s.Decls, func(d decl) bool { return d.Kind == "test" || d.Kind == "describe" }) {
 		return SelectionFile{}, false
 	}
-	file := SelectionFile{Path: name, Framework: s.framework(resolver)}
+	file := SelectionFile{Path: name, Framework: framework(s, resolver)}
 	uncertain := func(reason string) (SelectionFile, bool) {
 		file.Selection, file.Reason = SelectionUncertain, reason
 		return file, true
 	}
 	switch {
-	case s.uncertain:
+	case s.Uncertain:
 		return uncertain("source-unparsed")
 	case file.Framework == frameworkAmbiguous:
 		return uncertain("framework-ambiguous")
@@ -270,13 +270,13 @@ func runnerRuns(runner, framework string) bool {
 // and extend-derived bindings to its framework module, and the file is "indirect" when some binding
 // cannot be followed. A test or describe root declared in the file that ends on no import is
 // "unresolved". A nil resolver follows no module.
-func (s *source) framework(resolver *moduleResolver) string {
+func framework(s *source, resolver *moduleResolver) string {
 	found := map[string]bool{}
-	for i, t := range s.tokens {
+	for i, t := range s.Tokens {
 		if t.Kind != appmap.JSString || !t.Literal {
 			continue
 		}
-		if _, ok := s.moduleBinding(i); !ok {
+		if _, ok := moduleBinding(s, i); !ok {
 			continue
 		}
 		switch module := t.Text; {
@@ -286,11 +286,11 @@ func (s *source) framework(resolver *moduleResolver) string {
 			found[frameworkOther] = true
 		}
 	}
-	table := s.moduleTable()
+	table := sourceModuleTable(s)
 	bound, resolved, followed, unresolved := []importedName{}, map[string]bool{}, true, false
 	roots := map[string]bool{"expect": false}
-	for _, d := range s.decls {
-		roots[d.base] = true
+	for _, d := range s.Decls {
+		roots[d.Base] = true
 	}
 	for _, root := range slices.Sorted(maps.Keys(roots)) {
 		declares, name := roots[root], table.rooted(root)
@@ -303,7 +303,7 @@ func (s *source) framework(resolver *moduleResolver) string {
 		}
 	}
 	for _, b := range bound {
-		framework := resolver.follow(s.path, b, 0)
+		framework := resolver.follow(s.Path, b, 0)
 		if framework == "" {
 			followed = false
 			continue
@@ -331,23 +331,23 @@ func (s *source) framework(resolver *moduleResolver) string {
 
 // moduleBinding reports whether the string at i is a module specifier (`from "m"`, `import "m"`,
 // `require("m")`, `import("m")`) and returns the token range of the names it binds.
-func (s *source) moduleBinding(i int) ([2]int, bool) {
+func moduleBinding(s *source, i int) ([2]int, bool) {
 	switch {
-	case s.ident(i-1, "from"):
+	case s.Ident(i-1, "from"):
 		for j := i - 2; j >= 0 && j > i-200; j-- {
-			if s.ident(j, "import") || s.ident(j, "export") {
+			if s.Ident(j, "import") || s.Ident(j, "export") {
 				return [2]int{j + 1, i - 1}, true
 			}
 		}
 		return [2]int{}, true
-	case s.ident(i-1, "import"):
+	case s.Ident(i-1, "import"):
 		return [2]int{}, true
-	case s.punct(i-1, "(") && s.punct(i+1, ")") && (s.ident(i-2, "require") || s.ident(i-2, "import")):
+	case s.Punct(i-1, "(") && s.Punct(i+1, ")") && (s.Ident(i-2, "require") || s.Ident(i-2, "import")):
 		for j := i - 3; j >= 0 && j > i-200; j-- {
-			if s.ident(j, "const") || s.ident(j, "let") || s.ident(j, "var") {
+			if s.Ident(j, "const") || s.Ident(j, "let") || s.Ident(j, "var") {
 				return [2]int{j + 1, i - 2}, true
 			}
-			if s.punct(j, ";") || s.punct(j, "}") && s.match[j] < 0 {
+			if s.Punct(j, ";") || s.Punct(j, "}") && s.Match[j] < 0 {
 				break
 			}
 		}
@@ -373,14 +373,14 @@ func SelectedSourceValidity(r Repo, options SourceValidityOptions) (SourceValidi
 			continue
 		}
 		if set == nil {
-			configs, _, err := r.readFiles(report.Revision, isRunnerConfigPath)
+			configs, _, err := readFiles(r, report.Revision, isRunnerConfigPath)
 			if err != nil {
 				return SourceValidityReport{}, err
 			}
 			discovered := discoverRunners(configs)
 			set = &discovered
 		}
-		data, _, err := r.readOne(report.Revision, file.Path, MaxFileBytes)
+		data, _, err := readOne(r, report.Revision, file.Path, MaxFileBytes)
 		if err != nil {
 			return SourceValidityReport{}, err
 		}
@@ -415,9 +415,9 @@ func refuseUnselectedTests(report *SourceValidityReport, file *SourceValidityFil
 		file.Findings = append(file.Findings, f)
 		test.Hygiene = testvalidity.ApplySourceFindings(testvalidity.Projection{Hygiene: test.Hygiene}, []testvalidity.SourceFinding{f}).Hygiene
 	}
-	for _, d := range s.decls {
-		test := fmt.Sprintf("%s:%d", file.Path, d.line)
-		if d.kind != "test" || seen[test] {
+	for _, d := range s.Decls {
+		test := fmt.Sprintf("%s:%d", file.Path, d.Line)
+		if d.Kind != "test" || seen[test] {
 			continue
 		}
 		seen[test] = true

@@ -100,15 +100,15 @@ type accessorTarget struct {
 // neverWritten returns example e's TSA-V0-444 findings in assertion line order (TSA-V0-443).
 func (c *flowContext) neverWritten(test string) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
-	if c.r.app == nil || c.e.path != c.name || c.outsideChain() {
+	if c.r.App == nil || c.e.Path != c.name || c.outsideChain() {
 		return out
 	}
 	for _, a := range rubyAssertions(c.exampleLines()) {
 		if a.self {
 			continue
 		}
-		actual := a.t.masked[a.actual[0]:a.actual[1]]
-		m := rspecReaderTarget.FindStringSubmatch(a.t.squash(a.actual[0], a.actual[1]))
+		actual := a.t.Masked[a.actual[0]:a.actual[1]]
+		m := rspecReaderTarget.FindStringSubmatch(squash(a.t, a.actual[0], a.actual[1]))
 		if m == nil || strings.ContainsRune(actual, 1) || rubyKeywords[m[1]] || rubyKeywords[m[2]] {
 			continue
 		}
@@ -126,8 +126,8 @@ func (c *flowContext) neverWritten(test string) []testvalidity.SourceFinding {
 // outsideChain reports a declaration in the file whose code could exercise the receiver out of
 // the reader's sight (TSA-V0-447).
 func (c *flowContext) outsideChain() bool {
-	for _, l := range c.r.lines {
-		if rspecOutsideChain.MatchString(l.text) {
+	for _, l := range c.r.Lines {
+		if rspecOutsideChain.MatchString(l.Text) {
 			return true
 		}
 	}
@@ -136,8 +136,8 @@ func (c *flowContext) outsideChain() bool {
 
 // describedClass is the innermost constant group description on e's chain.
 func (c *flowContext) describedClass() string {
-	for g := c.e.group; g > 0; g = c.r.groups[g].parent {
-		if m := rspecGroupTitle.FindStringSubmatch(c.r.groups[g].head); m != nil && m[3] != "" {
+	for g := c.e.Group; g > 0; g = c.r.Groups[g].Parent {
+		if m := rspecGroupTitle.FindStringSubmatch(c.r.Groups[g].Head); m != nil && m[3] != "" {
 			return strings.TrimPrefix(m[3], "::")
 		}
 	}
@@ -151,14 +151,14 @@ func (c *flowContext) target(a rubyAssertion, root, reader string) (accessorTarg
 	out := accessorTarget{a: a, root: root, reader: reader, aliases: map[string]bool{root: true}}
 	name := root
 	if root == "subject" {
-		g := c.r.declaring(c.e.group, "subject")
+		g := declaring(c.r, c.e.Group, "subject")
 		if g < 0 {
 			out.class = c.describedClass()
 			return out, out.class != ""
 		}
-		v := c.r.groups[g].decls["subject"]
+		v := c.r.Groups[g].Decls["subject"]
 		if !strings.HasPrefix(v, "let:") {
-			value, span, ok := blockValue(c.r.groups[g].bodies["subject"])
+			value, span, ok := blockValue(c.r.Groups[g].Bodies["subject"])
 			if !ok {
 				return out, false
 			}
@@ -166,15 +166,15 @@ func (c *flowContext) target(a rubyAssertion, root, reader string) (accessorTarg
 		}
 		name = strings.TrimPrefix(v, "let:")
 		out.aliases[name] = true
-	} else if c.r.canonical(c.e.group, "subject") == "let:"+name {
+	} else if rspecReaderCanonical(c.r, c.e.Group, "subject") == "let:"+name {
 		out.aliases["subject"] = true
 	}
-	b, ok := c.binding(name, a.t.line)
+	b, ok := c.binding(name, a.t.Line)
 	if !ok {
 		return out, false
 	}
-	for _, l := range c.e.body[1:] {
-		if l.line == b.line {
+	for _, l := range c.e.Body[1:] {
+		if l.Line == b.line {
 			out.local = b.line
 		}
 	}
@@ -186,22 +186,22 @@ func blockValue(body []rubyLine) (rubyText, [2]int, bool) {
 	switch {
 	case len(body) == 1:
 		t := maskRuby(body[0])
-		open := strings.Index(t.masked, "{")
-		close := strings.LastIndex(t.masked, "}")
-		if open < 0 || close <= open || balanced(t.masked, open) != close {
+		open := strings.Index(t.Masked, "{")
+		close := strings.LastIndex(t.Masked, "}")
+		if open < 0 || close <= open || balanced(t.Masked, open) != close {
 			return rubyText{}, [2]int{}, false
 		}
-		return t, trimSpan(t.masked, open+1, close), true
-	case len(body) == 3 && rspecBlockClose.MatchString(body[2].text):
+		return t, trimSpan(t.Masked, open+1, close), true
+	case len(body) == 3 && rspecBlockClose.MatchString(body[2].Text):
 		t := maskRuby(body[1])
-		return t, [2]int{0, len(t.masked)}, true
+		return t, [2]int{0, len(t.Masked)}, true
 	}
 	return rubyText{}, [2]int{}, false
 }
 
 // newValue reads a value that is exactly `Class.new` with an optional parenthesised argument list.
 func (c *flowContext) newValue(out *accessorTarget, t rubyText, span [2]int) bool {
-	m := t.masked[span[0]:span[1]]
+	m := t.Masked[span[0]:span[1]]
 	loc := rspecNewValue.FindStringSubmatchIndex(m)
 	if loc == nil {
 		return false
@@ -219,7 +219,7 @@ func (c *flowContext) newValue(out *accessorTarget, t rubyText, span [2]int) boo
 			return false
 		}
 		out.args = m[open+1 : len(m)-1]
-		out.rawArgs = t.raw[span[0]+open+1 : span[0]+len(m)-1]
+		out.rawArgs = t.Raw[span[0]+open+1 : span[0]+len(m)-1]
 	default:
 		return false
 	}
@@ -241,13 +241,13 @@ type exercisedCall struct {
 // another let (TSA-V0-447).
 func (c *flowContext) exercised(target accessorTarget) ([]exercisedCall, bool) {
 	r := c.r
-	for g := c.e.group; g >= 0; g = r.groups[g].parent {
-		for name, body := range r.groups[g].bodies {
+	for g := c.e.Group; g >= 0; g = r.Groups[g].Parent {
+		for name, body := range r.Groups[g].Bodies {
 			if target.aliases[name] {
 				continue
 			}
 			for _, l := range body {
-				for _, w := range rubyWords(maskRuby(l).masked) {
+				for _, w := range rubyWords(maskRuby(l).Masked) {
 					if target.aliases[w] {
 						return nil, false
 					}
@@ -257,28 +257,28 @@ func (c *flowContext) exercised(target accessorTarget) ([]exercisedCall, bool) {
 	}
 	lines := []rubyLine{}
 	chain := []int{}
-	for g := c.e.group; g >= 0; g = r.groups[g].parent {
+	for g := c.e.Group; g >= 0; g = r.Groups[g].Parent {
 		chain = append(chain, g)
 	}
 	slices.Reverse(chain)
 	for _, g := range chain {
-		for _, h := range r.groups[g].hooks {
-			lines = append(lines, h.body...)
+		for _, h := range r.Groups[g].Hooks {
+			lines = append(lines, h.Body...)
 		}
 	}
 	for _, l := range c.exampleLines() {
-		if l.line <= target.a.t.line {
+		if l.Line <= target.a.t.Line {
 			lines = append(lines, l)
 		}
 	}
 	asserted := map[int]bool{}
 	for _, a := range rubyAssertions(lines) {
-		asserted[a.t.line] = true
+		asserted[a.t.Line] = true
 	}
 	out := []exercisedCall{}
 	for _, l := range lines {
 		t := maskRuby(l)
-		m := t.masked
+		m := t.Masked
 		for _, loc := range rspecIdentifier.FindAllStringIndex(m, -1) {
 			if !target.aliases[m[loc[0]:loc[1]]] || loc[0] > 0 && strings.ContainsRune(".:@$", rune(m[loc[0]-1])) {
 				continue
@@ -287,7 +287,7 @@ func (c *flowContext) exercised(target accessorTarget) ([]exercisedCall, bool) {
 			if trimmed := strings.TrimLeft(rest, " \t"); strings.HasPrefix(trimmed, ":") && !strings.HasPrefix(trimmed, "::") {
 				continue
 			}
-			if l.line == target.local && strings.TrimSpace(m[:loc[0]]) == "" && rubyAssignAfter.MatchString(rest) {
+			if l.Line == target.local && strings.TrimSpace(m[:loc[0]]) == "" && rubyAssignAfter.MatchString(rest) {
 				continue
 			}
 			call := rspecTailCall.FindStringSubmatch(rest)
@@ -299,7 +299,7 @@ func (c *flowContext) exercised(target accessorTarget) ([]exercisedCall, bool) {
 				method += "="
 			}
 			if method != target.reader {
-				out = append(out, exercisedCall{method: method, line: l.line, asserted: asserted[l.line]})
+				out = append(out, exercisedCall{method: method, line: l.Line, asserted: asserted[l.Line]})
 			}
 		}
 	}
@@ -333,7 +333,7 @@ func namesReader(reader string) func(t rubyText) bool {
 	q := regexp.QuoteMeta(reader)
 	code := regexp.MustCompile(`(?:^|[^:\w]):` + q + `(?:[^\w?!]|$)|(?:^|[^\w:])` + q + `:(?:[^:]|$)`)
 	literal := regexp.MustCompile(`['"]@?` + q + `=?['"]`)
-	return func(t rubyText) bool { return code.MatchString(t.masked) || literal.MatchString(t.raw) }
+	return func(t rubyText) bool { return code.MatchString(t.Masked) || literal.MatchString(t.Raw) }
 }
 
 // neverWrittenFinding reads the target's class and the methods the example exercises, and returns
@@ -343,11 +343,11 @@ func (c *flowContext) neverWrittenFinding(test string, target accessorTarget) (t
 	writes, names := writesReader(target.reader), namesReader(target.reader)
 	// A string literal among the `.new` arguments can name the reader in any spelling
 	// (`"reader" => v`, `"reader": v`), so it withholds like a symbol key does.
-	if names(rubyText{raw: target.rawArgs, masked: target.args}) || strings.ContainsAny(target.args, "\"'`\x01") || strings.Contains(target.args, "<<") {
+	if names(rubyText{Raw: target.rawArgs, Masked: target.args}) || strings.ContainsAny(target.args, "\"'`\x01") || strings.Contains(target.args, "<<") {
 		return none, false
 	}
 	// Without a complete support set an unseen helper could write the receiver.
-	if c.r.supportGap() != "" || c.callsHelper(target) {
+	if supportGap(c.r) != "" || c.callsHelper(target) {
 		return none, false
 	}
 	calls, ok := c.exercised(target)
@@ -355,17 +355,17 @@ func (c *flowContext) neverWrittenFinding(test string, target accessorTarget) (t
 		return none, false
 	}
 	// A write of the reader in the example or its hooks, on any receiver, is a write.
-	for g := c.e.group; g >= 0; g = c.r.groups[g].parent {
-		for _, h := range c.r.groups[g].hooks {
-			for _, l := range h.body {
-				if writes(maskRuby(l).masked) {
+	for g := c.e.Group; g >= 0; g = c.r.Groups[g].Parent {
+		for _, h := range c.r.Groups[g].Hooks {
+			for _, l := range h.Body {
+				if writes(maskRuby(l).Masked) {
 					return none, false
 				}
 			}
 		}
 	}
 	for _, l := range c.exampleLines() {
-		if l.line <= target.a.t.line && writes(maskRuby(l).masked) {
+		if l.Line <= target.a.t.Line && writes(maskRuby(l).Masked) {
 			return none, false
 		}
 	}
@@ -442,7 +442,7 @@ func (c *flowContext) neverWrittenFinding(test string, target accessorTarget) (t
 		for _, method := range methods(name) {
 			for _, l := range method.lines {
 				t := maskRuby(l)
-				m := t.masked
+				m := t.Masked
 				if writes(m) || names(t) {
 					return none, false
 				}
@@ -495,12 +495,12 @@ func (c *flowContext) neverWrittenFinding(test string, target accessorTarget) (t
 	if predicate := methods(target.reader + "?"); len(predicate) > 0 {
 		p := predicate[0]
 		sibling = fmt.Sprintf("; the class defines the sibling predicate %s#%s? at %s:%d, which may hold the state the assertion means",
-			chain.classes[p.class].name, target.reader, p.path, p.lines[0].line)
+			chain.classes[p.class].name, target.reader, p.path, p.lines[0].Line)
 		hint = fmt.Sprintf(" (for example %s.%s?)", target.root, target.reader)
 	}
-	return c.finding(testvalidity.RuleRBAssertTargetNeverWritten, testvalidity.SeverityAbstained, test, target.a.t.line, cause, fmt.Sprintf(
+	return c.finding(testvalidity.RuleRBAssertTargetNeverWritten, testvalidity.SeverityAbstained, test, target.a.t.Line, cause, fmt.Sprintf(
 		"assertion target is never written on the exercised path: the assertion at %s (%s) reads %s.%s, the plain %s :%s that %s declares at %s:%d, and nothing reachable from %s, which the example exercises at %s, writes it (no @%s or attribute assignment, %s= call or mass assignment of :%s), so the assertion reads the accessor's initial value whatever that code does%s; hint: assert the state the code writes%s, or write the accessor on that path; the code under test is read statically and not run, so the example abstains instead of being refused",
-		c.at(target.a.t.line), lineText(target.a.t), target.root, target.reader, class.kinds[target.reader], target.reader, class.name, class.path, decl.line,
+		c.at(target.a.t.Line), lineText(target.a.t), target.root, target.reader, class.kinds[target.reader], target.reader, class.name, class.path, decl.Line,
 		strings.Join(exercised, ", "), c.at(cause), target.reader, target.reader, target.reader, sibling, hint)), true
 }
 
@@ -520,9 +520,9 @@ func superResolved(chain appChain, name string, from int) bool {
 // body the reader does not expand could write the receiver (TSA-V0-447).
 func (c *flowContext) callsHelper(target accessorTarget) bool {
 	helpers := map[string]bool{}
-	for _, sr := range c.r.sharedReaders() {
-		for _, h := range append(append([]rspecHelper{}, sr.offGroupDefs...), sr.helpers...) {
-			if name := helperName(h.body); name != "" {
+	for _, sr := range sharedReaders(c.r) {
+		for _, h := range append(append([]rspecHelper{}, sr.OffGroupDefs...), sr.Helpers...) {
+			if name := helperName(h.Body); name != "" {
 				helpers[name] = true
 			}
 		}
@@ -531,21 +531,21 @@ func (c *flowContext) callsHelper(target accessorTarget) bool {
 		return false
 	}
 	lines := []rubyLine{}
-	for g := c.e.group; g >= 0; g = c.r.groups[g].parent {
-		for _, h := range c.r.groups[g].hooks {
-			lines = append(lines, h.body...)
+	for g := c.e.Group; g >= 0; g = c.r.Groups[g].Parent {
+		for _, h := range c.r.Groups[g].Hooks {
+			lines = append(lines, h.Body...)
 		}
-		for _, body := range c.r.groups[g].bodies {
+		for _, body := range c.r.Groups[g].Bodies {
 			lines = append(lines, body...)
 		}
 	}
 	for _, l := range c.exampleLines() {
-		if l.line <= target.a.t.line {
+		if l.Line <= target.a.t.Line {
 			lines = append(lines, l)
 		}
 	}
 	for _, l := range lines {
-		m := maskRuby(l).masked
+		m := maskRuby(l).Masked
 		for _, w := range rubyWords(m) {
 			if helpers[w] {
 				return true
@@ -568,16 +568,16 @@ const rubyPatchCall = `(?:class_eval|class_exec|module_eval|module_exec|include|
 // in any committed app/, lib/ or config/ file. Every listed file must read within the command's
 // budget; one that does not counts as a reopening (TSA-V0-447).
 func (c *flowContext) reopened(chain appChain) bool {
-	app := c.r.app
+	app := c.r.App
 	if app.ReadAll == nil || !app.ReadAll() {
 		return true
 	}
-	if c.r.reopened == nil {
-		c.r.reopened = map[string]bool{}
+	if c.r.Reopened == nil {
+		c.r.Reopened = map[string]bool{}
 	}
 	for _, class := range chain.classes {
 		key := class.name + "\x00" + class.path
-		done, ok := c.r.reopened[key]
+		done, ok := c.r.Reopened[key]
 		if !ok {
 			name := regexp.QuoteMeta(class.name[strings.LastIndex(class.name, ":")+1:])
 			decl := regexp.MustCompile(`(?m)^[ \t]*(?:class|module)[ \t]+(?:::)?(?:\w+::)*` + name + `(?:[^\w:]|$)|\b` + name + `\s*\.\s*` + rubyPatchCall + `\b`)
@@ -591,7 +591,7 @@ func (c *flowContext) reopened(chain appChain) bool {
 					break
 				}
 			}
-			c.r.reopened[key] = done
+			c.r.Reopened[key] = done
 		}
 		if done {
 			return true
@@ -603,7 +603,7 @@ func (c *flowContext) reopened(chain appChain) bool {
 // appChain reads the target class and its superclasses from committed application source
 // (TSA-V0-445). A record chain needs a committed db/schema.rb that never names the reader.
 func (c *flowContext) appChain(class, reader string) (appChain, bool) {
-	app, prefix := c.r.app, specPrefix(c.name)
+	app, prefix := c.r.App, specPrefix(c.name)
 	out := appChain{}
 	for hop := 0; ; hop++ {
 		if hop > maxAppSuperclasses {
@@ -723,8 +723,8 @@ func readAppClass(path, text, class, reader string) (appClass, string, bool) {
 		for len(stack) > 0 && i > stack[len(stack)-1].end {
 			stack = stack[:len(stack)-1]
 		}
-		m := rubyClassDecl.FindStringSubmatch(lines[i].text)
-		mod := rubyModuleDecl.FindStringSubmatch(lines[i].text)
+		m := rubyClassDecl.FindStringSubmatch(lines[i].Text)
+		mod := rubyModuleDecl.FindStringSubmatch(lines[i].Text)
 		if m == nil && mod == nil {
 			continue
 		}
@@ -757,7 +757,7 @@ func readAppClass(path, text, class, reader string) (appClass, string, bool) {
 		defLines: map[string][][]rubyLine{}}
 	names := namesReader(reader)
 	for j := start + 1; j < end; j++ {
-		text := lines[j].text
+		text := lines[j].Text
 		if m := rubyVisibleDef.FindStringSubmatch(text); m != nil {
 			text = m[1]
 		}
@@ -797,17 +797,17 @@ func readAppClass(path, text, class, reader string) (appClass, string, bool) {
 		case rubySingleton.MatchString(text):
 			// A singleton `new` or `allocate` can build the receiver without `initialize`.
 			for k := j + 1; k < blockEnd; k++ {
-				if rubyNewWord.MatchString(maskRuby(lines[k]).masked) {
+				if rubyNewWord.MatchString(maskRuby(lines[k]).Masked) {
 					return appClass{}, "", false
 				}
 			}
 		case rubyClassDecl.MatchString(text) || rubyModuleDecl.MatchString(text):
 		case rubyCallbackDecl.MatchString(text):
-			if rubyBlockValue.MatchString(maskRuby(lines[j]).masked) || blockEnd != j {
+			if rubyBlockValue.MatchString(maskRuby(lines[j]).Masked) || blockEnd != j {
 				return appClass{}, "", false
 			}
 			out.mentions = out.mentions || names(maskRuby(lines[j]))
-			for _, s := range rubySymbolRef.FindAllStringSubmatch(maskRuby(lines[j]).masked, -1) {
+			for _, s := range rubySymbolRef.FindAllStringSubmatch(maskRuby(lines[j]).Masked, -1) {
 				out.callbacks = append(out.callbacks, s[1])
 			}
 		case rubyInertDecl.MatchString(text):

@@ -56,38 +56,38 @@ func referenceFactoryDefaultRole(factory string, sources map[string]*source, nam
 		if s == nil {
 			continue
 		}
-		for i := range s.tokens {
-			if !s.ident(i, factory) || s.memberAccess(i) {
+		for i := range s.Tokens {
+			if !s.Ident(i, factory) || s.MemberAccess(i) {
 				continue
 			}
 			open := -1
 			switch {
-			case s.ident(i-1, "function") && s.punct(i+1, "("):
+			case s.Ident(i-1, "function") && s.Punct(i+1, "("):
 				open = i + 1
-			case s.punct(i+1, "=") && !s.tokens[i+1].Glued:
+			case s.Punct(i+1, "=") && !s.Tokens[i+1].Glued:
 				j := i + 2
-				if s.ident(j, "async") {
+				if s.Ident(j, "async") {
 					j++
 				}
-				if s.ident(j, "function") {
+				if s.Ident(j, "function") {
 					j++
 				}
-				if s.punct(j, "(") && s.match[j] > j && (s.arrow(s.match[j]+1) || s.ident(j-1, "function")) {
+				if s.Punct(j, "(") && s.Match[j] > j && (s.Arrow(s.Match[j]+1) || s.Ident(j-1, "function")) {
 					open = j
 				}
 			}
-			if open < 0 || s.match[open] < 0 {
+			if open < 0 || s.Match[open] < 0 {
 				continue
 			}
-			for j := open + 1; j < s.match[open]; j++ {
-				if !s.ident(j, "role") || !s.punct(j+1, "=") || s.punct(j+2, "=") || s.punct(j+2, ">") {
+			for j := open + 1; j < s.Match[open]; j++ {
+				if !s.Ident(j, "role") || !s.Punct(j+1, "=") || s.Punct(j+2, "=") || s.Punct(j+2, ">") {
 					continue
 				}
-				t := s.tokens[min(j+2, len(s.tokens)-1)]
+				t := s.Tokens[min(j+2, len(s.Tokens)-1)]
 				if (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal &&
-					(s.punct(j+3, ",") || s.punct(j+3, "}") || s.punct(j+3, ")")) {
+					(s.Punct(j+3, ",") || s.Punct(j+3, "}") || s.Punct(j+3, ")")) {
 					found++
-					role, at = t.Text, locate(s.path, t.Line)
+					role, at = t.Text, locate(s.Path, t.Line)
 				} else {
 					other = true
 				}
@@ -112,11 +112,11 @@ func TestFactoryDefaultRolesMatchPerCallScan(t *testing.T) {
 	roles := factoryDefaultRoles(sources, names)
 	checked := 0
 	for _, s := range sources {
-		for i := range s.tokens {
-			if !s.ident(i, "") {
+		for i := range s.Tokens {
+			if !s.Ident(i, "") {
 				continue
 			}
-			name := s.tokens[i].Text
+			name := s.Tokens[i].Text
 			wantRole, wantAt, wantOK := referenceFactoryDefaultRole(name, sources, names)
 			r := roles[name]
 			ok := r != nil && r.found == 1 && !r.other

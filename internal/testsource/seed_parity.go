@@ -154,11 +154,11 @@ func parseSeedRef(ref string) (string, int, bool) {
 
 // seedParity reads both sides of one link at the revision. A file that is not committed refuses
 // tests-source-unavailable.
-func (r Repo) seedParity(commit string, link SeedLink) (SeedParity, error) {
+func seedParity(r Repo, commit string, link SeedLink) (SeedParity, error) {
 	sides := [2]seedExtract{}
 	for k, ref := range []string{link.Legacy, link.New} {
 		name, line, _ := parseSeedRef(ref)
-		data, found, err := r.readOne(commit, name, MaxFileBytes)
+		data, found, err := readOne(r, commit, name, MaxFileBytes)
 		if err != nil {
 			return SeedParity{}, err
 		}
@@ -166,7 +166,7 @@ func (r Repo) seedParity(commit string, link SeedLink) (SeedParity, error) {
 			return SeedParity{}, refuse("tests-source-unavailable", "%s is not a committed file at the revision", name)
 		}
 		read := func(fixture string) ([]byte, bool, error) {
-			data, found, err := r.readOne(commit, fixture, MaxFileBytes)
+			data, found, err := readOne(r, commit, fixture, MaxFileBytes)
 			var refusal *Error
 			switch {
 			case errors.As(err, &refusal) && refusal.Code == "tests-bound-exceeded":

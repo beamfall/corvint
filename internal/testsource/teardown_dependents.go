@@ -176,7 +176,7 @@ func TeardownDependents(r Repo, options TeardownOptions) (TeardownReport, error)
 	if err != nil {
 		return TeardownReport{}, err
 	}
-	data, found, err := r.readOne(commit, options.Declaration, MaxFileBytes)
+	data, found, err := readOne(r, commit, options.Declaration, MaxFileBytes)
 	if err != nil {
 		return TeardownReport{}, err
 	}
@@ -191,7 +191,7 @@ func TeardownDependents(r Repo, options TeardownOptions) (TeardownReport, error)
 		Declaration: TeardownDeclaration{Path: options.Declaration, SHA256: sha256Hex(data), Version: declaration.Version, Revision: declaration.Revision},
 		Files:       []TeardownFile{}, Findings: []TeardownFinding{}, Receipts: []TeardownReceiptBinding{}}
 	for _, name := range files {
-		data, found, err := r.readOne(commit, name, MaxFileBytes)
+		data, found, err := readOne(r, commit, name, MaxFileBytes)
 		if err != nil {
 			return TeardownReport{}, err
 		}
