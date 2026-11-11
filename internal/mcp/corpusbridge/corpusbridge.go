@@ -301,11 +301,9 @@ func descriptors(h header) []bridge.ToolDescriptor {
 			// DCP-V1-098: downstream flow-relation depth for a flow subject.
 			properties["depth"] = map[string]any{"type": "integer", "minimum": 1, "maximum": doccorpus.MaxFlowDepth}
 		}
-		description := "Read source-revalidated experimental documentation corpus evidence; generated authority and explicit limitations remain."
-		if op == "search" {
-			description += " " + SearchIncludeDescription + " " + SearchReceiptDescription
-		}
-		result = append(result, bridge.ToolDescriptor{Name: name, Description: description, Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: false, DestructiveHint: false}, InputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}})
+		// DMF-V1-008: a distinct description per tool and a description on every property.
+		describeProperties(op, properties)
+		result = append(result, bridge.ToolDescriptor{Name: name, Description: toolDescription(op), Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: false, DestructiveHint: false}, InputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result
