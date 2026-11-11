@@ -1762,8 +1762,16 @@ HEAVY_SELECTION="$sel/legacy.json" sv go test -count=1 ./x > /dev/null 2> "$sel/
 HEAVY_SELECTION="$sel/fullbare.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" && grep -qF 'reason: NOT_RECORDED (ASD-V0-5190)' "$sel/err" ||
   fail "ASD-V0-5190: a FULL manifest without a reason did not name NOT_RECORDED: $(cat "$sel/err")"
 HEAVY_SELECTION="$sel/fulllong.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" &&
-  grep -qF "reason: a?b${long:0:509}...(603 bytes) (ASD-V0-5190)" "$sel/err" && [[ $(grep -c 'FULL-selection' "$sel/err") == 1 ]] ||
+  grep -qF "reason: a?b${long:0:509}...(603 chars) (ASD-V0-5190)" "$sel/err" && [[ $(grep -c 'FULL-selection' "$sel/err") == 1 ]] ||
   fail "ASD-V0-5190: the FULL reason was not cleaned and bounded: $(cat "$sel/err")"
+# gaterel review: a C1 control (U+0085) prints as ?, a non-ASCII letter prints as UTF-8, and more than
+# 20 incomplete entries are cut to 20 with a "+N more" count.
+many=$(for i in $(seq 25); do printf '"i%s",' "$i"; done)
+manifest "$selnow" "" "\"scope\":\"FULL\",\"reason\":\"c\\u0085d \\u00e9\",\"incomplete\":[${many%,}]," > "$sel/fullmany.json"
+HEAVY_SELECTION="$sel/fullmany.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" &&
+  grep -qF "reason: c?d $(printf '\303\251'); incomplete: i1; i2; " "$sel/err" &&
+  grep -qF "; i19; i20; +5 more (ASD-V0-5190)" "$sel/err" && ! grep -qF 'i21' "$sel/err" ||
+  fail "ASD-V0-5190: a C1 control, a UTF-8 letter or a long incomplete list was not handled: $(cat "$sel/err")"
 runs=$(grep -c ' local wait=' "$sel/sel.log")
 for c in "full.json|NARROWED|HEAVY_SELECTION_SCOPE=NARROWED but HEAVY_SELECTION=$sel/full.json is scope FULL" \
   "full.json|narrow|HEAVY_SELECTION_SCOPE=narrow is not FULL, NARROWED, NOTHING or UNKNOWN" \
