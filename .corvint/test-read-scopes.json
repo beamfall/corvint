@@ -1197,9 +1197,7 @@
       "internal/companioncli/",
       "internal/versionline/"
     ],
-    "internal/appflows": [
-      ".corvint/e2e-flows.json"
-    ],
+    "internal/appflows": [],
     "internal/appflows/e2erunner": [],
     "internal/appmap": [
       "internal/contextindex/"

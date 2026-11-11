@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package appflows_test
+package liverepo_test
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 // every declared link carries a review anchor that evaluates `reviewed` at
 // HEAD, so the binding has narrowing authority.
 func TestRepositoryE2EFlowsAreBoundAndReviewed_AFUV11655(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", ".."))
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}

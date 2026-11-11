@@ -127,7 +127,7 @@ func Run(ctx context.Context, o Options) error {
 		start := time.Now()
 		diffs, err := linecov.WorkingDiff(ctx, o.Root, ix.Commit)
 		if err != nil {
-			return err
+			return replanErr(ctx, err)
 		}
 		p := Plan{Index: ix.Commit, Base: ix.Commit, Head: "working-tree"}
 		var lp any
@@ -135,10 +135,10 @@ func Run(ctx context.Context, o Options) error {
 			// Non-Go candidates use the same analyzers. Effective execution remains
 			// the whole caller-supplied suite while external qualification is pending.
 			if lp, err = o.NonGo(ctx, diffs); err != nil {
-				return err
+				return replanErr(ctx, err)
 			}
 		} else if err = goPlan(ctx, o, diffs, &p); err != nil {
-			return err
+			return replanErr(ctx, err)
 		}
 		p.ElapsedMS = time.Since(start).Milliseconds()
 		if err := emit(Event{Kind: "plan", Plan: &p, LanguagePlan: lp, ReplanMillis: linecov.Millis(time.Since(start))}); err != nil {
@@ -160,6 +160,15 @@ func Run(ctx context.Context, o Options) error {
 			return err
 		}
 	}
+}
+
+// replanErr is a replan failure's result: nil once ctx is cancelled, because
+// a watch stopped while it replans ends as one stopped while it waits does.
+func replanErr(ctx context.Context, err error) error {
+	if ctx.Err() != nil {
+		return nil
+	}
+	return err
 }
 
 // goPlan fills p for a Go index: every static package keeps whole, narrows to
