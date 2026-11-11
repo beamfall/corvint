@@ -173,6 +173,154 @@ a precision gain here, and it shows no recall loss (misses 0, test-misses 0). Th
 them a name-listing read; it is unchanged by this lane, so the proposal's "no FALLBACK row"
 criterion is NOT_MET.
 
+## Gate redesign (2026-11-11)
+
+Lane affgate, on top of the reviewed affstatus head `5d828908593ee8be070ef710ea56c758fb6c3a5e`.
+Two independent reviews found the unit gate fail-open, the second after the first repair. The
+cause was its shape: it admitted every "output builtin" (`set`, `shift`, `local`, `readonly`,
+`unset`, `read`, `for`) and then denied each way of writing an environment-style name. The gate
+is now a closed grammar, stated as what it admits (AFP-V0-9961 text; the table is in
+`docs/specs/openspec/changes/affected-change-status/design.md`, "Gate redesign"). The design was
+committed before the code. `assignsEnvironment`, `environmentName`, `environmentDefault`,
+`outputBuiltins` and `plainCommand` are gone; `nameListingAdmitted`, `gateWord`,
+`scanExpansions`, `gateCommand`, `testArguments`, `conditionalArguments`, `plainOperands` and
+`literalOperand` in `internal/liveverify/affected/shell/namelisting.go` are the one mechanism.
+The lexer now counts the two constructs it folds away without a command, `case` statements and
+`((` arithmetic commands (`script.cases`, `script.arithmetic` in `lex.go`); nothing else in the
+lexer, the selection side or the planner changed.
+
+Decisions:
+
+- Nothing is kept beyond the starting list (`echo`, `printf`, `true`, `false`, `:`, `exit`, the
+  test builtins, the control words), and `case`/`esac` and `return` are dropped from it: the
+  lexer discards a `case` header and its patterns, which bash expands, and with no function a
+  `return` has no use. No unit in this repository needs more (count below).
+- `printf`'s first argument must be fixed and not begin with `-`: bash's `printf` reads options
+  only before its first operand, so this covers `-v`, `-vNAME`, `"-v"` and a substituted
+  `"$(echo -vNAME)"`.
+- `test` and `[` place an expanded argument only where it is an operand (`[ X ]`, `[ ! X ]`,
+  `[ -z X ]`, `[ -n X ]`, `[ X OP Y ]`); `[[` refuses its integer operators, whose operands it
+  evaluates arithmetically (`[[ x++ -eq 0 ]]` assigns), and `=~`, which sets `BASH_REMATCH`.
+- Round-2 item 4, decided as refusal: a reader operand or redirection target ending in `/` or
+  `/.`, or naming a directory a listing of the test names, is refused. Another directory operand
+  stays admitted on the stated reliance that every admitted reader fails on a directory.
+- A backtick is refused outright rather than lexed: the lexer unescapes only `` \` `` inside it.
+- The base row `plain_rest` held `set -eu` and a `while read` loop; it moved to the refused table
+  as `base_plain_rest` with a note, and an admitted `plain_rest` keeps the rest of it.
+
+The position generator found one leak while the code was written: `[[ $x =~ a ]]` was admitted
+because `=~` holds `~`, which made the word read as computed and skipped the operator check.
+`=~` is now judged first.
+
+### Fail-open paths and the refusing code
+
+| Path | Row(s) | Refused at |
+| --- | --- | --- |
+| Round 1: `diff`, checksum tools | `diff_dir`, `diff_dot`, `diff_file_dir`, `diff_files`, `sha_check`, `shasum_check`, `md5_check`, `sha_file`, `grammar_diff`, `grammar_checksum` | `namelisting.go:399` (unrecognised command) |
+| Round 1: `export`, upper-case assignment | `clicolor`, `clicolor_bare`, `clicolor_cmd`, `grep_options`, `export_name`, `path`, `grammar_export`, `grammar_assign_upper` | `namelisting.go:243` (assignment word), `:399` |
+| Round 1: `read NAME`, `for NAME in`, `printf -v NAME` | `read_env`, `for_env`, `printf_env` | `:399` (`read`, `for`), `:390` (`printf`) |
+| Round 1: `${NAME:=x}` | `default_env`, `grammar_default_assign_colon` | `:288` (readExpansion) |
+| 1: `printf -vPATH` | `r2_printf_vPATH`, `grammar_printf_v_joined` | `:390` |
+| 2: computed name | `r2_read_computed`, `r2_read_computed_quoted`, `r2_printf_computed` | `:243` (`v=PATH`), `:399` (`read`), `:390` (`printf -v`) |
+| 3: allexport | `r2_allexport_arith`, `r2_allexport_o_arith`, `r2_allexport_read`, `r2_allexport_printf` | `:399` (`set`), `:247` (`$((`), `:205` (here-document), `:243`, `:390` |
+| 4: directory operand | `r2_dir_cat`, `r2_dir_wc`, `r2_dir_grep`, `r2_dir_cmp`, `r2_dir_bare`, `grammar_dir_slash_unlisted`, `grammar_dir_dot_unlisted` | `:553` (listed directory), `:550` (trailing `/` or `/.`) |
+
+### Mutation evidence
+
+Driver `/tmp/affgate-mut/run.py` (not committed): each mutant is one exact string replacement in
+`namelisting.go`, run once through `script/heavy.sh env GOTOOLCHAIN=local GOMAXPROCS=2 go test
+-count=1 -run 'NameListing|NameOnly' ./internal/liveverify/affected/shell/`, and the source is
+restored in a `finally`. Final runs at the committed code.
+
+| Mutant | Change | Result (killing rows, abridged) |
+| --- | --- | --- |
+| M1 | re-admit `set` | killed: `grammar_set_a`, `grammar_set_allexport`, `grammar_set_e`, `grammar_set_args` |
+| M2 | re-admit `read` | killed: `grammar_read`, `read_env` |
+| M3 | re-admit `for` | killed: `grammar_for`, `for_env` |
+| M4 | drop the `printf` `-` prefix check | killed: `grammar_printf_v`, `_v_joined`, `_v_quoted`, `printf_env`, `walk_printf_v` |
+| M5 | drop the `$((` check | killed: `grammar_arith_expansion`, `_quoted` |
+| M6 | drop the assignment-word check | killed: `grammar_assign`, `_upper`, `_append`, `_index`, `_prefix`, `_after_if` |
+| M7 | re-admit `cd` | killed: `grammar_cd`, `cd`, `find_cd`, `grammar_substitution_refused` |
+| M8 | drop the `{name}` check | killed: `grammar_fd_name` |
+| M9 | drop the backtick check | killed: `grammar_backtick` |
+| M10 | drop the process-substitution check | killed: `grammar_process_substitution` |
+| M11 | admit function definitions | killed: `grammar_function`, `grammar_function_keyword` |
+| M12 | admit here-documents | killed: `grammar_heredoc` |
+| M13 | admit `case` | killed: `grammar_case`, `grammar_case_arith` |
+| M14 | admit `((` arithmetic commands | killed: `grammar_arith_command` |
+| M15 | admit every braced expansion | killed: `grammar_default_assign`, `_colon`, `grammar_indirect`, `default_env` |
+| M16 | admit a computed `printf` format | killed: `grammar_printf_computed_format`, `_substituted_format` |
+| M17 | drop the `test` argument-count shapes | killed: `grammar_test_computed_operator`, `_computed_file`, `_four_computed` |
+| M18 | drop the `test` single-field check | killed: `grammar_test_unquoted` |
+| M19 | admit `[[` integer operators | killed: `grammar_cond_arith` |
+| M20 | admit `[[ =~` | killed: `grammar_cond_regex` |
+| M21 | admit a `[[` computed file operand | killed: `grammar_cond_computed_file` |
+| M22 | admit a trailing-slash reader operand | killed: `grammar_dir_slash_unlisted`, `grammar_dir_dot_unlisted` |
+| M23 | admit a listed-directory reader operand | killed: `grammar_dir_listed`, `grammar_dir_input`, `r2_dir_bare` |
+| M24 | admit a glob reader pattern | killed: `grammar_reader_pattern_glob` |
+| M25 | admit an expansion in reader arguments | killed: `grammar_reader_pattern_computed` |
+| M26 | skip redirection-target checks | killed: `grammar_reader_input_computed`, `_write_computed`, `_herestring_computed`, `_dir_input` |
+| M27 | judge reader options by their quoted form | killed: `grammar_reader_quoted_recursive` |
+| M28 | drop the fixed `test` operator list | killed: `grammar_test_size`, `_size_quoted`, `_newer`, `_variable`, `size_test` |
+| M29 | admit a computed or glob filter pattern | killed: `filter_glob`, `filter_computed` |
+| M31 | a dangling redirection operator does not refuse | survived: equivalent, bash rejects `cmd >` as a syntax error, so no such test runs |
+| M32 | admit every unrecognised command | killed: 107 distinct row names across three tests |
+| M33 | admit every `$` form | killed: `grammar_ansi_c`, `_arith_bracket`, `_indirect`, `_subscript` |
+
+M30 (`fi`/`done` with arguments admitted) survived as equivalent, since bash rejects such a
+line; the check was removed rather than kept as dead strictness. Rows no single mutant kills,
+because two independent rules refuse each: `grammar_alias` (an assignment-shaped `ls=cat` and an
+unrecognised command), `grammar_for_arith` (`for` and `((`), `grammar_heredoc_read` and
+`grammar_herestring_read` (`read` and a here-document), `grammar_process_substitution_write`
+(the substitution and its target), `grammar_reader_computed` (an expansion and a non-literal
+operand), `grammar_test_glob` (an operator expansions may not follow, and a glob),
+`grammar_cond_size` (`-s` is outside the `[[` list too), the `grammar_dir_*` rows naming the
+listed `script` (trailing `/` and the listed name) and every `r2_` row except `r2_printf_vPATH`
+and `r2_dir_bare` (each holds two or more refused constructs). The base's refused listing-form
+rows (`ls_l`, `find_exec`, `xargs` and the rest) test `nameListingForm`, which this lane did
+not change.
+
+### Qualifying units
+
+Method: a throwaway test in the shell package (not committed) ran `New().Units` on this
+checkout and, for every unit, counted `NameListings`, `UnboundedNamesOnly`, an admitted listing
+pipeline (`nameListingCommand`) and the gate verdict; the same probe ran against a detached
+worktree of the base commit over the same files.
+
+| | Base gate | Closed grammar |
+| --- | --- | --- |
+| Shell units | 250 | 250 |
+| Units with a name-listing read or a name-only walk | 0 | 0 |
+| Files with an admitted listing pipeline | 1 (`.github/forward-rows/mq-narrow.sh`, gate-refused) | 1 (same, gate-refused) |
+| Files the gate admits (with or without a listing) | 16 | 12 |
+
+No unit changed side. The four files the grammar now refuses hold no listing:
+`internal/liveverify/affected/testdata/fixture/shell/lib/core.sh` and `solo.sh` (a function
+definition), `tools/cw-trial/testdata/fake-agent.sh` (a here-document) and
+`tools/cw-trial/testdata/abstain-agent.sh` (a backtick inside a single-quoted `printf` format, a
+precision loss the stricter rule accepts).
+
+### Tests and results
+
+All through `script/heavy.sh env GOTOOLCHAIN=local GOMAXPROCS=2`, one package per command, rc 0:
+`go test -count=1 ./internal/liveverify/affected/shell/`, `go test -count=1 -timeout 30m
+./internal/liveverify/affected/`, `go test -count=1 -run '^TestAffectedChangeStatusCLI_AFPV09960$'
+./cmd/corvint/`, and `go vet` on the two affected packages; `gofmt -l internal/liveverify/affected/`
+prints nothing. `TestNameListingForms_AFPV09961` now holds 23 admitted rows (the base's 14, the
+rewritten `plain_rest` and 8 new) and 175 refused rows (the base's 55, `base_plain_rest`,
+`filter_glob`, `filter_computed`, 104 `grammar_` rows and 13 `r2_` rows);
+`TestNameListingGrammarPositions_AFPV09961` composes the 104 constructs in 8 positions and a
+command substitution, with an `echo ok` control per position; `TestNameOnlyTreeWalker_AFPV09963`
+gains `walk_printf_v`, `walk_read` and `walk_allexport`. `make shell-foreign-callers-check` failed at the
+base already: the AZU-V0-8901 completeness matcher reads the fixture spelling `\"script/$f\"`
+(a quote right before `script/`, then `$`) as a constructed path under `script/`. Those four base
+rows (`loop`, `while`, `captured`, `computed_read`) and the new `test_computed_file` row are
+respelled `script/\"$f\"`, the same shell word, so each row tests what it tested and the check
+passes; no assertion changed. The other doc gates pass; `make doc-gates` as a whole was not run
+because it includes `selection-baseline-check`. The selection baseline and the pr-39
+replay were not rerun in this lane (see the handback); the gate only refuses more, and the count
+above shows no unit of this repository on either side of it.
+
 ## Rollback
 
 Revert the lane commits. Without `NameListings` and `UnboundedNamesOnly` every listing is a
