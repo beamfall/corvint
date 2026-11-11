@@ -356,6 +356,9 @@ func TestCompareDriverEntryASCV9850(t *testing.T) {
 		"other profile":  {ok, `{"profile":"corvint-test-read-scopes/1","packages":{"d":["a/"]}}`, false},
 		"no packages":    {ok, `{"profile":"corvint-test-read-scopes/0"}`, false},
 		"bad base":       {"{", ok, false},
+		"repaired base":  {`{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"e":["../outside"]}}`, ok, false},
+		"unsorted base":  {`{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"e":["y","x"]}}`, `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"e":["x","y"]}}`, false},
+		"bad after path": {ok, `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"../e":[]}}`, false},
 	} {
 		if got := compareDriverEntry([]byte(tc.before), []byte(tc.after), "d"); (got == "") != tc.same {
 			t.Errorf("%s: compareDriverEntry = %q, want same=%v", name, got, tc.same)
