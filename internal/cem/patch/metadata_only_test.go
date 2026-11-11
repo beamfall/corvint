@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // metadataOnlyCase is one entry of the shared native/portable vector manifest

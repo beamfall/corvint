@@ -3,7 +3,7 @@ package wire
 import (
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // Frozen wire constants.

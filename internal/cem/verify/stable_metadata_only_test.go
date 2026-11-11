@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestStablePatchRefusalKeepsFrozenVocabulary pins CEM-V1-302: the stable

@@ -385,6 +385,8 @@
     "test-inventory": "inventory",
     "ticket-brief-context": "preview",
     "ticket-taxonomy": "policy",
+    "traceability-gate-upgrade": "gates",
+    "trusted-shell-selection": "gates",
     "user-docs": "catalog",
     "watch-flows-hardening": "watch",
     "watch-seven-runners": "watch"

@@ -211,8 +211,8 @@ func copyTree(src, dst string) error {
 func TestToolIdentityRequiresCurrentGoVersion(t *testing.T) {
 	// Decision 0557: exactly the go1.27.3 pin is admitted; neighbours on
 	// both sides, including the former go1.27.2 pin, are refused.
-	admitted := map[string]bool{"go1.27.3": true}
-	for _, version := range []string{"go1.27.1", "go1.27.2", "go1.27.3", "go1.27.4", "go1.28.2"} {
+	admitted := map[string]bool{"go1.27.3": true, "go1.27.4": true} // V1-5408 stage B
+	for _, version := range []string{"go1.27.1", "go1.27.2", "go1.27.3", "go1.27.4", "go1.27.5", "go1.28.2"} {
 		t.Run(version, func(t *testing.T) {
 			bin := t.TempDir()
 			script := "#!/bin/sh\ncase \"$1:$2\" in\nenv:GOVERSION) printf '%s\\n' '" + version + "' ;;\nenv:CC) printf '%s\\n' '/usr/bin/cc' ;;\n*) exit 1 ;;\nesac\n"

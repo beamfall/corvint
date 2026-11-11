@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestPrepareBinaryRefusalNamesPath reproduces V1-0301 on real Git commits:

@@ -3,9 +3,9 @@ package verify
 import (
 	"context"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/patch"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // BinaryBlobSizes reads, in one bounded header batch, the size of every

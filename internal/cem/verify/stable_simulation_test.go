@@ -4,10 +4,10 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/sim"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 type stableSimulationTestSource struct {

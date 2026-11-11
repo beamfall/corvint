@@ -2,7 +2,7 @@ package wire
 
 import (
 	"encoding/json"
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // StableHunks returns the complete JSON value without dropping optional witnesses.

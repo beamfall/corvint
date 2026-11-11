@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/witnesspaths"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // stubReaders is a data-reader finder that names pkg/calc/i18n.go as the one

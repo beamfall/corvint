@@ -104,6 +104,16 @@ func parseReadScopes(body []byte) (map[string][]string, error) {
 	return declared.Packages, nil
 }
 
+// ParseReadScopes is parseReadScopes for callers outside the package that
+// must judge a declaration body by the same exact grammar, such as a base
+// blob compared with the worktree copy (ASC-V0-9850).
+func ParseReadScopes(body []byte) (map[string][]string, error) {
+	if len(body) > maxReadScopeBytes {
+		return nil, fmt.Errorf("%s exceeds %d bytes", readScopesPath, maxReadScopeBytes)
+	}
+	return parseReadScopes(body)
+}
+
 // inReadScope reports whether dirtyPath bears on the declared package in
 // directory: the declaration itself, a path in the package's subtree, or a
 // declared entry, a path in a declared subtree, or an ancestor of an entry.
