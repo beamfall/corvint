@@ -143,7 +143,13 @@ func jobBlock(t *testing.T, w, job string) string {
 // wantLine fails unless BLOCK holds LINE exactly once as a whole line.
 func wantLine(t *testing.T, name, block, line string) {
 	t.Helper()
-	if n := strings.Count("\n"+block, "\n"+line+"\n"); n != 1 {
+	n := strings.Count("\n"+block, "\n"+line+"\n")
+	// V1-5408 stage B: a setup-go pin may be go1.27.3 or go1.27.4 while the pin moves; stage C
+	// makes every caller name 1.27.4 and drops this.
+	if pin := `go-version: "1.27.3"`; n == 0 && strings.Contains(line, pin) {
+		n = strings.Count("\n"+block, "\n"+strings.Replace(line, pin, `go-version: "1.27.4"`, 1)+"\n")
+	}
+	if n != 1 {
 		t.Errorf("%s has %d copies of line %q, want 1", name, n, line)
 	}
 }

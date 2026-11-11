@@ -1140,6 +1140,11 @@ func compareCoreGolden(t *testing.T, path string, golden, got any) {
 	case []any:
 		compareCoreArrays(t, path, golden, got.([]any))
 	default:
+		// V1-5408 stage B: the runtime goVersion is the live toolchain, go1.27.3 or go1.27.4
+		// while the pin moves; the golden records go1.27.3. Stage C re-pins the golden.
+		if got == "go1.27.4" && golden == "go1.27.3" && strings.HasSuffix(path, ".runtime.goVersion") {
+			return
+		}
 		if got != golden {
 			t.Errorf("%s = %#v, the golden has %#v", path, got, golden)
 		}

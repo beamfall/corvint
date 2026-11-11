@@ -170,7 +170,7 @@ endif
 
 .PHONY: go-version
 go-version:
-	test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
+	case "$$(GOTOOLCHAIN=local go version)" in "go version go1.27.3 "*|"go version go1.27.4 "*) ;; *) echo "go-version: want go1.27.3 or go1.27.4 (V1-5408 staged pin move)" >&2; exit 1 ;; esac
 
 .PHONY: go-test
 go-test:

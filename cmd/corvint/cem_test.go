@@ -179,6 +179,8 @@ func TestCEMEndToEndAndGoldenEnvelope(t *testing.T) {
 		t.Fatalf("status: %d %s", code, stderr)
 	}
 	normalized := strings.ReplaceAll(out, root, "$ROOT")
+	// V1-5408 stage B: the envelope records the live toolchain; the golden records go1.27.3.
+	normalized = strings.ReplaceAll(normalized, `"goVersion":"go1.27.4"`, `"goVersion":"go1.27.3"`)
 	golden := filepath.Join("testdata", "cem-status-canonical.golden")
 	if os.Getenv("UPDATE_CEM_GOLDENS") == "1" {
 		if err := os.MkdirAll("testdata", 0o755); err != nil {
