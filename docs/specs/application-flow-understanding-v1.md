@@ -1096,8 +1096,13 @@ accepted variation, or a replacement for independent application/browser qualifi
   rederived byte for byte, so check, finalize and `generate --previous`
   refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
   once with the current binary
-  (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Optional byte checking compares the original rendered directory,
-  including missing/extra/changed files, without writing anything. The report's `worktree` member
+  (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Byte checking compares the original rendered directory,
+  including missing/extra/changed files, without writing anything. `docs flows generate` records an
+  output directory inside `--root` as the manifest's repository-relative `output_dir` (absent for an
+  output outside the root, so older manifests rederive unchanged), and check compares `--output-dir`,
+  else that recorded directory. The report's `output` is `CHECKED`, or `NOT_CHECKED` with
+  `output_reason` `no-output-dir` or `missing-dir`, and a `NOT_CHECKED` check is never `clean`; it
+  names the compared `output_dir` (DMF-V1-007, superseding optional byte checking). The report's `worktree` member
   (DMF-V1-005) says whether tracked paths under the scope or the compared output directory differ
   from HEAD, with the same shape as `flow-doc-check/0`. Exit 1 means drift; exit 2 refusal.
 - **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and

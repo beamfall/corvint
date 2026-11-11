@@ -182,7 +182,7 @@ and MUST NOT report `clean: true`. Serves PROD-DOCS-005. (finding 13;
 - WHEN `docs flows check` runs without `--output-dir`
 - THEN it compares `docs/flows` and reports the edited page
 
-Delivery: not yet built.
+Delivery: `docs flows generate` records an output directory inside `--root` as the manifest's `output_dir` (omitted otherwise, so existing version 4 manifests rederive byte for byte); `docs flows check` compares `--output-dir`, else the recorded directory, and reports `output` `CHECKED` or `NOT_CHECKED` with `output_reason` `no-output-dir` or `missing-dir`, never `clean: true` without comparing. A missing `--output-dir` is now `NOT_CHECKED` rather than a refusal. Tests: `TestDMFV1007RecordedOutputDirectory` (`internal/flowdocs`), `TestDMFV1007DocsFlowsCheckRecordedOutput` (`cmd/corvint-docs`).
 
 - `DMF-V1-008`: (accepted automatically under G14, decision 0596; V1-5409) Distinct tool descriptions
 
@@ -301,7 +301,7 @@ Delivery: not yet built.
 | DMF-V1-004 | 5 | `internal/doccitations/check.go`, `cmd/corvint-docs/docs.go` | `TestDMFV1004*` |
 | DMF-V1-005 | 6 | `internal/docworktree`, the four check reports | `TestDMFV1005*` |
 | DMF-V1-006 | 7 | `internal/appflows/docs.go` (`byteDetail`), `internal/command/flows/flows_docs.go` | `TestDMFV1006ByteFailureNamesChangedClaims` |
-| DMF-V1-007 | 8 | not yet built | not yet built |
+| DMF-V1-007 | 8 | `internal/flowdocs/generate.go`, `internal/flowdocs/check.go`, `cmd/corvint-docs/docs_flows.go` | `TestDMFV1007*` |
 | DMF-V1-008 | 10 | not yet built | not yet built |
 | DMF-V1-009 | 11 | not yet built | not yet built |
 | DMF-V1-010 | 12 | not yet built | not yet built |

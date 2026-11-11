@@ -29,8 +29,11 @@ Check compares each original claim/paragraph's span hash using its logical ident
 remain fresh after line insertion. A flow also binds its static call inventory, so adding, removing
 or changing a call in its body is stale even when the declaration line is unchanged. A manifest
 from generator version 1 or 2 (before the V1-0461 fixes) is refused as `flowdocs-generator-stale`; regenerate it. Changed spans become stale; missing/ambiguous identities are
-unresolved and retired, without guessing renames. It also lists added identities. Optional output
-checking compares the original generation's bytes, including unexpected files. Neither check nor
+unresolved and retired, without guessing renames. It also lists added identities. Output checking
+compares the original generation's bytes, including unexpected files, in `--output-dir` or else in
+the output directory generate recorded in `generation.json` (only for an output inside `--root`).
+With neither, or a directory that no longer exists, the report says `output: NOT_CHECKED` with a
+reason and `clean: false`. Neither check nor
 finalize writes files. Check exits 0 without drift, 1 for drift and 2 for invalid input. `--previous`
 on generate validates the supplied predecessor; use check to obtain the explicit transition delta.
 
