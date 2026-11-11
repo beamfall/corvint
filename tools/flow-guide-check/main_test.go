@@ -160,3 +160,18 @@ func TestASDV0997StaleRowFails(t *testing.T) {
 		t.Fatalf("usage: exit %d, stderr %s", code, stderr)
 	}
 }
+
+// ASC-V0-781: a hook install recipe anywhere in the guide must exec a script that exists.
+func TestHookRecipeNamesAnExistingScript_ASCV0781(t *testing.T) {
+	const recipe = "# Lane orchestration\n\n## 3. Hooks\n\n- install: `printf '#!/bin/sh\\nexec script/heavy.sh \"$@\"\\n' > hook`\n- `script/retired.sh` is gone, named here as history.\n\n"
+	root := fixture(t)
+	edit(t, root, guidePath, "# Lane orchestration\n\n", recipe)
+	if code, stdout, stderr := runCheck(t, root); code != 0 {
+		t.Fatalf("existing script and prose mention: exit %d: %s%s", code, stdout, stderr)
+	}
+	edit(t, root, guidePath, "exec script/heavy.sh", "exec script/pre-push-gone.sh")
+	code, _, stderr := runCheck(t, root)
+	if want := guidePath + ":5: hook recipe execs script/pre-push-gone.sh, which does not exist"; code != 1 || !strings.Contains(stderr, want) {
+		t.Fatalf("missing hook script: exit %d, stderr %s; want %q", code, stderr, want)
+	}
+}

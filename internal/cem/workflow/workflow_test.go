@@ -231,7 +231,7 @@ func citeAll(t *testing.T, root string) {
 	}
 }
 
-// TestTwoPhaseCanonicalFlow is CEM-CB-AT-011 / EX-001: prepare, cite, commit
+// TestTwoPhaseCanonicalFlow is CEM-CB-AT-011 / CEM-CB-EX-001: prepare, cite, commit
 // the candidate, then verify the committed revision through the stable status
 // with the exact next action argv (CEM-V1-215).
 func TestTwoPhaseCanonicalFlow(t *testing.T) {

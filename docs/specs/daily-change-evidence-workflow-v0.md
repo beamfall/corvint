@@ -1504,8 +1504,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   check and 159.3 s seal V1-2810 observed; the end-to-end seal time after the change is
   NOT_MEASURED). Rollback: drop `ReusePass` and the receipt; leftover receipts are ignored files in
   the private evidence directory.
-- `DCW-V0-348`: (experimental under the standing lane auto-accept; V1-2805, V1-1773)
-  `script/pre-push-dogfood-seal.sh` is an installable Git pre-push hook. For each pushed
+- `DCW-V0-348`: (retired 2026-11-11 by orchestrator decision under the owner's 2026-11-02
+  delegation, V1-5330: decision 0594 deleted `script/pre-push-dogfood-seal.sh`, its test and its make
+  target with the dogfood loop, and no operator may install a hook that calls it; the replacement
+  checks before a push are `script/batch-precheck.sh` (`make batch-precheck`, `ASD-V0-029`) and
+  `make batch-push-check` (`ASD-V0-035`); body kept as history) (experimental under the standing
+  lane auto-accept; V1-2805, V1-1773) `script/pre-push-dogfood-seal.sh` was an installable Git pre-push hook. For each pushed
   `refs/heads/*` ref with commits after its merge base with `origin/main`
   (`CORVINT_PRE_PUSH_BASE`), it MUST run `script/dogfood-batch-check.sh <merge base>`
   (`DCW-V0-039`, `CORVINT_PRE_PUSH_BATCH_CHECK` overrides the command) and refuse the push as
@@ -3947,7 +3951,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-345` (experimental under the standing lane auto-accept; V1-2811) | `internal/cem/cli/cli.go` report `--preview`; `TestDCWV0345ReportPreviewWritesNothing` | implemented; focused tests PASS |
 | `DCW-V0-346` (experimental under the standing lane auto-accept; V1-2809) | `internal/dogfoodflow/change.go` `aggregateBoundShares`, `aggregateFitHint`, `reportFailures`; `TestDCWV0346AggregateBoundNamesAFittingSubset` | implemented; focused tests PASS; the recorded deferral is open on V1-2809 and needs a reviewer-visible cem/1.0 map field, which `internal/cem` owns |
 | `DCW-V0-347` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/check_reuse.go` `passInputs`, `reusePass`, `capturePass`; `script/dogfood-seal.sh`; `TestDCWV0347SealReusesOnlyABoundPass` | implemented; focused tests PASS; end-to-end seal time NOT_MEASURED |
-| `DCW-V0-348` (experimental under the standing lane auto-accept; V1-2805, V1-1773) | `script/pre-push-dogfood-seal.sh`; `make pre-push-dogfood-seal-test` (`script/pre-push-dogfood-seal_test.sh`) | implemented; shell test PASS; CI job NOT_PRODUCED (needs `.github`) |
+| `DCW-V0-348` (retired 2026-11-11, V1-5330) | none: decision 0594 deleted `script/pre-push-dogfood-seal.sh`, its test and its make target; replaced by `make batch-precheck` and `make batch-push-check` | retired; no hook to install |
 | `DCW-V0-349` (V1-1894) | `Makefile` `dogfood-closeout`/`doc-gates`; `script/batch-precheck_test.sh` | shared CI gate definition; live closeout evidence retained with the repair |
 | `DCW-V0-900` (tasks-w1 friction) | `Makefile` `dogfood-closeout`; `script/dogfood-cache_test.sh` (recipe order and the ASD-V0-045 missing-input refusal before any precheck) | recipe-order regression; live closeout NOT_RUN in this change |
 | `DCW-V0-901` (V1-3335) | `internal/dogfoodflow/propose.go` `run`; `TestProposeCitationsDCWV0901ResolvesAnAbbreviatedBase` | unit |

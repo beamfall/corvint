@@ -312,7 +312,7 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   starts with `dynamic/github-code-scanning/` (CodeQL default setup). It SHALL stay the only
   workflow that grants `actions: write`. On 2026-11-03 the schedule ran twice in 8 hours while
   CodeQL ran 11 times on `main`.
-- `CIN-V0-2304`: (retired by decision 0594, 2026-11-09: the batch-check step left `doc-gates`; the DCW-V0-348 pre-push hook remains; body kept as history) (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;
+- `CIN-V0-2304`: (retired by decision 0594, 2026-11-09: the batch-check step left `doc-gates`; DCW-V0-348, the pre-push hook named here before, is retired too (V1-5330), so `make batch-precheck` and `make batch-push-check` are the checks before a push; body kept as history) (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;
   effective only after the owner's `ci-control-plane` review) For a pull request whose head branch
   starts with `claude/batch-`, the required `doc-gates` job SHALL, unless its reuse decision is
   REUSE, build the checker and its verifier from the pull request's base commit (trusted `main`,
@@ -952,7 +952,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2301 | the `pr-base-target-unreadable` exit of `.github/forward-rows/collect.sh`; the `target` reason of `absence.jq` | the mixed-targets (`rtarget`) and no-document (`rnodoc`) cases of `TestAFPV0047CollectorNamesRows`; a no-document run whose pull request touches `.github/` is not named |
 | CIN-V0-2302 | `absent`, its two calls and the carried `rowAbsence.absent` in `.github/forward-rows/accept.sh` | the "runs without a row" cases of `TestAFPV0097VerdictAcceptance`, whole and incremental (CIN-V0-004) listings: three markers are FULL, two and three of another epoch are MET; two carried plus one since is FULL; an incremental verdict without a count is FULL |
 | CIN-V0-2303 | the `on:` block and the job `if:` of `.github/workflows/cache-prune.yml` | `TestCINV02303CachePruneFollowsCodeQL` (trigger, backstop, guard clauses; no other workflow grants `actions: write`, with the matcher checked on a planted grant); `TestAFPV0097CachePruneKeepsNewestOverlay` |
-| CIN-V0-2304 | retired by decision 0594 (1a838f144 is the last tree with the step); it was: the "Refuse a batch pull request whose commits no sealed CEM binds" step of the `doc-gates` job in `.github/workflows/ci.yml` | the workflow assertion for this step was removed under decision 0594, ahead of the step itself (it ran the step on a fixture repository with a stand-in `cmd/corvint`: the base-built trusted checker runs, never the head's replacement, from the head and the merge base, built without a Git stamp; a refusing check and an unresolvable head fail; skipped where no POSIX sh exists); live replay on PR 87's range (PASS, 14 s) and with one added unsealed commit (`FAIL unbound-commits count=1`), build log `docs/build-log/2026-11-03-mqfix.md` |
+| CIN-V0-2304 | retired by decision 0594 (1a838f144 is the last tree with the step); it was: the "Refuse a batch pull request whose commits no sealed CEM binds" step of the `doc-gates` job in `.github/workflows/ci.yml` | the workflow assertion for this step was removed under decision 0594, ahead of the step itself (it ran the step on a fixture repository with a stand-in `cmd/corvint`: the base-built trusted checker runs, never the head's replacement, from the head and the merge base, built without a Git stamp; a refusing check and an unresolvable head fail; skipped where no POSIX sh exists); live replay on PR 87's range (PASS, 14 s) and with one added unsealed commit (`FAIL unbound-commits count=1`), build log `docs/build-log/2026-11-03-mqfix.md` (untested: its last citing test left before the decision 0594 cut of PR #176; a path or function its row names remains; no test cites it now, V1-5333) |
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
@@ -1013,7 +1013,8 @@ parent-0 proof in `narrow.sh`; a driver fallback again records base `""`, still 
 CIN-V0-2301: drop the marker at `pr-base-target-unreadable`. CIN-V0-2302: drop the two `absent`
 calls in `accept.sh`. CIN-V0-2303: drop the `workflow_run` trigger and the job guard's
 `workflow_run` clause; the schedule alone remains. CIN-V0-2304 is retired by decision 0594: the batch-check step of
-`doc-gates` was dropped; the DCW-V0-348 pre-push hook remains the only check.
+`doc-gates` was dropped, and the DCW-V0-348 pre-push hook is retired too (V1-5330); `make
+batch-precheck` and `make batch-push-check` are the checks before a push.
 
 ## Lane maintenance evidence (2026-11-04)
 

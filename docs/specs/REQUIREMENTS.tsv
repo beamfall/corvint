@@ -2319,7 +2319,7 @@ CIN-V0-2300	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standi
 CIN-V0-2301	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;	standing	2026-10-11; V1-3332
 CIN-V0-2302	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;	standing	2026-10-11; V1-3332
 CIN-V0-2303	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4445;	standing	2026-10-11; V1-4445
-CIN-V0-2304	docs/specs/ci-narrowing-v0.md	(retired by decision 0594, 2026-11-09: the batch-check step left `doc-gates`; th	unrecorded	-
+CIN-V0-2304	docs/specs/ci-narrowing-v0.md	(retired by decision 0594, 2026-11-09: the batch-check step left `doc-gates`; DC	unrecorded	-
 CIN-V0-4625	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended	standing	2026-10-11; V1-4625; V1-4732
 CIN-V0-4626	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4636; deferred	standing	2026-10-11; V1-4636; 2026-11-04; V1-4732
 CIN-V0-4627	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4760) Placemen	standing	2026-10-11; V1-4760
@@ -2533,6 +2533,7 @@ ASC-V0-777	docs/specs/corvint-self-development-gates-v0.md	(experimental under t
 ASC-V0-778	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4166, V1-3580)	standing	2026-11-01; V1-4166; V1-3580
 ASC-V0-779	docs/specs/corvint-self-development-gates-v0.md	(superseded 2026-11-06 at the mbrescue merge; was experimental under the standin	standing	2026-11-06; 2026-11-01; V1-3615
 ASC-V0-780	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-10; beamfall/corvint#	standing	2026-11-10; #9; V1-5175
+ASC-V0-781	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-11; V1-5330; extends	standing	2026-11-11; V1-5330
 ASD-V0-3720	docs/specs/corvint-self-development-gates-v0.md	(moved here from `corvint-self-development-v0.md` at the mbrescue merge, 2026-11	standing	2026-11-06; 2026-11-01; V1-3257
 ASD-V0-2400	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-3968 heavy.sh	standing	2026-11-03; V1-3968
 ASD-V0-2401	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4358 heavy.sh	standing	2026-11-03; V1-4358
@@ -4279,7 +4280,7 @@ DCW-V0-344	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-345	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2811) `corvint cem report	standing	V1-2811
 DCW-V0-346	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2809; refines	standing	V1-2809
 DCW-V0-347	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2810) A `dogfood check` th	standing	V1-2810
-DCW-V0-348	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2805, V1-1773)	standing	V1-2805; V1-1773
+DCW-V0-348	docs/specs/daily-change-evidence-workflow-v0.md	(retired 2026-11-11 by orchestrator decision under the owner's 2026-11-02	unrecorded	-
 DCW-V0-349	docs/specs/daily-change-evidence-workflow-v0.md	(owner-requested V1-1894 repair) `make dogfood-closeout` MUST run	unrecorded	-
 DCW-V0-900	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 DCW-V0-901	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3335; refines	standing	2026-10-31; V1-3335
@@ -7109,6 +7110,23 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	Every trial M
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	Missing or invalid runner qualification (#39), stability identity (#42), or	unrecorded	-
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,	unrecorded	-
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require	unrecorded	-
+CPE-V0-001	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) `corvint-plugin/1` MUST be the one envelope for	unrecorded	-
+CPE-V0-002	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) Framing MUST be UTF-8 JSON over the plugin's	unrecorded	-
+CPE-V0-003	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) The core MUST send one request at a time and wait	unrecorded	-
+CPE-V0-004	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) The first request MUST be `hello` with `params`	unrecorded	-
+CPE-V0-005	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) One plugin process MUST serve every request of on	unrecorded	-
+CPE-V0-006	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) Limits MUST have these defaults and ceilings, whi	unrecorded	-
+CPE-V0-007	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) The core MUST resolve a plugin executable only fr	unrecorded	-
+CPE-V0-008	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) Plugin output MUST be evidence, never authority	unrecorded	-
+CPE-V0-009	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) The core MUST record the repository's tracked and	unrecorded	-
+CPE-V0-010	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) Every failure code of `CPE-V0-002` to	unrecorded	-
+CPE-V0-011	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) A failed or absent plugin MUST make the consuming	unrecorded	-
+CPE-V0-012	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) Plugin-supplied text (standard error, `error.code	unrecorded	-
+CPE-V0-013	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) `corvint-plugin/1` MUST change only additively,	unrecorded	-
+CPE-V0-014	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) When the core command is interrupted (SIGINT or	unrecorded	-
+CPE-V0-015	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) The transport MUST be the plugin's standard input	unrecorded	-
+CPE-V0-016	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) A plugin boundary MUST enter a default code path	unrecorded	-
+CPE-V0-017	docs/specs/plugin-envelope-v0.md	(proposed 2026-11-11; V1-4819) The conformance kit (V1-4817) MUST hold a JSON	unrecorded	-
 PCH-V0-001	docs/specs/postmerge-ci-host-v0.md	Publish a host-neutral workflow graph, `protocol/postmerge-host/workflow-graph.j	unrecorded	-
 PCH-V0-002	docs/specs/postmerge-ci-host-v0.md	Document the host adapter contract in `protocol/postmerge-host/README.md`:	unrecorded	-
 PCH-V0-003	docs/specs/postmerge-ci-host-v0.md	Ship a reference pipeline that processes one merged change by full commit id:	unrecorded	-
