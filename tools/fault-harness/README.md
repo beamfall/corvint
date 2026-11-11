@@ -19,7 +19,7 @@ GOTOOLCHAIN=local go build -o /tmp/fault-harness ./tools/fault-harness
 /tmp/fault-harness run --preregistration go.prereg.json --hash go.prereg.json.sha256 \
   --set go.faults.json --seal go.seal.json --root REPO_DIR --clones /tmp/fh-clones --out go.results.json
 /tmp/fault-harness verdict --preregistration go.prereg.json --hash go.prereg.json.sha256 \
-  --results go.results.json --out go.verdict.json
+  --set go.faults.json --seal go.seal.json --results go.results.json --out go.verdict.json
 /tmp/fault-harness parity --root . --clones /tmp/fh-clones --out /tmp/parity.json
 ```
 
@@ -38,14 +38,18 @@ Files, each one strict JSON with a `profile`:
 - `revert-rule.json`, hashed in `revert-rule.json.sha256`: the A17 reverted-fix rule. Its
   numbers are fixed; another value is refused.
 - `fault-harness-revert-candidates/1`: observed facts about merged PRs that the rule reads.
-- `fault-harness-fault-set/1`, sealed into `fault-harness-seal/1`; `run` refuses a set or
-  pre-registration whose hash differs from the seal.
+- `fault-harness-fault-set/1`, sealed into `fault-harness-seal/1`; `run` and `verdict` refuse a
+  set or pre-registration whose hash differs from the seal, and `verdict` refuses results that are
+  not the measurement of exactly the sealed cases and faults (`fault-set-changed`,
+  `results-not-sealed`) or a set sealed with fewer than 30 non-code cases.
 - `fault-harness-results/1` and `fault-harness-verdict/1`.
 
 Fail-closed rules: a baseline needs three runs, and a test that does not pass in all three is
 quarantined; a kill needs three of three failures of a test that passed every baseline run; a
-faulted tree that does not build, crashes or times out kills nothing; a selected-run failure after
-a confirmed kill is a failed measurement that makes the verdict `INVALID`; a miss is never waived.
+faulted tree that does not build or crashes (including the runner's own test timeout) kills
+nothing and is dropped; a faulted run stopped by cancellation or the harness's own wall bound, and
+a selected-run failure after a confirmed kill, are failed measurements that make the verdict
+`INVALID`; a miss is never waived.
 The release sentence is printed only for a `ZERO_MISS` verdict.
 
 Only the Go adapter exists. `--go-test` sets the argv prefix that runs `go test` (Corvint runs use

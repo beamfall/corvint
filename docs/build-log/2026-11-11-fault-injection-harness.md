@@ -46,6 +46,43 @@ miss proof for any runner.
   changing the rule needs a new decision and a new hash. The facts it reads about each PR (fix
   signal, files, revert applies, builds, fails 3/3) are an input file, observed by task 8.
 
+## Review fix round 1 (P2-1, P2-2, P3)
+
+An independent review found two fail-open defects; both are fixed under G3, which exempts only a
+fault-induced build failure or crash, so every other failed measurement makes the verdict
+`INVALID`, never `ZERO_MISS`.
+
+- P2-1, verdict not bound to the seal. `verdict` read only the pre-registration and results, so a
+  results file with its MISS and ERROR cases deleted and at least 100 KILLED cases left read
+  `ZERO_MISS`. It now requires `--set` and `--seal` (the seal record carries counts, not the case
+  list) and refuses a results fault-set hash other than the seal's (`fault-set-changed`), seal
+  counts that differ from the set (`fault-set-invalid`), a set with fewer than 30 non-code cases
+  (`non-code-faults-below-minimum`, FIH-V1-002 at verdict time), and any case list that is not the
+  sealed one (`results-not-sealed`): each sealed case exactly once with its kind, PR and head, and
+  no other. The same check covers one level down, which the review did not name: a counted or
+  dropped case must hold its sealed faults in their sealed order, each `KILLED` or `NO_KILL`, with
+  the case status agreeing, so a fault with a miss cannot be dropped from a case or its case
+  relabelled `NO_KILL`. `ERROR` and `EXCLUDED` cases may carry partial faults; they are outside N
+  and an `ERROR` already makes the verdict `INVALID`. `run` shares the same seal loader.
+- P2-2, a stopped faulted run counted as dropped. Any `Adapter.Run` error during the faulted runs
+  became `NO_KILL`. Now cancellation (`ctx.Err()`) or the harness's own wall bound
+  (`errWallTimeout`, which `command` returns when its own deadline, not the caller's, stops the
+  process group) makes the fault `ERROR` and the case a failed measurement; the Go adapter returns
+  such an error before parsing the partial output. The runner's own `go test -timeout` panic stays a
+  fault-induced crash and is dropped: the baseline passed under the same bound, and the design's
+  failure modes drop a mutant that times out. A clone checkout stopped the same way is now a failed
+  measurement instead of `pin-unavailable`, which would have spent the exclusion budget.
+- P3, misses per case. The Wilson bound now uses `missedCases`, the cases in N with at least one
+  miss, so it is per case like N; the misses are still listed per fault. New wire field
+  `missedCases` in each verdict section.
+
+Tests: `TestVerdictBoundToSeal_FIH_V1_002_007_014` (removed MISS case, removed ERROR case, added
+unsealed case, duplicated case, fault-set hash mismatch, kind, PR and head changes, removed missed
+fault, a missed case relabelled `NO_KILL`, edited seal counts, 29 non-code cases) and
+`TestFaultedRunStopped_FIH_V1_005_014` (a cancelled context and a real wall timeout from `command`
+end in `ERROR` and an `INVALID` verdict; a build failure is still dropped). With the P2-2 check
+disabled by hand, `TestFaultedRunStopped_FIH_V1_005_014` failed with the cancelled case `NO_KILL`.
+
 ## Differences from the proposal's tree (9ec3a29d0)
 
 The proposal cites `tools/affected-edit-oracle/main.go` `compare` :124, `testObservations` :475

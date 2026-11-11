@@ -148,6 +148,94 @@ func checkSealed(p loadedPreregistration, set faultSet, setSHA string, rec sealR
 	return nil
 }
 
+// checkResultsSealed refuses results that are not the measurement of the
+// sealed set: another set hash, sealed counts that differ from the seal, fewer
+// non-code cases than FIH-V1-002 requires, or a case list that is not the
+// sealed one, each sealed case exactly once with its kind, PR and head and no
+// other case. A results file with a case removed, added or repeated would
+// otherwise change N and the misses the verdict counts.
+func checkResultsSealed(set faultSet, setSHA string, rec sealRecord, res results) error {
+	if res.FaultSetSHA256 != rec.FaultSetSHA256 || res.FaultSetSHA256 != setSHA {
+		return refuse("fault-set-changed", "the results were measured on fault set %s, the seal holds %s", res.FaultSetSHA256, rec.FaultSetSHA256)
+	}
+	var reverts, mutants, nonCode int
+	sealed := map[string]harnessCase{}
+	for _, c := range set.Cases {
+		switch c.Kind {
+		case "revert":
+			reverts++
+		case "mutants":
+			mutants++
+		case "non-code":
+			nonCode++
+		}
+		sealed[c.ID] = c
+	}
+	if len(sealed) != len(set.Cases) || reverts != rec.RevertCases || mutants != rec.MutantCases || reverts+mutants != rec.CodeCases ||
+		nonCode != rec.NonCodeCases || reverts+mutants+nonCode != len(set.Cases) {
+		return refuse("fault-set-invalid", "the set holds %d revert, %d mutant and %d non-code cases; the seal records %d, %d and %d (%d code)",
+			reverts, mutants, nonCode, rec.RevertCases, rec.MutantCases, rec.NonCodeCases, rec.CodeCases)
+	}
+	if nonCode < minimumNonCode {
+		return refuse("non-code-faults-below-minimum", "%d non-code faults sealed against the minimum of %d", nonCode, minimumNonCode)
+	}
+	seen := map[string]bool{}
+	for _, r := range res.Cases {
+		c, ok := sealed[r.ID]
+		switch {
+		case !ok:
+			return refuse("results-not-sealed", "case %q is not in the sealed set", r.ID)
+		case seen[r.ID]:
+			return refuse("results-not-sealed", "case %q appears more than once", r.ID)
+		case r.Kind != c.Kind || r.PR != c.PR || r.HeadSHA != c.HeadSHA:
+			return refuse("results-not-sealed", "case %q is %s PR %d at %s in the results, %s PR %d at %s in the sealed set", r.ID, r.Kind, r.PR, r.HeadSHA, c.Kind, c.PR, c.HeadSHA)
+		}
+		if err := checkCaseFaults(c, r); err != nil {
+			return err
+		}
+		seen[r.ID] = true
+	}
+	for _, c := range set.Cases {
+		if !seen[c.ID] {
+			return refuse("results-not-sealed", "sealed case %q has no result", c.ID)
+		}
+	}
+	return nil
+}
+
+// checkCaseFaults refuses a counted or dropped case whose faults are not the
+// sealed faults in their sealed order, or whose status disagrees with them, so
+// a fault with a miss cannot be removed or its case relabelled as dropped.
+func checkCaseFaults(c harnessCase, r caseResult) error {
+	switch r.Status {
+	case caseExcluded, caseError:
+		return nil
+	case caseCounted, caseDropped:
+	default:
+		return refuse("results-not-sealed", "case %q has status %q", r.ID, r.Status)
+	}
+	if len(r.Faults) != len(c.Faults) {
+		return refuse("results-not-sealed", "case %q has %d fault results for %d sealed faults", r.ID, len(r.Faults), len(c.Faults))
+	}
+	killed := false
+	for i, f := range r.Faults {
+		if f.ID != c.Faults[i].ID {
+			return refuse("results-not-sealed", "case %q: fault result %q where %q was sealed", r.ID, f.ID, c.Faults[i].ID)
+		}
+		switch f.Status {
+		case faultKilled:
+			killed = true
+		case faultNoKill:
+		default:
+			return refuse("results-not-sealed", "case %q: fault %q has status %q in a %s case", r.ID, f.ID, f.Status, r.Status)
+		}
+	}
+	if killed != (r.Status == caseCounted) {
+		return refuse("results-not-sealed", "case %q has status %s but its faults say otherwise", r.ID, r.Status)
+	}
+	return nil
+}
+
 func formatRefusals(errs []error) string {
 	s := ""
 	for _, e := range errs {

@@ -5,12 +5,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 // suiteRuns returns three runs of n passing tests named go:p#T000...
@@ -158,3 +161,86 @@ func TestRunSealedSet_FIH_V1_004_005_006(t *testing.T) {
 }
 
 func fileExists(path string) bool { _, err := os.Stat(path); return err == nil }
+
+// stubAdapter returns a passing baseline for the first three runs and then
+// whatever faulted returns, so a test can stop a faulted run.
+type stubAdapter struct {
+	calls   int
+	faulted func(ctx context.Context, root string) (RunResult, error)
+}
+
+func (*stubAdapter) Runner() string { return "go" }
+
+func (a *stubAdapter) Run(ctx context.Context, root string, _ []planEntry) (RunResult, error) {
+	a.calls++
+	if a.calls <= confirmRuns {
+		return RunResult{"go:oracle.invalid/leaf#TestValue": Pass}, nil
+	}
+	return a.faulted(ctx, root)
+}
+
+func (*stubAdapter) DependentUnits(context.Context, string, []string) ([]string, error) {
+	return nil, nil
+}
+
+// TestFaultedRunStopped_FIH_V1_005_014 is review P2-2: a faulted run stopped by
+// cancellation or by the harness's own wall timeout is a failed measurement
+// (case ERROR, verdict INVALID), never a dropped case; only a fault-induced
+// build failure or crash is dropped.
+func TestFaultedRunStopped_FIH_V1_005_014(t *testing.T) {
+	repo := newFixtureRepo(t)
+	repo.writeGoModule()
+	base := repo.commit("base")
+	repo.write("leaf.go", "package leaf\n\nfunc Value() int { return 3 - 2 }\n")
+	head := repo.commit("pr: compute the value")
+	body := "package leaf\n\nfunc Value() int { return 3 - 2 }\n"
+	f := fault{ID: "m1", Path: "leaf.go", Line: 3, Offset: strings.Index(body, "-"), Before: "-", After: "+", Operator: "arithmetic"}
+	planner, mode := fakePlanner(t)
+	setMode(t, mode, "go:oracle.invalid/leaf")
+	runOne := func(id string, faulted func(context.Context, context.CancelFunc, string) (RunResult, error)) caseResult {
+		t.Helper()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		a := &stubAdapter{faulted: func(ctx context.Context, root string) (RunResult, error) { return faulted(ctx, cancel, root) }}
+		clones := t.TempDir()
+		h := newHarness(runConfig{Source: repo.root, Clones: clones, Binary: planner, Adapter: a})
+		r := h.runCase(ctx, harnessCase{ID: id, Kind: "mutants", PR: 7, BaseSHA: base, HeadSHA: head, Faults: []fault{f}})
+		if entries, _ := os.ReadDir(clones); len(entries) != 0 {
+			t.Fatalf("%s: clone leaked: %v", id, entries)
+		}
+		return r
+	}
+	cancelled := runOne("cancelled", func(ctx context.Context, cancel context.CancelFunc, _ string) (RunResult, error) {
+		cancel()
+		return nil, fmt.Errorf("go test did not finish: %w", ctx.Err())
+	})
+	walled := runOne("walled", func(ctx context.Context, _ context.CancelFunc, root string) (RunResult, error) {
+		_, err := command(ctx, root, 50*time.Millisecond, "sleep", "5")
+		if !errors.Is(err, errWallTimeout) {
+			t.Fatalf("a command over its wall bound returned %v, not the harness wall timeout", err)
+		}
+		return nil, fmt.Errorf("go test stopped by the harness: %w", err)
+	})
+	crashed := runOne("crashed", func(context.Context, context.CancelFunc, string) (RunResult, error) {
+		return nil, errors.New("Go package oracle.invalid/leaf failed without a failing test")
+	})
+	for _, r := range []caseResult{cancelled, walled} {
+		if r.Status != caseError || len(r.Faults) != 1 || r.Faults[0].Status != faultError {
+			t.Fatalf("stopped run counted as a measurement: %+v", r)
+		}
+	}
+	if crashed.Status != caseDropped || len(crashed.Faults) != 1 || crashed.Faults[0].Status != faultNoKill {
+		t.Fatalf("fault-induced build failure not dropped: %+v", crashed)
+	}
+	ok := func(extra ...caseResult) results {
+		return fixtureResults(fixtureCases("c", "mutants", caseCounted, "NARROWED", "line", 100), fixtureCases("n", "non-code", caseCounted, "NARROWED", "line", 30), extra)
+	}
+	if v := buildVerdict(ok(crashed)); v.Status != statusZeroMiss || v.Code.DroppedNoKill != 1 {
+		t.Fatalf("dropped build failure: %s %v", v.Status, v.Reasons)
+	}
+	for _, r := range []caseResult{cancelled, walled} {
+		if v := buildVerdict(ok(r)); v.Status != statusInvalid || v.Code.Errors != 1 || v.Code.DroppedNoKill != 0 || v.Code.Sentence != "" {
+			t.Fatalf("%s: %s errors=%d dropped=%d %v", r.ID, v.Status, v.Code.Errors, v.Code.DroppedNoKill, v.Reasons)
+		}
+	}
+}

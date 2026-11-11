@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -144,22 +145,64 @@ func TestVerdictGranularity_FIH_V1_015(t *testing.T) {
 	}
 }
 
-func TestVerdictCommand_FIH_V1_007(t *testing.T) {
-	ctx := context.Background()
+// sealFor writes the fault set and seal record res was measured on and
+// returns their paths with res bound to the set's hash.
+func sealFor(t *testing.T, p loadedPreregistration, res results) (setPath, sealPath string, bound results) {
+	t.Helper()
+	set := faultSet{Profile: faultSetProfile, PreregistrationSHA256: p.SHA256, Runner: p.Runner, Cases: []harnessCase{}}
+	rec := sealRecord{Profile: sealProfile, Runner: p.Runner, PreregistrationSHA256: p.SHA256, RuleSHA256: p.RevertRule.SHA256}
+	for _, c := range res.Cases {
+		hc := harnessCase{ID: c.ID, Kind: c.Kind, PR: c.PR, BaseSHA: strings.Repeat("1", 40), HeadSHA: c.HeadSHA, Faults: []fault{}}
+		for _, f := range c.Faults {
+			hc.Faults = append(hc.Faults, fault{ID: f.ID, Operator: "arithmetic"})
+		}
+		set.Cases = append(set.Cases, hc)
+		switch c.Kind {
+		case "revert":
+			rec.RevertCases++
+		case "mutants":
+			rec.MutantCases++
+		case "non-code":
+			rec.NonCodeCases++
+		}
+	}
+	rec.CodeCases = rec.RevertCases + rec.MutantCases
+	setPath = writeJSON(t, set)
+	body, err := os.ReadFile(setPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec.FaultSetSHA256, res.FaultSetSHA256 = sha(body), sha(body)
+	return setPath, writeJSON(t, rec), res
+}
+
+func verdictPrereg(t *testing.T) (prePath, preHash string, lp loadedPreregistration) {
+	t.Helper()
 	p := basePrereg(t)
 	p.ExclusionBudget = 2
-	prePath, preHash := writePrereg(t, p)
+	prePath, preHash = writePrereg(t, p)
 	lp, err := loadPreregistration(prePath, preHash)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return prePath, preHash, lp
+}
+
+func TestVerdictCommand_FIH_V1_007(t *testing.T) {
+	ctx := context.Background()
+	prePath, preHash, lp := verdictPrereg(t)
 	res := fixtureResults(fixtureCases("c", "mutants", caseCounted, "NARROWED", "line", 104), fixtureCases("n", "non-code", caseCounted, "NARROWED", "line", 32))
 	res.PreregistrationSHA256 = lp.SHA256
-	resPath := writeJSON(t, res)
+	setPath, sealPath, res := sealFor(t, lp, res)
+	verdict := func(res results, extra ...string) (int, string) {
+		var w bytes.Buffer
+		args := append([]string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--results", writeJSON(t, res)}, extra...)
+		code := run(ctx, args, &w)
+		return code, w.String()
+	}
 	out := filepath.Join(t.TempDir(), "verdict.json")
-	var w bytes.Buffer
-	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--results", resPath, "--out", out}, &w); code != 0 {
-		t.Fatalf("verdict: %d %s", code, w.String())
+	if code, w := verdict(res, "--out", out); code != 0 {
+		t.Fatalf("verdict: %d %s", code, w)
 	}
 	var v verdictDoc
 	raw, _ := os.ReadFile(out)
@@ -167,16 +210,108 @@ func TestVerdictCommand_FIH_V1_007(t *testing.T) {
 		t.Fatalf("verdict file %s %v", raw, err)
 	}
 	// Results measured under another pre-registration are refused.
-	res.PreregistrationSHA256 = strings.Repeat("c", 64)
-	w.Reset()
-	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--results", writeJSON(t, res)}, &w); code != 1 || !strings.Contains(w.String(), "refused: preregistration-changed") {
-		t.Fatalf("foreign results: %d %s", code, w.String())
+	foreign := res
+	foreign.PreregistrationSHA256 = strings.Repeat("c", 64)
+	if code, w := verdict(foreign); code != 1 || !strings.Contains(w, "refused: preregistration-changed") {
+		t.Fatalf("foreign results: %d %s", code, w)
 	}
-	// A verdict other than zero-miss exits 1.
+	// The seal and set are required.
+	var w bytes.Buffer
+	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--results", writeJSON(t, res)}, &w); code != 2 {
+		t.Fatalf("verdict without a seal: %d %s", code, w.String())
+	}
+}
+
+// TestVerdictBoundToSeal_FIH_V1_002_007_014 is review P2-1: the verdict reads
+// only the measurement of the sealed set, so removing, adding or repeating a
+// case, editing a fault, or another set hash cannot change N or hide a miss.
+func TestVerdictBoundToSeal_FIH_V1_002_007_014(t *testing.T) {
+	ctx := context.Background()
+	prePath, preHash, lp := verdictPrereg(t)
+	missed := fixtureCases("x", "mutants", caseCounted, "NARROWED", "line", 104)
+	missed[7].Faults = append(missed[7].Faults, faultResult{ID: "x7-g", Status: faultKilled, Planned: true, PlanKind: "NARROWED", Tier: "line", Kills: []string{"go:p#T"}, Misses: []string{"go:p#T"}})
+	missed[9].Faults[0].Misses = []string{"go:p#T", "go:p#U"}
+	res := fixtureResults(missed, fixtureCases("e", "mutants", caseError, "", "", 1), fixtureCases("n", "non-code", caseCounted, "NARROWED", "line", 32))
 	res.PreregistrationSHA256 = lp.SHA256
-	res.Cases = res.Cases[:50]
-	w.Reset()
-	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--results", writeJSON(t, res)}, &w); code != 1 || !strings.Contains(w.String(), "runner go: INVALID") {
-		t.Fatalf("invalid verdict: %d %s", code, w.String())
+	setPath, sealPath, res := sealFor(t, lp, res)
+	verdict := func(res results, sealPath string) (int, string) {
+		var w bytes.Buffer
+		code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--results", writeJSON(t, res)}, &w)
+		return code, w.String()
+	}
+	// The sealed measurement is MISS; misses are listed per fault and
+	// counted per case for the Wilson bound.
+	if code, w := verdict(res, sealPath); code != 1 || !strings.Contains(w, "runner go: MISS") || !strings.Contains(w, "code: 3 misses in 2 of N = 104 cases") {
+		t.Fatalf("sealed measurement: %d %s", code, w)
+	}
+	if v := buildVerdict(res); v.Code.MissedCases != 2 || len(v.Code.Misses) != 3 || v.Code.WilsonUpper95 != func() float64 { _, hi := wilson(2, 104); return hi }() {
+		t.Fatalf("per-case misses: %+v", v.Code)
+	}
+	without := func(ids ...string) results {
+		r := res
+		r.Cases = slices.DeleteFunc(slices.Clone(res.Cases), func(c caseResult) bool { return slices.Contains(ids, c.ID) })
+		return r
+	}
+	edited := func(edit func(*results)) results {
+		r := res
+		r.Cases = slices.Clone(res.Cases)
+		for i := range r.Cases {
+			r.Cases[i].Faults = slices.Clone(r.Cases[i].Faults)
+		}
+		edit(&r)
+		return r
+	}
+	for name, tc := range map[string]struct {
+		res  results
+		code string
+	}{
+		// Removing the MISS and ERROR cases leaves 102 counted cases, which
+		// would otherwise read ZERO_MISS.
+		"removed miss case":  {without("x7", "x9", "e0"), "results-not-sealed"},
+		"removed error case": {without("e0"), "results-not-sealed"},
+		"added unsealed case": {edited(func(r *results) {
+			r.Cases = append(r.Cases, fixtureCases("z", "mutants", caseCounted, "NARROWED", "line", 1)...)
+		}), "results-not-sealed"},
+		"duplicated case":         {edited(func(r *results) { r.Cases = append(r.Cases, r.Cases[0]) }), "results-not-sealed"},
+		"duplicate for removed":   {edited(func(r *results) { r.Cases[7] = r.Cases[0] }), "results-not-sealed"},
+		"fault set hash":          {edited(func(r *results) { r.FaultSetSHA256 = strings.Repeat("d", 64) }), "fault-set-changed"},
+		"kind changed":            {edited(func(r *results) { r.Cases[0].Kind = "non-code" }), "results-not-sealed"},
+		"PR changed":              {edited(func(r *results) { r.Cases[0].PR = 999 }), "results-not-sealed"},
+		"head changed":            {edited(func(r *results) { r.Cases[0].HeadSHA = "other" }), "results-not-sealed"},
+		"missed fault removed":    {edited(func(r *results) { r.Cases[7].Faults = r.Cases[7].Faults[:1] }), "results-not-sealed"},
+		"miss relabelled no kill": {edited(func(r *results) { r.Cases[9].Status = caseDropped }), "results-not-sealed"},
+		"unknown case status":     {edited(func(r *results) { r.Cases[9].Status = "PASSED" }), "results-not-sealed"},
+	} {
+		if code, w := verdict(tc.res, sealPath); code != 1 || !strings.Contains(w, "refused: "+tc.code) {
+			t.Fatalf("%s: %d %s", name, code, w)
+		}
+	}
+	// Seal counts that differ from the set are refused.
+	rec := func(edit func(*sealRecord)) string {
+		var r sealRecord
+		raw, _ := os.ReadFile(sealPath)
+		if err := json.Unmarshal(raw, &r); err != nil {
+			t.Fatal(err)
+		}
+		edit(&r)
+		return writeJSON(t, r)
+	}
+	for name, edit := range map[string]func(*sealRecord){
+		"code count":     func(r *sealRecord) { r.CodeCases++ },
+		"mutant count":   func(r *sealRecord) { r.MutantCases-- },
+		"non-code count": func(r *sealRecord) { r.NonCodeCases = 40 },
+	} {
+		if code, w := verdict(res, rec(edit)); code != 1 || !strings.Contains(w, "refused: fault-set-invalid") {
+			t.Fatalf("%s: %d %s", name, code, w)
+		}
+	}
+	// FIH-V1-002 at verdict time: a set sealed with 29 non-code cases is
+	// refused even when every non-code case is counted.
+	few := fixtureResults(fixtureCases("c", "mutants", caseCounted, "NARROWED", "line", 104), fixtureCases("n", "non-code", caseCounted, "NARROWED", "line", 29))
+	few.PreregistrationSHA256 = lp.SHA256
+	fewSet, fewSeal, few := sealFor(t, lp, few)
+	var w bytes.Buffer
+	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", fewSet, "--seal", fewSeal, "--results", writeJSON(t, few)}, &w); code != 1 || !strings.Contains(w.String(), "refused: non-code-faults-below-minimum") {
+		t.Fatalf("29 non-code: %d %s", code, w.String())
 	}
 }

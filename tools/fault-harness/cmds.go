@@ -158,6 +158,27 @@ func loadFaultSet(path string) (faultSet, string, error) {
 	return set, sha(body), nil
 }
 
+// loadSealed reads a fault set and its seal record and refuses a set or
+// pre-registration that is not the sealed one.
+func loadSealed(p loadedPreregistration, setPath, sealPath string) (faultSet, string, sealRecord, error) {
+	var rec sealRecord
+	set, setSHA, err := loadFaultSet(setPath)
+	if err != nil {
+		return set, "", rec, err
+	}
+	sealBody, err := boundedRead(sealPath, 1<<20)
+	if err != nil {
+		return set, "", rec, err
+	}
+	if err := decodeStrict(sealBody, &rec); err != nil {
+		return set, "", rec, refuse("fault-set-invalid", "seal record: %v", err)
+	}
+	if err := checkSealed(p, set, setSHA, rec); err != nil {
+		return set, "", rec, err
+	}
+	return set, setSHA, rec, nil
+}
+
 const resultsProfile = "fault-harness-results/1"
 
 // results is what `run` measures and `verdict` reads.
@@ -194,19 +215,8 @@ func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 	if err != nil {
 		return refused(w, err)
 	}
-	set, setSHA, err := loadFaultSet(*setPath)
+	set, setSHA, _, err := loadSealed(p, *setPath, *sealPath)
 	if err != nil {
-		return refused(w, err)
-	}
-	sealBody, err := boundedRead(*sealPath, 1<<20)
-	if err != nil {
-		return refused(w, err)
-	}
-	var rec sealRecord
-	if err := decodeStrict(sealBody, &rec); err != nil {
-		return refused(w, refuse("fault-set-invalid", "seal record: %v", err))
-	}
-	if err := checkSealed(p, set, setSHA, rec); err != nil {
 		return refused(w, err)
 	}
 	adapter, err := adapterFor(p.Runner, adapterOptions{GoTest: strings.Fields(*goTest), Timeout: *timeout})
@@ -244,16 +254,22 @@ func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 }
 
 func runVerdictCommand(_ context.Context, args []string, w io.Writer) int {
-	fs := flags("verdict", "--preregistration FILE --hash FILE --results FILE [--out FILE]",
-		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --results go.results.json --out go.verdict.json", w)
+	fs := flags("verdict", "--preregistration FILE --hash FILE --set FILE --seal FILE --results FILE [--out FILE]",
+		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --set go.faults.json --seal go.seal.json --results go.results.json --out go.verdict.json", w)
 	prereg := fs.String("preregistration", "", "pre-registration file")
 	hash := fs.String("hash", "", "committed SHA-256 file of the pre-registration")
+	setPath := fs.String("set", "", "sealed fault set the results were measured on")
+	sealPath := fs.String("seal", "", "seal record written by `fault-harness seal`")
 	resultsPath := fs.String("results", "", "results written by `fault-harness run`")
 	out := fs.String("out", "", "also write the verdict JSON to this file")
-	if code := parse(fs, args, prereg, resultsPath); code >= 0 {
+	if code := parse(fs, args, prereg, setPath, sealPath, resultsPath); code >= 0 {
 		return code
 	}
 	p, err := loadPreregistration(*prereg, *hash)
+	if err != nil {
+		return refused(w, err)
+	}
+	set, setSHA, rec, err := loadSealed(p, *setPath, *sealPath)
 	if err != nil {
 		return refused(w, err)
 	}
@@ -268,6 +284,9 @@ func runVerdictCommand(_ context.Context, args []string, w io.Writer) int {
 	}
 	if res.PreregistrationSHA256 != p.SHA256 || res.Runner != p.Runner || res.ExclusionBudget != p.ExclusionBudget {
 		return refused(w, refuse("preregistration-changed", "the results were measured under pre-registration %s, not %s", res.PreregistrationSHA256, p.SHA256))
+	}
+	if err := checkResultsSealed(set, setSHA, rec, res); err != nil {
+		return refused(w, err)
 	}
 	v := buildVerdict(res)
 	printVerdict(w, v)

@@ -47,6 +47,11 @@ func (b *capture) Write(p []byte) (int, error) {
 	return n, nil
 }
 
+// errWallTimeout marks a command stopped by the harness's own wall bound. It
+// is a failed measurement, never a fault-induced crash (G3): a faulted run
+// that hits it is an ERROR, not a dropped case.
+var errWallTimeout = errors.New("harness wall timeout")
+
 // command runs argv in root under a process group with a wall-clock bound.
 // A timeout, an unproved cleanup or an output overflow is an error, never a
 // result (FIH-V1-005: a timed-out run is a failed measurement).
@@ -54,6 +59,7 @@ func command(ctx context.Context, root string, timeout time.Duration, argv ...st
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	parent := ctx
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	c := exec.Command(argv[0], argv[1:]...)
@@ -87,7 +93,10 @@ func command(ctx context.Context, root string, timeout time.Duration, argv ...st
 		return out.body, fmt.Errorf("process cleanup unproved: %w", result.Err)
 	}
 	if ctx.Err() != nil {
-		return out.body, ctx.Err()
+		if parent.Err() != nil {
+			return out.body, parent.Err()
+		}
+		return out.body, fmt.Errorf("%w: %s after %s", errWallTimeout, argv[0], timeout)
 	}
 	if out.overflow {
 		return nil, errors.New("command output exceeded 32 MiB")

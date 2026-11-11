@@ -167,6 +167,11 @@ func (a goAdapter) Run(ctx context.Context, root string, entries []planEntry) (R
 		}
 		argv = append(argv, c.pkgs...)
 		out, err := command(ctx, root, a.timeout+time.Minute, argv...)
+		if errors.Is(err, errWallTimeout) || ctx.Err() != nil {
+			// The harness stopped the run, so its partial output says
+			// nothing about the tree.
+			return nil, fmt.Errorf("go test stopped by the harness: %w", err)
+		}
 		got, parseErr := goOutcomes(out)
 		if parseErr != nil {
 			return nil, parseErr

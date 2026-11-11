@@ -41,7 +41,10 @@ type section struct {
 	Excluded int    `json:"excluded"`
 	Errors   int    `json:"errors"`
 	Misses   []miss `json:"misses"`
-	Status   string `json:"status"`
+	// MissedCases counts the cases in N with at least one miss; the Wilson
+	// bound is per case, like N, so a case with two missed faults counts once.
+	MissedCases int    `json:"missedCases"`
+	Status      string `json:"status"`
 	// Sentence is printed only for a zero-miss verdict.
 	Sentence string `json:"sentence,omitempty"`
 	Bound    string `json:"bound,omitempty"`
@@ -102,7 +105,7 @@ func account(cases []caseResult) section {
 			s.DroppedNoKill++
 			continue
 		}
-		narrowed := false
+		narrowed, missed := false, false
 		for _, f := range c.Faults {
 			if f.Status != faultKilled || f.PlanKind != "NARROWED" {
 				continue
@@ -114,6 +117,10 @@ func account(cases []caseResult) section {
 			for _, t := range f.Misses {
 				s.Misses = append(s.Misses, miss{Case: c.ID, Fault: f.ID, Test: t})
 			}
+			if len(f.Misses) > 0 && !missed {
+				missed = true
+				s.MissedCases++
+			}
 		}
 		if narrowed {
 			s.NarrowedWithKill++
@@ -121,7 +128,7 @@ func account(cases []caseResult) section {
 			s.FullOrUnknown++
 		}
 	}
-	_, s.WilsonUpper95 = wilson(len(s.Misses), s.NarrowedWithKill)
+	_, s.WilsonUpper95 = wilson(s.MissedCases, s.NarrowedWithKill)
 	if s.NarrowedWithKill > 0 {
 		s.Bound = fmt.Sprintf("3/%d", s.NarrowedWithKill)
 	}
@@ -170,7 +177,7 @@ func buildVerdict(res results) verdictDoc {
 		switch {
 		case len(s.Misses) > 0:
 			s.Status = statusMiss
-			reason("%s: %d misses in N = %d; a miss blocks and is never waived as a flake", x.name, len(s.Misses), s.NarrowedWithKill)
+			reason("%s: %d misses in %d of N = %d cases; a miss blocks and is never waived as a flake", x.name, len(s.Misses), s.MissedCases, s.NarrowedWithKill)
 		case s.NarrowedWithKill < x.min:
 			s.Status = statusInvalid
 			reason("%s: N = %d is below %d", x.name, s.NarrowedWithKill, x.min)
