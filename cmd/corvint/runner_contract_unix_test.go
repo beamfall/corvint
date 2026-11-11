@@ -5,8 +5,10 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -168,6 +170,56 @@ func TestRNCV1013CLIFullCommandScenarios(t *testing.T) {
 		}
 		if got := launched(t, log); got != "" {
 			t.Fatalf("a dry run launched:\n%s", got)
+		}
+	})
+}
+
+// RNC-V1-004, owner decision R32: a commit that deletes the config of a
+// runner instance the committed inventory names makes every runner run all
+// tests with reason runner-removed; a changed path no runner owns runs every
+// test with reason unowned-path, which in a pytest adopter is the built-in
+// pytest default.
+func TestRNCV1004RemovedRunnerAndUnownedPathRunEverything(t *testing.T) {
+	t.Run("runner removed", func(t *testing.T) {
+		root, _, log := sessionFixture(t, "pass")
+		writeInventoryFiles(t, root, map[string]string{".rspec": "--require spec_helper\n", "spec/a_spec.rb": "describe 'a' do\n  it('works') { }\nend\n"})
+		affectedGit(t, root, "add", ".")
+		affectedGit(t, root, "commit", "-qm", "rspec")
+		if code, _, stderr := inventoryCLI(t, "--root", root, "inventory", "refresh"); code != 0 {
+			t.Fatalf("refresh: %s", stderr)
+		}
+		affectedGit(t, root, "add", ".")
+		affectedGit(t, root, "commit", "-qm", "inventory")
+		base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+		affectedGit(t, root, "rm", "-q", ".rspec")
+		affectedGit(t, root, "commit", "-qm", "drop rspec")
+		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full")
+		var plan struct {
+			Scope, Reason string
+			Inventory     struct{ Undeclared []string }
+		}
+		// The Ruby spec file left behind has no runner now, so the FULL
+		// plan is INCOMPLETE (exit 3) rather than guessing a command.
+		if code != 3 || json.Unmarshal([]byte(stdout), &plan) != nil || plan.Scope != "FULL" || !slices.Equal(plan.Inventory.Undeclared, []string{"rspec@."}) ||
+			!strings.HasPrefix(plan.Reason, "runner-removed: rspec@. is named by the inventory") || !strings.Contains(stderr, "FALLBACK runner-removed: rspec@.") {
+			t.Fatalf("exit %d plan %+v stdout %s stderr %s", code, plan, stdout, stderr)
+		}
+		if got := launched(t, log); strings.Contains(got, "go test") {
+			t.Fatalf("a dry run launched go test:\n%s", got)
+		}
+	})
+	t.Run("unowned path", func(t *testing.T) {
+		root, log := pytestAdopter(t, nil)
+		base := gitOutput(t, root, "rev-parse", "HEAD")
+		writeInventoryFiles(t, root, map[string]string{"notes.dat": "x\n"})
+		commitAll(t, root, "notes")
+		receipt := filepath.Join(t.TempDir(), "r.json")
+		code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--receipt", receipt)
+		if code != 0 || !strings.Contains(stderr, "FALLBACK unowned-path: a changed path no runner instance owns runs every test (UNOWNED_DIRTY_PATH): notes.dat") {
+			t.Fatalf("exit %d stderr %s", code, stderr)
+		}
+		if got := launched(t, log); got != "python --version\npython -m pytest\n" {
+			t.Fatalf("runner calls:\n%s", got)
 		}
 	})
 }

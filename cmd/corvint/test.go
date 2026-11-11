@@ -478,6 +478,7 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	for _, instance := range inventory.Instances {
 		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})
 	}
+	input.Removed = sessiontest.RemovedRunners(input.Declared, input.Instances, inventory.Undeclared)
 	if options.goParallel != 0 {
 		input.Declared = input.Declared.WithGoParallel(options.goParallel)
 	}

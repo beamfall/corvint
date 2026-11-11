@@ -26,6 +26,38 @@ var runnerLanguages = map[string]string{
 	testid.Pytest: "python", testid.RSpec: "ruby", testid.Minitest: "ruby",
 }
 
+// ReasonRunnerRemoved names the FULL run of a plan whose inventory or
+// declaration names a runner instance the tree no longer declares
+// (RNC-V1-004, owner decision R32).
+const ReasonRunnerRemoved = "runner-removed"
+
+// RemovedRunners lists, sorted, the runner instances named by undeclared
+// (the inventory's records for instances the tree no longer declares,
+// testinventory.Verdict.Undeclared) or by the declaration's instance
+// entries, and the runners named by its runner entries, that no instance of
+// instances matches.
+func RemovedRunners(declared Declared, instances []contract.Instance, undeclared []string) []string {
+	keys, runners := map[string]bool{}, map[string]bool{}
+	for _, instance := range instances {
+		keys[instance.Key()], runners[instance.Runner] = true, true
+	}
+	removed := map[string]bool{}
+	for _, key := range undeclared {
+		removed[key] = true
+	}
+	for _, entry := range declared.Instances {
+		if !keys[entry.Key] {
+			removed[entry.Key] = true
+		}
+	}
+	for _, entry := range declared.Runners {
+		if !runners[entry.Key] {
+			removed[entry.Key] = true
+		}
+	}
+	return sortedKeys(removed)
+}
+
 // goSuite reports whether the declared Go full suite runs: always for a
 // declared go member, and for the built-in default only when the tree
 // declares a Go instance (RNC-V1-013).
@@ -97,6 +129,10 @@ type Input struct {
 	// command runs each of its instances' full commands (RNC-V1-013), and
 	// the built-in Go default runs only when a Go instance exists.
 	Instances []contract.Instance
+	// Removed are the runner instances the committed inventory or the
+	// declaration names but the planned tree no longer declares
+	// (RemovedRunners); any one runs every test (RNC-V1-004).
+	Removed []string
 	// LineUnits maps a selected Go import path to its GLS-V0-020 line
 	// decision; LineIndex is the manifest's lineIndex record. Both are empty
 	// without --line-index.
@@ -320,6 +356,10 @@ func Build(input Input) (Manifest, error) {
 			languages[language] = true
 		}
 	}
+	if len(input.Removed) != 0 {
+		// RNC-V1-004, owner decision R32: a removed runner runs every test.
+		fullReason = ReasonRunnerRemoved + ": " + strings.Join(input.Removed, ", ") + " is named by the inventory or " + CommandsPath + " but no longer declared, so every test runs"
+	}
 	modules := map[string]bool{}
 	for _, entry := range input.Unknown {
 		// An unknown unit with no selectable test still needs its language's
@@ -364,6 +404,11 @@ func Build(input Input) (Manifest, error) {
 			// deciding driver names it; Go selection is unchanged (AFP-V0-2750).
 			languages[language] = true
 			continue
+		}
+		if fullReason == "" && entry.Reason == "UNOWNED_DIRTY_PATH" {
+			// RNC-V1-004, owner decision R32: a changed path no runner
+			// instance owns runs every test, with the named reason.
+			fullReason = gateselect.UnownedPathFallback + ": " + entry.Detail
 		}
 		if fullReason == "" {
 			fullReason = fmt.Sprintf("plan.unknown entry outside the AFP-V0-028 allowlist: %s %s", entry.Reason, entry.Detail)

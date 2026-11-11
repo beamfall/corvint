@@ -69,8 +69,18 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 	}{
 		{name: "narrowed", edit: func(*Input) {}, scope: ScopeNarrowed, units: whole("a")},
 		{name: "allowlisted unknowns stay narrowed", edit: func(in *Input) {
-			in.Unknown = []Unknown{{Reason: "UNOWNED_DIRTY_PATH", Detail: "notes.txt"}, {Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "NO_SELECTABLE_TEST", Detail: "go:example.test/m/b"}}
+			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "NO_SELECTABLE_TEST", Detail: "go:example.test/m/b"}}
 		}, scope: ScopeNarrowed, units: whole("a")},
+		// RNC-V1-004, owner decision R32: a changed path no runner owns
+		// runs every test with the named reason.
+		{name: "an unowned path runs every test", edit: func(in *Input) {
+			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "UNOWNED_DIRTY_PATH", Detail: "notes.txt"}}
+		}, scope: ScopeFull, reason: "unowned-path: a changed path no runner instance owns runs every test (UNOWNED_DIRTY_PATH): notes.txt", units: whole("a", "b", "c")},
+		// RNC-V1-004: a runner the inventory or the declaration still names
+		// but the tree no longer declares runs every test.
+		{name: "a removed runner runs every test", edit: func(in *Input) {
+			in.Removed = []string{"jest@."}
+		}, scope: ScopeFull, reason: "runner-removed: jest@. is named by the inventory or .corvint/test-commands.json but no longer declared, so every test runs", units: whole("a", "b", "c")},
 		// AZU-V0-001: make targets and CI jobs are driver units, including
 		// historical targets with no selectable tests. They need no adapter.
 		{name: "selected and unknown driver targets need no language adapter", edit: func(in *Input) {

@@ -421,8 +421,8 @@ func boundedReaders(directories []string, scopes, prior map[string][]string, dir
 // `suite <language> <- <detail>` lines name, one per language for its first
 // entry, as the shadow runs it (AFP-V0-2750); it never widens the Go selection. CI narrows only the Go shards; rules (b) and (c)
 // select every package that encloses or names a dirty path and rule (d) every
-// package whose reads no literal bounds, so every Go reader of an unowned path
-// is selected; a frontier names what a language model cannot see inside units
+// package whose reads no literal bounds; an UNOWNED_DIRTY_PATH falls back with
+// UnownedPathFallback (RNC-V1-004); a frontier names what a language model cannot see inside units
 // the dirty paths already reach; and a unit with no selectable test gets no
 // test from a FULL run either. Any other unknown, a malformed reason, and an
 // UNKNOWN plan that names no unknown return the fallback reason.
@@ -445,6 +445,8 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 			continue
 		case entry.Reason == "UNINDEXED_SOURCE_PATH" && deletedGoSource(plan, index, root, entry.Detail):
 			continue
+		case entry.Reason == "UNOWNED_DIRTY_PATH":
+			return UnownedPathFallback, nil
 		}
 		reason := entry.Reason
 		if !unknownReason.MatchString(reason) {

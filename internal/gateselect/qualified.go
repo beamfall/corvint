@@ -101,11 +101,23 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	observed := plan
 	observed.Plan.Scope = proof.Scope
 	observed.Plan.Unknown = nil
+	unowned := false
 	for _, unknown := range proof.Unknown {
+		if unknown.Reason == affected.UnknownUnownedDirtyPath {
+			// The proof graph holds only the Go plugin, so every non-Go
+			// path is unowned in it. Whether a runner owns the path is the
+			// planner's verdict, whose own UNOWNED_DIRTY_PATH entries
+			// already fell back with unowned-path above (RNC-V1-004).
+			unowned = true
+			continue
+		}
 		observed.Plan.Unknown = append(observed.Plan.Unknown, struct {
 			Reason string `json:"reason"`
 			Detail string `json:"detail"`
 		}{unknown.Reason, unknown.Detail})
+	}
+	if unowned && len(observed.Plan.Unknown) == 0 && observed.Plan.Scope == "UNKNOWN" {
+		observed.Plan.Scope = "BOUNDED"
 	}
 	if reason, _ := unknownNarrowing(observed, index, root); reason != "" {
 		return fallback(reason)
