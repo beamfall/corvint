@@ -9,10 +9,10 @@ requirement IDs and its proof.
    `ticket show` read back. Done: ticket V1-5401; prefix `SLF-V1` reserved.
 - [x] 2 First commit: create `selection-hardening-v1.md`, its `docs/specs/README.md` row and the
    regenerated index. Requirements: SLF-V1-001..008. Proof: spec diff.
-- [ ] 3 Python unresolved absolute import frontier, OUTBOUND at the importer, and the
+- [x] 3 Python unresolved absolute import frontier, OUTBOUND at the importer, and the
    never-Uncovered rule. Requirements: SLF-V1-002. Proof: flat-layout fixture shows UNKNOWN or the
    importer's test selected, never Uncovered.
-- [ ] 4 Python import roots from configuration and layout. Requirements: SLF-V1-001. Proof:
+- [x] 4 Python import roots from configuration and layout. Requirements: SLF-V1-001. Proof:
    `pythonpath` and namespace-package fixtures; rule held disabled until task 8.
 - [ ] 5 Glob imports and manual mocks, with computed-form frontiers. Requirements: SLF-V1-003, 004.
    Proof: Vite glob fixture, Jest mock fixture, computed-target fixture.
