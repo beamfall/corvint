@@ -390,6 +390,24 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   that base and the clean VCS revision stamped in the executing selector. Missing executable
   provenance, a dirty executable build, an unreadable record, or any mismatch retains a SHADOW
   plan (`unqualified`). An index alone grants no local exclusion authority (`LPCV-V0-955/963`).
+- `GLS-V0-051`: (proposed, experimental; V1-5331) Every `go test` run of `linecov qualify`, the
+  baseline and each mutant's suite package, MUST run in a process group of its own on Unix
+  (`Setpgid`), as the collector runs a test binary (`GLS-V0-008`), so that a mutant whose code
+  signals its own process group (for example a deleted assignment that leaves
+  `syscall.Kill(0, syscall.SIGTERM)` or `kill(-0, ...)`) reaches only that run's `go` process and
+  test binaries, never `linecov` or the shell or orchestrator that started it. Only that group is
+  signalled: a cancelled run kills the group, and the group's remaining members are killed once
+  the run returns. A run its own group signalled leaves its package without a result, so the
+  mutant is `invalid` and a baseline package fails (`GLS-V0-031`). On Windows, where no Unix
+  process group exists, the run stays in the caller's console group and only the `go` process is
+  killed on cancellation: this is a documented no-op, since a Windows test cannot address a
+  POSIX group and `GenerateConsoleCtrlEvent` is outside the operator set of `GLS-V0-030`.
+- `GLS-V0-052`: (proposed, experimental; V1-5331) Because an isolated run no longer receives
+  the terminal's or the caller's SIGINT or SIGTERM, `linecov qualify` MUST, while a `go test` run
+  is in flight, catch SIGINT and SIGTERM, kill that run's process group and stop: a baseline
+  records the package as failed with the interruption and exits 1, and a mutant or control
+  returns the interruption as the run's error rather than counting the mutant `invalid` and taking
+  the next site. The checkout is reset to the index commit as on any other exit.
 
 ### CI (V1-4366)
 
@@ -556,6 +574,8 @@ objects and the head test files; it writes nothing.
 | A `TestMain`-only package without a complete suite record | the package runs whole as `suite-unrecorded` (`GLS-V0-008`) |
 | A suspected miss whose recorded runner is absent or not reproducible, or out of time | stays suspected, never confirmed (`GLS-V0-046`) |
 | Mutant kills a test the selector did not keep | miss; qualification fails (`GLS-V0-031`) |
+| Mutant or baseline test signals its own process group | only that run's group receives it; the package has no result, the mutant is `invalid` or the baseline fails, and the caller survives (`GLS-V0-051`) |
+| SIGINT or SIGTERM to `linecov qualify` during a run | the run's group is killed and qualify stops with an error; no mutant is counted for it (`GLS-V0-052`) |
 | Main full run fails a test a narrowed run left out | suspected miss; confirmed miss kills exclusion (`GLS-V0-046`, `GLS-V0-047`) |
 | Any CI step error | the shard's lists are unchanged (`GLS-V0-043`) |
 
@@ -581,6 +601,10 @@ base (`GLS-V0-040`, `GLS-V0-043`); otherwise it plans and records the selection 
 static lists. Rollback: unset the variable or create `refs/tags/linecov-kill-go`; selection returns
 to the static plan, and deleting the index loses only performance. An index collected before
 `GLS-V0-017` decides nothing (`environment-unbound`) until the next collection.
+`GLS-V0-051` and `GLS-V0-052` change `tools/linecov/qualify.go`, a qualified source, so the
+record must be regenerated before exclusion is admitted again (`GLS-V0-034`); until then every
+plan stays SHADOW, which is the fail-closed state. Rolling them back is a revert of
+`failingTests` to a direct `exec.Command` run, and needs the same requalification.
 
 ## Traceability
 
@@ -594,6 +618,7 @@ to the static plan, and deleting the index loses only performance. An index coll
 | GLS-V0-017, GLS-V0-018 | `internal/linecov/envaudit.go`, `audit.go`, `collect.go`, `compact.go`, `index.go`, `decide.go`, `select.go`, `windows.go` | `TestEnvAuditParse`, `TestEnvUnbound`, `TestUnboundIndexDecidesNothing`, `TestEnvAuditVersionAdmission`, `TestSyscallEnvironmentMutation`, `TestFaultInjection` (`environment:` and `collector-set variable:` cases, collector-own read checks), `TestCompactRoundTrip` |
 | GLS-V0-020 | `cmd/corvint/test.go`, `affected_linecov.go`, `internal/sessiontest/plan.go` | `TestLineNarrowingAppliesWhenQualified`, `TestCorvintTestLineIndexNarrowsTheRun`, `TestCorvintTestUnqualifiedLineIndexIsShadow`, `TestRunnerEnvCarriesBuildFlags`, `TestRunnerEnvKeepsSavedGoFlags`, `TestRunnerEnvSavedTestFlagOrFailedGoEnvFallsBack`, `TestRunnerEnvDeclaredVerbosityKeepsInverseVerboseTest`, `TestRunnerEnvRefusesUncarriedDeclaredEnv`, `TestCorvintTestUncarriedGoFlagKeepsStaticPlan`, `TestCorvintTestDeclaredVerbosityKeepsInverseVerboseTest`, `TestLocalQualificationRequiresMatchingEvidence` |
 | GLS-V0-030..034 | `tools/linecov/qualify.go` | `TestQualifyFixtureHasNoMiss`, `TestQualifyReportsASeededMiss`, `TestSummarizeAndQualified`, `TestWorkflowQualifiedInvocationMatchesWrapperRecord`; `.github/linecov/qualification.json`; build log |
+| GLS-V0-051, GLS-V0-052 | `tools/linecov/qualify.go` (`failingTests`), `internal/linecov/pgroup*.go` (`RunIsolated`) | `TestQualifyRunCannotSignalCaller`, `TestQualifyInterruptKillsRunGroup`; build log `2026-11-11-linecov-qualify-pgroup.md` |
 | GLS-V0-040..047 | `.github/workflows/ci.yml`, `linecov-index.yml`, `linecov-miss.yml`, `tools/linecov` | `TestCISelectionRewritesWholePackages`, `TestCINarrowsWholePackages`, `TestMissFindsExcludedFailures`, `TestLinecovPackageMissConfirmation`, `TestLinecovMissConfirmationReproducesRecordedRunner`, `TestLinecovKillSurvivesArtifactExpiry`, `TestLinecovKillMarkerWriter`, `TestAFPV0170RecordNeedsEveryShardFullUnderAnyVerdict`; workflow YAML and shell syntax checks |
 | GLS-V0-050 | build log | `2026-11-03-gls-line-selection.md`, `2026-11-06-lineidx-enable.md` |
 
