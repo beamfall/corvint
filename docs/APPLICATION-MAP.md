@@ -6,6 +6,10 @@ application map (`docs/specs/application-map-v0.md`, AMAP-V0): a hand-written ma
 commits, is the `workflows` member of `corvint help --json`, and
 `corvint flows appmap build --help` prints the build step's own detail.
 
+The `flows` group runs in the `corvint-docs` executable (decision 0595): `corvint flows ...`
+forwards its arguments there unchanged, so `corvint-docs` must be installed beside `corvint` or on
+PATH, and `corvint-docs flows ...` is the same command.
+
 ```text
 manifest -> corvint flows appmap build
 ```

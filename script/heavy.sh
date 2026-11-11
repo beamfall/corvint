@@ -1833,6 +1833,54 @@ not_admitted() {
   printf 'heavy.sh: HEAVY_SELECTION=%s not admitted: %s\n' "$HEAVY_SELECTION" "$1" >&2
 }
 
+# manifest_producer_check MANIFEST: TSP-V0-8131 (V1-5011). A corvint-test-manifest/0 names the HEAD
+# it was planned for (source.head) and, since STR-V0-8301, the commit of the corvint that wrote it
+# (producer.commit). Succeeds when source.head is HEAD and the producer is HEAD itself, or an
+# ancestor of HEAD from which no non-test Go source, go.mod or go.sum differs (the AFP-V0-846
+# staleness rule, narrowed to descendants). Otherwise sets producer_code (manifest-head,
+# manifest-producer-missing, manifest-producer-unverified or manifest-producer-stale), producer_why
+# and producer_fix (the regenerate command) and returns 1. A manifest Perl cannot parse, or of
+# another profile, returns 0 so manifest_perl refuses it as before. Only git reads run.
+manifest_producer_check() {
+  local manifest=$1 fields head mhead producer base paths count shown
+  producer_code="" producer_why="" producer_fix=""
+  fields=$(perl -MJSON::PP -e '
+    use strict; use warnings;
+    open(my $fh, "<", $ARGV[0]) or exit 1;
+    my $m = eval { local $/; JSON::PP->new->decode(<$fh>) };
+    ref $m eq "HASH" && ($m->{profile} // "") eq "corvint-test-manifest/0" or exit 1;
+    my $head = ref $m->{source} eq "HASH" && defined $m->{source}{head} && !ref $m->{source}{head} ? $m->{source}{head} : "";
+    my $producer = ref $m->{producer} eq "HASH" && defined $m->{producer}{commit} && !ref $m->{producer}{commit} ? $m->{producer}{commit} : "";
+    print "$head $producer\n";' "$manifest" 2> /dev/null) || return 0
+  # Space-separated, so an empty producer stays empty rather than taking the head's place.
+  IFS=' ' read -r mhead producer <<< "$fields"
+  head=$(git rev-parse HEAD 2> /dev/null) && [[ -n $head ]] || { producer_code=manifest-head producer_why="git rev-parse HEAD failed"; }
+  base=$(git rev-parse --verify -q origin/main 2> /dev/null) || base='<origin/main sha>'
+  producer_fix="rebuild corvint from this checkout (go install ./cmd/corvint, or run it without installing: go run ./cmd/corvint) and regenerate the manifest: corvint test --base $base --dry-run --manifest $manifest"
+  # The head mismatch keeps its ASD-V0-722 wording, the first cause an admission names.
+  if [[ -z $producer_code && $mhead != "$head" ]]; then
+    producer_code=manifest-head producer_why="source.head $mhead is not HEAD $head (regenerate the manifest after this commit)"
+    producer_fix="regenerate the manifest at this commit: corvint test --base $base --dry-run --manifest $manifest"
+  fi
+  if [[ -z $producer_code && ! $producer =~ ^[0-9a-f]{40}$ ]]; then
+    producer_code=manifest-producer-missing producer_why="manifest-producer-missing: $manifest names no producer commit, so the corvint that wrote it (one older than STR-V0-8301, or a build without a Git stamp) cannot be checked against HEAD"
+  fi
+  if [[ -z $producer_code && $producer != "$head" ]]; then
+    if ! git cat-file -e "$producer^{commit}" 2> /dev/null || ! git merge-base --is-ancestor "$producer" "$head" 2> /dev/null; then
+      producer_code=manifest-producer-unverified producer_why="manifest-producer-unverified: $manifest was written by corvint built from ${producer:0:12}, which is not HEAD or an ancestor of HEAD $head here"
+    else
+      paths=$(git diff --name-only --no-renames "$producer" "$head" -- ':(glob)**/*.go' ':(exclude,glob)**/*_test.go' ':(exclude,glob)**/testdata/**' go.mod go.sum 2> /dev/null) ||
+        { producer_code=manifest-producer-unverified producer_why="manifest-producer-unverified: $manifest was written by corvint built from ${producer:0:12}, which git could not compare with HEAD $head"; }
+      if [[ -z $producer_code && -n $paths ]]; then
+        count=$(printf '%s\n' "$paths" | wc -l | tr -d ' ')
+        shown=$(printf '%s\n' "$paths" | head -n 3 | paste -sd ',' - | sed 's/,/, /g')
+        producer_code=manifest-producer-stale producer_why="manifest-producer-stale: $manifest was written by corvint built from ${producer:0:12}, and $count Go source path(s) differ at HEAD ${head:0:12}: $shown"
+      fi
+    fi
+  fi
+  [[ -z $producer_code ]]
+}
+
 # selection_manifest PATH: PATH, or, when PATH is an unreadable relative .git/REL (a linked
 # worktree's .git is a file), Git's own path for REL (ASD-V0-722).
 selection_manifest() {
@@ -1973,6 +2021,8 @@ manifest_admits() {
   ((${#pkgs[@]})) || { not_admitted "no package argument"; return 1; }
   ((${#skips[@]} < 2)) || { not_admitted "more than one -skip"; return 1; }
   manifest=$(selection_manifest "$HEAVY_SELECTION")
+  # TSP-V0-8131: a manifest a stale corvint wrote, or one planned for another HEAD, admits nothing.
+  manifest_producer_check "$manifest" || { not_admitted "$producer_why"; printf 'fix: %s\n' "$producer_fix" >&2; return 1; }
   perl -e "$manifest_perl" "$manifest" admit "$head" "${skips[0]-}" ${pkgs[@]+"${pkgs[@]}"}
 }
 
@@ -2021,7 +2071,17 @@ print_plan() {
       fresh=$("${CORVINT_BIN:-corvint}" test reuse decide --argv "-count=1 -timeout 30m" ${reuse_args[@]+"${reuse_args[@]}"} 2> /dev/null) || fresh=""
     fi
   fi
-  perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod" "${HEAVY_REUSE-}" "$fresh"
+  # TSP-V0-8131 (V1-5011): a plan from a manifest a stale corvint wrote could drop tests the change
+  # affects; refuse it with the regenerate command, as a stale self-binary is refused (AFP-V0-846).
+  local manifest
+  manifest=$(selection_manifest "$1")
+  if ! manifest_producer_check "$manifest"; then
+    printf 'heavy.sh: REFUSE %s %s\n' "$producer_code" "${producer_why#"$producer_code": }" >&2
+    printf 'fix: %s\n' "$producer_fix" >&2
+    printf 'heavy.sh: REFUSED %s (exit 2)\n' "$producer_code" # stdout marker survives `| tail` (V1-3213)
+    exit 2
+  fi
+  perl -e "$manifest_perl" "$manifest" plan "$mod" "${HEAVY_REUSE-}" "$fresh"
 }
 
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run

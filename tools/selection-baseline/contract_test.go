@@ -43,7 +43,9 @@ func TestSelectionContractDryRunArguments_AFPV09501(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				want := []string{"test", "--base", "base", "--dry-run", "--manifest", manifestPath}
+				// AFP-V0-9730: the replay runs one binary over historical trees, so it
+				// accepts the stale-binary verdict instead of being refused.
+				want := []string{"test", "--base", "base", "--dry-run", "--manifest", manifestPath, "--accept-stale-binary"}
 				if profile == "ci" {
 					confine := filepath.Join(dir, "test-confine")
 					if !filepath.IsAbs(confine) {

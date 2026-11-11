@@ -48,7 +48,7 @@ func behaviorFixtureWithAllRuns(t *testing.T, edit func(*BehaviorRegistry), runt
 		return Anchor{Repository: m.Repository.ID, Revision: rev, Path: path, Blob: blob, SHA256: Digest(data), Start: 1, End: 1, SpanSHA256: Digest(data), Authority: "external-provider", Kind: "declared", Reason: "synthetic fixture; not observed consumer input"}
 	}
 	r := BehaviorRegistry{Schema: 2, ContractID: "migration", SourceRevision: m.Repository.Revision, DocumentationRevision: m.Repository.Revision}
-	r.Revisions = BehaviorRevisions{App: Repository{strings.Repeat("1", 40), m.Repository.Revision}, E2E: m.Repository, Docs: Repository{strings.Repeat("2", 40), m.Repository.Revision}}
+	r.Revisions = BehaviorRevisions{App: Repository{ID: strings.Repeat("1", 40), Revision: m.Repository.Revision}, E2E: m.Repository, Docs: Repository{ID: strings.Repeat("2", 40), Revision: m.Repository.Revision}}
 	expected := r.Revisions
 	m.BehaviorRevisions = &expected
 	r.Manifest = retain("docs/migrations/manifest.json", BehaviorMigration{Revisions: r.Revisions, Schema: 2, ContractID: r.ContractID, SourceRevision: r.SourceRevision, DocumentationRevision: r.DocumentationRevision}, "evidence")
@@ -496,11 +496,11 @@ func v1BehaviorProviderLiteral() ProviderRecord {
 	oid := func(c string) string { return strings.Repeat(c, 40) }
 	anchor := Anchor{Repository: oid("a"), Revision: oid("b"), Path: "tests/flow.spec.ts", Blob: oid("c"), SHA256: strings.Repeat("d", 64), Start: 1, End: 2, SpanSHA256: strings.Repeat("e", 64), Authority: "external-provider", Kind: "declared", Reason: "fixture"}
 	registry := BehaviorRegistry{Schema: 2, ContractID: "checkout", ContractSHA256: strings.Repeat("f", 64), SourceRevision: oid("b"), DocumentationRevision: oid("9"),
-		Revisions: BehaviorRevisions{App: Repository{oid("1"), oid("8")}, E2E: Repository{oid("a"), oid("b")}, Docs: Repository{oid("2"), oid("9")}},
+		Revisions: BehaviorRevisions{App: Repository{ID: oid("1"), Revision: oid("8")}, E2E: Repository{ID: oid("a"), Revision: oid("b")}, Docs: Repository{ID: oid("2"), Revision: oid("9")}},
 		Discovery: anchor, Manifest: anchor,
 		Flows:     []BehaviorFlow{{Derivation: "declared", ID: "checkout", Evidence: anchor, Criteria: []string{"paid"}, Tests: []string{"t1"}, RequiredPages: []string{"/cart"}, NegativeControls: []string{"declined"}, OrderedEvents: []BehaviorEvent{}}},
 		Behaviors: []BehaviorSource{}, Tests: []BehaviorTest{{ID: "t1", Project: "chromium", Title: "pays", Evidence: anchor, Flows: []string{"checkout"}, Criteria: []string{"paid"}, Assertions: []BehaviorAssertion{}}}}
-	return ProviderRecord{Schema: BehaviorProviderSchema, ID: "behavior", Version: "1", Source: Repository{oid("a"), oid("b")}, BehaviorContracts: &registry, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []ObservationLink{}, Capabilities: []CapabilityDeclaration{}}
+	return ProviderRecord{Schema: BehaviorProviderSchema, ID: "behavior", Version: "1", Source: Repository{ID: oid("a"), Revision: oid("b")}, BehaviorContracts: &registry, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []ObservationLink{}, Capabilities: []CapabilityDeclaration{}}
 }
 
 // The digest was taken from this literal before the /2 profile existed, so

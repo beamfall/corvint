@@ -111,7 +111,7 @@ func TestDryRunStaleBinarySharesSummaryBudget(t *testing.T) {
 	commitSelfBinaryFiles(t, root, files)
 	for _, flags := range [][]string{nil, {"--summary"}} {
 		var out, errout bytes.Buffer
-		args := append([]string{"--root", root, "test", "--base", built, "--dry-run"}, flags...)
+		args := append([]string{"--root", root, "test", "--base", built, "--dry-run", "--accept-stale-binary"}, flags...)
 		code := runContext(context.Background(), args, strings.NewReader(""), &out, &errout)
 		if code != 0 {
 			t.Fatalf("%v exit=%d %s%s", flags, code, &out, &errout)
@@ -155,7 +155,7 @@ func TestDryRunLongStalePathsStayWithinSummaryBudget(t *testing.T) {
 	}
 	for _, flags := range [][]string{nil, {"--summary"}} {
 		var out, errout bytes.Buffer
-		args := append([]string{"--root", root, "test", "--base", built, "--dry-run"}, flags...)
+		args := append([]string{"--root", root, "test", "--base", built, "--dry-run", "--accept-stale-binary"}, flags...)
 		code := runContext(context.Background(), args, strings.NewReader(""), &out, &errout)
 		if code != 0 {
 			t.Fatalf("flags=%v exit=%d %s%s", flags, code, &out, &errout)
@@ -171,7 +171,7 @@ func TestDryRunLongStalePathsStayWithinSummaryBudget(t *testing.T) {
 	}
 	for _, flags := range [][]string{{"--full"}, {"--format", "json"}} {
 		var out, errout bytes.Buffer
-		args := append([]string{"--root", root, "test", "--base", built, "--dry-run"}, flags...)
+		args := append([]string{"--root", root, "test", "--base", built, "--dry-run", "--accept-stale-binary"}, flags...)
 		code := runContext(context.Background(), args, strings.NewReader(""), &out, &errout)
 		if code != 0 || !json.Valid(out.Bytes()) || !strings.HasPrefix(errout.String(), originalNotice) {
 			t.Errorf("flags=%v exit=%d: full form lost JSON or original notice", flags, code)

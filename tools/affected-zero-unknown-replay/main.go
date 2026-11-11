@@ -79,11 +79,16 @@ type safetyResult struct {
 	Detail string   `json:"detail,omitempty"`
 }
 type row struct {
-	Merge             string         `json:"merge"`
-	Parent            string         `json:"parent"`
-	Tree              string         `json:"tree"`
-	Unknown           []unknown      `json:"unknown"`
-	UnknownByReason   map[string]int `json:"unknownByReason"`
+	Merge           string         `json:"merge"`
+	Parent          string         `json:"parent"`
+	Tree            string         `json:"tree"`
+	Unknown         []unknown      `json:"unknown"`
+	UnknownByReason map[string]int `json:"unknownByReason"`
+	// UnknownByCategory counts the unknown entries per reason category: the
+	// reason for every reason but LANGUAGE_FRONTIER, and `LANGUAGE_FRONTIER
+	// <plugin>:<category>` for a frontier entry, so progress per frontier
+	// class is measurable across merges (V1-5124, AZU-V0-009).
+	UnknownByCategory map[string]int `json:"unknownByCategory"`
 	Selected          int            `json:"selected"`
 	Tests             int            `json:"tests"`
 	WallMillis        int64          `json:"wallMillis"`
@@ -429,6 +434,38 @@ var frozenMergePrefix = []string{
 	"9fdc2f02efc11ce9ed582d8529b63fe0478fcad2",
 }
 
+// unknownCategory is the key UnknownByCategory counts an entry under: the
+// reason, or for LANGUAGE_FRONTIER the reason and the entry's
+// `<plugin>:<category>` (V1-5124).
+func unknownCategory(u unknown) string {
+	if u.Reason != "LANGUAGE_FRONTIER" {
+		return u.Reason
+	}
+	fields := strings.SplitN(u.Detail, ":", 3)
+	if len(fields) < 2 {
+		return u.Reason + " " + u.Detail
+	}
+	return u.Reason + " " + fields[0] + ":" + fields[1]
+}
+
+// categorySummary renders UnknownByCategory for the per-merge line, sorted
+// by category, as ` categories=a=1,b=2`; empty for a plan without unknowns.
+func categorySummary(counts map[string]int) string {
+	if len(counts) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(counts))
+	for key := range counts {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%d", key, counts[key]))
+	}
+	return " categories=" + strings.Join(parts, ",")
+}
+
 func validFrozenPrefix(refs []string) bool {
 	return len(refs) >= len(frozenMergePrefix) && slices.Equal(refs[:len(frozenMergePrefix)], frozenMergePrefix)
 }
@@ -600,9 +637,10 @@ func replayRevisions(root, scratch, binary, baseline, out, safetyDir string, ref
 		if err != nil {
 			return err
 		}
-		r := row{Merge: ref, Parent: parent, Tree: tree, Unknown: p.Unknown, UnknownByReason: map[string]int{}, Selected: len(p.Selected), WallMillis: elapsed, Safety: safetyResult{Status: "NOT_PRODUCED", Detail: "full-suite and changed-line mutation receipts unavailable", Misses: []string{}}}
+		r := row{Merge: ref, Parent: parent, Tree: tree, Unknown: p.Unknown, UnknownByReason: map[string]int{}, UnknownByCategory: map[string]int{}, Selected: len(p.Selected), WallMillis: elapsed, Safety: safetyResult{Status: "NOT_PRODUCED", Detail: "full-suite and changed-line mutation receipts unavailable", Misses: []string{}}}
 		for _, u := range p.Unknown {
 			r.UnknownByReason[u.Reason+":"+u.Detail]++
+			r.UnknownByCategory[unknownCategory(u)]++
 		}
 		for _, s := range p.Selected {
 			r.Tests += len(s.Tests)
@@ -646,7 +684,7 @@ func replayRevisions(root, scratch, binary, baseline, out, safetyDir string, ref
 		if err := writeReport(); err != nil {
 			return err
 		}
-		fmt.Printf("merge=%s unknown=%d selected=%d tests=%d wallMs=%d safety=%s\n", ref, len(r.Unknown), r.Selected, r.Tests, r.WallMillis, r.Safety.Status)
+		fmt.Printf("merge=%s unknown=%d selected=%d tests=%d wallMs=%d safety=%s%s\n", ref, len(r.Unknown), r.Selected, r.Tests, r.WallMillis, r.Safety.Status, categorySummary(r.UnknownByCategory))
 	}
 	output.Accepted = qualified
 	if err := writeReport(); err != nil {

@@ -2,6 +2,7 @@ package affected
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 )
 
@@ -62,6 +63,52 @@ type driverYAMLLine struct {
 type driverYAMLParser struct {
 	lines []driverYAMLLine
 	at    int
+	// anchors holds every `&name` node defined so far, for `*name` aliases
+	// (AZU-V0-214). An alias to a name not yet defined is outside the subset.
+	anchors map[string]*driverYAML
+}
+
+// driverYAMLAnchor splits a leading `&name` or `*name` property from the
+// text that follows it: the name is one or more characters other than
+// whitespace, flow indicators and the YAML indicator characters that cannot
+// start an anchor name.
+func driverYAMLAnchor(text string) (indicator byte, name, rest string, ok bool) {
+	if text == "" || text[0] != '&' && text[0] != '*' {
+		return 0, "", text, false
+	}
+	end := 1
+	for end < len(text) && !strings.ContainsRune(" \t,[]{}", rune(text[end])) {
+		end++
+	}
+	if end == 1 {
+		return 0, "", text, false
+	}
+	return text[0], text[1:end], strings.TrimSpace(text[end:]), true
+}
+
+// alias resolves `*name` to a copy of its anchored node; the copy shares the
+// node's children, which the parser never mutates after it returns them. An
+// unknown name is outside the subset, so the file stays unparsable rather
+// than silently dropping a step (AZU-V0-214).
+func (p *driverYAMLParser) alias(name string) (*driverYAML, error) {
+	node, defined := p.anchors[name]
+	if !defined {
+		return nil, errDriverYAML
+	}
+	copied := *node
+	return &copied, nil
+}
+
+// anchor records node under name; redefining a name is outside the subset.
+func (p *driverYAMLParser) anchor(name string, node *driverYAML) error {
+	if p.anchors == nil {
+		p.anchors = make(map[string]*driverYAML)
+	}
+	if _, defined := p.anchors[name]; defined {
+		return errDriverYAML
+	}
+	p.anchors[name] = node
+	return nil
 }
 
 // parseDriverYAML parses body, marking each line that is block-scalar content.
@@ -231,6 +278,31 @@ func (p *driverYAMLParser) sequence(indent int) (*driverYAML, error) {
 			return nil, errDriverYAML
 		}
 		rest := strings.TrimSpace(strings.TrimPrefix(line.text, "-"))
+		// `- &name` anchors the item that follows; `- *name` repeats an
+		// anchored item (AZU-V0-214). An anchor on a nested item (`- &name
+		// key: value`) anchors that mapping.
+		anchorName := ""
+		if indicator, name, after, isAnchor := driverYAMLAnchor(rest); isAnchor {
+			if indicator == '*' {
+				if after != "" {
+					return nil, errDriverYAML
+				}
+				p.at++
+				child, err := p.alias(name)
+				if err != nil {
+					return nil, err
+				}
+				node.items = append(node.items, child)
+				continue
+			}
+			anchorName = name
+			rest = after
+			p.lines[p.at].text = strings.TrimSpace(line.text[:len(line.text)-len(strings.TrimLeft(strings.TrimPrefix(line.text, "-"), " "))]) + " " + rest
+			if rest == "" {
+				p.lines[p.at].text = "-"
+			}
+			line = p.lines[p.at]
+		}
 		if rest == "" {
 			p.at++
 			p.skip()
@@ -239,10 +311,21 @@ func (p *driverYAMLParser) sequence(indent int) (*driverYAML, error) {
 				if err != nil {
 					return nil, err
 				}
+				if anchorName != "" {
+					if err := p.anchor(anchorName, child); err != nil {
+						return nil, err
+					}
+				}
 				node.items = append(node.items, child)
 				continue
 			}
-			node.items = append(node.items, &driverYAML{})
+			child := &driverYAML{}
+			if anchorName != "" {
+				if err := p.anchor(anchorName, child); err != nil {
+					return nil, err
+				}
+			}
+			node.items = append(node.items, child)
 			continue
 		}
 		if _, _, isKey := driverYAMLKey(rest); isKey || driverYAMLItem(rest) {
@@ -255,6 +338,11 @@ func (p *driverYAMLParser) sequence(indent int) (*driverYAML, error) {
 			if err != nil {
 				return nil, err
 			}
+			if anchorName != "" {
+				if err := p.anchor(anchorName, child); err != nil {
+					return nil, err
+				}
+			}
 			node.items = append(node.items, child)
 			continue
 		}
@@ -262,6 +350,11 @@ func (p *driverYAMLParser) sequence(indent int) (*driverYAML, error) {
 		child, err := p.value(rest, indent, false)
 		if err != nil {
 			return nil, err
+		}
+		if anchorName != "" {
+			if err := p.anchor(anchorName, child); err != nil {
+				return nil, err
+			}
 		}
 		node.items = append(node.items, child)
 	}
@@ -284,7 +377,31 @@ func (p *driverYAMLParser) value(text string, parent int, mapValue bool) (*drive
 			}
 		}
 		return &driverYAML{}, nil
-	case strings.HasPrefix(text, "&") || strings.HasPrefix(text, "*") || strings.HasPrefix(text, "!"):
+	case strings.HasPrefix(text, "&") || strings.HasPrefix(text, "*"):
+		// `key: &name value` anchors the value that follows, on this line
+		// or as the nested block; `key: *name` repeats one (AZU-V0-214).
+		indicator, name, rest, isAnchor := driverYAMLAnchor(text)
+		if !isAnchor {
+			return nil, errDriverYAML
+		}
+		if indicator == '*' {
+			if rest != "" {
+				return nil, errDriverYAML
+			}
+			return p.alias(name)
+		}
+		if _, _, _, isAlias := driverYAMLAnchor(rest); isAlias {
+			return nil, errDriverYAML
+		}
+		child, err := p.value(rest, parent, mapValue)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.anchor(name, child); err != nil {
+			return nil, err
+		}
+		return child, nil
+	case strings.HasPrefix(text, "!"):
 		return nil, errDriverYAML
 	case strings.HasPrefix(text, "|") || strings.HasPrefix(text, ">"):
 		return p.blockScalar(text, parent)
@@ -482,6 +599,84 @@ func parseDriverWorkflow(file string, body []byte) *driverWorkflow {
 
 func driverWorkflowUnitID(file, job string) string {
 	return DriverNamespace + ":ci:" + file + "#" + job
+}
+
+// driverStepOutputRef matches one `steps.ID.outputs.NAME` reference.
+var driverStepOutputRef = regexp.MustCompile(`steps\.([A-Za-z0-9_-]+)\.outputs\.`)
+
+// driverLiteralOutputLine matches a run line that writes one literal output:
+// `echo "NAME=VALUE" >> "$GITHUB_OUTPUT"`, with or without quotes, where
+// VALUE holds no `$`, backtick, backslash, quote or brace.
+var driverLiteralOutputLine = regexp.MustCompile(`^echo\s+(?:"[A-Za-z_][A-Za-z0-9_-]*=[^"$\x60\\{}']*"|'[A-Za-z_][A-Za-z0-9_-]*=[^'$\x60\\{}"]*'|[A-Za-z_][A-Za-z0-9_-]*=[^\s"'$\x60\\{}]*)\s*>>?\s*(?:"\$GITHUB_OUTPUT"|"\$\{GITHUB_OUTPUT\}"|\$GITHUB_OUTPUT|\$\{GITHUB_OUTPUT\})$`)
+
+// driverLiteralOutputSteps returns the ids of the steps whose every output is
+// a literal (AFP-V0-9132): a step with an id, no `uses`, and a `run` script
+// whose every line is blank, a comment or one driverLiteralOutputLine. Any
+// other step, including one that runs a program, may write a value chosen
+// at run time, so its outputs are not literal.
+func driverLiteralOutputSteps(steps *driverYAML) map[string]bool {
+	literal := map[string]bool{}
+	if steps == nil || !steps.isSeq {
+		return literal
+	}
+	for _, step := range steps.items {
+		id := step.get("id").text()
+		if id == "" || !step.isMap || step.get("uses").text() != "" {
+			continue
+		}
+		script := step.get("run").text()
+		if script == "" || strings.Contains(script, "${{") {
+			continue
+		}
+		plain := true
+		for _, line := range strings.Split(script, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") || driverLiteralOutputLine.MatchString(line) {
+				continue
+			}
+			plain = false
+			break
+		}
+		if plain {
+			literal[id] = true
+		}
+	}
+	return literal
+}
+
+// driverOutputExpressions replaces each `${{ ... }}` expression of text that
+// reads a step output no step in literal wrote with driverRuntimeComputed,
+// before driverExpressions sees it (AFP-V0-9132). A step output written from
+// a command's output chooses what a later command word names at run time, so
+// such a word is never root-like.
+func driverOutputExpressions(text string, literal map[string]bool) string {
+	var out strings.Builder
+	for {
+		start := strings.Index(text, "${{")
+		if start < 0 {
+			out.WriteString(text)
+			return out.String()
+		}
+		end := strings.Index(text[start:], "}}")
+		if end < 0 {
+			out.WriteString(text)
+			return out.String()
+		}
+		inner := text[start+3 : start+end]
+		runtime := false
+		for _, match := range driverStepOutputRef.FindAllStringSubmatch(inner, -1) {
+			if !literal[match[1]] {
+				runtime = true
+			}
+		}
+		out.WriteString(text[:start])
+		if runtime {
+			out.WriteString(driverRuntimeComputed)
+		} else {
+			out.WriteString(text[start : start+end+2])
+		}
+		text = text[start+end+2:]
+	}
 }
 
 // driverExpressions replaces each workflow `${{ ... }}` expression with

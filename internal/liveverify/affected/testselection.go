@@ -190,6 +190,12 @@ func validOwnerPattern(pattern string) bool {
 	return stars <= maxOwnerPatternStars
 }
 
+// OwnerPatternMatches reports whether an owner pattern matches the whole
+// repository-relative path (AFP-V0-2481); repository checks share the rule.
+func OwnerPatternMatches(pattern, relative string) bool {
+	return ownerPatternMatches(pattern, relative)
+}
+
 // ownerPatternMatches reports whether pattern matches the whole
 // repository-relative path (AFP-V0-2481). No pattern matches `.git` or
 // `.corvint` or a path under either.
@@ -267,6 +273,12 @@ func (graph *Graph) resolveTestSelection(partial bool) error {
 			}
 			units = append(units, holders...)
 		}
+		// AFP-V0-10329: a pattern that matches a test file some unit holds
+		// covers an exercised path. The owner selects that unit whether or
+		// not it names it: a row that names only some other test in their
+		// place cannot narrow the exercising tests away, and a historical
+		// declaration still plans.
+		units = append(units, graph.exercisingUnits(owner.Paths)...)
 		slices.Sort(units)
 		graph.ownerUnits[owner.Paths] = slices.Compact(units)
 	}
@@ -287,6 +299,39 @@ func (graph *Graph) resolveTestSelection(partial bool) error {
 		return strings.Compare(left.Tests, right.Tests)
 	})
 	return nil
+}
+
+// exercisingUnits lists, in graph order, the units holding a test file that
+// pattern matches outside a fixture tree (AFP-V0-10329): a unit whose test
+// files the pattern matches exercises the owned paths, so an owner selects
+// it beside the tests it names.
+func (graph *Graph) exercisingUnits(pattern string) []string {
+	var units []string
+	for _, id := range graph.order {
+		if slices.ContainsFunc(graph.units[id].Tests, func(test string) bool { return ownerPatternMatches(pattern, test) && !fixtureTest(test) }) {
+			units = append(units, id)
+		}
+	}
+	return units
+}
+
+// fixtureSegments are the directory names under which a test file is fixture
+// data of the test that reads the tree, not a test of the repository: a
+// plugin lists such a file as a unit's test, but no runner of the repository
+// exercises the owned paths through it (AFP-V0-10329; the AFP-V0-2440
+// `testdata` convention, with the `fixture` and `fixtures` trees this
+// repository's non-Go fixtures use).
+var fixtureSegments = map[string]bool{"testdata": true, "fixture": true, "fixtures": true}
+
+// fixtureTest reports a test file with a fixture segment in its directory.
+func fixtureTest(test string) bool {
+	directory, _ := path.Split(test)
+	for _, segment := range strings.Split(strings.TrimSuffix(directory, "/"), "/") {
+		if fixtureSegments[segment] {
+			return true
+		}
+	}
+	return false
 }
 
 // ownersOf selects, for each dirty path an owner pattern matches, every unit

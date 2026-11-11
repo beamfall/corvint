@@ -1,0 +1,101 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "installed-go-live-tests",
+  "revision": 1,
+  "kind": "api",
+  "actor": "installed host qualifier",
+  "preconditions": [
+    "the release binaries are built from the tested commit"
+  ],
+  "steps": [
+    {
+      "step_id": "go-session",
+      "action": "run corvint-go-test-provider session --foreground over the fixture Go module and save a watched file"
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "go-transitions",
+      "behavior": "the provider reports the live test transitions and retains their evidence",
+      "matcher": "toEqual",
+      "locator": "status",
+      "value": "PASS"
+    }
+  ],
+  "variations": [
+    {
+      "variation_id": "installed-go-live-tests.default",
+      "preconditions": [],
+      "steps": [
+        "go-session"
+      ],
+      "observable_facts": [
+        "the provider-transitions evidence names the Go session"
+      ],
+      "outcomes": [
+        "go-transitions"
+      ],
+      "projects": [
+        "node"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "from": "go-session",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "cmd/corvint-go-test-provider/main.go"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "go-session",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "internal/gotestrun/run.go"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "go-session",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "internal/liveverify/godiscovery/decode.go"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "go-session",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "internal/liveverify/gorunner/coverage.go"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "installed-go-live-tests.default",
+      "basis": "declared",
+      "target": {
+        "type": "test",
+        "path": "conformance/interactive-alpha/core-provider-proof.mjs",
+        "test_key": "conformance/interactive-alpha/core-provider-proof.mjs"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "installed-go-live-tests.default",
+      "basis": "declared",
+      "target": {
+        "type": "test",
+        "path": "extensions/vscode/test/installed/run.mjs",
+        "test_key": "extensions/vscode/test/installed/run.mjs"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    }
+  ]
+}

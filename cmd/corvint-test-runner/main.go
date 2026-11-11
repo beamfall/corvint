@@ -28,7 +28,7 @@ func main() {
 	streams := &clierror.Streams{Binary: "corvint-test-runner", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()
 
-	if code, handled := cliapp.Answer("corvint-test-runner", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+	if code, handled := cliapp.AnswerStamped("corvint-test-runner", build, sourceCommit, os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
 		os.Exit(streams.Status(code))
 	}
 

@@ -85,6 +85,11 @@ type affectedCompactPlan struct {
 	MustRun []affected.MustRun `json:"mustRun,omitempty"`
 	// DeclaredOwners is the plan's owner-selected units (AFP-V0-2489).
 	DeclaredOwners []affected.DeclaredOwner `json:"declaredOwners,omitempty"`
+	// E2EOmitted is the plan's flow-bound consumer omissions (AFU-V1-1653).
+	E2EOmitted []affected.E2EOmission `json:"e2eOmitted,omitempty"`
+	// E2E is the plan's E2E selection of a repository that declares its
+	// flows (APK-V0-001, APK-V0-005).
+	E2E *affected.E2EPlan `json:"e2e,omitempty"`
 }
 
 // affectedCompactAdvice is the affected-plan/0 advice except that the
@@ -113,15 +118,23 @@ type affectedCompactCheck struct {
 }
 
 type affectedCompactSelection struct {
-	Kind      string                 `json:"kind,omitempty"`
-	Run       []string               `json:"run,omitempty"`
-	UnitID    string                 `json:"unitId"`
-	TestCount int                    `json:"testCount"`
-	Witness   affectedCompactWitness `json:"witness"`
+	Kind   string   `json:"kind,omitempty"`
+	Run    []string `json:"run,omitempty"`
+	UnitID string   `json:"unitId"`
+	// TestCount counts the unit's runnable top-level tests (AFP-V0-9451);
+	// TestFileCount is the length of the full plan's `tests` list, the
+	// observed test files, under its own name (AFP-V0-9731; V1-4971).
+	TestCount     int                    `json:"testCount"`
+	TestFileCount int                    `json:"testFileCount"`
+	Witness       affectedCompactWitness `json:"witness"`
 	// Argv, Workflow and Job carry a driver selection (AZU-V0-001).
 	Argv     []string `json:"argv,omitempty"`
 	Workflow string   `json:"workflow,omitempty"`
 	Job      string   `json:"job,omitempty"`
+	// Flows carries a flow-bound consumer's reached flows (AFU-V1-1651).
+	Flows []string `json:"flows,omitempty"`
+	// TestKind carries the declared test kind (APK-V0-002).
+	TestKind string `json:"testKind,omitempty"`
 }
 
 // affectedCompactWitness is a plan witness whose chain is a reference, not a
@@ -202,6 +215,8 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 			ViaLinks:           links,
 			MustRun:            full.Plan.MustRun,
 			DeclaredOwners:     full.Plan.DeclaredOwners,
+			E2EOmitted:         full.Plan.E2EOmitted,
+			E2E:                full.Plan.E2E,
 		},
 		Profile:      affectedCompactProfile,
 		Provider:     full.Provider,
@@ -236,7 +251,7 @@ func compactAffectedSelections(selections []affected.Selection) ([]affectedCompa
 		if !linkAffectedChain(selection.UnitID, witness, links, prefixes) {
 			compact.Via = witness.Chain()
 		}
-		selected = append(selected, affectedCompactSelection{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compact, Kind: selection.Kind, Run: selection.Run, Argv: selection.Argv, Workflow: selection.Workflow, Job: selection.Job})
+		selected = append(selected, affectedCompactSelection{UnitID: selection.UnitID, TestCount: len(selection.Tests), TestFileCount: len(selection.Tests), Witness: compact, Kind: selection.Kind, Run: selection.Run, Argv: selection.Argv, Workflow: selection.Workflow, Job: selection.Job, Flows: selection.Flows, TestKind: selection.TestKind})
 	}
 	if len(links) == 0 {
 		links = nil

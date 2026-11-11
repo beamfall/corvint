@@ -2,40 +2,23 @@
 
 package analyzerrust
 
-// Range is a one-based line/column span of an executable body. It mirrors the
-// test-evidence region shape field for field, so the runner registry converts
-// it without this analyzer importing anything outside its pure closure.
-type Range struct {
-	Start       int32
-	StartColumn int32
-	End         int32
-	EndColumn   int32
-}
+import "github.com/Beamfall/corvint/internal/rustsyntax"
 
-// Body is one executable function-body interior with its span.
-type Body struct {
-	ID     string
-	Parent string
-	Range  Range
-}
+// Range, Body and Unsupported are the Rust lexer's body shapes (internal/rustsyntax), kept
+// under the analyzer's names.
+type (
+	Range       = rustsyntax.Range
+	Body        = rustsyntax.Body
+	Unsupported = rustsyntax.Unsupported
+)
 
-// Unsupported is a bounded refusal reason such as
-// "rust-regions:signature-unsupported".
-type Unsupported string
+// ExecutableBodies extracts function-body interiors from the Rust dialect's bounded lexer
+// (rustsyntax.ExecutableBodies, RSP-V0-005).
+func ExecutableBodies(source []byte) ([]Body, error) { return rustsyntax.ExecutableBodies(source) }
 
-func (u Unsupported) Error() string { return string(u) }
+// isIdentStart and isIdentContinue are the lexer's ASCII identifier classes (RUST_IDENT).
+func isIdentStart(c byte) bool    { return rustsyntax.IdentStart(c) }
+func isIdentContinue(c byte) bool { return rustsyntax.IdentContinue(c) }
 
-// decimal formats a non-negative offset without strconv or fmt.
-func decimal(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(buf[i:])
-}
+// indexAnyByte is the first index in b of any byte in set, or -1.
+func indexAnyByte(b []byte, set string) int { return rustsyntax.IndexAnyByte(b, set) }

@@ -1,9 +1,13 @@
-// Package toolgroup holds the tools/call bodies of the experimental
-// test-validity, source-documentation and documentation-corpus MCP servers, so
-// the dedicated binaries and the unified corvint-mcp server answer every call
-// of those tools through the same code (MMR-V0-013, MMR-V0-014). Each group
-// keeps its own tool-error profile, so a result is the same object whichever
-// server answers it.
+// Package toolgroup is the shared tools/call plumbing of the experimental
+// test-validity, source-documentation and documentation-corpus MCP servers: the
+// Group contract, the result and tool-error shapes and the root-relative path
+// rule, so the dedicated binaries and the unified corvint-mcp server answer
+// every call of those tools through the same code (MMR-V0-013, MMR-V0-014).
+// Each product bridge defines its own Group beside its registry
+// (testvaliditybridge.Group, corpusbridge.Group and corpusbridge.Artifact; the
+// docs group is Docs here, because docsbridge only execs the corvint-docs app)
+// and keeps its own tool-error profile, so a result is the same object
+// whichever server answers it, and this package imports no product.
 package toolgroup
 
 import (
@@ -13,7 +17,6 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
-	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
@@ -32,29 +35,6 @@ type Group interface {
 	Call(ctx context.Context, name string, arguments map[string]any) (map[string]any, *protocol.RPCError)
 }
 
-// TestValidity answers corvint.test_validity for one repository root.
-type TestValidity struct{ Registry *testvaliditybridge.Registry }
-
-func (group TestValidity) Tools() []bridge.ToolDescriptor { return group.Registry.Tools() }
-
-func (group TestValidity) Call(ctx context.Context, name string, arguments map[string]any) (map[string]any, *protocol.RPCError) {
-	raw, err := json.Marshal(arguments)
-	if err != nil {
-		return nil, protocol.InvalidParams("Invalid params")
-	}
-	structured, text, toolFailure, transportErr := group.Registry.Call(ctx, name, raw)
-	var transport, tool *coded
-	if transportErr != nil {
-		transport = &coded{transportErr.Code, transportErr.Code}
-	}
-	if toolFailure != nil {
-		tool = &coded{toolFailure.Code, toolFailure.Message}
-	}
-	// Test names and anchors are repository-derived text that reaches a model
-	// through this block, so it alone is framed by the AHI-004 envelope.
-	return answer(ctx, TestValidityErrorProfile, name, structured, text, transport, tool)
-}
-
 // Docs answers corvint.docs_draft and corvint.docs_consume for one repository root.
 type Docs struct{ Registry *docsbridge.Registry }
 
@@ -66,36 +46,38 @@ func (group Docs) Call(ctx context.Context, name string, arguments map[string]an
 		return nil, protocol.InvalidParams("Invalid params")
 	}
 	structured, text, toolFailure, transportErr := group.Registry.Call(ctx, name, raw)
-	var transport, tool *coded
+	var transport, tool *Coded
 	if transportErr != nil {
-		transport = &coded{transportErr.Code, transportErr.Code}
+		transport = &Coded{transportErr.Code, transportErr.Code}
 	}
 	if toolFailure != nil {
-		tool = &coded{toolFailure.Code, toolFailure.Message}
+		tool = &Coded{toolFailure.Code, toolFailure.Message}
 	}
 	// docs_draft's Markdown and docs_consume's echoed draft reach a model
 	// only through this text block, so it alone is framed by the AHI-004
 	// envelope; structuredContent stays unwrapped (SDD-V0-006).
-	return answer(ctx, DocsErrorProfile, name, structured, text, transport, tool)
+	return Answer(ctx, DocsErrorProfile, name, structured, text, transport, tool)
 }
 
-type coded struct{ code, message string }
+// Coded is one coded failure a bridge call reports: a transport error (Code
+// doubles as its message) or a business refusal with its own message.
+type Coded struct{ Code, Message string }
 
-// answer maps one bridge call: invalid arguments and unknown tools are invalid
+// Answer maps one bridge call: invalid arguments and unknown tools are invalid
 // params, cancellation is an internal error, other transport failures and
 // business refusals are tool errors, and success frames the text block.
-func answer(ctx context.Context, profile, name string, structured map[string]any, text string, transport, tool *coded) (map[string]any, *protocol.RPCError) {
+func Answer(ctx context.Context, profile, name string, structured map[string]any, text string, transport, tool *Coded) (map[string]any, *protocol.RPCError) {
 	if transport != nil {
-		if transport.code == "invalid-arguments" || transport.code == "unsupported-tool" {
+		if transport.Code == "invalid-arguments" || transport.Code == "unsupported-tool" {
 			return nil, protocol.InvalidParams("Invalid params")
 		}
-		if transport.code == "cancelled" || ctx.Err() != nil {
+		if transport.Code == "cancelled" || ctx.Err() != nil {
 			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 		}
-		return Failure(profile, name, transport.code, transport.message)
+		return Failure(profile, name, transport.Code, transport.Message)
 	}
 	if tool != nil {
-		return Failure(profile, name, tool.code, tool.message)
+		return Failure(profile, name, tool.Code, tool.Message)
 	}
 	framed, frameErr := repoenvelope.Frame(text)
 	if frameErr != nil {
@@ -111,13 +93,15 @@ func answer(ctx context.Context, profile, name string, structured map[string]any
 // Failure is the closed tool-error result of the named profile. It always
 // sets isError: true; a refusal is never reported as success.
 func Failure(profile, name, code, message string) (map[string]any, *protocol.RPCError) {
-	return failureResult(map[string]any{
+	return FailureResult(map[string]any{
 		"abstention": map[string]any{"active": true, "reason": "OPERATION_FAILED"},
 		"code":       code, "error": message, "mutates": false, "profile": profile, "tool": name,
 	})
 }
 
-func failureResult(value map[string]any) (map[string]any, *protocol.RPCError) {
+// FailureResult is the isError result carrying value as both the text block
+// and the structured content; a group with its own error object builds it here.
+func FailureResult(value map[string]any) (map[string]any, *protocol.RPCError) {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")

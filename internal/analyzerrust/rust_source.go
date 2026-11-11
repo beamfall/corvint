@@ -1,6 +1,10 @@
 package analyzerrust
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/rustsyntax"
+)
 
 // itemPredicate maps a Rust item keyword to the predicate its declaration
 // emits. `impl` is absent deliberately: an impl block has no single declared
@@ -29,7 +33,7 @@ func parseSource(in Input, content []byte, c *factCollector) string {
 	if !strings.HasSuffix(in.Path, ".rs") {
 		return "UNSUPPORTED_SCHEMA"
 	}
-	tokens, why := tokenize(content)
+	tokens, why := rustsyntax.Tokenize(content)
 	if why != "" {
 		return why
 	}
@@ -43,39 +47,39 @@ func parseSource(in Input, content []byte, c *factCollector) string {
 }
 
 type sourceScan struct {
-	tokens  []token
+	tokens  []rustsyntax.Token
 	at      int
 	in      Input
 	c       *factCollector
 	pending bool // the item now being read is preceded by #[test]
 }
 
-func (s *sourceScan) peek(offset int) token {
+func (s *sourceScan) peek(offset int) rustsyntax.Token {
 	if s.at+offset >= len(s.tokens) {
-		return token{kind: tokenPunct, text: ""}
+		return rustsyntax.Token{Kind: rustsyntax.Punct, Text: ""}
 	}
 	return s.tokens[s.at+offset]
 }
 
 func (s *sourceScan) step() string {
 	current := s.peek(0)
-	if current.kind == tokenPunct && current.text == "#" {
+	if current.Kind == rustsyntax.Punct && current.Text == "#" {
 		return s.attribute()
 	}
 	// An item body or terminator ends the item a pending #[test] annotated,
 	// whether or not that item was a fn this scanner reads.
-	if current.kind == tokenPunct && (current.text == ";" || current.text == "{" || current.text == "}") {
+	if current.Kind == rustsyntax.Punct && (current.Text == ";" || current.Text == "{" || current.Text == "}") {
 		s.pending = false
 	}
-	if current.kind != tokenIdent {
+	if current.Kind != rustsyntax.Ident {
 		s.at++
 		return ""
 	}
 	next := s.peek(1)
-	if next.kind == tokenPunct && next.text == "!" {
-		return s.macroInvocation(current.text)
+	if next.Kind == rustsyntax.Punct && next.Text == "!" {
+		return s.macroInvocation(current.Text)
 	}
-	switch current.text {
+	switch current.Text {
 	case "mod":
 		s.pending = false
 		return s.moduleDecl()
@@ -86,8 +90,8 @@ func (s *sourceScan) step() string {
 		s.pending = false
 		return s.externCrate()
 	}
-	if predicate, ok := itemPredicate[current.text]; ok {
-		return s.itemDecl(current.text, predicate)
+	if predicate, ok := itemPredicate[current.Text]; ok {
+		return s.itemDecl(current.Text, predicate)
 	}
 	s.at++
 	return ""
@@ -98,28 +102,28 @@ func (s *sourceScan) step() string {
 // or arbitrary token payload can become one.
 func (s *sourceScan) attribute() string {
 	open := 1
-	if t := s.peek(open); t.kind == tokenPunct && t.text == "!" {
+	if t := s.peek(open); t.Kind == rustsyntax.Punct && t.Text == "!" {
 		open++
 	}
-	if t := s.peek(open); !(t.kind == tokenPunct && t.text == "[") {
+	if t := s.peek(open); !(t.Kind == rustsyntax.Punct && t.Text == "[") {
 		s.at++
 		return ""
 	}
 	name := s.peek(open + 1)
-	if name.kind != tokenIdent && name.kind != tokenRawIdent {
+	if name.Kind != rustsyntax.Ident && name.Kind != rustsyntax.RawIdent {
 		s.at++
 		return ""
 	}
 	s.at += open
 	s.skipTokenTree()
-	if name.text == "test" {
+	if name.Text == "test" {
 		s.pending = true
 	}
-	if why := s.emit("rust.attribute", "carries-attribute", name.text); why != "" {
+	if why := s.emit("rust.attribute", "carries-attribute", name.Text); why != "" {
 		return why
 	}
-	if name.text == "cfg" || name.text == "cfg_attr" {
-		return s.emit("rust.cfg.unevaluated", "declares-conditional-compilation", name.text)
+	if name.Text == "cfg" || name.Text == "cfg_attr" {
+		return s.emit("rust.cfg.unevaluated", "declares-conditional-compilation", name.Text)
 	}
 	return ""
 }
@@ -132,15 +136,15 @@ func (s *sourceScan) macroInvocation(name string) string {
 	open := 2
 	if name == "macro_rules" {
 		macroName := s.peek(open)
-		if macroName.kind != tokenIdent && macroName.kind != tokenRawIdent {
+		if macroName.Kind != rustsyntax.Ident && macroName.Kind != rustsyntax.RawIdent {
 			s.at++
 			return ""
 		}
 		open++
 	}
 	delimiter := s.peek(open)
-	if delimiter.kind != tokenPunct ||
-		(delimiter.text != "(" && delimiter.text != "[" && delimiter.text != "{") {
+	if delimiter.Kind != rustsyntax.Punct ||
+		(delimiter.Text != "(" && delimiter.Text != "[" && delimiter.Text != "{") {
 		s.at++
 		return ""
 	}
@@ -156,7 +160,7 @@ func (s *sourceScan) macroInvocation(name string) string {
 func (s *sourceScan) skipTokenTree() {
 	depth := 0
 	for s.at < len(s.tokens) {
-		switch s.tokens[s.at].text {
+		switch s.tokens[s.at].Text {
 		case "(", "[", "{":
 			depth++
 		case ")", "]", "}":
@@ -173,17 +177,17 @@ func (s *sourceScan) skipTokenTree() {
 // as a whole identifier, so a name merely ending in "mod" never matches.
 func (s *sourceScan) moduleDecl() string {
 	name := s.peek(1)
-	if name.kind != tokenIdent && name.kind != tokenRawIdent {
+	if name.Kind != rustsyntax.Ident && name.Kind != rustsyntax.RawIdent {
 		s.at++
 		return ""
 	}
 	terminator := s.peek(2)
-	if terminator.kind != tokenPunct || (terminator.text != ";" && terminator.text != "{") {
+	if terminator.Kind != rustsyntax.Punct || (terminator.Text != ";" && terminator.Text != "{") {
 		s.at++
 		return ""
 	}
 	s.at += 3
-	return s.emit("rust.module", "declares-module", name.text)
+	return s.emit("rust.module", "declares-module", name.Text)
 }
 
 // useDecl reads a use declaration up to its semicolon. A simple ::-separated
@@ -196,26 +200,26 @@ func (s *sourceScan) useDecl() string {
 	simple, terminated, colons := true, false, 0
 	for s.at < len(s.tokens) {
 		t := s.tokens[s.at]
-		if t.kind == tokenPunct && t.text == ";" {
+		if t.Kind == rustsyntax.Punct && t.Text == ";" {
 			s.at++
 			terminated = true
 			break
 		}
 		switch {
-		case t.kind == tokenIdent || t.kind == tokenRawIdent:
-			if t.text == "as" {
+		case t.Kind == rustsyntax.Ident || t.Kind == rustsyntax.RawIdent:
+			if t.Text == "as" {
 				simple = false
 			} else {
 				// Every segment after the first needs exactly one `::`; the
 				// first may carry a leading `::` or none.
 				simple = simple && (colons == 2 || (colons == 0 && len(segments) == 0))
-				segments = append(segments, t.text)
+				segments = append(segments, t.Text)
 			}
 			colons = 0
-		case t.kind == tokenPunct && t.text == ":":
+		case t.Kind == rustsyntax.Punct && t.Text == ":":
 			colons++
 			// A separator is exactly two adjacent colon bytes.
-			simple = simple && colons <= 2 && (colons == 1 || s.tokens[s.at-1].start+1 == t.start)
+			simple = simple && colons <= 2 && (colons == 1 || s.tokens[s.at-1].Start+1 == t.Start)
 		default:
 			simple = false
 		}
@@ -246,7 +250,7 @@ func validUsePath(segments []string) bool {
 			return false
 		}
 		leading = false
-		if rustKeywords[segment] || !rustIdent(segment) {
+		if rustsyntax.Keywords[segment] || !rustIdent(segment) {
 			return false
 		}
 	}
@@ -254,17 +258,17 @@ func validUsePath(segments []string) bool {
 }
 
 func (s *sourceScan) externCrate() string {
-	if t := s.peek(1); t.kind != tokenIdent || t.text != "crate" {
+	if t := s.peek(1); t.Kind != rustsyntax.Ident || t.Text != "crate" {
 		s.at++
 		return ""
 	}
 	name := s.peek(2)
-	if name.kind != tokenIdent && name.kind != tokenRawIdent {
+	if name.Kind != rustsyntax.Ident && name.Kind != rustsyntax.RawIdent {
 		s.at++
 		return ""
 	}
 	s.at += 3
-	return s.emit("rust.extern.crate", "links-crate", name.text)
+	return s.emit("rust.extern.crate", "links-crate", name.Text)
 }
 
 // itemDecl reads one named item. `const fn` and `static mut` are skipped at
@@ -277,35 +281,35 @@ func (s *sourceScan) itemDecl(keyword, predicate string) string {
 	}
 	offset := 1
 	if keyword == "static" {
-		if t := s.peek(offset); t.kind == tokenIdent && t.text == "mut" {
+		if t := s.peek(offset); t.Kind == rustsyntax.Ident && t.Text == "mut" {
 			offset++
 		}
 	}
 	name := s.peek(offset)
-	if name.kind == tokenIdent && (name.text == "fn" || rustKeywords[name.text]) {
+	if name.Kind == rustsyntax.Ident && (name.Text == "fn" || rustsyntax.Keywords[name.Text]) {
 		s.at++
 		return ""
 	}
-	if name.kind != tokenIdent && name.kind != tokenRawIdent {
+	if name.Kind != rustsyntax.Ident && name.Kind != rustsyntax.RawIdent {
 		s.at++
 		return ""
 	}
 	isTest := s.pending && keyword == "fn"
 	s.pending = false
 	s.at += offset + 1
-	if why := s.emit("rust.declaration", predicate, name.text); why != "" {
+	if why := s.emit("rust.declaration", predicate, name.Text); why != "" {
 		return why
 	}
 	if isTest {
-		return s.emit("rust.test", "declares-test", name.text)
+		return s.emit("rust.test", "declares-test", name.Text)
 	}
 	return ""
 }
 
 // typePositionConst reports whether `const` follows `*`, `<`, or `,`: a raw
 // pointer type or a const-generic parameter, never a const item.
-func typePositionConst(previous token) bool {
-	return previous.kind == tokenPunct && (previous.text == "*" || previous.text == "<" || previous.text == ",")
+func typePositionConst(previous rustsyntax.Token) bool {
+	return previous.Kind == rustsyntax.Punct && (previous.Text == "*" || previous.Text == "<" || previous.Text == ",")
 }
 
 // emit records one source fact. The subject is the input's logical path and the

@@ -29,14 +29,14 @@ func main() {
 	streams := &clierror.Streams{Binary: "corvint-update", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()
 
-	if code, handled := cliapp.Answer("corvint-update", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+	if code, handled := cliapp.AnswerReleased("corvint-update", version, build, sourceCommit, os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
 		os.Exit(streams.Status(code))
 	}
 
 	if code, handled := serveHelp(os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
 		os.Exit(streams.Status(code))
 	}
-	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-update", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], streams.Stdout()); handled {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-update", Version: companioncli.ExperimentalVersion, Build: build, Commit: sourceCommit, Usage: usage}, os.Args[1:], streams.Stdout()); handled {
 		os.Exit(streams.Status(code))
 	}
 	// CAP-V0-701: an unknown action is refused before any state is read. serveHelp

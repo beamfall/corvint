@@ -5,8 +5,12 @@
 package linecov
 
 import (
+	"bytes"
 	"context"
 	"os/exec"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -39,5 +43,34 @@ func TestCollectorProcessGroup(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 3*time.Second {
 		t.Fatalf("descendant held output after cancellation: %s", elapsed)
+	}
+}
+
+// GLS-V0-008: RunIsolated kills a cancelled command's whole process group and
+// does not wait on an output pipe a descendant still holds.
+func TestRunIsolatedKillsTheGroupOnCancel(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	var out bytes.Buffer
+	cmd := exec.CommandContext(ctx, "sh", "-c", "sleep 60 & echo $!; wait")
+	cmd.Stdout = &out
+	start := time.Now()
+	if err := RunIsolated(cmd); err == nil {
+		t.Fatal("cancelled command passed")
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("descendant held the command after cancellation: %s", elapsed)
+	}
+	child, err := strconv.Atoi(strings.TrimSpace(out.String()))
+	if err != nil {
+		t.Fatalf("child pid not reported: %q", out.String())
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for syscall.Kill(child, 0) == nil {
+		if time.Now().After(deadline) {
+			syscall.Kill(child, syscall.SIGKILL)
+			t.Fatalf("descendant %d survived cancellation", child)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

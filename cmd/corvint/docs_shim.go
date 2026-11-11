@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/Beamfall/corvint/internal/docsenvelope"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/procprofile"
+	"github.com/Beamfall/corvint/internal/versionline"
 )
 
 // docsHelp is the `docs` topic of a binary that holds none of the docs commands: the group is an
@@ -78,15 +80,29 @@ func runDocsShim(ctx context.Context, args []string, stdin io.Reader, stdout, st
 	return forwardToDocs(ctx, args, "corvint docs", stdin, stdout, stderr), true
 }
 
+// selfVersionLine is this executable's own --version line (PUB-V0-053), parsed,
+// the identity the beside check compares a sibling against.
+func selfVersionLine() versionline.Line {
+	info, _ := debug.ReadBuildInfo()
+	line, _ := docsenvelope.ParseVersionLine(versionText(versionIdentityFrom(version, build, sourceCommit, info)))
+	return line
+}
+
 // forwardToDocs runs corvint-docs with this invocation's argument vector and streams, and
 // returns its exit status. It adds no flags, environment or credentials (CMS-V0-003), and drops
-// only the profile knobs procprofile.ChildEnvironment names. A missing
-// executable is the named NOT_INSTALLED gap for forwarded, the form the user ran, exit 2. A
-// corvint-docs killed by signal N exits 128+N, as a shell reports it.
+// only the profile knobs procprofile.ChildEnvironment names. A missing executable is the named
+// NOT_INSTALLED gap for forwarded, the form the user ran, exit 2; one installed beside corvint at
+// another version is the named version-mismatch refusal, exit 2 (CMS-V0-002). A corvint-docs
+// killed by signal N exits 128+N, as a shell reports it.
 func forwardToDocs(ctx context.Context, args []string, forwarded string, stdin io.Reader, stdout, stderr io.Writer) int {
 	executable, err := docsenvelope.Locate(docsenvelope.Binary)
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: docsenvelope.NotInstalledCode, Message: docsenvelope.NotInstalledMessage(docsenvelope.Binary, forwarded)})
+		return 2
+	}
+	// CMS-V0-002: a corvint-docs installed beside this executable must be the same release.
+	if reason := docsenvelope.CheckBeside(ctx, executable, selfVersionLine()); reason != "" {
+		emitError(stderr, &gokernel.Error{Code: docsenvelope.VersionMismatchCode, Message: forwarded + " refused: " + reason})
 		return 2
 	}
 	command := exec.CommandContext(ctx, executable, args...)

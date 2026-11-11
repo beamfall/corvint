@@ -29,6 +29,17 @@ func writeFixtureRepository(t *testing.T) string {
 	return root
 }
 
+// hostedFixtureClosed reports an entry the plan closed through the fixture's
+// Go host (AZU-V0-211).
+func hostedFixtureClosed(plan affected.Plan, entry string) bool {
+	for _, exclusion := range plan.FrontierExcluded {
+		if exclusion.Reason == affected.HostedFixtureExclusionReason && slices.Contains(exclusion.Frontier, entry) {
+			return true
+		}
+	}
+	return false
+}
+
 func frontierDetails(plan affected.Plan) []string {
 	details := []string{}
 	for _, unknown := range plan.Unknown {
@@ -117,9 +128,14 @@ func TestFixtureFrontierStaysPluginWideWhenEscapedOrUnhosted_AFPV0446(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
+			// AZU-V0-003, AZU-V0-211: the plugin-wide site is OUTBOUND, so a plan
+			// over an unrelated source no longer names it: the escaped fixture
+			// unit is selected as the site when the change reaches it, and
+			// otherwise its source-bound site closes through the fixture's Go
+			// host and is reported in frontierExcluded.
 			plan := affected.Select(graph, []string{"src/dep.ts"})
-			if got := fmt.Sprint(frontierDetails(plan)); plan.Scope != affected.ScopeUnknown || !strings.Contains(got, site) {
-				t.Errorf("scope=%s frontier=%s, want UNKNOWN with %s", plan.Scope, got, site)
+			if got := frontierDetails(plan); slices.Contains(got, site) || !(slices.Contains(plan.SelectedTests(), "internal/appmap/testdata/fixture/specs/broken.test.ts") || hostedFixtureClosed(plan, site)) {
+				t.Errorf("scope=%s frontier=%v selected=%v excluded=%+v, want the fixture site selected or closed by its host", plan.Scope, got, plan.SelectedTests(), plan.FrontierExcluded)
 			}
 		})
 	}
@@ -141,8 +157,8 @@ func TestFixtureFrontierStaysPluginWideWhenEscapedOrUnhosted_AFPV0446(t *testing
 			t.Fatal(err)
 		}
 		plan := affected.Select(graph, []string{"src/dep.ts"})
-		if got := fmt.Sprint(frontierDetails(plan)); plan.Scope != affected.ScopeUnknown || got != "["+site+"]" {
-			t.Errorf("scope=%s frontier=%s, want UNKNOWN [%s]", plan.Scope, got, site)
+		if got := frontierDetails(plan); slices.Contains(got, site) || !slices.Contains(plan.SelectedTests(), "internal/appmap/testdata/fixture/specs/broken.test.ts") {
+			t.Errorf("scope=%s frontier=%v selected=%v, want the unhosted fixture unit selected as the site (AZU-V0-003)", plan.Scope, got, plan.SelectedTests())
 		}
 		if plan.FrontierSites[FrontierUnresolvedImport] != 1 {
 			t.Errorf("frontier sites = %v, want the promoted site counted once", plan.FrontierSites)
@@ -188,9 +204,16 @@ func TestFixtureFrontierKeepsUnboundedSpecifiersPluginWide_AFPV0446(t *testing.T
 			if err != nil {
 				t.Fatal(err)
 			}
+			// AZU-V0-003, AZU-V0-211: the plugin-wide site is no longer named
+			// on a plan over an unrelated source: a source-bound site in the
+			// hosted fixture closes outright and a path-open one by selecting
+			// the hosting Go unit's tests, both reported in frontierExcluded.
 			plan := affected.Select(graph, []string{"src/dep.ts"})
-			if details := frontierDetails(plan); plan.Scope != affected.ScopeUnknown || !slices.Contains(details, tc.pluginWide) {
-				t.Errorf("scope=%s frontier=%v, want UNKNOWN with %s", plan.Scope, details, tc.pluginWide)
+			if details := frontierDetails(plan); slices.Contains(details, tc.pluginWide) || !hostedFixtureClosed(plan, tc.pluginWide) {
+				t.Errorf("scope=%s frontier=%v excluded=%+v, want %s closed through the host", plan.Scope, details, plan.FrontierExcluded, tc.pluginWide)
+			}
+			if strings.HasPrefix(tc.pluginWide, FrontierDynamicImport) && !slices.Contains(plan.SelectedTests(), "internal/appmap/appmap_test.go") {
+				t.Errorf("a path-open fixture site must select the hosting Go unit: %v", plan.SelectedTests())
 			}
 		})
 	}

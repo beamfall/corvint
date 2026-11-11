@@ -14,7 +14,7 @@ func init() { flowSubcommands["navigate"] = runFlowsNavigate }
 // NavigateHelp documents `flows navigate`; help.go appends it to flowsHelp.
 const NavigateHelp = `
 Navigation usage:
-  corvint [--root PATH] flows navigate --flows DIR [--evidence FILE]... [--registry FILE] [--traffic FILE]... [--goal FLOW_ID [--max-effect CLASS]]
+  corvint-docs [--root PATH] flows navigate --flows DIR [--evidence FILE]... [--registry FILE] [--traffic FILE]... [--goal FLOW_ID [--max-effect CLASS]]
 
 navigate writes application-navigation-map/0 from the intents' navigation blocks at
 HEAD: states, and per step its locator, readiness condition, input fixture ID,

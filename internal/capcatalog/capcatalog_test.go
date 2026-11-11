@@ -399,7 +399,7 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 	for _, example := range []string{
 		"\n   corvint-docs docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path ",
 		" --coverage-artifact lcov=trace.lcov > run.jsonl\n",
-		"\n   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"\n",
+		"\n   corvint-docs flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"\n",
 		"trace.lcov must hold\n   that test's coverage only, and --test-key names the test's key in run.jsonl",
 		"\n   corvint-docs docs corpus search --artifact corpus.json --query \"retry policy\" --kind symbol --include claims\n",
 		"\n   corvint-docs docs corpus claims --artifact corpus.json --query \"retry policy\"\n",
@@ -416,9 +416,11 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 	if problems := GuideProblems(catalog, goals+"\nNon-capabilities\n\n- A. Tracking #1.\n"); len(problems) != 0 {
 		t.Fatalf("goal examples drifted from the catalog: %v", problems)
 	}
-	// The quoted go test key's " > " must not cut the checked command line,
-	// so an option after it is still checked against the catalog.
-	if !slices.Contains(guideCommandLines(goals), "corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"") {
+	// The quoted go test key's " > " must not cut a checked command line,
+	// so an option after it is still checked against the catalog. The guide
+	// spells the flows verbs corvint-docs (decision 0595), so the corvint
+	// spelling of its example stands in here.
+	if !slices.Contains(guideCommandLines(strings.ReplaceAll(goals, "corvint-docs flows ", "corvint flows ")), "corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"") {
 		t.Fatal("the ingest-coverage example must be checked whole, with its --test-key")
 	}
 	if problems := GuideProblems(catalog, "  corvint flows ingest-coverage --test-key \"a > b\" --no-such-option\n\nNon-capabilities\n\n- A. Tracking #1.\n"); !slices.ContainsFunc(problems, func(p string) bool { return strings.Contains(p, "--no-such-option") }) {

@@ -40,11 +40,8 @@ const (
 )
 
 // GatedLocator is one declared package: the absolute gate its root locating
-// requires and the project's stated reason.
-type GatedLocator struct {
-	Gate   string `json:"gate"`
-	Reason string `json:"reason"`
-}
+// requires and the project's stated reason (affected.GatedLocator).
+type GatedLocator = affected.GatedLocator
 
 type gatedLocatorFile struct {
 	Profile  string                  `json:"profile"`

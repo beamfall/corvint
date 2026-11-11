@@ -173,7 +173,7 @@ into the tool catalogue.
   alias. PATH keeps the `corvint-corpus-mcp --artifact` rules (an absolute path below the root, else
   a canonical root-relative local input path). Each refusal exits 2 before any MCP byte with
   `corvint-mcp: invalid arguments: REASON`. An artifact that opens at startup lists exactly its
-  declared tools and answers through the same `toolgroup.Corpus` code as `corvint-corpus-mcp`. One
+  declared tools and answers through the same `corpusbridge.Group` code as `corvint-corpus-mcp`. One
   that cannot be opened is noted on stderr, never a startup failure: every corpus tool is listed and
   each call reopens it, answering the corpus tool-error `corpus-refused` until it opens, while every
   other tool keeps serving. An artifact whose bytes change after opening is `corpus-refused` by the
@@ -182,7 +182,7 @@ into the tool catalogue.
   `--outcome-log` and `--outcome-summary` stay only in `corvint-corpus-mcp`. Falsifier: a missing
   or stale artifact that stops another group, or a corpus call answered other than corpus-refused
   while the artifact is unavailable. Rollback: drop `extractCorpusArtifact`, `bindCorpusArtifact` and
-  `toolgroup.CorpusArtifact`.
+  `corpusbridge.Artifact`.
 - `MMR-V0-015`: (experimental under the standing lane auto-accept; V1-3117, GitHub #2011)
   `--workspace FILE` MUST read one `corvint-workspace/0` declaration through `internal/workspace`
   and serve it exactly as `--root ALIAS=ROOT` per declared alias in alias order; it is given once and
@@ -208,7 +208,69 @@ into the tool catalogue.
   no corpus tool name binds a followed ref. Falsifier: a corpus answer from a repository that
   replaced the startup root, an unavailable artifact answered with any other code, or a corpus tool
   name that moves a followed worktree. Rollback: drop the root pin and refusal mapping in
-  `toolgroup.CorpusArtifact` and list only the declared tools in `corpusTools`.
+  `corpusbridge.Artifact` and list only the declared tools in `corpusTools`.
+- `MMR-V0-1118`: (experimental under the standing lane auto-accept; V1-5254; extends `MMR-V0-012`;
+  amended 2026-11-09 by the mcpafffix review repair: concurrency, failure, stale-binary, framing and
+  size bounds)
+  `--tool-profile` MUST also accept the group `affected`, which adds the read-only tool
+  `corvint.affected` per declared root under the `corvint-affected-mcp-tool-error/0` profile. Its
+  closed input is one optional `base` string (1 to 4096 characters, never beginning with `-`); any
+  other member, type, empty or option-like value is `-32602`. A call MUST answer the exact stdout
+  bytes `corvint affected --summary` prints for that root, with `--base base` when `base` is given
+  (the committed range `base..HEAD` together with the dirty worktree) and without it otherwise (the
+  dirty worktree alone), as the framed text block and the identical parsed `structuredContent`,
+  so the plan scope, counts, unknown reasons and the tier-0 and tier-1 unit names are the CLI's
+  own; the group never re-derives, filters or narrows the selection, and a planner refusal is the
+  group's tool error carrying the planner's `code` and `error`. The planner lives in the `corvint`
+  binary, so the runner is an `internal/mcp/cli` hook only `corvint mcp` supplies:
+  `corvint-mcp --tool-profile LIST` naming `affected` MUST exit 2 before any MCP byte with
+  `corvint-mcp: invalid arguments: REASON` naming `corvint mcp`, and a hook-less group call is the
+  tool error `not-served`. Under aliased roots the tool takes the `repository` alias and runs the
+  planner for that root (`MMR-V0-013`); an unusable single root lists the tool and answers
+  `invalid-root` (`MCPV0-950`). Without the group every `tools/list` and call byte is unchanged.
+  The flow and variation selections join the answer only when the one-plan ticket (V1-5251) lands;
+  until then the verdict carries what `affected --summary` carries today.
+  Bounds, each binding the group alone:
+  - Concurrency. The server admits up to 64 requests at once, so the group MUST run at most one
+    planner at a time per declared root; a call waiting behind another MUST honour cancellation and
+    answer `-32603` without running the planner once its context ends. The planner is safe to run
+    concurrently in one process: it keeps no process-wide mutable state, and its only writes are the
+    user-cache graph entries of `AFP-V0-436`, each created `O_EXCL` and renamed into place for
+    concurrent processes; the gate bounds CPU and memory per root, not correctness. Under
+    `--follow-ref` the followed root's lock already serializes every call to it (`MCPV0-039`),
+    and the planner then plans the synced, clean, detached worktree of the followed commit.
+  - Failure. The planner's `code` and `error` are read from the last non-empty stderr line, so an
+    earlier `corvint: DEGRADED ...` notice (`AFP-V0-846`) never turns a named refusal into
+    `affected-failed`; an unparsable last line is `affected-failed` with that line as the message;
+    the message, parsed or raw, is cut to 4096 bytes.
+  - Stale binary. `affected --summary` refuses a `self-binary-stale` binary with exit 2 and that
+    code (`AFP-V0-9730`; the runner never passes `--accept-stale-binary`), so the tool answers it
+    as the group's tool error carrying the CLI's `code` and `error`, never as a plan. Because the
+    error is the CLI's, the recovery it names (rebuild or `go run`) is not restated there; the
+    tool description and `corvint mcp --help` MUST say that the server keeps the binary it started
+    with, so the recovery is to rebuild `corvint` and restart `corvint mcp`.
+  - Framing. `AHI-004` binds the `corvint-mcp` tool-result text block (`MCPV0-008`): the text block
+    is framed, `structuredContent` carries the identical parsed object unwrapped for programmatic
+    callers that do not read it as model input (`MCPV0-008`), and the closed tool-error object is
+    unframed, as every group's is, carrying the planner's own bounded message.
+  - Size. A result whose encoding exceeds `protocol.MaxMessageBytes` (1 MiB) less 4096 bytes of
+    frame headroom MUST be the tool error `verdict-oversized`, naming the encoded size and telling
+    the caller to run `corvint affected --summary` in the repository, never the server's generic
+    `output-bound-exceeded` (`MCPV0-042`).
+  - Processes. Called from the server the planner starts only `git`; it never runs the `go`
+    toolchain (only `corvint test` does, through `typedreach.ProbeConfig`) and opens no network
+    connection.
+  Falsifier: a `corvint.affected` result whose text or `structuredContent` differs from
+  `corvint affected --summary` for the same root and base, a selection the tool narrows, or
+  `corvint-mcp` serving the group; two planners running at once for one root, or a waiting call that
+  outlives its cancelled context; a refusal preceded by a DEGRADED line answered as
+  `affected-failed`, or a tool-error message over 4096 bytes; a stale binary answered as a plan
+  instead of the `self-binary-stale` tool error, or a description and help without the restart
+  recovery; a framed `structuredContent` or
+  an unframed text block; an oversized verdict answered as `output-bound-exceeded`; a planner child
+  process other than `git`. Rollback: drop `toolgroup.Affected`, the `affected` token in
+  `toolGroups`, `cli.Hooks` and the `corvint mcp` runner; no wire or persisted state depends on
+  them.
 ## Bounded state and measurements
 
 The ticket asked for lazy opening with at most K open roots closed in LRU order. The implementation
@@ -299,6 +361,17 @@ the parity test against the three dedicated binaries built from the same tree; t
 profile goldens pass unchanged and `testdata/tools-list-groups.golden.jsonl` is added deliberately;
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-29-v1-3117-unified-mcp-tool-groups.md` records the forks.
 
+Acceptance evidence for `MMR-V0-1118`: `TestV15254MCPAffectedMatchesCLI` compares the tool's text
+block and `structuredContent` with the `corvint affected --summary` bytes on the affected fixture for
+the dirty worktree and for a base, including a refused base; `TestV15254MCPAffectedStaleBinaryDegrades`
+injects a stale binary through the served `corvint mcp` path and requires the CLI's
+`self-binary-stale` refusal as the tool error with the CLI's code and error, and the restart
+recovery in the description and help; the `internal/mcp/toolgroup` and
+`internal/mcp/cli` tests in its row cover the closed input, the `corvint-mcp` refusal, the hook path,
+alias routing, the unusable root, the per-root planner gate and its cancellation, the last-line
+bounded failure, the named size refusal and the followed root;
+`docs/build-log/2026-11-09-mcpaff.md` records the commands and results.
+
 Rollback: revert the implementing commit. A plain single `--root` is unchanged by this profile, so
 existing configurations are unaffected; a host using aliased roots returns to one server per root.
 No persisted state, index format or wire field of the single-root profile changes.
@@ -324,3 +397,4 @@ No persisted state, index format or wire field of the single-root profile change
 | `MMR-V0-015` | `groups.go` `expandWorkspace`; `internal/workspace` `Load` | `TestMMRV0015WorkspaceFile` |
 | `MMR-V0-016` | `usage` and `run` in `cmd/corvint-test-validity-mcp`, `cmd/corvint-docs-mcp`, `cmd/corvint-corpus-mcp` | `TestMMRV0016HelpPrintsUsage` (each dedicated package), `TestMMRV0011FollowRefRefusalsNameTheirReason` (corvint-mcp `--help`) |
 | `MMR-V0-017` | `internal/mcp/toolgroup` `OpenCorpusArtifact`, `CorpusArtifact.Call`, `open`, `unavailable`; `groups.go` `openGroups` (`corpusbridge.AllTools`); `main.go` `call` | `TestMMRV0017CorpusRetryRefusesReplacedRoot`, `TestMMRV0017CorpusArtifactRemovedAfterOpen`, `TestMMRV0017UndeclaredCorpusToolNeverBindsFollowedRef` |
+| `MMR-V0-1118` | `internal/mcp/toolgroup/affected.go` `Affected`, `NewAffected`, `AffectedRunner`, `affectedFailure`, `affectedOversized`; `internal/mcp/cli/main.go` `Hooks`, `ServeWithHooks`, `affectedReasonUnserved`; `groups.go` `toolGroups`, `openGroups`; `unavailable.go` `startUnavailable`; `cmd/corvint/mcp.go` `mcpAffectedRunner` | `TestV15254MCPAffectedMatchesCLI` (cmd/corvint: same bytes as `affected --summary` for the dirty worktree and a base; refused base carries the CLI's code; listed only with the group), `TestV15254MCPAffectedStaleBinaryDegrades` (cmd/corvint: a stale binary served through `corvint mcp` answers the CLI's degraded verdict, never a tool error; description and help name the restart recovery), `TestMMRV01118AffectedCallContract` (toolgroup: closed input, not-served, invalid-root, planner code and error, framed bytes, cancellation), `TestMMRV01118AffectedSerializesPlannerPerRoot` (toolgroup: one planner at a time per root, a second root unblocked, a waiting call cancelled without running), `TestMMRV01118AffectedFailureReadsLastLineBounded` (toolgroup: DEGRADED line before the refusal keeps the code; message cut to 4096 bytes), `TestMMRV01118AffectedOversizedVerdictIsNamed` (toolgroup: `verdict-oversized` naming the CLI, result under the bound), `TestMMRV01118AffectedGroupRefusedWithoutHooks`, `TestMMRV01118AffectedGroupServedThroughHooks`, `TestMMRV01118AffectedGroupRoutesByAlias`, `TestMMRV01118AffectedGroupUnavailableRoot`, `TestMMRV01118AffectedGroupUnderFollowRef` (cli: a followed root is synced to the ref before the planner runs and the answer carries the follow-ref block) |

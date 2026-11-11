@@ -529,3 +529,34 @@ func TestSnapshotCloneHasNoAlternates_AZU_V0_8903(t *testing.T) {
 		t.Fatalf("snapshot clone cannot read HEAD without alternates: %v", err)
 	}
 }
+
+// V1-5124 (AZU-V0-009): the report counts unknown entries per reason category,
+// LANGUAGE_FRONTIER by plugin and category, so frontier progress is measurable
+// per merge; the per-merge line carries the same counts.
+func TestUnknownByCategory_V1_5124(t *testing.T) {
+	entries := []unknown{
+		{Reason: "LANGUAGE_FRONTIER", Detail: "typescript:bare-import-undeclared:a.ts:1 `x`"},
+		{Reason: "LANGUAGE_FRONTIER", Detail: "typescript:bare-import-undeclared:+3"},
+		{Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"},
+		{Reason: "UNOWNED_DIRTY_PATH", Detail: "data.bin"},
+	}
+	counts := map[string]int{}
+	for _, entry := range entries {
+		counts[unknownCategory(entry)]++
+	}
+	want := map[string]int{"LANGUAGE_FRONTIER typescript:bare-import-undeclared": 2, "LANGUAGE_FRONTIER go:build-constraint-variants": 1, "UNOWNED_DIRTY_PATH": 1}
+	for key, value := range want {
+		if counts[key] != value {
+			t.Errorf("%s: %d, want %d (%v)", key, counts[key], value, counts)
+		}
+	}
+	if len(counts) != len(want) {
+		t.Errorf("categories %v, want %v", counts, want)
+	}
+	if got := categorySummary(counts); got != " categories=LANGUAGE_FRONTIER go:build-constraint-variants=1,LANGUAGE_FRONTIER typescript:bare-import-undeclared=2,UNOWNED_DIRTY_PATH=1" {
+		t.Errorf("summary %q", got)
+	}
+	if categorySummary(nil) != "" {
+		t.Error("empty summary must be empty")
+	}
+}

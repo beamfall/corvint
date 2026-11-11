@@ -15,7 +15,7 @@ func TestRangeAndOutputFlagVocabulary_ACXV0858(t *testing.T) {
 	for verb, want := range map[string][]string{
 		"affected":  {"--base", "--format", "--summary"},
 		"context":   {"--json"},
-		"flows":     {"--base", "--format", "--head", "--revision"},
+		"flows":     {"--base", "--format", "--json", "--revision"}, // the shim help; the forwarded verbs' flags are corvint-docs's (decision 0595)
 		"impact":    {"--base", "--revision"},
 		"runs":      {"--base", "--rev", "--summary"},
 		"test-plan": {"--format", "--revision"},

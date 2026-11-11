@@ -6,6 +6,9 @@ package releasecandidate
 
 type Options struct {
 	CoreDirectory string
+	// AppsDirectory is the release-binary output holding release-manifest.json
+	// and the core-set app archives (ARTIFACT-BIN-V0-510).
+	AppsDirectory string
 	SourceRoot    string
 	Scratch       string
 	OutputParent  string

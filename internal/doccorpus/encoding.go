@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path"
 	"reflect"
 	"runtime"
 	"runtime/debug"
@@ -20,6 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/projectpath"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -184,28 +184,9 @@ func hashSized(value any) (string, int64, error) {
 func validPath(value string) bool { return LocalInputPathRule(value) == "" }
 
 // LocalInputPathRule names the rule a local input path breaks, or returns "" for a canonical path
-// relative to the input root (DCP-V1-054). The reader never admits absolute or parent paths.
-func LocalInputPathRule(value string) string {
-	switch {
-	case value == "":
-		return "got an empty path"
-	case len(value) > 1024:
-		return "got a path over 1024 bytes"
-	case !utf8.ValidString(value):
-		return "got a path that is not UTF-8"
-	case strings.ContainsAny(value, "\\\x00\r\n\t"):
-		return "got a backslash, NUL, tab, CR or LF"
-	case strings.HasPrefix(value, "/"):
-		return "got an absolute path"
-	case value == ".." || strings.HasPrefix(value, "../"):
-		return "got a parent traversal"
-	case value == ".":
-		return "got the root itself"
-	case path.Clean(value) != value:
-		return "got a non-canonical path"
-	}
-	return ""
-}
+// relative to the input root (DCP-V1-054, projectpath.LocalInputRule). The reader never admits
+// absolute or parent paths.
+func LocalInputPathRule(value string) string { return projectpath.LocalInputRule(value) }
 
 func textOK(value string) bool {
 	return len(value) > 0 && len(value) <= 64<<10 && utf8.ValidString(value) && !strings.ContainsRune(value, 0)

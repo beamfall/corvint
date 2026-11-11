@@ -57,10 +57,16 @@ type Input struct {
 	// Placement is PlacementUniverse (or empty, the same),
 	// PlacementBalanced or PlacementMeasured; the manifest records it
 	// (STR-V0-018).
-	Placement     string
+	Placement string
+	// Producer is the writing binary's stamped identity, recorded as the
+	// manifest's producer (STR-V0-8301); nil records none.
+	Producer      *Producer
 	RunnerProfile string
 	Selected      []string // plan.selected unit ids
-	ShardCount    int
+	// SelectionIncomplete states each part of the selection the caller
+	// could not read; the manifest is INCOMPLETE for it (STR-V0-8706).
+	SelectionIncomplete []string
+	ShardCount          int
 	// ShardPlan is the read corvint-test-shards/0 plan PlacementMeasured
 	// places by; its partition digest is the manifest's (STR-V0-054).
 	ShardPlan *ShardPlan
@@ -236,7 +242,7 @@ func Build(input Input) (Manifest, error) {
 	manifest := Manifest{
 		Base: input.Base, Checks: nonNil(input.Checks), DeclaredDigest: declaredDigest,
 		GraphDigest: input.GraphDigest, Incomplete: []string{}, NoSuite: []string{}, PartitionDigest: partitionDigest,
-		Placement: placement, PlanDigest: input.PlanDigest, Profile: ManifestProfile,
+		Placement: placement, PlanDigest: input.PlanDigest, Producer: input.Producer, Profile: ManifestProfile,
 		RunnerProfile: input.RunnerProfile, ShardCount: input.ShardCount, Source: input.Source,
 		SourceDigest: sourceDigest, Units: []Unit{},
 	}
@@ -271,6 +277,7 @@ func Build(input Input) (Manifest, error) {
 		fullReason = "no AFP-V0-012 attribution verdict"
 	}
 	languages := map[string]bool{}
+	provided := map[string]bool{}
 	for _, id := range input.Selected {
 		// A make target or CI job (AZU-V0-001) is run by make or CI, not by
 		// a language adapter; the affected plan reports it.
@@ -278,6 +285,13 @@ func Build(input Input) (Manifest, error) {
 			// Each consumer has its own project-owned argv, rather than a
 			// language-wide full command. The caller pins it in Declared.
 			languages[id] = true
+		} else if input.RunnerProfile != ProfileCI && providerUnit(input.Declared, id) {
+			// STR-V0-8702: a declared provider runs the selected file itself,
+			// so the file alone does not need its language's full command.
+			// Everything else that names the language still adds it. The ci
+			// profile runs only Go (STR-V0-012), so there the unit names its
+			// language's declared command as a check, as before.
+			provided[id] = true
 		} else if language, _, ok := strings.Cut(id, ":"); ok && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
@@ -314,6 +328,11 @@ func Build(input Input) (Manifest, error) {
 		}
 		if allowedUnknown(entry) {
 			continue // an allowlisted entry hides no reader a narrowed run omits (AFP-V0-028)
+		}
+		if _, ok := gateselect.E2EFlowUnknown(entry.Reason, entry.Detail); ok {
+			// AFU-V1-1652: the flow-bound consumer the entry concerns is still
+			// selected or named as a check above; the entry widens no Go run.
+			continue
 		}
 		if language, ok := frontierSuite(entry); ok {
 			// A bearing non-Go frontier may hide a reader of a changed or
@@ -362,7 +381,7 @@ func Build(input Input) (Manifest, error) {
 		for _, language := range input.DirtyLanguages {
 			languages[language] = true
 		}
-	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 {
+	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 && len(provided) == 0 {
 		manifest.Scope, manifest.Reason = ScopeNothing, strings.TrimPrefix(input.GoSelection, "NOTHING ")
 	}
 	if len(goRun) != 0 {
@@ -377,9 +396,15 @@ func Build(input Input) (Manifest, error) {
 			Adapter: AdapterGo, Dir: directory, Reason: moduleReason, ReasonCode: ReasonNestedModule, Shard: 0, Slice: SliceWhole, Unit: ModuleUnitPrefix + directory,
 		})
 	}
+	for _, id := range sortedKeys(provided) {
+		// A selected file keeps its provider unit in either scope: FULL adds
+		// the declared full commands, it does not drop a selected test.
+		manifest.Units = append(manifest.Units, Unit{Adapter: AdapterProvider, Shard: 0, Slice: SliceWhole, Unit: id})
+	}
 	for _, language := range sortedKeys(languages) {
 		manifest.declaredLanguage(input.Declared, language)
 	}
+	manifest.Incomplete = append(manifest.Incomplete, input.SelectionIncomplete...)
 	return manifest.bounded(), nil
 }
 
@@ -541,7 +566,7 @@ func (m Manifest) bounded() Manifest {
 		if m.Units[i].Shard != m.Units[j].Shard {
 			return m.Units[i].Shard < m.Units[j].Shard
 		}
-		return m.Units[i].Adapter > m.Units[j].Adapter // go before declared
+		return adapterOrder(m.Units[i].Adapter) < adapterOrder(m.Units[j].Adapter)
 	})
 	if len(m.Units) > MaxUnits {
 		m.Incomplete = append(m.Incomplete, fmt.Sprintf("%d execution units exceed the %d bound", len(m.Units), MaxUnits))
@@ -552,6 +577,18 @@ func (m Manifest) bounded() Manifest {
 		m.Units = []Unit{}
 	}
 	return m
+}
+
+// adapterOrder places a shard's Go units first, then its provider units,
+// then its declared units.
+func adapterOrder(adapter string) int {
+	switch adapter {
+	case AdapterGo:
+		return 0
+	case AdapterProvider:
+		return 1
+	}
+	return 2
 }
 
 func nonNil(values []string) []string {

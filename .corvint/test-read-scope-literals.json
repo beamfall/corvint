@@ -255,6 +255,9 @@
       "tools/tiers-replay": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "tools/unbounded-readers": "walltime_test.go replay data, not a read (bridge until ci-1107x)"
     },
+    "cmd/corvint-analyzer-html-css": {
+      "go-target:sourcePath": "isolation_darwin_test.go buildGoRuntimeHelper builds a spy program writeSpySource wrote under t.TempDir(), a temporary path outside the repository (TSP-V0-8132)"
+    },
     "conformance/use-cases-v0": {
       "script/repin-use-case-receipts.sh": "named inside the expected recovery hint; the test reads no file"
     },
@@ -280,8 +283,35 @@
     "internal/observations": {
       "docs/decisions/0015-impact-without-go-module-2026-09-01.md": "a decision reference copied into the expected report line; the file is never read"
     },
+    "internal/sessiontest": {
+      "go-target:filepath.Join(dir, \"q\")": "runnerenv_test.go runs go test on a fixture module written under t.TempDir(), named by its absolute temporary path, no repository directory (TSP-V0-8132)"
+    },
     "internal/specindex": {
       "cmd/corvint/main.go": "a read-scope control path passed to the InReadScope predicate; the file is never read"
+    },
+    "tools/beamfall-shadow": {
+      "go-target:source": "main_test.go builds fixtureGoAnalyzer from a main.go written under t.TempDir(), a temporary path outside the repository (TSP-V0-8132)"
+    },
+    "tools/ci-forward-row": {
+      ".corvint/documentation-paths.json": "shadowcost_test.go writes a documentation declaration into a temporary fixture repository and names it in expected reasons; the repository's own declaration is not read",
+      ".corvint/runtime-readers.json": "fullrow_test.go names it as a compare-API changed filename in a fixture document and in the expected reason text; the repository's own file is not read",
+      "cmd/corvint/affected.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
+      "cmd/corvint/main.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
+      "cmd/corvint/test.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
+      "cmd/corvint/test_slices.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
+      "docs/build-log": "shadowcost_test.go names it in a documentation declaration written into a temporary fixture repository; the repository's own directory is not read",
+      "docs/specs": "shadowcost_test.go names it in a documentation declaration and fixture changed-file lists for a temporary repository; the repository's own directory is not read",
+      "docs/specs/affected-plan-v0.md": "shadowcost_test.go names it in a fixture changed-file list matched against a declaration; the file is never read",
+      "internal/contextindex/index.go": "forwardrow_test.go, mq_narrowing_test.go and narrowing_test.go name it as a changed filename in a fixture compare-API document; the file is never read",
+      "internal/gateselect/select.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
+      "internal/gateselect/select_test.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
+      "internal/sessiontest/plan.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
+      "tools/capabilities-check": "github_guard_test.go names it only in the expected mapped-package list of a temporary fixture repository's workflow edit; the directory is not read",
+      "tools/ci-reuse-plan": "github_guard_test.go names it only in the expected mapped-package list of a temporary fixture repository's workflow edit; the directory is not read",
+      "tools/gate-affected-select/main.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
+      "tools/tiers-replay": "narrowing_reasons_test.go names it as a package of the fixture module example.org/m written under a temporary repository; the repository's own directory is not read",
+      "tools/web-flows/test/e2e.mjs": "maintenance_test.go names it inside a fixture selection document's check text; the file is never read",
+      "tools/web-flows/test/navigation-e2e.mjs": "maintenance_test.go names it inside a fixture selection document's check text; the file is never read"
     },
     "tools/gate-ledger": {
       ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",

@@ -67,9 +67,17 @@ func inboundRuntimeSiteFile(site string) string {
 	return site
 }
 
-// Select the declared caller conservatively on every nonempty change. A
-// runtime dependency can start outside the statically visible import graph.
-// Existing reader selections are kept, and the caller's dependents are walked.
+// inboundRuntimeCallers selects the declared caller of every located runtime
+// site on every nonempty code-bearing change (AZU-V0-8902): a runtime
+// dependency can start outside the statically visible import graph. The
+// caller is selected for its tests alone, as a terminal selection
+// (AZU-V0-210): the declaration says what its tests run, so none of the
+// unit's own code changes, no dependent of it observes the selection, and
+// the walk does not continue from it. A declared caller the plan already
+// reached keeps its witness. The selection therefore makes the caller's
+// plugin take part only when something else reaches it (AFP-V0-560), so a
+// change in another language no longer raises every plugin-wide entry of the
+// caller's plugin (V1-4999).
 func (graph *Graph) inboundRuntimeCallers(reached map[string]Witness, followed map[string]bool, dirty []string) {
 	if graph.claimants["typescript"] == nil || len(graph.runtimeEdges) == 0 || len(dirty) == 0 || !graph.inboundChangesCode(dirty) {
 		return
@@ -87,13 +95,10 @@ func (graph *Graph) inboundRuntimeCallers(reached map[string]Witness, followed m
 			}
 		}
 	}
-	closure := graph.traverse(seeds, nil)
-	graph.testUsersOf(closure, nil)
-	for id, witness := range closure {
+	for id, witness := range seeds {
 		if _, exists := reached[id]; !exists {
 			reached[id] = witness
 		}
-		followed[id] = true
 	}
 }
 

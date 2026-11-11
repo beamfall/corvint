@@ -88,18 +88,25 @@ func TestFrontierReachHoldsForUnownedPaths_AFPV0511(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// AZU-V0-003: once TypeScript takes part, the located bare-import and
+	// relative-import sites select tests/dep.test.ts with its dependents
+	// instead of being named; the unknown runner stays, as NO_RUNNER.
 	for _, tc := range []struct {
-		dirty string
-		want  []string
+		dirty    string
+		want     []string
+		selected bool
 	}{
-		{"Makefile", []string{runner}},
-		{"pkg/testdata/cases.json", []string{}},
-		{"tsconfig.json", []string{alias, relative, runner}},
-		{"src/dep.ts", []string{alias, relative, runner}},
+		{"Makefile", []string{runner}, false},
+		{"pkg/testdata/cases.json", []string{}, false},
+		{"tsconfig.json", []string{alias, relative, runner}, false},
+		{"src/dep.ts", []string{runner}, true},
 	} {
 		plan := affected.Select(graph, []string{tc.dirty})
 		if got := frontierDetails(plan); fmt.Sprint(got) != fmt.Sprint(tc.want) {
 			t.Errorf("dirty %s: frontier %v, want %v", tc.dirty, got, tc.want)
+		}
+		if got := slices.Contains(plan.SelectedTests(), "tests/dep.test.ts"); got != tc.selected {
+			t.Errorf("dirty %s: tests/dep.test.ts selected=%v, want %v", tc.dirty, got, tc.selected)
 		}
 	}
 }
