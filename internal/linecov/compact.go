@@ -428,30 +428,45 @@ func decodeSection(sec []byte, row fileRow, nTests, nSegs int) ([]Block, error) 
 			return nil
 		}
 		out := make([]int32, n)
-		last := int64(-1)
+		next := 0 // the least id the next delta can name; next <= limit
 		for i := range out {
-			v := last + 1 + int64(r.uvarint(what))
+			// Bound the delta as an unsigned number by the room below the
+			// limit before converting it, so no delta wraps or overflows
+			// into an id the range check would admit (V1-5163).
+			d := r.uvarint(what)
 			if r.err != nil {
 				return nil
 			}
-			if v >= int64(limit) {
+			if d >= uint64(limit-next) {
 				r.fail(what + " out of range")
 				return nil
 			}
-			out[i], last = int32(v), v
+			v := next + int(d)
+			out[i], next = int32(v), v+1
 		}
 		return out
 	}
+	const maxLine = 1<<31 - 1
 	for i := range blocks {
 		b := &blocks[i]
-		start := int64(prev) + int64(r.uvarint("block start"))
-		b.StartCol = r.int32("block start column")
-		end := start + int64(r.uvarint("block end"))
-		b.EndCol = r.int32("block end column")
-		if r.err == nil && end > 1<<31-1 {
-			r.fail("block span")
+		// Each delta is bounded, unsigned, by the room below maxLine before
+		// it is added, so 0 <= Start <= End <= maxLine (V1-5163).
+		ds := r.uvarint("block start")
+		if r.err == nil && ds > uint64(maxLine-prev) {
+			r.fail("block start out of range")
 		}
-		b.Start, b.End = int32(start), int32(end)
+		b.StartCol = r.int32("block start column")
+		de := r.uvarint("block end")
+		b.EndCol = r.int32("block end column")
+		if r.err != nil {
+			return nil, r.err
+		}
+		b.Start = prev + int32(ds)
+		if de > uint64(maxLine-b.Start) {
+			r.fail("block span")
+			return nil, r.err
+		}
+		b.End = b.Start + int32(de)
 		prev = b.Start
 		b.Tests = ids(nTests, "block test")
 		b.Segs = ids(nSegs, "block segment")
