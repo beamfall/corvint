@@ -194,3 +194,16 @@ func TestMTTV1004DocsServerRefusesArguments(t *testing.T) {
 		t.Fatalf("--help: exit %d", exit)
 	}
 }
+
+// MTT-V1-006: corvint-docs mcp serves no Tasks tool, with or without a
+// corpus artifact.
+func TestMTTV1006DocsServerServesNoTasksTool(t *testing.T) {
+	root := repository(t)
+	for _, arguments := range [][]string{{"--root", root}, {"--root", root, "--corpus-artifact", "corpus.json"}} {
+		for _, tool := range listed(t, arguments) {
+			if name := tool["name"].(string); strings.Contains(name, "tasks") {
+				t.Fatalf("corvint-docs mcp lists %s", name)
+			}
+		}
+	}
+}

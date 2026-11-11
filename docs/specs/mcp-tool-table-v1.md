@@ -243,11 +243,11 @@ not reused and their text stays in their own specs as history.
 | MTT-V1-003 | 2.3 | `internal/mcp/cli/tooltable_drift_test.go` (`tableDrift`) | `TestMTTV1003CoreServerRegistersExactlyTheTable`, `TestMTTV1003TestValidityServerRegistersExactlyTheTable`, `TestMTTV1003DriftNamesTheTool` |
 | MTT-V1-004 | 2.4 | `internal/mcp/docsserver`, `corvint-docs mcp` (`cmd/corvint-docs/main.go`, `help.go`) | `TestMTTV1004DocsServerToolList`, `TestMTTV1004DocsServerAnswers`, `TestMTTV1004DocsServerRefusesArguments`, `TestMTTV1004CorvintDocsMCPAnswersOnAFixture`, `TestMTTV1004CorvintDocsMCPHelp` |
 | MTT-V1-005 | 2.5 | `internal/mcp/cli/groups.go` (`removedGroups`), `main.go`, `unavailable.go`; `internal/mcp/toolgroup/test_evidence.go` (preview label) | `TestMTTV1005RemovedGroupsRefuseWithATypedReason`, `TestMTTV1005TestValidityIsAnUnknownTool`, `TestMTTV1003CoreServerRegistersExactlyTheTable` |
-| MTT-V1-006 | 2.1, 2.8 | not yet built | not yet built |
+| MTT-V1-006 | 2.1, 2.8 | the `corvint-tasks` no-MCP-tool row and the Tasks-name rule in `internal/capcatalog/mcp.go` | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow/tasks_tool_on_a_server`, `TestMTTV1006CoreServerServesNoTasksTool`, `TestMTTV1006DocsServerServesNoTasksTool` |
 | MTT-V1-007 | 2.5 | `internal/mcp/bridge/flows.go` (renamed constants), `internal/capcatalog/mcp.go` (`toolName`, `Replaces`) | `TestMTTV1007OneNamingConvention`, `TestMTTV1001TableRulesNameTheBrokenRow/two_dots` |
 | MTT-V1-008 | 2.6 | `internal/selectionswitch` (grammar), `internal/mcp/toolgroup/affected.go` (`selectAll`, `affected-select-all/1`) | `TestMTTV1008Grammar`, `TestMTTV1008AffectedToolReadsTheKillSwitch`, `TestMTTV1008UnknownSelectionThroughTheServer` |
 | MTT-V1-009 | 2.7 | table column `ParityTest` and its rule in `internal/capcatalog/mcp.go`; `MissingParityTests` in `tools/mcp-server-doc` (doc gate) | `TestMTTV1009HelpToolMatchesCLI`, `TestMTTV1009ImpactToolMatchesCLI`, `TestMTTV1009TestEvidenceToolMatchesCLI`, `TestV15254MCPAffectedMatchesCLI` (cmd/corvint); `TestMTTV1009FlowsToolsMatchCLI`, `TestMTTV1009DocsConsumeToolMatchesCLI`, `TestDocsToolVerbAnswersInOneEnvelope`, `TestCorpusTypedCLIMCPEndToEnd` (cmd/corvint-docs); `TestMTTV1009MissingParityTestIsNamed` |
-| MTT-V1-010 | 2.8 | not yet built | not yet built |
+| MTT-V1-010 | 2.8 | not built here: `corvint-mcp` and `corvint-test-validity-mcp` leave `tools/release-binary/binaries.json` in their removal batch | NOT_PRODUCED until that batch |
 | MTT-V1-011 | 2.9 | not yet built | not yet built |
 
 ## Rollback
