@@ -167,21 +167,23 @@ func TestRuleCRuntimeRootedFileNames_AFPV02240(t *testing.T) {
 }
 
 // TestRuleCRuntimeRootedDirectoryWalk_AFPV02240 is round 8's review
-// counterexample: a test walks `os.Getenv("FIXTURES") + "/repo"` (or the
-// filepath.Join form, whose "repo" is unanchored) with FIXTURES=app/x, so it
-// reads every file below app/x/repo though no literal of its package spells
-// app/x. Rule (c), its verdict and -bounds all keep both walkers. The
-// planner half is golang's TestRuntimeRootedDirectoryWalkStaysSelected.
+// counterexample: a test walks `fixtures + "/repo"` (or the filepath.Join
+// form, whose "repo" is unanchored) with fixtures=app/x, so it reads every
+// file below app/x/repo though no literal of its package spells app/x. Rule
+// (c), its verdict and -bounds all keep both walkers. The root is a package
+// variable: a walked environment root is held whole by rule (d) (AFP-V0-3662,
+// V1-3999 fix round 1). The planner half is golang's
+// TestRuntimeRootedDirectoryWalkStaysSelected.
 func TestRuleCRuntimeRootedDirectoryWalk_AFPV02240(t *testing.T) {
-	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) {\n\t_ = os.Getenv\n\t_ = filepath.WalkDir(%s, func(string, fs.DirEntry, error) error { return nil })\n}\n"
+	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nvar fixtures string\n\nfunc TestWalk(t *testing.T) {\n\t_ = os.Getenv\n\t_ = filepath.WalkDir(%s, func(string, fs.DirEntry, error) error { return nil })\n}\n"
 	root := writeFixture(t, map[string]string{
 		"go.mod":                "module example.com/fixture\n\ngo 1.22\n",
 		"app/x/x.go":            "package x\n",
 		"app/x/x_test.go":       "package x\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
 		"app/x/repo/lib.js":     "export const x = 1\n",
-		"walker/walker_test.go": fmt.Sprintf(walk, "walker", `os.Getenv("FIXTURES")+"/repo"`),
-		"joined/joined_test.go": fmt.Sprintf(walk, "joined", `filepath.Join(os.Getenv("FIXTURES"), "repo")`),
-		"other/other_test.go":   fmt.Sprintf(walk, "other", `os.Getenv("FIXTURES")+"/elsewhere"`),
+		"walker/walker_test.go": fmt.Sprintf(walk, "walker", `fixtures+"/repo"`),
+		"joined/joined_test.go": fmt.Sprintf(walk, "joined", `filepath.Join(fixtures, "repo")`),
+		"other/other_test.go":   fmt.Sprintf(walk, "other", `fixtures+"/elsewhere"`),
 	})
 	index, err := indexRepository(root, fixtureModule)
 	if err != nil {
@@ -324,8 +326,9 @@ func TestRuleCMatchesThePlanner_AFPV02242(t *testing.T) {
 // root joined to computed text is held whole by rule (d) (AFP-V0-3660). The `..\` rewrite (AFP-V0-506) only adds the
 // climbing `foo../notes` to the written `foo..` and `notes`, so rule (c),
 // its verdict and -bounds keep the reader. The module-path rewrite is
-// additive too: a walk of `filepath.Join(os.Getenv("SRC"),
-// "example.com/fixture")` keeps the written `example.com/fixture` beside its
+// additive too: a walk of `filepath.Join(src, "example.com/fixture")`, src
+// a package variable since a walked environment root is held whole
+// (AFP-V0-3662, V1-3999 fix round 1), keeps the written `example.com/fixture` beside its
 // anchored `/`, which names nothing, and reads a copy of the module under
 // vendored/. A dirty app/x/x.go keeps the selection non-empty, so a dropped
 // reader is skipped with no fallback. Controls: the same forms naming
@@ -333,7 +336,7 @@ func TestRuleCMatchesThePlanner_AFPV02242(t *testing.T) {
 // TestParentBackslashKeepsWrittenTokens.
 func TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242(t *testing.T) {
 	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nvar fixtures string\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(fixtures + strings.Split(%q, \"\\\\\")[1]); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
-	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) {\n\t_ = filepath.WalkDir(filepath.Join(os.Getenv(\"SRC\"), %q), func(string, fs.DirEntry, error) error { return nil })\n}\n"
+	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nvar src string\n\nfunc TestWalk(t *testing.T) {\n\t_ = filepath.WalkDir(filepath.Join(src, %q), func(string, fs.DirEntry, error) error { return nil })\n}\n"
 	root := writeFixture(t, map[string]string{
 		"go.mod":                             "module example.com/fixture\n\ngo 1.22\n",
 		"app/x/x.go":                         "package x\n",

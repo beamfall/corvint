@@ -49,10 +49,7 @@ type goListFile struct {
 	listed map[token.Pos]bool
 	// proven holds the byte offsets of the os/exec selectors of the
 	// proven calls, the only os/exec references observesSource allows.
-	proven map[int]bool
-	// lists holds the byte offsets of the os/exec selectors of every call
-	// that runs `go list`, proven or not (AFP-V0-3664).
-	lists    map[int]bool
+	proven   map[int]bool
 	targets  map[string]bool
 	all      bool
 	unproven bool
@@ -81,7 +78,7 @@ func goListCandidate(body []byte) bool {
 // only initialized by a composite literal, extended by append and passed as
 // the call's variadic argument.
 func goListScanFile(relative string, body []byte, directory string, owner module, builtinsProven bool) (goListFile, error) {
-	result := goListFile{listed: map[token.Pos]bool{}, targets: map[string]bool{}, proven: map[int]bool{}, lists: map[int]bool{}}
+	result := goListFile{listed: map[token.Pos]bool{}, targets: map[string]bool{}, proven: map[int]bool{}}
 	files := token.NewFileSet()
 	file, err := parser.ParseFile(files, relative, body, parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
@@ -169,7 +166,6 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 			return true
 		}
 		result.reader = true
-		result.lists[files.Position(selector.Pos()).Offset] = true
 		targets, all, proven := goListArguments(elements[1:], constants, directory, owner)
 		directoryProven := true
 		// A call outside any function (a package-level command) is
@@ -1011,7 +1007,7 @@ func unshadowedPredeclared(body []byte) bool {
 // their os/exec selectors (AFP-V0-3664).
 type contingentRead struct {
 	reason, relative string
-	test, frame      bool // frame: the source is a runtime frame API
+	test             bool
 	commands         []int
 }
 
@@ -1019,22 +1015,20 @@ type contingentRead struct {
 // reads, as observeDirectory marks a read, unless goListUnits proved every
 // command the read is the directory of a `go list` call that reads only the
 // import graph, from a proven directory (AFP-V0-2200), and the unit observes
-// no source by another channel (AFP-V0-9010). A frame-rooted directory of
-// any `go list` call keeps the import-graph fallback AFP-V0-9600 gives it
-// instead: such a listing reads the whole module and its source, never a
-// path outside the module the test file is in.
+// no source by another channel (AFP-V0-9010). An unproven listing is held
+// whatever its source: the whole-module fallback (ImportGraphReadsFiles)
+// follows source and embedded paths, not every file an unproven `go list`
+// can read (a default.pgo profile, a file a flag names, a path read back out
+// of its output).
 func applyContingentReads(units []affected.Unit, contingents [][]contingentRead, listed []map[string]goListFile) {
 	for index, reads := range contingents {
 		state := unboundedReads{reason: units[index].UnboundedReads, locatesRoot: units[index].LocatesRoot}
 		for _, read := range reads {
 			scan, scanned := listed[index][read.relative]
 			proven := scanned && !units[index].ImportGraphReadsFiles && len(read.commands) != 0
-			listed := scanned && read.frame && len(read.commands) != 0
 			for _, command := range read.commands {
 				proven = proven && scan.proven[command]
-				listed = listed && scan.lists[command]
 			}
-			proven = proven || listed
 			if !proven {
 				state.mark(read.reason, read.test)
 			}
@@ -1090,7 +1084,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 				environment, decided = goEnvironmentUnproven(files, bodies), true
 			}
 			if environment {
-				scan = goListFile{reader: true, all: true, unproven: true, lists: scan.lists}
+				scan = goListFile{reader: true, all: true, unproven: true}
 			}
 			if scans[index] == nil {
 				scans[index] = map[string]goListFile{}

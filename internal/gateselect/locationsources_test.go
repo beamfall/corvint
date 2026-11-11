@@ -5,6 +5,7 @@ import (
 	"context"
 	"go/parser"
 	"go/token"
+	"reflect"
 	"sort"
 	"testing"
 
@@ -134,10 +135,62 @@ func TestPackageLevel(t *testing.T) {}`},
 	root, _ := syscall.Getwd()
 	_ = root
 }`},
+	// Can miss a test (fix round 1, P1-a): a frame root handed to a child
+	// process as a NAME=value entry, which the shell lists.
+	{name: "childenv", held: true, test: `func TestChildEnv(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	c := exec.Command("sh", "-c", ` + "`ls -R \"$ROOT\"`" + `)
+	c.Env = append(os.Environ(), "ROOT="+filepath.Dir(filepath.Dir(file)))
+	c.Run()
+}`},
+	// Can miss a test (fix round 1, P1-b): an environment list stored in a
+	// user struct's Env field and read back.
+	{name: "envstruct", held: true, test: `type config struct{ Env []string }
+
+func TestEnvStruct(t *testing.T) {
+	c := config{Env: os.Environ()}
+	for _, e := range c.Env {
+		if len(e) > 5 {
+			os.ReadDir(e[5:])
+		}
+	}
+}`},
+	// Can miss a test (fix round 1, P2): the working directory from
+	// filepath.Abs, climbed to the repository root.
+	{name: "absdir", held: true, test: `func TestAbs(t *testing.T) {
+	wd, _ := filepath.Abs(".")
+	os.ReadDir(filepath.Dir(filepath.Dir(wd)))
+}`},
+	// Can miss a test (fix round 1, P3): another file of the package declares
+	// len, so len(os.Getenv(...)) here is that function, which reads.
+	{name: "shadowedlen", held: true, source: `func len(s string) int {
+	entries, _ := os.ReadDir(s)
+	if entries == nil {
+		return 0
+	}
+	return 1
+}`, test: `func TestLen(t *testing.T) {
+	_ = len(os.Getenv("ROOT"))
+}`},
+	// Can miss a test (fix round 1, P1-a): a raw environment value bound
+	// for a child under another name; on a CI runner GITHUB_WORKSPACE is
+	// the checkout.
+	{name: "renamedentry", held: true, test: `func TestRenamed(t *testing.T) {
+	c := exec.Command("sh", "-c", "ls -R $DATA")
+	c.Env = []string{"DATA=" + os.Getenv("GITHUB_WORKSPACE")}
+	c.Run()
+}`},
+	// Can miss a test (fix round 1, R1): a bounded join opened, whose file
+	// name filepath.Dir climbs above the join.
+	{name: "openname", held: true, test: `func TestOpenName(t *testing.T) {
+	f, _ := os.Open(filepath.Join(os.Getenv("FIXTURES"), "docs"))
+	os.ReadDir(filepath.Dir(filepath.Dir(f.Name())))
+}`},
 	// Controls, bounded before and after: frame metadata that never becomes a
 	// path (AFP-V0-810), an environment flag, environment handed whole to a
-	// child process, and roots joined to plain literal components whose
-	// tokens rule (c) already reads (AFP-V0-2203, AFP-V0-2240).
+	// child process (and one variable re-exported under its own name), roots
+	// joined to plain literal components whose tokens rule (c) already reads
+	// (AFP-V0-2203, AFP-V0-2240), and filepath.Abs of literals.
 	{name: "framelog", test: `func TestLog(t *testing.T) {
 	_, file, line, _ := runtime.Caller(0)
 	_ = file
@@ -153,14 +206,24 @@ func TestPackageLevel(t *testing.T) {}`},
 	command := exec.Command("go", "env")
 	command.Env = append(os.Environ(), "GOFLAGS=")
 	command.Run()
-	command = exec.Command("go", "version")
-	command.Env = []string{"PATH=" + os.Getenv("PATH")}
-	command.Run()
+	version := exec.Command("go", "version")
+	version.Env = []string{"PATH=" + os.Getenv("PATH")}
+	version.Run()
 }`},
 	{name: "literaljoin", test: `func TestJoin(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	os.ReadFile(filepath.Join(filepath.Dir(file), "testdata", "case.json"))
 	os.ReadFile(os.Getenv("FIXTURES") + "/repo/lib.js")
+	os.ReadDir(filepath.Join(os.Getenv("FIXTURES"), "repo"))
+}`},
+	{name: "absliteral", test: `func TestAbsLiteral(t *testing.T) {
+	data, _ := filepath.Abs("testdata")
+	os.ReadDir(data)
+	filepath.Abs("/etc/hosts")
+}`},
+	// The literal join walked is held since fix round 1: WalkDir hands its
+	// callback full paths filepath.Dir can climb (AFP-V0-3662).
+	{name: "literalwalk", held: true, test: `func TestWalkJoin(t *testing.T) {
 	filepath.WalkDir(filepath.Join(os.Getenv("FIXTURES"), "repo"), func(string, fs.DirEntry, error) error { return nil })
 }`},
 }
@@ -212,12 +275,34 @@ var locationUseCases = []struct{ name, body, want string }{
 	{"parsed", `func F() { strconv.Atoi(os.Getenv("N")); strconv.ParseBool(os.Getenv("B")); time.ParseDuration(os.Getenv("D")) }`, ""},
 	{"lookup presence", `func F() bool { _, ok := os.LookupEnv("X"); return ok }`, ""},
 	{"lookup value read", `func F() { if v, ok := os.LookupEnv("X"); ok { os.ReadFile(v) } }`, "hold"},
-	{"environment entry", `func F() []string { return []string{"PATH=" + os.Getenv("PATH")} }`, ""},
-	{"computed entry", `func F(env []string, key string) []string { if v, ok := os.LookupEnv(key); ok { env = append(env, key+"="+v) }; return env }`, ""},
+	{"environment entry", `func F() { c := exec.Command("go", "env"); c.Env = []string{"PATH=" + os.Getenv("PATH")}; c.Run() }`, ""},
+	{"looked-up entry through a local", `func F() { c := exec.Command("go", "env"); env := os.Environ(); if v, ok := os.LookupEnv("GOPATH"); ok { env = append(env, "GOPATH="+v) }; c.Env = env; c.Output() }`, ""},
+	{"entry returned", `func F() []string { return []string{"PATH=" + os.Getenv("PATH")} }`, "hold"},
+	{"computed entry", `func F(key string) { c := exec.Command("x"); if v, ok := os.LookupEnv(key); ok { c.Env = append(c.Env, key+"="+v) }; c.Run() }`, "hold"},
+	{"computed key literal", `func F() []string { return append([]string{"-v"}, "--root"+"="+os.Getenv("ROOT")) }`, "hold"},
+	{"entry in argv", `func F() { exec.Command("env", []string{"ROOT=" + os.Getenv("ROOT"), "sh", "-c", "ls -R $ROOT"}...).Run() }`, "hold"},
+	{"entry appended to Args", `func F() { c := exec.Command("env"); c.Args = append(c.Args, "ROOT="+os.Getenv("ROOT"), "ls"); c.Run() }`, "hold"},
+	{"entry renamed", `func F() { c := exec.Command("x"); c.Env = []string{"DATA=" + os.Getenv("GITHUB_WORKSPACE")}; c.Run() }`, "hold"},
+	{"entry of a frame file", `func F() { _, file, _, _ := runtime.Caller(0); c := exec.Command("sh"); c.Env = append(os.Environ(), "ROOT="+filepath.Dir(filepath.Dir(file))); c.Run() }`, "hold"},
+	{"entry of a transformed value", `func F() { c := exec.Command("x"); c.Env = []string{"ROOT=" + filepath.Clean(os.Getenv("ROOT"))}; c.Run() }`, "hold"},
+	{"entry of an absolute value", `func F() { abs, _ := filepath.Abs(os.Getenv("ROOT")); c := exec.Command("x"); c.Env = []string{"ROOT=" + abs}; c.Run() }`, "hold"},
+	{"entry to a parameter command", `func F(c *exec.Cmd) { c.Env = []string{"PATH=" + os.Getenv("PATH")} }`, "hold"},
 	{"entry outside a list", `func F() { os.ReadFile("X=" + os.Getenv("X")) }`, "hold"},
-	{"environment to Env field", `func F(c *exec.Cmd) { c.Env = append(os.Environ(), "A=1") }`, ""},
-	{"environment to Env key", `func F() *exec.Cmd { return &exec.Cmd{Env: os.Environ()} }`, ""},
-	{"environment through local", `func F(c *exec.Cmd) { env := slices.Clip(append(os.Environ(), "A=1")); env = append(env, "B=2"); c.Env = env }`, ""},
+	{"environment to Env field", `func F() { c := exec.Command("go", "env"); c.Env = append(os.Environ(), "A=1"); c.Run() }`, ""},
+	{"environment to Env key", `func F() { c := &exec.Cmd{Path: "go", Env: os.Environ()}; c.Run() }`, ""},
+	{"environment through local", `func F(ctx context.Context) { c := exec.CommandContext(ctx, "go"); env := slices.Clip(append(os.Environ(), "A=1")); env = append(env, "B=2"); c.Env = env; c.Run() }`, ""},
+	{"environment to a parameter's Env", `func F(c *exec.Cmd) { c.Env = append(os.Environ(), "A=1") }`, "hold"},
+	{"environment in a returned literal", `func F() *exec.Cmd { return &exec.Cmd{Env: os.Environ()} }`, "hold"},
+	{"environment in a user struct", `type cfg struct{ Env []string }; func F() { c := cfg{Env: os.Environ()}; for _, e := range c.Env { os.ReadDir(e[5:]) } }`, "hold"},
+	{"environment in a user struct read by its method", `type cfg struct{ Env []string }; func (c cfg) run() { for _, e := range c.Env { os.ReadDir(e[5:]) } }; func F() { c := cfg{Env: os.Environ()}; c.run() }`, "hold"},
+	{"environment assigned to a user struct read by its method", `type cfg struct{ Env []string }; func (c *cfg) run() { for _, e := range c.Env { os.ReadDir(e[5:]) } }; func F() { c := &cfg{}; c.Env = os.Environ(); c.run() }`, "hold"},
+	{"environment in a user struct field", `type cfg struct{ Env []string }; func F(c *cfg) { c.Env = os.Environ() }`, "hold"},
+	{"environment read back from Env", `func F() { c := exec.Command("x"); c.Env = os.Environ(); for _, e := range c.Env { os.ReadDir(e[5:]) } }`, "hold"},
+	{"environment read back from Environ", `func F() { c := exec.Command("x"); c.Env = os.Environ(); for _, e := range c.Environ() { os.ReadDir(e[5:]) } }`, "hold"},
+	{"environment extended from Env", `func F() { c := exec.Command("x"); c.Env = os.Environ(); c.Env = append(c.Env, "A=1"); c.Run() }`, "hold"},
+	{"environment command escapes", `func run(*exec.Cmd) {}; func F() { c := exec.Command("x"); c.Env = os.Environ(); run(c) }`, "hold"},
+	{"environment command reassigned", `func F(other *exec.Cmd) { c := exec.Command("x"); c = other; c.Env = os.Environ() }`, "hold"},
+	{"environment in a map keyed by a constant", `const Env = "env"; func F() map[string][]string { return map[string][]string{Env: os.Environ()} }`, "hold"},
 	{"environment length", `func F() bool { return len(os.Environ()) == 1 }`, ""},
 	{"environment to helper", `func run([]string) {}; func F() { run(os.Environ()) }`, "hold"},
 	{"environment ranged", `func F() { for _, e := range os.Environ() { os.ReadFile(e) } }`, "hold"},
@@ -228,7 +313,17 @@ var locationUseCases = []struct{ name, body, want string }{
 	{"closure read", `func F() { v := os.Getenv("R"); func() { os.ReadDir(v) }() }`, "hold"},
 	{"package-level binding", `var root = os.Getenv("R")`, "hold"},
 	{"bounded read", `func F() { os.ReadFile(filepath.Join(os.Getenv("R"), "docs", "guide.md")) }`, ""},
-	{"bounded walk via local", `func F() { root := os.Getenv("R") + "/repo"; filepath.WalkDir(root, nil) }`, ""},
+	{"bounded read via local", `func F() { root := os.Getenv("R") + "/repo"; os.ReadDir(root) }`, ""},
+	{"bounded walk via local", `func F() { root := os.Getenv("R") + "/repo"; filepath.WalkDir(root, nil) }`, "hold"},
+	{"bounded join opened", `func F() { f, _ := os.Open(filepath.Join(os.Getenv("R"), "docs")); os.ReadDir(filepath.Dir(filepath.Dir(f.Name()))) }`, "hold"},
+	{"absolute of the working directory", `func F() { wd, _ := filepath.Abs("."); os.ReadDir(filepath.Dir(wd)) }`, "hold"},
+	{"absolute of a parameter", `func F(p string) { abs, _ := filepath.Abs(p); os.ReadDir(abs) }`, "hold"},
+	{"absolute of a plain literal read", `func F() { data, _ := filepath.Abs("testdata"); os.ReadDir(data) }`, ""},
+	{"absolute of a plain literal climbed", `func F() { data, _ := filepath.Abs("testdata"); os.ReadDir(filepath.Dir(data)) }`, "hold"},
+	{"absolute of an absolute literal", `func F() string { p, _ := filepath.Abs("/etc/hosts"); return p }`, ""},
+	{"absolute compared", `func F(p string) bool { abs, _ := filepath.Abs(p); return abs == "/" }`, ""},
+	{"absolute dot import", "func F() { wd, _ := Abs(\".\"); os.ReadDir(wd) }", "hold"},
+	{"getcwd", `func F(buf []byte) { syscall.Getcwd(buf) }`, "hold"},
 	{"bounded join with dot", `func F() { os.ReadFile(filepath.Join(os.Getenv("R"), ".", "guide.md")) }`, "hold"},
 	{"bounded join with glob", `func F() { os.ReadFile(os.Getenv("R") + "/*.md") }`, "hold"},
 	{"bounded join with backslash", `func F() { os.ReadFile(os.Getenv("R") + "/..\\x") }`, "hold"},
@@ -253,6 +348,11 @@ var locationUseCases = []struct{ name, body, want string }{
 	{"command reassigned", `func F() { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list"); command = exec.Command("ls", "-R"); command.Dir = filepath.Dir(file); command.Run() }`, "hold"},
 	{"command args named", `func F() { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list", "./..."); command.Args[2] = "./x"; command.Dir = filepath.Dir(file); command.Run() }`, "hold"},
 	{"command literal", `func F() { _, file, _, _ := runtime.Caller(0); command := &exec.Cmd{Path: "ls", Dir: filepath.Dir(file)}; command.Run() }`, "hold"},
+	{"command path written", `func F() { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list", "-deps", "./cmd/x"); command.Path = "/bin/ls"; command.Dir = filepath.Dir(file); command.Run() }`, "hold"},
+	{"command passed to a helper", `func run(*exec.Cmd) {}; func F() { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list", "-deps", "./cmd/x"); command.Dir = filepath.Dir(file); run(command) }`, "hold"},
+	{"command returned", `func F() *exec.Cmd { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list", "-deps", "./cmd/x"); command.Dir = filepath.Dir(file); return command }`, "hold"},
+	{"command stored", `type s struct{ c *exec.Cmd }; func F(v *s) { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list", "-deps", "./cmd/x"); command.Dir = filepath.Dir(file); v.c = command }`, "hold"},
+	{"command directory read back", `func F() { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list", "-deps", "./cmd/x"); command.Dir = filepath.Dir(file); os.ReadDir(command.Dir) }`, "hold"},
 	{"command directory and a read", `func F() { _, file, _, _ := runtime.Caller(0); root := filepath.Dir(file); command := exec.Command("go", "list"); command.Dir = root; os.ReadDir(root) }`, "hold"},
 	{"aliased import", "func F() { os.ReadDir(system.Getenv(\"R\")) }", "hold"},
 	{"dot import", "func F() { os.ReadDir(Getenv(\"R\")) }", "hold"},
@@ -263,7 +363,7 @@ var locationUseCases = []struct{ name, body, want string }{
 // TestLocationSourceUses_AFPV03661 runs the location-source pass over each
 // locationUseCases body (AFP-V0-3660 to AFP-V0-3664).
 func TestLocationSourceUses_AFPV03661(t *testing.T) {
-	const imports = "import (\n\t\"os\"\n\t\"os/exec\"\n\t\"path/filepath\"\n\t\"runtime\"\n\t\"slices\"\n\t\"strconv\"\n\t\"syscall\"\n\t\"time\"\n\tsystem \"os\"\n\t. \"os\"\n)\n\n"
+	const imports = "import (\n\t\"context\"\n\t\"os\"\n\t\"os/exec\"\n\t\"path/filepath\"\n\t\"runtime\"\n\t\"slices\"\n\t\"strconv\"\n\t\"syscall\"\n\t\"time\"\n\tsystem \"os\"\n\t. \"os\"\n\t. \"path/filepath\"\n)\n\n"
 	for _, c := range locationUseCases {
 		t.Run(c.name, func(t *testing.T) {
 			body := []byte("package p\n\n" + imports + c.body + "\n")
@@ -295,6 +395,12 @@ func TestLocationSourceUnseenCalls_AFPV03660(t *testing.T) {
 		{"linkname", "package p\n\nimport _ \"unsafe\"\n\n//go:linkname env syscall.Getenv\nfunc env(string) (string, bool)\n", linknameSource},
 		{"cgo", "package p\n\n// #include <stdlib.h>\nimport \"C\"\n\nfunc F() { C.getenv(nil) }\n", cgoSource},
 		{"neither", "package p\n\nimport \"os\"\n\nfunc F() { os.Getpid() }\n", ""},
+		{"func len", "package p\n\nfunc len(string) int { return 0 }\n", builtinSource},
+		{"var append", "package p\n\nvar x, append = 1, 2\n", builtinSource},
+		{"grouped var len", "package p\n\nvar (\n\tn   = 1\n\tlen (int)\n)\n", builtinSource},
+		{"type append", "package p\n\ntype append []int\n", builtinSource},
+		{"len unparsed", "package p\n\nvar len = \n", builtinSource},
+		{"len used", "package p\n\nvar n = len(\"abc\")\n\nfunc F(s []int) []int { len := 2; return append(s, len) }\n\ntype T struct{ len int }\n\nfunc (T) len() {}\n", ""},
 	} {
 		file, err := parser.ParseFile(token.NewFileSet(), "", c.body, parser.ImportsOnly)
 		if err != nil {
@@ -305,6 +411,31 @@ func TestLocationSourceUnseenCalls_AFPV03660(t *testing.T) {
 		if c.want == "" && len(got) != 0 || c.want != "" && (len(got) != 1 || got[0] != c.want) {
 			t.Errorf("%s: sources %v, want %q", c.name, got, c.want)
 		}
+	}
+}
+
+// TestLocationSourceReadKinds_AFPV03660 holds a location source of a test
+// file that declares `//corvint:read-kinds fixtures` (AFP-V0-9005) in the
+// planner as in this index, which reads no declaration: the declaration
+// removes lexical reasons and a source is none.
+func TestLocationSourceReadKinds_AFPV03660(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"go.mod":          "module example.com/fixture\n\ngo 1.22\n",
+		"kinds/x.go":      "package kinds\n",
+		"kinds/x_test.go": "//corvint:read-kinds fixtures\n\npackage kinds\n\nimport \"os\"\n\nfunc F() { os.ReadDir(os.Getenv(\"R\")) }\n",
+		"plain/x.go":      "package plain\n",
+		"plain/x_test.go": "//corvint:read-kinds fixtures\n\npackage plain\n\nimport \"os\"\n\nfunc F() { os.ReadDir(\"../..\") }\n",
+	})
+	index, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sortedKeys(index.unresolved()); !reflect.DeepEqual(got, []string{"kinds", "plain"}) {
+		t.Errorf("gateselect rule (d) = %v, want [kinds plain]", got)
+	}
+	// The planner honours the declaration for the literal climb alone.
+	if got := plannerUnbounded(t, root); !reflect.DeepEqual(got, []string{"kinds"}) {
+		t.Errorf("planner rule (d) = %v, want [kinds]", got)
 	}
 }
 
