@@ -390,6 +390,22 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   that base and the clean VCS revision stamped in the executing selector. Missing executable
   provenance, a dirty executable build, an unreadable record, or any mismatch retains a SHADOW
   plan (`unqualified`). An index alone grants no local exclusion authority (`LPCV-V0-955/963`).
+- `GLS-V0-035`: (experimental under the owner's standing lane auto-accept, 2026-11-11; V1-4365)
+  The harness MUST also be qualified on a cross-package seeded-fault fixture: a module whose package
+  `lib` carries a site of every `GLS-V0-030` kind and an unexecuted body, whose own test runs only
+  one of its functions, and whose package `app` imports `lib` and is the only package whose tests
+  run the rest. Every site of the fixture's order, run against the suite `lib,app`, MUST report
+  zero misses and a passing control, with at least one `lib` mutant killed only by a test of
+  `app` and kept for it through the `-coverpkg` record. An index in which that test's record lost
+  the blocks of the function it alone ran (attributed instead to `lib`'s test, so the function
+  stays sampled) MUST make qualify fail naming the `app` test as missed. This closes the class a
+  single-package fixture cannot reach, a fault whose only failing test lives in another package.
+  Non-goals: the per-language corpora of the V1-4365 acceptance (Beamfall repositories per family
+  and a public Ruby project), which need external repositories this fixture does not stand in for;
+  a larger Corvint-tree sample, which is the record of `GLS-V0-034`. Failure mode: a selector that
+  keeps only the mutated package's tests passes the single-package fixture yet excludes the
+  importing package's test that a fault fails. Rollback: delete
+  `tools/linecov/qualify_crosspkg_test.go`; no production code depends on it.
 
 ### CI (V1-4366)
 
@@ -594,6 +610,7 @@ to the static plan, and deleting the index loses only performance. An index coll
 | GLS-V0-017, GLS-V0-018 | `internal/linecov/envaudit.go`, `audit.go`, `collect.go`, `compact.go`, `index.go`, `decide.go`, `select.go`, `windows.go` | `TestEnvAuditParse`, `TestEnvUnbound`, `TestUnboundIndexDecidesNothing`, `TestEnvAuditVersionAdmission`, `TestSyscallEnvironmentMutation`, `TestFaultInjection` (`environment:` and `collector-set variable:` cases, collector-own read checks), `TestCompactRoundTrip` |
 | GLS-V0-020 | `cmd/corvint/test.go`, `affected_linecov.go`, `internal/sessiontest/plan.go` | `TestLineNarrowingAppliesWhenQualified`, `TestCorvintTestLineIndexNarrowsTheRun`, `TestCorvintTestUnqualifiedLineIndexIsShadow`, `TestRunnerEnvCarriesBuildFlags`, `TestRunnerEnvKeepsSavedGoFlags`, `TestRunnerEnvSavedTestFlagOrFailedGoEnvFallsBack`, `TestRunnerEnvDeclaredVerbosityKeepsInverseVerboseTest`, `TestRunnerEnvRefusesUncarriedDeclaredEnv`, `TestCorvintTestUncarriedGoFlagKeepsStaticPlan`, `TestCorvintTestDeclaredVerbosityKeepsInverseVerboseTest`, `TestLocalQualificationRequiresMatchingEvidence` |
 | GLS-V0-030..034 | `tools/linecov/qualify.go` | `TestQualifyFixtureHasNoMiss`, `TestQualifyReportsASeededMiss`, `TestSummarizeAndQualified`, `TestWorkflowQualifiedInvocationMatchesWrapperRecord`; `.github/linecov/qualification.json`; build log |
+| GLS-V0-035 | `tools/linecov/qualify.go` (unchanged) over the fixture in `tools/linecov/qualify_crosspkg_test.go` | `TestQualifyCrossPackageFixtureHasNoMiss` (every site of lib, each kind valid, zero misses, a lib mutant killed only by `app.TestReport`, the control keeps none), `TestQualifyReportsACrossPackageSeededMiss` (the seeded index fails qualify naming `app.TestReport`); build log `2026-11-11-selection-baseline-profile.md` |
 | GLS-V0-040..047 | `.github/workflows/ci.yml`, `linecov-index.yml`, `linecov-miss.yml`, `tools/linecov` | `TestCISelectionRewritesWholePackages`, `TestCINarrowsWholePackages`, `TestMissFindsExcludedFailures`, `TestLinecovPackageMissConfirmation`, `TestLinecovMissConfirmationReproducesRecordedRunner`, `TestLinecovKillSurvivesArtifactExpiry`, `TestLinecovKillMarkerWriter`, `TestAFPV0170RecordNeedsEveryShardFullUnderAnyVerdict`; workflow YAML and shell syntax checks |
 | GLS-V0-050 | build log | `2026-11-03-gls-line-selection.md`, `2026-11-06-lineidx-enable.md` |
 
