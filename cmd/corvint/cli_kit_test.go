@@ -84,6 +84,7 @@ var cliKitTable = []cliKitRow{
 	{path: "index", refusal: "invalid-arguments", helpAnywhere: [][]string{{"--if-stale", "--help"}}},
 	{path: "init", refusal: "invalid-arguments", refuse: [][]string{{"--revision"}},
 		helpContains: []string{"--full-receipt"}, processRefuse: [][]string{{"--revision"}}},
+	{path: "instructions", refusal: "invalid-arguments"},
 	{path: "mcp", refusal: "invalid-arguments", ownsRoot: true},
 	{path: "review", refusal: "invalid-arguments"},
 	{path: "runs", refusal: "runs-invalid-arguments"},
