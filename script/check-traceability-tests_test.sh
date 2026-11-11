@@ -188,6 +188,12 @@ printf '%s\n' 'package demo' '' '// TestSub covers REQ-9 only in this doc commen
   '	_ = "REQ-1_case"' '}' '' 'func TestLonger() {' '	_ = "REQ-12 and REQ-7"' '}' '' \
   'func TestOne(t *testing.T) { t.Skip() }' '' 'func TestAfterOne() {' '	_ = "REQ-31"' '}' '' \
   'func TestOneHolds(t *testing.T) { _ = "REQ-32" }' > "$test_root/internal/demo/sub_test.go"
+# A brace inside a string, rune or comment on the declaration line opens and closes nothing: a
+# one-line test holding a quoted `{` does not take the next function as its body, and a declaration
+# line whose only closing brace is quoted is not a one-line test (TTG-V0-961).
+printf '%s\n' 'package demo' '' 'func TestQuoteOpen(t *testing.T) { _ = "{" }' '' \
+  'func TestAfterQuote() {' '	_ = "REQ-34"' '}' '' "func TestQuoteClose(t *testing.T) { r := '}' // }" \
+  '	_, _ = r, "REQ-35"' '}' > "$test_root/internal/demo/quote_test.go"
 # A column-0 `}` inside a raw string ends the body lexically (TTG-V0-961 failure mode); the refusal
 # says where the body was read to.
 printf '%s\n' 'package demo' '' 'func TestRaw() {' '	_ = `' '}' '`' '	_ = "REQ-33"' '}' \
@@ -199,6 +205,7 @@ printf '%s\n' '# Sub' '' '## Traceability' '' '| Requirement | Evidence |' '|---
   > "$test_root/docs/specs/sub.md"
 stage internal/demo/sub_test.go
 stage internal/demo/raw_test.go
+stage internal/demo/quote_test.go
 stage docs/specs/sub.md
 output=$(run) || fail "a subtest citation whose body holds the ID failed (TTG-V0-960): $output"
 case "$output" in
@@ -208,7 +215,8 @@ esac
 # shellcheck disable=SC2016
 printf '%s\n' '| REQ-1 | `TestLonger/REQ-1` holds only REQ-12 |' '| REQ-9 | `TestSub/REQ-9` |' \
   '| REQ-7 | `TestSub/REQ-7` |' '| REQ-8 | `TestNoSuchSub/REQ-8` |' '| REQ-31 | `TestOne/REQ-31` |' \
-  '| REQ-32 | `TestOneHolds/REQ-32` |' '| REQ-33 | `TestRaw/REQ-33` |' >> "$test_root/docs/specs/sub.md"
+  '| REQ-32 | `TestOneHolds/REQ-32` |' '| REQ-33 | `TestRaw/REQ-33` |' \
+  '| REQ-34 | `TestQuoteOpen/REQ-34` |' '| REQ-35 | `TestQuoteClose/REQ-35` |' >> "$test_root/docs/specs/sub.md"
 stage docs/specs/sub.md
 output=$(run) && fail "a subtest citation whose body lacks the ID passed (TTG-V0-961)"
 for expected in \
@@ -217,6 +225,7 @@ for expected in \
   'docs/specs/sub.md:11: TestSub/REQ-7 (no declaration of TestSub contains REQ-7; each body was read from its func line to the first column-0 }: internal/demo/sub_test.go)' \
   'docs/specs/sub.md:13: TestOne/REQ-31 (no declaration of TestOne contains REQ-31; each body was read from its func line to the first column-0 }: internal/demo/sub_test.go)' \
   'docs/specs/sub.md:15: TestRaw/REQ-33 (no declaration of TestRaw contains REQ-33; each body was read from its func line to the first column-0 }: internal/demo/raw_test.go)' \
+  'docs/specs/sub.md:16: TestQuoteOpen/REQ-34 (no declaration of TestQuoteOpen contains REQ-34; each body was read from its func line to the first column-0 }: internal/demo/quote_test.go)' \
   'docs/specs/sub.md:12: TestNoSuchSub
 '; do
   case "$output
@@ -227,7 +236,8 @@ for expected in \
 done
 case "$output" in *"TestNoSuchSub/REQ-8"*) fail "an undeclared name got a second, subtest failure: $output" ;; esac
 case "$output" in *TestOneHolds*) fail "a one-line declaration holding the ID was refused: $output" ;; esac
-case "$output" in *"traceability subtest citations: 7 checked"*) ;; *) fail "the subtest citations were not counted: $output" ;; esac
+case "$output" in *TestQuoteClose*) fail "a declaration whose only closing brace is quoted was read as a one-line test: $output" ;; esac
+case "$output" in *"traceability subtest citations: 9 checked"*) ;; *) fail "the subtest citations were not counted: $output" ;; esac
 printf '%s\n' '//go:build other' '' 'package demo' '' 'func TestSub() {' '	_ = "REQ-7"' '}' \
   > "$test_root/internal/demo/sub_other_test.go"
 stage internal/demo/sub_other_test.go
