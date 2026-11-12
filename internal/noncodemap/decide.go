@@ -40,6 +40,23 @@ const (
 // corvintDirectory holds Corvint's configuration (NCM-V1-006).
 const corvintDirectory = ".corvint/"
 
+// sealedChanges holds the sealed CEMs a dogfood seal moves the change
+// evidence to (ADN-V0-011).
+const sealedChanges = ".corvint/changes/"
+
+// SealedEvidence reports a sealed CEM directly under .corvint/changes/: a
+// 40- or 64-digit lowercase hexadecimal commit and `.cem.json`. It is change
+// evidence, not configuration, so it keeps the selector's evidence
+// attribution (ADN-V0-011) and gets no line (NCM-V1-006).
+func SealedEvidence(p string) bool {
+	name, sealed := strings.CutPrefix(p, sealedChanges)
+	commit, named := strings.CutSuffix(name, ".cem.json")
+	if !sealed || !named || (len(commit) != 40 && len(commit) != 64) {
+		return false
+	}
+	return !strings.ContainsFunc(commit, func(r rune) bool { return (r < '0' || r > '9') && (r < 'a' || r > 'f') })
+}
+
 // privateLedgers add no test (NCM-V1-006, AGENTS.md invariant 4).
 var privateLedgers = map[string]bool{".corvint/self-observations.jsonl": true, ".corvint/unplanned-reads.jsonl": true}
 
@@ -104,8 +121,8 @@ type Decision struct {
 
 // Decide applies the delivered rules of docs/specs/non-code-map-v1.md to
 // each changed path, in byte order, first match wins: the private ledgers;
-// the flow file and its link records; declared documentation and every other
-// path under `.corvint/`; the never-narrow list (a deleted runner
+// the flow file and its link records; declared documentation, sealed change
+// evidence (no line) and every other path under `.corvint/`; the never-narrow list (a deleted runner
 // configuration reads as a removed runner); declared documentation; and each
 // UNOWNED_DIRTY_PATH, which a proven entry narrows, a Go rule's attribution
 // keeps owned, and otherwise selects everything. Any other path keeps the
@@ -144,6 +161,9 @@ func (in Input) decidePath(p string, unowned, documentation, deleted map[string]
 	if strings.HasPrefix(p, corvintDirectory) {
 		if documentation[p] {
 			return Line{Reason: ReasonDocumentation, Path: p}, true
+		}
+		if SealedEvidence(p) {
+			return Line{}, false
 		}
 		return Line{Reason: ReasonCorvintConfig, Path: p, Full: true}, true
 	}

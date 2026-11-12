@@ -34,8 +34,8 @@ func TestRecordEntryReadersResolveToTheDirectory_AFPV2744(t *testing.T) {
 			plan.Provider.Go.State = "RUNNABLE"
 			plan.Plan.Dirty = []string{dirty}
 			if strings.HasPrefix(dirty, ".corvint/") {
-				// NCM-V1-006 (V1-5424): the selectors run everything for a
-				// sealed CEM; its attribution is still read below.
+				// NCM-V1-006: the selectors keep a sealed CEM's attribution,
+				// which is read below.
 				requireCorvintConfig(t, plan, root, dirty)
 			}
 			lines := attributionLines(plan, root, true)

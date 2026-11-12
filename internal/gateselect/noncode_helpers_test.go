@@ -4,6 +4,8 @@ package gateselect
 import (
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/noncodemap"
 )
 
 // attributionLines is selectPackages without the NCM-V1 decision: the rule
@@ -28,9 +30,22 @@ func attributionStructural(plan Receipt, root string) (string, []string) {
 }
 
 // requireCorvintConfig asserts that both selectors run everything for a
-// change under .corvint/, naming it (NCM-V1-006).
+// change under .corvint/, naming it (NCM-V1-006). A sealed CEM is change
+// evidence, not configuration: both selectors keep its attribution instead.
 func requireCorvintConfig(t *testing.T, plan Receipt, root, dirty string) {
 	t.Helper()
+	if noncodemap.SealedEvidence(dirty) {
+		structural, _ := attributionStructural(plan, root)
+		for name, want := range map[string][2]string{
+			"Select":           {lastLine(Select(plan, fixtureModule, root)), attributionVerdict(plan, root)},
+			"SelectStructural": {lastLine(SelectStructural(plan, fixtureModule, root)), structural},
+		} {
+			if want[0] != want[1] {
+				t.Fatalf("%s verdict = %q, want the attribution %q for sealed evidence (NCM-V1-006)", name, want[0], want[1])
+			}
+		}
+		return
+	}
 	want := "FALLBACK corvint-config " + dirty
 	for name, lines := range map[string][]string{
 		"Select":           Select(plan, fixtureModule, root),
@@ -40,4 +55,9 @@ func requireCorvintConfig(t *testing.T, plan Receipt, root, dirty string) {
 			t.Fatalf("%s verdict = %q, want %q (NCM-V1-006):\n%s", name, got, want, strings.Join(lines, "\n"))
 		}
 	}
+}
+
+// lastLine is a selector's verdict line.
+func lastLine(lines []string) string {
+	return lines[len(lines)-1]
 }

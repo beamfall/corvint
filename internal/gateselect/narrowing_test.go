@@ -147,8 +147,9 @@ func TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011(t *testi
 		}
 		return plan
 	}
-	// NCM-V1-006 (V1-5424): both selectors now run everything for these
-	// paths; the rest of this test covers the attribution behind them.
+	// NCM-V1-006 (V1-5424): both selectors run everything for the sidecar
+	// and keep the sealed CEM's attribution; the rest of this test covers
+	// the attribution behind them.
 	requireCorvintConfig(t, plan(sealed, ""), root, sealed)
 	requireCorvintConfig(t, plan(".corvint/change.cem.json", ""), root, ".corvint/change.cem.json")
 	whole := "run example.com/fixture/enum example.com/fixture/rooted"
