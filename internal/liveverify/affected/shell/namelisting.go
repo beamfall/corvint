@@ -377,8 +377,10 @@ func singleField(raw string) bool {
 //   - control words and redirections alone (`then`, `else`, `fi`, `done`,
 //     whose only arguments can be redirections);
 //   - `echo`, `true`, `false`, `:` or `exit` with any arguments;
-//   - `printf` whose first argument is fixed and does not begin with `-`,
-//     since bash's printf reads options only before its first operand;
+//   - `printf` whose first argument is fixed, does not begin with `-`, and
+//     holds no conversion or escape that writes a variable
+//     (printfFormatWrites), since bash's printf reads options only before
+//     its first operand;
 //   - `test`, `[` or `[[` as testArguments and conditionalArguments admit;
 //   - an operand reader (`cat`, `head`, `tail`, `wc`, `sort`, `cmp`) or a
 //     non-recursive grep with no expansion in any argument, as
@@ -412,7 +414,8 @@ func gateCommand(words []string, listed map[string]bool) bool {
 	case "", "fi", "done", "echo", "true", "false", ":", "exit":
 		return true
 	case "printf":
-		return len(args) > 0 && fixedWord(args[0]) && !strings.HasPrefix(unquote(args[0]), "-")
+		return len(args) > 0 && fixedWord(args[0]) && !strings.HasPrefix(unquote(args[0]), "-") &&
+			!printfFormatWrites(args[0])
 	case "test", "[":
 		return testArguments(word, args)
 	case "[[":
@@ -420,6 +423,36 @@ func gateCommand(words []string, listed map[string]bool) bool {
 	}
 	if operandReaders[word] || patternReaders[word] {
 		return !slices.ContainsFunc(args, expanding) && plainOperands(word, args, listed)
+	}
+	return false
+}
+
+// printfFormatWrites reports a printf format that can assign a variable.
+// Bash's printf stores the count of bytes written so far into the variable
+// its `%n` conversion names, so `printf '%n' PATH` sets PATH to 0. A numeric
+// escape (`\NNN`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`) is refused too, since
+// printf expands one inside its format before reading conversions. Quote
+// characters are dropped first, so a split spelling such as `%"n"` is caught,
+// and a conversion ending in a backslash is refused. The check is
+// conservative: it can refuse a format that writes nothing, never the reverse.
+func printfFormatWrites(raw string) bool {
+	format := strings.NewReplacer(`'`, "", `"`, "").Replace(raw)
+	for index := 0; index < len(format); index++ {
+		switch format[index] {
+		case '\\':
+			if index+1 < len(format) && strings.IndexByte("01234567xuU", format[index+1]) >= 0 {
+				return true
+			}
+			index++
+		case '%':
+			index++
+			for index < len(format) && strings.IndexByte("-+ #0123456789.*", format[index]) >= 0 {
+				index++
+			}
+			if index < len(format) && (format[index] == 'n' || format[index] == '\\') {
+				return true
+			}
+		}
 	}
 	return false
 }
