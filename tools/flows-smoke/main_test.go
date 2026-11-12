@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const (
@@ -98,7 +99,7 @@ func TestFSVV1007InstalledAlone_V15410(t *testing.T) {
 	bin, other := t.TempDir(), t.TempDir()
 	installed := filepath.Join(bin, "corvint")
 	for _, name := range []string{installed, filepath.Join(other, "git")} {
-		if err := os.WriteFile(name, nil, 0o755); err != nil {
+		if err := execfile.WriteFile(name, nil, 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -107,7 +108,7 @@ func TestFSVV1007InstalledAlone_V15410(t *testing.T) {
 		t.Fatalf("alone: %s", failure)
 	}
 	docs := filepath.Join(other, "corvint-docs")
-	if err := os.WriteFile(docs, nil, 0o755); err != nil {
+	if err := execfile.WriteFile(docs, nil, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if failure := aloneOnPath(path, installed); !strings.Contains(failure, docs) {
