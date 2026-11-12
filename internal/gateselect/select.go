@@ -40,7 +40,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/noncodemap"
 	"github.com/Beamfall/corvint/internal/taskprojection"
 )
@@ -537,10 +536,10 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 // witnesses it with a named path absent from the checkout, which it reads
 // (NCM-V1-001); a changed declaration witnesses it with the first dirty path.
 func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
-	existence := !slices.Contains(plan.Plan.Dirty, affected.ExistenceReadersPath)
+	existence := !slices.Contains(plan.Plan.Dirty, existenceReadersPath)
 	for _, selection := range plan.Plan.Selected {
 		kind := selection.Witness.Kind
-		if selection.UnitID != "" && selection.Witness.DirtyPath != "" && (attributingWitness[kind] || existence && kind == affected.WitnessDeclaredExistenceReader) {
+		if selection.UnitID != "" && selection.Witness.DirtyPath != "" && (attributingWitness[kind] || existence && kind == witnessDeclaredExistenceReader) {
 			attributed[selection.Witness.DirtyPath] = true
 		}
 	}
@@ -565,13 +564,26 @@ func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
 // dirty path, a declared existence reader whose declaration changed, and a
 // kind this list does not know, attributes none; an unchanged declaration's
 // existence reader is admitted beside this list, in unattributedPath.
+//
+// The kinds are the planner's witness strings, spelled here and pinned to
+// internal/liveverify/affected by TestAttributingWitnessMirrorsThePlanner:
+// Select stays free of the affected engine, so the frozen selector fixture of
+// tools/gate-ledger builds it alone (V1-3476).
 var attributingWitness = map[string]bool{
-	affected.WitnessPathLiteralReader: true,
-	affected.WitnessPathGlobReader:    true,
-	affected.WitnessDeclaredReadScope: true,
-	affected.WitnessEnclosingPackage:  true,
-	"DECLARED_CONSUMER":               true,
+	"PATH_LITERAL_READER": true,
+	"PATH_GLOB_READER":    true,
+	"DECLARED_READ_SCOPE": true,
+	"ENCLOSING_PACKAGE":   true,
+	"DECLARED_CONSUMER":   true,
 }
+
+// existenceReadersPath and witnessDeclaredExistenceReader are
+// affected.ExistenceReadersPath and affected.WitnessDeclaredExistenceReader
+// (AFP-V0-980), mirrored for the same reason and pinned by the same test.
+const (
+	existenceReadersPath           = ".corvint/existence-readers.json"
+	witnessDeclaredExistenceReader = "DECLARED_EXISTENCE_READER"
+)
 
 // frontierSuite records in suites the first frontier of each language
 // FrontierSuite reads (AFP-V0-2750).
