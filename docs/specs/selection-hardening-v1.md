@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-11
 Intent status: accepted (decision 0596, G14; V1-5401)
 Delivery status: experimental; partially delivered
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/selection-hardening/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/selection-hardening/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-TEST-001, PROD-TEST-002, PROD-TEST-009, PROD-TEST-014,

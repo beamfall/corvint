@@ -5,6 +5,7 @@ Date: 2026-11-11
 Requirement prefix: `DMF-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5409)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/docs-mcp-hardening/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/docs-mcp-hardening/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-DOCS-001, 003, 005, 007 and 009) and
