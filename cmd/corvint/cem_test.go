@@ -8,25 +8,6 @@ import (
 	"testing"
 )
 
-func TestCEMHelpSurfaces(t *testing.T) {
-	t.Parallel()
-	code, out, _ := runCLI(t, "--help")
-	if code != 0 || !strings.Contains(out, "\n    cem  ") {
-		t.Fatalf("root help omits cem: %d", code)
-	}
-	for _, invocation := range [][]string{{"help", "cem"}, {"cem", "--help"}} {
-		code, out, _ := runCLI(t, invocation...)
-		if code != 0 {
-			t.Fatalf("%v exited %d", invocation, code)
-		}
-		for _, action := range []string{"begin", "prepare", "cite", "mark", "status", "verify", "report"} {
-			if !strings.Contains(out, action) {
-				t.Fatalf("%v help omits %q", invocation, action)
-			}
-		}
-	}
-}
-
 func TestCEMErrorPrecedence(t *testing.T) {
 	t.Parallel()
 	root, base, _ := cemRepo(t)

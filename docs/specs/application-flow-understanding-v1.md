@@ -53,9 +53,9 @@ At `978b37b`:
   (`internal/extevidence/selection.go:823-836@bae209bb`). It proves nothing about the tests it did
   not select, and says so (`internal/extevidence/selection.go:38@a0a072cd`).
 - The Playwright reader derives `flaky` from every attempt's status
-  (`internal/jstestprovider/playwright.go:261-268@f01509c4`). Since S2 it keeps every attempt's
+  (`internal/jstestprovider/playwright.go:262-269@f01509c4`). Since S2 it keeps every attempt's
   duration, failure message, anchor and attachments in memory
-  (`internal/jstestprovider/playwright.go:176-178@9ab61026`). The unprofiled receipt carries them
+  (`internal/jstestprovider/playwright.go:177-179@9ab61026`). The unprofiled receipt carries them
   as `attemptDetails` (`internal/jstestprovider/receipt.go`). The shared hygiene scrubs each
   attempt. The external reporter emits the same complete inventory only under the separate `/3`
   profile (`internal/jstestprovider/attempt_details.go`); earlier profiles continue to refuse it.
@@ -682,7 +682,7 @@ through Git; `--page`, `--claims`, `--docs-root` and `--waivers` are canonical r
 paths, and `--page` and `--claims` differ.
 
 - `corvint [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR]
-  [--evidence FILE]...` renders the fixed template and writes the page and then the sidecar, each
+  [--waivers FILE] [--evidence FILE]...` renders the fixed template and writes the page and then the sidecar, each
   through an exclusively created temporary file in the target's directory and a rename; an existing
   non-regular target or a non-directory parent is refused. It prints the two written paths. An
   `invalid-anchor` or `unknown-anchor` under `--docs-root` refuses the render.
@@ -697,11 +697,14 @@ paths, and `--page` and `--claims` differ.
   link, and every declared link from those members is `reviewed`; else `UNPROVEN`.
 - `flow-doc-claims/0`: `schema`, `page` and `claims` sorted by `id`, each with `id`, `source`,
   `flow`, `variation`, `outcome`, `evidence` (the required `test_key` and optional `project` pairs,
-  never run IDs) and `state`.
+  never run IDs) and `state`. A claim an unexpired waiver names while its state is not `PROVEN`
+  also carries `waived_until` (the expiry) and `mark` (`WAIVED until DATE (now STATE)`), and its
+  page line is prefixed with that mark in bold instead of the bare state (DMF-V1-001).
 - `flow-doc-waivers/0`: `schema` and `waivers`, each with a unique `claim` ID, `reason`, `reviewer`
   and `expires` (`YYYY-MM-DD`). A waiver is unexpired while the current UTC date is before
   `expires`; on that date it has expired. The file is closed-schema and a malformed file refuses the
-  check.
+  check and the render, naming the file and line. Generation and `--check` read the same committed
+  file, so a regenerated page and a checked page agree (DMF-V1-001).
 - `flows docs --check ... [--waivers FILE]` writes nothing to the repository and prints
   `flow-doc-check/0`: `schema`, `revision`, `status` (`pass` or `fail`), `failures` (`code`,
   optional `claim`, `path` and `line`, and `detail`), `waived` (claim IDs) and, with `--docs-root`,
@@ -709,9 +712,20 @@ paths, and `--page` and `--claims` differ.
   (Markdown documents under the docs root, the page excluded), `revision`, `rule`, `limitation` and
   `paths`. A `.md` entry that is not a regular file, such as a symlink or a submodule, is not read and
   counts as unanchored. The failure codes are `claim-lost-proven`, `rendered-bytes-differ` (for an absent file
-  too), `unknown-anchor` and `invalid-anchor`. A committed claim whose state changed, or which is no
-  longer rendered, is waived by an unexpired entry naming its ID, and its committed form is then
-  used for the byte comparison. A failing check exits 2 with `flow-docs-check-failed`.
+  too), `unknown-anchor` and `invalid-anchor`. A committed `PROVEN` claim that is no longer `PROVEN`,
+  or is no longer rendered, is excused from `claim-lost-proven` by an unexpired entry naming its ID;
+  the byte comparison always uses the regenerated form, with waived claims in their `WAIVED` form,
+  never the committed form (DMF-V1-001, superseding the earlier keep-committed rule).
+  `expired_waivers` (present when non-empty) lists each expired waiver, `claim` and `expires`, whose
+  claim the check found. `worktree` (DMF-V1-005) is `{"state":"clean"}`, or `dirty` with `changed`
+  (the count of tracked paths under the intents directory, page, sidecar, docs root, registry or
+  waivers file that differ from HEAD) and the first five `paths`, or `unknown` with a `reason`; the
+  check still answers only about HEAD. On a `rendered-bytes-differ` failure, `byte_detail`
+  (DMF-V1-006) carries `differs` (`page`, `sidecar` or `both`), `claims_state` (`KNOWN`, or `UNKNOWN`
+  with a `reason` when the committed sidecar is missing or unreadable), `claims` (each `claim`,
+  `change` of `added`, `removed`, `state` or `detail`, and `old` and `new` states, `ABSENT` for a
+  missing side) and `regenerate`, the `flows docs` command with the same inputs; the bytes stay the
+  authority. A failing check exits 2 with `flow-docs-check-failed`.
 
 ### MCP companion surface
 
@@ -1082,8 +1096,15 @@ accepted variation, or a replacement for independent application/browser qualifi
   rederived byte for byte, so check, finalize and `generate --previous`
   refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
   once with the current binary
-  (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Optional byte checking compares the original rendered directory,
-  including missing/extra/changed files, without writing anything. Exit 1 means drift; exit 2 refusal.
+  (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Byte checking compares the original rendered directory,
+  including missing/extra/changed files, without writing anything. `docs flows generate` records an
+  output directory inside `--root` as the manifest's repository-relative `output_dir` (absent for an
+  output outside the root, so older manifests rederive unchanged), and check compares `--output-dir`,
+  else that recorded directory. The report's `output` is `CHECKED`, or `NOT_CHECKED` with
+  `output_reason` `no-output-dir` or `missing-dir`, and a `NOT_CHECKED` check is never `clean`; it
+  names the compared `output_dir` (DMF-V1-007, superseding optional byte checking). The report's `worktree` member
+  (DMF-V1-005) says whether tracked paths under the scope or the compared output directory differ
+  from HEAD, with the same shape as `flow-doc-check/0`. Exit 1 means drift; exit 2 refusal.
 - **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and
   exclusively creates confined files. Refuse human-file overwrite, symlinks, malformed paths and
   bounds above 256 flows (refused with the typed code of AFU-V1-125), 2,048 Markdown pages plus two metadata files, 64 MiB rendered payload and

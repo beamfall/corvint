@@ -8,6 +8,8 @@ import (
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testinventory"
 )
 
 // affectedVerdictProfile names the `affected --summary` document
@@ -38,6 +40,12 @@ type affectedVerdict struct {
 	// E2E names the plan's E2E selections when the plan carries plan.e2e
 	// (APK-V0-9970, V1-5254); absent otherwise, so the verdict is unchanged.
 	E2E *affectedVerdictE2E `json:"e2e,omitempty"`
+
+	// Inventory is the committed test inventory judged against the planned
+	// tree (TIV-V1-006 to TIV-V1-009): each declared runner instance with
+	// its reason when it runs in full, and its unassigned test files. It is
+	// read only; it never narrows the selection.
+	Inventory *testinventory.Verdict `json:"inventory,omitempty"`
 }
 
 // affectedVerdictE2E is plan.e2e reduced to what a lane runs: the scope, the
@@ -104,18 +112,23 @@ type affectedVerdictRange struct {
 }
 
 // affectedVerdictTiers is the AFP-V0-162 ranking reduced to its counts and
-// the names of the tier-0 and tier-1 units, each sorted.
+// the names of the tier-0 and tier-1 units, each sorted. TestIDs maps each
+// of those units that names a canonical test ID to it (CTI-V1-009), derived
+// as the corvint-test-run/0 receipt derives its testId, so the plan, the
+// receipt and the MCP result name a selection by the same string; it is
+// absent when no listed unit names one.
 type affectedVerdictTiers struct {
-	Counts  [3]int   `json:"counts"`
-	Summary string   `json:"summary"`
-	Tier0   []string `json:"tier0"`
-	Tier1   []string `json:"tier1"`
+	Counts  [3]int            `json:"counts"`
+	Summary string            `json:"summary"`
+	TestIDs map[string]string `json:"testIds,omitempty"`
+	Tier0   []string          `json:"tier0"`
+	Tier1   []string          `json:"tier1"`
 }
 
 // affectedVerdictDetail tells a reader where the plan's detail is.
 const affectedVerdictDetail = "rerun without --summary for the affected-plan/1 plan (witnesses, unknown details, advice), or with --full for every exclusion and test file"
 
-func affectedVerdictOf(receipt affectedCompactReceipt) affectedVerdict {
+func affectedVerdictOf(receipt affectedCompactReceipt, goDir func(string) (string, bool)) affectedVerdict {
 	tiers := affectedVerdictTiers{Summary: fmt.Sprintf(affectedTierSummary, 0, 0, 0), Tier0: []string{}, Tier1: []string{}}
 	if receipt.Tiers != nil {
 		tiers.Counts = receipt.Tiers.Counts
@@ -130,6 +143,14 @@ func affectedVerdictOf(receipt affectedCompactReceipt) affectedVerdict {
 		}
 		sort.Strings(tiers.Tier0)
 		sort.Strings(tiers.Tier1)
+		for _, unit := range append(append([]string{}, tiers.Tier0...), tiers.Tier1...) {
+			if id := sessiontest.UnitTestID(unit, goDir); id != "" {
+				if tiers.TestIDs == nil {
+					tiers.TestIDs = map[string]string{}
+				}
+				tiers.TestIDs[unit] = id
+			}
+		}
 	}
 	return affectedVerdict{
 		Degradations: receipt.Degradations,
@@ -170,8 +191,18 @@ func renderAffectedVerdictText(verdict affectedVerdict) string {
 	for _, unit := range verdict.Tiers.Tier1 {
 		fmt.Fprintf(&out, "tier1 %s\n", textWord(unit))
 	}
+	if verdict.Inventory != nil {
+		fmt.Fprintf(&out, "inventory %s\n", inventoryVerdictLine(*verdict.Inventory))
+		for _, instance := range verdict.Inventory.Instances {
+			if instance.Full {
+				fmt.Fprintf(&out, "inventory %s full %s\n", textWord(instance.Key), instance.Reason)
+			} else if len(instance.Unassigned) != 0 {
+				fmt.Fprintf(&out, "inventory %s unassigned %d\n", textWord(instance.Key), len(instance.Unassigned))
+			}
+		}
+	}
 	if e2e := verdict.E2E; e2e != nil {
-		// APK-V0-9970: the E2E selections after the tier lines.
+		// APK-V0-9970: the E2E selections after the tier and inventory lines.
 		fmt.Fprintf(&out, "e2e-scope %s inventory=%d selected=%d\n", textWord(e2e.Scope), e2e.Inventory, len(e2e.Selected))
 		for _, pair := range e2e.Variations {
 			fmt.Fprintf(&out, "e2e-variation %s %s\n", textWord(pair.Flow), textWord(pair.Variation))
@@ -190,14 +221,17 @@ func renderAffectedVerdictText(verdict affectedVerdict) string {
 	return out.String()
 }
 
-// writeAffectedVerdict writes the --summary document for a compact receipt.
-func writeAffectedVerdict(receipt any, format string, stdout, stderr io.Writer) int {
+// writeAffectedVerdict writes the --summary document for a compact receipt;
+// root's go.mod resolves the canonical test IDs of its Go units, and
+// inventory is the test inventory judged against the planned tree.
+func writeAffectedVerdict(receipt any, root, format string, inventory testinventory.Verdict, stdout, stderr io.Writer) int {
 	compact, ok := receipt.(affectedCompactReceipt)
 	if !ok {
 		emitError(stderr, argumentError("--summary has no verdict for this receipt"))
 		return 2
 	}
-	verdict := affectedVerdictOf(compact)
+	verdict := affectedVerdictOf(compact, sessiontest.GoUnitDir(root))
+	verdict.Inventory = &inventory
 	var err error
 	if format == "text" {
 		_, err = io.WriteString(stdout, renderAffectedVerdictText(verdict))

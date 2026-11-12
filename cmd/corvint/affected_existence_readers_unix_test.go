@@ -16,15 +16,18 @@ import (
 // AFP-V0-980 (V1-3772): deleting a file a docs/specs/INDEX.json-style manifest
 // names selects the declared existence reader in `corvint affected`, in the
 // gate selector the CI driver runs on that receipt, and in the shadow
-// `corvint test --dry-run` plan. Before the change all three omitted it.
+// `corvint test --dry-run` plan. Before the change all three omitted it. The
+// deleted file is declared documentation, as this repository declares its
+// skills: an unowned path would run every test (RNC-V1-004).
 func TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980(t *testing.T) {
 	root, _, log := sessionFixture(t, "pass")
 	for name, body := range map[string]string{
-		"index/index.go":                  "package index\n",
-		"index/index_test.go":             "package index\n\nimport \"testing\"\n\nfunc TestPaths(t *testing.T) {}\n",
-		"specs/INDEX.json":                `[{"implementation":["skills/x/SKILL.md"]}]`,
-		"skills/x/SKILL.md":               "skill\n",
-		".corvint/existence-readers.json": `{"profile":"corvint-existence-readers/0","entries":[{"package":"index","manifests":["specs/INDEX.json"],"reason":"stats implementation paths"}]}`,
+		"index/index.go":                    "package index\n",
+		"index/index_test.go":               "package index\n\nimport \"testing\"\n\nfunc TestPaths(t *testing.T) {}\n",
+		"specs/INDEX.json":                  `[{"implementation":["skills/x/SKILL.md"]}]`,
+		"skills/x/SKILL.md":                 "skill\n",
+		".corvint/existence-readers.json":   `{"profile":"corvint-existence-readers/0","entries":[{"package":"index","manifests":["specs/INDEX.json"],"reason":"stats implementation paths"}]}`,
+		".corvint/documentation-paths.json": `{"profile":"corvint-documentation-paths/0","paths":["skills/"]}`,
 	} {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
 			t.Fatal(err)

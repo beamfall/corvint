@@ -48,10 +48,14 @@ func (group Docs) Call(ctx context.Context, name string, arguments map[string]an
 	structured, text, toolFailure, transportErr := group.Registry.Call(ctx, name, raw)
 	var transport, tool *Coded
 	if transportErr != nil {
-		transport = &Coded{transportErr.Code, transportErr.Code}
+		// DMF-V1-010: a failed corvint-docs process keeps its last stderr line.
+		transport = &Coded{Code: transportErr.Code, Message: transportErr.Code}
+		if transportErr.Message != "" {
+			transport.Message, transport.Next = transportErr.Message, transportErr.Next
+		}
 	}
 	if toolFailure != nil {
-		tool = &Coded{toolFailure.Code, toolFailure.Message}
+		tool = &Coded{Code: toolFailure.Code, Message: toolFailure.Message}
 	}
 	// docs_draft's Markdown and docs_consume's echoed draft reach a model
 	// only through this text block, so it alone is framed by the AHI-004
@@ -60,21 +64,24 @@ func (group Docs) Call(ctx context.Context, name string, arguments map[string]an
 }
 
 // Coded is one coded failure a bridge call reports: a transport error (Code
-// doubles as its message) or a business refusal with its own message.
-type Coded struct{ Code, Message string }
+// doubles as its message unless the bridge kept one, such as a child's last
+// stderr line) or a business refusal with its own message; Next is an optional
+// next step the bridge knows (DMF-V1-010).
+type Coded struct{ Code, Message, Next string }
 
 // Answer maps one bridge call: invalid arguments and unknown tools are invalid
-// params, cancellation is an internal error, other transport failures and
-// business refusals are tool errors, and success frames the text block.
+// params, cancellation is the cancelled tool error (DMF-V1-010), other transport
+// failures and business refusals are tool errors, and success frames the text
+// block.
 func Answer(ctx context.Context, profile, name string, structured map[string]any, text string, transport, tool *Coded) (map[string]any, *protocol.RPCError) {
 	if transport != nil {
 		if transport.Code == "invalid-arguments" || transport.Code == "unsupported-tool" {
 			return nil, protocol.InvalidParams("Invalid params")
 		}
-		if transport.Code == "cancelled" || ctx.Err() != nil {
-			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+		if transport.Code == CancelledCode || ctx.Err() != nil {
+			return Cancelled(profile, name)
 		}
-		return Failure(profile, name, transport.Code, transport.Message)
+		return FailureNext(profile, name, transport.Code, transport.Message, transport.Next)
 	}
 	if tool != nil {
 		return Failure(profile, name, tool.Code, tool.Message)
@@ -91,17 +98,32 @@ func Answer(ctx context.Context, profile, name string, structured map[string]any
 }
 
 // Failure is the closed tool-error result of the named profile. It always
-// sets isError: true; a refusal is never reported as success.
+// sets isError: true; a refusal is never reported as success. It carries
+// code, the old error member, and the DMF-V1-010 message, retryable and next.
 func Failure(profile, name, code, message string) (map[string]any, *protocol.RPCError) {
-	return FailureResult(map[string]any{
+	return FailureNext(profile, name, code, message, "")
+}
+
+// FailureNext is Failure with a next step the caller knows, which replaces the
+// code's default (DMF-V1-010).
+func FailureNext(profile, name, code, message, next string) (map[string]any, *protocol.RPCError) {
+	value := map[string]any{
 		"abstention": map[string]any{"active": true, "reason": "OPERATION_FAILED"},
 		"code":       code, "error": message, "mutates": false, "profile": profile, "tool": name,
-	})
+	}
+	if next != "" {
+		value["next"] = next
+	}
+	return FailureResult(value)
 }
 
 // FailureResult is the isError result carrying value as both the text block
 // and the structured content; a group with its own error object builds it here.
+// An object with a code gains message, retryable and next (DMF-V1-010).
 func FailureResult(value map[string]any) (map[string]any, *protocol.RPCError) {
+	if _, coded := value["code"].(string); coded {
+		value = Describe(value)
+	}
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
@@ -124,8 +146,8 @@ func Help(ctx context.Context, name string, raw []byte, fail func(name, code, me
 	if err.Code == "invalid-arguments" {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
-	if err.Code == "cancelled" || ctx.Err() != nil {
-		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	if err.Code == CancelledCode || ctx.Err() != nil {
+		return fail(name, CancelledCode, errorDetails[CancelledCode].message) // DMF-V1-010
 	}
 	return fail(name, err.Code, err.Code)
 }

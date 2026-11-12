@@ -107,6 +107,32 @@ CIN-V0-8720 tests, takes the two steps' scripts from `ci.yml` and runs them in a
 The `awk` reader is also run on the repository's own `Makefile` and compared with
 `ReadSteps` / `DOC_GATE_TARGETS` as `make` expands it, so the reader cannot drift silently.
 
+## Failure modes
+
+- The base does not build its selector (D3): FULL over both lists, named in the summary; never the
+  candidate's selector.
+- The base-built planner reports `self-binary-stale` on the candidate tree: a named degradation,
+  as for CIN-V0-8722; any other degradation is FULL.
+- A step or gate renamed in one change reads as removed plus added: FULL with a reason for the
+  shell steps (D2), both names visible for the gates (D4).
+- A candidate that redefines a gate's recipe to do nothing is an edit of the gate itself and is not
+  caught here (open question 2).
+
+## Acceptance evidence
+
+- The CIN-V0-8727 extract-and-run test (D5): an edited selector, a dropped `shell-test:` step, a
+  dropped `DOC_GATE_TARGETS` gate, a deleted step and an unbuildable base, each failing on the
+  current workflow and passing on the new one; run in `go-static`.
+- The `awk` reader compared with `ReadSteps` and the expanded `DOC_GATE_TARGETS` on the
+  repository's own `Makefile`.
+- One hosted pull-request run naming the base-built selector, `NOT_RUN` until merged.
+
+## Rollback
+
+Revert the `ci.yml` steps and the test: `shell-test-selected` again runs
+`make shell-test-affected` from the candidate and `doc-gates` runs only the candidate list. No
+state migrates.
+
 ## Landing
 
 The change touches `.github/workflows/ci.yml` and adds a test under `.github/forward-rows/`, so it

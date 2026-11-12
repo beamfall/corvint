@@ -40,9 +40,6 @@ type pyLine struct {
 	tokens []pyToken
 }
 
-func (line pyLine) start() int { return line.tokens[0].start }
-func (line pyLine) end() int   { return line.tokens[len(line.tokens)-1].end }
-
 // tokenizePython produces the logical lines of one UTF-8 Python blob. It is a
 // bounded lexical scan, not a parser: everything TCQ needs from Python 3.9
 // source (function boundaries, docstring spans, statement shape) is decidable

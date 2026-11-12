@@ -3,6 +3,7 @@ package appflows
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -50,26 +51,28 @@ func TestAFUV1031ClaimStateOrder(t *testing.T) {
 	}
 }
 
-// AFU-V1-032: a waiver holds strictly before its expiry date and only for the claim it names.
+// AFU-V1-032 DMF-V1-001: a waiver holds strictly before its expiry date and only for the claim it
+// names; it excuses a lost PROVEN but never restores the committed form.
 func TestAFUV1032WaiverExpiryBoundary(t *testing.T) {
 	committed := []DocClaim{{ID: "f/v/o", Source: "docs/flows.md", State: ClaimProven, Evidence: []DocEvidence{{TestKey: "k"}}}}
 	regenerated := []DocClaim{{ID: "f/v/o", Source: "docs/flows.md", State: ClaimStale, Evidence: []DocEvidence{{TestKey: "k"}}}}
 	waiver := []DocWaiver{{Claim: "f/v/o", Reason: "fixture outage", Reviewer: "owner", Expires: "2026-09-25"}}
-	effective, failures, waived := applyWaivers(regenerated, committed, waiver, "2026-09-24")
-	if len(failures) != 0 || len(waived) != 1 || effective[0].State != ClaimProven {
-		t.Fatalf("unexpired waiver: %v %v %v", effective, failures, waived)
+	failures, expired := lostClaims(regenerated, committed, waiver, "2026-09-24")
+	if len(failures) != 0 || len(expired) != 0 {
+		t.Fatalf("unexpired waiver: %v %v", failures, expired)
 	}
 	for _, today := range []string{"2026-09-25", "2027-01-01"} {
-		_, failures, waived = applyWaivers(regenerated, committed, waiver, today)
-		if len(failures) != 1 || failures[0].Code != DocLostProven || !strings.Contains(failures[0].Detail, "expired on 2026-09-25") || len(waived) != 0 {
-			t.Fatalf("expired waiver on %s: %v %v", today, failures, waived)
+		failures, expired = lostClaims(regenerated, committed, waiver, today)
+		if len(failures) != 1 || failures[0].Code != DocLostProven || !strings.Contains(failures[0].Detail, "expired on 2026-09-25") ||
+			len(expired) != 1 || expired[0] != (DocExpiredWaiver{Claim: "f/v/o", Expires: "2026-09-25"}) {
+			t.Fatalf("expired waiver on %s: %v %v", today, failures, expired)
 		}
 	}
 	other := []DocWaiver{{Claim: "f/v/p", Reason: "r", Reviewer: "owner", Expires: "2099-01-01"}}
-	if _, failures, _ = applyWaivers(regenerated, committed, other, "2026-09-24"); len(failures) != 1 {
+	if failures, _ = lostClaims(regenerated, committed, other, "2026-09-24"); len(failures) != 1 {
 		t.Fatalf("a waiver for another claim excused this one: %v", failures)
 	}
-	if _, failures, _ = applyWaivers([]DocClaim{}, committed, nil, "2026-09-24"); len(failures) != 1 || !strings.Contains(failures[0].Detail, "no longer rendered") {
+	if failures, _ = lostClaims([]DocClaim{}, committed, nil, "2026-09-24"); len(failures) != 1 || !strings.Contains(failures[0].Detail, "no longer rendered") {
 		t.Fatalf("a removed PROVEN claim passed: %v", failures)
 	}
 	for _, bad := range []DocWaivers{
@@ -79,9 +82,55 @@ func TestAFUV1032WaiverExpiryBoundary(t *testing.T) {
 		{Schema: DocWaiversSchema, Waivers: []DocWaiver{{Claim: "c", Reason: "r", Reviewer: "", Expires: "2026-09-01"}}},
 		{Schema: DocWaiversSchema, Waivers: []DocWaiver{{Claim: "c", Reason: "r", Reviewer: "x", Expires: "2026-09-01"}, {Claim: "c", Reason: "r", Reviewer: "x", Expires: "2026-09-02"}}},
 	} {
-		if validateWaivers(bad) == nil {
+		if _, err := validateWaivers(bad); err == nil {
 			t.Errorf("invalid waivers accepted: %+v", bad)
 		}
+	}
+}
+
+// DMF-V1-001: an unexpired waiver marks a claim that is not PROVEN with its expiry and current
+// state; a PROVEN claim stays unmarked, an expired waiver never marks and is named, and the page
+// prints the mark instead of the bare state.
+func TestDMFV1001WaiverMarks(t *testing.T) {
+	claims := []DocClaim{
+		{ID: "f/v/a", State: ClaimContradicted}, {ID: "f/v/b", State: ClaimProven},
+		{ID: "f/v/c", State: ClaimStale}, {ID: "f/v/d", State: ClaimUnproven},
+	}
+	waivers := []DocWaiver{
+		{Claim: "f/v/a", Expires: "2026-12-31"}, {Claim: "f/v/b", Expires: "2026-12-31"},
+		{Claim: "f/v/c", Expires: "2026-11-10"},
+	}
+	waived, expired := markWaived(claims, waivers, "2026-11-11")
+	if !slices.Equal(waived, []string{"f/v/a"}) || len(expired) != 1 || expired[0] != (DocExpiredWaiver{Claim: "f/v/c", Expires: "2026-11-10"}) {
+		t.Fatalf("waived %v expired %v", waived, expired)
+	}
+	if claims[0].Mark != "WAIVED until 2026-12-31 (now CONTRADICTED)" || claims[0].WaivedUntil != "2026-12-31" || claims[0].State != ClaimContradicted {
+		t.Fatalf("waived claim %+v", claims[0])
+	}
+	for _, c := range claims[1:] {
+		if c.Mark != "" || c.WaivedUntil != "" {
+			t.Fatalf("unwaived claim marked %+v", c)
+		}
+	}
+	marks := claimMarks(claims)
+	if marks["f/v/a"] != "**WAIVED until 2026-12-31 (now CONTRADICTED):** " || marks["f/v/b"] != "" || marks["f/v/c"] != "**STALE:** " {
+		t.Fatalf("marks %q", marks)
+	}
+}
+
+// DMF-V1-001: a waivers file that does not parse or validate names the file and the line.
+func TestDMFV1001WaiverErrorLine(t *testing.T) {
+	raw := []byte("{\n  \"schema\": \"flow-doc-waivers/0\",\n  \"waivers\": [\n    {\"claim\": \"a\", \"reason\": \"r\", \"reviewer\": \"x\", \"expires\": \"2026-12-31\"},\n    {\"claim\": \"b\", \"reason\": \"r\", \"reviewer\": \"x\", \"expires\": \"soon\"}\n  ]\n}\n")
+	var w DocWaivers
+	if err := Decode(raw, &w); err != nil {
+		t.Fatal(err)
+	}
+	i, err := validateWaivers(w)
+	if err == nil || i != 1 || waiverEntryLine(raw, i) != 5 {
+		t.Fatalf("entry %d line %d: %v", i, waiverEntryLine(raw, i), err)
+	}
+	if line := jsonErrorLine([]byte("{\n  \"schema\": \"x\",\n  \"waivers\": [,]\n}\n")); line != 3 {
+		t.Fatalf("syntax error line %d", line)
 	}
 }
 

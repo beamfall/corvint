@@ -14,8 +14,10 @@ import (
 // AFP-V0-9010 / AFP-V0-2200: an environment source must resolve to the
 // unshadowed standard os import. Spelling and unknown producers prove nothing.
 func TestReaderEnvironmentIdentity_AFP_V0_9010(t *testing.T) {
+	// The custom Environ returns a literal list: one that returned the real
+	// environment would itself be a rule (d) read (AFP-V0-3661).
 	const custom = `type environment struct{}
-func (environment) Environ() []string { return append(realos.Environ(), "\x47OFLAGS=-json") }
+func (environment) Environ() []string { return []string{"\x47OFLAGS=-json"} }
 `
 	for _, test := range []struct {
 		name, imports, helper, setup, env string

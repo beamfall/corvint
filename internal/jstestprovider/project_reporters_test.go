@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testsupport"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -19,9 +20,9 @@ import (
 func keptFixture(t *testing.T) Receipt {
 	t.Helper()
 	r := qualifiedFixture(t)
-	r.External.ConfigOverride = "controlled-fixture-config" + keptConfigSuffix
+	r.External.ConfigOverride = "controlled-fixture-config" + jstestreceipt.KeptConfigSuffix
 	r.Identity.ConfigInputDigests["/repo/project-reporter.cjs"] = strings.Repeat("b", 64)
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	if err := bindProjectReporters(&r, []reportedProjectReporter{
 		{Name: "list", Options: "absent"},
 		{Name: "/repo/project-reporter.cjs", Options: "bound", OptionsDigest: strings.Repeat("c", 64)},
@@ -46,12 +47,12 @@ func TestExternalCommandDefaultConfigUnchanged(t *testing.T) {
 	if config != want {
 		t.Fatalf("default controlled config drifted:\n%s", config)
 	}
-	if keptConfig(config) {
+	if jstestreceipt.KeptConfig(config) {
 		t.Fatal("default config classified as keep-reporters")
 	}
 	cfg.KeepReporters = true
 	kept, _, _, err := externalCommand(cfg, scratch)
-	if err != nil || !keptConfig(kept) {
+	if err != nil || !jstestreceipt.KeptConfig(kept) {
 		t.Fatalf("keep config not recognised: %v\n%s", err, kept)
 	}
 }
@@ -110,7 +111,7 @@ func TestKeptReporterListResolution(t *testing.T) {
 			}
 			out, err := evaluateReporters(t, controlled)
 			if test.invalid {
-				if err == nil || !strings.Contains(out, projectReportersInvalid) {
+				if err == nil || !strings.Contains(out, jstestreceipt.ProjectReportersInvalid) {
 					t.Fatalf("invalid reporter value accepted: %v %s", err, out)
 				}
 				return
@@ -153,7 +154,7 @@ func TestKeptProjectReporterRunsBesideProvider(t *testing.T) {
 	}
 	node := testsupport.NodeOrSkip(t, "the kept project reporter test")
 	runner := filepath.Join(t.TempDir(), "runner.cjs")
-	builtins, _ := json.Marshal(builtinPlaywrightReporters)
+	builtins, _ := json.Marshal(jstestreceipt.BuiltinPlaywrightReporters)
 	if err := os.WriteFile(runner, []byte("const config = require(process.argv[2]); const builtin = "+string(builtins)+";\nconst reporters = config.reporter.filter(([name]) => !builtin.includes(name)).map(([name, options]) => new (require(name))(options || {}));\nfor (const r of reporters) r.onBegin({workers: 1, version: '1.60.0', reporter: config.reporter}, {allTests: () => []});\nfor (const r of reporters) r.onEnd({status: 'passed'});\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +198,7 @@ func TestKeptProjectReporterRunsBesideProvider(t *testing.T) {
 		r.External.ConfigOverride = config
 		r.Identity.ConfigInputDigests = report.ConfigFiles
 		r.Identity.ConfigInputDigests[r.Identity.ConfigFile] = r.Identity.ConfigDigest
-		r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+		r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 		if err := bindProjectReporters(&r, report.ProjectReporters); err != nil {
 			t.Fatal(err)
 		}
@@ -265,7 +266,7 @@ func TestProjectReportersBindingShape(t *testing.T) {
 		"absent-with-digest":     func(r *Receipt) { r.External.ProjectReporters.Entries[0].OptionsDigest = strings.Repeat("c", 64) },
 		"invented-options-state": func(r *Receipt) { r.External.ProjectReporters.Entries[0].Options = "none" },
 		"too-many-entries": func(r *Receipt) {
-			for len(r.External.ProjectReporters.Entries) <= maxProjectReporters {
+			for len(r.External.ProjectReporters.Entries) <= jstestreceipt.MaxProjectReporters {
 				r.External.ProjectReporters.Entries = append(r.External.ProjectReporters.Entries, ProjectReporter{Name: "dot", Module: "builtin", Options: "absent"})
 			}
 		},
@@ -276,7 +277,7 @@ func TestProjectReportersBindingShape(t *testing.T) {
 			if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 				t.Fatal("malformed binding projected passing")
 			}
-			if _, err := EncodeQualified(r); err == nil || !strings.Contains(err.Error(), projectReportersInvalid) {
+			if _, err := EncodeQualified(r); err == nil || !strings.Contains(err.Error(), jstestreceipt.ProjectReportersInvalid) {
 				t.Fatalf("malformed binding encoded: %v", err)
 			}
 		})

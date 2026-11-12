@@ -23,6 +23,7 @@ import (
 type docsMaintainOptions struct {
 	root, page, source, pkg string
 	enable, apply, watch    bool
+	check                   bool
 	maxWrites               int
 	maxWallClock            time.Duration
 }
@@ -44,13 +45,16 @@ func parseDocsMaintainInvocation(arguments []string) (docsMaintainOptions, bool,
 	previewOrApplySeen := false
 	for index := position + 2; index < len(arguments); index++ {
 		flag, value, inline := strings.Cut(arguments[index], "=")
-		if flag == "--enable" || flag == "--preview" || flag == "--apply" || flag == "--watch" {
+		if flag == "--enable" || flag == "--preview" || flag == "--apply" || flag == "--watch" || flag == "--check" {
 			if inline || seen[flag] {
 				return options, true, argumentError("duplicate or valued docs maintain boolean: " + flag)
 			}
 			seen[flag] = true
 		}
 		switch flag {
+		case "--check":
+			options.check = true
+			continue
 		case "--watch":
 			options.watch = true
 			continue
@@ -98,6 +102,18 @@ func parseDocsMaintainInvocation(arguments []string) (docsMaintainOptions, bool,
 			options.maxWallClock = duration
 		}
 	}
+	if options.check {
+		// DMF-V1-003: a read-only check needs no --enable and takes no session flags.
+		if previewOrApplySeen || options.watch || options.enable || seen["--max-writes"] || seen["--max-wall-clock"] {
+			return options, true, argumentError("docs maintain --check takes only --page and an optional --source with --package")
+		}
+		if options.page == "" || (options.source == "") != (options.pkg == "") {
+			return options, true, argumentError("docs maintain --check requires --page, and --source with --package to check one block")
+		}
+		root, err := resolveExplicitRoot(options.root)
+		options.root = root
+		return options, true, err
+	}
 	if options.page == "" || options.source == "" || options.pkg == "" {
 		return options, true, argumentError("docs maintain requires --page, --source and --package")
 	}
@@ -127,6 +143,9 @@ func runDocsMaintain(ctx context.Context, options docsMaintainOptions, stdout, s
 		MaxWrites: options.maxWrites, MaxWallClock: options.maxWallClock,
 	}
 	selectors := []docmaintain.Selector{{Source: options.source, Package: options.pkg}}
+	if options.check {
+		return runDocsMaintainCheck(ctx, options, stdout, stderr)
+	}
 	if options.watch {
 		return runDocsWatch(ctx, options, policy, stdout, stderr)
 	}
@@ -154,6 +173,46 @@ func runDocsMaintain(ctx context.Context, options docsMaintainOptions, stdout, s
 		return 2
 	}
 	return 0
+}
+
+// docsMaintainStale is the error code of a `docs maintain --check` that found a stale block.
+const docsMaintainStale = "docs-maintain-stale"
+
+// runDocsMaintainCheck prints the corvint-docmaintain-check/0 report and exits 1 when any selected
+// block is stale, 0 when none is, and 2 when the check cannot run (DMF-V1-003). It writes nothing.
+func runDocsMaintainCheck(ctx context.Context, options docsMaintainOptions, stdout, stderr io.Writer) int {
+	page := docmaintain.CheckPage{Page: options.page}
+	if options.source != "" {
+		page.Selectors = []docmaintain.Selector{{Source: options.source, Package: options.pkg}}
+	}
+	report, err := docmaintain.Check(ctx, options.root, []docmaintain.CheckPage{page})
+	if err != nil {
+		code, message := "internal-error", err.Error()
+		if refusal, ok := err.(*docmaintain.Refusal); ok {
+			code, message = refusal.Code, cmp.Or(refusal.Message, message)
+		}
+		emitError(stderr, &gokernel.Error{Code: code, Message: message})
+		return 2
+	}
+	encoded, err := gokernel.CanonicalJSON(map[string]any{"profile": "corvint-docmaintain-check/0", "commit": report.Commit, "blocks": report.Blocks, "stale": report.Stale, "worktree": report.Worktree})
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: "internal-error", Message: "could not encode the maintenance check"})
+		return 2
+	}
+	if _, err = fmt.Fprintf(stdout, "%s\n", encoded); err != nil {
+		return 2
+	}
+	if report.Stale == 0 {
+		return 0
+	}
+	names := []string{}
+	for _, b := range report.Blocks {
+		if b.State != docmaintain.BlockFresh {
+			names = append(names, fmt.Sprintf("%s:%d source=%s package=%s %s (%s)", b.Page, b.Line, b.Source, b.Package, b.State, b.Reason))
+		}
+	}
+	emitError(stderr, &gokernel.Error{Code: docsMaintainStale, Message: fmt.Sprintf("%d stale generated block(s): %s; refresh with docs maintain --enable --apply", report.Stale, strings.Join(names, "; "))})
+	return 1
 }
 
 func maintainReceiptObject(result *docmaintain.Result) map[string]any {
@@ -185,6 +244,10 @@ const docsMaintainHelp = `Experimental automatic maintenance of one human docume
 Usage:
   corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply)
     [--max-writes N] [--max-wall-clock DURATION] [--watch]
+  corvint-docs [--root PATH] docs maintain --check --page PATH [--source PATH --package DIRECTORY]
+
+Example:
+  corvint-docs docs maintain --check --page docs/guide.md
 
 An explicitly enabled, bounded local session that refreshes exactly one
 generated block of PATH, delimited by "<!-- corvint:docmaintain begin ... -->"
@@ -202,6 +265,12 @@ selector, is never touched. This is a maintenance session, not a renderer:
 docs/specs/human-documentation-compiler-v0.md remains partial (HDCV0-023..029,
 HDCV0-041), and no generated block is promoted to accepted intent (AGENTS.md
 invariant 8).
+
+--check is read-only and needs no --enable: it compares each generated block of
+the page as committed at HEAD (or only the --source/--package block) with a fresh
+draft at HEAD, prints corvint-docmaintain-check/0 and exits 1 when any block is
+stale or missing (each named with its page line), 0 when none is, and 2 when it
+cannot run. --preview keeps exiting 0 whatever it finds.
 
 --watch is Unix-only, requires --apply and stays in the foreground, polling committed HEAD
 once per second. It stops on any human page edit, source drift, signal, or bound.

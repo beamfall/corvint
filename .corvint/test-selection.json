@@ -800,6 +800,12 @@
       ]
     },
     {
+      "paths": "internal/testid/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "internal/testplan/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -1034,12 +1040,6 @@
       ]
     },
     {
-      "paths": "testing/context-retrieval-goldens.json",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "tests/README.md",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -1136,13 +1136,7 @@
       ]
     },
     {
-      "paths": "tools/cw-trial/README.md",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/cw-trial/testdata/**",
+      "paths": "tools/fault-harness/README.md",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
@@ -1160,43 +1154,7 @@
       ]
     },
     {
-      "paths": "tools/heading-nav-bench/README.md",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/heading-nav-bench/results/pilot/**",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/heading-nav-bench/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "tools/lsp-editors/**",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/paired-trial/README.md",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/retrieval-bench/README.md",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/retrieval-bench/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]

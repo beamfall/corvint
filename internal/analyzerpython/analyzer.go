@@ -119,9 +119,6 @@ const (
 	failureOutput       failure = "OUTPUT_LIMIT"
 )
 
-// AnalyzeFrame is the public compatibility entry point. It performs no I/O.
-func AnalyzeFrame(frame []byte) []byte { return Process(frame) }
-
 // Process accepts one canonical LF-framed Python 3.12 request. It structurally
 // bounds JSON before decoding and processes decoded source one input at a time.
 func Process(frame []byte) []byte {

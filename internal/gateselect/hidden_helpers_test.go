@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 package gateselect
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // AZU-V0-9920: the gate selector must admit the same scoped helpers as the
 // affected graph and retain their source/import edges. Other hidden
@@ -22,10 +25,20 @@ func TestHiddenHelperScopes_AZU_V0_9920(t *testing.T) {
 		nonSourcePath:            `{"profile":"corvint-non-source-paths/0","entries":[{"path":".agent-evidence/","reason":"retained evidence"}]}`,
 		".agent-evidence/run.go": "retained output\n",
 	})
+	// NCM-V1-005 (V1-5424): every path under .github/ runs everything, so
+	// the helper's import edge is asserted on the index, and a change to
+	// either helper file falls back with the named reason.
+	index, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := index.importers[".github/helper"]; !slices.Equal(got, []string{".github/caller"}) {
+		t.Fatalf("importers of .github/helper = %v, want [.github/caller]", got)
+	}
 	for _, tc := range []struct{ dirty, want string }{
 		{"notes/unrelated.md", "FALLBACK the selection is empty while 1 path(s) are dirty"},
-		{".github/helper/h_test.go", "run example.com/fixture/.github/helper"},
-		{".github/helper/h.go", "run example.com/fixture/.github/caller example.com/fixture/.github/helper"},
+		{".github/helper/h_test.go", "FALLBACK never-narrowed-path .github/helper/h_test.go"},
+		{".github/helper/h.go", "FALLBACK never-narrowed-path .github/helper/h.go"},
 	} {
 		t.Run(tc.dirty, func(t *testing.T) {
 			var plan Receipt

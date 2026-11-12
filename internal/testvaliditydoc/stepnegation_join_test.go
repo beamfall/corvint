@@ -14,6 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/stepnegation"
 	"github.com/Beamfall/corvint/internal/testvalidity"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 const (
@@ -29,7 +30,7 @@ func joinFixture(t *testing.T) (string, jstestprovider.Receipt, stepnegation.Doc
 	spec, config := filepath.Join(root, "e2e", "cart.spec.cjs"), filepath.Join(root, "playwright.config.cjs")
 	writeAt(t, spec, joinSpecBody, time.Unix(1_700_000_000, 0))
 	writeAt(t, config, joinConfigBody, time.Unix(1_700_000_000, 0))
-	specDigest, configDigest := digestHex([]byte(joinSpecBody)), digestHex([]byte(joinConfigBody))
+	specDigest, configDigest := testvaliditymodel.DigestHex([]byte(joinSpecBody)), testvaliditymodel.DigestHex([]byte(joinConfigBody))
 	receipt := jstestprovider.Receipt{
 		Profile: jstestprovider.ExternalProfile,
 		Kind:    "e2e",
@@ -92,7 +93,7 @@ func TestStepNegationJoinGatedOffIsByteIdentical(t *testing.T) {
 	withJoinGate(t, false)
 	root, receipt, retained := joinFixture(t)
 	retainNegation(t, root, retained)
-	input := Input{js: &receipt}
+	input := Input{JS: &receipt}
 	if got, want := documentBytes(t, JoinStepNegation(Project(input), input, root)), documentBytes(t, Project(input)); !bytes.Equal(got, want) {
 		t.Fatalf("gated join changed bytes:\n%s\n%s", got, want)
 	}
@@ -109,7 +110,7 @@ func TestStepNegationJoinConditions(t *testing.T) {
 	t.Run("joinable", func(t *testing.T) {
 		root, receipt, retained := joinFixture(t)
 		retainNegation(t, root, retained)
-		input := Input{js: &receipt}
+		input := Input{JS: &receipt}
 		strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength
 		if strength.State != testvalidity.StrengthKilled || strength.Reason != stepnegation.ReasonStepControlsKilled || len(strength.Anchors) != 3 || !strings.HasPrefix(strength.Anchors[0], stepNegationAnchorPrefix+stepnegation.EvidenceDirectory+"/") || strength.Anchors[1] != stepNegationUnboundSupportAnchor {
 			t.Fatalf("strength = %+v", strength)
@@ -117,7 +118,7 @@ func TestStepNegationJoinConditions(t *testing.T) {
 	})
 	t.Run("no document", func(t *testing.T) {
 		root, receipt, _ := joinFixture(t)
-		input := Input{js: &receipt}
+		input := Input{JS: &receipt}
 		if got, want := documentBytes(t, JoinStepNegation(Project(input), input, root)), documentBytes(t, Project(input)); !bytes.Equal(got, want) {
 			t.Fatal("join without a document changed bytes")
 		}
@@ -161,7 +162,7 @@ func TestStepNegationJoinConditions(t *testing.T) {
 			if test.mutateTree != nil {
 				test.mutateTree(t, root)
 			}
-			input := Input{js: &receipt}
+			input := Input{JS: &receipt}
 			if got, want := documentBytes(t, JoinStepNegation(Project(input), input, root)), documentBytes(t, Project(input)); !bytes.Equal(got, want) {
 				t.Fatalf("mismatched document joined: %s", got)
 			}
@@ -171,7 +172,7 @@ func TestStepNegationJoinConditions(t *testing.T) {
 		root, receipt, retained := joinFixture(t)
 		retained.Steps[0].Strength = testvalidity.Axis{State: testvalidity.StrengthSurvived, Reason: stepnegation.ReasonFaultSurvived, Anchors: []string{}}
 		retainNegation(t, root, retained)
-		input := Input{js: &receipt}
+		input := Input{JS: &receipt}
 		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State != testvalidity.StrengthSurvived {
 			t.Fatalf("survived = %+v", strength)
 		}
@@ -191,7 +192,7 @@ func TestStepNegationJoinConditions(t *testing.T) {
 		receipt.ApplicationAttestation = &jstestprovider.ApplicationAttestationReceipt{Before: &jstestprovider.ApplicationAttestationObservation{Attestation: observed}, Failures: []string{}}
 		retained.Binding.Application = stepnegation.Application{Profile: jstestprovider.AttestedExternalProfile, RootCommit: observed.Repository.RootCommit, Revision: observed.Repository.Revision, Tree: observed.Repository.Tree, InstanceKind: "process", InstanceID: "fixture-1", StartGeneration: "1"}
 		retainNegation(t, root, retained)
-		input := Input{js: &receipt}
+		input := Input{JS: &receipt}
 		// A /1 receipt without its test repository identity never joins.
 		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State == testvalidity.StrengthKilled {
 			t.Fatal("an attested receipt without a test repository identity joined")
@@ -252,7 +253,7 @@ func TestStepNegationJoinNamesUnboundSupportFiles(t *testing.T) {
 	root, receipt, retained := joinFixture(t)
 	retainNegation(t, root, retained)
 	writeAt(t, filepath.Join(root, "e2e", "helpers.cjs"), "module.exports = 1\n", time.Unix(1_700_000_000, 0))
-	input := Input{js: &receipt}
+	input := Input{JS: &receipt}
 	before := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength
 	writeAt(t, filepath.Join(root, "e2e", "helpers.cjs"), "module.exports = 2\n", time.Unix(1_700_000_001, 0))
 	after := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength

@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 // PTF-V0-003/007: unsupported inputs must fail closed without leaving a
@@ -56,7 +58,7 @@ func TestPTFV0DependencySpecialFiles(t *testing.T) {
 				t.Fatal(err)
 			}
 			special := filepath.Join(root, "unsupported")
-			m := FreshDependencyManifest{Roots: []string{root}, Files: map[string]string{valid: sha256Hex([]byte("module.exports=1;"))}}
+			m := FreshDependencyManifest{Roots: []string{root}, Files: map[string]string{valid: jstestreceipt.Sha256Hex([]byte("module.exports=1;"))}}
 			switch kind {
 			case "explicit-fifo", "explicit-directory":
 				outside, err := filepath.EvalSymlinks(t.TempDir())
@@ -64,7 +66,7 @@ func TestPTFV0DependencySpecialFiles(t *testing.T) {
 					t.Fatal(err)
 				}
 				special = filepath.Join(outside, "unsupported")
-				m.Files[special] = sha256Hex(nil)
+				m.Files[special] = jstestreceipt.Sha256Hex(nil)
 			}
 			switch kind {
 			case "root-socket":

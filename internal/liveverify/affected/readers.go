@@ -73,6 +73,7 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) (narrowe
 	narrowed = make(map[string]bool)
 	reads = make(map[string]bool)
 	tokens := graph.pathTokens()
+	content := graph.contentPathTokens()
 	for i, id := range graph.order {
 		_, seen := reached[id]
 		if seen && graph.units[id].FrontierBears != FrontierBearsOnDependents {
@@ -83,10 +84,16 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) (narrowe
 			if !graph.RecordEntryAllows(id, dirtyPath) {
 				continue
 			}
-			if !namesAny(tokens[i], split[j], goUnit && !resolvedEvidence(dirtyPath)) {
+			// A name-listing token selects only for a dirty path whose
+			// change status can change a listing (AFP-V0-9962).
+			unitTokens := tokens[i]
+			if content[i] != nil && !graph.listingMayChange(dirtyPath) {
+				unitTokens = content[i]
+			}
+			if !namesAny(unitTokens, split[j], goUnit && !resolvedEvidence(dirtyPath)) {
 				continue
 			}
-			if graph.foreignTestFile(id, dirtyPath) && !namesFileName(tokens[i], split[j]) {
+			if graph.foreignTestFile(id, dirtyPath) && !namesFileName(unitTokens, split[j]) {
 				continue
 			}
 			if graph.resolves(id, dirtyPath) {
@@ -314,10 +321,27 @@ func (graph *Graph) unboundedReadersOf(reached map[string]Witness, dirty []strin
 	if len(dirty) == 0 {
 		return
 	}
+	listing := ""
+	for _, dirtyPath := range dirty {
+		if graph.listingMayChange(dirtyPath) {
+			listing = dirtyPath
+			break
+		}
+	}
 	for _, id := range graph.unbounded {
 		if _, seen := reached[id]; !seen {
+			// A name-only walker is witnessed by the smallest dirty path
+			// that can change a listing, and not selected without one
+			// (AFP-V0-9963).
+			witness := dirty[0]
+			if graph.namesOnly[id] {
+				if listing == "" {
+					continue
+				}
+				witness = listing
+			}
 			cause := graph.causes[id]
-			reached[id] = Witness{Kind: WitnessUnboundedReader, DirtyPath: dirty[0], Via: []string{id}, Cause: &UnboundedCause{Unit: cause, Reads: graph.units[cause].UnboundedReads}}
+			reached[id] = Witness{Kind: WitnessUnboundedReader, DirtyPath: witness, Via: []string{id}, Cause: &UnboundedCause{Unit: cause, Reads: graph.units[cause].UnboundedReads}}
 		}
 	}
 }
@@ -910,6 +934,32 @@ func (graph *Graph) pathTokens() [][]pathToken {
 	return graph.tokens
 }
 
+// contentPathTokens holds, in graph.order, each unit's path tokens less its
+// NameListings, nil for a unit that has none (AFP-V0-9962).
+func (graph *Graph) contentPathTokens() [][]pathToken {
+	if graph.contentTokens == nil {
+		return graph.splitContentTokens()
+	}
+	return graph.contentTokens
+}
+
+func (graph *Graph) splitContentTokens() [][]pathToken {
+	tokens := make([][]pathToken, len(graph.order))
+	for i, id := range graph.order {
+		unit := graph.units[id]
+		if len(unit.NameListings) == 0 {
+			continue
+		}
+		tokens[i] = make([]pathToken, 0, len(unit.PathTokens))
+		for _, value := range unit.PathTokens {
+			if !slices.Contains(unit.NameListings, value) {
+				tokens[i] = append(tokens[i], newPathToken(value))
+			}
+		}
+	}
+	return tokens
+}
+
 func (graph *Graph) splitPathTokens() [][]pathToken {
 	split := map[string]pathToken{}
 	tokens := make([][]pathToken, len(graph.order))
@@ -1046,6 +1096,7 @@ func (graph *Graph) Readers(paths []string) map[string]Witness {
 	graph.readers(reached, normalized)
 	graph.unboundedReadersOf(reached, graph.unboundedDirty(normalized))
 	graph.scopedReadersOf(reached, normalized)
+	graph.deletedScriptObserversOf(reached, normalized, make(map[string]bool))
 	graph.existenceReadersOf(reached, normalized)
 	graph.ownersOf(reached, normalized)
 	graph.testEmbedReadersOf(reached, normalized)

@@ -3,8 +3,10 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `CWT-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-11 (decision 0597)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0597 (context proven only) deleted `tools/cw-trial`, which measured the cut packet (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` ("How this beats the
 competition, measurably"; "Ninety days"), `benchmarks/README.md` (partitions, first-observation
 rule, the external-dispatcher clause), `tools/retrieval-bench` (arms, snapshot materialisation,
@@ -12,7 +14,7 @@ Wilson intervals, canonical output), `AGENTS.md` invariants 2 and 4.
 
 ## Agent digest
 - Claim: `tools/cw-trial` runs one agent over a frozen task set under `none`, `grep`, and `corvint` arms and scores confidently-wrong claims per task with intervals.
-- Status: proposed/experimental
+- Status: retired 2026-11-11 (decision 0597) / retired
 - Exists: `tools/cw-trial` (`run`, `score`, `gate`), `tools/cw-trial/testdata/pilot/tasks.json` (five code2test tasks, `partition: pilot`), `benchmarks/results/cw-trial-pilot-first-run.json`.
 - Blocked on: the judged run's first observation over `tools/cw-trial/testdata/heldout-v1` under `--access none` with the pilot's model (decision 0022).
 - Read next: Requirements (claim grammar, definition, arms); Non-goals; Promotion or kill.

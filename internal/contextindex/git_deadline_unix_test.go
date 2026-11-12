@@ -5,7 +5,6 @@ package contextindex
 import (
 	"context"
 	"errors"
-	"github.com/Beamfall/corvint/internal/execfile"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -15,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // DCW-V0-075 (V1-1652): the per-phase Git deadline is 30 seconds and has no

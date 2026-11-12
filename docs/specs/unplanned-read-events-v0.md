@@ -6,7 +6,7 @@ Requirement prefix: `URE-V0`
 Intent status: retired 2026-11-11 (decision 0594)
 Delivery status: retired
 Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
-Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) removed context delivery, the `corvint reads` command and the Claude Code adapter call sites, and its item 3 removes orphan packages that no kept binary reaches; V1-5240 deleted `internal/unplannedread` as unreached code on 2026-11-11 (b55635262 is the last tree with it). The body below is historical and its requirement IDs stay for traceability.
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) removed context delivery, the `corvint reads` command and the Claude Code adapter call sites, and its item 3 removes orphan packages that no kept binary reaches; V1-5240 deleted `internal/unplannedread` as unreached code on 2026-11-11, and decision 0597 (context proven only) removed the ranking evaluation it fed (b55635262 is the last tree with it). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md` invariants 4 and 7, `docs/specs/self-observation-ledger-v0.md`
 (the bounds this ledger copies), `docs/specs/task-context-packet-v0.md` (the packet whose paths
 define "planned"), `docs/PRODUCT.md`, `docs/DOGFOOD.md`

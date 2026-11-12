@@ -72,7 +72,7 @@ func TestLabel(t *testing.T) {
 	}
 }
 `,
-	".github/cishards/test-commands.json": `{"profile": "corvint-test-commands/0", "go": {"env": {"GOTOOLCHAIN": "local"}, "flags": ["-count=1"]}, "languages": {}}
+	".corvint/test-commands.json": `{"profile": "corvint-test-commands/0", "go": {"env": {"GOTOOLCHAIN": "local"}, "flags": ["-count=1"]}, "languages": {}}
 `,
 }
 
@@ -416,5 +416,77 @@ func TestLineNarrowingAppliesWhenQualified(t *testing.T) {
 	}
 	if !strings.HasPrefix(m.LineIndex, linecov.StateNarrowed+" sha256:") || len(m.Units) != 1 || len(m.Excluded) != 1 || !strings.Contains(m.Excluded[0], "user") {
 		t.Fatalf("lineIndex %q units %+v excluded %+v", m.LineIndex, m.Units, m.Excluded)
+	}
+}
+
+// GLS-V0-051, GLS-V0-018 (V1-4514): an index collected without FC decides
+// nothing for a selection with FC set, which `go env -changed` does not
+// report: the runner-unavailable FALLBACK keeps the static plan. A test that
+// read CI when the index was collected keeps its package whole when CI
+// differs at selection, and the same CI narrows as collected.
+func TestAffectedLineFCOrCIChangeKeepsStaticPlan(t *testing.T) {
+	qualify := affectedLineQualify
+	affectedLineQualify = func(context.Context, string, string, string, *debug.BuildInfo) error { return nil }
+	t.Cleanup(func() { affectedLineQualify = qualify })
+	t.Setenv("FC", "")
+	t.Setenv("CI", "collect")
+	root, base, file := lineFixtureRepository(t, map[string]string{"user/user_test.go": `package user
+
+import (
+	"os"
+	"testing"
+)
+
+func TestLabel(t *testing.T) {
+	if os.Getenv("CI") == "skip" {
+		return
+	}
+	if Label(1) != "other" {
+		t.Fatal("label")
+	}
+}
+`})
+	lineCommit(t, root, "calc/calc.go", "return n * 2", "return n * 3")
+	plain, _, stderr, code := runAffectedCLI(t, root, "--base", base)
+	if code != 0 {
+		t.Fatalf("plain exit %d: %s", code, stderr)
+	}
+	for _, c := range []struct {
+		name, fc, ci, want string
+		units              []string
+	}{
+		{name: "as collected", ci: "collect", want: linecov.StateNarrowed, units: []string{"calc=whole", "user=exclude"}},
+		{name: "FC set", fc: "gfortran-linecov", ci: "collect", want: "FALLBACK " + linecov.ReasonRunnerUnavailable},
+		{name: "CI changed", ci: "skip", want: linecov.StateNarrowed, units: []string{"calc=whole", "user=whole"}},
+		{name: "CI unset", want: linecov.StateNarrowed, units: []string{"calc=whole", "user=whole"}},
+	} {
+		t.Setenv("FC", c.fc)
+		t.Setenv("CI", c.ci)
+		if c.ci == "" {
+			os.Unsetenv("CI")
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root, "--base", base, "--line-index", file)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", c.name, code, stderr)
+		}
+		if !reflect.DeepEqual(plain["plan"], receipt["plan"]) {
+			t.Fatalf("%s: --line-index changed the plan", c.name)
+		}
+		state, units := lineUnits(t, receipt)
+		if state != c.want || len(units) != len(c.units) || len(c.units) > 0 && !reflect.DeepEqual(units, c.units) {
+			t.Errorf("%s: %s %v, want %s %v\nselection %v", c.name, state, units, c.want, c.units, receipt["lineSelection"])
+		}
+		if c.fc != "" {
+			if detail, _ := receipt["lineSelection"].(map[string]any)["detail"].(string); !strings.Contains(detail, "FC") {
+				t.Errorf("%s: detail %q does not name FC", c.name, detail)
+			}
+		}
+		if c.ci != "collect" {
+			for _, u := range receipt["lineSelection"].(map[string]any)["units"].([]any) {
+				if m := u.(map[string]any); strings.HasSuffix(m["unit"].(string), "/user") && m["category"] != linecov.CategoryEnvironment {
+					t.Errorf("%s: user kept as %v, want %s", c.name, m["category"], linecov.CategoryEnvironment)
+				}
+			}
+		}
 	}
 }

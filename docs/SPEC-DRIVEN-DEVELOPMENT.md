@@ -159,6 +159,7 @@ Owner: Russell Lewis
 Date: YYYY-MM-DD
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 
 ## Agent digest
 - Claim: One sentence of at most 160 characters, including the final punctuation.
@@ -176,6 +177,9 @@ Keep the Claim and the README row consistent: edit the spec's Claim, then stage 
 `git add -- docs/specs/NAME.md` and regenerate with `make spec-requirements`. The generator
 projects the Claim into README and INDEX; editing only that README cell cannot change it.
 The required shape above supplies acceptance, non-goals, trust boundary, traceability and rollback sections. A template confers no acceptance.
+The `Health:` line (`KEEP`, `MERGE`, `RETIRE` or `OUT-OF-1.0`; the last two with `Delivery status:
+retired`) is required by `make openspec-check` (`OSC-V1-008`) and projected into INDEX.json and the
+README row by `make spec-requirements`.
 
 For dogfood inputs, sort the owning-spec manifest with `LC_ALL=C sort -u -o intents.txt intents.txt`.
 A lane with no declared intent uses a single `#no-intent-declared` line, not an empty manifest.

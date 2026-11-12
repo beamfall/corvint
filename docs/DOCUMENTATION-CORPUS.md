@@ -138,7 +138,7 @@ attachments retain explicit projection omissions and mandatory check fallback.
 
 ## Native evidence consumers
 
-Use the inline `--corpus=FILE` option on `query`, `context`, `impact`, `affected`, `test-validity`,
+Use the inline `--corpus=FILE` option on `impact`, `affected`, `test-validity`,
 `work observe`, `work propose-wave`, or `cem status/verify/report`. It adds a separately attributed
 `documentation` member and preserves native result members. Work evidence carries no task authority.
 Impact follows exact source anchors and one explicitly recorded relation; incomplete selection always
@@ -956,10 +956,11 @@ To find the source behind a behaviour, call `docs_locate` with a `query` instead
 ranks only `module` and `symbol` subjects, and `result_locations` gives each result's file and
 line span. Pass `kind` (`module` or `symbol`) to narrow the results. See DCP-V1-650..651.
 
-A `docs_locate` or `docs_recommend_tests` call on a path also returns each subject that documents a
-subject anchored there, through one incoming `documents` relation, with that relation as the reason.
-`docs_recommend_tests` adds those owners' test links; the selection still requires the full relevant
-suite. Each `docs_claims` result carries a `claim_kind` taken from its typed details; pass `kind` or
+A `docs_locate` call, or a `docs corpus recommend-tests` CLI read, on a path also returns each
+subject that documents a subject anchored there, through one incoming `documents` relation, with that
+relation as the reason. `recommend-tests` adds those owners' test links; the selection still requires
+the full relevant suite. There is no `docs_recommend_tests` MCP tool: which tests to run is a question
+for `corvint.affected` on `corvint mcp` (DMF-V1-009). Each `docs_claims` result carries a `claim_kind` taken from its typed details; pass `kind` or
 `exclude_kind` to filter, and run records rank below behavioural claims. `docs_navigation` takes a
 `query` instead of an `id` and selects each flow whose id, name, or linked test file or title holds
 every query word. See DCS-V1-591..597.
@@ -993,7 +994,7 @@ checkout; it never fetches. Freshness compares those inputs with that checkout, 
 makes the corpus `stale`. An anchor naming an undeclared repository is refused. See DCP-V1-175..179.
 A repository may also list further pinned commits in `revisions` (sorted, within the
 eight-revision bound); anchors there cite that revision, and freshness compares only `revision`.
-`docs_locate` and `docs_recommend_tests` accept an optional `repository` (a declared root-commit
+`docs_locate` and the `recommend-tests` CLI read accept an optional `repository` (a declared root-commit
 identity) and otherwise name each result's repository in `result_repositories`. See
 DCP-V1-308..311.
 

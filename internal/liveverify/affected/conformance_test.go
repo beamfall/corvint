@@ -273,10 +273,11 @@ func TestSeamWidensRatherThanNarrowingOnUnknownInput(t *testing.T) {
 	for _, testCase := range seamCases() {
 		t.Run(testCase.language.Name(), func(t *testing.T) {
 			caseRoot := root
-			if testCase.language.Name() == "go" {
+			if name := testCase.language.Name(); name == "go" || name == "shell" {
 				// An absent Go path beside an observed package is a deletion
-				// that rule (a) attributes (AFP-V0-2610); a new file is on
-				// disk, so the Go case writes it to a copy after the build.
+				// that rule (a) attributes (AFP-V0-2610), and an absent shell
+				// script is an admitted deletion (AFP-V0-9992); a new file is
+				// on disk, so these cases write it to a copy after the build.
 				caseRoot = t.TempDir()
 				if err := os.CopyFS(caseRoot, os.DirFS(root)); err != nil {
 					t.Fatal(err)

@@ -4,22 +4,15 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"go/scanner"
-	"go/token"
 	"io"
 	"os"
 	"os/exec"
-	"path"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/genesis"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -29,29 +22,6 @@ type guidanceInvocation struct {
 	Root, Command, Base string
 	MaxRefs             int
 	removeScratch       func(string) error
-}
-type guidanceEvidence struct {
-	Path  string `json:"path"`
-	Blob  string `json:"blob"`
-	Start int    `json:"startLine"`
-	End   int    `json:"endLine"`
-	Rule  string `json:"rule"`
-}
-type guidanceFeature struct {
-	Label     string             `json:"label"`
-	Authority string             `json:"authority"`
-	Evidence  []guidanceEvidence `json:"evidence"`
-	// FeatureID and FeatureCall feed `corvint feature` when the label is a
-	// canonical feature ID (RGV-V0-956); other labels carry neither. The call
-	// asks for the ledger record only (--limit 1), the form feature supports
-	// in a repository that also holds JS, TS or Python sources.
-	FeatureID   string   `json:"featureId,omitempty"`
-	FeatureCall []string `json:"featureCall,omitempty"`
-}
-type guidanceCall struct {
-	Argv      []string `json:"argv"`
-	Inert     bool     `json:"inert"`
-	Authority string   `json:"authority"`
 }
 type guidanceSkip struct {
 	Ref    string `json:"ref"`
@@ -66,14 +36,13 @@ type guidanceOverlap struct {
 	Paths []string `json:"paths"`
 }
 type guidanceReview struct {
-	CurrentRef      string                 `json:"currentRef"`
-	Base            string                 `json:"base"`
-	Affected        affectedCompactReceipt `json:"affected"`
-	AffectedFull    guidanceAffectedFull   `json:"affectedFull"`
-	ChangedFeatures []guidanceFeature      `json:"changedFeatures"`
-	LocalTips       map[string]string      `json:"localTips"`
-	Skipped         []guidanceSkip         `json:"skipped"`
-	Overlaps        []guidanceOverlap      `json:"overlaps"`
+	CurrentRef   string                 `json:"currentRef"`
+	Base         string                 `json:"base"`
+	Affected     affectedCompactReceipt `json:"affected"`
+	AffectedFull guidanceAffectedFull   `json:"affectedFull"`
+	LocalTips    map[string]string      `json:"localTips"`
+	Skipped      []guidanceSkip         `json:"skipped"`
+	Overlaps     []guidanceOverlap      `json:"overlaps"`
 }
 
 // guidanceAffectedFull resolves the compact review.affected (RGV-V0-015):
@@ -87,24 +56,20 @@ type guidanceAffectedFull struct {
 
 const guidanceAffectedFullDigestPrefix = "affected-plan:sha256:"
 
+// guidanceReceipt is the review document. The inferred features, overview fields and
+// nextCalls are cut (decision 0597, RGV-V0-001).
 type guidanceReceipt struct {
-	Profile      string             `json:"profile"`
-	Tool         string             `json:"tool"`
-	Experimental bool               `json:"experimental"`
-	Authority    string             `json:"authority"`
-	Mutates      bool               `json:"mutates"`
-	Revision     string             `json:"revision"`
-	Tree         string             `json:"tree"`
-	Features     []guidanceFeature  `json:"features"`
-	Languages    []string           `json:"languages,omitzero"`
-	Entrypoints  []guidanceEvidence `json:"entrypoints,omitzero"`
-	Manifests    []guidanceEvidence `json:"manifests,omitzero"`
-	Tests        []guidanceEvidence `json:"tests,omitzero"`
-	Index        map[string]string  `json:"index"`
-	Unknown      []string           `json:"unknown"`
-	Omissions    map[string]int     `json:"omissions"`
-	NextCalls    []guidanceCall     `json:"nextCalls"`
-	Review       *guidanceReview    `json:"review,omitempty"`
+	Profile      string            `json:"profile"`
+	Tool         string            `json:"tool"`
+	Experimental bool              `json:"experimental"`
+	Authority    string            `json:"authority"`
+	Mutates      bool              `json:"mutates"`
+	Revision     string            `json:"revision"`
+	Tree         string            `json:"tree"`
+	Index        map[string]string `json:"index"`
+	Unknown      []string          `json:"unknown"`
+	Omissions    map[string]int    `json:"omissions"`
+	Review       *guidanceReview   `json:"review,omitempty"`
 }
 
 func parseGuidanceInvocation(args []string) (guidanceInvocation, bool, error) {
@@ -129,14 +94,11 @@ func parseGuidanceInvocation(args []string) (guidanceInvocation, bool, error) {
 		return out, false, nil
 	}
 	out.Command = args[i]
-	if out.Command != "features" && out.Command != "overview" && out.Command != "review" {
+	if out.Command != "review" {
 		return out, false, nil
 	}
 	// review reads one repository: a workspace refuses it (WSD-V0-146).
 	tail, file, named, disabled, err := stripWorkspaceFlags(args[i+1:])
-	if out.Command != "review" && (err != nil || len(tail) != len(args[i+1:])) {
-		return out, true, argumentError("unrecognized guidance argument")
-	}
 	if err != nil {
 		return out, true, err
 	}
@@ -144,7 +106,7 @@ func parseGuidanceInvocation(args []string) (guidanceInvocation, bool, error) {
 	seen := map[string]bool{}
 	for i = 0; i < len(args); i++ {
 		key, value, equals := strings.Cut(args[i], "=")
-		if out.Command != "review" || (key != "--base" && key != "--max-refs") || seen[key] {
+		if (key != "--base" && key != "--max-refs") || seen[key] {
 			return out, true, argumentError("unrecognized guidance argument")
 		}
 		seen[key] = true
@@ -165,12 +127,12 @@ func parseGuidanceInvocation(args []string) (guidanceInvocation, bool, error) {
 		}
 		out.MaxRefs = n
 	}
-	if out.Command == "review" && !validGitObjectID(out.Base) {
+	if !validGitObjectID(out.Base) {
 		return out, true, argumentError("review --base requires a full commit id")
 	}
 	resolved, err := resolveExplicitRoot(out.Root)
 	out.Root = resolved
-	if err == nil && out.Command == "review" {
+	if err == nil {
 		err = checkWorkspace("review", resolved, file, named, disabled, true)
 	}
 	return out, true, err
@@ -205,46 +167,18 @@ func runGuidance(ctx context.Context, in guidanceInvocation, stdout, stderr io.W
 func compileGuidance(ctx context.Context, in guidanceInvocation, beforeCheck func()) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	open := genesis.OpenGuidance
-	if in.Command != "review" {
-		open = genesis.OpenGuidanceTolerating
-	}
-	snapshot, err := open(ctx, in.Root)
+	snapshot, err := genesis.OpenGuidance(ctx, in.Root)
 	if err != nil {
 		return nil, err
 	}
-	receipt := discoverGuidance(snapshot, in.Command)
-	if snapshot.Untracked > 0 {
-		// RGV-V0-955: untracked-only dirt degrades like affected's MIXED warning.
-		receipt.Omissions["untracked"] = snapshot.Untracked
-		receipt.Unknown = append(receipt.Unknown, "MIXED worktree: untracked paths outside the pinned HEAD tree were not read; "+snapshot.UntrackedDetail)
+	receipt := discoverGuidance(snapshot)
+	refs, err := snapshot.RefTips(ctx)
+	if err != nil {
+		return nil, err
 	}
-	if in.Command == "overview" {
-		probe, reason, probeErr := contextindex.SnapshotFreshness(ctx, in.Root)
-		if probeErr != nil {
-			reason = "snapshot-read-failed"
-		}
-		receipt.Index = map[string]string{"state": "UNKNOWN", "reason": reason}
-		if reason == "matching" && probe.Commit == snapshot.Revision && probe.Tree == snapshot.Tree {
-			receipt.Index = map[string]string{"state": "MATCHING", "reason": "captured-tree", "revision": probe.Commit, "tree": probe.Tree}
-		} else {
-			if reason == "matching" {
-				receipt.Index["reason"] = "snapshot-revision-drift"
-			}
-			receipt.Omissions["index"] = 1
-			receipt.Unknown = append(receipt.Unknown, "index-derived fields omitted: "+receipt.Index["reason"])
-		}
-	}
-	refs := ""
-	if in.Command == "review" {
-		refs, err = snapshot.RefTips(ctx)
-		if err != nil {
-			return nil, err
-		}
-		receipt.Review, err = reviewGuidance(ctx, snapshot, in, refs, &receipt)
-		if err != nil {
-			return nil, err
-		}
+	receipt.Review, err = reviewGuidance(ctx, snapshot, in, refs, &receipt)
+	if err != nil {
+		return nil, err
 	}
 	raw, err := gokernel.CanonicalJSON(receipt)
 	if err != nil {
@@ -259,21 +193,19 @@ func compileGuidance(ctx context.Context, in guidanceInvocation, beforeCheck fun
 	if err = snapshot.Check(ctx); err != nil {
 		return nil, err
 	}
-	if in.Command == "review" {
-		after, e := snapshot.RefTips(ctx)
-		if e != nil {
-			return nil, e
-		}
-		if after != refs {
-			return nil, fmt.Errorf("local ref drift")
-		}
-		current, e := snapshot.CurrentRef(ctx)
-		if e != nil {
-			return nil, e
-		}
-		if current != receipt.Review.CurrentRef {
-			return nil, fmt.Errorf("current ref drift")
-		}
+	after, err := snapshot.RefTips(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if after != refs {
+		return nil, fmt.Errorf("local ref drift")
+	}
+	current, err := snapshot.CurrentRef(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if current != receipt.Review.CurrentRef {
+		return nil, fmt.Errorf("current ref drift")
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
@@ -281,233 +213,25 @@ func compileGuidance(ctx context.Context, in guidanceInvocation, beforeCheck fun
 	return raw, nil
 }
 
-var guidanceMarkers = regexp.MustCompile(`(?i)^\s*(?://+|#|--|/\*+|\*|<!--)?\s*(feature|scenario)\s*:\s*([\p{L}\p{N}][\p{L}\p{N} _./()-]{0,119}?)\s*(?:\*/|-->)?\s*$`)
-var guidanceRegistrations = regexp.MustCompile(`\b(HandleFunc|Handle|Get|Post|Put|Delete|Patch|get|post|put|delete|patch|route|AddTool|addTool|registerTool|register_tool|tool)\s*\(\s*["']([^"'\r\n]{1,120})["']`)
-
-// guidanceRegistrationNames holds a substring of every guidanceRegistrations
-// alternative, so a line containing none of them cannot match it.
-var guidanceRegistrationNames = []string{"Handle", "Get", "Post", "Put", "Delete", "Patch", "get", "post", "put", "delete", "patch", "route", "Tool", "tool"}
-
-// guidanceMayMatch is a literal necessary condition of each rule's pattern: a
-// marker needs its ':', and a registration needs '(', a quote and one of its
-// names. A line failing it cannot match, so the regexp is not run on it.
-func guidanceMayMatch(id, candidate string) bool {
-	if id == "literal-marker" {
-		return strings.IndexByte(candidate, ':') >= 0
-	}
-	if strings.IndexByte(candidate, '(') < 0 || !strings.ContainsAny(candidate, `"'`) {
-		return false
-	}
-	for _, name := range guidanceRegistrationNames {
-		if strings.Contains(candidate, name) {
-			return true
-		}
-	}
-	return false
-}
-
-var guidanceLanguages = map[string]string{".go": "Go", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript", ".tsx": "TypeScript", ".py": "Python", ".rb": "Ruby", ".rs": "Rust", ".java": "Java", ".kt": "Kotlin", ".swift": "Swift", ".cs": "C#", ".c": "C", ".cpp": "C++", ".cc": "C++", ".cxx": "C++", ".hpp": "C++"}
-var guidanceManifests = map[string]bool{"package.json": true, "go.mod": true, "Cargo.toml": true, "pyproject.toml": true, "Package.swift": true, "AndroidManifest.xml": true, "Info.plist": true, "Gemfile": true, "pom.xml": true}
-
-func discoverGuidance(s *genesis.GuidanceSnapshot, command string) guidanceReceipt {
-	out := guidanceReceipt{Profile: "repository-guidance/0", Tool: command, Experimental: true, Authority: "inferred", Revision: s.Revision, Tree: s.Tree,
-		Features: []guidanceFeature{}, Languages: []string{}, Entrypoints: []guidanceEvidence{}, Manifests: []guidanceEvidence{}, Tests: []guidanceEvidence{},
+// discoverGuidance counts the inventory and unread sources review needs for the RGV-V0-013
+// fallback; feature discovery is cut (decision 0597).
+func discoverGuidance(s *genesis.GuidanceSnapshot) guidanceReceipt {
+	out := guidanceReceipt{Profile: "repository-guidance/0", Tool: "review", Experimental: true, Authority: "inferred", Revision: s.Revision, Tree: s.Tree,
 		Index:     map[string]string{"state": "UNKNOWN", "reason": "not-read; index-derived fields omitted"},
-		Unknown:   []string{"heuristics are not exhaustive; dynamic registrations and unsupported syntax/languages remain unknown", "advisory only; CEM, OCM, frontier and mandatory test obligations remain open"},
-		Omissions: map[string]int{"inventory": s.Omitted}, NextCalls: guidanceNextCalls(command)}
-	candidates := map[string]*guidanceFeature{}
-	languages := map[string]bool{}
+		Unknown:   []string{"advisory only; CEM, OCM, frontier and mandatory test obligations remain open"},
+		Omissions: map[string]int{"inventory": s.Omitted}}
 	for _, r := range s.Records {
-		if r.Path == nil {
+		if r.Path == nil || r.Classification != "INCLUDED" {
 			out.Omissions["unread-sources"]++
-			continue
 		}
-		p := *r.Path
-		if path.Ext(p) == ".h" {
-			out.Omissions["ambiguous-header-language"]++
-		}
-		if language := guidanceLanguages[path.Ext(p)]; language != "" {
-			languages[language] = true
-		}
-		if r.Classification != "INCLUDED" {
-			out.Omissions["unread-sources"]++
-			continue
-		}
-		body := string(s.Blobs[r.OID])
-		e := guidanceEvidence{Path: p, Blob: r.OID, Start: 1, End: 1}
-		if strings.HasPrefix(p, "cmd/") && path.Base(p) == "main.go" {
-			e.Rule = "cmd-entrypoint"
-			appendGuidanceEvidence(&out.Entrypoints, e, &out)
-			addGuidanceFeature(candidates, path.Dir(p), e, &out)
-		}
-		if guidanceManifests[path.Base(p)] {
-			e.Rule = "package-manifest"
-			appendGuidanceEvidence(&out.Manifests, e, &out)
-			addGuidanceFeature(candidates, p, e, &out)
-			if path.Base(p) == "package.json" {
-				discoverPackage(body, e, candidates, &out)
-			}
-		}
-		if strings.HasSuffix(p, "_test.go") || strings.Contains(p, "/e2e/") || strings.Contains(p, ".spec.") || strings.Contains(p, ".test.") || strings.HasPrefix(path.Base(p), "test_") {
-			e.Rule = "test-convention"
-			appendGuidanceEvidence(&out.Tests, e, &out)
-		}
-		markers := guidanceMarkerLines(p, body)
-		for line, text := range strings.Split(body, "\n") {
-			for _, rule := range []struct {
-				id      string
-				pattern *regexp.Regexp
-			}{{"literal-marker", guidanceMarkers}, {"literal-registration", guidanceRegistrations}} {
-				candidate := text
-				if rule.id == "literal-marker" {
-					candidate = markers[line+1]
-				}
-				if !guidanceMayMatch(rule.id, candidate) {
-					continue
-				}
-				matches := rule.pattern.FindAllStringSubmatch(candidate, -1)
-				if len(matches) > 16 {
-					out.Omissions["line-matches"] += len(matches) - 16
-					matches = matches[:16]
-				}
-				for _, match := range matches {
-					e.Start = line + 1
-					e.End = line + 1
-					e.Rule = rule.id
-					addGuidanceFeature(candidates, strings.TrimSpace(match[2]), e, &out)
-				}
-			}
-		}
-	}
-	if out.Omissions["ambiguous-header-language"] > 0 {
-		out.Unknown = append(out.Unknown, ".h headers may belong to C, C++ or Objective-C; language omitted")
-	}
-	for language := range languages {
-		out.Languages = append(out.Languages, language)
-	}
-	sort.Strings(out.Languages)
-	labels := make([]string, 0, len(candidates))
-	for label := range candidates {
-		labels = append(labels, label)
-	}
-	sort.Strings(labels)
-	for _, label := range labels {
-		out.Features = append(out.Features, *candidates[label])
 	}
 	if out.Omissions["inventory"] > 0 || out.Omissions["unread-sources"] > 0 {
 		out.Unknown = append(out.Unknown, "inventory or source bytes omitted; absence is not negative evidence")
-	}
-	if command == "features" {
-		out.Languages = nil
-		out.Entrypoints = nil
-		out.Manifests = nil
-		out.Tests = nil
-		out.Unknown = append(out.Unknown, "overview-only languages, entrypoints, manifests and tests fields omitted; use overview")
-	}
-	return out
-}
-
-func appendGuidanceEvidence(target *[]guidanceEvidence, e guidanceEvidence, out *guidanceReceipt) {
-	if len(*target) >= 256 {
-		out.Omissions["overview-evidence"]++
-		return
-	}
-	*target = append(*target, e)
-}
-
-func addGuidanceFeature(candidates map[string]*guidanceFeature, label string, e guidanceEvidence, out *guidanceReceipt) {
-	if label == "" {
-		return
-	}
-	if len(label) > 120 {
-		out.Omissions["long-labels"]++
-		return
-	}
-	candidate := candidates[label]
-	if candidate == nil {
-		if len(candidates) >= 256 {
-			out.Omissions["features"]++
-			return
-		}
-		candidate = &guidanceFeature{Label: label, Authority: "inferred", Evidence: []guidanceEvidence{}}
-		if contextindex.ValidateFeature(label, 1) == nil {
-			candidate.FeatureID, candidate.FeatureCall = label, []string{"corvint", "feature", label, "--limit", "1"}
-		}
-		candidates[label] = candidate
-	}
-	for _, existing := range candidate.Evidence {
-		if existing == e {
-			return
-		}
-	}
-	if len(candidate.Evidence) >= 16 {
-		out.Omissions["feature-evidence"]++
-		return
-	}
-	candidate.Evidence = append(candidate.Evidence, e)
-}
-
-func discoverPackage(body string, e guidanceEvidence, candidates map[string]*guidanceFeature, out *guidanceReceipt) {
-	e.Start = 1
-	e.End = strings.Count(body, "\n") + 1
-	var manifest map[string]json.RawMessage
-	if json.Unmarshal([]byte(body), &manifest) != nil {
-		out.Omissions["manifest-parse"]++
-		return
-	}
-	for _, field := range []string{"bin", "scripts"} {
-		raw, exists := manifest[field]
-		if !exists {
-			continue
-		}
-		var values map[string]json.RawMessage
-		if json.Unmarshal(raw, &values) != nil {
-			var value string
-			if field == "bin" && json.Unmarshal(raw, &value) == nil {
-				e.Rule = "manifest-bin"
-				addGuidanceFeature(candidates, e.Path+":bin", e, out)
-				appendGuidanceEvidence(&out.Entrypoints, e, out)
-				continue
-			}
-			out.Omissions["manifest-parse"]++
-			continue
-		}
-		keys := make([]string, 0, len(values))
-		for key := range values {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			e.Rule = "manifest-" + field
-			// The complete JSON blob is the parser's evidence, including multiline objects.
-			e.Start = 1
-			e.End = strings.Count(body, "\n") + 1
-			addGuidanceFeature(candidates, e.Path+":"+field+":"+key, e, out)
-			if field == "bin" {
-				appendGuidanceEvidence(&out.Entrypoints, e, out)
-			}
-			if field == "scripts" && strings.HasPrefix(key, "test") {
-				appendGuidanceEvidence(&out.Tests, e, out)
-			}
-		}
-	}
-}
-
-func guidanceNextCalls(command string) []guidanceCall {
-	table := map[string][][]string{
-		"features": {{"corvint", "overview"}, {"corvint", "help", "feature"}},
-		"overview": {{"corvint", "features"}, {"corvint", "help", "review"}, {"corvint", "help", "affected"}},
-		"review":   {{"corvint", "help", "affected"}, {"corvint", "help", "impact"}},
-	}
-	out := []guidanceCall{}
-	for _, argv := range table[command] {
-		out = append(out, guidanceCall{Argv: argv, Inert: true, Authority: "none"})
 	}
 	return out
 }
 
 func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanceInvocation, refs string, out *guidanceReceipt) (*guidanceReview, error) {
-	out.Unknown = append(out.Unknown, "changedFeatures is target-tree inferred; deleted/base-only candidates are not discovered")
 	ancestor, err := s.MergeBase(ctx, in.Base, s.Revision)
 	if err != nil {
 		return nil, err
@@ -519,18 +243,10 @@ func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanc
 	if err != nil {
 		return nil, err
 	}
-	review := &guidanceReview{Base: in.Base, ChangedFeatures: []guidanceFeature{}, LocalTips: map[string]string{}, Skipped: []guidanceSkip{}, Overlaps: []guidanceOverlap{}}
+	review := &guidanceReview{Base: in.Base, LocalTips: map[string]string{}, Skipped: []guidanceSkip{}, Overlaps: []guidanceOverlap{}}
 	changed := map[string]bool{}
 	for _, p := range paths {
 		changed[p] = true
-	}
-	for _, feature := range out.Features {
-		for _, e := range feature.Evidence {
-			if changed[e.Path] {
-				review.ChangedFeatures = append(review.ChangedFeatures, feature)
-				break
-			}
-		}
 	}
 	// RGV-V0-013, AFP-V0-9730 (V1-5012): review.affected is this binary's
 	// plan, so a stale binary refuses before planning, as the standalone
@@ -750,37 +466,4 @@ func cleanupGuidanceScratch(root string, original error, remove func(string) err
 		return errors.Join(original, fmt.Errorf("scratch cleanup failed for %q: %w", root, err))
 	}
 	return original
-}
-
-// Go's lexer distinguishes real comments from marker-shaped strings, including
-// multiline raw strings. Other formats retain the bounded whole-line heuristic.
-func guidanceMarkerLines(p, body string) map[int]string {
-	lines := map[int]string{}
-	if path.Ext(p) != ".go" {
-		if path.Ext(p) == ".json" || path.Ext(p) == ".jsonl" {
-			return lines
-		}
-		for i, line := range strings.Split(body, "\n") {
-			lines[i+1] = line
-		}
-		return lines
-	}
-	set := token.NewFileSet()
-	file := set.AddFile(p, -1, len(body))
-	var lexer scanner.Scanner
-	lexer.Init(file, []byte(body), nil, scanner.ScanComments)
-	for {
-		pos, kind, value := lexer.Scan()
-		if kind == token.EOF {
-			break
-		}
-		if kind != token.COMMENT {
-			continue
-		}
-		start := set.PositionFor(pos, false).Line
-		for i, line := range strings.Split(value, "\n") {
-			lines[start+i] = line
-		}
-	}
-	return lines
 }

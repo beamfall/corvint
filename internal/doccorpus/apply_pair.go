@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/pinnedread"
 )
 
 // MaintenanceFile binds an output to the bytes inspected by the caller. Nil Before
@@ -101,7 +101,7 @@ func publishMaintenancePair(ctx context.Context, root string, files [2]Maintenan
 			if e != nil || !s.original.Mode().IsRegular() {
 				return nil, fail("maintenance destination is not regular")
 			}
-			raw, e := testvaliditydoc.ReadFile(parent, path.Base(f.Path))
+			raw, e := pinnedread.ReadFile(parent, path.Base(f.Path))
 			if e != nil || !bytes.Equal(raw, f.Before) {
 				return nil, fail("maintenance destination changed")
 			}
@@ -173,7 +173,7 @@ func publishMaintenancePair(ctx context.Context, root string, files [2]Maintenan
 				restore()
 				return nil, fail("maintenance destination replaced")
 			}
-			raw, e := testvaliditydoc.ReadFile(s.parent, recovery)
+			raw, e := pinnedread.ReadFile(s.parent, recovery)
 			if e != nil || !bytes.Equal(raw, s.file.Before) {
 				restore()
 				return nil, fail("maintenance destination changed")
@@ -214,7 +214,7 @@ func publishMaintenancePair(ctx context.Context, root string, files [2]Maintenan
 		if e != nil || !os.SameFile(info, s.parentInfo) {
 			return nil, fail("maintenance parent changed after publication")
 		}
-		raw, e := testvaliditydoc.ReadFile(s.parent, path.Base(s.file.Path))
+		raw, e := pinnedread.ReadFile(s.parent, path.Base(s.file.Path))
 		if e != nil || !bytes.Equal(raw, s.file.Next) {
 			return nil, fail("maintenance output changed after publication")
 		}

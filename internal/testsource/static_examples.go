@@ -51,7 +51,7 @@ func staticExamplesWithin(r Repo, revision string, paths []string, budget *readB
 		}
 		return len(paths) == 0 || slices.ContainsFunc(paths, func(root string) bool { return under(name, root) })
 	}
-	texts, _, err := r.readFilesWithin(commit, keep, budget)
+	texts, _, err := readFilesWithin(r, commit, keep, budget)
 	if err != nil {
 		return "", nil, err
 	}
@@ -77,7 +77,7 @@ func staticExamplesWithin(r Repo, revision string, paths []string, budget *readB
 	for _, name := range names {
 		file := StaticExampleFile{Path: name}
 		if strings.HasSuffix(name, "_spec.rb") {
-			support, err := r.staticRubySupport(commit, name, supports, budget)
+			support, err := staticRubySupport(r, commit, name, supports, budget)
 			if err != nil {
 				return "", nil, err
 			}
@@ -93,12 +93,12 @@ func staticExamplesWithin(r Repo, revision string, paths []string, budget *readB
 // staticRubySupport reads a spec's committed support set once per prefix, charged to the static
 // command's shared budget (LPCV-V0-152). A bound refusal propagates as tests-bound-exceeded; any
 // other read failure leaves the set unbound as rspec-support-unreadable, as discovery does.
-func (r Repo) staticRubySupport(commit, name string, cache map[string]testvalidity.RubySupport, budget *readBudget) (testvalidity.RubySupport, error) {
+func staticRubySupport(r Repo, commit, name string, cache map[string]testvalidity.RubySupport, budget *readBudget) (testvalidity.RubySupport, error) {
 	prefix := specPrefix(name)
 	if support, ok := cache[prefix]; ok {
 		return support, nil
 	}
-	files, _, err := r.readFilesWithin(commit, RubySupportPaths(prefix), budget)
+	files, _, err := readFilesWithin(r, commit, RubySupportPaths(prefix), budget)
 	support := testvalidity.RubySupport{Files: files}
 	if err != nil {
 		var refusal *Error

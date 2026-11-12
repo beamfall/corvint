@@ -21,10 +21,10 @@ func setupFixture(t *testing.T) string {
 	t.Helper()
 	root := impactCLIRepository(t)
 	files := map[string]string{
-		"AGENTS.md":                           "# Agents\n\nRun `corvint context` before editing.\n",
-		".claude/settings.json":               "{\"enabledPlugins\": {\"corvint@corvint\": true}}\n",
-		".gitignore":                          strings.Join(setupIgnoredPaths, "\n") + "\n",
-		".github/cishards/test-commands.json": `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":["make","shell-test"],"typescript":{"none":"no suite"}}}` + "\n",
+		"AGENTS.md":                   "# Agents\n\nRun `corvint context` before editing.\n",
+		".claude/settings.json":       "{\"enabledPlugins\": {\"corvint@corvint\": true}}\n",
+		".gitignore":                  strings.Join(setupIgnoredPaths, "\n") + "\n",
+		".corvint/test-commands.json": `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":["make","shell-test"],"typescript":{"none":"no suite"}}}` + "\n",
 	}
 	for name, content := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
@@ -156,10 +156,10 @@ func TestAdoptSetupReportsEachGapClass(t *testing.T) {
 			os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".context-corvint/\n"), 0o644)
 		}, ".corvint/unplanned-reads.jsonl: not ignored .corvint/unplanned-reads.enabled: not ignored"},
 		{"test-commands", func(t *testing.T, root string) {
-			os.Remove(filepath.Join(root, ".github", "cishards", "test-commands.json"))
-		}, ".github/cishards/test-commands.json: absent"},
+			os.Remove(filepath.Join(root, ".corvint", "test-commands.json"))
+		}, ".corvint/test-commands.json: absent"},
 		{"test-commands", func(t *testing.T, root string) {
-			os.WriteFile(filepath.Join(root, ".github", "cishards", "test-commands.json"), []byte(`{"profile":"other/0","go":{}}`), 0o644)
+			os.WriteFile(filepath.Join(root, ".corvint", "test-commands.json"), []byte(`{"profile":"other/0","go":{}}`), 0o644)
 		}, `profile is "other/0"`},
 	} {
 		t.Run(tc.class+"/"+tc.witness, func(t *testing.T) {

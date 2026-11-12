@@ -25,21 +25,21 @@ func TestSourceModel(t *testing.T) {
 });
 it('top', () => {});`)
 	got := []string{}
-	for _, d := range s.decls {
-		entry := d.kind + ":" + d.title
-		if d.kind == "test" {
-			entry += ":" + joinTitles(s.describes(d))
+	for _, d := range s.Decls {
+		entry := d.Kind + ":" + d.Title
+		if d.Kind == "test" {
+			entry += ":" + joinTitles(describes(s, d))
 		}
-		if d.modifiers["only"] || d.modifiers["skip"] || d.modifiers["serial"] {
+		if d.Modifiers["only"] || d.Modifiers["skip"] || d.Modifiers["serial"] {
 			entry += ":mod"
 		}
 		got = append(got, entry)
 	}
 	want := []string{"describe:cart", "describe:totals:mod", "test:adds:cart>totals:mod", "annotation::mod", "test:top:"}
-	if !reflect.DeepEqual(got, want) || s.uncertain {
-		t.Fatalf("declarations = %v (uncertain %v), want %v", got, s.uncertain, want)
+	if !reflect.DeepEqual(got, want) || s.Uncertain {
+		t.Fatalf("declarations = %v (uncertain %v), want %v", got, s.Uncertain, want)
 	}
-	if !parseSource("e2e/b.spec.ts", "test('x', () => { expect(1).toBe(1);\n").uncertain {
+	if !parseSource("e2e/b.spec.ts", "test('x', () => { expect(1).toBe(1);\n").Uncertain {
 		t.Fatal("an unbalanced file was not marked uncertain")
 	}
 }

@@ -59,6 +59,14 @@ type goPackage struct {
 	movesDirectory bool     // a file moves the working directory (directoryMove)
 	command        bool     // a non-test file declares package main, so the package builds a binary
 	leafReads      []string // rule (d) reasons leafPattern exempts while no file moves it
+	sourceReads    []sourceRead
+}
+
+// sourceRead is a location-source reason waiting for the end of its
+// package's files (AFP-V0-3663).
+type sourceRead struct {
+	reason string
+	test   bool
 }
 
 type repositoryIndex struct {
@@ -151,11 +159,13 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 	// commands run there: a package that moves the working directory keeps
 	// rule (d) for it (AFP-V0-2542).
 	for _, pkg := range index.packages {
-		if !pkg.movesDirectory {
-			continue
+		if pkg.movesDirectory {
+			for _, reason := range pkg.leafReads {
+				pkg.markUnresolved(reason, true)
+			}
 		}
-		for _, reason := range pkg.leafReads {
-			pkg.markUnresolved(reason, true)
+		for _, read := range pkg.sourceReads {
+			pkg.markUnresolved(read.reason, read.test)
 		}
 	}
 	index.link(imports)
@@ -308,6 +318,8 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		return join
 	})
 	scanned.scan = scanSource(body, aliases, dotImported, joins)
+	every, everyDotted := qualifiedImports(file.Imports, func(string) bool { return true })
+	scanned.scan.sources = locationSources(body, every, everyDotted)
 	scanned.tokens = make([][]string, len(scanned.scan.literals))
 	var tokens []string
 	for offset, literal := range scanned.scan.literals {
@@ -363,6 +375,12 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 			}
 		}
 	}
+	// A location source is marked after every literal and locator reason of
+	// the package, so a package those already hold keeps naming them
+	// (AFP-V0-3663); indexRepositoryMemo marks it.
+	for _, source := range scan.sources {
+		pkg.sourceReads = append(pkg.sourceReads, sourceRead{reason: relative + " " + locationSourceReason(source), test: test})
+	}
 }
 
 func (pkg *goPackage) markUnresolved(reason string, test bool) {
@@ -401,6 +419,7 @@ type sourceScan struct {
 	literals       []string
 	joined         []string // root-anchored tokens of bounded joins of a located root (AFP-V0-2950)
 	calls          []string // root-locator functions the file calls
+	sources        []string // location sources whose value may form a path (AFP-V0-3660)
 	embeds         bool
 	movesDirectory bool // the file moves the working directory (directoryMove)
 	err            error

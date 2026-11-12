@@ -36,9 +36,8 @@
   "smoke": {
     "versionArgument": "--version",
     "expectedVersion": "Corvint 1.0.0-rc.3",
-    "queryTask": "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
-    "queryLimit": "1",
-    "expectedIntent": "governing",
+    "queryPath": "AGENTS.md",
+    "expectedInstructionsState": "OBSERVED",
     "fixtureInstructions": "# Agents\n\nGate: run the repository gate before commit.\nQueue: the roadmap holds the active tickets.\n",
     "crossCompileNotRunReason": "NOT_RUN: this host cannot execute the target. GPK-V0-018 states cross-compilation is not execution evidence; native conformance, filesystem-safety, process-cleanup, and read-nonmutation matrices remain owed on that operating system."
   },

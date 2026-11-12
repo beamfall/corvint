@@ -53,8 +53,8 @@ func TestLintAllLinesWithoutBaseTSAV0650(t *testing.T) {
 func TestTemplateTitlesTSAV0651(t *testing.T) {
 	text := "const label = 'x';\ntest.describe(`Suite (${label})`, () => {\n  test(`one ${label} two`, async () => {});\n});\n"
 	got := []string{}
-	for _, d := range parseSource("e2e/a.spec.ts", text).decls {
-		got = append(got, d.title)
+	for _, d := range parseSource("e2e/a.spec.ts", text).Decls {
+		got = append(got, d.Title)
 	}
 	if strings.Join(got, "|") != "Suite (${label})|one ${label} two" {
 		t.Fatalf("titles = %q", got)

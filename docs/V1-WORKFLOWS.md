@@ -67,10 +67,13 @@ No checkout discovery, fetching, provider execution or tests occur. See the
 ## Inspect conditional project instruction loading
 
 ```sh
-corvint context --task "inspect project instructions" --subject app/source.go \
-  --instruction-host codex --instruction-host-version 0.153.2 \
-  --instruction-cwd app --instruction-profile default
+corvint instructions --subject app/source.go \
+  --host codex --host-version 0.153.2 \
+  --cwd app --profile default
 ```
+
+`corvint context --subject ... --instruction-*` remains as a deprecated alias for one release and
+prints one stderr line naming `corvint instructions`.
 
 The explicit default assumptions predict committed project filename selection, shadowing,
 byte truncation and bounded Unicode-control warnings using exact Codex 0.153.2 source rules.

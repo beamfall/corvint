@@ -242,18 +242,31 @@ func TestPlanProducesExactDocumentAndNavBytePatchesForIsolatedCandidate(t *testi
 	if patch.Documents[0].Operation != "insert_after" || patch.Nav.Operation != "edit_nav" || patch.Documents[0].Patch.StartByte != len("# Accepted prose\n") || patch.Documents[0].Patch.EndByte != len("# Accepted prose\n") {
 		t.Fatalf("document patch=%+v", patch.Documents[0])
 	}
-	stage := t.TempDir()
-	if err := stageCorpus(environment, patch, stage, BuildOptions{}); err != nil {
-		t.Fatal(err)
+	// The planned byte patches, applied to the bytes they bind, give the rendered document and the
+	// proposed nav (the staging step that used to apply them retired with the site build, V1-4828).
+	proposedDocument := applyPlannedPatch(t, []byte("# Accepted prose\n"), patch.Documents[0].Patch)
+	documentDigest := sha256.Sum256(proposedDocument)
+	if string(proposedDocument) != patch.Documents[0].RenderedMarkdown || !strings.HasPrefix(string(proposedDocument), "# Accepted prose\n") || hex.EncodeToString(documentDigest[:]) != patch.Documents[0].ProposedSHA256 {
+		t.Fatalf("proposed document=%q", proposedDocument)
 	}
-	stagedDocument, err := os.ReadFile(filepath.Join(stage, "docs/proposal.md"))
-	if err != nil || string(stagedDocument) != patch.Documents[0].RenderedMarkdown || !strings.HasPrefix(string(stagedDocument), "# Accepted prose\n") {
-		t.Fatalf("staged document=%q err=%v", stagedDocument, err)
+	proposedConfig := applyPlannedPatch(t, []byte(config), patch.Nav.Patch)
+	if strings.Contains(string(proposedConfig), "Old: old.md") || !strings.Contains(string(proposedConfig), `"Candidate": "proposal.md"`) {
+		t.Fatalf("proposed config=%q", proposedConfig)
 	}
-	stagedConfig, err := os.ReadFile(filepath.Join(stage, "mkdocs.yml"))
-	if err != nil || strings.Contains(string(stagedConfig), "Old: old.md") || !strings.Contains(string(stagedConfig), `"Candidate": "proposal.md"`) {
-		t.Fatalf("staged config=%q err=%v", stagedConfig, err)
+}
+
+// applyPlannedPatch applies a byte patch after checking its range and both digests it binds.
+func applyPlannedPatch(t *testing.T, current []byte, patch BytePatch) []byte {
+	t.Helper()
+	if patch.StartByte < 0 || patch.EndByte < patch.StartByte || patch.EndByte > len(current) {
+		t.Fatalf("patch range is outside its target: %+v", patch)
 	}
+	original := sha256.Sum256(current[patch.StartByte:patch.EndByte])
+	replacement := sha256.Sum256([]byte(patch.Replacement))
+	if hex.EncodeToString(original[:]) != patch.OriginalSHA256 || hex.EncodeToString(replacement[:]) != patch.ReplacementSHA256 {
+		t.Fatalf("patch does not bind its original and replacement bytes: %+v", patch)
+	}
+	return []byte(string(current[:patch.StartByte]) + patch.Replacement + string(current[patch.EndByte:]))
 }
 
 // The expected bytes and digest were produced by python3 3.9.6 running the authority
@@ -288,55 +301,6 @@ func TestRenderNavWritesLongTitlesAsExplicitKeys(t *testing.T) {
 	want := "nav:\n  - \"" + fits + "\": \"a.md\"\n  - ? \"" + long + "\"\n    : \"b.md\"\n"
 	if got != want {
 		t.Fatalf("nav=%q", got)
-	}
-}
-
-func TestBuildRefusesUncontainedUnixExecution(t *testing.T) {
-	root := t.TempDir()
-	environment := testBuildEnvironment(t, root, successfulBuildScript())
-	patch, err := plan(environment, PlanOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := build(t.Context(), environment, patch, testBuildOptions(environment))
-	if errorCode(err) != "process-containment-unsupported" || result.BuildStrictStatus != "NOT_RUN" || !strings.Contains(result.ProcessContainment, "setsid") {
-		t.Fatalf("result=%+v err=%v", result, err)
-	}
-}
-
-func TestValidateSiteRejectsFalseStrictPassAndOutputBounds(t *testing.T) {
-	for _, test := range []struct {
-		name      string
-		content   string
-		maxOutput int64
-		wantCode  string
-	}{
-		{"zero-without-site", "", 1024, "false-strict-pass"},
-		{"oversized-site", "strict", 4, "build-output-too-large"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			output := t.TempDir()
-			if test.content != "" {
-				writeTestFile(t, output, "index.html", test.content)
-			}
-			_, _, _, err := validateSite(output, BuildOptions{MaxOutputBytes: test.maxOutput})
-			if errorCode(err) != test.wantCode {
-				t.Fatalf("err=%v", err)
-			}
-		})
-	}
-}
-
-func TestOfflineQualificationCannotBePromotedAndGeneratedAssetsAreScanned(t *testing.T) {
-	result := minimalReceipt().Build
-	if _, err := QualifyOffline(result, OfflineAttestation{}); errorCode(err) != "offline-observer-required" {
-		t.Fatalf("error = %v", err)
-	}
-	output := t.TempDir()
-	writeTestFile(t, output, "index.html", `<script src="https://cdn.example/x.js"></script>`)
-	found, err := scanGeneratedAssets(output, BuildOptions{})
-	if err != nil || found != "index.html" {
-		t.Fatalf("found=%q err=%v", found, err)
 	}
 }
 
@@ -401,69 +365,6 @@ func testPlanningEnvironment(t *testing.T, root string) Environment {
 		Config:       FilePin{Path: pin.Path, SHA256: pin.SHA256, Size: pin.Size},
 		Observations: ConfigObservations{DocsDir: "docs"},
 	}
-}
-
-func testBuildEnvironment(t *testing.T, root, script string) Environment {
-	t.Helper()
-	resolvedRoot, err := projectRoot(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	root = resolvedRoot
-	writeExecutable(t, root, ".venv/bin/mkdocs", script)
-	emptyDigest := textDigest("{}")
-	pythonScript := `#!/bin/sh
-config="$4"
-stage="${config%/mkdocs.yml}"
-printf '%s' '{"config_file_path":"'"$config"'","docs_dir":"'"$stage"'/docs","extra_css":[],"extra_javascript":[],"hooks":[],"markdown_extension_options":[],"markdown_extensions":[],"nav_configured":false,"nav_sha256":"` + textDigest("null") + `","plugin_options":[{"name":"search","options_sha256":"` + emptyDigest + `"}],"plugins":["search"],"site_dir":"'"$stage"'/site","site_url":"","theme_custom_dir":"","theme_features":[],"theme_name":"material","theme_options_sha256":"` + textDigest(`{"name":"material"}`) + `","use_directory_urls":true,"validation":{},"validation_configured":true,"validation_sha256":"` + emptyDigest + `"}'
-`
-	writeExecutable(t, root, ".venv/bin/python", pythonScript)
-	writeTestFile(t, root, ".venv/requirements.lock", "pinned\n")
-	writeTestFile(t, root, "mkdocs.yml", "site_name: Test\ntheme:\n  name: material\n")
-	writeTestFile(t, root, "docs/index.md", "# Index\n")
-	mkdocs, _, err := pinExecutable(root, ".venv/bin/mkdocs", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	python, _, err := pinExecutable(root, ".venv/bin/python", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, projectLock, err := readPinned(root, ".venv/requirements.lock", defaultSourceBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, config, err := readPinned(root, "mkdocs.yml", defaultConfigBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return Environment{
-		ProjectRoot:   root,
-		Toolchain:     Toolchain{MkDocs: mkdocs, Python: python, ProjectLock: FilePin{Path: projectLock.Path, SHA256: projectLock.SHA256, Size: projectLock.Size}, EnvironmentSHA256: strings.Repeat("e", 64)},
-		Config:        FilePin{Path: config.Path, SHA256: config.SHA256, Size: config.Size},
-		Observations:  ConfigObservations{Authority: "test MkDocs authority", DocsDir: "docs", ThemeName: "material", Plugins: []string{"search"}, SearchStatus: "implicit-effective-default"},
-		Qualification: "QUALIFIED",
-	}
-}
-
-func testBuildOptions(environment Environment) BuildOptions {
-	return BuildOptions{TrustAttestation: EnvironmentTrustAttestation{
-		Profile: "corvint-doccompiler-environment-trust/0", EnvironmentSHA256: environment.Toolchain.EnvironmentSHA256,
-		Authority: "test owner", Revision: strings.Repeat("a", 40),
-	}}
-}
-
-func successfulBuildScript() string { return "#!/bin/sh\n" + siteShellBody() }
-
-func siteShellBody() string {
-	return `site=""
-while [ "$#" -gt 0 ]; do
-  if [ "$1" = "--site-dir" ]; then shift; site="$1"; fi
-  shift
-done
-/bin/mkdir -p "$site"
-printf '<html>strict</html>' > "$site/index.html"
-`
 }
 
 func writeTestFile(t *testing.T, root, relative, content string) {

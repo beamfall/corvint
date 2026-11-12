@@ -50,8 +50,8 @@ type denialSite struct {
 }
 
 // denialFindings returns the TSA-V0-564/565 finding of one example, or none.
-func (r *rspecReader) denialFindings(test string, e rspecExample) []testvalidity.SourceFinding {
-	own := sites(e.body)
+func denialFindings(r *rspecReader, test string, e rspecExample) []testvalidity.SourceFinding {
+	own := sites(e.Body)
 	denial, customDenial, customOther := "", "", ""
 	for _, s := range own {
 		if rspecNoEffect.MatchString(s.text) {
@@ -74,13 +74,13 @@ func (r *rspecReader) denialFindings(test string, e rspecExample) []testvalidity
 		return nil
 	}
 	finding := func(rule, cause, message string) []testvalidity.SourceFinding {
-		return []testvalidity.SourceFinding{{Rule: rule, Severity: testvalidity.SeverityAdvisory, Test: test, Title: e.title, Location: location, Cause: cause, Message: message}}
+		return []testvalidity.SourceFinding{{Rule: rule, Severity: testvalidity.SeverityAdvisory, Test: test, Title: e.Title, Location: location, Cause: cause, Message: message}}
 	}
 	mutating, safe, shadowed := "", false, false
-	for _, s := range r.requestSites(e, own) {
+	for _, s := range requestSites(r, e, own) {
 		for _, m := range rspecRequestVerb.FindAllStringSubmatch(s.text, -1) {
 			switch verb := m[1]; {
-			case r.declaredOnChain(e.group, verb):
+			case declaredOnChain(r, e.Group, verb):
 				shadowed = true
 			case verb == "get" || verb == "head":
 				safe = true
@@ -103,10 +103,10 @@ func (r *rspecReader) denialFindings(test string, e rspecExample) []testvalidity
 		return finding(testvalidity.RuleRBDenialWithoutNoEffect, mutating, fmt.Sprintf(
 			"the example asserts only that the mutating request at %s was refused, not that it had no effect, so a handler that writes before it denies stays green; add a no-effect assertion (expect { request }.not_to change(...), a reload comparison, or not_to have_received on the outbound client)", mutating))
 	case shadowed:
-		return finding(testvalidity.RuleRBDenialVerbUnresolved, fmt.Sprintf("%s:%d", e.path, e.line),
+		return finding(testvalidity.RuleRBDenialVerbUnresolved, fmt.Sprintf("%s:%d", e.Path, e.Line),
 			"the example asserts a refusal, but a let or subject on its group chain shadows a request helper name, so the reader cannot tell which request it observes and abstains")
 	}
-	return finding(testvalidity.RuleRBDenialVerbUnresolved, fmt.Sprintf("%s:%d", e.path, e.line),
+	return finding(testvalidity.RuleRBDenialVerbUnresolved, fmt.Sprintf("%s:%d", e.Path, e.Line),
 		"the example asserts a refusal, but no literal get, head, post, put, patch or delete call is read in it, its hooks or the subject and lets it calls, so the reader cannot tell whether the refused request mutates and abstains")
 }
 
@@ -114,7 +114,7 @@ func (r *rspecReader) denialFindings(test string, e rspecExample) []testvalidity
 func sites(lines []rubyLine) []denialSite {
 	out := make([]denialSite, 0, len(lines))
 	for _, l := range lines {
-		out = append(out, denialSite{at: fmt.Sprintf("%s:%d", l.path, l.line), text: stripRubyStrings(l.text), raw: l.text})
+		out = append(out, denialSite{at: fmt.Sprintf("%s:%d", l.Path, l.Line), text: stripRubyStrings(l.Text), raw: l.Text})
 	}
 	return out
 }
@@ -157,43 +157,43 @@ func customMatcherAt(s denialSite) (denial, other bool) {
 // requestSites returns the lines a request of example e can sit in: the example body, then per
 // group on its chain, innermost first, the bodies of the subject and lets the example or a hook
 // calls by name, in name order, and the group's before, let! and subject! hooks.
-func (r *rspecReader) requestSites(e rspecExample, own []denialSite) []denialSite {
+func requestSites(r *rspecReader, e rspecExample, own []denialSite) []denialSite {
 	out := append([]denialSite{}, own...)
-	names := invokedNames(e.body)
-	if strings.Contains(stripRubyStrings(joinLines(e.body)), "is_expected") {
+	names := invokedNames(e.Body)
+	if strings.Contains(stripRubyStrings(joinLines(e.Body)), "is_expected") {
 		names["subject"] = true
 	}
-	for g := e.group; g >= 0; g = r.groups[g].parent {
-		for _, h := range r.groups[g].hooks {
-			for name := range h.names {
+	for g := e.Group; g >= 0; g = r.Groups[g].Parent {
+		for _, h := range r.Groups[g].Hooks {
+			for name := range h.Names {
 				names[name] = true
 			}
 		}
 	}
 	seen := map[string]bool{}
-	for g := e.group; g >= 0; g = r.groups[g].parent {
-		declared := make([]string, 0, len(r.groups[g].bodies))
-		for name := range r.groups[g].bodies {
+	for g := e.Group; g >= 0; g = r.Groups[g].Parent {
+		declared := make([]string, 0, len(r.Groups[g].Bodies))
+		for name := range r.Groups[g].Bodies {
 			declared = append(declared, name)
 		}
 		sort.Strings(declared)
 		for _, name := range declared {
 			if names[name] && !seen[name] {
 				seen[name] = true
-				out = append(out, sites(r.groups[g].bodies[name])...)
+				out = append(out, sites(r.Groups[g].Bodies[name])...)
 			}
 		}
-		for _, h := range r.groups[g].hooks {
-			out = append(out, sites(h.body)...)
+		for _, h := range r.Groups[g].Hooks {
+			out = append(out, sites(h.Body)...)
 		}
 	}
 	return out
 }
 
 // declaredOnChain reports whether a let or subject named name is declared on group g's chain.
-func (r *rspecReader) declaredOnChain(g int, name string) bool {
-	for ; g >= 0; g = r.groups[g].parent {
-		if _, ok := r.groups[g].decls[name]; ok {
+func declaredOnChain(r *rspecReader, g int, name string) bool {
+	for ; g >= 0; g = r.Groups[g].Parent {
+		if _, ok := r.Groups[g].Decls[name]; ok {
 			return true
 		}
 	}
@@ -203,7 +203,7 @@ func (r *rspecReader) declaredOnChain(g int, name string) bool {
 func joinLines(lines []rubyLine) string {
 	texts := make([]string, len(lines))
 	for k, l := range lines {
-		texts[k] = l.text
+		texts[k] = l.Text
 	}
 	return strings.Join(texts, "\n")
 }

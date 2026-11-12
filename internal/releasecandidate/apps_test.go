@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -36,18 +37,16 @@ func appArchiveFixture(t *testing.T, app, platform, version, build string) []byt
 }
 
 // appManifestFixture is the release-binary manifest recording every core-set
-// app at one version, commit and toolchain, plus one independent analyzer.
+// app at one version, commit and toolchain for the catalog's targets (the
+// AppPlatforms), plus one independent binary from an earlier release.
 func appManifestFixture(t *testing.T, version, build, commit, goVersion string, archives map[string][]byte) appManifest {
 	t.Helper()
 	manifest := appManifest{Schema: appManifestSchema, Binaries: map[string]appRecord{}, DeclaredSkew: []appSkew{}}
 	for _, app := range CoreSetApps {
 		record := appRecord{Version: version, SourceCommit: commit, Build: build, GoVersion: goVersion, VersionSet: coreVersionSet}
-		for _, platform := range append(shippedPlatforms(), "windows_amd64") {
+		for _, platform := range appPlatforms() {
 			goos, goarch := splitPlatform(platform)
 			name := appArchiveName(app, platform)
-			if goos == "windows" {
-				name = app + "_" + platform + ".zip"
-			}
 			raw, present := archives[appArchivePath(app, platform)]
 			if !present {
 				raw = []byte("unshipped-" + name)
@@ -65,7 +64,7 @@ func appFiles(t *testing.T, version, build, commit, goVersion string, mutate fun
 	t.Helper()
 	files := map[string][]byte{}
 	for _, app := range CoreSetApps {
-		for _, platform := range shippedPlatforms() {
+		for _, platform := range appPlatforms() {
 			files[appArchivePath(app, platform)] = appArchiveFixture(t, app, platform, version, build)
 		}
 	}
@@ -119,6 +118,35 @@ func appAssets(files map[string][]byte) map[string]Asset {
 	return assets
 }
 
+// ARTIFACT-BIN-V0-522: a release-binary manifest for the catalog's three
+// targets is a complete app manifest: the candidate asks for no darwin/amd64
+// or Windows app archive, and every app platform is a shipped core platform.
+func TestARTIFACTBINV0522AppArchivesFollowTheCatalogTargets(t *testing.T) {
+	stubAppBinaries(t)
+	if !slices.Equal(AppPlatforms, []string{"darwin_arm64", "linux_amd64", "linux_arm64"}) {
+		t.Fatalf("AppPlatforms %v", AppPlatforms)
+	}
+	for _, platform := range AppPlatforms {
+		if !slices.Contains(shippedPlatforms(), platform) {
+			t.Errorf("app platform %s is not a shipped core archive platform %v", platform, shippedPlatforms())
+		}
+	}
+	commit := strings.Repeat("a", 40)
+	manifest := Manifest{Version: "0.5.0a1", BuildNumber: "9", GoVersion: "go1.27.4", Sources: []SourceIdentity{{Name: "corvint", Commit: commit, Tree: strings.Repeat("b", 40)}}}
+	files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", nil)
+	if err := verifyApps(files, appAssets(files), manifest); err != nil {
+		t.Fatalf("a three-target release manifest must verify: %v", err)
+	}
+	if got, want := len(files)-1, len(CoreSetApps)*3; got != want || appAssetCount() != want {
+		t.Fatalf("candidate app archives %d (count %d), want %d", got, appAssetCount(), want)
+	}
+	for name := range files {
+		if strings.Contains(name, "darwin_amd64") || strings.Contains(name, "windows") {
+			t.Errorf("candidate carries %s", name)
+		}
+	}
+}
+
 // ARTIFACT-BIN-V0-510: the candidate binds every core-set app archive to the
 // release manifest and the manifest to its own release identity; any drift
 // between the three refuses.
@@ -151,18 +179,18 @@ func TestARTIFACTBINV0510VerifyAppsBindsManifestAndArchivesToTheRelease(t *testi
 				m.Binaries["corvint-mcp"] = record
 			})
 		}},
-		{"app with another toolchain", "release manifest records corvint-cli", func() map[string][]byte {
+		{"app with another toolchain", "release manifest records corvint-docs-mcp", func() map[string][]byte {
 			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
-				record := m.Binaries["corvint-cli"]
+				record := m.Binaries["corvint-docs-mcp"]
 				record.GoVersion = "go1.26.0"
-				m.Binaries["corvint-cli"] = record
+				m.Binaries["corvint-docs-mcp"] = record
 			})
 		}},
-		{"app outside the core set", "release manifest records corvint-web-flows", func() map[string][]byte {
+		{"app outside the core set", "release manifest records corvint-mcp", func() map[string][]byte {
 			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
-				record := m.Binaries["corvint-web-flows"]
+				record := m.Binaries["corvint-mcp"]
 				record.VersionSet = ""
-				m.Binaries["corvint-web-flows"] = record
+				m.Binaries["corvint-mcp"] = record
 			})
 		}},
 		{"declared skew in the core set", "declares version skew in the core set", func() map[string][]byte {
@@ -173,7 +201,7 @@ func TestARTIFACTBINV0510VerifyAppsBindsManifestAndArchivesToTheRelease(t *testi
 		{"shipped archive row missing", "release manifest lacks corvint-docs_linux_arm64.tar.gz", func() map[string][]byte {
 			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
 				record := m.Binaries["corvint-docs"]
-				record.Archives = record.Archives[:len(record.Archives)-2]
+				record.Archives = record.Archives[:len(record.Archives)-1]
 				m.Binaries["corvint-docs"] = record
 			})
 		}},
@@ -182,9 +210,9 @@ func TestARTIFACTBINV0510VerifyAppsBindsManifestAndArchivesToTheRelease(t *testi
 			files[appArchivePath("corvint-docs-mcp", "darwin_arm64")] = []byte("changed")
 			return files
 		}},
-		{"archive asset missing", "candidate app asset apps/corvint-test-runner_linux_amd64.tar.gz is missing", func() map[string][]byte {
+		{"archive asset missing", "candidate app asset apps/corvint-mcp_linux_amd64.tar.gz is missing", func() map[string][]byte {
 			files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", nil)
-			delete(files, appArchivePath("corvint-test-runner", "linux_amd64"))
+			delete(files, appArchivePath("corvint-mcp", "linux_amd64"))
 			return files
 		}},
 		{"unknown manifest field", "candidate release manifest", func() map[string][]byte {

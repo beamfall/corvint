@@ -235,7 +235,7 @@ func testPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
 	}
 
 	staleApps := Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), AppsDirectory: appsOutputFixture(t, "0.5.0a1", "1", strings.Repeat("f", 40), "go1.27.4"), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
-	if _, err := Assemble(t.Context(), staleApps); err == nil || !strings.Contains(err.Error(), "release manifest records corvint-cli") {
+	if _, err := Assemble(t.Context(), staleApps); err == nil || !strings.Contains(err.Error(), "release manifest records corvint-docs ") {
 		t.Fatalf("app archives built from another commit accepted: %v", err)
 	}
 	if entries, err := os.ReadDir(output); err == nil && len(entries) != 0 {

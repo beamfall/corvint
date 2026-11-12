@@ -8,8 +8,15 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/langplugin/runnernames"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
+
+// RubySelectionRunners names the Ruby runners that have a selection plugin;
+// the registry's table row for this family reads it (AFP-V0-9985).
+func RubySelectionRunners() []string {
+	return []string{runnernames.RunnerMinitest, runnernames.RunnerRailsTest, runnernames.RunnerRspec, runnernames.RunnerTestUnit}
+}
 
 // RubySelectionInvocation extends the existing Ruby execution profiles with
 // discovery. The caller stages Files and admits executable/configuration pins

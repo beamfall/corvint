@@ -372,6 +372,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
+	plan.Unknown = append(plan.Unknown, graph.symlinkTargets(normalized)...)
 	graph.selectOwnershipAudit(&plan, reached, normalized)
 	coverageReaders := make(map[string]map[string]Witness)
 	// AZU-V0-006: the coverage proof counts a caller only when this plan runs
@@ -548,6 +549,12 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.commentSourceReadersOf(reached, normalized, followed)
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
+	for id := range graph.deletedScriptObserversOf(reached, normalized, followed) {
+		if carried == nil {
+			carried = make(map[string]bool)
+		}
+		carried[id] = true
+	}
 	graph.existenceReadersOf(reached, normalized)
 	graph.ownersOf(reached, normalized)
 	graph.testEmbedReadersOf(reached, normalized)
@@ -1310,7 +1317,7 @@ func (graph *Graph) listsBelowAny(name string, directories []string) bool {
 // edge into a locator would widen it.
 func terminalWitness(witness Witness) bool {
 	switch witness.Kind {
-	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader, WitnessDeclaredTestOwner, WitnessFrontierSite:
+	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader, WitnessDeclaredTestOwner, WitnessFrontierSite, WitnessDeletedScriptObserver:
 		return true
 	}
 	return false

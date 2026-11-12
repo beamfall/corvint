@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -58,7 +59,7 @@ func freshCommandObserve(expected FreshCommandIdentity) *FreshCommandIdentity {
 	if err != nil {
 		return nil
 	}
-	return &FreshCommandIdentity{Argv: append([]string{}, expected.Argv...), ExecutableDigest: executable, EntrypointDigest: sha256Hex(entry)}
+	return &FreshCommandIdentity{Argv: append([]string{}, expected.Argv...), ExecutableDigest: executable, EntrypointDigest: jstestreceipt.Sha256Hex(entry)}
 }
 
 // digestBoundedRegularFile is readBoundedRegularFile's streaming twin: it
@@ -108,12 +109,12 @@ func freshLoopback(address string) bool {
 }
 
 func freshServeObserve(ctx context.Context, c FreshnessConfig, dir string, environment []string) (*FreshServeObservation, string) {
-	config, err := readBoundedRegularFile(c.ObserverConfigFile, applicationAttestationLimit)
-	if err != nil || sha256Hex(config) != c.ObserverConfigDigest {
+	config, err := readBoundedRegularFile(c.ObserverConfigFile, jstestreceipt.ApplicationAttestationLimit)
+	if err != nil || jstestreceipt.Sha256Hex(config) != c.ObserverConfigDigest {
 		return nil, "freshness-observer-config-drift"
 	}
-	o := procgroup.Run(ctx, procgroup.Spec{Argv: c.Observer.Argv, Dir: dir, Env: environment, Stdin: config, InputLimit: applicationAttestationLimit, OutputLimit: 128 << 10, Timeout: 5 * time.Second, ObserveDescendants: true})
-	if !o.Started || !o.WaitCompleted || !o.ExitObserved || o.ExitStatus != 0 || o.Cancelled || o.TimedOut || o.OutputOverflow || !o.OwnedProcessGroupCleanup || !freshDescendantsAbsent(o.DescendantObservation) {
+	o := procgroup.Run(ctx, procgroup.Spec{Argv: c.Observer.Argv, Dir: dir, Env: environment, Stdin: config, InputLimit: jstestreceipt.ApplicationAttestationLimit, OutputLimit: 128 << 10, Timeout: 5 * time.Second, ObserveDescendants: true})
+	if !o.Started || !o.WaitCompleted || !o.ExitObserved || o.ExitStatus != 0 || o.Cancelled || o.TimedOut || o.OutputOverflow || !o.OwnedProcessGroupCleanup || !jstestreceipt.FreshDescendantsAbsent(o.DescendantObservation) {
 		return nil, "freshness-observer-unavailable"
 	}
 	var observed FreshServeObservation
@@ -137,11 +138,11 @@ func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
 		return Receipt{}, &E2ERefusal{Code: "freshness-runtime-tuple-unqualified", Detail: m.detail(), Tuple: m}
 	}
 	c := cfg.Freshness
-	if c == nil || cfg.ExternalServer || cfg.ApplicationAttestation == nil || cfg.SensitiveInputPolicy != nil || cfg.RetainAttemptDetails || !freshRepoComplete(c.ProductExpected) || !freshRepoComplete(c.TestExpected) || !freshLoopback(c.DocumentURL) || !freshLoopback(cfg.ServerReadyURL) || !filepath.IsAbs(c.ProductDir) || filepath.IsAbs(c.ArtifactPath) || filepath.Clean(c.ArtifactPath) != c.ArtifactPath || c.ArtifactPath == "." || strings.HasPrefix(c.ArtifactPath, "../") || !rawDigestPattern.MatchString(c.SourceDigest) || !rawDigestPattern.MatchString(c.ObserverConfigDigest) || !reflect.DeepEqual(cfg.ServerArgv, c.Server.Argv) || cfg.Timeout <= 0 || cfg.Timeout > 60*time.Second {
+	if c == nil || cfg.ExternalServer || cfg.ApplicationAttestation == nil || cfg.SensitiveInputPolicy != nil || cfg.RetainAttemptDetails || !jstestreceipt.FreshRepoComplete(c.ProductExpected) || !jstestreceipt.FreshRepoComplete(c.TestExpected) || !freshLoopback(c.DocumentURL) || !freshLoopback(cfg.ServerReadyURL) || !filepath.IsAbs(c.ProductDir) || filepath.IsAbs(c.ArtifactPath) || filepath.Clean(c.ArtifactPath) != c.ArtifactPath || c.ArtifactPath == "." || strings.HasPrefix(c.ArtifactPath, "../") || !jstestreceipt.RawDigestPattern.MatchString(c.SourceDigest) || !jstestreceipt.RawDigestPattern.MatchString(c.ObserverConfigDigest) || !reflect.DeepEqual(cfg.ServerArgv, c.Server.Argv) || cfg.Timeout <= 0 || cfg.Timeout > 60*time.Second {
 		return Receipt{}, errors.New("freshness-config-unsupported")
 	}
 	environment := declaredEnv([]string{"PATH", "LANG", "LC_ALL", "TMPDIR"})
-	if len(os.Environ()) != 4 || !freshEnvironment(environment) {
+	if len(os.Environ()) != 4 || !jstestreceipt.FreshEnvironment(environment) {
 		return Receipt{}, errors.New("freshness-environment-unsupported")
 	}
 	if len(cfg.DeclaredEnvKeys) != 4 {
@@ -153,7 +154,7 @@ func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
 	// Every return retains a publication observation, including early failures.
 	before.DependenciesBefore = ObserveFreshDependencies(c.Dependencies)
 	defer func() { before.DependenciesAfter = ObserveFreshDependencies(c.Dependencies) }()
-	if !freshManifestComplete(c.Dependencies) || FreshDependencyDigest(c.Dependencies) != c.DependencyDigest || !FreshDependenciesMatch(c.Dependencies, before.DependenciesBefore) {
+	if !jstestreceipt.FreshManifestComplete(c.Dependencies) || FreshDependencyDigest(c.Dependencies) != c.DependencyDigest || !FreshDependenciesMatch(c.Dependencies, before.DependenciesBefore) {
 		fail("freshness-dependency-closure-unknown")
 		return r, nil
 	}
@@ -166,13 +167,13 @@ func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
 		fail("freshness-source-unavailable")
 		return r, nil
 	}
-	before.ArtifactBefore = sha256Hex(before.Source)
+	before.ArtifactBefore = jstestreceipt.Sha256Hex(before.Source)
 	before.Runner.Before = freshCommandObserve(c.Runner)
 	before.Server.Before = freshCommandObserve(c.Server)
 	before.Observer.Before = freshCommandObserve(c.Observer)
-	configRaw, configErr := readBoundedRegularFile(c.ObserverConfigFile, applicationAttestationLimit)
+	configRaw, configErr := readBoundedRegularFile(c.ObserverConfigFile, jstestreceipt.ApplicationAttestationLimit)
 	if configErr == nil {
-		before.ObserverConfigBefore = sha256Hex(configRaw)
+		before.ObserverConfigBefore = jstestreceipt.Sha256Hex(configRaw)
 	}
 	if before.ArtifactBefore != c.SourceDigest || before.ObserverConfigBefore != c.ObserverConfigDigest || before.ProductBefore == nil || r.TestRepositoryAtStart == nil {
 		fail("freshness-initial-identity-unavailable")
@@ -200,7 +201,7 @@ func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
 		Response []byte `json:"response"`
 	}{response})
 	serverInput = append(serverInput, '\n')
-	before.ServerInputDigest = sha256Hex(serverInput)
+	before.ServerInputDigest = jstestreceipt.Sha256Hex(serverInput)
 	serverCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	started := make(chan *FreshProcessIdentity, 1)
@@ -224,11 +225,11 @@ func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
 		before.Runner.After = freshCommandObserve(c.Runner)
 		before.Server.After = freshCommandObserve(c.Server)
 		before.Observer.After = freshCommandObserve(c.Observer)
-		if b, e := readBoundedRegularFile(c.ObserverConfigFile, applicationAttestationLimit); e == nil {
-			before.ObserverConfigAfter = sha256Hex(b)
+		if b, e := readBoundedRegularFile(c.ObserverConfigFile, jstestreceipt.ApplicationAttestationLimit); e == nil {
+			before.ObserverConfigAfter = jstestreceipt.Sha256Hex(b)
 		}
 		if b, e := readBoundedRegularFile(artifact, 64<<10); e == nil {
-			before.ArtifactAfter = sha256Hex(b)
+			before.ArtifactAfter = jstestreceipt.Sha256Hex(b)
 		}
 		post, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -262,7 +263,7 @@ func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
 		return r, nil
 	}
 	// Preserve the observed early mismatch even when the runner never starts.
-	if before.ServedBefore.Process != *before.Leader || before.ServedBefore.URL != c.DocumentURL || sha256Hex(before.ServedBefore.Body) != sha256Hex(response) {
+	if before.ServedBefore.Process != *before.Leader || before.ServedBefore.URL != c.DocumentURL || jstestreceipt.Sha256Hex(before.ServedBefore.Body) != jstestreceipt.Sha256Hex(response) {
 		fail("freshness-served-identity-mismatch")
 		return r, nil
 	}

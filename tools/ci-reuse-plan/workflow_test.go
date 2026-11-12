@@ -1217,8 +1217,12 @@ func TestDCIV0856DocsRunLeavesNoQueueReuseEvidence(t *testing.T) {
 
 // TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps (V1-3489): the shell-test-selected job runs
 // on pull requests and merge-queue entries only, from a full-history checkout, and runs the
-// shell-test steps the affected plan selects through make shell-test-affected over the merge base
-// of the event's base commit; with no base commit it fails rather than running nothing.
+// shell-test steps the affected plan selects; with no base commit it fails rather than running
+// nothing. The step either runs make shell-test-affected over the merge base of the event's base
+// commit (before the CIN-V0-8724 .github change) or hands the event base to
+// .github/shell-tests/run.sh (after it), never both; the Python test
+// .github/shell-tests/trusted_selection_test.py pins and runs the new form. The old form should be
+// dropped once the .github change has landed.
 func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
 	job := jobBlock(t, readWorkflow(t, "ci.yml"), "shell-test-selected")
 	wantLine(t, "shell-test-selected", job, "    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}")
@@ -1226,7 +1230,18 @@ func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
 	b := stepBlock(t, job, "Selected shell-test steps (AFP-V0-2401)")
 	wantLine(t, "shell-test-selected", b, "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}")
 	wantLine(t, "shell-test-selected", b, `          test -n "$BASE_SHA" || { echo "::error::no base commit for the shell-test selection"; exit 1; }`)
-	wantLine(t, "shell-test-selected", b, `          make -s shell-test-affected BASE="$base"`)
+	oldForm := strings.Count("\n"+b, "\n"+`          make -s shell-test-affected BASE="$base"`+"\n") == 1
+	newForm := strings.Count("\n"+b, "\n"+`          EVENT_BASE="$BASE_SHA" bash .github/shell-tests/run.sh`+"\n") == 1
+	if oldForm == newForm {
+		t.Errorf("shell-test-selected runs make shell-test-affected: %v, .github/shell-tests/run.sh: %v; want exactly one", oldForm, newForm)
+	}
+	if newForm {
+		wantLine(t, "shell-test-selected", b, "          PR_HEAD: ${{ github.event.pull_request.head.sha }}")
+		wantLine(t, "shell-test-selected", b, "          TESTED_MERGE: ${{ github.sha }}")
+		if strings.Contains(b, "shell-test-affected") {
+			t.Error("the trusted shell-test step still runs the tested tree's make shell-test-affected")
+		}
+	}
 }
 
 // CIN-V0-2320: a failed, cancelled, skipped or missing shell result must fail the

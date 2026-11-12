@@ -77,7 +77,7 @@ func TestRSpecValueOpenersBalance(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			text := issue1312Support(c.body)
-			if reason := newRSpecReader("spec/support/x.rb", text).read(); reason != "" {
+			if reason := newRSpecReader("spec/support/x.rb", text).Read(); reason != "" {
 				t.Fatalf("support read = %q, want balanced:\n%s", reason, text)
 			}
 			source := issue1312Read(map[string]string{"spec/support/x.rb": text})
@@ -108,7 +108,7 @@ func TestRSpecInclusionUnreadSupportIsolated(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if newRSpecReader("spec/support/broken.rb", c.support).read() == "" {
+			if newRSpecReader("spec/support/broken.rb", c.support).Read() == "" {
 				t.Fatal("support file read; the case needs one that does not")
 			}
 			source := issue1312Read(map[string]string{"spec/support/broken.rb": c.support})

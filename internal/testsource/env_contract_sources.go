@@ -17,7 +17,7 @@ import (
 // of the files the profile names that the first read left out: a compose file given with `-f` or
 // an `env_file` under any name (TSA-V0-352).
 func readEnvTexts(repo Repo, commit, profile string, budget *readBudget) (map[string]string, error) {
-	texts, _, err := repo.readFilesWithin(commit, envSourceFile, budget)
+	texts, _, err := readFilesWithin(repo, commit, envSourceFile, budget)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func readEnvTexts(repo Repo, commit, profile string, budget *readBudget) (map[st
 		if len(want) == 0 {
 			break
 		}
-		more, _, err := repo.readFilesWithin(commit, func(name string) bool { return want[name] }, budget)
+		more, _, err := readFilesWithin(repo, commit, func(name string) bool { return want[name] }, budget)
 		if err != nil {
 			return nil, err
 		}

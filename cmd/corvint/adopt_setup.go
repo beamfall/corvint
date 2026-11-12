@@ -273,24 +273,34 @@ var setupImpactLanguages = func() map[string]bool {
 	return out
 }()
 
-// setupTestCommandsCheck reports the project-owned test-command declaration (ADS-V0-802): a gap
-// when it is absent or unreadable, otherwise each declared command and each declared language
-// that corvint impact has no rule for. It runs no process.
+// setupTestCommandsCheck reports the project-owned test-command declaration (ADS-V0-802, amended
+// by RNC-V1-013 to read .corvint/test-commands.json): a gap when it is absent or unreadable,
+// otherwise each declared command and each declared language that corvint impact has no rule
+// for. It runs no process.
 func setupTestCommandsCheck(root string) setupCheck {
 	check := setupCheck{Class: "test-commands", Status: "gap"}
-	fix := "declare the Go test flags and each other language's full test command (or a reason none runs) in " + sessiontest.DeclarationPath + " with profile " + sessiontest.DeclarationProfile
-	content, ok := setupRead(root, sessiontest.DeclarationPath)
+	fix := "declare each runner's full test command (\"runners\"), the Go test flags (\"go\") and any other language's full command (or a reason none runs) in " + sessiontest.CommandsPath + " with profile " + sessiontest.DeclarationProfile + "; without it each runner runs its built-in default"
+	content, ok := setupRead(root, sessiontest.CommandsPath)
 	if !ok {
-		check.Evidence, check.Fix = []string{sessiontest.DeclarationPath + ": absent, not a regular file, or over 1 MiB"}, fix
+		check.Evidence, check.Fix = []string{sessiontest.CommandsPath + ": absent, not a regular file, or over 1 MiB"}, fix
 		return check
 	}
-	declared := sessiontest.ParseDeclared(content)
+	declared := sessiontest.ParseCommands(content)
 	if declared.Unreadable != "" {
 		check.Evidence, check.Fix = []string{declared.Unreadable}, fix
 		return check
 	}
 	check.Status = "ok"
 	check.Evidence = []string{"go: " + strings.Join(append(append(append([]string{}, declared.GoEnv...), "go", "test"), declared.GoFlags...), " ")}
+	if declared.GoDefault {
+		check.Evidence = []string{"go: built-in default (go test ./...)"}
+	}
+	for _, entry := range declared.Runners {
+		check.Evidence = append(check.Evidence, "runner "+entry.Key+": "+strings.Join(entry.Argv, " "))
+	}
+	for _, entry := range declared.Instances {
+		check.Evidence = append(check.Evidence, "instance "+entry.Key+": "+strings.Join(entry.Argv, " "))
+	}
 	var abstains []string
 	for _, entry := range declared.Languages {
 		if entry.None != "" {

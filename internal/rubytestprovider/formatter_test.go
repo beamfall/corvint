@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/rubytestreceipt"
 )
 
 // sharedReport is a Corvint-formatter report: spec/models/user_spec.rb line 8
@@ -32,11 +34,11 @@ func TestLPCVV0136CorvintFormatterRecordsInclusion(t *testing.T) {
 		t.Fatalf("formatter run: %+v", document)
 	}
 	required := slices.Index(document.Command, "--require")
-	if required < 0 || !strings.HasPrefix(document.Command[required+1], "./"+reportDirectory+"/") || !strings.HasSuffix(document.Command[required+1], "-formatter.rb") ||
-		!slices.Contains(document.Command, formatterClass) || slices.Contains(document.Command, "json") {
+	if required < 0 || !strings.HasPrefix(document.Command[required+1], "./"+rubytestreceipt.ReportDirectory+"/") || !strings.HasSuffix(document.Command[required+1], "-formatter.rb") ||
+		!slices.Contains(document.Command, rubytestreceipt.FormatterClass) || slices.Contains(document.Command, "json") {
 		t.Fatalf("command=%q", document.Command)
 	}
-	entries, err := os.ReadDir(filepath.Join(root, reportDirectory))
+	entries, err := os.ReadDir(filepath.Join(root, rubytestreceipt.ReportDirectory))
 	if err != nil || slices.ContainsFunc(entries, func(entry os.DirEntry) bool { return strings.HasSuffix(entry.Name(), ".rb") }) {
 		t.Fatalf("formatter file left behind: %v %v", entries, err)
 	}
@@ -44,7 +46,7 @@ func TestLPCVV0136CorvintFormatterRecordsInclusion(t *testing.T) {
 	if shared == nil || shared.Origin != "spec/support/shared.rb:2" || !slices.Equal(shared.IncludedAt, []string{userSpec + ":8"}) {
 		t.Fatalf("shared example=%+v", document.Examples[1])
 	}
-	if document.Examples[0].SharedExampleAbsent != sharedNotShared {
+	if document.Examples[0].SharedExampleAbsent != rubytestreceipt.SharedNotShared {
 		t.Fatalf("plain example=%+v", document.Examples[0])
 	}
 	want := []SelectorOutcome{
@@ -65,7 +67,7 @@ func TestLPCVV0136CorvintFormatterRecordsInclusion(t *testing.T) {
 	stock := strings.ReplaceAll(corvintReport(""), `,"shared_group_inclusion_backtrace":[{"inclusion_location":"./spec/models/user_spec.rb:8"}]`, "")
 	stock = strings.ReplaceAll(stock, `,"shared_group_inclusion_backtrace":[]`, "")
 	legacy := run(t, Config{Dir: root, RSpec: []string{fakeRSpec(t, stock, 0)}, Specs: specs[:1]})
-	if legacy.Formatter != "" || legacy.Examples[1].SharedExampleAbsent != sharedNotReported || legacy.Selection[0].Outcome != SelectorUnattributed || !slices.Contains(legacy.Command, "json") {
+	if legacy.Formatter != "" || legacy.Examples[1].SharedExampleAbsent != rubytestreceipt.SharedNotReported || legacy.Selection[0].Outcome != SelectorUnattributed || !slices.Contains(legacy.Command, "json") {
 		t.Fatalf("stock run=%+v", legacy)
 	}
 	if err := Validate(legacy); err != nil {
@@ -110,12 +112,12 @@ func TestLPCVV0138RunContainerAndHostImage(t *testing.T) {
 		inspected                          bool
 	}{
 		"observed":      {"docker", "echo " + image + "; exit 0", withContainer, FormatterCorvint, &RuntimeFact{Value: container}, RuntimeFact{Value: image}, true},
-		"removed":       {"docker", "echo 'No such container' >&2; exit 1", withContainer, FormatterCorvint, &RuntimeFact{Value: container}, RuntimeFact{Unknown: runtimeNotInspectable}, true},
-		"malformed":     {"docker", "echo " + container + "; exit 0", withContainer, FormatterCorvint, &RuntimeFact{Value: container}, RuntimeFact{Unknown: runtimeNotInspectable}, true},
-		"not reported":  {"docker", "exit 0", corvintReport(`,"corvint_runtime":{}`), FormatterCorvint, &RuntimeFact{Unknown: runtimeNotReported}, RuntimeFact{Unknown: runtimeRunContainerUnknown}, false},
-		"bad container": {"docker", "exit 0", corvintReport(`,"corvint_runtime":{"container":"ABC"}`), FormatterCorvint, &RuntimeFact{Unknown: runtimeNotReported}, RuntimeFact{Unknown: runtimeRunContainerUnknown}, false},
-		"not docker":    {"podman", "exit 0", withContainer, FormatterCorvint, &RuntimeFact{Value: container}, RuntimeFact{Unknown: runtimeHostInspectUnavail}, false},
-		"stock":         {"docker", "echo " + image + "; exit 0", withContainer, "", nil, RuntimeFact{Unknown: runtimeNotInsidePfx}, false},
+		"removed":       {"docker", "echo 'No such container' >&2; exit 1", withContainer, FormatterCorvint, &RuntimeFact{Value: container}, RuntimeFact{Unknown: rubytestreceipt.RuntimeNotInspectable}, true},
+		"malformed":     {"docker", "echo " + container + "; exit 0", withContainer, FormatterCorvint, &RuntimeFact{Value: container}, RuntimeFact{Unknown: rubytestreceipt.RuntimeNotInspectable}, true},
+		"not reported":  {"docker", "exit 0", corvintReport(`,"corvint_runtime":{}`), FormatterCorvint, &RuntimeFact{Unknown: rubytestreceipt.RuntimeNotReported}, RuntimeFact{Unknown: rubytestreceipt.RuntimeRunContainerUnknown}, false},
+		"bad container": {"docker", "exit 0", corvintReport(`,"corvint_runtime":{"container":"ABC"}`), FormatterCorvint, &RuntimeFact{Unknown: rubytestreceipt.RuntimeNotReported}, RuntimeFact{Unknown: rubytestreceipt.RuntimeRunContainerUnknown}, false},
+		"not docker":    {"podman", "exit 0", withContainer, FormatterCorvint, &RuntimeFact{Value: container}, RuntimeFact{Unknown: rubytestreceipt.RuntimeHostInspectUnavail}, false},
+		"stock":         {"docker", "echo " + image + "; exit 0", withContainer, "", nil, RuntimeFact{Unknown: rubytestreceipt.RuntimeNotInsidePfx}, false},
 	} {
 		execPrefix, log := prefix(test.binary, test.inspect)
 		document := run(t, Config{Dir: root, ExecPrefix: execPrefix, RSpec: []string{fakeRSpec(t, test.report, 0)}, Formatter: test.formatter})
@@ -138,12 +140,12 @@ func TestLPCVV0138RunContainerAndHostImage(t *testing.T) {
 	for name, mutate := range map[string]func(*Document){
 		"stock run container":   func(d *Document) { d.Formatter = "" },
 		"no run container":      func(d *Document) { d.Runtime.RunContainer = nil },
-		"image without run":     func(d *Document) { d.Runtime.RunContainer = &RuntimeFact{Unknown: runtimeNotReported} },
+		"image without run":     func(d *Document) { d.Runtime.RunContainer = &RuntimeFact{Unknown: rubytestreceipt.RuntimeNotReported} },
 		"image not a digest":    func(d *Document) { d.Runtime.Image = RuntimeFact{Value: container} },
-		"probe reason on image": func(d *Document) { d.Runtime.Image = RuntimeFact{Unknown: runtimeNotInsidePfx} },
-		"run reason open":       func(d *Document) { d.Runtime.RunContainer = &RuntimeFact{Unknown: runtimeProbeFailed} },
+		"probe reason on image": func(d *Document) { d.Runtime.Image = RuntimeFact{Unknown: rubytestreceipt.RuntimeNotInsidePfx} },
+		"run reason open":       func(d *Document) { d.Runtime.RunContainer = &RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed} },
 		"run container both": func(d *Document) {
-			d.Runtime.RunContainer = &RuntimeFact{Value: container, Unknown: runtimeNotReported}
+			d.Runtime.RunContainer = &RuntimeFact{Value: container, Unknown: rubytestreceipt.RuntimeNotReported}
 		},
 	} {
 		mutated := observed

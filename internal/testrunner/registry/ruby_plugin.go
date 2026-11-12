@@ -34,6 +34,13 @@ type RubyPlugin struct {
 	capture         RubyCapture
 }
 
+// unboundRubyPlugin is the dynamic family's selection factory (AFP-V0-9985):
+// it serves discovery and parsing; execution and evidence need the core-bound
+// NewRubyPlugin.
+func unboundRubyPlugin(runner string) RunnerPlugin {
+	return &RubyPlugin{key: tr.InventoryKey{Runner: runner}}
+}
+
 // RubyConfigurationDigest binds runner configuration independently of the fresh
 // report staging directory. The core still admits executable and configuration pins.
 func RubyConfigurationDigest(r tr.Request) string {

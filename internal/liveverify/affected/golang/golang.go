@@ -239,6 +239,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	directories, owners := groupByDirectory(files, modules)
 	units := make([]affected.Unit, 0, len(directories))
 	unitDirectories := make([]string, 0, len(directories))
+	contingents := make([][]contingentRead, 0, len(directories))
 	commands := make(map[string]string)
 	imports := make(map[string]map[string]bool, len(directories))
 	testImports := make(map[string]map[string]bool, len(directories))
@@ -259,6 +260,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		}
 		units = append(units, unit)
 		unitDirectories = append(unitDirectories, directory)
+		contingents = append(contingents, observation.contingent)
 		if len(observation.embeds.production)+len(observation.embeds.tests) != 0 {
 			embedding[len(units)-1] = observation.embeds
 		}
@@ -282,8 +284,10 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	}
 	resolve(units, imports, testImports, modulePaths(modules))
 	applyReadScopes(root, units[:observedUnits], unitDirectories, frontier)
+	listed := goListUnits(root, units[:observedUnits], unitDirectories, owners)
+	applyContingentReads(units[:observedUnits], contingents, listed)
 	applyGatedLocators(root, units[:observedUnits], unitDirectories, frontier)
-	applyBinaryExecs(root, units[:observedUnits], unitDirectories, owners, commands, frontier)
+	applyBinaryExecs(root, units[:observedUnits], unitDirectories, owners, commands, frontier, listed)
 	// A read this plugin tolerates (an unparsed file, an invalid declaration)
 	// may be an immutable source's fatal failure; surface it rather than a
 	// partial unit set (V1-1416, DLT-V0-002).
@@ -400,7 +404,10 @@ type directoryObservation struct {
 	command              bool
 	// embeds holds separately scoped //go:embed patterns.
 	embeds directoryEmbeds
-	err    error
+	// contingent holds the location-source reads that wait for the go list
+	// proof (AFP-V0-3664).
+	contingent []contingentRead
+	err        error
 }
 
 // observeDirectories observes every directory in order. A disk source reads
@@ -414,7 +421,7 @@ func (language Language) observeDirectories(root *affected.Source, owners map[st
 		directory := ordered[offset]
 		observation := &observations[offset]
 		observation.frontier = map[string]bool{}
-		observation.unit, observation.imports, observation.testImports, observation.command, observation.embeds, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], packages, observation.frontier, aliases)
+		observation.unit, observation.imports, observation.testImports, observation.command, observation.embeds, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], packages, observation.frontier, aliases, &observation.contingent)
 	}
 	workers := min(runtime.GOMAXPROCS(0), observeWorkers, len(ordered))
 	if !root.ConcurrentReads() || workers < 2 {
@@ -446,7 +453,7 @@ const observeWorkers = 8
 // whether a non-test file declares package main (a command, AFP-V0-037). It
 // also returns production and test //go:embed patterns separately; a
 // file whose directives do not parse contributes none (AFP-V0-600).
-func (Language) observeDirectory(root *affected.Source, owner module, directory string, files, packages []string, frontier map[string]bool, aliases *readKindAliases) (affected.Unit, map[string]bool, map[string]bool, bool, directoryEmbeds, error) {
+func (Language) observeDirectory(root *affected.Source, owner module, directory string, files, packages []string, frontier map[string]bool, aliases *readKindAliases, contingent *[]contingentRead) (affected.Unit, map[string]bool, map[string]bool, bool, directoryEmbeds, error) {
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
@@ -459,6 +466,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	var leafReads []string
 	var kindReads unboundedReads
 	var kindLeafReads []string
+	var sourceReads []sourceRead
 	moves := false
 	linkListings := map[string][]fs.DirEntry{}
 	fileSet := token.NewFileSet()
@@ -582,6 +590,28 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 				fileReads.mark(relative+" "+reason, isTest)
 			}
 		}
+		// A location source is marked after every literal and locator reason
+		// of the unit, so a unit those already hold keeps naming them
+		// (AFP-V0-3663). A source whose only unproven use is the directory of
+		// a command waits for the go list proof (AFP-V0-3664,
+		// applyContingentReads). A source is no lexical reason, so a
+		// `fixtures` declaration (AFP-V0-9005) keeps it; under `.go go.mod`
+		// (AFP-V0-9000) it is one of the file's reasons the declared globs
+		// replace (AFP-V0-3660).
+		every, everyDotted := qualifiedImports(file.Imports, func(string) bool { return true })
+		uses := locationSourceUses(body, every, everyDotted)
+		for _, source := range sortedKeys(uses) {
+			reason := relative + " " + locationSourceReason(source)
+			if kinds != nil || locationHolds(uses[source]) {
+				sourceReads = append(sourceReads, sourceRead{target: fileReads, reason: reason, test: isTest})
+				continue
+			}
+			read := contingentRead{reason: reason, relative: relative, test: isTest}
+			for _, use := range uses[source] {
+				read.commands = append(read.commands, use.Commands...)
+			}
+			*contingent = append(*contingent, read)
+		}
 		if isTest {
 			tests = append(tests, relative)
 			continue
@@ -598,6 +628,9 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		for _, reason := range kindLeafReads {
 			kindReads.mark(reason, true)
 		}
+	}
+	for _, read := range sourceReads {
+		read.target.mark(read.reason, read.test)
 	}
 	if len(sources) == 0 && len(tests) == 0 {
 		return affected.Unit{}, nil, nil, false, directoryEmbeds{}, nil

@@ -246,35 +246,6 @@ func rewriteSectioned(t *testing.T, source string, replacements []sectionWriter,
 	return path
 }
 
-// A self-attested section table or source table can name bytes outside the
-// file; the read refuses it as the IDX-SNAP-V0-014 miss instead of panicking
-// on a wrapped offset+length.
-func TestSectionedSnapshotRefusesOutOfRangeOffsetsAsAMiss(t *testing.T) {
-	index, receipt := sectionedFixture(t)
-	identity := fixtureIdentity(index)
-	metas := sourceMetas(index)
-	metas[0].Offset, metas[0].Length = math.MaxUint64, 2
-	vocabulary := *index.Vocabulary
-	vocabulary.Terms.KeyOffsets = slices.Clone(vocabulary.Terms.KeyOffsets)
-	vocabulary.Terms.KeyOffsets[len(vocabulary.Terms.KeyOffsets)-1] = uint32(len(vocabulary.Terms.KeyBytes)) + 9
-	cases := map[string]string{
-		"section offset wraps": rewriteSectioned(t, receipt.SectionedPath, nil, func(header *sectionedHeader) {
-			header.Sections[0].Offset, header.Sections[0].Length = math.MaxUint64, 2
-		}),
-		"source body offset wraps":      rewriteSectioned(t, receipt.SectionedPath, []sectionWriter{gobSection(sectionSources, metas)}, func(*sectionedHeader) {}),
-		"term key offset past the keys": rewriteSectioned(t, receipt.SectionedPath, []sectionWriter{gobSection(sectionVocabulary, &vocabulary)}, func(*sectionedHeader) {}),
-	}
-	for name, path := range cases {
-		t.Run(name, func(t *testing.T) {
-			loaded, err := readSectionedSnapshot(path, identity, receipt.Engine, loadFull)
-			if err == nil {
-				walkTermTable(loaded.Vocabulary)
-				t.Fatal("an out-of-range offset must refuse the file")
-			}
-		})
-	}
-}
-
 // retainedSectionedPaths counts the retained sectioned mappings by path.
 func retainedSectionedPaths() map[string]int {
 	sectionedCache.Lock()
@@ -407,5 +378,34 @@ func TestSectionedProbeMissesACorruptBodyAndTheRebuildRepairsIt(t *testing.T) {
 	}
 	if _, fresh, err := ProbeSnapshot(ctx, index.Root); err != nil || !fresh {
 		t.Fatalf("rebuilt sectioned snapshot probed stale: err=%v", err)
+	}
+}
+
+// A self-attested section table or source table can name bytes outside the
+// file; the read refuses it as the IDX-SNAP-V0-014 miss instead of panicking
+// on a wrapped offset+length.
+func TestSectionedSnapshotRefusesOutOfRangeOffsetsAsAMiss(t *testing.T) {
+	index, receipt := sectionedFixture(t)
+	identity := fixtureIdentity(index)
+	metas := sourceMetas(index)
+	metas[0].Offset, metas[0].Length = math.MaxUint64, 2
+	vocabulary := *index.Vocabulary
+	vocabulary.Terms.KeyOffsets = slices.Clone(vocabulary.Terms.KeyOffsets)
+	vocabulary.Terms.KeyOffsets[len(vocabulary.Terms.KeyOffsets)-1] = uint32(len(vocabulary.Terms.KeyBytes)) + 9
+	cases := map[string]string{
+		"section offset wraps": rewriteSectioned(t, receipt.SectionedPath, nil, func(header *sectionedHeader) {
+			header.Sections[0].Offset, header.Sections[0].Length = math.MaxUint64, 2
+		}),
+		"source body offset wraps":      rewriteSectioned(t, receipt.SectionedPath, []sectionWriter{gobSection(sectionSources, metas)}, func(*sectionedHeader) {}),
+		"term key offset past the keys": rewriteSectioned(t, receipt.SectionedPath, []sectionWriter{gobSection(sectionVocabulary, &vocabulary)}, func(*sectionedHeader) {}),
+	}
+	for name, path := range cases {
+		t.Run(name, func(t *testing.T) {
+			loaded, err := readSectionedSnapshot(path, identity, receipt.Engine, loadFull)
+			if err == nil {
+				walkTermTable(loaded.Vocabulary)
+				t.Fatal("an out-of-range offset must refuse the file")
+			}
+		})
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 // PTF-V0-003/007: after three full files plus a 31 MiB file, a 2 MiB
@@ -36,7 +38,7 @@ func TestPTFV0DependencyTotalBudgetStops(t *testing.T) {
 		if closeErr != nil {
 			t.Fatal(closeErr)
 		}
-		m.Files[path] = sha256Hex(nil)
+		m.Files[path] = jstestreceipt.Sha256Hex(nil)
 	}
 	o := ObserveFreshDependencies(m)
 	if len(o.Files) != 4 || len(o.Failures) != 1 || o.Failures[0] != "dependency-input-bound" {
@@ -73,7 +75,7 @@ func TestPTFV0DependencyExactBudgetStopsInventory(t *testing.T) {
 		if closeErr != nil {
 			t.Fatal(closeErr)
 		}
-		m.Files[path] = sha256Hex(nil)
+		m.Files[path] = jstestreceipt.Sha256Hex(nil)
 	}
 	o := ObserveFreshDependencies(m)
 	if len(o.Files) != 4 || len(o.Failures) != 1 || FreshDependenciesMatch(m, o) {

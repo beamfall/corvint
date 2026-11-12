@@ -476,7 +476,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `topLevelCommands` verb in order, then the nested topics `harness event`, `docs corpus`,
   `docs flows` and `docs maintain`, each of which `corvint help` accepts both as separate words and
   as the one argument the list prints (`corvint help "docs corpus"`; V1-2308, GitHub #1476). Acceptance:
-  `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`.
+  `TestUnknownHelpTopicListsValidTopics`, `TestCLIKit` (its root row).
 - `DCP-V1-060`: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811) `corvint docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT
   --path PATH [--input REGISTRY.json]` is an experimental static producer. It reads the Jasmine or
   Mocha/Cypress test files at `--path` (one Git blob, or every test-named `.js`, `.ts`, `.jsx`,
@@ -942,8 +942,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `schema` and `capabilities` alone: tool advertisement needs no rederivation, and an artifact whose
   header cannot be read still fails startup with `corpus-unavailable`. The first tool call opens
   and rederives the artifact (`DCP-V1-011`; amended by `DCR-V1-416` to the verified read) and keeps it; a later call reuses it only while the
-  artifact bytes still match the startup digest and every pinned revision still resolves to its
-  tree, and otherwise rederives. A rederivation failure is that call's typed failure. Each result
+  artifact bytes still match the served digest and every pinned revision still resolves to its
+  tree, and otherwise rederives. When the configured file's bytes change, the next call opens the
+  new artifact with the same verified read and serves it, replacing the served digest and header,
+  or refuses with the verification reason and never answers from the replaced artifact
+  (`DMF-V1-011`). A rederivation failure is that call's typed failure. Each result
   reports `load` as `first-call` or `reused` with the load time.
 - `DCP-V1-144`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1236;
   V1-1982)) Live readers re-resolve only the symbol anchors cited by the records a query returns
@@ -1173,7 +1176,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
 - `DCP-V1-195`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1254;
   V1-1995)) The corpus MCP bridge derives the query index once for each
   opened artifact, on the first call to an index-backed tool (`docs_concept`, `docs_flow`,
-  `docs_claims`, `docs_dependencies`, `docs_recommend_tests`, `docs_gaps`, `docs_intent`,
+  `docs_claims`, `docs_dependencies`, `docs_gaps`, `docs_intent`,
   `docs_navigation`, `docs_vocabulary`), before any freshness work. Later calls and every path of a
   batch reuse that index, or its corpus refusal, until the artifact memo is replaced; a cancelled
   derivation is not kept. Receipts are the bytes the unmemoized query returns.
@@ -1392,7 +1395,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   pinned revisions are immutable Git content and are never reported stale because the checkout
   moved on.
 - `DCP-V1-310`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-2333) `locate` and
-  `recommend-tests` (`corvint.docs_locate`, `corvint.docs_recommend_tests`) accept an optional
+  `recommend-tests` (`corvint.docs_locate` and the `docs corpus recommend-tests` CLI read; the
+  `corvint.docs_recommend_tests` MCP tool is removed by DMF-V1-009) accept an optional
   `repository`, the root-commit identity of the primary or a declared additional repository, and
   then return or select only records anchored at the path in that repository. A repository
   qualifier on any other operation, an undeclared repository (`corpus-refused`) or an empty MCP
@@ -2986,7 +2990,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-317 | `internal/mcp/corpusbridge/additional_freshness_test.go` | `TestDCPV1281AdditionalRepositoryWarmCallsAtScale` |
 | DCP-V1-318 | `internal/doccorpus/typed_query.go`, `query.go`, `adoption.go`, `internal/corpusindex/index.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint-docs/docs_corpus.go`, `cmd/corvint-docs/docs_corpus_help.go` | `TestDCPV1318StatusClaimListing`, `TestDCPV1318StatusAndIntentListingCLIParity` |
 | DCP-V1-319 | `internal/doccorpus/typed_query.go`, `internal/corpusindex/index.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint-docs/docs_corpus_help.go` | `TestDCPV1319IntentListing`, `TestDCPV1318StatusAndIntentListingCLIParity` |
-| DCP-V1-320 | `internal/doccorpus/trust.go`, `internal/corpusserve/http.go`, `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1320And321HTTPRefusalAndGapKinds` (removed), `TestDCPV1320ToolFailureVerifiedAtNull` (removed) |
+| DCP-V1-320 | `internal/doccorpus/trust.go`, `internal/corpusserve/http.go`, `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1320And321HTTPRefusalAndGapKinds` (removed), `TestDCPV1320ToolFailureVerifiedAtNull` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing tests; a path or function its row names remains; no test cites it now, V1-5333) |
 | DCP-V1-321 | `cmd/corvint-docs/docs_corpus.go`, `cmd/corvint-docs/docs_corpus_help.go`, `internal/doccorpus/query.go` | `TestDCPV1321CorpusKindAndClaimSearchCLIParity`, `TestDCPV1320And321HTTPRefusalAndGapKinds` (removed) |
 | DCP-V1-322 | `internal/doccorpus/receipt_annotations.go`, `types.go`, `pagination.go`, `query.go` | `TestDCPV1322SuppliedTextOrigins` |
 | DCP-V1-323 | `internal/doccorpus/adoption.go`, `receipt_annotations.go` | `TestDCPV1323AssociationAxisWithholdsWitness` |
@@ -3003,7 +3007,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-285 | `cmd/corvint-corpus-mcp/outcomes.go`, `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1285OutcomeLogAggregatesWithoutRequestText` (removed) |
 | DCP-V1-286 | `cmd/corvint-corpus-mcp/outcomes.go` | `TestDCPV1286OutcomeSummaryFloor` (removed) |
 | DCP-V1-056 | `cmd/corvint-docs/docs_corpus_help.go`, `cmd/corvint-docs/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`, `TestDocsCorpusOperationFlagMatrix` |
-| DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`, `TestListedHelpTopicResolvesAsOneArgument` |
+| DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestCLIKit`, `TestListedHelpTopicResolvesAsOneArgument` |
 | DCP-V1-060..061 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-060 DCP-V1-061`) |
 | DCP-V1-062 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go`, `behavior_legacy_allow.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-062`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-062`), `TestLegacyResidueFailsClosed` (`DCP-V1-062`) |
 | DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_allow.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`), `TestLegacyLexerCanonicalAndEscapes`, `TestLegacyResidueFailsClosed` (`DCP-V1-063`) |
@@ -3038,7 +3042,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-574..578 | `internal/doccorpus/input_asof.go`, `types.go`, `compile.go`, `query.go` | `TestDCPV1574InputAsOfValidation`, `TestDCPV1575DCPV1576InputAsOfLiveStates`, `TestDCPV1577ProbeChangesObservation` |
 | DCP-V1-579 | `cmd/corvint-docs/docs_corpus_help.go`, `SearchIncludeDescription` in `internal/mcp/corpusbridge/corpusbridge.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1579SearchIncludeHelpSaysClaimsAreAdded`, `TestDCPV1579SearchDescriptionSaysClaimsAreAdded` |
 | DCP-V1-600..605 | `internal/doccorpus/workspace_inventory.go`, `types.go`, `compile.go`, `query.go`, `cmd/corvint-docs/docs_corpus_workspace.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1600WorkspaceManifestPinsEachRepository`, `TestDCPV1600WorkspaceAliasRefusals`, `TestDCPV1602TraceAndGapsByPathInEitherRepository`, `TestDCPV1603SingleRootManifestByteIdentical`, `TestDCPV1605CrossRepositoryRelationTracesBothWays`, `TestDCPV1604DocsCorpusWorkspaceManifest`, `TestDCPV1604DocsCorpusWorkspaceTraceAndGaps`, `TestDocsCorpusOperationFlagMatrix` |
-| DCP-V1-606 | `ReadFile`, `ReadFileContext`, `openInput` in `internal/corpusindex/index.go`, `open_unix.go`, `open_other.go`; `cmd/corvint-corpus-http/main.go` | `TestReadFileRefusesAFIFOWithoutBlocking` (removed) |
+| DCP-V1-606 | `ReadFile`, `ReadFileContext`, `openInput` in `internal/corpusindex/index.go`, `open_unix.go`, `open_other.go`; `cmd/corvint-corpus-http/main.go` | `TestReadFileRefusesAFIFOWithoutBlocking` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
 | DCP-V1-607..608 | `generatedCheck`, `generatedRefusal`, `repositoryLabel`, `inventoryScopes`, `ManifestInventory` in `internal/doccorpus/compile.go`, `workspace_inventory.go`; `docs corpus manifest` in `cmd/corvint-docs/docs_corpus.go` | `TestDCPV1607BuildRefusalNamesEveryGeneratedInput`, `TestDCPV1607GeneratedHeaderCheckIsNamed`, `TestDCPV1608ManifestRefusesGeneratedInputsWhenPinning`, `TestDCPV1608DocsCorpusManifestNamesGeneratedInputs` |
 | DCP-V1-650..651 | `LocateQueryKinds`, `ResultLocation` in `internal/doccorpus/types.go`; locate branch of `queryContext` in `query.go`; `setLocations` in `receipt_annotations.go`; `docs_locate` schema and arguments in `internal/mcp/corpusbridge/corpusbridge.go` | `TestDCPV1650LocateByQueryReturnsAnchoredSourceSubjects`, `TestDCPV1650DocsLocateQuery` |
 | DCP-V1-652 | `NameLegacyFlag`, `legacyInitializeRefusal` in `internal/mcp/server/server.go`; `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1652LegacyInitializeNamesVersionAndFlag`, `TestDCPV1652LegacyInitializeWithoutFlagNamesIt` (removed) |

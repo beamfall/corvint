@@ -584,6 +584,9 @@ func Decode(r io.Reader) (*Index, error) {
 	if ix.Module == "" || ix.Commit == "" || ix.Runner == "" {
 		return nil, errors.New("linecov: index identity incomplete")
 	}
+	if err := ix.checkBlockSpans(); err != nil {
+		return nil, err
+	}
 	if err := ix.checkSegments(); err != nil {
 		return nil, err
 	}
@@ -596,6 +599,21 @@ func Decode(r io.Reader) (*Index, error) {
 	ix.digest = "sha256:" + hex.EncodeToString(sum[:])
 	ix.reindex()
 	return &ix, nil
+}
+
+// checkBlockSpans refuses a gob-decoded block whose span is inverted or negative (V1-5371). The
+// compact linecov-index/4 decoder cannot produce one, since it reads End as Start plus an
+// unsigned length, and its encoder refuses one; a gob index carries the four numbers as written,
+// so a corrupt or hostile one could otherwise hold a range no line lookup ever matches.
+func (ix *Index) checkBlockSpans() error {
+	for _, f := range ix.Files {
+		for _, b := range f.Blocks {
+			if b.End < b.Start || b.Start < 0 || b.StartCol < 0 || b.EndCol < 0 {
+				return fmt.Errorf("linecov: malformed index: %s block span %d.%d,%d.%d", f.Path, b.Start, b.StartCol, b.End, b.EndCol)
+			}
+		}
+	}
+	return nil
 }
 
 // Merge unions indexes collected at one commit by one runner over disjoint

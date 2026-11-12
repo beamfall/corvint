@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -59,7 +60,7 @@ func TestPWPV3015BrowserlessTestsBindAndQualify(t *testing.T) {
 		t.Fatalf("bound run named tests %v", named)
 	}
 	for i, wantUnknown := range []bool{false, false, false, true, true} {
-		if got := qualifiedPrerequisitesUnknown(r, r.Tests[i]); got != wantUnknown {
+		if got := jstestreceipt.QualifiedPrerequisitesUnknown(r, r.Tests[i]); got != wantUnknown {
 			t.Fatalf("%s: prerequisites unknown=%v, want %v", r.Tests[i].Name, got, wantUnknown)
 		}
 	}
@@ -77,13 +78,13 @@ func TestPWPV3015BrowserlessTestsBindAndQualify(t *testing.T) {
 	project := *forged.Tests[1].Project
 	project.Use = json.RawMessage(`{"corvintBrowserless":"not-run"}`)
 	forged.Tests[1].Project = &project
-	if !qualifiedPrerequisitesUnknown(forged, forged.Tests[1]) {
+	if !jstestreceipt.QualifiedPrerequisitesUnknown(forged, forged.Tests[1]) {
 		t.Fatal("rewritten browserless reason kept its qualification")
 	}
 	// An unadmitted node leaves the API-only test unqualified.
 	unadmitted := r
 	unadmitted.Identity.NodeVersion = "v22.23.3"
-	if !qualifiedPrerequisitesUnknown(unadmitted, unadmitted.Tests[1]) {
+	if !jstestreceipt.QualifiedPrerequisitesUnknown(unadmitted, unadmitted.Tests[1]) {
 		t.Fatal("API-only test qualified on an unadmitted node")
 	}
 }

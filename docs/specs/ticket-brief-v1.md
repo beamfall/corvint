@@ -108,52 +108,41 @@ Requirement IDs are stable. Each scenario under "Scenarios" names the requiremen
   no ticket, no task text and no Tasks store, and MUST name that commit. It MUST refuse a path outside
   the repository with a typed refusal and exit 2. It MUST NOT accept `--task`, `--base` or a diff: the
   report for a change range is `corvint impact` (CRI-V1). It MUST refuse `--path` together with
-  `--ticket`, exit 2: one call has one form. A path names a file or a directory. A directory stands
-  for the tracked files beneath it, and their items are merged under the limit of TBC-V1-010. The
-  sections are printed once per `--path`, in the order given. A path absent from HEAD is not refused
-  and the command exits 0: its `instructions`, `owners` and `tickets` sections are answered (the
-  first two for its directory), and its `tests`, `flows` and `requirements` sections are
-  `NOT_OBSERVED` with reason `path-not-at-head`.
+  `--ticket`, exit 2. A directory stands for the tracked files beneath it, and their items are merged
+  under the limit of TBC-V1-010. The sections are printed once per `--path`, in the order given. A
+  path absent from HEAD is not refused and the command exits 0: its `instructions` section is
+  answered for its directory, and its `tests` and `requirements` sections are `NOT_OBSERVED` with
+  reason `path-not-at-head`. (amended 2026-11-11, decision 0597)
 
-- `TBC-V1-010`: (proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Six sections, each from a named link.
+- `TBC-V1-010`: (proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Three sections, each from a named link.
   Serves PROD-INT-032, which the owner accepted on 2026-11-10.
   Source: G25 item 3, invariant 2, CRI-V1-002. The path brief MUST carry these sections in this order,
-  each with the state and reason of CRI-V1-002 and two fields this requirement defines: `total`, the
-  number of items before the limit, and `truncated`, true when items were left out. Every item MUST
-  name the link that produced it (TBC-V1-002 applies):
+  each with the state and reason of CRI-V1-002, a `total` and a `truncated` field, and every item
+  MUST name the link that produced it:
 
   1. `instructions`: each `AGENTS.md` and `CLAUDE.md` in the path's directory and its parents, root
      first. Link: directory ancestry.
-  2. `owners`: the last `CODEOWNERS` rule that matches the path, with its line. Link: that rule.
-  3. `tests`: the tests the retained test evidence and the affected plan tie to the path, each with
+  2. `tests`: the tests the retained test evidence and the affected plan tie to the path, each with
      its plan reason, and the plan's scope verdict. Link: the evidence record or plan reason.
-  4. `flows`: each flow of `.corvint/flows.json` that passes through the path, its variations and
-     their linked tests. Link: the accepted link record.
-  5. `requirements`: each requirement tied to the path by a kept link (TBC-V1-012) or by a completed
-     ticket whose recorded commits changed the path. Link: the link record or the ticket ID.
-  6. `tickets`: each open ticket whose claim scope or `effects.touchPaths` covers the path, read with
-     `corvint-tasks`. Link: the ticket field that matched.
+  3. `requirements`: each requirement tied to the path by a kept link (TBC-V1-012). Link: the link
+     record.
 
   A section MUST list at most 64 items for each `--path`, ordered by path or ID ascending. The
-  `requirements` section MUST NOT be `OBSERVED`: the links are not a full record of what governs a
-  file. With items it is `INCOMPLETE` with reason `links-not-exhaustive`; with none it is
-  `NOT_OBSERVED` with reason `no-link-for-path`. A missing source adds its name to either reason and
-  never changes that state (TBC-V1-011). The ticket form (`corvint context --ticket ID`, TBC-V1-001)
-  is not changed by this requirement.
+  `requirements` section MUST NOT be `OBSERVED`: with items it is `INCOMPLETE` with reason
+  `links-not-exhaustive`; with none it is `NOT_OBSERVED` with reason `no-link-for-path`. The brief
+  MUST NOT carry `owners`, `flows` or `tickets` sections, and MUST NOT match tickets by claim scope,
+  touch paths or recorded commits. The profile MUST be `corvint-path-brief/1`. (amended 2026-11-11,
+  decision 0597)
 
 - `TBC-V1-011`: (proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) A missing source never blocks.
   Serves PROD-INT-032, which the owner accepted on 2026-11-10.
   Source: invariant 2; owner request 2026-11-10. Every source except the Git repository is optional.
-  The optional sources are `corvint-tasks`, `.corvint/flows.json`, `CODEOWNERS`, the retained test
-  evidence and `.corvint/requirement-links.json`. Absence is judged per source, not per section. A
+  The optional sources are the retained test evidence and `.corvint/requirement-links.json`. A
   section whose sources are all absent MUST be `NOT_OBSERVED` with a reason that names each missing
-  source. A section with two sources (`tests`: retained evidence and the affected plan;
-  `requirements`: the link file and completed tickets) of which one is absent MUST keep the items of
-  the source that is present. With such items it MUST be `INCOMPLETE`; with none it MUST be
-  `NOT_OBSERVED`. In both cases the reason names the missing source. For `requirements` the reason
-  of TBC-V1-010 comes first and each missing source is added to it, so the two requirements give one
-  state: items give `INCOMPLETE`, no items give `NOT_OBSERVED`. The command MUST still exit 0.
-  TBC-V1-004 and TBC-V1-007 apply to the path brief unchanged.
+  source. The `tests` section, which has two sources (retained evidence and the affected plan), MUST
+  keep the items of the source that is present when the other is absent; with such items it MUST be
+  `INCOMPLETE`, with none `NOT_OBSERVED`, and the reason names the missing source. The command MUST
+  still exit 0. (amended 2026-11-11, decision 0597)
 
 - `TBC-V1-012`: (proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Requirement links kept from sealed change records.
   Serves PROD-INT-032, which the owner accepted on 2026-11-10.
@@ -231,28 +220,27 @@ Requirement IDs are stable. Each scenario under "Scenarios" names the requiremen
   tool appears only on the server its table row names, with that row's schema.
 - Scenario for TBC-V1-009 (Repository with no ticket store): when an agent runs `corvint context
   --path internal/x/y.go` in a repository with no `.taskman`, then the brief is printed, exit 0,
-  with the `tickets` section `NOT_OBSERVED`.
+  and no section reads the Tasks store.
 - Scenario for TBC-V1-009 (Diff asked for): when the command is run with `--path` and `--base`, then
   it refuses, exit 2, and names `corvint impact`.
 - Scenario for TBC-V1-010 (Nested instruction file): when `internal/x/AGENTS.md` and the root
   `AGENTS.md` both exist and the path is `internal/x/y.go`, then the `instructions` section lists
   the root file, then `internal/x/AGENTS.md`.
-- Scenario for TBC-V1-010 (File with no requirement link): when no kept link and no completed ticket
-  ties the path to a requirement, then the `requirements` section is `NOT_OBSERVED` with reason
+- Scenario for TBC-V1-010 (File with no requirement link): when no kept link ties the path to a
+  requirement, then the `requirements` section is `NOT_OBSERVED` with reason
   `no-link-for-path`, not an empty `OBSERVED` section.
 - Scenario for TBC-V1-010 (More items than the limit): when 300 tests are tied to the path, then the
   `tests` section lists 64, with `total` 300 and `truncated` true.
-- Scenario for TBC-V1-011 (Link file present, no ticket store): when
-  `.corvint/requirement-links.json` ties the path to `ABC-V1-004` and `corvint-tasks` is not
-  installed, then the `requirements` section lists `ABC-V1-004` and is `INCOMPLETE` with a reason
-  that names `corvint-tasks`, and the `tickets` section is `NOT_OBSERVED`.
-- Scenario for TBC-V1-011 (Link file present with no link for the path, no ticket store): when
-  `.corvint/requirement-links.json` exists and holds no link for the path, and `corvint-tasks` is
-  not installed, then the `requirements` section has no items and is `NOT_OBSERVED` with a reason
-  that gives `no-link-for-path` and names `corvint-tasks`.
+- Scenario for TBC-V1-011 (No link file): when the repository has no
+  `.corvint/requirement-links.json`, then `requirements` is `NOT_OBSERVED`, its reason names the
+  link file, and the exit is 0.
 - Scenario for TBC-V1-011 (Repository that has never used Corvint): when the path brief runs in a
   repository with only source files and one `AGENTS.md`, then `instructions` is `OBSERVED`, the
-  other five sections are `NOT_OBSERVED` with their reasons, and the exit code is 0.
+  other two sections are `NOT_OBSERVED` with their reasons, and the exit code is 0.
+- Scenario for TBC-V1-010 (The cut sections are absent): when the repository has `CODEOWNERS`,
+  `.corvint/flows.json` and a Tasks store, then the brief has exactly the sections `instructions`,
+  `tests` and `requirements`, and its profile is `corvint-path-brief/1`. (amended 2026-11-11,
+  decision 0597)
 - Scenario for TBC-V1-012 (File changed since the link was sealed): when a kept link ties
   `internal/x/y.go` to `ABC-V1-004` at commit C and the file has changed since C, then the item
   names `ABC-V1-004`, commit C and `changedSince` true.
@@ -277,29 +265,19 @@ Each section of a path carries one reason. A reason names what the section's sta
 | --- | --- | --- | --- |
 | `instructions` | `tree-at-revision` | `OBSERVED` | `AGENTS.md` or `CLAUDE.md` files on the path's directory ancestry at HEAD are listed |
 | `instructions` | `no-instruction-file-on-ancestry` | `OBSERVED` | the ancestry was read and holds no such file |
-| `owners` | `last-matching-rule` | `OBSERVED` | the last `CODEOWNERS` rule that matches is listed |
-| `owners` | `no-codeowners-rule-matches` | `OBSERVED` | `CODEOWNERS` was read and no rule matches |
-| `owners`, `tests`, `flows`, `tickets` | `source-absent` | `NOT_OBSERVED` | every source of the section is missing; each is named |
+| `tests` | `source-absent` | `NOT_OBSERVED` | every source of the section is missing; each is named |
 | `tests` | `plan-and-evidence-read` | `OBSERVED` | the plan and the retained test evidence were both read |
 | `tests` | `plan-scope-unknown` | `INCOMPLETE` or `NOT_OBSERVED` | the plan was read and its scope is `UNKNOWN`, so the list is not complete |
 | `tests` | `one-source-read` | `INCOMPLETE` or `NOT_OBSERVED` | one of the two sources is missing and named |
-| `tests`, `flows`, `requirements` | `path-not-at-head` | `NOT_OBSERVED` | the path is absent from HEAD |
-| `flows` | `flows-reader-not-built` | `NOT_OBSERVED` | `.corvint/flows.json` exists and no reader is built |
+| `tests`, `requirements` | `path-not-at-head` | `NOT_OBSERVED` | the path is absent from HEAD |
 | `requirements` | `links-not-exhaustive` | `INCOMPLETE` | links are listed; a link file never lists every requirement |
 | `requirements` | `no-link-for-path` | `NOT_OBSERVED` | no link names the path |
-| `tickets` | `open-ticket-scope` | `OBSERVED` | open tickets whose declared scope or touch paths cover the path are listed |
-| `tickets` | `no-open-ticket-covers-path` | `OBSERVED` | the open tickets were read and none covers the path |
 
 ## Delivered limits
 
-These are limits of the path form as built on 2026-11-10. Each is a stated absence in the output,
-not a silent gap.
+These are limits of the path form as built on 2026-11-10 and reduced to three sections on
+2026-11-11 (decision 0597). Each is a stated absence in the output, not a silent gap.
 
-- `flows`: no reader for `.corvint/flows.json` is built. The section is `NOT_OBSERVED` with reason
-  `flows-reader-not-built` when the file exists and names the missing source when it does not.
-- `requirements`: the completed-ticket source is not read, because completed tickets record no
-  commits (V1-5301). Every `requirements` section of a path at HEAD names
-  `completed-ticket-commits` as missing, and `corvint-tasks` as well when the store cannot be read.
 - `tests`: the plan is built from the worktree on disk. With uncommitted changes outside
   documentation the plan is refused and the section names `affected-plan` as a missing source.
 - `tests`: make targets, CI jobs and frontier sites that the plan selects are not listed as tests.
@@ -308,8 +286,6 @@ not a silent gap.
 - `tests`: retained test evidence lists no test in this build. The evidence reader resolves no
   runner identity, so no retained record counts as fresh and only a fresh record names a test. The
   section therefore names `test-evidence` as missing and never reaches `plan-and-evidence-read`.
-- `tickets`: the open tickets are read in pages of 1,000. A ticket that two pages return is listed
-  once; a ticket that moves between pages during the read can be missed.
 - An absolute `--path` value is accepted when it lies under the repository root as written or
   after links are resolved. A link inside the repository that points outside it is refused when
   the value reaches it through a linked spelling of the root.
@@ -325,7 +301,7 @@ not a silent gap.
 - A path outside the repository: refusal `path-outside-repository`, exit 2.
 - `--path` with task text, `--task`, `--base`, `--ticket` or any other option of the command: an
   argument refusal, exit 2. For task text and a range it names `corvint impact --base <sha>`.
-- A path absent from HEAD: exit 0; `tests`, `flows` and `requirements` are `NOT_OBSERVED` with
+- A path absent from HEAD: exit 0; `tests` and `requirements` are `NOT_OBSERVED` with
   reason `path-not-at-head`.
 - An absent or damaged optional source: its section names it as missing and the command exits 0
   (TBC-V1-011). A damaged link file is a missing source, never a partial answer.
@@ -340,8 +316,8 @@ not a silent gap.
 | TBC-V1-006 | `benchmarks/ticket-brief-task-set/task-set.json` (frozen list and hash) | task list committed; measurement `NOT_RUN` |
 | TBC-V1-007, TBC-V1-008 | none | `NOT_RUN` |
 | TBC-V1-009 | `internal/pathbrief/brief_test.go` (`TestNormalizePath`, `TestBuildAbsentPath`, `TestBuildLeavesTheRepositoryAlone`, `TestBuildNoCommitIsAnError`); `cmd/corvint/context_path_test.go` (`TestPathContextParse`, `TestRunPathContextRefusesOutsidePath`) | experimental |
-| TBC-V1-010 | `internal/pathbrief/brief_test.go` (`TestBuildStructureAndInstructions`, `TestBuildOwners`, `TestBuildTests`, `TestBuildTestsLimit`, `TestBuildFlows`, `TestBuildTickets`, `TestBuildRequirementsStates`); `owners_test.go`; `tickets_test.go` | experimental; `flows` reader and completed-ticket source not built |
-| TBC-V1-011 | `internal/pathbrief/brief_test.go` (`TestBuildNeverUsedCorvint`, `TestBuildRequirementsDamagedLinkFile`); `tickets_test.go` (`TestExecTicketsWithoutCompanion`); `cmd/corvint/context_path_test.go` (`TestPathContextNothingRetained`) | experimental |
+| TBC-V1-010 | `internal/pathbrief/brief_test.go` (`TestBuildStructureAndInstructions`, `TestBuildTests`, `TestBuildTestsLimit`, `TestBuildRequirementsStates`, `TestBuildCutSectionsAreAbsent`) | experimental |
+| TBC-V1-011 | `internal/pathbrief/brief_test.go` (`TestBuildNeverUsedCorvint`, `TestBuildRequirementsDamagedLinkFile`); `cmd/corvint/context_path_test.go` (`TestPathContextNothingRetained`) | experimental |
 | TBC-V1-012 | `internal/pathbrief/export_test.go` (`TestExport`, `TestExportWithoutRecords`, `TestExportRefusals`, `TestExportSkipsDamagedRecords`); `links_test.go`; `brief_test.go` (`TestBuildRequirementsReportedEntry`); the run is in `docs/build-log/2026-11-10-path-brief-builder-and-link-export.md` | experimental |
 | TBC-V1-013 | `docs/build-log/2026-11-10-path-brief-link-coverage-check.md`: 16 of 20 tasks against the owner's bar of 10 | recorded; bar met |
 | TBC-V1-014 | none | `NOT_RUN` |

@@ -64,7 +64,8 @@ func (Language) CrossLanguageFrontiers() []string {
 // `specPattern` or `globalSetup` whose collected files or loaded module are
 // unknown) is DISCOVERY: outbound, but it also decides which files below the
 // configuration are tests, so a dirty configuration or a dirty source below
-// it keeps the entry. PACKAGE_RUNNABLE reasons hide only how a
+// it keeps the entry; so is a mock call whose target is computed (SLF-V1-004),
+// which decides what module the calling test replaces. PACKAGE_RUNNABLE reasons hide only how a
 // known test's runner is invoked or which runner it is:
 // `runtime-flags-unresolved` and `test-runner-unknown`. Every other reason is
 // INBOUND: the unresolved alias, whose site may be the resolution table
@@ -78,12 +79,28 @@ func (Language) FrontierDirection(reason string) string {
 	switch reason {
 	case FrontierUnresolvedImport, FrontierBareImportUndeclared, FrontierDynamicImport:
 		return affected.FrontierOutbound
-	case FrontierConfig:
+	case FrontierConfig, FrontierMockTarget:
 		return affected.FrontierDiscovery
 	case FrontierRuntimeFlags, FrontierUnknownRunner:
 		return affected.FrontierPackageRunnable
 	}
 	return affected.FrontierInbound
+}
+
+// CoverageUnproven reports a changed manual mock, and any changed unit while a computed mock
+// target is open (SLF-V1-004): the tests that load a mock are those that mock its module, which
+// the plugin models only through literal targets and imports, so no absence of a consumer is
+// proven and the unit is unknown NO_SELECTABLE_TEST, never Uncovered.
+func (Language) CoverageUnproven(id string, frontier []string) bool {
+	if manualMockPath(strings.TrimPrefix(id, "typescript:")) {
+		return true
+	}
+	for _, entry := range frontier {
+		if entry == FrontierMockTarget || strings.HasPrefix(entry, FrontierMockTarget+":") {
+			return true
+		}
+	}
+	return false
 }
 
 // RunnableUnit reports a test unit whose runner the plugin identified

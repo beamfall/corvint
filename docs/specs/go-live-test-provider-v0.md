@@ -1123,7 +1123,7 @@ rendezvous read, and the unblock file write below, on a goroutine launched befor
 a read or unblock attempted only after `Execute` returns would deadlock until the frozen 30-minute
 timeout. That handshake has no run-time
 channel: `Config` declares no environment field, the child's environment is the closed 21-name map
-`createEnvironment` builds (`internal/liveverify/provider/provider.go:923-976`), which carries no
+`createEnvironment` builds (`internal/liveverify/provider/provider.go:911-964@5ce60711`), which carries no
 `PATH` and no fixture-supplied name, and every writable path the child does receive is under the
 run root deleted at `internal/liveverify/provider/provider.go:474`. The fixture therefore generates
 a temporary module under a fixture-owned root outside the observed repository — the fixture
@@ -1177,7 +1177,7 @@ shutdown deadline GLTP-V0-027 fixes (`internal/liveverify/gorunner/runner.go:195
 post-run work GLTP-V0-027 names as the fourth term of invocation return: post-run lease
 revalidation, post-run identity observation, and lease release, each bounded by the 15-second
 `postAuthorityTimeout` (`internal/liveverify/provider/provider.go:43`, applied at `:460`, `:463`,
-and `:1279`), the coverage merge and receipt composition, and the run-root removal
+and `:1267@272dc1e0`), the coverage merge and receipt composition, and the run-root removal
 (`internal/liveverify/provider/provider.go:480-482`), which carries no timeout at all; then the
 5-second probe window below. Because the run-root removal is unbounded, that budget is not a proof,
 so the fixture MUST record the wall time from the `Execute` call to its return and MUST abort as

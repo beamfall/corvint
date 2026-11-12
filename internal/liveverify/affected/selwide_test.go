@@ -76,6 +76,7 @@ func selwideSession(t *testing.T, root string, graph *affected.Graph, dirty stri
 
 // AFP-V0-9012: reuse PR #125's hidden discovery; both source universes keep
 // the helper and importers. An injected unindexable source kind still forces FULL.
+// A helper under .github/ runs everything since NCM-V1-005 (V1-5424).
 func TestHiddenGoSelection_AFPV09012(t *testing.T) {
 	for _, directory := range []string{".github/cishards", ".github/testconfine", "nested/.helpers"} {
 		t.Run(directory, func(t *testing.T) {
@@ -107,14 +108,26 @@ func TestHiddenGoSelection_AFPV09012(t *testing.T) {
 			if plan.Scope != affected.ScopeBounded || !slices.Equal(plan.SelectedTests(), want) {
 				t.Fatalf("plan=%+v", plan)
 			}
-			if m := selwideSession(t, root, graph, directory+"/helper.go"); m.Scope == sessiontest.ScopeFull || len(m.Units) != 2 {
+			m := selwideSession(t, root, graph, directory+"/helper.go")
+			if strings.HasPrefix(directory, ".github/") {
+				// NCM-V1-005 (V1-5424): every path under .github/ runs
+				// everything, with the path named.
+				if m.Scope != sessiontest.ScopeFull || m.Reason != "never-narrowed-path "+directory+"/helper.go" {
+					t.Fatalf("session=%+v", m)
+				}
+			} else if m.Scope == sessiontest.ScopeFull || len(m.Units) != 2 {
 				t.Fatalf("session=%+v", m)
 			}
 			fault, err := affected.Build(context.Background(), root, golang.New(), selwideUnindexed{})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if m := selwideSession(t, root, fault, directory+"/new.unmodelled"); m.Scope != sessiontest.ScopeFull || !strings.Contains(m.Reason, affected.UnknownUnindexedSourcePath) {
+			// Under .github/ the never-narrowed reason comes first (NCM-V1-005).
+			reason := affected.UnknownUnindexedSourcePath
+			if strings.HasPrefix(directory, ".github/") {
+				reason = "never-narrowed-path " + directory + "/new.unmodelled"
+			}
+			if m := selwideSession(t, root, fault, directory+"/new.unmodelled"); m.Scope != sessiontest.ScopeFull || !strings.Contains(m.Reason, reason) {
 				t.Fatalf("injected source was narrowed: %+v", m)
 			}
 		})

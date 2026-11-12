@@ -1,0 +1,6 @@
+{
+  "profile": "corvint-deadcode-baseline/0",
+  "functions": [
+    {"package":"example.com/m/a","func":"T.Method","reason":"","line":20}
+  ]
+}

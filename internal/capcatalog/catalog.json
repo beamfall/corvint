@@ -46,7 +46,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "ed390a2ee25347014ef4af4177a6865810ffc14fe853ea81094a2a840b18fa0a"
+    "sha256": "33af21364ed31cd30b86a682825be3174840e75fb8d8109f90ac94c4f4a065de"
   },
   "commands": [
     {
@@ -142,48 +142,6 @@
         {
           "field": "exitCodesMentioned",
           "reason": "the help text states no exit status"
-        }
-      ]
-    },
-    {
-      "name": "feature",
-      "helpTopic": "corvint help feature",
-      "purpose": "one declared feature's context",
-      "maturity": "experimental",
-      "owningSpec": "GPK-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--budget-bytes",
-        "--limit"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "best-effort-append",
-      "writeStatements": [
-        "Repository and trace state are read-only; do not substitute a legacy runtime for a typed unsupported result."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
         }
       ]
     },
@@ -417,14 +375,19 @@
     {
       "name": "context",
       "helpTopic": "corvint help context",
-      "purpose": "task-context packet: files to read",
+      "purpose": "path brief of a file or directory",
       "maturity": "core",
       "owningSpec": null,
       "freezeContract": "CCF-V1",
       "operations": [],
       "nestedOperations": {},
-      "requiredFlags": {},
+      "requiredFlags": {
+        "context": [
+          "--path"
+        ]
+      },
       "flags": [
+        "--base",
         "--instruction-cwd",
         "--instruction-host",
         "--instruction-host-version",
@@ -437,7 +400,7 @@
         "--worktree-overlay"
       ],
       "schemaIds": [
-        "corvint-path-brief/0"
+        "corvint-path-brief/1"
       ],
       "inputs": null,
       "outputs": null,
@@ -445,8 +408,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Writes nothing; Go-only (task-context-packet-v0, experimental).",
-        "It writes nothing.",
+        "Writes nothing.",
         "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
         "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
         "Every command and MCP server honours both, one file per process, written on exit and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID.",
@@ -457,6 +419,64 @@
           "field": "owningSpec",
           "reason": "Core verbs name no per-verb spec in the root help; freezeContract names the compatibility freeze"
         },
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "exitCodesMentioned",
+          "reason": "the help text states no exit status"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
+    },
+    {
+      "name": "instructions",
+      "helpTopic": "corvint help instructions",
+      "purpose": "instruction load set of a tracked file",
+      "maturity": "experimental",
+      "owningSpec": "IID-V0",
+      "freezeContract": null,
+      "operations": [],
+      "nestedOperations": {},
+      "requiredFlags": {
+        "instructions": [
+          "--cwd",
+          "--host",
+          "--host-version",
+          "--profile",
+          "--subject"
+        ]
+      },
+      "flags": [
+        "--cwd",
+        "--host",
+        "--host-version",
+        "--json",
+        "--profile",
+        "--subject"
+      ],
+      "schemaIds": [],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "Writes nothing.",
+        "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
+        "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
+        "Every command and MCP server honours both, one file per process, written on exit and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID.",
+        "Diagnostic only; they do not change what is read, returned, or mutated (corvint help --json lists the commands and servers)."
+      ],
+      "unknowns": [
         {
           "field": "inputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
@@ -512,6 +532,9 @@
         "--fail-fast-order",
         "--format",
         "--full",
+        "--head",
+        "--json",
+        "--line",
         "--line-exec",
         "--line-index",
         "--line-test-timeout",
@@ -520,12 +543,14 @@
         "--ownership-audit",
         "--path",
         "--paths-from",
+        "--playwright",
         "--playwright-config",
         "--playwright-discovery",
         "--playwright-env",
         "--playwright-list",
         "--playwright-ungrepped-config",
         "--playwright-ungrepped-list",
+        "--propose-data-map",
         "--provider",
         "--provider-command",
         "--reporter",
@@ -550,6 +575,7 @@
         "corvint-affected-audit/1",
         "corvint-ci-job-inputs/0",
         "corvint-ci-job-plan/0",
+        "corvint-data-map/0",
         "corvint-flows/0",
         "corvint-planning-snapshot/0",
         "corvint-playwright-unreached-paths/0",
@@ -572,9 +598,12 @@
       "writeStatements": [
         "The command reads the Git worktree status, builds the multi-language unit graph from source text, and writes one affected-plan/1 document to stdout: the selector's plan (selected units with witnesses and test counts, an exclusion summary, unknowns, scope) and provider.go.packages, the exact import paths an operator may copy into a Go live-test provider bundle.",
         "--format text (AFP-V0-928) writes the same affected-plan/1 plan as lines instead of JSON: \"affected <summary.line> worktree=N revision=SHA [base=SHA]\", a \"warning TEXT\" line when the plan read unpinned worktree content, one \"selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]\" line per selection, one \"unknown REASON DETAIL [hint TEXT]\" line per plan unknown, the exclusion count and digest, and one \"check KIND COMMAND\" line per advice check with the advisory packages appended.",
-        "Example: corvint affected --base FULL_SHA --format text --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted tier-0 and tier-1 unit names a lane runs locally, range {base, paths count}, degradations and warning, and e2e {scope, inventory, selected, variations, unknown} when the plan carries E2E flow selections (APK-V0-9970); --format text writes it as lines (\"affected <summary.line> ...\", \"tiers ...\", one \"tier0 UNIT\" or \"tier1 UNIT\" per unit, then the \"e2e-scope\", \"e2e-variation\", \"e2e\" and \"e2e-unknown\" lines).",
+        "Example: corvint affected --base FULL_SHA | jq -r '.selectedFlat[] | .test' Every form writes each witness as one object: kind and dirtyPath always; viaLength in the default plan and --by-path, via in --full (and in the default plan for a chain plan.viaLinks cannot state); anyDirtyPath and cause on UNBOUNDED_READER; glob; readScope {declaration, entry} (AFP-V0-9988).",
+        "--summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of the plan: summary, tiers {counts, summary, tier0, tier1, testIds} with the sorted tier-0 and tier-1 unit names a lane runs locally and each one's canonical test ID (CTI-V1-009), range {base, paths count}, degradations, warning, e2e {scope, inventory, selected, variations, unknown} when the plan carries E2E flow selections (APK-V0-9970), and inventory: the committed test inventory (.corvint/test-inventory.json) judged against the planned tree, each declared runner instance with inventory-absent, inventory-stale or inventory-invalid when it runs in full and its unassigned test files (TIV-V1-006 to TIV-V1-009); --format text writes it as lines (\"affected <summary.line> ...\", \"tiers ...\", one \"tier0 UNIT\" or \"tier1 UNIT\" per unit, \"inventory STATE ...\", then the \"e2e-scope\", \"e2e-variation\", \"e2e\" and \"e2e-unknown\" lines).",
+        "It never changes the selection and never writes the inventory.",
         "Example: corvint affected --base FULL_SHA --summary --full writes the affected-plan/0 document instead: every exclusion and every selected unit's test files.",
         "It runs no test, writes no repository state, and never claims that omitted tests are safe to skip; the provider keeps its own NO_AFFECTED_SELECTION_PROOF unknown.",
+        "--head COMMIT (experimental, AFP-V0-9989; requires --base) replays a commit pair without a worktree: the plan is the --base plan of a clean checkout of COMMIT, written from this repository's Git objects into private temporary scratch that is removed before exit, so the working tree, index and untracked files are never read and revision is COMMIT.",
         "--by-path (experimental, AFP-V0-990; requires --path or --paths-from, not with --full) builds the graph once and writes one affected-by-path/1 document instead of the plan: sharedUnboundedReaders lists once the units the union plan selects as UNBOUNDED_READER (they are selected on any path), and paths gives each named path's scope, how many of that shared set it selects, its unknowns and only the units it adds.",
         "--format text writes \"affected by-path scope=S paths=N shared=K revision=SHA\", one \"shared UNIT tests=N WITNESS\" line per shared unit, then per path \"path P scope=S shared=J/K additions=M\" with its \" added UNIT tests=N WITNESS\" and \" unknown REASON DETAIL\" lines.",
         "Write --path=VALUE for a name that begins with -.",
@@ -582,6 +611,8 @@
         "The receipt is byte-identical with and without the cache, cold, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
         "affected cache (experimental) reports the default cache's location, state (PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON object, or with --format doctor-plugin as one AFFECTED_CACHE item for a corvint-tasks doctor plugin; it creates and writes nothing.",
         "It refuses a dirty worktree, builds the graph without the cache, writes nothing, and exits 0 when no path is unowned, 1 when some path is, and 2 on an error.",
+        "affected --propose-data-map RECORDED (experimental, NCM-V1-003) reads recorded test reads, one JSON object {\"test\": ID, \"path\": PATH} per line, and writes to stdout a corvint-data-map/0 document with one proposed entry per read path.",
+        "It writes no file; an invalid map is refused with data-map-invalid and exit 2.",
         "affected jobs (experimental, AFP-V0-2340 to AFP-V0-2346) evaluates the project-owned input declaration of non-test CI jobs (--declaration, default .corvint/ci-job-inputs.json, corvint-ci-job-inputs/0) over the range --base..HEAD and the dirty worktree, and writes one corvint-ci-job-plan/0: per job RUN or SKIP with its reason and witnesses.",
         "In a private shared clone it runs affected on every change and appmap-impact where configured, treats each test whose outcome changed or is new as one that had to run, and writes a corvint-affected-audit/1 report: per change and selector the verdict (SAFE, MISS, UNKNOWN, NOT_RUN), misses, recall, precision, fallback and elapsed time; per selector micro recall and precision and a 95% one-sided Clopper-Pearson bound on the per-change miss rate.",
         "--selection-profile e2e-safe reads one repository-relative application-flow-selection-provider/1 FILE (flows directory, runner config, discovery record, global paths, E2E inventory, per-flow coverage tiers and a coverage file) and writes an e2e-safe-selection/1 advice.test_selection."
@@ -880,103 +911,9 @@
       ]
     },
     {
-      "name": "features",
-      "helpTopic": "corvint help features",
-      "purpose": "inferred repository guidance",
-      "maturity": "experimental",
-      "owningSpec": "RGV-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--base",
-        "--limit",
-        "--max-refs",
-        "--no-workspace",
-        "--workspace"
-      ],
-      "schemaIds": [
-        "affected-plan/0",
-        "affected-plan/1"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        2
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
-        "No index, trace or observation ledger is written."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "overview",
-      "helpTopic": "corvint help overview",
-      "purpose": "inferred repository guidance",
-      "maturity": "experimental",
-      "owningSpec": "RGV-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--base",
-        "--limit",
-        "--max-refs",
-        "--no-workspace",
-        "--workspace"
-      ],
-      "schemaIds": [
-        "affected-plan/0",
-        "affected-plan/1"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        2
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
-        "No index, trace or observation ledger is written."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
       "name": "review",
       "helpTopic": "corvint help review",
-      "purpose": "inferred repository guidance",
+      "purpose": "change review: affected plan and branch overlap",
       "maturity": "experimental",
       "owningSpec": "RGV-V0",
       "freezeContract": null,
@@ -989,7 +926,6 @@
       },
       "flags": [
         "--base",
-        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -1006,7 +942,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
+        "Read-only; needs a clean HEAD (any dirt refuses).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -1269,6 +1205,7 @@
       "schemaIds": [
         "corvint-ci-outcomes/0",
         "corvint-ci-package-costs/0",
+        "corvint-test-commands/0",
         "corvint-test-manifest/0",
         "corvint-test-reuse-decision/0",
         "corvint-test-reuse-record/0",
@@ -1290,7 +1227,8 @@
         "decide digests the packages of HEAD (--packages, default go list ./...) and prints a corvint-test-reuse-decision/0: REUSE only when an admitted record (--trust, default local,main; pull_request needs --pull-request N) passed the package under the same identity with the same digest; --run-list writes the packages still to run.",
         "It writes only the named files; exit 3 when no record or decision can be produced.",
         "--manifest PATH writes the same corvint-test-manifest/0 in every form.",
-        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json)."
+        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json).",
+        "Planning reads the committed test inventory (.corvint/test-inventory.json) at HEAD and prints one \"corvint-test: INVENTORY STATE reasons=...\" line on stderr (an \"inventory:\" summary line, or the dry-run JSON \"inventory\" member); it never narrows the plan and never writes the inventory (TIV-V1-002)."
       ],
       "unknowns": [
         {
@@ -1450,6 +1388,57 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "Writes: nothing under the repository; tests write what they write."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
+    },
+    {
+      "name": "inventory",
+      "helpTopic": "corvint help inventory",
+      "purpose": "refresh the committed test inventory",
+      "maturity": "experimental",
+      "owningSpec": "TIV-V1",
+      "freezeContract": null,
+      "operations": [
+        "refresh"
+      ],
+      "nestedOperations": {},
+      "requiredFlags": {},
+      "flags": [
+        "--collect-only",
+        "--json",
+        "--list",
+        "--reporter",
+        "--runner",
+        "--summary"
+      ],
+      "schemaIds": [
+        "corvint-test-inventory/0",
+        "playwright-discovery/0"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [
+        2
+      ],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "Refusals (exit 2, nothing written, the previous file kept): inventory-refresh-drift when HEAD or a source moved while a lister ran (TIV-V1-010); inventory-too-large when the file would exceed 8 MiB (TIV-V1-011); inventory-invalid-arguments; inventory-unavailable when Git cannot read the repository.",
+        "Readers: corvint affected --summary, corvint test, corvint watch and the corvint.affected MCP tool only read the file and print its reasons (inventory-absent, inventory-stale, unassigned, inventory-invalid); they never run a lister or write it (TIV-V1-002).",
+        "Writes: .corvint/test-inventory.json only, replaced through a temporary file in the same directory; listers write what they write."
       ],
       "unknowns": [
         {
@@ -1683,24 +1672,23 @@
     "commands": [
       "init",
       "adopt",
-      "feature",
       "impact",
       "cem",
       "context",
+      "instructions",
       "affected",
       "index",
       "docs",
       "test-evidence",
       "test-validity",
       "test-plan",
-      "features",
-      "overview",
       "review",
       "flows",
       "runs",
       "test",
       "tests",
       "watch",
+      "inventory",
       "mcp",
       "how"
     ],
@@ -1978,11 +1966,6 @@
       "name": "corvint.docs_navigation",
       "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Navigation structure of one flow id, or of the flows a query selects by name or linked test ([DCS-V1-596..597](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
-      "name": "corvint.docs_recommend_tests",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Tests the corpus links to a subject, plus the subjects documenting the path and their test links ([DCS-V1-595](specs/documentation-corpus-search-ranking-v1.md))"
     },
     {
       "name": "corvint.docs_search",

@@ -298,16 +298,6 @@ type Index struct {
 	testLinks *testLinkTable
 }
 
-// vocabulary returns the term table, building it once for an index compiled
-// without one (a query index, or a fixture) so the packet has one source of
-// truth for its terms.
-func (index *Index) vocabulary() *TermTable {
-	if index.Vocabulary == nil {
-		index.Vocabulary = index.buildVocabulary()
-	}
-	return index.Vocabulary
-}
-
 // UnparsedPaths returns the set of paths whose facts were dropped, for callers
 // that need membership rather than the ordered table.
 func (index *Index) UnparsedPaths() map[string]string {

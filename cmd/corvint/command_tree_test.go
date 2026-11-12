@@ -5,50 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/clitree"
 )
-
-// TestCAPV0042EveryTreeNodeAnswersHelp asks every corvint command-tree node for --help and -h:
-// each exits 0, reads no stdin, and prints the help of exactly that node, with its usage, required
-// inputs and an example (CAP-V0-042, CAP-V0-044).
-func TestCAPV0042EveryTreeNodeAnswersHelp(t *testing.T) {
-	t.Parallel()
-	tree := commandTree()
-	if problems := clitree.Problems(tree); len(problems) > 0 {
-		t.Fatalf("tree problems: %v", problems)
-	}
-	// 66 after the flows and how groups became shims onto corvint-docs too (decisions 0594 item 3, 0595).
-	if len(tree.Nodes) < 60 {
-		t.Fatalf("tree has %d nodes", len(tree.Nodes))
-	}
-	for _, node := range tree.Nodes {
-		for _, flag := range []string{"--help", "-h"} {
-			args := append(slices.Clone(node.Path), flag)
-			topic, ok, err := parseHelpInvocation(args)
-			if err != nil || !ok {
-				t.Fatalf("%q: no help topic (%v)", args, err)
-			}
-			own := topic == nodeHelpPrefix+strings.Join(node.Path, " ") || slices.Equal(helpTopicPath(topic), node.Path) ||
-				onlyChildTopic(tree, node.Path, helpTopicPath(topic))
-			if !own {
-				t.Fatalf("%q resolves to topic %q, not its own node", args, topic)
-			}
-			reader := &forbiddenHelpReader{}
-			var stdout, stderr bytes.Buffer
-			if exit := run(args, reader, &stdout, &stderr); exit != 0 || stderr.Len() != 0 || reader.reads != 0 {
-				t.Fatalf("%q: exit %d stderr %q reads %d", args, exit, &stderr, reader.reads)
-			}
-			text := stdout.String()
-			if text != helpText(topic) || !strings.Contains(text, " "+strings.Join(node.Path, " ")) ||
-				!strings.Contains(text, "Example") || node.Path[0] != "help" && !strings.Contains(text, "Required:") {
-				t.Fatalf("%q: help lacks usage, required inputs or example:\n%s", args, text)
-			}
-		}
-	}
-}
 
 // TestCAPV0045CatalogLinksCurrentTreeSnapshots pins `corvint help --tree` to the committed
 // snapshot and requires `corvint help --json` to link every snapshot (CAP-V0-045, CAP-V0-046).

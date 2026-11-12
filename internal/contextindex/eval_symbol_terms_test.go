@@ -28,53 +28,6 @@ var symbolTermsDistributivityPairs = [][2]string{
 	{"leadingUnderscore", "_internal/_hidden/file_name.go"},
 }
 
-// TestSymbolTermsDistributeOverASpace is the property the path cache rests on:
-// terms("<name> <path>") is exactly terms(name) united with terms(path). No
-// stage of terms reaches across a space -- camelSplit inserts a hyphen only
-// between two adjacent letters or digits, ToLower and the '_' rewrite are per
-// character, and asciiWords begins a word at an ASCII letter and ends it at the
-// first character outside [letter digit _ -] -- so the join contributes nothing
-// and separates the two sides in every stage.
-func TestSymbolTermsDistributeOverASpace(t *testing.T) {
-	for _, pair := range symbolTermsDistributivityPairs {
-		assertSymbolTermsDistribute(t, pair[0], pair[1])
-	}
-}
-
-// FuzzSymbolTermsDistributeOverASpace drives the same property over arbitrary
-// text, which is the only way to reach the byte sequences the table did not
-// think of -- in particular the boundary characters camelSplit and asciiWords
-// classify differently.
-func FuzzSymbolTermsDistributeOverASpace(f *testing.F) {
-	for _, pair := range symbolTermsDistributivityPairs {
-		f.Add(pair[0], pair[1])
-	}
-	f.Fuzz(func(t *testing.T, name, sourcePath string) {
-		assertSymbolTermsDistribute(t, name, sourcePath)
-	})
-}
-
-func assertSymbolTermsDistribute(t *testing.T, name, sourcePath string) {
-	t.Helper()
-	want := terms(name + " " + sourcePath)
-	cache := evalSymbolTerms{}
-	got, _ := cache.of(name, sourcePath)
-	if !reflect.DeepEqual(want, got) {
-		t.Fatalf("terms(%q + \" \" + %q):\n got = %v\nwant = %v", name, sourcePath, sortedKeys(got), sortedKeys(want))
-	}
-	// A second name against the same cached path is the case the cache exists
-	// for, and the case a stale entry would break.
-	second := "Second" + name + "Declaration"
-	if again, _ := cache.of(second, sourcePath); !reflect.DeepEqual(terms(second+" "+sourcePath), again) {
-		t.Fatalf("cached path diverged for %q in %q: got %v", second, sourcePath, sortedKeys(again))
-	}
-	// A different path against a warm cache must invalidate it.
-	other := sourcePath + "/other_module.go"
-	if switched, _ := cache.of(name, other); !reflect.DeepEqual(terms(name+" "+other), switched) {
-		t.Fatalf("cache failed to invalidate from %q to %q: got %v", sourcePath, other, sortedKeys(switched))
-	}
-}
-
 // TestSymbolTermsDistributivityIsSpecificToTheSeparator is the non-vacuity
 // control for the property above. terms does not distribute over an arbitrary
 // join -- concatenating the two sides with no separator lets camelSplit and

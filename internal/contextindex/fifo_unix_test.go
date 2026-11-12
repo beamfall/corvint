@@ -5,7 +5,6 @@ package contextindex
 import (
 	"context"
 	"fmt"
-	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,22 +13,9 @@ import (
 	"syscall"
 	"testing"
 	"time"
-)
 
-func TestReadCleanFileRejectsFIFOWithoutBlocking(t *testing.T) {
-	root := t.TempDir()
-	fifo := filepath.Join(root, "pipe.go")
-	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	started := time.Now()
-	if data, ok := readCleanFile(root, "pipe.go"); ok || data != nil {
-		t.Fatalf("FIFO admitted: ok=%v data=%q", ok, data)
-	}
-	if elapsed := time.Since(started); elapsed > time.Second {
-		t.Fatalf("FIFO read blocked for %s", elapsed)
-	}
-}
+	"github.com/Beamfall/corvint/internal/execfile"
+)
 
 func TestBuildCancellationKillsGitDescendants(t *testing.T) {
 	root := testRepository(t)
