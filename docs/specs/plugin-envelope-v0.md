@@ -5,6 +5,7 @@ Date: 2026-11-11
 Requirement prefix: `CPE-V0`
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs:
 - decision 0591 (item 1: apps and plugins reach the core only through published envelopes or
   `corvint-plugin/1`; item 4: plugins are separate executables, one process per run, never `.so`,

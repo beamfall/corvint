@@ -5,6 +5,7 @@ Date: 2026-11-11
 Status: accepted
 Intent status: accepted (decision 0058; moved from the learned-trace spec by decision 0597)
 Delivery status: experimental
+Health: KEEP
 Requirement prefix: `LTA-V0`
 Authoritative inputs: `docs/decisions/0058-learning-loop-evaluation-gate-and-retention-2026-09-05.md`;
 `docs/decisions/0164-secretscreen-credential-formats-2026-09-12.md`;
