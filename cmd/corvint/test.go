@@ -523,7 +523,7 @@ func testCommandNotices(m sessiontest.Manifest, declared sessiontest.Declared, r
 	for _, unit := range m.Units {
 		name, declaredUnit := strings.CutPrefix(unit.Unit, "declared:")
 		switch {
-		case unit.Adapter == sessiontest.AdapterGo || (declaredUnit && name == "go"):
+		case unit.Adapter == sessiontest.AdapterGo || (declaredUnit && name == sessiontest.AdapterGo):
 			goDefault = declared.GoDefault
 		case declaredUnit && strings.Contains(name, "@"):
 			if argv, _, source := declared.InstanceCommand(name, root); source == sessiontest.CommandDefault {
