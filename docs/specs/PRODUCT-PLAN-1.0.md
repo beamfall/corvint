@@ -490,7 +490,8 @@ Also part of the bar (owner decisions of 2026-11-09).
     Proposed: RNC-V1-001 to RNC-V1-018 (`docs/specs/openspec/changes/runner-contract/`),
     PYR-V1-001 to PYR-V1-010 (`docs/specs/openspec/changes/pytest-provider/`) and
     RBR-V1-001 to RBR-V1-012 (`docs/specs/openspec/changes/ruby-providers/`).
-    Also proposed: CTI-V1-001 to CTI-V1-012 (`docs/specs/openspec/changes/canonical-test-id/`)
+    Also proposed: CTI-V1-001 to CTI-V1-012
+    (`docs/specs/openspec/changes/archive/2026-11-12-canonical-test-id/`)
     and JST-V1-001 to JST-V1-010 (`docs/specs/openspec/changes/jest-provider/`).
   - Open tickets: V1-5256. New tickets needed for the pytest, RSpec, Minitest and Jest providers
     and their line evidence (answer list of consequences), and for an end-to-end check of the Jest

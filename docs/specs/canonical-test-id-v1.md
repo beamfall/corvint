@@ -5,7 +5,8 @@ Date: 2026-11-11
 Intent status: accepted
 Delivery status: partial
 Health: KEEP
-Authoritative inputs: change folder `docs/specs/openspec/changes/canonical-test-id/` (`proposal.md`,
+Authoritative inputs: change folder
+`docs/specs/openspec/changes/archive/2026-11-12-canonical-test-id/` (`proposal.md`,
 `design.md`, `tasks.md` and `specs/canonical-test-id/spec.md`), `docs/specs/PRODUCT-PLAN-1.0.md`
 (PROD-TEST-005, PROD-TEST-006, PROD-TEST-010, PROD-TEST-018, PROD-TEST-020) and
 `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md` (owner decisions R11, R32 and R38).
