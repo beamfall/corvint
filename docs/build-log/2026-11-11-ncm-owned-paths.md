@@ -53,7 +53,8 @@ go:embed inputs from the never-narrow list, because their embedding package owns
 The ruling covers Go attribution of non-code paths. It does not reopen the owner's list decisions,
 so these keep their full-run assertions:
 
-- `.corvint/` configuration (NCM-V1-006, G16 and R31): sealed CEMs, `test-read-scopes.json` and
+- `.corvint/` configuration (NCM-V1-006, G16 and R31): sealed CEMs (superseded on 2026-11-12 by
+  `2026-11-12-ncm-sealed-cem-evidence.md`), `test-read-scopes.json` and
   `gated-root-locators.json`. This is why the AFP-V0-050 "unknown base" case in
   `tools/gate-affected-select` is not restored.
 - The never-narrow list (NCM-V1-005): `.github/**`, including the Go packages under it.

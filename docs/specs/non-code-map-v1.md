@@ -127,7 +127,11 @@ everything, with reason `corvint-config` and the path printed. Configuration mea
 `.corvint/` except: the flow file (`.corvint/flows.json`, or the deprecated `.corvint/e2e-flows.json`)
 and its link records, whose change MUST select the tests linked to the changed flows; and the two
 private ledgers `self-observations.jsonl` and `unplanned-reads.jsonl`, whose change MUST add no
-test. (G16, narrowed by owner decision R31 (2026-11-09))
+test; and a sealed CEM directly under `.corvint/changes/` named by a 40- or 64-digit lowercase
+hexadecimal commit, which is change evidence, not configuration, and MUST keep the selector's
+ADN-V0-011 evidence attribution (its planned readers, else rule (c)). Any other name under
+`changes/` stays configuration. (G16, narrowed by owner decision R31 (2026-11-09); sealed CEMs
+added 2026-11-12, `docs/build-log/2026-11-12-ncm-sealed-cem-evidence.md`)
 
 Earlier wording, superseded by R31: "A change to any `.corvint/` declaration or to the map file MUST
 select everything."

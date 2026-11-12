@@ -48,8 +48,10 @@
 
 ## Open questions
 
-- Classification of `.corvint/changes/`, `.corvint/deferred-intents/`, the committed inventory file
-  and the `unplanned-reads.enabled` marker under NCM-V1-006 (today: configuration, full run).
+- Classification of `.corvint/deferred-intents/`, the committed inventory file and the
+  `unplanned-reads.enabled` marker under NCM-V1-006 (today: configuration, full run). A sealed CEM
+  under `.corvint/changes/` named by a full commit is settled as change evidence (2026-11-12,
+  `docs/build-log/2026-11-12-ncm-sealed-cem-evidence.md`); other names there stay configuration.
 - Whether the existing hand-written read declarations later fold into the map.
 
 ## Rollback
