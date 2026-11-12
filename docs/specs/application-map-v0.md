@@ -2421,7 +2421,7 @@ but does not read it; only non-Go syntax impact does.
     the map revision (they refuse the snapshot commit as an unknown revision).
   - Failure modes: untracked files that only the user's global excludes file ignores enter the
     snapshot, since the Git environment carries no global configuration.
-  - Falsifier: `TestAMAPV0976WorktreeBuild` in `worktree_test.go`.
+  - Falsifier: `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go`.
   - Rollback: delete `worktree.go`, the `WorkingTree` member and the flag.
 - `AMAP-V0-977`: (experimental, auto-accepted under G14 (decision 0596); V1-5472) Without
   `--worktree`, a build MUST keep refusing a manifest absent at the revision as
@@ -2429,7 +2429,7 @@ but does not read it; only non-Go syntax impact does.
   message MUST name `--worktree`. `--worktree` MUST refuse with `--revision`, `--repo`,
   `--manifest-repo`, `--repo-revision`, `--workspace`, `--from`, `--verify` or an implicit
   workspace file.
-  - Falsifier: `TestAMAPV0977WorktreeRefusals` in `worktree_test.go`.
+  - Falsifier: `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go`.
   - Rollback: as AMAP-V0-976.
 
 - `AMAP-V0-9501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4660)
@@ -2782,8 +2782,8 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-973 | `TestAMAPV0973SpecHelperAttribution` in `gotoresolve_test.go` (a same-file helper call with a literal attributes `helper-goto`; a non-literal argument attributes nothing) |
 | AMAP-V0-974 | `TestAMAPV0974CoverageAndInferAgree` in `gotoresolve_test.go` (coverage reached equals infer start screens on the literal, loop and helper fixture; a dynamic array reaches nothing) |
 | AMAP-V0-975 | `TestAMAPV0975SubcommandHelp` in `cmd/corvint-docs/help_appmap_test.go` (trailing, interior and `-h` requests, the `--root` preamble, boolean flags and `help flows appmap SUB`; an unknown SUB and `--` keep the old behavior) |
-| AMAP-V0-976 | `TestAMAPV0976WorktreeBuild` in `worktree_test.go` (an untracked manifest builds, the map carries `working_tree`, two builds are identical, and the repository's status and object count are unchanged) |
-| AMAP-V0-977 | `TestAMAPV0977WorktreeRefusals` in `worktree_test.go` (the default refusal names `--worktree`; each pinned flag refuses) |
+| AMAP-V0-976 | `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go` (an untracked manifest builds, the map carries `working_tree`, two builds are identical, and the repository's status and object count are unchanged) |
+| AMAP-V0-977 | `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go` (the default refusal names `--worktree`; each pinned flag refuses) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,

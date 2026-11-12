@@ -3,6 +3,7 @@ package appmap
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -77,7 +78,11 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 	}
 	me, raw, err := mr.readOne(mrev, manifestPath, maxManifestBytes)
 	if err != nil {
-		return nil, invalidManifest("manifest: %v", err)
+		hint := ""
+		if roots.ManifestRepo == "" && errors.Is(err, errAbsentAtRevision) {
+			hint = worktreeHint(root, manifestPath)
+		}
+		return nil, invalidManifest("manifest: %v%s", err, hint)
 	}
 	m, err := decodeManifest(raw)
 	if err != nil {

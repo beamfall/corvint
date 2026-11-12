@@ -138,6 +138,8 @@ type Map struct {
 	// Roots pins every aliased root the map read and what it supplied; absent for a single-root
 	// map (AMAP-V0-018).
 	Roots []RootPin `json:"roots,omitempty"`
+	// WorkingTree marks a map built unpinned from a working tree (AMAP-V0-976); absent otherwise.
+	WorkingTree *WorkingTree `json:"working_tree,omitempty"`
 	// HashPrefix is the manifest's hash-routing prefix, kept so projections can print a loadable URL.
 	HashPrefix string `json:"hash_prefix"`
 	// BasePath is the manifest's router basename (AMAP-V0-191); absent when empty.
