@@ -157,7 +157,7 @@ func TestPYRV1007AdvisoryCommandNamesTheRunTests(t *testing.T) {
 }
 
 // PYR-V1-009: CORVINT_SELECTION=full:pytest runs the pytest full suite with
-// reason kill-switch, printed; a value outside the NMS-V1-008 grammar exits
+// reason kill-switch, printed; a value outside the kill-switch grammar (owner decision R13) exits
 // 2 with kill-switch-value-unknown before any run.
 func TestPYRV1009CLIKillSwitch(t *testing.T) {
 	root, base, log := pytestChange(t, nil)

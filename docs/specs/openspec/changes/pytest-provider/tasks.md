@@ -45,4 +45,8 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
    test file (a conservative superset); mapping the plan's `python:` units to pytest entries in the
    harness is NOT_PRODUCED.
 - [ ] 9 Tests under "Acceptance evidence"; build-log entry; complete through the Tasks gate. Proof:
-   retained receipts, `receipt audit`.
+   retained receipts, `receipt audit`. Tests and the build-log entry
+   (`docs/build-log/2026-11-12-pytest-provider.md`) are written; the fixture repositories are
+   hand-written per requirement. Left open: the Tasks-gate completion (orchestrator) and the live
+   evidence, NOT_PRODUCED: `corvint test` on pydantic/pydantic at the PRR-V1 pin and the NMS-V1 and
+   FIH-V1 reports for pytest need a live pytest, network access and the NMS-V1 build.

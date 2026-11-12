@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package selectionswitch reads the CORVINT_SELECTION kill switch. Its
-// grammar is owned by NMS-V1-008 (owner decision R13 (2026-11-09)) and is
+// grammar is owned by the kill-switch requirement of change
+// `narrowing-measurement` (owner decision R13 (2026-11-09)) and is
 // exactly two forms: `full`, which forces every runner's full suite, and
 // `full:<runner>[,<runner>]`, which forces each named runner's full suite on
 // every instance. The reason is `kill-switch`; any other value or runner
@@ -21,7 +22,7 @@ import (
 const Env = "CORVINT_SELECTION"
 
 // Reason names a full run the switch forced; ReasonUnknown refuses a value
-// outside the grammar (NMS-V1-008).
+// outside the grammar (owner decision R13).
 const (
 	Reason        = "kill-switch"
 	ReasonUnknown = "kill-switch-value-unknown"

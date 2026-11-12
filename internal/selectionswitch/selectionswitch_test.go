@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// PYR-V1-009 (grammar NMS-V1-008): exactly `full` and
+// PYR-V1-009 (grammar of owner decision R13): exactly `full` and
 // `full:<runner>[,<runner>]` are accepted; an empty value forces nothing,
 // and any other value or runner is refused with kill-switch-value-unknown.
 func TestPYRV1009SelectionGrammar(t *testing.T) {
