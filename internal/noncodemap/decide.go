@@ -43,8 +43,10 @@ const corvintDirectory = ".corvint/"
 // privateLedgers add no test (NCM-V1-006, AGENTS.md invariant 4).
 var privateLedgers = map[string]bool{".corvint/self-observations.jsonl": true, ".corvint/unplanned-reads.jsonl": true}
 
-// FlowFiles are the flow file and its deprecated form (NCM-V1-006).
-var FlowFiles = map[string]bool{".corvint/flows.json": true, ".corvint/e2e-flows.json": true}
+// flowFiles are the flow file and its deprecated form (NCM-V1-006). The
+// package only classifies these changed paths and never opens them, so it
+// is a path classifier, not a second flows reader (FSV-V1-003).
+var flowFiles = map[string]bool{".corvint/flows.json": true, ".corvint/e2e-flows.json": true}
 
 // Input is everything one decision is a function of. Paths are clean
 // repository-relative slash paths; the plan supplies the sets.
@@ -134,7 +136,7 @@ func (in Input) decidePath(p string, unowned, documentation, deleted map[string]
 		return Line{Reason: ReasonPrivateLedger, Path: p}, true
 	}
 	if in.flowPath(p) {
-		if in.FlowsInvalid != "" || (FlowFiles[p] && !in.FlowsJoined) {
+		if in.FlowsInvalid != "" || (flowFiles[p] && !in.FlowsJoined) {
 			return Line{Reason: ReasonFlowsUnreadable, Path: p, Full: true}, true
 		}
 		return Line{Reason: ReasonFlowLinked, Path: p}, true
@@ -185,7 +187,7 @@ func (in Input) decidePath(p string, unowned, documentation, deleted map[string]
 // flowPath reports the flow file, its deprecated form, or a link record in
 // the declared intent directory when that directory lies under `.corvint/`.
 func (in Input) flowPath(p string) bool {
-	if FlowFiles[p] {
+	if flowFiles[p] {
 		return true
 	}
 	directory := strings.TrimSuffix(in.FlowsDirectory, "/")
