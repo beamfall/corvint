@@ -342,11 +342,11 @@
     ]
   },
   "changeFolders": {
+    "2026-11-12-canonical-test-id": "inventory",
     "acceptance-record": "specs",
     "affected-change-status": "affected",
     "affected-plan-kinds": "affected",
     "agent-packages": "agents",
-    "canonical-test-id": "inventory",
     "change-report-impact": "preview",
     "compatibility-promise": "release",
     "docs-mcp-hardening": "mcp",
