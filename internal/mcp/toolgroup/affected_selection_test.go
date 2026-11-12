@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"github.com/Beamfall/corvint/internal/selectionswitch"
@@ -108,5 +109,83 @@ func TestMTTV1011AffectedToolOnAStaleBinarySelectsAll(t *testing.T) {
 	result, _ = group.Call(context.Background(), AffectedTool, map[string]any{"base": "other"})
 	if structured, _ := result["structuredContent"].(map[string]any); result["isError"] != true || structured["code"] != "unknown-base" {
 		t.Fatalf("other refusal: %#v", result)
+	}
+}
+
+// MTT-V1-008, delivered state: no command line parses CORVINT_SELECTION, so
+// selectionswitch.Parse is the grammar's one parser; the tool's answer for
+// each review value is exactly the one Parse classifies, and only the unset
+// switch runs the planner.
+func TestMTTV1008AffectedToolAgreesWithTheOneParser(t *testing.T) {
+	for _, value := range []string{"full", "full:go", "full:a,a", "fastest", " full", "full:Go", ""} {
+		group, runs := selectionGroup(t, value)
+		result, failure := group.Call(context.Background(), AffectedTool, map[string]any{})
+		if failure != nil {
+			t.Fatalf("%q: %#v", value, failure)
+		}
+		structured, _ := result["structuredContent"].(map[string]any)
+		parsed := selectionswitch.Parse(value)
+		if !parsed.On() {
+			if structured["profile"] != "affected-summary/1" || *runs != 1 {
+				t.Fatalf("%q: unset switch did not plan: %#v", value, structured)
+			}
+			continue
+		}
+		if structured["reason"] != parsed.Reason() || structured["selectAll"] != true || *runs != 0 {
+			t.Fatalf("%q: tool reason %v, Parse reason %q, runs %d", value, structured["reason"], parsed.Reason(), *runs)
+		}
+	}
+}
+
+// MTT-V1-008 known limit: full:<runner>[,<runner>] widens to every test, and
+// the answer echoes the named runners in order and says it was widened.
+func TestMTTV1008RunnerSwitchWidensAndEchoesItsRunners(t *testing.T) {
+	group, runs := selectionGroup(t, "full:jest,go")
+	result, failure := group.Call(context.Background(), AffectedTool, map[string]any{})
+	structured, _ := result["structuredContent"].(map[string]any)
+	selection, _ := structured["selection"].(map[string]any)
+	if failure != nil || structured["selectAll"] != true || structured["scope"] != "FULL" || *runs != 0 ||
+		!reflect.DeepEqual(selection["runners"], []any{"jest", "go"}) || selection["value"] != "full:jest,go" {
+		t.Fatalf("%#v %#v", structured, failure)
+	}
+	if detail, _ := structured["detail"].(string); !strings.Contains(detail, `"full:jest,go"`) || !strings.Contains(detail, "widens that to every test") {
+		t.Fatalf("detail %q", detail)
+	}
+}
+
+// MTT-V1-008: a 10 KB value is echoed in at most 256 bytes, cut with the
+// truncation marker, in selection.value and in detail; a long runner list
+// echoes only the runners inside the kept bytes.
+func TestMTTV1008EchoedValueIsBounded(t *testing.T) {
+	long := "fastest" + strings.Repeat("é", 5*1024)
+	var names []string
+	for index := range 2000 {
+		names = append(names, fmt.Sprintf("runner%d", index))
+	}
+	runnerList := "full:" + strings.Join(names, ",")
+	for _, value := range []string{long, runnerList} {
+		if len(value) < 10*1024 {
+			t.Fatalf("fixture is %d bytes", len(value))
+		}
+		group, _ := selectionGroup(t, value)
+		result, failure := group.Call(context.Background(), AffectedTool, map[string]any{})
+		structured, _ := result["structuredContent"].(map[string]any)
+		selection, _ := structured["selection"].(map[string]any)
+		echoed, _ := selection["value"].(string)
+		marker := fmt.Sprintf("...(truncated, %d bytes)", len(value))
+		if failure != nil || len(echoed) > 256 || !strings.HasSuffix(echoed, marker) || !strings.HasPrefix(value, strings.TrimSuffix(echoed, marker)) || !utf8.ValidString(echoed) {
+			t.Fatalf("value of %d bytes echoed as %d bytes %q (%#v)", len(value), len(echoed), echoed, failure)
+		}
+		detail, _ := structured["detail"].(string)
+		if !strings.Contains(detail, marker) || strings.Contains(detail, value[:1024]) || len(detail) > 4*256+256 {
+			t.Fatalf("detail of %d bytes is not bounded: %.300q", len(detail), detail)
+		}
+		runners, _ := selection["runners"].([]any)
+		if value == runnerList && (len(runners) == 0 || len(runners) > 256/len("runner0,") || !strings.HasPrefix(echoed, "full:"+strings.Join(names[:len(runners)], ","))) {
+			t.Fatalf("runners of a truncated list: %d %q", len(runners), runners)
+		}
+		if text := result["content"].([]any)[0].(map[string]any)["text"].(string); strings.Contains(text, value[:1024]) {
+			t.Fatal("the text block echoes the raw value")
+		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
@@ -133,7 +134,8 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 	if ctx.Err() != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 	}
-	// MTT-V1-008: the kill switch is read with the CLI grammar; any value,
+	// MTT-V1-008: the kill switch is read with selectionswitch.Parse, the
+	// one parser of the change narrowing-measurement grammar; any value,
 	// known or not, selects every test with its reason and never runs a
 	// planner that could narrow.
 	lookup := group.Lookup
@@ -199,11 +201,19 @@ func (group Affected) selectAll(ctx context.Context, name, base, reason, detail,
 		"profile": AffectedSelectAllProfile, "reason": reason, "scope": "FULL", "selectAll": true, "tool": name,
 	}
 	if kill.On() {
+		value, kept := echoValue(kill.Value)
 		runners := []any{}
+		// A runner token is echoed only when it lies wholly inside the
+		// kept bytes, so the runner list is bounded with the value.
+		end := len("full:")
 		for _, runner := range kill.Runners {
+			if end += len(runner); end > kept {
+				break
+			}
 			runners = append(runners, runner)
+			end++
 		}
-		structured["selection"] = map[string]any{"variable": selectionswitch.Variable, "value": kill.Value, "runners": runners}
+		structured["selection"] = map[string]any{"variable": selectionswitch.Variable, "value": value, "runners": runners}
 	}
 	text, err := json.Marshal(structured)
 	if err != nil {
@@ -212,15 +222,37 @@ func (group Affected) selectAll(ctx context.Context, name, base, reason, detail,
 	return Answer(ctx, AffectedErrorProfile, name, structured, string(text), nil, nil)
 }
 
-// killSwitchDetail says why every test is selected.
+// echoLimit bounds the bytes of a CORVINT_SELECTION value a select-all
+// answer echoes, in selection.value and in detail (MTT-V1-008): the value is
+// the server environment's and has no length bound of its own.
+const echoLimit = 256
+
+// echoValue is value cut to echoLimit bytes at a UTF-8 boundary with the
+// marker `...(truncated, N bytes)`, and the count of value's bytes it keeps;
+// a value within the limit is returned whole.
+func echoValue(value string) (string, int) {
+	if len(value) <= echoLimit {
+		return value, len(value)
+	}
+	marker := fmt.Sprintf("...(truncated, %d bytes)", len(value))
+	kept := echoLimit - len(marker)
+	for kept > 0 && !utf8.RuneStart(value[kept]) {
+		kept--
+	}
+	return value[:kept] + marker, kept
+}
+
+// killSwitchDetail says why every test is selected. Every arm quotes the
+// echoed value, never the raw one.
 func killSwitchDetail(kill selectionswitch.Switch) string {
+	value, _ := echoValue(kill.Value)
 	switch {
 	case kill.Unknown:
-		return fmt.Sprintf("%s=%q is neither full nor full:<runner>[,<runner>]; every test is selected instead of a narrowed plan", selectionswitch.Variable, kill.Value)
+		return fmt.Sprintf("%s=%q is neither full nor full:<runner>[,<runner>]; every test is selected instead of a narrowed plan", selectionswitch.Variable, value)
 	case kill.All:
 		return selectionswitch.Variable + "=full forces every runner to a full run; every test is selected"
 	}
-	return fmt.Sprintf("%s=%q forces runners %s to a full run; this tool widens that to every test until the planner serves a per-runner full plan (change narrowing-measurement)", selectionswitch.Variable, kill.Value, strings.Join(kill.Runners, ", "))
+	return fmt.Sprintf("%s=%q forces the named runners to a full run; this tool widens that to every test until the planner serves a per-runner full plan (change narrowing-measurement)", selectionswitch.Variable, value)
 }
 
 // killSwitchHint is the one-line recovery for a kill-switch answer.

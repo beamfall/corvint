@@ -5,9 +5,11 @@
 // requirement of change narrowing-measurement: exactly `full`, which forces
 // every runner to a full run, or `full:<runner>[,<runner>]`, which forces
 // each named runner. Any
-// other non-empty value is unknown. The CLI surfaces exit 2 on an unknown
-// value; agent hooks and MCP select every test instead (MTT-V1-008), so a
-// caller that cannot return an exit code never narrows on a typo.
+// other non-empty value is unknown. Parse is the grammar's one parser: the
+// MCP affected tool is its only caller today, selecting every test on any
+// value (MTT-V1-008), and no command line reads the variable yet; the
+// change's CLI reader, which exits 2 on an unknown value, must call Parse
+// too, so the two can never disagree.
 package selectionswitch
 
 import (
