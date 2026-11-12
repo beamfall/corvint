@@ -47,7 +47,7 @@ func TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses(t *testing.T) 
 	if err := os.MkdirAll(command, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	mustWrite(t, filepath.Join(root, "go.mod"), "module example.com/ignoredsource\n\ngo 1.27.3\n")
+	mustWrite(t, filepath.Join(root, "go.mod"), "module example.com/ignoredsource\n\ngo 1.27.4\n")
 	mustWrite(t, filepath.Join(command, "main.go"), ignoredSourceFixtureMain)
 	mustWrite(t, filepath.Join(root, ".gitignore"), "committed_hidden.go\n")
 	runGitTest(t, root, "init", "-q")
@@ -63,7 +63,7 @@ func TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses(t *testing.T) 
 		t.Fatal(err)
 	}
 	manifest := Manifest{
-		Toolchain: Toolchain{GoVersion: selected, GoModDirective: "1.27.3"},
+		Toolchain: Toolchain{GoVersion: selected, GoModDirective: "1.27.4"},
 		Profile: Profile{Package: "./cmd/fixture", ModulePath: "example.com/ignoredsource", BinaryName: "fixture", BuildFlags: []string{"-trimpath"},
 			Environment: map[string]string{"CGO_ENABLED": "0", "GOENV": "off", "GOFLAGS": "-mod=readonly", "GOPROXY": "off", "GOSUMDB": "off", "GOTOOLCHAIN": "local"}},
 		Smoke: Smoke{VersionArgument: "--version", ExpectedVersion: "Fixture 1", QueryPath: "AGENTS.md", ExpectedState: "OBSERVED", FixtureInstruction: "# Agents\n"},

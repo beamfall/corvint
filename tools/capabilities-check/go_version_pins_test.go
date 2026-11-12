@@ -50,12 +50,6 @@ func goModPin(goMod string) (string, []string) {
 
 // goVersionPinDrift names every GOVERSION check in files whose version is not
 // go.mod's pin, and an AGENTS.md without such a check (ASD-V0-880).
-//
-// V1-5408 stage B: while the pin moves go1.27.3 to go1.27.4 in three landings (code, then
-// .github, then go.mod), a check may name either version of the move when go.mod pins one of
-// them. Stage C deletes pinMove so the gate is exact again.
-var pinMove = map[string]bool{"go1.27.3": true, "go1.27.4": true}
-
 func goVersionPinDrift(goMod string, files map[string]string) []string {
 	pin, failures := goModPin(goMod)
 	names := make([]string, 0, len(files))
@@ -67,7 +61,7 @@ func goVersionPinDrift(goMod string, files map[string]string) []string {
 		checks := 0
 		pins := func(number int, version string) {
 			checks++
-			if pin != "" && version != pin && !(pinMove[pin] && pinMove[version]) {
+			if pin != "" && version != pin {
 				failures = append(failures, fmt.Sprintf("%s:%d: pins %s, go.mod pins %s", name, number+1, version, pin))
 			}
 		}
@@ -141,9 +135,9 @@ func TestASDV0880GoVersionPinDriftNamesEveryMismatch(t *testing.T) {
 	check := func(version string) string {
 		return "test \"$(GOTOOLCHAIN=local go env GOVERSION)\" = \"" + version + "\"\n"
 	}
-	agree := map[string]string{"AGENTS.md": "```sh\n" + check("go1.27.3") + "```\n", "Makefile": "go-version:\n\t" + strings.ReplaceAll(check("go1.27.3"), "$(", "$$(")}
-	agree[".github/workflows/ci.yml"] = "go_found=$(go env GOVERSION 2> /dev/null || true)\nif [ \"$go_found\" != \"go1.27.3\" ]; then\n"
-	if got := goVersionPinDrift("module m\n\ngo 1.27.3 // pin\n", agree); len(got) != 0 {
+	agree := map[string]string{"AGENTS.md": "```sh\n" + check("go1.27.4") + "```\n", "Makefile": "go-version:\n\t" + strings.ReplaceAll(check("go1.27.4"), "$(", "$$(")}
+	agree[".github/workflows/ci.yml"] = "go_found=$(go env GOVERSION 2> /dev/null || true)\nif [ \"$go_found\" != \"go1.27.4\" ]; then\n"
+	if got := goVersionPinDrift("module m\n\ngo 1.27.4 // pin\n", agree); len(got) != 0 {
 		t.Fatalf("agreeing pins: %v", got)
 	}
 	cases := map[string]struct {
@@ -151,16 +145,16 @@ func TestASDV0880GoVersionPinDriftNamesEveryMismatch(t *testing.T) {
 		files map[string]string
 		want  string
 	}{
-		"stale AGENTS.md":     {"go 1.27.3\n", map[string]string{"AGENTS.md": "x\n" + check("go1.27.2")}, "AGENTS.md:2: pins go1.27.2, go.mod pins go1.27.3"},
-		"stale workflow":      {"go 1.27.3\n", map[string]string{"AGENTS.md": check("go1.27.3"), ".github/workflows/ci.yml": "      run: |\n        " + check("go1.27.1")}, ".github/workflows/ci.yml:2: pins go1.27.1, go.mod pins go1.27.3"},
-		"toolchain line":      {"go 1.27.3\ntoolchain go1.27.4\n", map[string]string{"AGENTS.md": check("go1.27.4")}, "go.mod: toolchain go1.27.4 differs from go directive go1.27.3"},
-		"no AGENTS.md check":  {"go 1.27.3\n", map[string]string{"AGENTS.md": "no check\n"}, "AGENTS.md: no go env GOVERSION check in the Verify block"},
-		"no go.mod pin":       {"module m\n", map[string]string{"AGENTS.md": check("go1.27.3")}, "go.mod: no go directive or toolchain line"},
-		"commented go line":   {"go 1.27.3 // pin\n", map[string]string{"AGENTS.md": check("go1.27.2")}, "AGENTS.md:1: pins go1.27.2, go.mod pins go1.27.3"},
-		"commented toolchain": {"go 1.27.3\ntoolchain go1.27.4 // pin\n", map[string]string{"AGENTS.md": check("go1.27.4")}, "go.mod: toolchain go1.27.4 differs from go directive go1.27.3"},
-		"stale variable pin":  {"go 1.27.3\n", map[string]string{"AGENTS.md": check("go1.27.3"), ".github/workflows/ci.yml": "      run: |\n        " + check("go1.27.3") + "        go_found=$(/usr/local/go/bin/go env GOVERSION 2> /dev/null || true)\n        if [ \"$go_found\" != \"go1.27.2\" ]; then\n"}, ".github/workflows/ci.yml:4: pins go1.27.2, go.mod pins go1.27.3"},
-		"unchecked variable":  {"go 1.27.3\n", map[string]string{"AGENTS.md": check("go1.27.3"), ".github/workflows/ci.yml": "found=$(go env GOVERSION)\necho \"$found\"\n"}, ".github/workflows/ci.yml:1: found holds go env GOVERSION but no comparison names a version"},
-		"unreadable form":     {"go 1.27.3\n", map[string]string{"AGENTS.md": check("go1.27.3"), ".github/workflows/ci.yml": "[ \"$(go env GOVERSION)\" == go1.27.2 ]\n"}, ".github/workflows/ci.yml:1: go env GOVERSION check in a form the gate cannot read"},
+		"stale AGENTS.md":     {"go 1.27.4\n", map[string]string{"AGENTS.md": "x\n" + check("go1.27.2")}, "AGENTS.md:2: pins go1.27.2, go.mod pins go1.27.4"},
+		"stale workflow":      {"go 1.27.4\n", map[string]string{"AGENTS.md": check("go1.27.4"), ".github/workflows/ci.yml": "      run: |\n        " + check("go1.27.1")}, ".github/workflows/ci.yml:2: pins go1.27.1, go.mod pins go1.27.4"},
+		"toolchain line":      {"go 1.27.4\ntoolchain go1.27.5\n", map[string]string{"AGENTS.md": check("go1.27.5")}, "go.mod: toolchain go1.27.5 differs from go directive go1.27.4"},
+		"no AGENTS.md check":  {"go 1.27.4\n", map[string]string{"AGENTS.md": "no check\n"}, "AGENTS.md: no go env GOVERSION check in the Verify block"},
+		"no go.mod pin":       {"module m\n", map[string]string{"AGENTS.md": check("go1.27.4")}, "go.mod: no go directive or toolchain line"},
+		"commented go line":   {"go 1.27.4 // pin\n", map[string]string{"AGENTS.md": check("go1.27.2")}, "AGENTS.md:1: pins go1.27.2, go.mod pins go1.27.4"},
+		"commented toolchain": {"go 1.27.4\ntoolchain go1.27.5 // pin\n", map[string]string{"AGENTS.md": check("go1.27.5")}, "go.mod: toolchain go1.27.5 differs from go directive go1.27.4"},
+		"stale variable pin":  {"go 1.27.4\n", map[string]string{"AGENTS.md": check("go1.27.4"), ".github/workflows/ci.yml": "      run: |\n        " + check("go1.27.4") + "        go_found=$(/usr/local/go/bin/go env GOVERSION 2> /dev/null || true)\n        if [ \"$go_found\" != \"go1.27.2\" ]; then\n"}, ".github/workflows/ci.yml:4: pins go1.27.2, go.mod pins go1.27.4"},
+		"unchecked variable":  {"go 1.27.4\n", map[string]string{"AGENTS.md": check("go1.27.4"), ".github/workflows/ci.yml": "found=$(go env GOVERSION)\necho \"$found\"\n"}, ".github/workflows/ci.yml:1: found holds go env GOVERSION but no comparison names a version"},
+		"unreadable form":     {"go 1.27.4\n", map[string]string{"AGENTS.md": check("go1.27.4"), ".github/workflows/ci.yml": "[ \"$(go env GOVERSION)\" == go1.27.2 ]\n"}, ".github/workflows/ci.yml:1: go env GOVERSION check in a form the gate cannot read"},
 	}
 	for name, c := range cases {
 		got := goVersionPinDrift(c.goMod, c.files)

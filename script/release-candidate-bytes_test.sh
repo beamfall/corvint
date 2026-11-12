@@ -15,8 +15,9 @@ set -euo pipefail
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 script=$source_root/script/release-candidate-bytes.sh
 workflow=$source_root/.github/workflows/release-gates.yml
-# sha256 of release-gates.yml at b55635262 (origin/main before the V1-0374 .github change).
-pre_binding_workflow_sha256=35be7f1ecda69b6585817523785da6020174281150e5b2e1078f30fbe2732d31
+# sha256 of release-gates.yml before the V1-0374 .github change, repinned for the go1.27.4 setup-go
+# pin (V1-5408); it was 35be7f1e at b55635262.
+pre_binding_workflow_sha256=3a101693f17a9515e1456b54068f662b7cd33b22633431d53401fa84617bcd8d
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-candidate-bytes-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 # The fixture commit must not depend on the caller's Git configuration (signing, hooks).

@@ -960,11 +960,11 @@ func s0eTupleBinding(t *testing.T, version string) string {
 }
 
 // TestCEMV1050StructuralTupleAdmission proves the portable structural runtime
-// gate admits exactly go1.27.1, go1.27.2 and go1.27.3, and that every later
-// admitted tuple has a sealed packet binding the frozen S0E packet (decisions
-// 0522 and 0547).
+// gate admits exactly go1.27.1, go1.27.2, go1.27.3 and go1.27.4, and that
+// every later admitted tuple has a sealed packet binding the frozen S0E packet
+// (decisions 0522, 0547 and 0599).
 func TestCEMV1050StructuralTupleAdmission(t *testing.T) {
-	for version, want := range map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": true, "go1.27.4": false, "go1.27.0": false, "go1.24.13": false} {
+	for version, want := range map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": true, "go1.27.4": true, "go1.27.5": false, "go1.27.0": false, "go1.24.13": false} {
 		if got := structuralRuntimeAdmitted(version); got != want {
 			t.Errorf("structuralRuntimeAdmitted(%q) = %t, want %t", version, got, want)
 		}
@@ -977,7 +977,7 @@ func TestCEMV1050StructuralTupleAdmission(t *testing.T) {
 			t.Fatalf("%s: %s", version, reason)
 		}
 	}
-	if s0eTupleBinding(t, "go1.27.4") == "" {
+	if s0eTupleBinding(t, "go1.27.5") == "" {
 		t.Fatal("an unadmitted toolchain bound the S0E packet")
 	}
 }

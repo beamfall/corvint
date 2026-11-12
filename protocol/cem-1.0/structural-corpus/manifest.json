@@ -14,8 +14,8 @@
     },
     {
       "path": "QUALIFICATION.json",
-      "sha256": "4394f0be208e911385211847206d5a7d3cd69e414268f13461ec564e81448063",
-      "bytes": 8355
+      "sha256": "5bda579a066b43dd184288c3d199b96e131d4a837444d22d4767a4909dec051b",
+      "bytes": 9493
     },
     {
       "path": "cases/alignment.go.txt",

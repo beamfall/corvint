@@ -296,6 +296,7 @@ func TestRegenerateRealPacketCopy(t *testing.T) {
 		packetDir + "/" + inheritedCells:   true,
 		tupleRoot + "/go1.27.2/TUPLE.json": true, tupleRoot + "/go1.27.2/manifest.json": true,
 		tupleRoot + "/go1.27.3/TUPLE.json": true, tupleRoot + "/go1.27.3/manifest.json": true,
+		tupleRoot + "/go1.27.4/TUPLE.json": true, tupleRoot + "/go1.27.4/manifest.json": true,
 	}
 	// The README gains its pointer paragraph only on the packet's first member.
 	if !bytes.Contains(before[packetDir+"/"+readmeName], []byte(readmePointer)) {

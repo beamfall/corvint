@@ -132,8 +132,8 @@ func TestARTIFACTBINV0522AppArchivesFollowTheCatalogTargets(t *testing.T) {
 		}
 	}
 	commit := strings.Repeat("a", 40)
-	manifest := Manifest{Version: "0.5.0a1", BuildNumber: "9", GoVersion: "go1.27.3", Sources: []SourceIdentity{{Name: "corvint", Commit: commit, Tree: strings.Repeat("b", 40)}}}
-	files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", nil)
+	manifest := Manifest{Version: "0.5.0a1", BuildNumber: "9", GoVersion: "go1.27.4", Sources: []SourceIdentity{{Name: "corvint", Commit: commit, Tree: strings.Repeat("b", 40)}}}
+	files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", nil)
 	if err := verifyApps(files, appAssets(files), manifest); err != nil {
 		t.Fatalf("a three-target release manifest must verify: %v", err)
 	}
@@ -153,8 +153,8 @@ func TestARTIFACTBINV0522AppArchivesFollowTheCatalogTargets(t *testing.T) {
 func TestARTIFACTBINV0510VerifyAppsBindsManifestAndArchivesToTheRelease(t *testing.T) {
 	stubAppBinaries(t)
 	commit := strings.Repeat("a", 40)
-	manifest := Manifest{Version: "0.5.0a1", BuildNumber: "9", GoVersion: "go1.27.3", Sources: []SourceIdentity{{Name: "corvint", Commit: commit, Tree: strings.Repeat("b", 40)}}}
-	files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", nil)
+	manifest := Manifest{Version: "0.5.0a1", BuildNumber: "9", GoVersion: "go1.27.4", Sources: []SourceIdentity{{Name: "corvint", Commit: commit, Tree: strings.Repeat("b", 40)}}}
+	files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", nil)
 	if err := verifyApps(files, appAssets(files), manifest); err != nil {
 		t.Fatalf("agreeing app set refused: %v", err)
 	}
@@ -163,60 +163,60 @@ func TestARTIFACTBINV0510VerifyAppsBindsManifestAndArchivesToTheRelease(t *testi
 		files      func() map[string][]byte
 	}{
 		{"app missing from the manifest", "release manifest lacks corvint-docs", func() map[string][]byte {
-			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", func(m *appManifest) { delete(m.Binaries, "corvint-docs") })
+			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) { delete(m.Binaries, "corvint-docs") })
 		}},
 		{"app at another version", "release manifest records corvint-docs at 0.5.0a2", func() map[string][]byte {
-			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", func(m *appManifest) {
+			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
 				record := m.Binaries["corvint-docs"]
 				record.Version = "0.5.0a2"
 				m.Binaries["corvint-docs"] = record
 			})
 		}},
 		{"app from another commit", "release manifest records corvint-mcp at 0.5.0a1@" + strings.Repeat("c", 40), func() map[string][]byte {
-			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", func(m *appManifest) {
+			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
 				record := m.Binaries["corvint-mcp"]
 				record.SourceCommit = strings.Repeat("c", 40)
 				m.Binaries["corvint-mcp"] = record
 			})
 		}},
 		{"app with another toolchain", "release manifest records corvint-docs-mcp", func() map[string][]byte {
-			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", func(m *appManifest) {
+			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
 				record := m.Binaries["corvint-docs-mcp"]
 				record.GoVersion = "go1.26.0"
 				m.Binaries["corvint-docs-mcp"] = record
 			})
 		}},
 		{"app outside the core set", "release manifest records corvint-mcp", func() map[string][]byte {
-			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", func(m *appManifest) {
+			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
 				record := m.Binaries["corvint-mcp"]
 				record.VersionSet = ""
 				m.Binaries["corvint-mcp"] = record
 			})
 		}},
 		{"declared skew in the core set", "declares version skew in the core set", func() map[string][]byte {
-			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", func(m *appManifest) {
+			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
 				m.DeclaredSkew = append(m.DeclaredSkew, appSkew{VersionSet: "core", Reason: "docs-only fix"})
 			})
 		}},
 		{"shipped archive row missing", "release manifest lacks corvint-docs_linux_arm64.tar.gz", func() map[string][]byte {
-			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", func(m *appManifest) {
+			return appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", func(m *appManifest) {
 				record := m.Binaries["corvint-docs"]
 				record.Archives = record.Archives[:len(record.Archives)-1]
 				m.Binaries["corvint-docs"] = record
 			})
 		}},
 		{"archive bytes drifted", "candidate app archive corvint-docs-mcp_darwin_arm64.tar.gz disagrees with the release manifest", func() map[string][]byte {
-			files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", nil)
+			files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", nil)
 			files[appArchivePath("corvint-docs-mcp", "darwin_arm64")] = []byte("changed")
 			return files
 		}},
 		{"archive asset missing", "candidate app asset apps/corvint-mcp_linux_amd64.tar.gz is missing", func() map[string][]byte {
-			files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", nil)
+			files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", nil)
 			delete(files, appArchivePath("corvint-mcp", "linux_amd64"))
 			return files
 		}},
 		{"unknown manifest field", "candidate release manifest", func() map[string][]byte {
-			files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.3", nil)
+			files := appFiles(t, "0.5.0a1", "9", commit, "go1.27.4", nil)
 			files[appsManifestPath] = []byte(strings.Replace(string(files[appsManifestPath]), `"declaredSkew"`, `"signedBy": "x", "declaredSkew"`, 1))
 			return files
 		}},
@@ -236,7 +236,7 @@ func TestARTIFACTBINV0510VerifyAppsBindsManifestAndArchivesToTheRelease(t *testi
 		t.Fatalf("manifest at another version than the candidate accepted: %v", err)
 	}
 	// The real app archive check reads the archive, not markers.
-	if _, err := verifyAppArchiveBinary([]byte("not an archive"), "corvint-docs", "linux", "amd64", strings.Repeat("a", 64), "go1.27.3", strings.Repeat("c", 40)); err == nil {
+	if _, err := verifyAppArchiveBinary([]byte("not an archive"), "corvint-docs", "linux", "amd64", strings.Repeat("a", 64), "go1.27.4", strings.Repeat("c", 40)); err == nil {
 		t.Fatal("non-archive bytes accepted as an app archive")
 	}
 }

@@ -104,7 +104,7 @@ qualification when applicable, and independent review. Do not start `make gate` 
 for it or a governing release policy explicitly requires repository-wide validation.
 
 ```sh
-test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
+test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.4"
 ```
 
 Then, one command per line:

@@ -169,7 +169,7 @@ jobs:
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Shared documentation gates (including host versions and use-case pins)
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
         env:
@@ -211,7 +211,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Selected shell-test steps (AFP-V0-2401)
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
@@ -286,7 +286,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Classify and verify immutable documentation inputs
         id: plan
         working-directory: trusted-docs
@@ -582,7 +582,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Resolve the trusted tool commit from main (CIN-V0-011)
         # The go-product-shard resolution, the same body: for a pull request the tested merge's
         # first parent when it is on main and descends from the pin, for a merge-queue entry its
@@ -657,7 +657,7 @@ jobs:
           mkdir -p "$d/cmd"
           cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/size.go .github/cishards/size_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.4\n' > "$d/go.mod"
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd
@@ -669,7 +669,7 @@ jobs:
           mkdir -p "$d/cmd"
           cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$d/"
           cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.4\n' > "$d/go.mod"
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
@@ -844,7 +844,7 @@ jobs:
         id: go
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Restore the trusted Go build cache (main pushes and merge-queue entries only)
         # V1-1098: compiled packages only, in Go's default GOCACHE outside the tested checkout,
         # so no read scope changes. Provenance: only a main push saves (below). A pull_request run
@@ -890,7 +890,7 @@ jobs:
         run: |
           sudo rm -rf /usr/local/go
           sudo ln -s "$(go env GOROOT)" /usr/local/go
-          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.4"
           rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
           # V1-5188: a restored release tarball that matches the pin skips the network; a
           # missing or damaged one falls back to a download, and the pinned checksum below is
@@ -938,8 +938,8 @@ jobs:
           RG_VERSION: "15.2.0"
         run: |
           go_found=$(/usr/local/go/bin/go env GOVERSION 2> /dev/null || true)
-          if [ "$go_found" != "go1.27.3" ]; then
-            echo "::error::self-hosted host prerequisite: /usr/local/go/bin/go must be go1.27.3, found '${go_found:-nothing}'"
+          if [ "$go_found" != "go1.27.4" ]; then
+            echo "::error::self-hosted host prerequisite: /usr/local/go/bin/go must be go1.27.4, found '${go_found:-nothing}'"
             exit 1
           fi
           rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg || true)
@@ -1113,7 +1113,7 @@ jobs:
           mkdir -p "$d/cmd"
           cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/size.go .github/cishards/size_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.4\n' > "$d/go.mod"
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd
@@ -1127,7 +1127,7 @@ jobs:
           mkdir -p "$d/cmd"
           cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$d/"
           cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.4\n' > "$d/go.mod"
           declared=$([ -f .corvint/test-read-scopes.json ] && echo 1 || true)
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
@@ -1450,7 +1450,7 @@ jobs:
           # corvint test, make gate and batch-precheck do not set it, so they run the tier.
           CORVINT_SKIP_LIVE_TIER: "1"
         run: |
-          test "$(go env GOVERSION)" = "go1.27.3"
+          test "$(go env GOVERSION)" = "go1.27.4"
           # AFP-V0-097/098: the only route to a narrowed shard is the gate above. A skipped, refused
           # or failed verdict or gate leaves NARROW_MODE other than NARROWED and runs the whole shard
           # here; the deciding driver never executes tests (its historical profile is evidence only).
@@ -2093,7 +2093,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Restore the pinned ripgrep release (V1-5188)
         id: rgcache
         continue-on-error: true
@@ -2111,7 +2111,7 @@ jobs:
         run: |
           sudo rm -rf /usr/local/go
           sudo ln -s "$(go env GOROOT)" /usr/local/go
-          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.4"
           rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
           # V1-5188: a restored release tarball that matches the pin skips the network; a
           # missing or damaged one falls back to a download, and the pinned checksum below is
@@ -2173,7 +2173,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Full static, formatting and build checks
         working-directory: source
         run: |
@@ -2206,12 +2206,12 @@ jobs:
           mkdir -p "$d/cmd"
           cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/size.go .github/cishards/size_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.4\n' > "$d/go.mod"
           t="$RUNNER_TEMP/test-confine-source"
           mkdir -p "$t/cmd"
           cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$t/"
           cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$t/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$t/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.4\n' > "$t/go.mod"
           for m in "$d" "$t"; do
             (
               cd "$m"
@@ -2264,7 +2264,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Select web-flows consumer
         id: plan
         working-directory: trusted-web-plan
@@ -2297,7 +2297,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24.11.1"
@@ -2541,7 +2541,7 @@ jobs:
         timeout-minutes: 3
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Report cost drift (advisory; findings never fail)
         id: report
         if: steps.complete.outputs.ok == '1' && steps.setup-go.outcome == 'success'
@@ -2599,7 +2599,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Go gate
         working-directory: interop/cem01-go
         env:
@@ -2730,7 +2730,7 @@ jobs:
         if: steps.reuse.outputs.mode != 'REUSE'
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Verify native Go archives
         if: steps.reuse.outputs.mode != 'REUSE'
         env:
@@ -2803,7 +2803,7 @@ jobs:
         if: steps.changed.outputs.run == '1'
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: steps.changed.outputs.run == '1'
         with:

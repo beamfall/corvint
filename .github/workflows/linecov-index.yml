@@ -50,7 +50,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Provision the host tools the product's fixed PATH resolves
         # The same provisioning as the ci.yml go-product shard, so a test that passes there
         # records here.
@@ -60,7 +60,7 @@ jobs:
         run: |
           sudo rm -rf /usr/local/go
           sudo ln -s "$(go env GOROOT)" /usr/local/go
-          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.4"
           rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
           curl -fsSL --retry 8 --retry-all-errors --retry-delay 5 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
             "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
@@ -79,7 +79,7 @@ jobs:
           mkdir -p "$d/cmd"
           cp .github/cishards/partition.go .github/cishards/order.go .github/cishards/slices.go .github/cishards/size.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.4\n' > "$d/go.mod"
           (cd "$d" && GOENV=off go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd)
       - name: Build the protected test read-scope wrapper as the CI shards do
         working-directory: source
@@ -90,7 +90,7 @@ jobs:
           mkdir -p "$d/cmd"
           cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$d/"
           cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.4\n' > "$d/go.mod"
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
@@ -144,7 +144,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: linecov-part-*

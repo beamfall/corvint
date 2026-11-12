@@ -224,7 +224,7 @@ func testPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
 	t.Cleanup(func() { verifyCoreBinary = previousCore })
 
 	stubAppBinaries(t)
-	apps := appsOutputFixture(t, "0.5.0a1", "1", commit, "go1.27.3")
+	apps := appsOutputFixture(t, "0.5.0a1", "1", commit, "go1.27.4")
 	output := filepath.Join(canonicalTemp(t), "candidates")
 	drifted := Options{CoreDirectory: coreGateFixture(t, strings.Repeat("a", 40), tree, coreBinary), AppsDirectory: apps, SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
 	if _, err := Assemble(t.Context(), drifted); err == nil || !strings.Contains(err.Error(), "identities disagree") {
@@ -234,7 +234,7 @@ func testPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
 		t.Fatalf("refused Core-only assembly retained output: %v", entries)
 	}
 
-	staleApps := Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), AppsDirectory: appsOutputFixture(t, "0.5.0a1", "1", strings.Repeat("f", 40), "go1.27.3"), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
+	staleApps := Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), AppsDirectory: appsOutputFixture(t, "0.5.0a1", "1", strings.Repeat("f", 40), "go1.27.4"), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
 	if _, err := Assemble(t.Context(), staleApps); err == nil || !strings.Contains(err.Error(), "release manifest records corvint-docs ") {
 		t.Fatalf("app archives built from another commit accepted: %v", err)
 	}
@@ -400,7 +400,7 @@ func validCoreFixture(t *testing.T) string {
 		{"windows", "amd64", "corvint.exe", "corvint_windows_amd64.zip"},
 	}
 	report := coreReport{
-		Schema: "corvint.release-go-archive-report.v2", Revision: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40), ManifestSHA256: strings.Repeat("c", 64), Toolchain: "go1.27.3", Verdict: "PASS",
+		Schema: "corvint.release-go-archive-report.v2", Revision: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40), ManifestSHA256: strings.Repeat("c", 64), Toolchain: "go1.27.4", Verdict: "PASS",
 		Limits: coreLimits{Targets: 5, MembersPerArchive: 6, MaximumArchiveBytes: 1 << 20, MaximumTotalBytes: 5 << 20, MaximumReportBytes: 1 << 20, MaximumWitnessBytes: 1 << 16}, Reasons: []coreReason{},
 	}
 	for _, item := range expected {
@@ -427,7 +427,7 @@ func validCoreFixture(t *testing.T) string {
 func addCoreCandidateFixture(t *testing.T, add func(name, role string, raw []byte), corvintCommit, corvintTree string, coreBinary, coreArchive func(coreTarget) []byte) {
 	t.Helper()
 	report := coreReport{
-		Schema: "corvint.release-go-archive-report.v2", Revision: corvintCommit, Tree: corvintTree, ManifestSHA256: strings.Repeat("e", 64), Toolchain: "go1.27.3", Verdict: "PASS",
+		Schema: "corvint.release-go-archive-report.v2", Revision: corvintCommit, Tree: corvintTree, ManifestSHA256: strings.Repeat("e", 64), Toolchain: "go1.27.4", Verdict: "PASS",
 		Limits: coreLimits{Targets: 5, MembersPerArchive: 6, MaximumArchiveBytes: 1 << 20, MaximumTotalBytes: 5 << 20, MaximumReportBytes: 1 << 20, MaximumWitnessBytes: 1 << 16}, Reasons: []coreReason{},
 	}
 	targets := []struct{ goos, goarch, binary, archive string }{
@@ -481,7 +481,7 @@ func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvin
 		}
 	}
 	manifest := Manifest{
-		Profile: coreManifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.3", GitVersion: "git version fixture",
+		Profile: coreManifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.4", GitVersion: "git version fixture",
 		Sources: []SourceIdentity{{Name: "corvint", Commit: corvintCommit, Tree: corvintTree}},
 	}
 	if mutate != nil {
