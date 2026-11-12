@@ -800,6 +800,12 @@
       ]
     },
     {
+      "paths": "internal/testid/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "internal/testplan/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -1125,6 +1131,12 @@
     },
     {
       "paths": "tools/corvint-pr-tests/README.md",
+      "tests": [
+        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/fault-harness/README.md",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]

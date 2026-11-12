@@ -7,14 +7,15 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 )
 
 // V1-2487, PRS-V1-021: a Git read the platform refuses reports the procgroup refusal, never
 // "the revision is not a commit".
 func TestGitPlatformRefusalIsNotReportedAsARevisionDefect(t *testing.T) {
-	saved := runGit
-	t.Cleanup(func() { runGit = saved })
-	runGit = func(context.Context, procgroup.Spec) procgroup.Observation {
+	saved := testdiscovery.RunGit
+	t.Cleanup(func() { testdiscovery.RunGit = saved })
+	testdiscovery.RunGit = func(context.Context, procgroup.Spec) procgroup.Observation {
 		return procgroup.Observation{ExitStatus: -1, Err: procgroup.ErrPlatformUnsupported}
 	}
 	_, err := OpenRepo(context.Background(), t.TempDir()).Resolve("HEAD")

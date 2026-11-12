@@ -50,7 +50,7 @@ func TestGraphCacheNameListings_AFPV09964(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if affected.GraphCacheProfile != "corvint-affected-graph-cache/4" || !bytes.HasPrefix(body, []byte(affected.GraphCacheProfile+" ")) {
+	if affected.GraphCacheProfile != "corvint-affected-graph-cache/5" || !bytes.HasPrefix(body, []byte(affected.GraphCacheProfile+" ")) {
 		t.Fatalf("entry profile: %q", body[:min(len(body), 40)])
 	}
 	body = bytes.Replace(body, []byte(affected.GraphCacheProfile+" "), []byte("corvint-affected-graph-cache/3 "), 1)

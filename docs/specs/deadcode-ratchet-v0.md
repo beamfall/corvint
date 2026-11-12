@@ -5,7 +5,8 @@ Date: 2026-11-11
 Requirement prefix: `DCR-V0`
 Intent status: proposed
 Delivery status: experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)
-Authoritative inputs: tickets V1-4801 (the report and its baseline) and V1-4827 (delete the listed functions), steps of the 2026-11-06 expert-panel restructuring plan; OpenSpec change `docs/specs/openspec/changes/deadcode-ratchet/` (proposal, design, spec delta and tasks); owner decision R33 (`docs/specs/PRODUCT-PLAN-1.0.md` checklist row O42: orphaned code is deleted and tracked).
+Health: KEEP
+Authoritative inputs: tickets V1-4801 (the report and its baseline) and V1-4827 (delete the listed functions), steps of the 2026-11-06 expert-panel restructuring plan; OpenSpec change `docs/specs/openspec/changes/archive/2026-11-12-deadcode-ratchet/` (proposal, design, spec delta and tasks); owner decision R33 (`docs/specs/PRODUCT-PLAN-1.0.md` checklist row O42: orphaned code is deleted and tracked).
 
 ## Agent digest
 - Claim: `make deadcode` runs a pinned dead-code analyzer for six GOOS/GOARCH configurations and fails unless the functions all six report equal a shrink-only baseline.

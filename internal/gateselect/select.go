@@ -40,6 +40,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Beamfall/corvint/internal/noncodemap"
 	"github.com/Beamfall/corvint/internal/taskprojection"
 )
 
@@ -58,6 +59,30 @@ type Receipt struct {
 			Class string   `json:"class"`
 			Paths []string `json:"paths"`
 		} `json:"nonSource"`
+		// Deleted, Selected and E2E feed the non-code decision (NCM-V1-001,
+		// NCM-V1-006): a deleted runner configuration is a removed runner,
+		// and the flow join says whether a flow file's changed flows can be
+		// computed.
+		Deleted []string `json:"deleted"`
+		// Selected is the planner's selections, read only for their
+		// witnesses: a unit whose witness is of a kind that reads the very
+		// path it names attributes that path (attributingWitness,
+		// unattributedPath, RNC-V1-004), and a declared Go reader's witness
+		// attributes a dirty path to a Go package (NCM-V1-001).
+		Selected []struct {
+			UnitID  string `json:"unitId"`
+			Witness struct {
+				Kind      string `json:"kind"`
+				DirtyPath string `json:"dirtyPath"`
+			} `json:"witness"`
+		} `json:"selected"`
+		E2E *struct {
+			Flows   string `json:"flows"`
+			Unknown []struct {
+				Reason string `json:"reason"`
+				Detail string `json:"detail"`
+			} `json:"unknown"`
+		} `json:"e2e"`
 		// GoAdditive is the planner's additive-change records
 		// (ADN-V0-001); a NARROWED one limits its package's dependents
 		// to the referencing importers (ADN-V0-006).
@@ -255,11 +280,20 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 // selectPackagesFrom is selectPackages with the index read from build once the
 // plan passes the checks that need none.
 func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error)) []string {
+	return attributeFrom(plan, module, root, withUnresolved, build, true)
+}
+
+// attributeFrom is selectPackagesFrom; nonCode applies the NCM-V1 decision
+// before attribution. Only tests pass false, to keep covering the rule (c)
+// attribution of a path the decision runs everything for, which
+// packageBounds (tools/gate-ledger) still applies.
+func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error), nonCode bool) []string {
 	var lines []string
 	fallback := func(reason string) []string { return append(lines, "FALLBACK "+reason) }
 	state := plan.Provider.Go.State
 	if state != "RUNNABLE" && state != "EMPTY_SELECTION" {
-		return fallback("provider.go.state is " + state)
+		// NCM-V1-001 (R32): an unavailable runner runs everything, named.
+		return fallback(noncodemap.ReasonRunnerRemoved + " go: provider.go.state is " + state)
 	}
 	for _, entry := range plan.Plan.Unknown {
 		if entry.Reason == "LANGUAGE_FRONTIER" && moduleLevelFrontiers[entry.Detail] {
@@ -284,6 +318,19 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 	index, err := build()
 	if err != nil {
 		return fallback(fmt.Sprintf("the repository could not be indexed for attribution: %q", err.Error()))
+	}
+	// NCM-V1-001 to NCM-V1-008: a non-code path no proven map entry narrows,
+	// Corvint configuration and a never-narrowed path run everything, each
+	// printed with its reason; an invalid map is refused, never read as empty.
+	if nonCode {
+		decision, err := nonCodeDecision(plan, index, root)
+		if err != nil {
+			return fallback(err.Error())
+		}
+		lines = append(lines, decision.Audit()...)
+		if line, full := decision.FullRun(); full {
+			return fallback(line.Reason + " " + line.Path)
+		}
 	}
 	if withUnresolved {
 		reason, suites := unknownNarrowing(plan, index, root)
@@ -325,6 +372,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		narrowed = additiveNarrowing(plan, module)
 		taken = planReaders(plan, index, module, root)
 	}
+	attributed := map[string]bool{}
 	for i, dirty := range dirties {
 		rules := index.attribute(dirty, readers[i])
 		if unreferenced, ok := narrowed[dirty]; ok && !strings.HasSuffix(dirty, "_test.go") && index.packages[parentDirectory(dirty)] != nil {
@@ -335,6 +383,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		}
 		for _, rule := range rules {
 			if rule.kind == "documentation" || rule.kind == "evidence" {
+				attributed[dirty] = true // the plan's own readers of a declared path
 				lines = append(lines, rule.kind+" "+dirty)
 				continue
 			}
@@ -347,6 +396,9 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 				rule.directories = slices.DeleteFunc(slices.Clone(rule.directories), func(directory string) bool {
 					return !recordAllows(directory, dirty)
 				})
+			}
+			if len(rule.directories) != 0 {
+				attributed[dirty] = true
 			}
 			add(rule.directories, rule.kind, " <- "+dirty)
 		}
@@ -367,12 +419,20 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		declared[directory] = index.packages[directory] != nil
 	}
 	for _, directory := range sortedKeys(declared) {
+		first := true
 		for _, dirty := range sortedUnique(plan.Plan.Dirty) {
 			if declared[directory] && declaredBears(directory, scopes, prior, dirty) && recordAllows(directory, dirty) {
-				add([]string{directory}, "declared", " <- "+dirty)
-				break
+				attributed[dirty] = true
+				if first {
+					add([]string{directory}, "declared", " <- "+dirty)
+					first = false
+				}
 			}
 		}
+	}
+	// Both forms: the attribution does not read rule (d) (unattributedPath).
+	if dirty, ok := unattributedPath(plan, attributed); ok {
+		return fallback(UnownedPathFallback + ": " + dirty)
 	}
 	selected := sortedKeys(packages)
 	for _, pkg := range selected {
@@ -422,7 +482,8 @@ func boundedReaders(directories []string, scopes, prior map[string][]string, dir
 // entry, as the shadow runs it (AFP-V0-2750); it never widens the Go selection. CI narrows only the Go shards; rules (b) and (c)
 // select every package that encloses or names a dirty path and rule (d) every
 // package whose reads no literal bounds, so every Go reader of an unowned path
-// is selected; a frontier names what a language model cannot see inside units
+// is selected, and selectPackagesFrom falls back with UnownedPathFallback for an
+// unowned path none of those rules attributes (RNC-V1-004); a frontier names what a language model cannot see inside units
 // the dirty paths already reach; and a unit with no selectable test gets no
 // test from a FULL run either. Any other unknown, a malformed reason, and an
 // UNKNOWN plan that names no unknown return the fallback reason.
@@ -458,6 +519,71 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 	}
 	return "", lines
 }
+
+// unattributedPath returns the first UNOWNED_DIRTY_PATH of plan, in plan
+// order, that no Go rule attributes, and false when every one is attributed
+// (RNC-V1-004, owner decision R32). Rules (b) and (c) and the read-scope
+// declarations attribute a path when they select a package for it
+// (attributed); the planner's documentation and evidence readers count too,
+// and so does a unit the plan selected through a witness attributingWitness
+// admits for that path. A path an unobserved-module frontier names is run by
+// that nested module's own suite (STR-V0-064). Rule (d), the packages whose
+// reads no literal bounds, attributes none: the planner witnesses such a unit
+// (UNBOUNDED_READER) with whichever dirty path sorts first, whatever path it
+// reads, so a path only it would read is one no runner instance owns, and runs
+// every test. A declared existence reader (AFP-V0-980) attributes the path
+// its witness names only while its declaration is unchanged: the planner then
+// witnesses it with a named path absent from the checkout, which it reads
+// (NCM-V1-001); a changed declaration witnesses it with the first dirty path.
+func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
+	existence := !slices.Contains(plan.Plan.Dirty, existenceReadersPath)
+	for _, selection := range plan.Plan.Selected {
+		kind := selection.Witness.Kind
+		if selection.UnitID != "" && selection.Witness.DirtyPath != "" && (attributingWitness[kind] || existence && kind == witnessDeclaredExistenceReader) {
+			attributed[selection.Witness.DirtyPath] = true
+		}
+	}
+	nested := map[string]bool{}
+	for _, entry := range plan.Plan.Unknown {
+		if directory, ok := UnobservedModule(entry.Reason, entry.Detail); ok {
+			nested[strings.TrimPrefix(entry.Detail, "go:unobserved-module:"+directory+":")] = true
+		}
+	}
+	for _, entry := range plan.Plan.Unknown {
+		if entry.Reason == "UNOWNED_DIRTY_PATH" && !attributed[entry.Detail] && !nested[entry.Detail] {
+			return entry.Detail, true
+		}
+	}
+	return "", false
+}
+
+// attributingWitness holds the planner witness kinds whose dirty path is the
+// path the selected unit reads, encloses, declares or consumes, so the
+// selection attributes that path (RNC-V1-004). Any other kind, an
+// UNBOUNDED_READER, a MUST_RUN or FRONTIER_SITE seed witnessed by the first
+// dirty path, a declared existence reader whose declaration changed, and a
+// kind this list does not know, attributes none; an unchanged declaration's
+// existence reader is admitted beside this list, in unattributedPath.
+//
+// The kinds are the planner's witness strings, spelled here and pinned to
+// internal/liveverify/affected by TestAttributingWitnessMirrorsThePlanner:
+// Select stays free of the affected engine, so the frozen selector fixture of
+// tools/gate-ledger builds it alone (V1-3476).
+var attributingWitness = map[string]bool{
+	"PATH_LITERAL_READER": true,
+	"PATH_GLOB_READER":    true,
+	"DECLARED_READ_SCOPE": true,
+	"ENCLOSING_PACKAGE":   true,
+	"DECLARED_CONSUMER":   true,
+}
+
+// existenceReadersPath and witnessDeclaredExistenceReader are
+// affected.ExistenceReadersPath and affected.WitnessDeclaredExistenceReader
+// (AFP-V0-980), mirrored for the same reason and pinned by the same test.
+const (
+	existenceReadersPath           = ".corvint/existence-readers.json"
+	witnessDeclaredExistenceReader = "DECLARED_EXISTENCE_READER"
+)
 
 // frontierSuite records in suites the first frontier of each language
 // FrontierSuite reads (AFP-V0-2750).
@@ -618,14 +744,10 @@ func planReaders(plan Receipt, index *repositoryIndex, module, root string) map[
 }
 
 // sealedEvidence reports a sealed CEM name directly under .corvint/changes/:
-// a 40- or 64-digit lowercase hexadecimal commit and `.cem.json`.
+// a 40- or 64-digit lowercase hexadecimal commit and `.cem.json`. The
+// non-code decision exempts the same shape from corvint-config (NCM-V1-006).
 func sealedEvidence(p string) bool {
-	name, sealed := strings.CutPrefix(p, sealedChanges)
-	commit, named := strings.CutSuffix(name, ".cem.json")
-	if !sealed || !named || (len(commit) != 40 && len(commit) != 64) {
-		return false
-	}
-	return !strings.ContainsFunc(commit, func(r rune) bool { return (r < '0' || r > '9') && (r < 'a' || r > 'f') })
+	return noncodemap.SealedEvidence(p)
 }
 
 // documentationPathsPath is the repository's documentation declaration

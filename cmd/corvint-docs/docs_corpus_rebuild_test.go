@@ -76,8 +76,9 @@ func TestDCXV1495BuildRebuildsFromEmbeddedManifest(t *testing.T) {
 // TestDCXV1498MCPServesArtifactsAcrossBuilderUpgrades: a corpus MCP server answers its first call
 // from an artifact another attested builder revision of the same derivation recorded; one whose
 // derivation differs is refused, naming the version change and the rebuild; once the operator
-// rebuilds it into a new file and renames it over the old one, the running server names the
-// restart and a restarted server answers (DCX-V1-498).
+// rebuilds it into a new file and renames it over the old one, the running server verifies and
+// answers from the rebuilt artifact without a restart (DMF-V1-011), as a restarted server does
+// (DCX-V1-498).
 func TestDCXV1498MCPServesArtifactsAcrossBuilderUpgrades(t *testing.T) {
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
@@ -117,7 +118,7 @@ func TestDCXV1498MCPServesArtifactsAcrossBuilderUpgrades(t *testing.T) {
 	if err := os.Rename(filepath.Join(root, "stale.json.new"), filepath.Join(root, "stale.json")); err != nil {
 		t.Fatal(err)
 	}
-	if failure := search(running); failure == nil || !strings.Contains(failure.Message, "restart with the new artifact") {
+	if failure := search(running); failure != nil {
 		t.Fatalf("running server after the rebuild: %+v", failure)
 	}
 	if failure := search(serve("stale.json")); failure != nil {

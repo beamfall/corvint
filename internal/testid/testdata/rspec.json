@@ -1,0 +1,5 @@
+{"version":"3.13.6","examples":[
+{"id":"./spec/user_spec.rb[1:1]","description":"saves","full_description":"User saves","status":"passed","file_path":"./spec/user_spec.rb","line_number":2,"shared_group_inclusion_backtrace":[]},
+{"id":"./spec/user_spec.rb[1:2]","description":"rejects a blank name","full_description":"User rejects a blank name","status":"failed","file_path":"./spec/user_spec.rb","line_number":4,"shared_group_inclusion_backtrace":[]},
+{"id":"./spec/user_spec.rb[1:3:1]","description":"persists","full_description":"User behaves like a record persists","status":"passed","file_path":"./spec/support/shared.rb","line_number":2,"shared_group_inclusion_backtrace":[{"inclusion_location":"./spec/user_spec.rb:8"}]}],
+"summary":{"example_count":3,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0},"corvint_runtime":{}}

@@ -50,6 +50,7 @@ case "$input" in
   *error*) printf '{"schema":"corvint-docs-tool/1","tool":"%s","error":{"code":"repository-index-timeout"}}\n' "$4" ;;
   *garbage*) printf 'not json\n' ;;
   *exit*) exit 1 ;;
+  *stderrline*) printf 'loading\n' >&2; printf 'no corpus artifact at .corvint/corpus\n' >&2; exit 2 ;;
   *wrongtool*) printf '{"schema":"corvint-docs-tool/1","tool":"corvint.other","structured":{}}\n' ;;
   *slow*) sleep 5; printf '{"schema":"corvint-docs-tool/1","tool":"%s","structured":{}}\n' "$4" ;;
   *) printf '{"schema":"corvint-docs-tool/1","tool":"%s","structured":{"state":"READY","markdown":"# hi"},"text":"# hi"}\n' "$4" ;;
@@ -106,7 +107,12 @@ func TestCallForwardsTheEnvelope(t *testing.T) {
 	if _, _, toolFailure, transport := registry.Call(ctx, ToolDraft, []byte(`{"draft":"error"}`)); toolFailure != nil || transport == nil || transport.Code != "repository-index-timeout" {
 		t.Fatalf("error envelope = %v %v", toolFailure, transport)
 	}
-	for _, input := range []string{`{"draft":"garbage"}`, `{"draft":"exit"}`, `{"draft":"wrongtool"}`} {
+	// DMF-V1-010: a process that exits non-zero is child-process-failed with its stderr; an
+	// unreadable envelope stays internal-error.
+	if _, _, toolFailure, transport := registry.Call(ctx, ToolDraft, []byte(`{"draft":"exit"}`)); toolFailure != nil || transport == nil || transport.Code != ChildFailedCode {
+		t.Fatalf("exit = %v %v, want %s", toolFailure, transport, ChildFailedCode)
+	}
+	for _, input := range []string{`{"draft":"garbage"}`, `{"draft":"wrongtool"}`} {
 		if _, _, toolFailure, transport := registry.Call(ctx, ToolDraft, []byte(input)); toolFailure != nil || transport == nil || transport.Code != "internal-error" {
 			t.Fatalf("%s = %v %v, want internal-error", input, toolFailure, transport)
 		}
@@ -264,5 +270,22 @@ printf '{"schema":"corvint-docs-tool/1","tool":"%s","structured":{}}\n' "$4"
 		if recorded, err := os.ReadFile(mark); err != nil || string(recorded) != test.want {
 			t.Errorf("child environment %q (%v); want %q", recorded, err, test.want)
 		}
+	}
+}
+
+// DMF-V1-010: a corvint-docs process that exits 2 with stderr ending in a corpus line is
+// child-process-failed with that line in the message and the corpus build command as next.
+func TestDMFV1010ChildFailureKeepsStderr(t *testing.T) {
+	executable, _ := fakeApp(t)
+	registry, failure := New(repositoryRoot(t))
+	if failure != nil {
+		t.Fatal(failure)
+	}
+	registry.locate = func() (string, error) { return executable, nil }
+	_, _, toolFailure, transport := registry.Call(context.Background(), ToolDraft, []byte(`{"draft":"stderrline"}`))
+	if toolFailure != nil || transport == nil || transport.Code != ChildFailedCode ||
+		!strings.Contains(transport.Message, "no corpus artifact at .corvint/corpus") || strings.Contains(transport.Message, "loading") ||
+		!strings.Contains(transport.Next, "corvint-docs docs corpus build") {
+		t.Fatalf("child failure = %v %#v", toolFailure, transport)
 	}
 }

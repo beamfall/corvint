@@ -1109,7 +1109,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `pymdown-pin-mismatch` | `internal/doccompiler/discover.go:176` | 1 | "expected PyMdown Extensions <value>, found <value>" |
 | `receipt-encoding-failed` | `internal/doccompiler/receipt.go:75` | 1 | "cannot encode canonical receipt" |
 | `receipt-input-invalid` | `internal/doccompiler/receipt.go:37` | 1 | "environment and plan must be closed before receipt creation" |
-| `stale-documentation-draft` | `internal/doccompiler/draft.go:958@4090f21c` | 1 | "draft differs from original-source and policy rederivation" |
+| `stale-documentation-draft` | `internal/doccompiler/draft.go:1014@a2faa4c0` | 1 | "draft differs from original-source and policy rederivation; <value>; re-draft with <value> (or corvint.docs_draft with the same source and package) and consume the new draft" (DMF-V1-013) |
 | `stale-source` | `internal/doccompiler/admittedplan.go:498@9a12a50a` | 4 | "plan revision <value> is not the index revision" |
 | `symlink-rejected` | `internal/doccompiler/paths.go:81@940c5291` | 2 | "<value> traverses a symlink" |
 | `target-conflict` | `internal/doccompiler/admittedplan.go:321@64b50e9f` | 2 | "target <value> is under the tracked file <value>" |

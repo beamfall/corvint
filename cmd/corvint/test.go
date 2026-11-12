@@ -26,6 +26,8 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testinventory"
+	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
 const testHelp = `Run the affected test set (experimental, STR-V0).
@@ -75,12 +77,22 @@ lineIndex. Example: corvint test --base "$(git merge-base HEAD origin/main)"
 Plans in process as corvint affected --base does, adds the AFP-V0-012
 attribution, and runs the selected Go packages on the unchanged
 .github/cishards complete-universe partition with the Go environment and
-flags declared in .github/cishards/test-commands.json (ci: the full CI
-branch's). Any fallback condition runs FULL and prints corvint-test:
-FALLBACK <reason>. A language with no adapter runs the full command that
-file declares (ci: reports it as still required, not run), runs nothing
-when it declares {"none": reason}, and is INCOMPLETE when it declares
-neither. The budget covers the whole shard: 6h local, 60m ci.
+flags declared in .corvint/test-commands.json (ci: the full CI branch's).
+Any fallback condition runs FULL and prints corvint-test: FALLBACK
+<reason>. A language with no adapter runs the full command that file
+declares (ci: reports it as still required, not run), runs nothing when
+it declares {"none": reason}, and otherwise runs the full command of each
+runner instance the tree declares (RNC-V1-013): its "instances" entry
+("pytest@services/a"), else its "runners" entry ("pytest"), else the
+built-in default, printed as corvint-test: DEFAULT; with no instance it is
+INCOMPLETE. Without the file, Go runs go test with no declared environment
+or flags when the tree has a go.mod. A malformed file exits 2 and runs
+nothing. Corvint's own repository still reads
+.github/cishards/test-commands.json, with a notice, while
+.corvint/test-commands.json is absent; no other repository reads it.
+Example: {"profile": "corvint-test-commands/0", "runners": {"pytest":
+["uv", "run", "pytest"]}}. The budget covers the whole shard: 6h local,
+60m ci.
 When that file's "providers" member declares a corvint-js-test-provider
 command for vitest or playwright, the local profile runs each selected
 Vitest or Playwright test file through it (adapter "provider") and records
@@ -173,8 +185,12 @@ Executes repository code with your authority; no containment is claimed.
 A narrowed PASS is not a gate PASS: make gate and the required CI checks
 stay binding. Exit: 0 PASS, 1 FAIL, 2 usage, 3 INCOMPLETE, 128+n signal.
 A --dry-run exits 0 when its plan can run complete (verdict PLANNED) and 3
-when it cannot (verdict INCOMPLETE, for example an unreadable
-.github/cishards/test-commands.json); 3 is never a test failure.
+when it cannot (verdict INCOMPLETE, for example a language with no full
+command); 3 is never a test failure.
+Planning reads the committed test inventory (.corvint/test-inventory.json) at
+HEAD and prints one "corvint-test: INVENTORY STATE reasons=..." line on stderr
+(an "inventory:" summary line, or the dry-run JSON "inventory" member); it
+never narrows the plan and never writes the inventory (TIV-V1-002).
 `
 
 // testCommandExit maps a shard or fan-in result to the process status:
@@ -448,6 +464,21 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		return 2
 	}
 	input, pins := testRunInput(ctx, root, options, source, observed)
+	if input.Declared.Invalid {
+		// RNC-V1-013: a malformed adopter declaration is refused, never
+		// replaced by a built-in default.
+		emitError(stderr, &gokernel.Error{Code: "test-commands-invalid", Message: input.Declared.Unreadable})
+		return 2
+	}
+	// The committed test inventory is read, never written, and never
+	// narrows the plan (TIV-V1-002, TIV-V1-006 to TIV-V1-009); the runner
+	// instances it judges are the ones whose full commands a language with
+	// no declared command runs (RNC-V1-013, RNC-V1-014).
+	inventory := readInventoryVerdict(ctx, root, false)
+	for _, instance := range inventory.Instances {
+		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})
+	}
+	input.Removed = sessiontest.RemovedRunners(input.Declared, input.Instances, inventory.Undeclared)
 	if options.goParallel != 0 {
 		input.Declared = input.Declared.WithGoParallel(options.goParallel)
 	}
@@ -462,20 +493,47 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
+	testCommandNotices(manifest, input.Declared, root, stderr)
 	if !testSummarySelected(options) {
 		testVerdict(stderr, manifest)
+		_, _ = fmt.Fprintf(stderr, "corvint-test: INVENTORY %s\n", inventoryVerdictLine(inventory))
 	}
 	if options.dryRun {
 		if options.pins {
 			_, _ = io.WriteString(stdout, testPinsReport(digest, pins.tokens, pins.units))
 		}
-		return testDryRun(manifest, digest, input.Declared, root, options, stdout, stderr)
+		return testDryRun(manifest, digest, input.Declared, root, options, inventory, stdout, stderr)
 	}
 	// STR-V0-073: an executing run names each whole-package go test's
 	// HEAVY_WHOLE_REASON before any invocation starts, as --dry-run does.
 	testWholeReasons(sessiontest.Invocations(manifest, input.Declared, options.shard, root, options.confine), manifest.Reason, stderr)
 	receipt, signalExit := testExecute(ctx, root, options, manifest, digest, input, identify, stdout, stderr)
 	return testWriteReceipt(ctx, gitExecutable, root, options, receipt, signalExit, stderr)
+}
+
+// testCommandNotices prints where the full commands came from
+// (RNC-V1-013): a notice when Corvint's own repository is read from its
+// old path, and one DEFAULT line for each planned runner instance, and for
+// Go, whose full command is the built-in default.
+func testCommandNotices(m sessiontest.Manifest, declared sessiontest.Declared, root string, stderr io.Writer) {
+	if declared.Source == sessiontest.DeclarationPath {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: NOTICE the full commands are read from the old path %s for one release; move them to %s\n", sessiontest.DeclarationPath, sessiontest.CommandsPath)
+	}
+	goDefault := false
+	for _, unit := range m.Units {
+		name, declaredUnit := strings.CutPrefix(unit.Unit, "declared:")
+		switch {
+		case unit.Adapter == sessiontest.AdapterGo || (declaredUnit && name == sessiontest.AdapterGo):
+			goDefault = declared.GoDefault
+		case declaredUnit && strings.Contains(name, "@"):
+			if argv, _, source := declared.InstanceCommand(name, root); source == sessiontest.CommandDefault {
+				_, _ = fmt.Fprintf(stderr, "corvint-test: DEFAULT %s: %s has no entry for it, so the built-in default full command runs: %s\n", name, sessiontest.CommandsPath, strings.Join(argv, " "))
+			}
+		}
+	}
+	if goDefault {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: DEFAULT go: %s declares no go member, so go test runs with no declared environment or flags\n", sessiontest.CommandsPath)
+	}
 }
 
 func testManifestOutput(options testOptions) string {
@@ -802,11 +860,20 @@ func testSelectionUnits(selection map[string]any) ([]string, string) {
 // files do, so the run executes it or is INCOMPLETE for it. A member that
 // selects nothing while its scope is UNKNOWN (an invalid flows declaration)
 // returns a reason instead: tests the plan could not name never read as no
-// tests. A member whose inventory could not be derived returns its
+// tests; so does one whose flows declaration names a schema version this
+// build does not read (FSV-V1-004). A member whose inventory could not be derived returns its
 // flow-linked files and a reason, because unlinked tests are missing from it.
 func testE2EUnits(e2e *affected.E2EPlan) ([]string, string) {
 	if e2e == nil {
 		return nil, ""
+	}
+	// FSV-V1-004: a flows declaration of a schema version this build does
+	// not read selects every E2E test, none of which it can list, so the run
+	// cannot claim it ran them.
+	for _, unknown := range e2e.Unknown {
+		if unknown.Reason == affected.UnknownFlowsSchemaUnsupported {
+			return nil, "plan.e2e is FULL and lists nothing (" + unknown.Reason + " " + unknown.Detail + "): every E2E test must run and this build cannot name them"
+		}
 	}
 	if len(e2e.Selected) == 0 && e2e.Scope == affected.E2EScopeUnknown {
 		reason := "its E2E tests cannot be selected"
@@ -956,7 +1023,7 @@ func testPlanVerdict(m sessiontest.Manifest) string {
 
 // testDryRun prints the shard's run set and argv and executes nothing but
 // the Git reads planning needed; --manifest names the only file it writes.
-func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Declared, root string, options testOptions, stdout, stderr io.Writer) int {
+func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Declared, root string, options testOptions, inventory testinventory.Verdict, stdout, stderr io.Writer) int {
 	type plannedJSON struct {
 		Adapter string             `json:"adapter"`
 		Argv    []string           `json:"argv"`
@@ -972,7 +1039,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	document := map[string]any{
 		"checks": m.Checks, "incomplete": m.Incomplete, "invocations": planned, "manifestDigest": digest,
 		"noSuite": m.NoSuite, "placement": m.Placement, "reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
-		"verdict": testPlanVerdict(m),
+		"verdict": testPlanVerdict(m), "inventory": inventory,
 	}
 	if options.manifest != "" {
 		encoded, err := sessiontest.Encode(m)
@@ -988,7 +1055,8 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	case options.pins:
 		// The pins report was written in place of the JSON plan (TSP-V0-944).
 	case testSummarySelected(options):
-		_, _ = io.WriteString(stdout, testDryRunSummaryBudget(m, digest, invocations, options.shard, testSummaryLimit-options.summaryNoticeBytes))
+		line := "  inventory: " + inventoryVerdictLine(inventory) + "\n"
+		_, _ = io.WriteString(stdout, testDryRunSummaryBudget(m, digest, invocations, options.shard, testSummaryLimit-options.summaryNoticeBytes-len(line))+line)
 	default:
 		encoded, err := gokernel.CanonicalJSON(document)
 		if err != nil {

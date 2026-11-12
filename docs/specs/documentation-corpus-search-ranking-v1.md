@@ -670,7 +670,9 @@ V1-3125, V1-3126 and V1-3127.
   relations, and also the test-link relations (`asserts`, `navigates` with a TestLink detail) of
   those owners, as it does for the path's own subjects. The recommendation stays
   `full-relevant-suite-required` with narrowing not allowed: an owner's test link is evidence,
-  never a selection. A `docs_locate` or `docs_recommend_tests` batch keeps one receipt per path.
+  never a selection. A `docs_locate` batch keeps one receipt per path. The `docs_recommend_tests`
+  MCP tool is removed (DMF-V1-009): `recommend-tests` stays a `docs corpus` CLI read, and test
+  questions go to `corvint.affected` on `corvint mcp`.
 - `DCS-V1-596`: (GitHub #2013; V1-3126) `navigation` takes a `query` instead of an `id`, never
   both. It selects each `flow` subject whose ID, name, or the file or title of its own `asserts`
   or `navigates` relations' TestLink details hold every query evidence term (an inflection of a

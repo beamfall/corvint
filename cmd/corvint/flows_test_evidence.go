@@ -72,6 +72,11 @@ func flowsTestEvidence(ctx context.Context, root string, args []string, out io.W
 	if dir == "" {
 		return errors.New("flows test-evidence requires --flows DIR")
 	}
+	// FSV-V1-005: a flows declaration the shared reader refuses ends the
+	// report with the reader's reason before anything is written.
+	if refusal := appflows.ReportRefusal(root); refusal != nil {
+		return &gokernel.Error{Code: refusal.Code(), Message: refusal.Reason + ": " + refusal.Error()}
+	}
 	q, format, err := testevidencedoc.Parse(rest)
 	if err != nil {
 		return err

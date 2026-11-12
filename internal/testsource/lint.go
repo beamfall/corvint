@@ -112,7 +112,7 @@ func lint(r Repo, options LintOptions, budget *readBudget) (LintReport, error) {
 		if base, err = r.Resolve(options.Base); err != nil {
 			return LintReport{}, err
 		}
-		if changed, err = r.changedLines(base, revision, isLintTarget); err != nil {
+		if changed, err = changedLines(r, base, revision, isLintTarget); err != nil {
 			return LintReport{}, err
 		}
 	}
@@ -121,7 +121,7 @@ func lint(r Repo, options LintOptions, budget *readBudget) (LintReport, error) {
 	if options.AllLines {
 		keep = isLintTarget
 	}
-	texts, _, err := r.readFilesWithin(revision, keep, budget)
+	texts, _, err := readFilesWithin(r, revision, keep, budget)
 	if err != nil {
 		return LintReport{}, err
 	}
@@ -152,7 +152,7 @@ func lint(r Repo, options LintOptions, budget *readBudget) (LintReport, error) {
 	// A helper module the lexer could not fully place may hide or misplace a helper the advisory
 	// rules follow, so it is uncertain too (TSA-V0-010).
 	for name, s := range c.sources {
-		if _, linted := texts[name]; !linted && s.uncertain {
+		if _, linted := texts[name]; !linted && s.Uncertain {
 			report.Uncertain = append(report.Uncertain, name)
 		}
 	}
@@ -178,11 +178,11 @@ func lintText(name, text string, runs []RunEvidence, revision string) LintReport
 }
 
 func lintFile(report *LintReport, c *lintContext, s *source, inScope func(start, end int) bool) {
-	if s.uncertain {
-		report.Uncertain = append(report.Uncertain, s.path)
+	if s.Uncertain {
+		report.Uncertain = append(report.Uncertain, s.Path)
 	}
-	findings := s.lint(c)
-	suppressions := s.suppressions()
+	findings := sourceLint(s, c)
+	suppressions := suppressions(s)
 	for _, f := range findings {
 		if !inScope(f.Line, f.EndLine) {
 			continue
@@ -207,26 +207,26 @@ func lintFile(report *LintReport, c *lintContext, s *source, inScope func(start,
 }
 
 // lint applies every rule and returns findings ordered by line, then rule.
-func (s *source) lint(c *lintContext) []Finding {
+func sourceLint(s *source, c *lintContext) []Finding {
 	out := []Finding{}
 	add := func(rule string, line, end int, message string) {
 		if end < line {
 			end = line
 		}
-		out = append(out, Finding{Rule: rule, Path: s.path, Line: line, EndLine: end, Message: message})
+		out = append(out, Finding{Rule: rule, Path: s.Path, Line: line, EndLine: end, Message: message})
 	}
 	emit := func(f Finding) { out = append(out, f) }
-	for _, d := range s.decls {
-		s.lintDeclaration(d, add)
-		if d.kind == "test" {
-			s.lintExactVariant(c, d, emit)
+	for _, d := range s.Decls {
+		lintDeclaration(s, d, add)
+		if d.Kind == "test" {
+			lintExactVariant(s, c, d, emit)
 		}
 	}
-	retrying := s.toPassRanges()
-	for i, t := range s.tokens {
-		s.lintToken(i, t, add)
-		if s.ident(i, "expect") && !s.memberAccess(i) {
-			s.lintOneShot(c, i, retrying, emit)
+	retrying := toPassRanges(s)
+	for i, t := range s.Tokens {
+		lintToken(s, i, t, add)
+		if s.Ident(i, "expect") && !s.MemberAccess(i) {
+			lintOneShot(s, c, i, retrying, emit)
 		}
 	}
 	sort.SliceStable(out, func(a, b int) bool {
@@ -248,56 +248,56 @@ func (s *source) lint(c *lintContext) []Finding {
 
 var weakMatchers = map[string]bool{"toBeVisible": true, "toBeHidden": true, "toHaveURL": true, "toBeAttached": true, "toBeInViewport": true}
 
-func (s *source) lintDeclaration(d decl, add func(string, int, int, string)) {
+func lintDeclaration(s *source, d decl, add func(string, int, int, string)) {
 	switch {
-	case d.modifiers["only"]:
-		add(RuleSkipOnly, d.line, d.line, "a focused (only) "+d.kind+" runs alone and silently drops the rest of the suite")
-	case (d.modifiers["skip"] || d.modifiers["fixme"]) && !s.hasReason(d):
-		add(RuleSkipOnly, d.line, d.line, "a skipped "+d.kind+" gives no reason")
+	case d.Modifiers["only"]:
+		add(RuleSkipOnly, d.Line, d.Line, "a focused (only) "+d.Kind+" runs alone and silently drops the rest of the suite")
+	case (d.Modifiers["skip"] || d.Modifiers["fixme"]) && !hasReason(s, d):
+		add(RuleSkipOnly, d.Line, d.Line, "a skipped "+d.Kind+" gives no reason")
 	}
-	if d.kind != "test" || d.modifiers["skip"] || d.modifiers["fixme"] || !s.callback(d.body) {
+	if d.Kind != "test" || d.Modifiers["skip"] || d.Modifiers["fixme"] || !s.Callback(d.Body) {
 		return
 	}
 	expects, helpers, weak := 0, 0, 0
-	for i := d.body[0]; i < d.body[1]; i++ {
-		if !s.isAssertion(i) {
+	for i := d.Body[0]; i < d.Body[1]; i++ {
+		if !s.IsAssertion(i) {
 			continue
 		}
-		chain, ok := s.readExpect(i)
+		chain, ok := s.ReadExpect(i)
 		if !ok {
 			helpers++
 			continue
 		}
 		expects++
-		if weakMatchers[chain.matcher] {
+		if weakMatchers[chain.Matcher] {
 			weak++
 		}
 	}
 	switch {
 	case expects+helpers == 0:
-		add(RuleNoAssertion, d.line, d.endLine, "the test makes no assertion")
+		add(RuleNoAssertion, d.Line, d.EndLine, "the test makes no assertion")
 	case helpers == 0 && weak == expects:
-		add(RuleWeakAssertionOnly, d.line, d.endLine, "the test asserts only visibility or the URL")
+		add(RuleWeakAssertionOnly, d.Line, d.EndLine, "the test asserts only visibility or the URL")
 	}
 }
 
 // hasReason reports a skip or fixme with a reason: a runtime call with a non-empty string
 // argument, or a declaration whose details carry an annotation description.
-func (s *source) hasReason(d decl) bool {
-	args := d.args
-	if d.kind != "annotation" {
+func hasReason(s *source, d decl) bool {
+	args := d.Args
+	if d.Kind != "annotation" {
 		if len(args) < 3 {
 			return false
 		}
 		for i := args[1][0]; i < args[len(args)-2][1]; i++ {
-			if s.ident(i, "description") && s.punct(i+1, ":") && s.loneString([2]int{i + 2, i + 3}) && strings.TrimSpace(s.tokens[i+2].Text) != "" {
+			if s.Ident(i, "description") && s.Punct(i+1, ":") && s.LoneString([2]int{i + 2, i + 3}) && strings.TrimSpace(s.Tokens[i+2].Text) != "" {
 				return true
 			}
 		}
 		return false
 	}
 	for _, arg := range args {
-		if s.loneString(arg) && strings.TrimSpace(s.tokens[arg[0]].Text) != "" {
+		if s.LoneString(arg) && strings.TrimSpace(s.Tokens[arg[0]].Text) != "" {
 			return true
 		}
 	}
@@ -341,7 +341,7 @@ func brittle(selector string) string {
 	return ""
 }
 
-func (s *source) lintToken(i int, t appmap.JSToken, add func(string, int, int, string)) {
+func lintToken(s *source, i int, t appmap.JSToken, add func(string, int, int, string)) {
 	switch {
 	case t.Kind == appmap.JSString && t.Literal && t.Text == "networkidle":
 		add(RuleFixedWait, t.Line, t.Line, "a networkidle wait depends on background traffic, not on the state under test")
@@ -349,45 +349,45 @@ func (s *source) lintToken(i int, t appmap.JSToken, add func(string, int, int, s
 		return
 	}
 	switch name := t.Text; {
-	case name == "waitForTimeout" && s.punct(i+1, "("):
+	case name == "waitForTimeout" && s.Punct(i+1, "("):
 		add(RuleFixedWait, t.Line, t.Line, "a fixed sleep (waitForTimeout)")
-	case name == "setTimeout" && !s.memberAccess(i) && s.punct(i+1, "(") && s.numericArg(i+1):
+	case name == "setTimeout" && !s.MemberAccess(i) && s.Punct(i+1, "(") && numericArg(s, i+1):
 		add(RuleFixedWait, t.Line, t.Line, "a fixed sleep (setTimeout)")
-	case (name == "sleep" || name == "delay" || name == "pause" || name == "wait") && s.punct(i+1, "(") &&
-		s.tokens[min(i+2, len(s.tokens)-1)].Kind == appmap.JSNumber && s.punct(i+3, ")"):
+	case (name == "sleep" || name == "delay" || name == "pause" || name == "wait") && s.Punct(i+1, "(") &&
+		s.Tokens[min(i+2, len(s.Tokens)-1)].Kind == appmap.JSNumber && s.Punct(i+3, ")"):
 		add(RuleFixedWait, t.Line, t.Line, "a fixed sleep ("+name+")")
-	case name == "nth" && s.memberAccess(i) && s.punct(i+1, "(") && i+2 < len(s.tokens) && s.tokens[i+2].Kind == appmap.JSNumber:
+	case name == "nth" && s.MemberAccess(i) && s.Punct(i+1, "(") && i+2 < len(s.Tokens) && s.Tokens[i+2].Kind == appmap.JSNumber:
 		add(RuleBrittleSelector, t.Line, t.Line, "a positional selector (nth)")
-	case selectorMethods[name] && (s.memberAccess(i) || name == "$" || name == "$$") && s.punct(i+1, "(") && s.match[i+1] > 0:
-		if name == "get" && !s.ident(i-2, "cy") || valueFirst[name] && len(s.splitArgs(i+1, s.match[i+1])) < 2 {
+	case selectorMethods[name] && (s.MemberAccess(i) || name == "$" || name == "$$") && s.Punct(i+1, "(") && s.Match[i+1] > 0:
+		if name == "get" && !s.Ident(i-2, "cy") || valueFirst[name] && len(s.SplitArgs(i+1, s.Match[i+1])) < 2 {
 			return
 		}
-		if arg := s.tokens[i+2]; arg.Kind == appmap.JSString && arg.Literal {
+		if arg := s.Tokens[i+2]; arg.Kind == appmap.JSString && arg.Literal {
 			if why := brittle(arg.Text); why != "" {
 				add(RuleBrittleSelector, arg.Line, arg.Line, why+": "+arg.Text)
 			}
 		}
 	case name == "expect":
-		s.lintExpect(i, add)
-	case name == "catch" && s.memberAccess(i) && s.punct(i+1, "("):
-		s.lintCatchCall(i, add)
-	case name == "try" && s.punct(i+1, "{"):
-		s.lintTryCatch(i, add)
+		lintExpect(s, i, add)
+	case name == "catch" && s.MemberAccess(i) && s.Punct(i+1, "("):
+		lintCatchCall(s, i, add)
+	case name == "try" && s.Punct(i+1, "{"):
+		lintTryCatch(s, i, add)
 	}
-	if s.isAssertion(i) {
-		if guard := s.guard(i); guard != "" {
+	if s.IsAssertion(i) {
+		if guard := guard(s, i); guard != "" {
 			add(RuleConditional, t.Line, t.Line, "an assertion inside "+guard+" may never run")
 		}
 	}
 }
 
 // numericArg reports a call at open whose arguments include a top-level number.
-func (s *source) numericArg(open int) bool {
-	if s.match[open] < 0 {
+func numericArg(s *source, open int) bool {
+	if s.Match[open] < 0 {
 		return false
 	}
-	for _, arg := range s.splitArgs(open, s.match[open]) {
-		if arg[1]-arg[0] == 1 && s.tokens[arg[0]].Kind == appmap.JSNumber {
+	for _, arg := range s.SplitArgs(open, s.Match[open]) {
+		if arg[1]-arg[0] == 1 && s.Tokens[arg[0]].Kind == appmap.JSNumber {
 			return true
 		}
 	}
@@ -395,33 +395,33 @@ func (s *source) numericArg(open int) bool {
 }
 
 // lintExpect flags a literal subject, or a subject equal to the toBe/toEqual argument.
-func (s *source) lintExpect(i int, add func(string, int, int, string)) {
-	chain, ok := s.readExpect(i)
+func lintExpect(s *source, i int, add func(string, int, int, string)) {
+	chain, ok := s.ReadExpect(i)
 	if !ok {
 		return
 	}
-	line := s.tokens[i].Line
-	subject := chain.subject
+	line := s.Tokens[i].Line
+	subject := chain.Subject
 	if subject[1]-subject[0] == 1 {
-		t := s.tokens[subject[0]]
+		t := s.Tokens[subject[0]]
 		literalWord := t.Kind == appmap.JSIdent && (t.Text == "true" || t.Text == "false" || t.Text == "null" || t.Text == "undefined")
 		if t.Kind == appmap.JSNumber || (t.Kind == appmap.JSString && t.Literal) || literalWord {
 			add(RuleTautological, line, line, "the assertion's subject is a literal")
 			return
 		}
 	}
-	switch chain.matcher {
+	switch chain.Matcher {
 	case "toBe", "toEqual", "toStrictEqual":
-		if subject[1] > subject[0] && s.render(subject[0], subject[1]) == s.render(chain.margs[0], chain.margs[1]) {
+		if subject[1] > subject[0] && s.Render(subject[0], subject[1]) == s.Render(chain.Margs[0], chain.Margs[1]) {
 			add(RuleTautological, line, line, "the assertion compares a value with itself")
 		}
 	}
 }
 
 // waits reports a wait or assertion call inside [start, end).
-func (s *source) waits(start, end int) bool {
+func waits(s *source, start, end int) bool {
 	for i := start; i < end; i++ {
-		if s.ident(i, "") && (strings.HasPrefix(s.tokens[i].Text, "waitFor") || s.isAssertion(i)) {
+		if s.Ident(i, "") && (strings.HasPrefix(s.Tokens[i].Text, "waitFor") || s.IsAssertion(i)) {
 			return true
 		}
 	}
@@ -429,9 +429,9 @@ func (s *source) waits(start, end int) bool {
 }
 
 // swallows reports a handler range that neither rethrows, rejects nor asserts.
-func (s *source) swallows(start, end int) bool {
+func swallows(s *source, start, end int) bool {
 	for i := start; i < end; i++ {
-		if s.ident(i, "throw") || s.ident(i, "reject") || s.isAssertion(i) {
+		if s.Ident(i, "throw") || s.Ident(i, "reject") || s.IsAssertion(i) {
 			return false
 		}
 	}
@@ -439,34 +439,34 @@ func (s *source) swallows(start, end int) bool {
 }
 
 // lintCatchCall flags `<wait>.catch(handler)` whose handler swallows the failure.
-func (s *source) lintCatchCall(i int, add func(string, int, int, string)) {
+func lintCatchCall(s *source, i int, add func(string, int, int, string)) {
 	open := i + 1
-	if s.match[open] < 0 {
+	if s.Match[open] < 0 {
 		return
 	}
-	args := s.splitArgs(open, s.match[open])
-	if len(args) != 1 || !s.callback(args[0]) || !s.swallows(args[0][0], args[0][1]) {
+	args := s.SplitArgs(open, s.Match[open])
+	if len(args) != 1 || !s.Callback(args[0]) || !swallows(s, args[0][0], args[0][1]) {
 		return
 	}
-	if start := s.receiverStart(i - 1); s.waits(start, i-1) {
-		add(RuleSwallowedWait, s.tokens[i].Line, s.tokens[i].Line, "a catch handler swallows a failed wait or assertion")
+	if start := receiverStart(s, i-1); waits(s, start, i-1) {
+		add(RuleSwallowedWait, s.Tokens[i].Line, s.Tokens[i].Line, "a catch handler swallows a failed wait or assertion")
 	}
 }
 
 // receiverStart walks back from the `.` at dot over the member chain it is called on.
-func (s *source) receiverStart(dot int) int {
+func receiverStart(s *source, dot int) int {
 	j := dot - 1
 	for j >= 0 {
-		t := s.tokens[j]
-		if t.Kind == appmap.JSPunct && (t.Text == ")" || t.Text == "]") && s.match[j] >= 0 {
-			j = s.match[j] - 1
+		t := s.Tokens[j]
+		if t.Kind == appmap.JSPunct && (t.Text == ")" || t.Text == "]") && s.Match[j] >= 0 {
+			j = s.Match[j] - 1
 			continue
 		}
 		if t.Kind == appmap.JSPunct {
 			break
 		}
 		j--
-		if s.punct(j, ".") {
+		if s.Punct(j, ".") {
 			j--
 			continue
 		}
@@ -476,79 +476,79 @@ func (s *source) receiverStart(dot int) int {
 }
 
 // lintTryCatch flags `try { <wait> } catch [(e)] { <swallow> }`.
-func (s *source) lintTryCatch(i int, add func(string, int, int, string)) {
+func lintTryCatch(s *source, i int, add func(string, int, int, string)) {
 	block := i + 1
-	end := s.match[block]
-	if end < 0 || !s.ident(end+1, "catch") {
+	end := s.Match[block]
+	if end < 0 || !s.Ident(end+1, "catch") {
 		return
 	}
 	handler := end + 2
-	if s.punct(handler, "(") && s.match[handler] > 0 {
-		handler = s.match[handler] + 1
+	if s.Punct(handler, "(") && s.Match[handler] > 0 {
+		handler = s.Match[handler] + 1
 	}
-	if !s.punct(handler, "{") || s.match[handler] < 0 {
+	if !s.Punct(handler, "{") || s.Match[handler] < 0 {
 		return
 	}
-	if s.waits(block, end) && s.swallows(handler, s.match[handler]) {
-		line := s.tokens[end+1].Line
+	if waits(s, block, end) && swallows(s, handler, s.Match[handler]) {
+		line := s.Tokens[end+1].Line
 		add(RuleSwallowedWait, line, line, "a catch block swallows a failed wait or assertion")
 	}
 }
 
 // guard names the if/else/try/catch/switch region or ternary that governs token i inside its
 // nearest enclosing function, or "" (TSA-V0-013).
-func (s *source) guard(i int) string {
+func guard(s *source, i int) string {
 	// The same statement: a ternary, a brace-less if or a brace-less else.
 	for j := i - 1; j >= 0; j-- {
-		if s.punct(j, ";") || s.punct(j, "{") || s.punct(j, "}") {
+		if s.Punct(j, ";") || s.Punct(j, "{") || s.Punct(j, "}") {
 			break
 		}
-		if s.punct(j, "?") && !s.punct(j+1, ".") && !s.punct(j+1, "?") && !s.punct(j-1, "?") && !s.punct(j+1, ":") {
+		if s.Punct(j, "?") && !s.Punct(j+1, ".") && !s.Punct(j+1, "?") && !s.Punct(j-1, "?") && !s.Punct(j+1, ":") {
 			return "a conditional expression"
 		}
-		if s.ident(j, "else") {
+		if s.Ident(j, "else") {
 			return "an else"
 		}
-		if (s.punct(j, ")") || s.punct(j, "]")) && s.match[j] >= 0 {
-			if s.ident(s.match[j]-1, "if") {
+		if (s.Punct(j, ")") || s.Punct(j, "]")) && s.Match[j] >= 0 {
+			if s.Ident(s.Match[j]-1, "if") {
 				return "an if"
 			}
-			j = s.match[j]
+			j = s.Match[j]
 		}
 	}
 	// Enclosing blocks, up to the nearest function body.
 	for open := i - 1; open >= 0; open-- {
-		if (s.punct(open, "}") || s.punct(open, ")") || s.punct(open, "]")) && s.match[open] >= 0 {
-			open = s.match[open]
+		if (s.Punct(open, "}") || s.Punct(open, ")") || s.Punct(open, "]")) && s.Match[open] >= 0 {
+			open = s.Match[open]
 			continue
 		}
-		if !s.punct(open, "{") {
+		if !s.Punct(open, "{") {
 			continue
 		}
 		before := open - 1
-		if s.punct(before, ">") && s.arrow(before-1) {
+		if s.Punct(before, ">") && s.Arrow(before-1) {
 			return ""
 		}
-		if s.punct(before, ")") && s.match[before] >= 0 {
-			switch head := s.match[before] - 1; {
-			case s.ident(head, "if"):
+		if s.Punct(before, ")") && s.Match[before] >= 0 {
+			switch head := s.Match[before] - 1; {
+			case s.Ident(head, "if"):
 				return "an if"
-			case s.ident(head, "switch"):
+			case s.Ident(head, "switch"):
 				return "a switch"
-			case s.ident(head, "catch"):
+			case s.Ident(head, "catch"):
 				return "a catch"
-			case s.ident(head, "for"), s.ident(head, "while"), s.ident(head, "with"):
+			case s.Ident(head, "for"), s.Ident(head, "while"), s.Ident(head, "with"):
 			default:
 				return "" // a function or method body
 			}
 			continue
 		}
 		switch {
-		case s.ident(before, "else"):
+		case s.Ident(before, "else"):
 			return "an else"
-		case s.ident(before, "try") && s.tryCatches(open):
+		case s.Ident(before, "try") && tryCatches(s, open):
 			return "a try"
-		case s.ident(before, "catch"):
+		case s.Ident(before, "catch"):
 			return "a catch"
 		}
 	}
@@ -559,26 +559,26 @@ func (s *source) guard(i int) string {
 // failure. A finally-only try catches nothing, and a catch whose own block always rethrows (a
 // top-level `throw` with no top-level return, branch or loop control before it) lets a failed
 // assertion still fail the test, so neither makes an assertion conditional (TSA-V0-652).
-func (s *source) tryCatches(open int) bool {
-	end := s.match[open]
-	if end < 0 || !s.ident(end+1, "catch") {
+func tryCatches(s *source, open int) bool {
+	end := s.Match[open]
+	if end < 0 || !s.Ident(end+1, "catch") {
 		return false
 	}
 	handler := end + 2
-	if s.punct(handler, "(") && s.match[handler] > 0 {
-		handler = s.match[handler] + 1
+	if s.Punct(handler, "(") && s.Match[handler] > 0 {
+		handler = s.Match[handler] + 1
 	}
-	if !s.punct(handler, "{") || s.match[handler] < 0 {
+	if !s.Punct(handler, "{") || s.Match[handler] < 0 {
 		return true
 	}
-	for i := handler + 1; i < s.match[handler]; i++ {
-		t := s.tokens[i]
+	for i := handler + 1; i < s.Match[handler]; i++ {
+		t := s.Tokens[i]
 		switch {
-		case t.Kind == appmap.JSPunct && (t.Text == "(" || t.Text == "[" || t.Text == "{") && s.match[i] > i:
+		case t.Kind == appmap.JSPunct && (t.Text == "(" || t.Text == "[" || t.Text == "{") && s.Match[i] > i:
 			if t.Text == "{" {
 				return true // a nested block may hold a branch
 			}
-			i = s.match[i]
+			i = s.Match[i]
 		case t.Kind == appmap.JSPunct && (t.Text == "?" || t.Text == "&" || t.Text == "|"):
 			return true
 		case t.Kind == appmap.JSIdent && catchBranches[t.Text]:
@@ -596,24 +596,24 @@ var catchBranches = map[string]bool{"if": true, "else": true, "return": true, "s
 
 // suppressions reads every `corvint-lint-allow <rule>: <reason>` comment (TSA-V0-015). A trailing
 // comment targets its own line; a comment alone on its line targets the next line holding code.
-func (s *source) suppressions() []Suppression {
+func suppressions(s *source) []Suppression {
 	out := []Suppression{}
 	codeLines := map[int]bool{}
-	for _, t := range s.tokens {
+	for _, t := range s.Tokens {
 		codeLines[t.Line] = true
 	}
 	known := map[string]bool{}
 	for _, rule := range Rules {
 		known[rule] = true
 	}
-	for _, c := range s.comments {
+	for _, c := range s.Comments {
 		body := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(c.Text, "//"), "/*"), "*/"))
 		rest, ok := strings.CutPrefix(body, "corvint-lint-allow")
 		if !ok || (rest != "" && rest[0] != ' ' && rest[0] != '\t') {
 			continue
 		}
 		rule, reason, _ := strings.Cut(strings.TrimSpace(rest), ":")
-		sup := Suppression{Path: s.path, Line: c.Line, Rule: strings.TrimSpace(rule), Reason: strings.TrimSpace(reason)}
+		sup := Suppression{Path: s.Path, Line: c.Line, Rule: strings.TrimSpace(rule), Reason: strings.TrimSpace(reason)}
 		sup.Target = c.Line
 		if !codeLines[c.Line] {
 			last := c.Line + strings.Count(c.Text, "\n")

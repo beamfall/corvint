@@ -218,7 +218,7 @@ func (server *Server) Serve(ctx context.Context, input io.Reader, output io.Writ
 			}
 			go connection.handleRequest(requestCtx, requestCancel, active, message, ready)
 		default:
-			if err := connection.writeRPCError(message.ID, &protocol.RPCError{Code: protocol.CodeInternalError, Message: "Internal error"}); err != nil {
+			if err := connection.writeBusy(message); err != nil {
 				return err
 			}
 		}
@@ -543,6 +543,10 @@ type responseErrorBody struct {
 	Data    any    `json:"data,omitempty"`
 }
 
+func (connection *connection) writeResult(id protocol.ID, result map[string]any) error {
+	return connection.writeResultContext(nil, id, result, "", nil)
+}
+
 // writeResultContext writes one result frame. A tools/call result over the
 // message bound is answered as the tool failure output-bound-exceeded, naming
 // the result size and the bound, so every server on this package refuses an
@@ -566,6 +570,36 @@ func (connection *connection) writeResultContext(ctx context.Context, id protoco
 	return err
 }
 
+// busyDetail is the server-busy error object: retryable, naming the concurrency limit (DMF-V1-010).
+// It is a server-level object outside every tool group's closed tool-error profile: the server
+// answers it before the request is routed to a group, so it carries exactly code, message,
+// retryable and next, and no profile or tool member; a client recognises it by code server-busy.
+func (connection *connection) busyDetail() map[string]any {
+	return map[string]any{
+		"code": protocol.ServerBusyCode, "retryable": true, "next": "retry the same call when an earlier one finishes",
+		"message": fmt.Sprintf("server busy: %d requests are already in flight, the server's concurrency limit (MaxConcurrent %d)", connection.config.MaxConcurrent, connection.config.MaxConcurrent),
+	}
+}
+
+// writeBusy answers a request that arrives at the concurrency limit: a tools/call gets the
+// server-busy tool error, any other request the server-busy JSON-RPC error carrying the same
+// object; neither is the -32603 internal error (DMF-V1-010).
+func (connection *connection) writeBusy(message protocol.Inbound) error {
+	detail := connection.busyDetail()
+	if message.Method != "tools/call" || message.ID == nil {
+		return connection.writeRPCError(message.ID, &protocol.RPCError{Code: protocol.CodeServerBusy, Message: "Server busy", Data: detail})
+	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return connection.writeRPCError(message.ID, &protocol.RPCError{Code: protocol.CodeServerBusy, Message: "Server busy", Data: detail})
+	}
+	result := map[string]any{"content": []any{map[string]any{"type": "text", "text": string(raw)}}, "isError": true, "structuredContent": detail}
+	if connection.config.ProtocolVersion != protocol.LegacyVersion {
+		result = connection.decorateResult(result)
+	}
+	return connection.writeResult(*message.ID, result)
+}
+
 // OutputBoundCode is the tool failure for a tools/call result that cannot fit
 // one MCP message (MCPV0-042).
 const OutputBoundCode = "output-bound-exceeded"
@@ -586,8 +620,12 @@ func (connection *connection) writeRPCError(id *protocol.ID, rpcErr *protocol.RP
 }
 
 func (connection *connection) writeRPCErrorContext(ctx context.Context, id *protocol.ID, rpcErr *protocol.RPCError) error {
+	data := rpcErr.Data
+	if invalid, ok := data.(protocol.InvalidParamsData); ok {
+		data = invalid.Described() // DMF-V1-010: every -32602 data says what failed and what to change
+	}
 	value := response{JSONRPC: protocol.JSONRPCVersion, ID: id, Error: &responseErrorBody{
-		Code: rpcErr.Code, Message: rpcErr.Message, Data: rpcErr.Data,
+		Code: rpcErr.Code, Message: rpcErr.Message, Data: data,
 	}}
 	return connection.writeValueContext(ctx, value)
 }

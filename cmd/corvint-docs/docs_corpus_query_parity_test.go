@@ -200,7 +200,6 @@ func TestCorpusTypedCLIMCPEndToEnd(t *testing.T) {
 			{"claims", "corvint.docs_claims", "path", "proof.go", "proof:claim"},
 			{"flow", "corvint.docs_flow", "id", "proof:flow", "proof:paragraph"},
 			{"dependencies", "corvint.docs_dependencies", "id", "proof:flow", ""},
-			{"recommend-tests", "corvint.docs_recommend_tests", "path", "proof.go", "proof:flow"},
 			{"navigation", "corvint.docs_navigation", "id", "proof:flow", "proof:screen"},
 			{"vocabulary", "corvint.docs_vocabulary", "query", "purchase", "proof:alias"},
 			{"intent", "corvint.docs_intent", "id", "proof:intent", "proof:intent"},
@@ -209,7 +208,8 @@ func TestCorpusTypedCLIMCPEndToEnd(t *testing.T) {
 		for _, tool := range registry.Tools() {
 			advertised[tool.Name] = true
 		}
-		if len(advertised) != 19 {
+		// 20 corpus tools less docs_recommend_tests (DMF-V1-009) and the absent stability.
+		if len(advertised) != 18 {
 			t.Fatal("independent expected tool count", advertised)
 		}
 		for _, tc := range cases {
@@ -350,7 +350,17 @@ func TestDCPV1312CorpusCLIRepositoryQualifierParity(t *testing.T) {
 		return "", envelope.Code
 	}
 	undeclared := strings.Repeat("e", 40)
-	for _, c := range []struct{ op, tool string }{{"locate", "corvint.docs_locate"}, {"recommend-tests", "corvint.docs_recommend_tests"}} {
+	// DMF-V1-009: recommend-tests is a CLI read only; its MCP tool is refused as unsupported.
+	for _, repository := range []string{m.Repository.ID, undeclared, ""} {
+		_, code := cli("recommend-tests", "--artifact", "corpus.json", "--path", "proof.go", "--repository="+repository)
+		if want := map[string]string{m.Repository.ID: "", undeclared: "corpus-refused", "": "invalid-arguments"}[repository]; code != want {
+			t.Fatalf("recommend-tests repository %q: CLI %q, want %q", repository, code, want)
+		}
+	}
+	if _, mcpCode := mcp("corvint.docs_recommend_tests", map[string]string{"path": "proof.go"}); mcpCode != "unsupported-tool" {
+		t.Fatalf("docs_recommend_tests answered %q", mcpCode)
+	}
+	for _, c := range []struct{ op, tool string }{{"locate", "corvint.docs_locate"}} {
 		for _, repository := range []string{m.Repository.ID, undeclared, ""} {
 			out, code := cli(c.op, "--artifact", "corpus.json", "--path", "proof.go", "--repository="+repository)
 			text, mcpCode := mcp(c.tool, map[string]string{"path": "proof.go", "repository": repository})

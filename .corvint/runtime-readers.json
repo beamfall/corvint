@@ -86,6 +86,10 @@
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
     {
+      "path": ".corvint/test-commands.json",
+      "reason": "the adopter-owned full-command declaration (V1-5416, RNC-V1-013), parsed by internal/sessiontest and cmd/corvint through the sessiontest.CommandsPath constant; a change alters the full commands corvint test runs, and its Go readers are selected through that constant; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
+    },
+    {
       "path": ".corvint/test-nested-sandboxes.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
@@ -132,6 +136,14 @@
     {
       "path": "conformance/use-cases-v0/receipts/",
       "reason": "use-case receipts pinned by the ledger; read by the enclosing conformance/use-cases-v0 package and script/repin-use-case-receipts.sh"
+    },
+    {
+      "path": "internal/appflows/flowsreaderscan/testdata/",
+      "reason": "Go fixture tree of the FSV-V1-003 single-reader source scan, read as text and parsed by internal/appflows/flowsreaderscan/scan_test.go through a testdata path literal; under testdata, so never built, imported or executed"
+    },
+    {
+      "path": "internal/appflows/testdata/flows-schema/",
+      "reason": "released member lists and golden files of the flows schema versions (FSV-V1-002), read by internal/appflows/flowschema_test.go through the flowsSchemaTestdata path literal and computed N.members and N.golden.json names; never built or executed"
     },
     {
       "path": "internal/capcatalog/catalog.json",
@@ -190,6 +202,10 @@
       "reason": "tools/ci-reuse-plan record-admission fixtures (V1-4727, CIN-V0-7600), hosted by the tools/ci-reuse-plan package and read by TestCINV07600ReplayPR99 through the testdata/record-admission path literal; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
     },
     {
+      "path": "tools/compatibility-table/surfaces.json",
+      "reason": "the 1.x compatibility surface list (V1-5434, CMP-V1-001), read by tools/compatibility-table through the listPath literal when make compatibility-check or make compatibility-table runs; the package tests write their own list, so a change selects that package by the enclosing-package rule; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
+    },
+    {
       "path": "tools/deadcode-ratchet/baseline.json",
       "reason": "the shrink-only dead-function baseline (V1-4801, DCR-V0-004), read by tools/deadcode-ratchet through the defaultBaseline literal when make deadcode or make deadcode-baseline runs it, and embedded by its package tests (go:embed in baseline_test.go); enclosing-package and embed reader rules keep that selection; never loaded by a computed name (AZU-V0-002)"
     },
@@ -212,6 +228,10 @@
     {
       "path": "tools/linecov/command-tree.json",
       "reason": "generated linecov command-tree snapshot (make capability-catalog); tools/linecov/languages_test.go reads command-tree.json by a path literal within its package, so the existing reader and enclosing-package rules retain that test selection; never executed or imported"
+    },
+    {
+      "path": "tools/openspec-check/baseline.txt",
+      "reason": "the report-only openspec-check finding baseline (V1-5399, OSC-V1-011), read by tools/openspec-check through the defaultBaseline literal when make openspec-check runs; the package tests write their own baseline, so a change selects that package by the enclosing-package rule; it only shrinks; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
     },
     {
       "path": "tools/release-binary/binaries.json",

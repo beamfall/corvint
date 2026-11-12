@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/docworktree"
 	"github.com/Beamfall/corvint/internal/flowdocs"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -112,7 +114,9 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 			}
 			if err == nil {
 				var r *flowdocs.Result
-				r, err = flowdocs.Generate(ctx, o.root, flowdocs.Options{Revision: o.revision, Scope: o.scope, Corpus: corpus, Flows: flows})
+				// DMF-V1-007: an output directory inside the root is recorded for docs flows check.
+				recorded, _ := repositoryRelative(o.root, o.output)
+				r, err = flowdocs.Generate(ctx, o.root, flowdocs.Options{Revision: o.revision, Scope: o.scope, OutputDir: recorded, Corpus: corpus, Flows: flows})
 				if err == nil {
 					err = flowdocs.Materialize(o.output, r)
 					value = r.Manifest
@@ -121,6 +125,13 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 		case "check":
 			var check flowdocs.Check
 			check, err = flowdocs.CheckRevision(ctx, o.root, previous, o.revision, o.output)
+			if err == nil {
+				compared := check.OutputDir
+				if compared != "" && !filepath.IsAbs(compared) && o.output == "" {
+					compared = filepath.Join(o.root, filepath.FromSlash(compared))
+				}
+				check.Worktree = docsFlowsWorktree(ctx, o.root, previous, compared)
+			}
 			value = check
 			if !check.Clean {
 				exit = 1
@@ -154,6 +165,37 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 	return exit
 }
 
+// docsFlowsWorktree is the DMF-V1-005 worktree member of docs flows check: changed tracked paths
+// under the generation scope and under the compared output directory when it is inside the root.
+func docsFlowsWorktree(ctx context.Context, root string, previous []byte, output string) *docworktree.Status {
+	read := []string{}
+	if scope, ok := flowdocs.ManifestScope(previous); ok {
+		read = append(read, scope)
+	}
+	if rel, ok := repositoryRelative(root, output); ok {
+		read = append(read, rel)
+	}
+	status := docworktree.Observe(ctx, root, docworktree.Head, docworktree.Under(read...))
+	return &status
+}
+
+// repositoryRelative is path relative to root with forward slashes when it names a directory inside
+// root, and false otherwise.
+func repositoryRelative(root, path string) (string, bool) {
+	if path == "" {
+		return "", false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
+}
+
 const docsFlowsHelp = `Generate bounded source-derived flow documentation (generated trust).
 
 Usage:
@@ -167,7 +209,10 @@ bindings are bounded lexical observations, never accepted intent or runtime proo
 --flows FILE groups declarations into the project's declared flows; unresolved
 members and unassigned declarations are reported, never generated as flows.
 Check and finalize are read-only. Check reports each stable claim/paragraph's
-fresh/stale/unresolved source binding and optional byte drift (exit 1).
+fresh/stale/unresolved source binding and byte drift of the rendered pages (exit 1).
+Generate records an output directory inside --root in generation.json; check compares
+--output-dir, else that recorded directory. With neither, or a directory that does not
+exist, output is NOT_CHECKED with a reason and the check is never clean (exit 1).
 Finalize admits separately committed provider bytes without changing source anchors.
 See docs/FLOW-DOCUMENTATION.md for limits and original corpus/runtime joins.
 `

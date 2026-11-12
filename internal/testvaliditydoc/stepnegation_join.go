@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/stepnegation"
 )
 
@@ -33,7 +33,7 @@ const stepNegationUnboundSupportAnchor = "strength-unbound-inputs:test-support-f
 // current bytes. A /0 join also names its unbound support files
 // (LPCV-V0-940). Without a joinable document the projection is unchanged.
 func JoinStepNegation(document Document, input Input, root string) Document {
-	if !stepNegationJoinQualified || input.js == nil {
+	if !stepNegationJoinQualified || input.JS == nil {
 		return document
 	}
 	if root == "" {
@@ -46,11 +46,11 @@ func JoinStepNegation(document Document, input Input, root string) Document {
 	if err != nil {
 		return document
 	}
-	receipt := *input.js
-	if receipt.Profile != jstestprovider.ExternalProfile && receipt.Profile != jstestprovider.AttestedExternalProfile {
+	receipt := *input.JS
+	if receipt.Profile != jstestreceipt.ExternalProfile && receipt.Profile != jstestreceipt.AttestedExternalProfile {
 		return document
 	}
-	if jstestprovider.ReceiptRuntimeTuple(receipt) != jstestprovider.RuntimeTupleCandidate {
+	if jstestreceipt.ReceiptRuntimeTuple(receipt) != jstestreceipt.RuntimeTupleCandidate {
 		return document
 	}
 	worktree, err := os.OpenRoot(root)
@@ -73,7 +73,7 @@ func JoinStepNegation(document Document, input Input, root string) Document {
 		}
 		strength := stepnegation.Aggregate(*retained)
 		leading := []string{stepNegationAnchorPrefix + stepnegation.EvidenceDirectory + "/" + stepnegation.FileName(key)}
-		if receipt.Profile == jstestprovider.ExternalProfile {
+		if receipt.Profile == jstestreceipt.ExternalProfile {
 			leading = append(leading, stepNegationUnboundSupportAnchor)
 		}
 		strength.Anchors = append(leading, strength.Anchors...)
@@ -87,7 +87,7 @@ func JoinStepNegation(document Document, input Input, root string) Document {
 
 // negationKey is the retained identity of one receipt test: its
 // worktree-relative spec file, screened full title and project.
-func negationKey(root string, outcome jstestprovider.TestOutcome) (stepnegation.TestKey, bool) {
+func negationKey(root string, outcome jstestreceipt.TestOutcome) (stepnegation.TestKey, bool) {
 	parts := strings.SplitN(outcome.FullName, " > ", 4)
 	if len(parts) != 4 || outcome.Anchor == nil || outcome.Project == nil || outcome.Project.Name == "" {
 		return stepnegation.TestKey{}, false
@@ -99,12 +99,12 @@ func negationKey(root string, outcome jstestprovider.TestOutcome) (stepnegation.
 	return stepnegation.TestKey{File: filepath.ToSlash(relative), FullTitle: stepnegation.Screen(parts[3]), Project: outcome.Project.Name}, true
 }
 
-func joinable(worktree *os.Root, root string, receipt jstestprovider.Receipt, outcome jstestprovider.TestOutcome, key stepnegation.TestKey, retained stepnegation.Document) bool {
+func joinable(worktree *os.Root, root string, receipt jstestreceipt.Receipt, outcome jstestreceipt.TestOutcome, key stepnegation.TestKey, retained stepnegation.Document) bool {
 	binding := retained.Binding
 	if binding.Test.Key() != key || binding.Test.Browser != outcome.Project.Browser || binding.Test.Device != outcome.Project.Device {
 		return false
 	}
-	if binding.Runner.Name != "playwright" || binding.Runner.Version != receipt.Identity.RunnerVersion || binding.Runner.NodeVersion != receipt.Identity.NodeVersion || binding.Runner.Tuple != jstestprovider.RuntimeTupleCandidate {
+	if binding.Runner.Name != "playwright" || binding.Runner.Version != receipt.Identity.RunnerVersion || binding.Runner.NodeVersion != receipt.Identity.NodeVersion || binding.Runner.Tuple != jstestreceipt.RuntimeTupleCandidate {
 		return false
 	}
 	if !sameApplication(receipt, binding.Application) || !sameTestRepository(receipt, binding.TestRepository) {
@@ -123,11 +123,11 @@ func joinable(worktree *os.Root, root string, receipt jstestprovider.Receipt, ou
 
 // sameApplication compares the /0 declared label or the /1 attested
 // repository and instance with the receipt's.
-func sameApplication(receipt jstestprovider.Receipt, application stepnegation.Application) bool {
+func sameApplication(receipt jstestreceipt.Receipt, application stepnegation.Application) bool {
 	if application.Profile != receipt.Profile {
 		return false
 	}
-	if receipt.Profile == jstestprovider.ExternalProfile {
+	if receipt.Profile == jstestreceipt.ExternalProfile {
 		return receipt.External != nil && application.Label == stepnegation.Screen(receipt.External.DeclaredAppIdentity)
 	}
 	attestation := receipt.ApplicationAttestation
@@ -143,11 +143,11 @@ func sameApplication(receipt jstestprovider.Receipt, application stepnegation.Ap
 // start and at publish, to be clean and equal to the bound one, so a witness never survives a
 // new test revision (LPCV-V0-068). A /0 receipt carries no test repository
 // identity; its test side is bound by the spec and config digests only.
-func sameTestRepository(receipt jstestprovider.Receipt, bound stepnegation.Repository) bool {
-	if receipt.Profile != jstestprovider.AttestedExternalProfile {
+func sameTestRepository(receipt jstestreceipt.Receipt, bound stepnegation.Repository) bool {
+	if receipt.Profile != jstestreceipt.AttestedExternalProfile {
 		return true
 	}
-	for _, observed := range []*jstestprovider.ApplicationRepositoryIdentity{receipt.TestRepositoryAtStart, receipt.TestRepositoryAtPublish} {
+	for _, observed := range []*jstestreceipt.ApplicationRepositoryIdentity{receipt.TestRepositoryAtStart, receipt.TestRepositoryAtPublish} {
 		if observed == nil || observed.DirtyState != "clean" || observed.RootCommit != bound.RootCommit || observed.Revision != bound.Revision || observed.Tree != bound.Tree {
 			return false
 		}

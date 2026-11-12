@@ -71,3 +71,25 @@
   Task 2.1 measures this before the check is switched on, and the fix is to name the ID in the
   subtest, which is what the row already claims.
 - The range form reads two full trees. Task 2.4 records its run time over 50 commits of `main`.
+
+## Failure modes
+
+- The body rule is lexical: an ID that appears in the cited body only by coincidence (a comment
+  naming another rule) passes, the same limit as the existing name check.
+- A test declared in two files under different build tags: either body satisfies the check.
+- A written range of IDs is not expanded, so moving the last citation into a range reports the
+  requirement as losing its last citation; the fix is to write the ID in full.
+- Until a CI step runs the range form (task 2.5), TTG-V0-962 holds only where
+  `make traceability-tests-check TRACE_RANGE=BASE..HEAD` is run by hand or by a lane.
+
+## Acceptance evidence
+
+- Fixture cases in `script/check-traceability-tests_test.sh` for TTG-V0-960 to TTG-V0-963, run by
+  `make traceability-tests-test` (tasks 2.2 and 2.3).
+- The index form on the lane head and the range form for `origin/main..HEAD` and the last 50
+  first-parent commits of `main`, with counts and run time in the build-log entry (task 2.4).
+
+## Rollback
+
+Revert the script and fixture commits. The change adds no stored state and no file format, so the
+previous script reads the same rows.

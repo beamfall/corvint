@@ -43,7 +43,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "test-commands-run: %s holds no go.mod: run it from the repository root\n", root)
 		return 2
 	}
-	declared := sessiontest.ReadDeclared(root)
+	// The Makefile runs Corvint's own CI declaration, not the adopter file
+	// `corvint test` reads first (RNC-V1-013).
+	declared := sessiontest.ReadDeclaredFile(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath)))
 	if declared.Unreadable != "" {
 		fmt.Fprintln(stderr, "test-commands-run: "+declared.Unreadable)
 		return 2

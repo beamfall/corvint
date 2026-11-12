@@ -143,7 +143,7 @@ func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 	if err != nil {
 		return CitationReport{}, err
 	}
-	docs, err := r.citationDocuments(commit, options.Docs, options.Manifests, globs)
+	docs, err := citationDocuments(r, commit, options.Docs, options.Manifests, globs)
 	if err != nil {
 		return CitationReport{}, err
 	}
@@ -156,11 +156,11 @@ func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 	read := 0
 	for start := 0; start < len(docs); {
 		end, size := start, 0
-		for end < len(docs) && end-start < citationChunkDocs && (end == start || size+docs[end].size <= citationChunkBytes) {
-			size += docs[end].size
+		for end < len(docs) && end-start < citationChunkDocs && (end == start || size+docs[end].Size <= citationChunkBytes) {
+			size += docs[end].Size
 			end++
 		}
-		data, _, err := r.blobs(docs[start:end], maxTotalBytes)
+		data, _, err := r.Blobs(docs[start:end], maxTotalBytes)
 		if err != nil {
 			return CitationReport{}, err
 		}
@@ -170,8 +170,8 @@ func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 		}
 		chunk := []pending{}
 		for _, doc := range docs[start:end] {
-			report.Totals = append(report.Totals, CitationDocumentTotal{Doc: doc.path})
-			for _, c := range syntax.parse(string(data[doc.oid])) {
+			report.Totals = append(report.Totals, CitationDocumentTotal{Doc: doc.Path})
+			for _, c := range syntax.parse(string(data[doc.Oid])) {
 				if read++; read > MaxCitationsPerReport {
 					return CitationReport{}, refuse("tests-bound-exceeded", "more than %d citations", MaxCitationsPerReport)
 				}
@@ -215,7 +215,7 @@ func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 // citationDocuments lists the selected documents at commit, each once in selection order: named
 // documents, then manifest entries, then glob matches in tree order (TSA-V0-383). A named or listed
 // document must be a committed regular file; a glob keeps the regular files it matches.
-func (r Repo) citationDocuments(commit string, docs, manifests []string, globs []citationGlob) ([]entry, error) {
+func citationDocuments(r Repo, commit string, docs, manifests []string, globs []citationGlob) ([]entry, error) {
 	names, seen := []string{}, map[string]bool{}
 	add := func(name string) error {
 		if !seen[name] {
@@ -233,7 +233,7 @@ func (r Repo) citationDocuments(commit string, docs, manifests []string, globs [
 		}
 	}
 	for _, manifest := range manifests {
-		data, err := r.committedText(commit, manifest, maxCitationManifestBytes)
+		data, err := committedText(r, commit, manifest, maxCitationManifestBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +250,7 @@ func (r Repo) citationDocuments(commit string, docs, manifests []string, globs [
 	out := make([]entry, 0, len(names))
 	for start := 0; start < len(names); start += citationPathBatch {
 		batch := names[start:min(start+citationPathBatch, len(names))]
-		listed, err := r.listPaths(commit, batch)
+		listed, err := listPaths(r, commit, batch)
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +262,7 @@ func (r Repo) citationDocuments(commit string, docs, manifests []string, globs [
 			if !meta.regular {
 				return nil, refuse("tests-source-unavailable", "%s is not a regular committed file", name)
 			}
-			out = append(out, entry{path: name, oid: meta.oid, size: meta.size})
+			out = append(out, entry{Path: name, Oid: meta.oid, Size: meta.size})
 		}
 	}
 	for _, g := range globs {
@@ -270,7 +270,7 @@ func (r Repo) citationDocuments(commit string, docs, manifests []string, globs [
 		if g.prefix != "" {
 			args = append(args, "--", g.prefix)
 		}
-		listing, err := r.git(maxDiffBytes, nil, args...)
+		listing, err := r.Git(maxDiffBytes, nil, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -280,7 +280,7 @@ func (r Repo) citationDocuments(commit string, docs, manifests []string, globs [
 				continue
 			}
 			seen[meta.path] = true
-			out = append(out, entry{path: meta.path, oid: meta.oid, size: meta.size})
+			out = append(out, entry{Path: meta.path, Oid: meta.oid, Size: meta.size})
 			if len(out) > MaxCitationDocuments {
 				return nil, refuse("tests-bound-exceeded", "more than %d documents", MaxCitationDocuments)
 			}
@@ -309,12 +309,12 @@ func parseTreeLine(line string) (treeLine, bool) {
 }
 
 // listPaths reads the tree entries of the named paths at commit through one literal `ls-tree`.
-func (r Repo) listPaths(commit string, names []string) (map[string]treeLine, error) {
+func listPaths(r Repo, commit string, names []string) (map[string]treeLine, error) {
 	limit := 4096
 	for _, name := range names {
 		limit += len(name) + 128
 	}
-	out, err := r.git(limit, nil, append([]string{"--literal-pathspecs", "ls-tree", "-z", "-l", "--full-tree", commit, "--"}, names...)...)
+	out, err := r.Git(limit, nil, append([]string{"--literal-pathspecs", "ls-tree", "-z", "-l", "--full-tree", commit, "--"}, names...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -328,8 +328,8 @@ func (r Repo) listPaths(commit string, names []string) (map[string]treeLine, err
 }
 
 // committedText reads one committed regular file of at most limit bytes.
-func (r Repo) committedText(commit, name string, limit int) ([]byte, error) {
-	listed, err := r.listPaths(commit, []string{name})
+func committedText(r Repo, commit, name string, limit int) ([]byte, error) {
+	listed, err := listPaths(r, commit, []string{name})
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +340,7 @@ func (r Repo) committedText(commit, name string, limit int) ([]byte, error) {
 	if t.size > limit {
 		return nil, refuse("tests-bound-exceeded", "%s exceeds %d bytes", name, limit)
 	}
-	return r.git(t.size+1024, nil, "cat-file", "blob", t.oid)
+	return r.Git(t.size+1024, nil, "cat-file", "blob", t.oid)
 }
 
 // citedKey is one cited path at one commit.
@@ -383,7 +383,7 @@ func (k *citationCheck) prepare(cands []candidate) error {
 		}
 	}
 	if len(revs) > 0 {
-		out, err := k.r.git(len(revs)*128+request.Len()+4096, request.Bytes(), "cat-file", "--batch-check")
+		out, err := k.r.Git(len(revs)*128+request.Len()+4096, request.Bytes(), "cat-file", "--batch-check")
 		if err != nil {
 			return err
 		}
@@ -424,7 +424,7 @@ func (k *citationCheck) prepare(cands []candidate) error {
 	for _, at := range commits {
 		paths := byCommit[at]
 		for start := 0; start < len(paths); start += citationPathBatch {
-			listed, err := k.r.listPaths(at, paths[start:min(start+citationPathBatch, len(paths))])
+			listed, err := listPaths(k.r, at, paths[start:min(start+citationPathBatch, len(paths))])
 			if err != nil {
 				return err
 			}
@@ -456,23 +456,23 @@ func (k *citationCheck) fileLines(key citedKey) ([]string, error) {
 		if len(batch) > 0 && size+t.size > citationLoadBytes {
 			break
 		}
-		batch, keys, size = append(batch, entry{path: next.path, oid: t.oid, size: t.size}), append(keys, next), size+t.size
+		batch, keys, size = append(batch, entry{Path: next.path, Oid: t.oid, Size: t.size}), append(keys, next), size+t.size
 	}
 	if k.cached+size > citationCacheBytes {
 		k.lines, k.cached = map[citedKey][]string{}, 0
 	}
-	data, _, err := k.r.blobs(batch, maxTotalBytes)
+	data, _, err := k.r.Blobs(batch, maxTotalBytes)
 	if err != nil {
 		return nil, err
 	}
 	for i, next := range keys {
-		text := string(bytes.TrimSuffix(data[batch[i].oid], []byte("\n")))
+		text := string(bytes.TrimSuffix(data[batch[i].Oid], []byte("\n")))
 		lines := []string{}
-		if text != "" || batch[i].size > 0 {
+		if text != "" || batch[i].Size > 0 {
 			lines = strings.Split(text, "\n")
 		}
 		k.lines[next] = lines
-		k.cached += batch[i].size
+		k.cached += batch[i].Size
 	}
 	return k.lines[key], nil
 }
@@ -536,7 +536,7 @@ func (k *citationCheck) suggest(key citedKey) string {
 	if len(k.suggestions) >= citationSuggestionLookups {
 		return ""
 	}
-	s := k.r.nearestRevision(key.commit, k.commit, key.path)
+	s := nearestRevision(k.r, key.commit, k.commit, key.path)
 	k.suggestions[key] = s
 	return s
 }
@@ -555,15 +555,15 @@ func fenceMarker(trimmed string) string {
 // nearestRevision names the closest commit where path exists: the first commit after at (up to
 // head) that adds it, or else the last commit before at that still had it. "" when unknown
 // (TSA-V0-254).
-func (r Repo) nearestRevision(at, head, path string) string {
+func nearestRevision(r Repo, at, head, path string) string {
 	if at != head {
-		if out, err := r.git(1<<20, nil, "log", "--reverse", "--format=%H", "--diff-filter=A", "--max-count=64", at+".."+head, "--", path); err == nil {
+		if out, err := r.Git(1<<20, nil, "log", "--reverse", "--format=%H", "--diff-filter=A", "--max-count=64", at+".."+head, "--", path); err == nil {
 			if first, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n"); first != "" {
 				return first
 			}
 		}
 	}
-	out, err := r.git(4096, nil, "log", "-1", "--format=%H", "--diff-filter=D", at, "--", path)
+	out, err := r.Git(4096, nil, "log", "-1", "--format=%H", "--diff-filter=D", at, "--", path)
 	if err != nil || strings.TrimSpace(string(out)) == "" {
 		return ""
 	}

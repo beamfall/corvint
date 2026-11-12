@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -76,7 +77,7 @@ func TestApplicationAttestationDockerComposeQualification(t *testing.T) {
 
 	expectation := dockerExpectation(t, ctx, git, docker, appRepository, compose, container)
 	configPath := filepath.Join(root, "application-attestation.json")
-	writeCanonicalFixture(t, configPath, applicationAttestationConfig{Profile: applicationAttestationConfigProfile, Expectation: expectation})
+	writeCanonicalFixture(t, configPath, jstestreceipt.ApplicationAttestationConfig{Profile: jstestreceipt.ApplicationAttestationConfigProfile, Expectation: expectation})
 	providerArgv := []string{providerPath, "--docker", docker, "--git", git, "--repository", appRepository, "--compose", compose, "--container", container}
 	runnerVersion := playwrightVersion(t, modules)
 	t.Setenv("CORVINT_FIXTURE_URL", "http://"+strings.TrimSpace(port))
@@ -88,7 +89,7 @@ func TestApplicationAttestationDockerComposeQualification(t *testing.T) {
 	if err != nil || receipt.Infrastructure != nil || receipt.Profile != AttestedExternalProfile || len(receipt.Tests) != 1 {
 		t.Fatalf("qualified run err=%v infrastructure=%+v receipt=%+v", err, receipt.Infrastructure, receipt)
 	}
-	if applicationAttestationUnknown(receipt.ApplicationAttestation) || testRepositoryUnknown(receipt.TestRepositoryAtStart, receipt.TestRepositoryAtPublish) {
+	if jstestreceipt.ApplicationAttestationUnknown(receipt.ApplicationAttestation) || jstestreceipt.TestRepositoryUnknown(receipt.TestRepositoryAtStart, receipt.TestRepositoryAtPublish) {
 		t.Fatal("qualified run lost application or test-repository identity")
 	}
 	if ReceiptTestProjection(receipt, receipt.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
@@ -106,7 +107,7 @@ func TestApplicationAttestationDockerComposeQualification(t *testing.T) {
 			wrong := expectation
 			row.mutate(&wrong)
 			wrongPath := filepath.Join(root, strings.ReplaceAll(name, " ", "-")+".json")
-			writeCanonicalFixture(t, wrongPath, applicationAttestationConfig{Profile: applicationAttestationConfigProfile, Expectation: wrong})
+			writeCanonicalFixture(t, wrongPath, jstestreceipt.ApplicationAttestationConfig{Profile: jstestreceipt.ApplicationAttestationConfigProfile, Expectation: wrong})
 			wrongCfg := dockerQualificationConfig(testRepository, providerArgv, wrongPath, readyURL, runnerVersion)
 			wrongReceipt, runErr := RunE2E(ctx, wrongCfg)
 			if runErr != nil || wrongReceipt.Infrastructure == nil || wrongReceipt.Infrastructure.Reason != row.want || len(wrongReceipt.Tests) != 0 {
@@ -308,7 +309,7 @@ func dockerExpectation(t *testing.T, ctx context.Context, git, docker, repositor
 			DirtyPolicy: "require-clean",
 		},
 		Build:         ApplicationArtifactIdentity{Kind: "image", Digest: qualificationOutput(t, ctx, docker, "inspect", "--format", "{{.Image}}", container)},
-		Configuration: ApplicationArtifactIdentity{Kind: "compose", Digest: "sha256:" + sha256Hex(readQualificationFile(t, compose))},
+		Configuration: ApplicationArtifactIdentity{Kind: "compose", Digest: "sha256:" + jstestreceipt.Sha256Hex(readQualificationFile(t, compose))},
 		InstanceKind:  "docker-container",
 	}
 }

@@ -3,66 +3,25 @@ package jstestprovider
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
-	"slices"
-	"strings"
 
-	"github.com/Beamfall/corvint/internal/secretscreen"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
-const freshDependencyFiles = 512
 const freshDependencyFileBytes = 32 << 20
 const freshDependencyTotalBytes = 128 << 20
 
-// FreshDependencyManifest is the operator-approved complete local CJS input
-// set. Roots bind every installed file, including previously unloaded modules;
-// Files additionally pins the admitted test/config/server/observer inputs.
-// Native libraries, ESM/dynamic remote loading and hostile mutation containment
-// remain outside the trusted source-direct tuple's qualification.
-type FreshDependencyManifest struct {
-	Roots []string          `json:"roots"`
-	Files map[string]string `json:"files"`
-}
-type FreshDependencyObservation struct {
-	Files    map[string]string `json:"files"`
-	Failures []string          `json:"failures"`
-}
+// FreshDependencyManifest is jstestreceipt.FreshDependencyManifest, kept under its old name.
+type FreshDependencyManifest = jstestreceipt.FreshDependencyManifest
 
+// FreshDependencyObservation is jstestreceipt.FreshDependencyObservation, kept under its old name.
+type FreshDependencyObservation = jstestreceipt.FreshDependencyObservation
+
+// FreshDependencyDigest is jstestreceipt.FreshDependencyDigest, kept under its old name.
 func FreshDependencyDigest(m *FreshDependencyManifest) string {
-	b, _ := json.Marshal(m)
-	return sha256Hex(b)
-}
-func freshDependencyPath(path string) bool {
-	return filepath.IsAbs(path) && filepath.Clean(path) == path && path != "/" && len(path) <= 4096 && !strings.ContainsAny(path, "\x00\r\n") && !secretscreen.MatchString(path)
-}
-func freshManifestComplete(m *FreshDependencyManifest) bool {
-	if m == nil || len(m.Roots) < 1 || len(m.Roots) > 8 || len(m.Files) < 1 || len(m.Files) > freshDependencyFiles || !slices.IsSorted(m.Roots) {
-		return false
-	}
-	for i, root := range m.Roots {
-		if !freshDependencyPath(root) || (i > 0 && m.Roots[i-1] == root) {
-			return false
-		}
-		found := false
-		for path := range m.Files {
-			if strings.HasPrefix(path, root+"/") {
-				found = true
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	for path, digest := range m.Files {
-		if !freshDependencyPath(path) || !rawDigestPattern.MatchString(digest) {
-			return false
-		}
-	}
-	return true
+	return jstestreceipt.FreshDependencyDigest(m)
 }
 
 // ObserveFreshDependencies is a bounded read of the declared local tree, not
@@ -70,7 +29,7 @@ func freshManifestComplete(m *FreshDependencyManifest) bool {
 // files are retained so added inputs cannot silently disappear from the join.
 func ObserveFreshDependencies(m *FreshDependencyManifest) *FreshDependencyObservation {
 	out := &FreshDependencyObservation{Files: map[string]string{}, Failures: []string{}}
-	if m == nil || len(m.Roots) > 8 || len(m.Files) > freshDependencyFiles {
+	if m == nil || len(m.Roots) > 8 || len(m.Files) > jstestreceipt.FreshDependencyFiles {
 		out.Failures = append(out.Failures, "dependency-manifest-unavailable")
 		return out
 	}
@@ -87,8 +46,8 @@ func ObserveFreshDependencies(m *FreshDependencyManifest) *FreshDependencyObserv
 			halted = true
 			return
 		}
-		if len(seen) > freshDependencyFiles || !freshDependencyPath(path) {
-			halted = len(seen) > freshDependencyFiles
+		if len(seen) > jstestreceipt.FreshDependencyFiles || !jstestreceipt.FreshDependencyPath(path) {
+			halted = len(seen) > jstestreceipt.FreshDependencyFiles
 			out.Failures = append(out.Failures, "dependency-input-bound")
 			return
 		}
@@ -145,7 +104,7 @@ func ObserveFreshDependencies(m *FreshDependencyManifest) *FreshDependencyObserv
 		if halted {
 			break
 		}
-		if !freshDependencyPath(root) {
+		if !jstestreceipt.FreshDependencyPath(root) {
 			out.Failures = append(out.Failures, "dependency-root-invalid")
 			continue
 		}
@@ -155,7 +114,7 @@ func ObserveFreshDependencies(m *FreshDependencyManifest) *FreshDependencyObserv
 				return e
 			}
 			count++
-			if count > freshDependencyFiles*4 {
+			if count > jstestreceipt.FreshDependencyFiles*4 {
 				return io.ErrShortBuffer
 			}
 			if entry.Type()&os.ModeSymlink != 0 {
@@ -181,18 +140,8 @@ func ObserveFreshDependencies(m *FreshDependencyManifest) *FreshDependencyObserv
 	}
 	return out
 }
-func FreshDependenciesMatch(m *FreshDependencyManifest, o *FreshDependencyObservation) bool {
-	return freshManifestComplete(m) && o != nil && len(o.Failures) == 0 && reflect.DeepEqual(m.Files, o.Files)
-}
 
-func freshImportsBound(imports map[string]string, required string, m *FreshDependencyManifest) bool {
-	if m == nil || len(imports) == 0 || len(imports) > freshDependencyFiles || imports[required] == "" {
-		return false
-	}
-	for path, digest := range imports {
-		if !rawDigestPattern.MatchString(digest) || m.Files[path] != digest {
-			return false
-		}
-	}
-	return true
+// FreshDependenciesMatch is jstestreceipt.FreshDependenciesMatch, kept under its old name.
+func FreshDependenciesMatch(m *FreshDependencyManifest, o *FreshDependencyObservation) bool {
+	return jstestreceipt.FreshDependenciesMatch(m, o)
 }

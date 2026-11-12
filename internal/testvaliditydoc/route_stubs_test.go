@@ -159,10 +159,10 @@ func TestLPCVV0077RequestedMemberKeepsDefaultBytes(t *testing.T) {
 // NOT_PRODUCED with route-stub-external-profile; the default projection still omits the member.
 func TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile(t *testing.T) {
 	receipt := jstestprovider.Receipt{Profile: jstestprovider.ExternalProfile, Kind: "e2e", Tests: []jstestprovider.TestOutcome{{Name: "a", State: jstestprovider.StatePassed}}}
-	if got := Project(Input{js: &receipt}).Tests[0].RouteStubs; got != nil {
+	if got := Project(Input{JS: &receipt}).Tests[0].RouteStubs; got != nil {
 		t.Fatalf("default projection of a profiled receipt carries routeStubs: %+v", got)
 	}
-	got := ProjectRouteStubs(Input{js: &receipt}).Tests[0].RouteStubs
+	got := ProjectRouteStubs(Input{JS: &receipt}).Tests[0].RouteStubs
 	if got == nil || got.State != RouteStubsNotProduced || got.Reason != RouteStubExternalProfile {
 		t.Fatalf("requested member = %+v", got)
 	}

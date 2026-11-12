@@ -80,7 +80,12 @@ func TestRecordEntryJoinedReadersSelectedByBothSelectors_AFPV2746(t *testing.T) 
 			var plan Receipt
 			plan.Provider.Go.State = "RUNNABLE"
 			plan.Plan.Dirty = []string{dirty}
-			lines := selectPackages(plan, fixtureModule, root, true)
+			if strings.HasPrefix(dirty, ".corvint/") {
+				// NCM-V1-006: the selectors keep a sealed CEM's attribution,
+				// which is read below.
+				requireCorvintConfig(t, plan, root, dirty)
+			}
+			lines := attributionLines(plan, root, true)
 			driver := []string{}
 			for _, line := range lines {
 				if rest, ok := strings.CutPrefix(line, "reader "+fixtureModule+"/"); ok {

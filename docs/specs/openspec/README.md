@@ -47,9 +47,12 @@ the owner can correct it.
   reported and do not fail. On 2026-11-10 strict mode gave 188 warnings in 41 of the 45 folders: 152
   for requirement text over 500 characters, 21 for text above the first section and 15 for text
   before the first requirement.
-- The exact stage rules are proposed in `changes/openspec-check/`: a Go check of the stages
-  (OSC-V1-001 to OSC-V1-011) and a Make target that runs the OpenSpec command (OSC-V1-012). Until
-  they land, the stages rest on review and on running the command by hand.
+- `make openspec-check` (`tools/openspec-check`, part of `make doc-gates`) checks the layout, IDs,
+  stages, the one root and the spec `Health:` lines (OSC-V1-001 to OSC-V1-011 in
+  `docs/specs/openspec-check-v1.md`); `OPENSPEC_BASE=<rev>` adds the commit rules for commits that
+  opt in to a change, and the findings listed in `tools/openspec-check/baseline.txt` are reported
+  only. `make openspec-validate` runs the pinned
+  command (OSC-V1-012) and reports NOT_RUN where it is not installed.
 - Each proposal header names its change, ticket, the plan requirements it serves, the owning
   capability spec, the requirement IDs it adds, its intent status and its delivery status. IDs are
   reserved before the lane's first commit and are never reused.
@@ -111,7 +114,7 @@ the proposal header serves.
 | `ruby-providers` | RSpec and Minitest runner providers, line-exact (R8) | PROD-TEST-006, 008, 011 | waiting for owner |
 | `run-evidence` | Append-only record of test run results (R7) | PROD-TEST-020, 010 | waiting for owner |
 | `runner-contract` | Built-in runner contract for the seven blocking runners | PROD-TEST-006, 011 | waiting for owner |
-| `selection-hardening` | Close Python and JavaScript selection misses and give one verdict per plan | PROD-TEST-001, 002, 009, 014, 015, 016 | waiting for owner |
+| `selection-hardening` | Close Python and JavaScript selection misses and give one verdict per plan | PROD-TEST-001, 002, 009, 014, 015, 016 | accepted (G14 auto, 2026-11-11; V1-5401); in delivery |
 | `source-removal` | Removal of the code, commands and files cut from 1.0, in batches (R34, R36) | PROD-TEST-002; PROD-INT-009, 010 | waiting for owner |
 | `spec-set-cleanup` | A verdict for every older spec and process document, archived, rewritten or removed with the removal batches; one workflow document; done by 2026-12-01 (R37, R41). Needs `openspec-check` and `source-removal` first | PROD-INT-010, 011 | waiting for owner |
 | `tasks-conformance` | Conformance of the Tasks repository and the 21-day trial on `beamfall/core` (R17, R18); written in the Tasks repository | PROD-TASK-010 | waiting for owner |

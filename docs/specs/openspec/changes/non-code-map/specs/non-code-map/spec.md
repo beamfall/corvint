@@ -4,25 +4,34 @@
 
 ### Requirement: NCM-V1-001 Full by default
 
-A changed non-code path without a proven, accepted entry MUST select every test of every runner in
-the repository, with reason `non-code-unmapped` and the path printed. A path no runner owns, and a
-runner that was removed or is unavailable, MUST likewise select all tests, with a named reason
-(`UNOWNED_DIRTY_PATH` or `runner-removed`) and the path or runner printed; `UNOWNED_DIRTY_PATH`
-no longer narrows through the allowlist in `internal/gateselect/allowlist.go` (integ 9ec3a29d0). Paths declared as
-documentation keep the `DECLARED_DOCUMENTATION` class and add no test. (G15b, G2; owner decision R31
-(2026-11-09); owner decision R32 (2026-11-09))
+A changed non-code path that no runner attributes and no proven, accepted entry covers MUST select
+every test of every runner in the repository, with reason `unowned-path` and the path printed. A
+non-code path a Go rule already attributes is owned and MUST NOT force a full run: it selects its
+attribution (the enclosing Go package directory owns the file, so its tests and dependents are
+selected; go.mod/go.sum readers; a package's testdata; a declared Go reader). A runner that was
+removed or is unavailable MUST select all tests, with reason `runner-removed` and the runner or path
+printed. Paths declared as documentation keep the `DECLARED_DOCUMENTATION` class and add no test.
+(G15b, G2; owner decision R31 (2026-11-09); owner decision R32 (2026-11-09); orchestrator ruling
+2026-11-11, `docs/build-log/2026-11-11-ncm-owned-paths.md`)
 
 #### Scenario: Fixture change, no entry
 
-- **GIVEN** a change to `tests/fixtures/users.json` and no map entry for it
+- **GIVEN** a change to `tests/fixtures/users.json` that no Go package encloses or names, no runner
+  owns, and no map entry covers
 - **WHEN** `corvint affected --base FULL_SHA` runs
 - **THEN** every test is selected and the reason names the path
 
 #### Scenario: Unowned path
 
-- **GIVEN** a change to `tools/notes.xyz` that no runner owns and no map entry covers
+- **GIVEN** a change to `tools/notes.xyz` that no runner attributes and no map entry covers
 - **WHEN** `corvint affected --base FULL_SHA` runs
-- **THEN** every test is selected with reason `UNOWNED_DIRTY_PATH` naming the path
+- **THEN** every test is selected with reason `unowned-path` naming the path
+
+#### Scenario: Data beside a package
+
+- **GIVEN** a change to `internal/app/data.json`, which the Go package `internal/app` encloses
+- **WHEN** `corvint affected --base FULL_SHA` runs
+- **THEN** `internal/app` and its dependents are selected and no full run is added for that path
 
 #### Scenario: Declared documentation
 
@@ -67,8 +76,10 @@ in the mapped file was killed and the killing test is within the entry's `tests`
 
 The following MUST always select everything, whatever the map says: `go.mod`, `go.sum` and every
 other lockfile; the toolchain pin; `.github/**`; `Makefile`; runner configuration; release
-configuration; generator inputs; `go:embed` and build-tag inputs; snapshot update paths; the map
-file itself; `.corvint/test-read-scopes.json`; secret and environment configuration. (G15b)
+configuration; generator inputs; build-tag inputs; snapshot update paths; the map file itself;
+`.corvint/test-read-scopes.json`; secret and environment configuration. A `go:embed` input is owned
+by its embedding package (NCM-V1-001) and selects that package and its dependents. (G15b;
+orchestrator ruling 2026-11-11)
 
 #### Scenario: Lockfile
 

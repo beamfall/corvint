@@ -41,6 +41,8 @@ var requireCleanRefusalForms = map[string]struct {
 	"test":          {args: []string{"test", "--base", "HEAD", "--dry-run"}},
 	"tests":         {args: []string{"tests", "lint", "--base", "HEAD"}},
 	"watch":         {args: []string{"watch", "--index", "missing.idx", "--once", "--dry-run"}},
+	// An unknown runner stops refresh before it lists or writes anything.
+	"inventory": {args: []string{"inventory", "refresh", "--runner", "cobol"}},
 }
 
 // requireCleanParseWitness covers verbs whose CLI diagnostic names no argv

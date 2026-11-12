@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/rubytestreceipt"
 )
 
 // liveImage is the owner-approved disposable qualification image (RSpec gems
@@ -144,7 +146,7 @@ func checkLiveDocuments(t *testing.T, documents map[string]Document, imageID str
 	}) {
 		t.Fatalf("corvint line selection=%+v", lines.Selection)
 	}
-	if len(lines.Examples) != 2 || lines.Examples[0].SharedExampleAbsent != sharedNotShared {
+	if len(lines.Examples) != 2 || lines.Examples[0].SharedExampleAbsent != rubytestreceipt.SharedNotShared {
 		t.Fatalf("corvint line examples=%+v", lines.Examples)
 	}
 	if origin := lines.Examples[1].SharedExample; origin == nil || origin.Origin != shared+":2" || !slices.Equal(origin.IncludedAt, []string{widget + ":10"}) {
@@ -152,7 +154,7 @@ func checkLiveDocuments(t *testing.T, documents map[string]Document, imageID str
 	}
 	// --rm removed the run container before the host could inspect it.
 	if run := lines.Runtime.RunContainer; run == nil || run.Value == "" || run.Value == lines.Runtime.ProbeContainer.Value ||
-		lines.Runtime.Image != (RuntimeFact{Unknown: runtimeNotInspectable}) {
+		lines.Runtime.Image != (RuntimeFact{Unknown: rubytestreceipt.RuntimeNotInspectable}) {
 		t.Fatalf("corvint --rm runtime=%+v", lines.Runtime)
 	}
 
@@ -168,9 +170,9 @@ func checkLiveDocuments(t *testing.T, documents map[string]Document, imageID str
 	// The stock formatter states no inclusion: the same inclusion-line
 	// selector stays unattributed and the origin not reported.
 	stock := documents["stock-lines"]
-	if stock.Formatter != "" || stock.Runtime.RunContainer != nil || stock.Runtime.Image != (RuntimeFact{Unknown: runtimeNotInsidePfx}) ||
+	if stock.Formatter != "" || stock.Runtime.RunContainer != nil || stock.Runtime.Image != (RuntimeFact{Unknown: rubytestreceipt.RuntimeNotInsidePfx}) ||
 		!slices.Equal(stock.Selection, []SelectorOutcome{{Selector: widget + ":10", Kind: SelectorLine, Outcome: SelectorUnattributed}}) ||
-		len(stock.Examples) != 1 || stock.Examples[0].SharedExampleAbsent != sharedNotReported {
+		len(stock.Examples) != 1 || stock.Examples[0].SharedExampleAbsent != rubytestreceipt.SharedNotReported {
 		t.Fatalf("stock run=%+v runtime=%+v", stock, stock.Runtime)
 	}
 }

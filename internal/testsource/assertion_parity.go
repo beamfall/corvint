@@ -108,11 +108,11 @@ func (x *assertExtract) add(t AssertionTuple) {
 
 // assertionParity reads both sides of one link at the revision (TSA-V0-670). A file that is not
 // committed refuses tests-source-unavailable.
-func (r Repo) assertionParity(commit string, link SeedLink) (AssertionParity, error) {
+func assertionParity(r Repo, commit string, link SeedLink) (AssertionParity, error) {
 	sides := [2]assertExtract{}
 	for k, ref := range []string{link.Legacy, link.New} {
 		name, line, _ := parseSeedRef(ref)
-		data, found, err := r.readOne(commit, name, MaxFileBytes)
+		data, found, err := readOne(r, commit, name, MaxFileBytes)
 		if err != nil {
 			return AssertionParity{}, err
 		}
@@ -452,14 +452,14 @@ var (
 func rspecAssertions(name, text string, line int) assertExtract {
 	at := func(n int) string { return fmt.Sprintf("%s:%d", name, n) }
 	x := assertExtract{test: at(line)}
-	r := &rspecReader{lines: rubyLines(text), groups: []rspecGroup{{parent: -1, decls: map[string]string{}}}}
-	if r.read() != "" {
+	r := &rspecReader{Lines: rubyLines(text), Groups: []rspecGroup{{Parent: -1, Decls: map[string]string{}}}}
+	if r.Read() != "" {
 		x.abstain(assertReasonSourceUncertain, x.test)
 		return x
 	}
 	found := -1
-	for k, e := range r.examples {
-		if e.line == line {
+	for k, e := range r.Examples {
+		if e.Line == line {
 			found = k
 		}
 	}
@@ -467,8 +467,8 @@ func rspecAssertions(name, text string, line int) assertExtract {
 		x.abstain(assertReasonExampleNotFound, x.test)
 		return x
 	}
-	e := r.examples[found]
-	if e.loop {
+	e := r.Examples[found]
+	if e.Loop {
 		x.abstain(assertReasonExampleInLoop, x.test)
 		return x
 	}
@@ -483,8 +483,8 @@ func rspecAssertions(name, text string, line int) assertExtract {
 		}
 		return false
 	}
-	for k, l := range e.body {
-		t := strings.TrimSpace(l.text)
+	for k, l := range e.Body {
+		t := strings.TrimSpace(l.Text)
 		if k == 0 {
 			m := rspecOneLiner.FindStringSubmatch(t)
 			if m == nil {
@@ -492,7 +492,7 @@ func rspecAssertions(name, text string, line int) assertExtract {
 			}
 			t = strings.TrimSpace(m[1])
 		}
-		if k == len(e.body)-1 && k > 0 && (t == "end" || t == "}") {
+		if k == len(e.Body)-1 && k > 0 && (t == "end" || t == "}") {
 			continue
 		}
 		masked := strings.TrimSpace(maskRubyStrings(t))
@@ -508,18 +508,18 @@ func rspecAssertions(name, text string, line int) assertExtract {
 			frames = append(frames, true)
 			continue
 		case rspecHelperCall.MatchString(masked):
-			x.abstain(assertReasonHelperUnresolved, at(l.line))
+			x.abstain(assertReasonHelperUnresolved, at(l.Line))
 			return x
 		case assertBlockOpen.MatchString(masked) && !strings.Contains(masked, ".to") && !strings.Contains(masked, ".not_to"):
 			if inControl() {
-				x.abstain(assertReasonConditional, at(l.line))
+				x.abstain(assertReasonConditional, at(l.Line))
 				return x
 			}
 			block = true
 			continue
 		case block && assertBlockClose.MatchString(masked):
 			block = false
-			if !assertRSpecMatcher(&x, at(l.line), "{block}", t[strings.Index(t, "."):]) {
+			if !assertRSpecMatcher(&x, at(l.Line), "{block}", t[strings.Index(t, "."):]) {
 				return x
 			}
 			continue
@@ -531,18 +531,18 @@ func rspecAssertions(name, text string, line int) assertExtract {
 			}
 			continue
 		case inControl() || rspecModifierIf.MatchString(masked):
-			x.abstain(assertReasonConditional, at(l.line))
+			x.abstain(assertReasonConditional, at(l.Line))
 			return x
 		case rspecShouldSyntax.MatchString(masked):
-			x.abstain(assertReasonFormUnsupported, at(l.line))
+			x.abstain(assertReasonFormUnsupported, at(l.Line))
 			return x
 		}
 		subject, rest, ok := rspecSubject(t)
 		if !ok {
-			x.abstain(assertReasonFormUnsupported, at(l.line))
+			x.abstain(assertReasonFormUnsupported, at(l.Line))
 			return x
 		}
-		if !assertRSpecMatcher(&x, at(l.line), subject, rest) {
+		if !assertRSpecMatcher(&x, at(l.Line), subject, rest) {
 			return x
 		}
 	}
@@ -769,67 +769,67 @@ var jsHelperPrefix = regexp.MustCompile(`^(?:expect|assert|verify|should|check)[
 func jsAssertions(name, text string, line int) assertExtract {
 	x := assertExtract{test: fmt.Sprintf("%s:%d", name, line)}
 	s := parseSource(name, text)
-	if s.uncertain {
+	if s.Uncertain {
 		x.abstain(assertReasonSourceUncertain, x.test)
 		return x
 	}
-	r := &jsReader{s: s, name: name}
-	r.read()
+	r := &jsReader{S: s, Name: name}
+	r.Read()
 	found, same := -1, 0
-	for k, d := range r.decls {
-		if d.kind == "test" && d.line == line {
+	for k, d := range r.Decls {
+		if d.Kind == "test" && d.Line == line {
 			found, same = k, same+1
 		}
 	}
-	if same != 1 || !r.decls[found].hasBody {
+	if same != 1 || !r.Decls[found].HasBody {
 		x.abstain(assertReasonExampleNotFound, x.test)
 		return x
 	}
-	if r.decls[found].eachKind != "" {
+	if r.Decls[found].EachKind != "" {
 		x.abstain(assertReasonExampleInLoop, x.test)
 		return x
 	}
-	body := r.decls[found].body
-	at := func(k int) string { return r.at(s.tokens[k].Line) }
+	body := r.Decls[found].Body
+	at := func(k int) string { return jsReaderAt(r, s.Tokens[k].Line) }
 	for k := body[0]; k < body[1]; k++ {
-		if s.ident(k, "") && !s.memberAccess(k) {
-			switch s.tokens[k].Text {
+		if s.Ident(k, "") && !s.MemberAccess(k) {
+			switch s.Tokens[k].Text {
 			case "if", "for", "while", "switch", "catch", "do":
 				x.abstain(assertReasonConditional, at(k))
 				return x
 			}
 		}
-		if s.ident(k, "") && s.memberAccess(k) && (s.tokens[k].Text == "forEach" || s.tokens[k].Text == "map") || s.conditionalOperator(k) && s.operandAsserts(k, body) {
+		if s.Ident(k, "") && s.MemberAccess(k) && (s.Tokens[k].Text == "forEach" || s.Tokens[k].Text == "map") || conditionalOperator(s, k) && operandAsserts(s, k, body) {
 			x.abstain(assertReasonConditional, at(k))
 			return x
 		}
 	}
 	for k := body[0]; k < body[1]; k++ {
-		t := s.tokens[k]
-		if t.Kind != appmap.JSIdent || s.assertionCount(k) {
+		t := s.Tokens[k]
+		if t.Kind != appmap.JSIdent || s.AssertionCount(k) {
 			continue
 		}
 		switch {
-		case t.Text == "should" && s.memberAccess(k):
-			end, ok := s.cypressShould(&x, k, at(k))
+		case t.Text == "should" && s.MemberAccess(k):
+			end, ok := cypressShould(s, &x, k, at(k))
 			if !ok {
 				return x
 			}
 			k = end
-		case t.Text == "expect" && !s.memberAccess(k):
-			c, ok := s.readExpect(k)
+		case t.Text == "expect" && !s.MemberAccess(k):
+			c, ok := s.ReadExpect(k)
 			if !ok {
 				x.abstain(assertReasonFormUnsupported, at(k))
 				return x
 			}
-			if !s.jsExpectTuple(&x, c, at(k)) {
+			if !jsExpectTuple(s, &x, c, at(k)) {
 				return x
 			}
-			k = c.end
-		case !s.memberAccess(k) && s.punct(k+1, "(") && jsHelperPrefix.MatchString(t.Text):
+			k = c.End
+		case !s.MemberAccess(k) && s.Punct(k+1, "(") && jsHelperPrefix.MatchString(t.Text):
 			x.abstain(assertReasonHelperUnresolved, at(k))
 			return x
-		case s.jsAssertion(k):
+		case s.JSAssertion(k):
 			x.abstain(assertReasonFormUnsupported, at(k))
 			return x
 		}
@@ -842,12 +842,12 @@ func jsAssertions(name, text string, line int) assertExtract {
 
 // conditionalOperator reports a `?` (of `?:` or `??`, not `?.`) or the first `|` of `||` or `&` of
 // `&&` at k: an operator whose right operand runs only on some paths (TSA-V0-844).
-func (s *source) conditionalOperator(k int) bool {
+func conditionalOperator(s *source, k int) bool {
 	switch {
-	case s.punct(k, "?"):
-		return !s.punct(k+1, ".")
-	case s.punct(k, "|"), s.punct(k, "&"):
-		return s.punct(k+1, s.tokens[k].Text) && s.tokens[k+1].Glued && !s.punct(k-1, s.tokens[k].Text)
+	case s.Punct(k, "?"):
+		return !s.Punct(k+1, ".")
+	case s.Punct(k, "|"), s.Punct(k, "&"):
+		return s.Punct(k+1, s.Tokens[k].Text) && s.Tokens[k+1].Glued && !s.Punct(k-1, s.Tokens[k].Text)
 	}
 	return false
 }
@@ -857,23 +857,23 @@ func (s *source) conditionalOperator(k int) bool {
 // or closing bracket of its own level, or to a line break where no operator continues the
 // expression. A `?:`, `??`, `||` or `&&` that only computes a value, as in `const a = b ?? c` or
 // `expect(a ?? b)`, leaves every expectation unconditional (TSA-V0-837, TSA-V0-844).
-func (s *source) operandAsserts(k int, body [2]int) bool {
+func operandAsserts(s *source, k int, body [2]int) bool {
 	continues := func(t appmap.JSToken, open string) bool {
 		return t.Kind == appmap.JSPunct && strings.Contains(open, t.Text)
 	}
 	depth := 0
 	for i := k + 1; i < body[1]; i++ {
-		t := s.tokens[i]
+		t := s.Tokens[i]
 		if depth == 0 {
 			if t.Kind == appmap.JSPunct && (t.Text == "," || t.Text == ";" || t.Text == ")" || t.Text == "]" || t.Text == "}") {
 				return false
 			}
-			if i > k+1 && t.Line > s.tokens[i-1].Line && !continues(s.tokens[i-1], ".?:|&+-*/%=<>,([{!~^") && !continues(t, ".?:|&+-*/%=<>([") {
+			if i > k+1 && t.Line > s.Tokens[i-1].Line && !continues(s.Tokens[i-1], ".?:|&+-*/%=<>,([{!~^") && !continues(t, ".?:|&+-*/%=<>([") {
 				return false
 			}
 		}
 		switch {
-		case s.ident(i, "expect") && !s.memberAccess(i), s.ident(i, "should") && s.memberAccess(i):
+		case s.Ident(i, "expect") && !s.MemberAccess(i), s.Ident(i, "should") && s.MemberAccess(i):
 			return true
 		case continues(t, "([{"):
 			depth++
@@ -885,36 +885,36 @@ func (s *source) operandAsserts(k int, body [2]int) bool {
 }
 
 // jsArgs returns the rendered top-level arguments of the call whose `(` is at open.
-func (s *source) jsArgs(open int) []string {
+func jsArgs(s *source, open int) []string {
 	out, start := []string{}, open+1
-	end := s.match[open]
+	end := s.Match[open]
 	for i := open + 1; i < end; i++ {
-		if (s.punct(i, "(") || s.punct(i, "[") || s.punct(i, "{")) && s.match[i] > i {
-			i = s.match[i]
+		if (s.Punct(i, "(") || s.Punct(i, "[") || s.Punct(i, "{")) && s.Match[i] > i {
+			i = s.Match[i]
 			continue
 		}
-		if s.punct(i, ",") {
-			out = append(out, s.render(start, i))
+		if s.Punct(i, ",") {
+			out = append(out, s.Render(start, i))
 			start = i + 1
 		}
 	}
 	if start < end {
-		out = append(out, s.render(start, end))
+		out = append(out, s.Render(start, end))
 	}
 	return out
 }
 
 // jsExpectTuple reads the members after `expect(SUBJECT)`: `.not`, Chai's language chains, one
 // matcher call or terminal property. More than one matcher (a Chai `.and` chain) abstains.
-func (s *source) jsExpectTuple(x *assertExtract, c expectChain, at string) bool {
-	subject := s.render(c.subject[0], c.subject[1])
+func jsExpectTuple(s *source, x *assertExtract, c expectChain, at string) bool {
+	subject := s.Render(c.Subject[0], c.Subject[1])
 	negated, matcher, chai := false, "", false
 	args := []string{}
-	j := c.subject[1] + 1
-	for s.punct(j, ".") && s.ident(j+1, "") && j <= c.end {
-		member := s.tokens[j+1].Text
+	j := c.Subject[1] + 1
+	for s.Punct(j, ".") && s.Ident(j+1, "") && j <= c.End {
+		member := s.Tokens[j+1].Text
 		j += 2
-		call := s.punct(j, "(") && s.match[j] > 0
+		call := s.Punct(j, "(") && s.Match[j] > 0
 		switch {
 		case member == "not":
 			negated = true
@@ -926,11 +926,11 @@ func (s *source) jsExpectTuple(x *assertExtract, c expectChain, at string) bool 
 		default:
 			matcher = member
 			if call {
-				args = s.jsArgs(j)
+				args = jsArgs(s, j)
 			}
 		}
 		if call {
-			j = s.match[j] + 1
+			j = s.Match[j] + 1
 		}
 	}
 	if matcher == "" {
@@ -983,31 +983,31 @@ func jsTuple(at, framework, subject, matcher string, negated bool, args []string
 
 // cypressShould reads `SUBJECT.should("CHAINER"[, VALUE])` and any `.and(...)` that follows,
 // returning the last token read; a callback form abstains.
-func (s *source) cypressShould(x *assertExtract, k int, at string) (int, bool) {
+func cypressShould(s *source, x *assertExtract, k int, at string) (int, bool) {
 	start := k - 1 // the `.`
 	for {
 		j := start - 1
-		if s.punct(j, ")") && s.match[j] >= 0 {
-			j = s.match[j] - 1
+		if s.Punct(j, ")") && s.Match[j] >= 0 {
+			j = s.Match[j] - 1
 		}
-		if !s.ident(j, "") {
+		if !s.Ident(j, "") {
 			break
 		}
 		start = j
-		if !s.punct(j-1, ".") {
+		if !s.Punct(j-1, ".") {
 			break
 		}
 		start = j - 1
 	}
-	subject := s.render(start, k-1)
+	subject := s.Render(start, k-1)
 	end := k
 	for member := k; ; {
 		open := member + 1
-		if !s.punct(open, "(") || s.match[open] < 0 {
+		if !s.Punct(open, "(") || s.Match[open] < 0 {
 			x.abstain(assertReasonFormUnsupported, at)
 			return 0, false
 		}
-		args := s.jsArgs(open)
+		args := jsArgs(s, open)
 		if len(args) == 0 || len(args[0]) < 2 || args[0][0] != '"' {
 			x.abstain(assertReasonFormUnsupported, at)
 			return 0, false
@@ -1016,8 +1016,8 @@ func (s *source) cypressShould(x *assertExtract, k int, at string) (int, bool) {
 		negated := strings.HasPrefix(chainer, "not.")
 		chainer = strings.TrimPrefix(chainer, "not.")
 		x.add(jsTuple(at, "cypress", subject, chainer, negated, args[1:]))
-		end = s.match[open]
-		if !s.punct(end+1, ".") || !s.ident(end+2, "and") {
+		end = s.Match[open]
+		if !s.Punct(end+1, ".") || !s.Ident(end+2, "and") {
 			break
 		}
 		member = end + 2

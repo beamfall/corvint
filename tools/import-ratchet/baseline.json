@@ -1,22 +1,6 @@
 {
   "profile": "corvint-import-ratchet-baseline/0",
   "edges": [
-    "cmd/corvint-docs -> internal/testsource",
-    "internal/appflows -> internal/doccorpus",
-    "internal/appflows -> internal/jstestprovider",
-    "internal/appflows -> internal/liveverify/affected",
-    "internal/appflows -> internal/liveverify/affected/languages",
-    "internal/appflows -> internal/liveverify/affected/typescript",
-    "internal/appmap -> internal/doccorpus",
-    "internal/appmap -> internal/jstestprovider",
-    "internal/appmap -> internal/testvaliditydoc",
-    "internal/doccorpus -> internal/jstestprovider",
-    "internal/doccorpus -> internal/liveverify/affected/typescript",
-    "internal/doccorpus -> internal/testvaliditydoc",
-    "internal/flowcoverage -> internal/doccorpus",
-    "internal/flowcoverage -> internal/flowdocs",
-    "internal/flowcoverage -> internal/jstestprovider",
-    "internal/mcp/cli -> internal/mcp/corpusbridge",
     "internal/sessiontest -> .github/cishards"
   ]
 }

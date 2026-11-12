@@ -40,6 +40,8 @@ type script struct {
 	bodies      map[string]body
 	blocks      int
 	naming      string
+	cases       int
+	arithmetic  int
 	// incomplete reports a here-document that no delimiter line ended: one
 	// that reached the end of the text, one cut by the `)` closing its
 	// command substitution, or one whose operator line never ended. Shells
@@ -47,8 +49,6 @@ type script struct {
 	// at the `)`; dash refuses the file), so a file holding one is held as a
 	// dynamic source (AFP-V0-9971).
 	incomplete bool
-	cases      int
-	arithmetic int
 }
 
 // body is a function's brace body: its block id and the block id holding

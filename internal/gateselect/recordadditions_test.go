@@ -125,8 +125,11 @@ func TestAddedRecordEntryBothSelectors_AFPV3423(t *testing.T) {
 				for _, pkg := range want {
 					packages = append(packages, fixtureModule+"/"+pkg)
 				}
-				if got != strings.Join(packages, " ") {
-					t.Errorf("%s %s %s: %v; want %v", mode, name, dirty, lines, packages)
+				// A sealed CEM is change evidence, not configuration
+				// (NCM-V1-006), so it keeps its narrowing too.
+				expected := strings.Join(packages, " ")
+				if got != expected {
+					t.Errorf("%s %s %s: %v; want %v", mode, name, dirty, lines, expected)
 				}
 			}
 		}

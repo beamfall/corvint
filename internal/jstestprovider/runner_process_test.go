@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 // fakeExternalRun runs runExternal against a stand-in npx (no Playwright, no
@@ -51,7 +53,7 @@ func fakeExternalRun(t *testing.T, script string, mutate func(*E2EConfig)) Recei
 // PWP-V0-028, PWP-V0-029: console output past the 4 MiB bound is truncated,
 // the runner runs to its own exit, and the tee receives every byte.
 func TestPWPV0028ExternalConsoleOverBoundTruncatesAndTees(t *testing.T) {
-	const size = externalOutputLimit + 1<<20
+	const size = jstestreceipt.ExternalOutputLimit + 1<<20
 	script := "/usr/bin/head -c " + strconv.Itoa(size) + " /dev/zero\necho to-stderr >&2\nexit 0"
 	var tee bytes.Buffer
 	receipt := fakeExternalRun(t, script, func(cfg *E2EConfig) { cfg.RunnerOutput = &tee })
@@ -71,7 +73,7 @@ func TestPWPV0028ExternalConsoleOverBoundTruncatesAndTees(t *testing.T) {
 // PWP-V0-028: without a tee nothing beyond the bounded capture is written and
 // the record still reports the truncation.
 func TestPWPV0028ExternalConsoleWithoutTee(t *testing.T) {
-	receipt := fakeExternalRun(t, "/usr/bin/head -c "+strconv.Itoa(externalOutputLimit+10)+" /dev/zero >&2\nexit 4", nil)
+	receipt := fakeExternalRun(t, "/usr/bin/head -c "+strconv.Itoa(jstestreceipt.ExternalOutputLimit+10)+" /dev/zero >&2\nexit 4", nil)
 	runner := receipt.External.Runner
 	if runner.ExitStatus != 4 || !runner.OutputTruncated || receipt.Infrastructure == nil || receipt.Infrastructure.Reason == "output-overflow" {
 		t.Fatalf("runner=%+v infrastructure=%+v", runner, receipt.Infrastructure)
@@ -186,13 +188,13 @@ func TestPWPV0029RunnerRecordShape(t *testing.T) {
 	r := qualifiedFixture(t)
 	for _, valid := range []RunnerProcess{{ExitObserved: true}, {ExitStatus: -1, StopSignal: "SIGKILL", Signal: "killed", ExitObserved: true}, {ExitStatus: -1}} {
 		r.External.Runner = &valid
-		if err := runnerProcessShapeError(r); err != nil {
+		if err := jstestreceipt.RunnerProcessShapeError(r); err != nil {
 			t.Fatalf("%+v: %v", valid, err)
 		}
 	}
 	for _, invalid := range []RunnerProcess{{StopSignal: "SIGHUP", ExitStatus: -1}, {ExitStatus: 2}, {ExitObserved: true, ExitStatus: 2, Signal: "killed"}, {ExitObserved: true, ExitStatus: -2}} {
 		r.External.Runner = &invalid
-		if err := runnerProcessShapeError(r); err == nil || err.Error() != "runner-process-invalid" {
+		if err := jstestreceipt.RunnerProcessShapeError(r); err == nil || err.Error() != "runner-process-invalid" {
 			t.Fatalf("%+v accepted: %v", invalid, err)
 		}
 	}

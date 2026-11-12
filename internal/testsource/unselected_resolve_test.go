@@ -93,7 +93,7 @@ func TestFrameworkResolutionBoundsTSAV0147(t *testing.T) {
 		{"const test = build.extend;\ntest('a', () => {});\n", frameworkUnresolved},
 	}
 	for _, c := range cases {
-		if got := parseSource("a.spec.ts", c.text).framework(resolver); got != c.want {
+		if got := framework(parseSource("a.spec.ts", c.text), resolver); got != c.want {
 			t.Errorf("%q = %q, want %q", c.text, got, c.want)
 		}
 	}

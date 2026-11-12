@@ -334,3 +334,49 @@ func TestAFUV1145ProviderWinsViaCLI_V15252(t *testing.T) {
 		t.Fatalf("inventory: %v", inventory)
 	}
 }
+
+// FSV-V1-004 (V1-5410): `corvint affected --base SHA` on a flows declaration
+// of a schema version this build does not read selects every E2E test with
+// FLOWS_SCHEMA_UNSUPPORTED, naming the found and supported versions in the
+// JSON receipt and the text summary, and its unit and integration
+// selections are those of a twin without the declaration.
+func TestFSVV1004UnsupportedVersionViaCLI_V15410(t *testing.T) {
+	t.Parallel()
+	declaration := strings.Replace(flowPlanCLIDeclaration, `"corvint-flows/0"`, `"corvint-flows/7"`, 1)
+	root, base := flowPlanCLIRepo(t, declaration, flowPlanCLIConfig)
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--base", base)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	e2e := flowPlanE2E(t, receipt)
+	unknown, _ := e2e["unknown"].([]any)
+	if e2e["scope"] != "FULL" || len(e2e["selected"].([]any)) != 0 || len(unknown) != 1 {
+		t.Fatalf("e2e: %v", e2e)
+	}
+	entry := unknown[0].(map[string]any)
+	if entry["reason"] != "FLOWS_SCHEMA_UNSUPPORTED" || entry["detail"] != ".corvint/flows.json version 7; supported 0" || !strings.Contains(entry["hint"].(string), "every E2E test is selected") {
+		t.Fatalf("unknown: %v", entry)
+	}
+	for _, item := range receipt["plan"].(map[string]any)["unknown"].([]any) {
+		if reason := item.(map[string]any)["reason"].(string); strings.HasPrefix(reason, "FLOWS_") {
+			t.Fatalf("a flows unknown reached plan.unknown: %v", item)
+		}
+	}
+	twin, twinBase := flowPlanCLIRepo(t, "", flowPlanCLIConfig)
+	bare, _, stderr, code := runAffectedCLI(t, twin, "--base", twinBase)
+	if code != 0 {
+		t.Fatalf("twin exit %d: %s", code, stderr)
+	}
+	if got, want := flowPlanKinds(t, receipt), flowPlanKinds(t, bare); !reflect.DeepEqual(got, want) {
+		t.Fatalf("unit and integration selection changed: %v, without a declaration %v", got, want)
+	}
+	var text, textErr bytes.Buffer
+	if code := runContext(context.Background(), []string{"--root", root, "affected", "--base", base, "--format", "text"}, strings.NewReader(""), &text, &textErr); code != 0 {
+		t.Fatalf("--format text exit %d: %s", code, textErr.String())
+	}
+	for _, want := range []string{"e2e-scope FULL inventory=flows:0", "e2e-unknown FLOWS_SCHEMA_UNSUPPORTED .corvint/flows.json version 7; supported 0"} {
+		if !strings.Contains(text.String(), want) {
+			t.Fatalf("text lacks %q:\n%s", want, text.String())
+		}
+	}
+}

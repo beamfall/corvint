@@ -26,8 +26,9 @@ import (
 // AFP-V0-3352: /1 includes test-scoped embed facts; /0 cannot prove them.
 // /2 added tree read-scope predicates; /3 carries both. /4 adds the
 // name-listing reads (AFP-V0-9964), so a /3 entry, which cannot hold them,
-// is rebuilt rather than read as holding none.
-const GraphCacheProfile = "corvint-affected-graph-cache/4"
+// is rebuilt rather than read as holding none. /5 adds the walk facts
+// (AFP-V0-9995) for the same reason.
+const GraphCacheProfile = "corvint-affected-graph-cache/5"
 
 const (
 	// graphCacheMaxBytes bounds one entry read or written.
@@ -221,6 +222,11 @@ type cachedUnit struct {
 	ImportGraphReadsAll bool     `json:"importGraphReadsAll"`
 	// ImportGraphReadsFiles mirrors Unit (AFP-V0-9010).
 	ImportGraphReadsFiles bool `json:"importGraphReadsFiles"`
+
+	// The walk facts mirror Unit (AFP-V0-9995).
+	WalkDirectories []string `json:"walkDirectories"`
+	WalkOpaque      string   `json:"walkOpaque"`
+	RunNames        []string `json:"runNames"`
 
 	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
 	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`

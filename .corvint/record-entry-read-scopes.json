@@ -27,7 +27,7 @@
         ".corvint/changes/8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8.cem.json"
       ],
       "reason": "conformance/use-cases-v0/main_test.go testUCV0ProfileMigration validates the fixed ledger; validator.read follows its pinned receipt subjects, including only the listed sealed CEM. The ledger and receipt JSON inputs are included in the source binding.",
-      "sourceSha256": "e9dfc2734d951db2369157395e691e143c242c5274045a93d73f3cb18fb3302c"
+      "sourceSha256": "88d9419ee8b9cbbcbb58029deaa669fb7a3d607be77d39d7396fe58efa53192b"
     },
     "go:github.com/Beamfall/corvint/internal/cem/wire": {
       "reads": [
@@ -54,7 +54,7 @@
     "shell:script/gen-spec-requirements_test.sh": {
       "reads": [],
       "reason": "script/gen-spec-requirements_test.sh uses docs/build-log in expected intent-status prose inside scratch spec/index fixtures. It does not read this checkout's log directory.",
-      "sourceSha256": "c1ff4c54123ebd55ab74a41cee74114c194a89a213b0d2fb805f7671aa212ca7"
+      "sourceSha256": "6d54e967ea550afc81ec6cbf41a0aaa74c0f20552a4b4fb1a31259188d551cdc"
     },
     "shell:script/lane-scripts_test.sh": {
       "reads": [],

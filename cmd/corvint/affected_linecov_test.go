@@ -72,7 +72,7 @@ func TestLabel(t *testing.T) {
 	}
 }
 `,
-	".github/cishards/test-commands.json": `{"profile": "corvint-test-commands/0", "go": {"env": {"GOTOOLCHAIN": "local"}, "flags": ["-count=1"]}, "languages": {}}
+	".corvint/test-commands.json": `{"profile": "corvint-test-commands/0", "go": {"env": {"GOTOOLCHAIN": "local"}, "flags": ["-count=1"]}, "languages": {}}
 `,
 }
 

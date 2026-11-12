@@ -229,6 +229,8 @@ func topicText(topic string) string {
 		return testsHelp
 	case "watch":
 		return watchHelp
+	case "inventory":
+		return inventoryHelp
 	case "context":
 		return taskContextHelp + cpuProfileHelpNote
 	case "instructions":
@@ -278,6 +280,7 @@ Commands:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
     watch  rerun the tests a save can affect (LPCV-V0)
+    inventory  refresh the committed test inventory (TIV-V1)
     test-plan  test consolidation plan (TCN-V0)
     test-evidence  read retained test dependencies (RSP-V0)
     test-validity  project a live-test receipt (MTV-V0)
@@ -424,6 +427,7 @@ Usage:
   corvint [--root PATH] affected cache [--format json|doctor-plugin]
   corvint [--root PATH] affected audit --changes FILE [--accept-stale-binary]
   corvint [--root PATH] affected --ownership-audit
+  corvint [--root PATH] affected --propose-data-map RECORDED
   corvint [--root PATH] affected jobs --base FULL_COMMIT_ID [--declaration PATH]
           [--accept-stale-binary]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
@@ -497,13 +501,19 @@ viaLength in the default plan and --by-path, via in --full (and in the
 default plan for a chain plan.viaLinks cannot state); anyDirtyPath and cause
 on UNBOUNDED_READER; glob; readScope {declaration, entry} (AFP-V0-9988).
 --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
-the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
-tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
-degradations and warning, and e2e {scope, inventory, selected, variations,
-unknown} when the plan carries E2E flow selections (APK-V0-9970); --format text
-writes it as lines ("affected <summary.line> ...", "tiers ...", one "tier0 UNIT"
-or "tier1 UNIT" per unit, then the "e2e-scope", "e2e-variation", "e2e" and
-"e2e-unknown" lines). It never changes the selection.
+the plan: summary, tiers {counts, summary, tier0, tier1, testIds} with the
+sorted tier-0 and tier-1 unit names a lane runs locally and each one's
+canonical test ID (CTI-V1-009), range {base, paths count}, degradations,
+warning, e2e {scope, inventory, selected, variations, unknown} when the plan
+carries E2E flow selections (APK-V0-9970), and inventory: the committed test
+inventory (.corvint/test-inventory.json) judged against the planned tree, each
+declared runner instance with inventory-absent, inventory-stale or
+inventory-invalid when it runs in full and its unassigned test files
+(TIV-V1-006 to TIV-V1-009); --format text writes it as lines ("affected
+<summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit,
+"inventory STATE ...", then the "e2e-scope", "e2e-variation", "e2e" and
+"e2e-unknown" lines). It never changes the selection and never writes the
+inventory.
 Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
@@ -683,6 +693,15 @@ UNOWNED_DIRTY_PATH. It refuses a dirty worktree, builds the graph without the
 cache, writes nothing, and exits 0 when no path is unowned, 1 when some path
 is, and 2 on an error.
 
+affected --propose-data-map RECORDED (experimental, NCM-V1-003) reads recorded
+test reads, one JSON object {"test": ID, "path": PATH} per line, and writes to
+stdout a corvint-data-map/0 document with one proposed entry per read path. A
+proposed entry has no accepted_by, accepted_at, pinned_commit or proof, so it
+narrows nothing until a person copies it into .corvint/data-map.json, accepts
+it and an FIH-V1 fault case proves it. It writes no file; an invalid map is
+refused with data-map-invalid and exit 2. Example:
+  corvint affected --propose-data-map reads.jsonl > proposal.json
+
 affected jobs (experimental, AFP-V0-2340 to AFP-V0-2346) evaluates the
 project-owned input declaration of non-test CI jobs (--declaration, default
 .corvint/ci-job-inputs.json, corvint-ci-job-inputs/0) over the range
@@ -829,7 +848,10 @@ path that selected it. The inventory is the bound discovery receipt
 (AFU-V1-140), else the flows' test links; a test no flow links is selected as
 unlinked; a stale link, global path, unbounded plan, missing receipt or
 exceeded bound selects every E2E test with a typed e2e unknown and never
-drops one. Example: corvint affected --base FULL_COMMIT_ID --format text.
+drops one. A profile naming a schema version this build does not read is
+FLOWS_SCHEMA_UNSUPPORTED: every E2E test must run, plan.e2e is FULL and lists
+none, and corvint test is INCOMPLETE for them (FSV-V1-004). Example: corvint
+affected --base FULL_COMMIT_ID --format text.
 
 --selection-profile e2e-safe reads one repository-relative
 application-flow-selection-provider/1 FILE (flows directory, runner config,

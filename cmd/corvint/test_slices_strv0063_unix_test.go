@@ -19,14 +19,14 @@ func sliceFixture(t *testing.T) (root, base string) {
 	t.Helper()
 	root = t.TempDir()
 	files := map[string]string{
-		"go.mod":                    "module example.test/m\n\ngo 1.27\n",
-		"a/a.go":                    "package a\n\nfunc A() int { return 1 }\n",
-		"a/a_test.go":               "package a\n\nimport \"testing\"\n\nfunc fixtureValue() int { return 1 }\n\nfunc TestA(t *testing.T) { _ = A() }\n",
-		"a/helpers_test.go":         "package a\n\nimport \"testing\"\n\nfunc TestHelped(t *testing.T) { _ = fixtureValue() }\n",
-		"b/b.go":                    "package b\n\nimport \"example.test/m/a\"\n\nfunc B() int { return a.A() + 1 }\n",
-		"b/b_test.go":               "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) { _ = B() }\n",
-		"b/b_more_test.go":          "package b\n\nimport \"testing\"\n\nfunc TestBMore(t *testing.T) { _ = B() }\n\nfunc ExampleB() { _ = B() }\n",
-		sessiontest.DeclarationPath: sessionDeclaration(""),
+		"go.mod":                 "module example.test/m\n\ngo 1.27\n",
+		"a/a.go":                 "package a\n\nfunc A() int { return 1 }\n",
+		"a/a_test.go":            "package a\n\nimport \"testing\"\n\nfunc fixtureValue() int { return 1 }\n\nfunc TestA(t *testing.T) { _ = A() }\n",
+		"a/helpers_test.go":      "package a\n\nimport \"testing\"\n\nfunc TestHelped(t *testing.T) { _ = fixtureValue() }\n",
+		"b/b.go":                 "package b\n\nimport \"example.test/m/a\"\n\nfunc B() int { return a.A() + 1 }\n",
+		"b/b_test.go":            "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) { _ = B() }\n",
+		"b/b_more_test.go":       "package b\n\nimport \"testing\"\n\nfunc TestBMore(t *testing.T) { _ = B() }\n\nfunc ExampleB() { _ = B() }\n",
+		sessiontest.CommandsPath: sessionDeclaration(""),
 	}
 	for name, body := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
@@ -98,7 +98,8 @@ func TestSTRV0063DryRunSlicesTestOnlyChanges(t *testing.T) {
 	more := "package b\n\nimport \"testing\"\n\nfunc TestBMore(t *testing.T) { _ = B() + 1 }\n\nfunc ExampleB() { _ = B() }\n"
 
 	stderr, invocations := plan(map[string]string{"b/b_more_test.go": more})
-	if stderr != "corvint-test: NARROWED 1 execution units\ncorvint-test: SLICED 1 of them to the test functions of their changed test files\n" {
+	if stderr != "corvint-test: NARROWED 1 execution units\ncorvint-test: SLICED 1 of them to the test functions of their changed test files\n"+
+		"corvint-test: INVENTORY absent reasons=inventory-absent full=1/1 unassigned=0\n" {
 		t.Fatalf("stderr %q", stderr)
 	}
 	got := unit(invocations, "go:example.test/m/b")

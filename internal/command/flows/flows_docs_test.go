@@ -146,31 +146,99 @@ func TestAFUV1032DocsCheckDrift(t *testing.T) {
 	}
 }
 
-// AFU-V1-032: an unexpired committed waiver naming the claim excuses the lost PROVEN; an expired one
-// does not.
+// AFU-V1-032 DMF-V1-001: an unexpired committed waiver naming the claim excuses the lost PROVEN, but
+// the check compares the claim in its WAIVED form, so the committed PROVEN page fails on its bytes
+// until regenerated; an expired waiver excuses nothing and is named.
 func TestAFUV1032WaiverExpiry(t *testing.T) {
 	fx := newDocsFixture(t)
-	waivers := func(expires string) string {
-		return `{"schema":"flow-doc-waivers/0","waivers":[` +
-			`{"claim":"checkout/checkout.happy/paid","reason":"payment sandbox outage","reviewer":"docs owner","expires":"` + expires + `"},` +
-			`{"claim":"docs/guide.md:checkout/checkout.happy/paid","reason":"payment sandbox outage","reviewer":"docs owner","expires":"` + expires + `"}]}` + "\n"
-	}
-	shopWrite(t, fx.root, map[string]string{"flow-doc-waivers.json": waivers("2099-12-31")})
+	shopWrite(t, fx.root, map[string]string{"flow-doc-waivers.json": checkoutWaivers("2099-12-31")})
 	shopCommit(t, fx.root, "F: waive checkout")
 	code, report, diagnostic := docsCheck(t, fx, "failed", "--waivers", "flow-doc-waivers.json")
-	if code != 0 || report.Status != "pass" || len(report.Waived) != 2 {
-		t.Fatalf("unexpired waiver %d %v %v %s", code, failureCodes(report), report.Waived, diagnostic)
+	want := []string{"rendered-bytes-differ docs/flows.md", "rendered-bytes-differ docs/flows.claims.json"}
+	if code != 2 || !slices.Equal(failureCodes(report), want) || len(report.Waived) != 2 {
+		t.Fatalf("unexpired waiver on a PROVEN page %d %v %v %s", code, failureCodes(report), report.Waived, diagnostic)
 	}
-	shopWrite(t, fx.root, map[string]string{"flow-doc-waivers.json": waivers("2020-01-01")})
+	shopWrite(t, fx.root, map[string]string{"flow-doc-waivers.json": checkoutWaivers("2020-01-01")})
 	shopCommit(t, fx.root, "G: waiver expired")
 	code, report, _ = docsCheck(t, fx, "failed", "--waivers", "flow-doc-waivers.json")
-	if code != 2 || len(report.Waived) != 0 || len(report.Failures) != 4 || !strings.Contains(report.Failures[0].Detail, "expired on 2020-01-01") {
+	if code != 2 || len(report.Waived) != 0 || len(report.Failures) != 4 || !strings.Contains(report.Failures[0].Detail, "expired on 2020-01-01") || len(report.ExpiredWaivers) != 2 {
 		t.Fatalf("expired waiver %d %+v", code, report)
 	}
 	shopWrite(t, fx.root, map[string]string{"flow-doc-waivers.json": `{"schema":"flow-doc-waivers/0","waivers":[{"claim":"c","reason":"r","reviewer":"x","expires":"tomorrow"}]}`})
 	shopCommit(t, fx.root, "H: invalid waiver")
-	if code, _, _ := runFlowsCLI(fx.root, append(slices.Clone(docsArgs), "--check", "--waivers", "flow-doc-waivers.json")...); code != 2 {
-		t.Fatalf("invalid waiver accepted: %d", code)
+	code, _, diagnostic = runFlowsCLI(fx.root, append(slices.Clone(docsArgs), "--check", "--waivers", "flow-doc-waivers.json")...)
+	if code != 2 || !strings.Contains(diagnostic, "flow-doc-waivers.json:1") {
+		t.Fatalf("invalid waiver accepted or unnamed: %d %s", code, diagnostic)
+	}
+	code, _, diagnostic = runFlowsCLI(fx.root, append(slices.Clone(docsArgs), "--waivers", "flow-doc-waivers.json", "--evidence", docsEvidence(t, fx, "passed"))...)
+	if code != 2 || !strings.Contains(diagnostic, "flow-doc-waivers.json:1") {
+		t.Fatalf("generation ignored an invalid waiver: %d %s", code, diagnostic)
+	}
+}
+
+func checkoutWaivers(expires string) string {
+	return `{"schema":"flow-doc-waivers/0","waivers":[` +
+		`{"claim":"checkout/checkout.happy/paid","reason":"payment sandbox outage","reviewer":"docs owner","expires":"` + expires + `"},` +
+		`{"claim":"docs/guide.md:checkout/checkout.happy/paid","reason":"payment sandbox outage","reviewer":"docs owner","expires":"` + expires + `"}]}` + "\n"
+}
+
+// DMF-V1-001: a claim whose committed page says PROVEN, whose current state is CONTRADICTED, under
+// an active waiver, renders WAIVED with the expiry and current state on the page and in the sidecar
+// once generated, and the check then passes; when the waiver expires, the check fails, the claim
+// shows its real state and the report names the expired waiver.
+func TestDMFV1001WaivedClaimRendersWaived(t *testing.T) {
+	fx := newDocsFixture(t)
+	shopWrite(t, fx.root, map[string]string{"flow-doc-waivers.json": checkoutWaivers("2099-12-31")})
+	shopCommit(t, fx.root, "F: waive checkout")
+	failed := docsEvidence(t, fx, "failed")
+	if code, _, diagnostic := runFlowsCLI(fx.root, append(slices.Clone(docsArgs), "--waivers", "flow-doc-waivers.json", "--evidence", failed)...); code != 0 {
+		t.Fatalf("generate with waivers %d %s", code, diagnostic)
+	}
+	mark := "WAIVED until 2099-12-31 (now CONTRADICTED)"
+	page, _ := os.ReadFile(filepath.Join(fx.root, "docs", "flows.md"))
+	if !strings.Contains(string(page), "  - **"+mark+":** `checkout/checkout.happy/paid`") {
+		t.Fatalf("page lacks the waiver mark:\n%s", page)
+	}
+	raw, _ := os.ReadFile(filepath.Join(fx.root, "docs", "flows.claims.json"))
+	var sidecar appflows.DocClaims
+	if err := json.Unmarshal(raw, &sidecar); err != nil {
+		t.Fatal(err)
+	}
+	marked := 0
+	for _, c := range sidecar.Claims {
+		if strings.HasSuffix(c.ID, "checkout/checkout.happy/paid") {
+			if c.Mark != mark || c.WaivedUntil != "2099-12-31" || c.State != appflows.ClaimContradicted {
+				t.Fatalf("sidecar claim %+v", c)
+			}
+			marked++
+		} else if c.Mark != "" {
+			t.Fatalf("unwaived claim marked %+v", c)
+		}
+	}
+	if marked != 2 {
+		t.Fatalf("marked %d sidecar claims", marked)
+	}
+	shopCommit(t, fx.root, "G: regenerate under the waiver")
+	code, report, diagnostic := docsCheck(t, fx, "failed", "--waivers", "flow-doc-waivers.json")
+	if code != 0 || report.Status != "pass" || len(report.Waived) != 2 {
+		t.Fatalf("check after generation %d %v %v %s", code, failureCodes(report), report.Waived, diagnostic)
+	}
+	if code, report, _ = docsCheck(t, fx, "failed"); code != 2 || !slices.Contains(failureCodes(report), "rendered-bytes-differ docs/flows.md") {
+		t.Fatalf("check without the waiver file passed a WAIVED page: %d %v", code, failureCodes(report))
+	}
+	shopWrite(t, fx.root, map[string]string{"flow-doc-waivers.json": checkoutWaivers("2020-01-01")})
+	shopCommit(t, fx.root, "H: waiver expired")
+	code, report, _ = docsCheck(t, fx, "failed", "--waivers", "flow-doc-waivers.json")
+	wantExpired := []appflows.DocExpiredWaiver{{Claim: "checkout/checkout.happy/paid", Expires: "2020-01-01"}, {Claim: "docs/guide.md:checkout/checkout.happy/paid", Expires: "2020-01-01"}}
+	if code != 2 || len(report.Waived) != 0 || !slices.Equal(report.ExpiredWaivers, wantExpired) || !slices.Contains(failureCodes(report), "rendered-bytes-differ docs/flows.md") {
+		t.Fatalf("expired waiver %d %v %+v", code, failureCodes(report), report)
+	}
+	if code, _, _ := runFlowsCLI(fx.root, append(slices.Clone(docsArgs), "--waivers", "flow-doc-waivers.json", "--evidence", docsEvidence(t, fx, "failed"))...); code != 0 {
+		t.Fatal("regenerate after expiry")
+	}
+	page, _ = os.ReadFile(filepath.Join(fx.root, "docs", "flows.md"))
+	if strings.Contains(string(page), "WAIVED") || !strings.Contains(string(page), "  - **CONTRADICTED:** `checkout/checkout.happy/paid`") {
+		t.Fatalf("expired waiver still marks the page:\n%s", page)
 	}
 }
 
@@ -199,16 +267,24 @@ func TestAFUV1033AnchoredMarkdown(t *testing.T) {
 	}
 }
 
-// AFU-V1-032: an unexpired waiver for an anchored claim that is no longer rendered keeps its
-// committed form for the byte comparison, so the sidecar still matches.
+// AFU-V1-032 DMF-V1-001: an unexpired waiver for an anchored claim that is no longer rendered
+// excuses the lost PROVEN, but the committed form is not restored: the sidecar fails on its bytes
+// until regenerated, and then the check passes.
 func TestAFUV1032WaiverKeepsUnrenderedClaim(t *testing.T) {
 	fx := newDocsFixture(t)
 	shopWrite(t, fx.root, map[string]string{"docs/guide.md": "# Guide\n\nPaying completes the order.\n",
 		"flow-doc-waivers.json": `{"schema":"flow-doc-waivers/0","waivers":[{"claim":"docs/guide.md:checkout/checkout.happy/paid","reason":"guide rewrite","reviewer":"docs owner","expires":"2099-12-31"}]}` + "\n"})
 	shopCommit(t, fx.root, "F: drop the guide anchor under a waiver")
 	code, report, diagnostic := docsCheck(t, fx, "passed", "--waivers", "flow-doc-waivers.json")
-	if code != 0 || report.Status != "pass" || !slices.Equal(report.Waived, []string{"docs/guide.md:checkout/checkout.happy/paid"}) {
-		t.Fatalf("waived unrendered claim %d %v %v %s", code, failureCodes(report), report.Waived, diagnostic)
+	if code != 2 || !slices.Equal(failureCodes(report), []string{"rendered-bytes-differ docs/flows.claims.json"}) {
+		t.Fatalf("waived unrendered claim %d %v %s", code, failureCodes(report), diagnostic)
+	}
+	if code, _, diagnostic = runFlowsCLI(fx.root, append(slices.Clone(docsArgs), "--waivers", "flow-doc-waivers.json", "--evidence", docsEvidence(t, fx, "passed"))...); code != 0 {
+		t.Fatalf("regenerate %d %s", code, diagnostic)
+	}
+	shopCommit(t, fx.root, "G: regenerate")
+	if code, report, diagnostic = docsCheck(t, fx, "passed", "--waivers", "flow-doc-waivers.json"); code != 0 || report.Status != "pass" {
+		t.Fatalf("after regeneration %d %v %s", code, failureCodes(report), diagnostic)
 	}
 }
 
@@ -226,5 +302,52 @@ func TestAFUV1033NonRegularMarkdownSkipped(t *testing.T) {
 	}
 	if code, out, diagnostic := runFlowsCLI(fx.root, append(docsArgs, "--evidence", docsEvidence(t, fx, "passed"))...); code != 0 {
 		t.Fatalf("render with symlinked Markdown %d %s %s", code, out, diagnostic)
+	}
+}
+
+// DMF-V1-005: flows docs --check says the worktree is clean, then dirty counting the one generated
+// page edited and not committed, while still answering about HEAD.
+func TestDMFV1005FlowsDocsCheckWorktree(t *testing.T) {
+	fx := newDocsFixture(t)
+	code, report, diagnostic := docsCheck(t, fx, "passed")
+	if code != 0 || report.Worktree == nil || report.Worktree.State != "clean" {
+		t.Fatalf("clean %d %+v %s", code, report.Worktree, diagnostic)
+	}
+	shopWrite(t, fx.root, map[string]string{"docs/flows.md": "# Edited, not committed\n", "notes/unrelated.md": "untracked\n"})
+	code, report, diagnostic = docsCheck(t, fx, "passed")
+	w := report.Worktree
+	if code != 0 || report.Status != "pass" || w == nil || w.State != "dirty" || w.Changed != 1 || !slices.Equal(w.Paths, []string{"docs/flows.md"}) {
+		t.Fatalf("dirty %d %+v %s", code, w, diagnostic)
+	}
+}
+
+// DMF-V1-006: when a claim committed PROVEN is now CONTRADICTED, the byte failure lists it from
+// PROVEN to CONTRADICTED, says the page and the sidecar differ and names the regenerate command;
+// with the committed sidecar gone the claim list is UNKNOWN and the byte failure still stands.
+func TestDMFV1006ByteFailureNamesChangedClaims(t *testing.T) {
+	fx := newDocsFixture(t)
+	code, report, diagnostic := docsCheck(t, fx, "passed")
+	if code != 0 || report.ByteDetail != nil {
+		t.Fatalf("clean check carries byte detail %d %+v %s", code, report.ByteDetail, diagnostic)
+	}
+	code, report, _ = docsCheck(t, fx, "failed")
+	d := report.ByteDetail
+	want := []appflows.DocClaimChange{
+		{Claim: "checkout/checkout.happy/paid", Change: "state", Old: appflows.ClaimProven, New: appflows.ClaimContradicted},
+		{Claim: "docs/guide.md:checkout/checkout.happy/paid", Change: "state", Old: appflows.ClaimProven, New: appflows.ClaimContradicted},
+	}
+	if code != 2 || d == nil || d.Differs != "both" || d.ClaimsState != appflows.DocClaimsKnown || !slices.Equal(d.Claims, want) {
+		t.Fatalf("byte detail %d %+v", code, d)
+	}
+	if !strings.HasPrefix(d.Regenerate, "corvint-docs flows docs --flows flows --page docs/flows.md --claims docs/flows.claims.json --docs-root docs --registry runs/registry.json --evidence ") {
+		t.Fatalf("regenerate command %q", d.Regenerate)
+	}
+	shopGit(t, fx.root, "rm", "-q", "docs/flows.claims.json")
+	shopCommit(t, fx.root, "F: drop the sidecar")
+	code, report, _ = docsCheck(t, fx, "passed")
+	d = report.ByteDetail
+	if code != 2 || !slices.Contains(failureCodes(report), "rendered-bytes-differ docs/flows.claims.json") || d == nil || d.Differs != "sidecar" ||
+		d.ClaimsState != appflows.DocClaimsUnknown || len(d.Claims) != 0 || d.Reason == "" {
+		t.Fatalf("missing sidecar %d %v %+v", code, failureCodes(report), d)
 	}
 }

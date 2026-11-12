@@ -3,37 +3,28 @@ package jstestprovider
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
-const (
-	AttestedExternalProfile               = "corvint-playwright-external/1"
-	ApplicationAttestationProfile         = "corvint-application-attestation/0"
-	ApplicationAttestationProviderProfile = "corvint-application-attestation-command/0"
-	applicationAttestationConfigProfile   = "corvint-application-attestation-config/0"
-	applicationAttestationLimit           = 64 << 10
-	applicationAttestationExecutableLimit = 64 << 20
-)
+// AttestedExternalProfile is jstestreceipt.AttestedExternalProfile, kept under its old name.
+const AttestedExternalProfile = jstestreceipt.AttestedExternalProfile
 
-var (
-	gitOIDPattern    = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
-	digestPattern    = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
-	rawDigestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	tokenPattern     = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
-)
+// ApplicationAttestationProfile is jstestreceipt.ApplicationAttestationProfile, kept under its old name.
+const ApplicationAttestationProfile = jstestreceipt.ApplicationAttestationProfile
+
+// ApplicationAttestationProviderProfile is jstestreceipt.ApplicationAttestationProviderProfile, kept under its old name.
+const ApplicationAttestationProviderProfile = jstestreceipt.ApplicationAttestationProviderProfile
 
 // ApplicationAttestationProvider is the typed, bounded local command used to
 // observe an externally owned application. Corvint supplies the canonical
@@ -42,11 +33,6 @@ type ApplicationAttestationProvider struct {
 	Argv       []string
 	ConfigFile string
 	Timeout    time.Duration
-}
-
-type applicationAttestationConfig struct {
-	Profile     string                            `json:"profile"`
-	Expectation ApplicationAttestationExpectation `json:"expectation"`
 }
 
 type preparedApplicationAttestationProvider struct {
@@ -59,10 +45,6 @@ type preparedApplicationAttestationProvider struct {
 	timeout     time.Duration
 }
 
-func isExternalProfile(profile string) bool {
-	return profile == ExternalProfile || profile == AttestedExternalProfile || profile == SensitiveExternalProfile || profile == AttemptExternalProfile
-}
-
 func prepareApplicationAttestationProvider(cfg ApplicationAttestationProvider, dir, scratch string, environment map[string]string) (*preparedApplicationAttestationProvider, error) {
 	if len(cfg.Argv) == 0 || cfg.ConfigFile == "" || !filepath.IsAbs(cfg.ConfigFile) {
 		return nil, errors.New("application-attestation-provider-required")
@@ -71,16 +53,16 @@ func prepareApplicationAttestationProvider(cfg ApplicationAttestationProvider, d
 	if !filepath.IsAbs(resolved[0]) {
 		return nil, errors.New("application-attestation-provider-unavailable")
 	}
-	executable, err := readBoundedRegularFile(resolved[0], applicationAttestationExecutableLimit)
+	executable, err := readBoundedRegularFile(resolved[0], jstestreceipt.ApplicationAttestationExecutableLimit)
 	if err != nil {
 		return nil, errors.New("application-attestation-provider-unavailable")
 	}
-	configRaw, err := readBoundedRegularFile(cfg.ConfigFile, applicationAttestationLimit)
+	configRaw, err := readBoundedRegularFile(cfg.ConfigFile, jstestreceipt.ApplicationAttestationLimit)
 	if err != nil {
 		return nil, errors.New("application-attestation-config-unavailable")
 	}
-	var config applicationAttestationConfig
-	if err := decodeCanonical(configRaw, &config); err != nil || config.Profile != applicationAttestationConfigProfile || validateExpectation(config.Expectation) != "" {
+	var config jstestreceipt.ApplicationAttestationConfig
+	if err := decodeCanonical(configRaw, &config); err != nil || config.Profile != jstestreceipt.ApplicationAttestationConfigProfile || jstestreceipt.ValidateExpectation(config.Expectation) != "" {
 		return nil, errors.New("application-attestation-config-invalid")
 	}
 	staged := filepath.Join(scratch, "application-attestation-provider")
@@ -102,9 +84,9 @@ func prepareApplicationAttestationProvider(cfg ApplicationAttestationProvider, d
 		Profile:          ApplicationAttestationProviderProfile,
 		Argv:             append([]string(nil), resolved...),
 		ExecutablePath:   resolved[0],
-		ExecutableDigest: sha256Hex(executable),
+		ExecutableDigest: jstestreceipt.Sha256Hex(executable),
 		ConfigPath:       cfg.ConfigFile,
-		ConfigDigest:     sha256Hex(configRaw),
+		ConfigDigest:     jstestreceipt.Sha256Hex(configRaw),
 		Environment:      providerEnvironment,
 	}
 	receipt := ApplicationAttestationReceipt{Provider: identity, Expectation: config.Expectation, Failures: []string{}}
@@ -112,7 +94,7 @@ func prepareApplicationAttestationProvider(cfg ApplicationAttestationProvider, d
 }
 
 func (provider *preparedApplicationAttestationProvider) observe(ctx context.Context) (*ApplicationAttestationObservation, string) {
-	obs := procgroup.Run(ctx, procgroup.Spec{Argv: provider.command, Dir: provider.dir, Env: provider.environment, Stdin: provider.configRaw, Timeout: provider.timeout, OutputLimit: applicationAttestationLimit})
+	obs := procgroup.Run(ctx, procgroup.Spec{Argv: provider.command, Dir: provider.dir, Env: provider.environment, Stdin: provider.configRaw, Timeout: provider.timeout, OutputLimit: jstestreceipt.ApplicationAttestationLimit})
 	if obs.Cancelled {
 		return nil, "application-attestation-provider-cancelled"
 	}
@@ -126,23 +108,23 @@ func (provider *preparedApplicationAttestationProvider) observe(ctx context.Cont
 	if err := decodeCanonical(obs.Stdout, &attestation); err != nil {
 		return nil, "application-attestation-output-invalid"
 	}
-	if reason := validateAttestationShape(attestation); reason != "" {
+	if reason := jstestreceipt.ValidateAttestationShape(attestation); reason != "" {
 		return nil, reason
 	}
-	observation := &ApplicationAttestationObservation{OutputDigest: sha256Hex(obs.Stdout), Attestation: attestation}
-	if reason := compareExpectation(provider.receipt.Expectation, attestation); reason != "" {
+	observation := &ApplicationAttestationObservation{OutputDigest: jstestreceipt.Sha256Hex(obs.Stdout), Attestation: attestation}
+	if reason := jstestreceipt.CompareExpectation(provider.receipt.Expectation, attestation); reason != "" {
 		return observation, reason
 	}
 	return observation, ""
 }
 
 func (provider *preparedApplicationAttestationProvider) unchanged() bool {
-	executable, err := readBoundedRegularFile(provider.receipt.Provider.ExecutablePath, applicationAttestationExecutableLimit)
-	if err != nil || sha256Hex(executable) != provider.receipt.Provider.ExecutableDigest {
+	executable, err := readBoundedRegularFile(provider.receipt.Provider.ExecutablePath, jstestreceipt.ApplicationAttestationExecutableLimit)
+	if err != nil || jstestreceipt.Sha256Hex(executable) != provider.receipt.Provider.ExecutableDigest {
 		return false
 	}
-	config, err := readBoundedRegularFile(provider.configPath, applicationAttestationLimit)
-	return err == nil && sha256Hex(config) == provider.receipt.Provider.ConfigDigest
+	config, err := readBoundedRegularFile(provider.configPath, jstestreceipt.ApplicationAttestationLimit)
+	return err == nil && jstestreceipt.Sha256Hex(config) == provider.receipt.Provider.ConfigDigest
 }
 
 func readBoundedRegularFile(path string, limit int64) ([]byte, error) {
@@ -167,7 +149,7 @@ func readBoundedRegularFile(path string, limit int64) ([]byte, error) {
 }
 
 func decodeCanonical(data []byte, output any) error {
-	if len(data) == 0 || len(data) > applicationAttestationLimit || secretscreen.MatchString(string(data)) {
+	if len(data) == 0 || len(data) > jstestreceipt.ApplicationAttestationLimit || secretscreen.MatchString(string(data)) {
 		return errors.New("invalid-canonical-input")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -187,132 +169,6 @@ func decodeCanonical(data []byte, output any) error {
 		return errors.New("noncanonical-input")
 	}
 	return nil
-}
-
-func validateExpectation(expectation ApplicationAttestationExpectation) string {
-	if !validRepositoryExpectation(expectation.Repository) {
-		return "application-attestation-expectation-invalid"
-	}
-	if !validArtifact(expectation.Build) || !validArtifact(expectation.Configuration) || !tokenPattern.MatchString(expectation.InstanceKind) {
-		return "application-attestation-expectation-invalid"
-	}
-	return ""
-}
-
-func validRepositoryExpectation(repository ApplicationRepositoryExpectation) bool {
-	if !gitOIDPattern.MatchString(repository.RootCommit) || !gitOIDPattern.MatchString(repository.Revision) || !gitOIDPattern.MatchString(repository.Tree) {
-		return false
-	}
-	switch repository.DirtyPolicy {
-	case "require-clean":
-		return repository.DirtyDigest == ""
-	case "allow-dirty-with-digest":
-		return digestPattern.MatchString(repository.DirtyDigest)
-	default:
-		return false
-	}
-}
-
-func validArtifact(artifact ApplicationArtifactIdentity) bool {
-	return tokenPattern.MatchString(artifact.Kind) && digestPattern.MatchString(artifact.Digest)
-}
-
-func validateAttestationShape(attestation ApplicationAttestation) string {
-	if attestation.Profile != ApplicationAttestationProfile {
-		return "application-attestation-profile-unknown"
-	}
-	repository := attestation.Repository
-	if !gitOIDPattern.MatchString(repository.RootCommit) || !gitOIDPattern.MatchString(repository.Revision) || !gitOIDPattern.MatchString(repository.Tree) {
-		return "application-attestation-identity-unavailable"
-	}
-	if repository.DirtyState != "clean" && repository.DirtyState != "dirty" {
-		return "application-attestation-identity-unavailable"
-	}
-	if repository.DirtyState == "clean" && repository.DirtyDigest != "" {
-		return "application-attestation-contradictory"
-	}
-	if repository.DirtyState == "dirty" && !digestPattern.MatchString(repository.DirtyDigest) {
-		return "application-attestation-identity-unavailable"
-	}
-	if !validArtifact(attestation.Build) || !validArtifact(attestation.Configuration) {
-		return "application-attestation-identity-unavailable"
-	}
-	if !tokenPattern.MatchString(attestation.Instance.Kind) || strings.TrimSpace(attestation.Instance.ID) == "" || strings.TrimSpace(attestation.Instance.StartGeneration) == "" || len(attestation.Instance.ID) > 4096 || len(attestation.Instance.StartGeneration) > 4096 {
-		return "application-attestation-identity-unavailable"
-	}
-	if attestation.Health.State != "healthy" && attestation.Health.State != "unhealthy" && attestation.Health.State != "unknown" {
-		return "application-attestation-contradictory"
-	}
-	if len(attestation.Health.Detail) > 4096 {
-		return "application-attestation-output-invalid"
-	}
-	if attestation.Health.State != "healthy" {
-		return "application-attestation-unhealthy"
-	}
-	return ""
-}
-
-func compareExpectation(expectation ApplicationAttestationExpectation, actual ApplicationAttestation) string {
-	switch {
-	case actual.Repository.RootCommit != expectation.Repository.RootCommit:
-		return "application-root-commit-mismatch"
-	case actual.Repository.Revision != expectation.Repository.Revision:
-		return "application-revision-mismatch"
-	case actual.Repository.Tree != expectation.Repository.Tree:
-		return "application-tree-mismatch"
-	case expectation.Repository.DirtyPolicy == "require-clean" && actual.Repository.DirtyState != "clean":
-		return "application-dirty-policy-mismatch"
-	case expectation.Repository.DirtyPolicy == "allow-dirty-with-digest" && actual.Repository.DirtyDigest != expectation.Repository.DirtyDigest:
-		return "application-dirty-digest-mismatch"
-	case actual.Build != expectation.Build:
-		return "application-build-mismatch"
-	case actual.Configuration != expectation.Configuration:
-		return "application-configuration-mismatch"
-	case actual.Instance.Kind != expectation.InstanceKind:
-		return "application-instance-kind-mismatch"
-	}
-	return ""
-}
-
-func compareApplicationAttestations(before, after ApplicationAttestation) []string {
-	var failures []string
-	if before.Repository != after.Repository {
-		failures = append(failures, "application-repository-drift")
-	}
-	if before.Build != after.Build {
-		failures = append(failures, "application-build-drift")
-	}
-	if before.Configuration != after.Configuration {
-		failures = append(failures, "application-configuration-drift")
-	}
-	if before.Instance != after.Instance {
-		failures = append(failures, "application-restarted")
-	}
-	return failures
-}
-
-func applicationAttestationUnknown(receipt *ApplicationAttestationReceipt) bool {
-	if receipt == nil || len(receipt.Failures) != 0 || receipt.Before == nil || receipt.After == nil {
-		return true
-	}
-	if receipt.Provider.Profile != ApplicationAttestationProviderProfile || len(receipt.Provider.Argv) == 0 || receipt.Provider.Argv[0] != receipt.Provider.ExecutablePath || !filepath.IsAbs(receipt.Provider.ExecutablePath) || !rawDigestPattern.MatchString(receipt.Provider.ExecutableDigest) || !filepath.IsAbs(receipt.Provider.ConfigPath) || !rawDigestPattern.MatchString(receipt.Provider.ConfigDigest) || receipt.Provider.Environment == nil {
-		return true
-	}
-	if validateExpectation(receipt.Expectation) != "" {
-		return true
-	}
-	config, err := json.Marshal(applicationAttestationConfig{Profile: applicationAttestationConfigProfile, Expectation: receipt.Expectation})
-	if err != nil || sha256Hex(append(config, '\n')) != receipt.Provider.ConfigDigest {
-		return true
-	}
-	for _, observation := range []*ApplicationAttestationObservation{receipt.Before, receipt.After} {
-		canonical, err := json.Marshal(observation.Attestation)
-		canonical = append(canonical, '\n')
-		if err != nil || sha256Hex(canonical) != observation.OutputDigest || validateAttestationShape(observation.Attestation) != "" || compareExpectation(receipt.Expectation, observation.Attestation) != "" {
-			return true
-		}
-	}
-	return len(compareApplicationAttestations(receipt.Before.Attestation, receipt.After.Attestation)) != 0
 }
 
 // ObserveTestRepositoryAtStart returns the test repository identity of dir
@@ -339,7 +195,7 @@ func observeTestRepository(ctx context.Context, dir string) (*ApplicationReposit
 		return nil, "test-repository-identity-unavailable"
 	}
 	lines := strings.Fields(string(identity))
-	if len(lines) != 2 || !gitOIDPattern.MatchString(lines[0]) || !gitOIDPattern.MatchString(lines[1]) {
+	if len(lines) != 2 || !jstestreceipt.GitOIDPattern.MatchString(lines[0]) || !jstestreceipt.GitOIDPattern.MatchString(lines[1]) {
 		return nil, "test-repository-identity-unavailable"
 	}
 	// Safe unguarded (EEP-V0-771): gitObservationEnvironment disables info/grafts, so no graft
@@ -350,7 +206,7 @@ func observeTestRepository(ctx context.Context, dir string) (*ApplicationReposit
 		return nil, "test-repository-identity-unavailable"
 	}
 	rootCommits := strings.Fields(string(roots))
-	if len(rootCommits) != 1 || !gitOIDPattern.MatchString(rootCommits[0]) {
+	if len(rootCommits) != 1 || !jstestreceipt.GitOIDPattern.MatchString(rootCommits[0]) {
 		return nil, "test-repository-identity-unavailable"
 	}
 	status, failure := gitObservation(ctx, canonicalRoot, "status", "--porcelain=v1", "-z", "--untracked-files=all")
@@ -360,7 +216,7 @@ func observeTestRepository(ctx context.Context, dir string) (*ApplicationReposit
 	repository := &ApplicationRepositoryIdentity{RootCommit: rootCommits[0], Revision: lines[0], Tree: lines[1], DirtyState: "clean"}
 	if len(status) != 0 {
 		repository.DirtyState = "dirty"
-		repository.DirtyDigest = "sha256:" + sha256Hex(status)
+		repository.DirtyDigest = "sha256:" + jstestreceipt.Sha256Hex(status)
 		return repository, "test-repository-dirty"
 	}
 	return repository, ""
@@ -379,7 +235,7 @@ func gitObservation(ctx context.Context, dir string, args ...string) ([]byte, st
 func runGitObservation(ctx context.Context, dir string, args ...string) procgroup.Observation {
 	// GIT_GRAFT_FILE names the null device; keep Git's graft advice off stderr (V1-3588).
 	argv := resolveArgv(append([]string{"git", "-c", "advice.graftFileDeprecated=false", "-C", dir}, args...))
-	return procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: gitObservationEnvironment(), Timeout: 5 * time.Second, OutputLimit: applicationAttestationLimit})
+	return procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: gitObservationEnvironment(), Timeout: 5 * time.Second, OutputLimit: jstestreceipt.ApplicationAttestationLimit})
 }
 
 func gitObservationEnvironment() []string {
@@ -392,21 +248,6 @@ func gitObservationEnvironment() []string {
 	}
 	// Git honours info/grafts even with replace objects disabled; /dev/null disables it.
 	return append(clean, "GIT_GRAFT_FILE="+os.DevNull)
-}
-
-func testRepositoryUnknown(start, publish *ApplicationRepositoryIdentity) bool {
-	if start == nil || publish == nil || *start != *publish {
-		return true
-	}
-	if start.DirtyState != "clean" || start.DirtyDigest != "" {
-		return true
-	}
-	return !gitOIDPattern.MatchString(start.RootCommit) || !gitOIDPattern.MatchString(start.Revision) || !gitOIDPattern.MatchString(start.Tree)
-}
-
-func sha256Hex(data []byte) string {
-	digest := sha256.Sum256(data)
-	return hex.EncodeToString(digest[:])
 }
 
 func cloneStrings(input map[string]string) map[string]string {

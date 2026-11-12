@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 func TestProjectPinnedKeepsNativeAxesAndUnknownBuild(t *testing.T) {
 	for _, kind := range []string{"unit", "e2e"} {
 		for _, state := range []string{"passed", "failed", "skipped", "flaky"} {
-			raw, _ := json.Marshal(map[string]any{"receipt": map[string]any{"kind": kind, "identity": map[string]any{"testFileDigests": map[string]string{"test.ts": digestHex([]byte("test"))}}, "appBuildAtPublish": map[string]any{"unknown": true}, "tests": []any{map[string]any{"fullName": "exact", "state": state}}}})
+			raw, _ := json.Marshal(map[string]any{"receipt": map[string]any{"kind": kind, "identity": map[string]any{"testFileDigests": map[string]string{"test.ts": testvaliditymodel.DigestHex([]byte("test"))}}, "appBuildAtPublish": map[string]any{"unknown": true}, "tests": []any{map[string]any{"fullName": "exact", "state": state}}}})
 			input, err := Decode(raw)
 			if err != nil {
 				t.Fatal(err)

@@ -373,14 +373,21 @@ exactly one literal `## HEADING` line outside fenced code, and its excerpt is th
 HEADING is 1..200 bytes of printable UTF-8 without a newline or surrounding spaces. A non-default
 section adds the header line `Owner section: ` followed by the backticked quoted heading, like the
 other header metadata; the default `Agent digest` keeps the preamble-plus-digest excerpt and its
-bytes. The product check lives in `internal/doccitations`. `corvint docs citations check [--root PATH] [PATH...]` is the product line-citation
+bytes. The product check lives in `internal/doccitations`. `corvint docs citations check [--root PATH] [--json] [PATH...]` is the product line-citation
 check for any Git repository: it scans tracked Markdown (or the named tracked files) for backticked
 `path:N`, `path:N-M` or `path:N,M[,…]` tokens with an optional `@HEX` anchor whose path is a tracked
 file, reads each cited file's index blob, and reports per citation `out-of-range`, `trivial-span`
 (only blank or closing-punctuation lines) or `anchor-mismatch` (the anchor is not a prefix of the
 SHA-256 of the cited right-trimmed lines joined by LF, the same rule as `script/check-line-citations.sh`);
-a token whose path has a `/` and whose first segment is a tracked directory but is not itself
-tracked is `missing-file`. Output is one line per failure and a summary; exit 0 when clean, 1 on any
+a token whose path is not tracked, whatever its directory, is `missing-file` (DMF-V1-004, superseding
+the earlier tracked-directory rule). A token inside fenced code is example text: it is skipped and
+counted; a fence still open at the end of its document is an `unclosed-fence` failure naming the
+document and the opening line. A checked citation of a tracked file with no `@HEX` anchor is listed as unpinned and is not a
+failure. `--json` prints `corvint-docs-citations-check/0` with one object per failure, the unpinned
+citations, the counts and the `worktree` member (DMF-V1-005: whether a read document or cited file
+differs from the index; the answer stays about the index), and the text output adds a worktree line
+only when it is dirty or unknown. Output is one line per failure and a summary that also counts
+unpinned and fenced citations; exit 0 when clean, 1 on any
 failure, 2 with `citations-check-failed` on argument or repository errors. It reads only and writes nothing. It does not replace
 the repository's own `make line-citations-check`, whose extra Corvint scope rules remain script
 policy. Evidence: `TestSDDV0633OwnerSectionDraftsWithoutAgentDigest`,
@@ -403,7 +410,7 @@ experimental under the standing lane auto-accept (V1-3720).
 corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
 corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
 corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md
-corvint [--root PATH] docs citations check [PATH...]
+corvint [--root PATH] docs citations check [--json] [PATH...]
 ```
 
 Help must disclose the admission prerequisites: committed HEAD sources; admitted tracked,
@@ -431,7 +438,11 @@ This adds no fields or semantics to existing commands or frozen protocols.
 
 Argument errors use the existing `invalid-arguments` stderr envelope. Draft failures use
 `unsupported-documentation-source`, `documentation-limit-exceeded`, or `stale-documentation-draft`
-in the existing JSON stderr envelope, nonzero exit and empty stdout. Git/context cancellation errors
+in the existing JSON stderr envelope, nonzero exit and empty stdout. Byte binding stays strict; a
+`stale-documentation-draft` message names the commit and tree the supplied draft was bound to and
+the ones the sources are now at (or says the draft names the current commit, so its bytes were
+edited or drafted under another policy or page), and names the `docs draft` command that drafts
+again (DMF-V1-013). Git/context cancellation errors
 retain existing error handling. Commands do not write repository, index or trace state except the
 existing bounded local self-observation ledger on non-query `unsupported-*` failures (SOL-V0-007,
 product invariant 4). Its closed writer code set admits exactly `unsupported-documentation-source`

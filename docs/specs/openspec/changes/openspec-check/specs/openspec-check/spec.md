@@ -41,15 +41,24 @@ retired ID MUST NOT be added again. (G14; owner decision R11 (2026-11-09) on fre
 
 ### Requirement: OSC-V1-003 Commits bind to a change
 
-Every non-merge commit in the checked range that touches a path outside `docs/` MUST carry either a
-`Change: <name>` trailer naming an active or archived change folder, or a `Requirement: <ID>` trailer
-naming an existing accepted requirement. (owner decision R41 (2026-11-09); PROD-INT-011)
+Every non-merge commit in the checked range that opts in to a change and touches a path outside
+`docs/` MUST bind to a change or name an existing accepted requirement. A commit opts in when it
+touches a path under `docs/specs/openspec/changes/<name>/`, carries a `Change: <name>` trailer, or
+carries a `Corvint-Ticket:` trailer naming a ticket that a proposal's `Ticket:` header names; every
+other commit is out of scope. (owner decision R41 (2026-11-09); orchestrator decision 2026-11-11;
+PROD-INT-011)
 
-#### Scenario: A code commit with no trailer
+#### Scenario: A code commit naming a missing change
 
-- **GIVEN** a commit changing a Go file with neither trailer
+- **GIVEN** a commit changing a Go file with `Change: nope` and no folder `nope`
 - **WHEN** the check runs over a range that contains it
-- **THEN** it fails and names the commit and the paths
+- **THEN** it fails and names the commit and the trailer
+
+#### Scenario: An ordinary commit
+
+- **GIVEN** a commit changing a Go file whose `Corvint-Ticket:` no proposal names
+- **WHEN** the check runs over a range that contains it
+- **THEN** the commit gets no finding
 
 ### Requirement: OSC-V1-004 Propose stage: the folder comes first
 
@@ -202,8 +211,9 @@ the audit command `make spec-acceptance-audit` (SRG-V0-009, SRG-V0-010). (owner 
 
 The check MUST run as the Make target `openspec-check` inside `doc-gates` and the `focused-docs`
 gate. When it cannot read the history it needs, it MUST refuse with `history-unavailable` and a
-non-zero exit. Without a range it MUST report the stage rules as NOT_RUN. Folders listed in the
-committed baseline file are reported but do not fail; the baseline MUST only shrink. (G14)
+non-zero exit. Without a range it MUST report the stage rules as NOT_RUN. Findings listed in the
+committed baseline file, entry by entry (rule, subject and finding key), are reported but do not
+fail; any other finding fails; the baseline MUST only shrink. (G14)
 
 #### Scenario: A shallow clone
 
