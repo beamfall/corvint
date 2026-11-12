@@ -16,6 +16,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/runevidence"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // rvdStore is the fixture repository's run evidence store.
@@ -245,44 +246,51 @@ func TestRVDV1007ProdTest020TestThenFlowsStatus(t *testing.T) {
 	}
 }
 
-// RVD-V1-011: stored results never narrow selection. A test that passed in twenty stored records,
-// and one that failed, leave the corvint test plan and the corvint affected report byte-identical.
-func TestRVDV1011StoredResultsDoNotChangePlan(t *testing.T) {
-	root, base, _ := sessionFixture(t, "pass")
-	if code, _, stderr := runCLI(t, "--root", root, "test", "--base", base); code != 0 {
-		t.Fatalf("corvint test %d %s", code, stderr)
-	}
-	plan := func() (string, string) {
-		code, dry, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full")
-		if code != 0 {
-			t.Fatalf("dry run %d %s", code, stderr)
-		}
-		code, report, stderr := runCLI(t, "--root", root, "affected", "--base", base)
-		if code != 0 {
-			t.Fatalf("affected %d %s", code, stderr)
-		}
-		return dry, report
-	}
-	dryBefore, affectedBefore := plan()
-	receipt, err := os.ReadFile(filepath.Join(root, ".git", "corvint", "test-run.json"))
-	if err != nil {
+// RVD-V1-004, RVD-V1-012: one corvint watch save that runs tests appends exactly one record, a
+// corvint-test-run/0 receipt the strict receipt reader accepts (the shape corvint test writes),
+// naming tool "corvint watch", the planned package's outcome and its measured time, and the dirty
+// working tree. The save is injected on --events-stdin, so no file-system watch or sleep runs. A
+// --dry-run save appends nothing.
+func TestRVDV1004WatchAppendsOneRecordPerSave(t *testing.T) {
+	root, index := watchModule(t)
+	if err := os.WriteFile(filepath.Join(root, "p", "p.go"), []byte("package p\nfunc F() int {\n return 2\n}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	store := rvdStore(root)
-	for run := range 20 {
-		varied := bytes.Replace(receipt, []byte(`"completedAt":"`), []byte(fmt.Sprintf(`"completedAt":"%02d`, run)), 1)
-		if _, err := store.Append(varied); err != nil {
-			t.Fatal(err)
-		}
+	if code, _, stderr := watchCLI(t, "save\n", "--root", root, "watch", "--index", index, "--events-stdin", "--dry-run", "--packages", "p"); code != 0 {
+		t.Fatalf("dry-run watch %d %s", code, stderr)
 	}
-	if _, err := store.Append(bytes.Replace(receipt, []byte(`"outcome":"PASS"`), []byte(`"outcome":"FAIL"`), 1)); err != nil {
-		t.Fatal(err)
+	if _, err := os.Lstat(store.Dir); !os.IsNotExist(err) {
+		t.Fatalf("a dry-run watch wrote the store: %v", err)
 	}
-	if snapshot, err := store.Read(); err != nil || len(snapshot.Records) < 20 {
-		t.Fatalf("store %d records %v", len(snapshot.Records), err)
+	code, stdout, stderr := watchCLI(t, "save\n", "--root", root, "watch", "--index", index, "--events-stdin", "--packages", "p")
+	if events := watchEvents(t, stdout); code != 0 || len(events) != 2 || events[1].Kind != "result" || events[1].ExitCode != 0 {
+		t.Fatalf("watch %d %s %s", code, stdout, stderr)
 	}
-	if dryAfter, affectedAfter := plan(); dryAfter != dryBefore || affectedAfter != affectedBefore {
-		t.Fatalf("stored results changed the plan:\n%s\n%s\n---\n%s\n%s", dryBefore, dryAfter, affectedBefore, affectedAfter)
+	if strings.Contains(stderr, "run-evidence-write-failed") {
+		t.Fatalf("watch append failed: %s", stderr)
+	}
+	snapshot, err := store.Read()
+	if err != nil || len(snapshot.Records) != 1 || len(snapshot.Reasons) != 0 {
+		t.Fatalf("store after one save: %d records %v %v", len(snapshot.Records), snapshot.Reasons, err)
+	}
+	record := snapshot.Records[0]
+	receipt, err := sessiontest.ReadReceipt(filepath.Join(store.Dir, "records", record.Entry.ID+".json"))
+	if err != nil {
+		t.Fatalf("the watch record is not a corvint-test-run/0 receipt: %v", err)
+	}
+	head := strings.TrimSpace(watchGit(t, root, "rev-parse", "HEAD"))
+	if receipt.Tool != sessiontest.ToolWatch || receipt.Source.Head != head || len(receipt.Source.Paths) != 1 || receipt.Source.Paths[0].Path != "p/p.go" ||
+		receipt.Result != sessiontest.ResultPass || len(receipt.Invocations) != 1 {
+		t.Fatalf("watch receipt %+v", receipt)
+	}
+	if len(record.Rows) != 1 {
+		t.Fatalf("rows %+v", record.Rows)
+	}
+	row := record.Rows[0]
+	if row.TestID != "go:example.com/m/p" || row.Outcome != "passed" || row.Slice != sessiontest.SliceSelected || row.Clean ||
+		row.DurationSource != "go-test2json" || row.DurationMs == nil || record.Entry.Profile != runevidence.ProfileReceipt {
+		t.Fatalf("watch row %+v entry %+v", row, record.Entry)
 	}
 }
 
@@ -300,7 +308,7 @@ func TestRVDV1008NoListingVerb(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &catalog); err != nil || len(catalog.Commands) == 0 {
 		t.Fatalf("catalog %v", err)
 	}
-	allowed := map[string]bool{"test": true, "flows": true, "test-evidence": true}
+	allowed := map[string]bool{"test": true, "watch": true, "flows": true, "test-evidence": true}
 	for _, raw := range catalog.Commands {
 		var command struct{ Name string }
 		if err := json.Unmarshal(raw, &command); err != nil {
@@ -312,5 +320,19 @@ func TestRVDV1008NoListingVerb(t *testing.T) {
 	}
 	if code, out, _ := runCLI(t, "runs", "--help"); strings.Contains(strings.ToLower(out), "evidence store") {
 		t.Fatalf("corvint runs reads the store: %d %s", code, out)
+	}
+}
+
+// rvdV1008Gate is why the RVD-V1-008 "removed verb" scenario cannot hold on this tree.
+const rvdV1008Gate = "gated on change source-removal: `corvint runs` still exists until that change deletes it"
+
+// RVD-V1-008 scenario "removed verb": after delivery `corvint runs` is unknown, as after change
+// source-removal. It is gated on that change, which run-evidence precedes (R38), so it is skipped
+// until source-removal lands; the check below is what it then proves.
+func TestRVDV1008RunsVerbIsUnknown(t *testing.T) {
+	t.Skip(rvdV1008Gate)
+	code, _, stderr := runCLI(t, "runs")
+	if code != 2 || !strings.Contains(stderr, "unknown") {
+		t.Fatalf("corvint runs exited %d: %s", code, stderr)
 	}
 }

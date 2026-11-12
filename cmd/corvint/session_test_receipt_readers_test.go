@@ -361,6 +361,10 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 		// RVD-V1-006: the run evidence store normalises a stored receipt to report rows for flows
 		// status and test-evidence; no selection path reads it (RVD-V1-011).
 		"internal/runevidence/record.go ProfileReceipt literal",
+		// RVD-V1-004: corvint watch writes one receipt per save's test run, only to the run
+		// evidence store, and its help text names the profile; it reads none.
+		"cmd/corvint/watch.go watchHelp literal",
+		"internal/sessiontest/watch.go WatchReceipt Receipt",
 	}
 	var extra, missing []string
 	for _, site := range sites {
