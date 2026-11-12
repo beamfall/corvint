@@ -1692,6 +1692,7 @@
     "internal/mcp/toolgroup": [],
     "internal/mergedrivers": [],
     "internal/nativelinecov": [],
+    "internal/noncodemap": [],
     "internal/observations": [
       ".corvint/.gitignore",
       ".gitignore",
