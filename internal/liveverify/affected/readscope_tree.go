@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -155,8 +156,15 @@ func (rule ReadScopeTree) Validate() error {
 }
 
 type readScopeInputs struct {
-	content map[string]DriverRevision
-	listing map[string]bool // present only when both direct-child listings are known
+	// mu guards content and attempted: observeSiteFile adds frontier site
+	// files while a plan is selected (AFP-V0-9982).
+	mu        sync.Mutex
+	content   map[string]DriverRevision
+	attempted map[string]bool // every path whose endpoints were read, known or not
+	// base and head are the plan's immutable endpoint sources, nil when
+	// unknown; they are per-plan inputs, never cached graph state.
+	base, head *Source
+	listing    map[string]bool // present only when both direct-child listings are known
 	// Both maps are present only when both declarations parse under the
 	// supported profile. They are comparison inputs, never cached graph state.
 	priorTrees, trees map[string]map[string]ReadScopeTreeValue
@@ -166,12 +174,13 @@ type readScopeInputs struct {
 // revision data enters the reusable graph cache (AFP-V0-3303).
 func (graph *Graph) WithReadScopeSources(base, head *Source, dirty []string) *Graph {
 	copied := *graph
-	inputs := &readScopeInputs{content: map[string]DriverRevision{}, listing: map[string]bool{}}
+	inputs := &readScopeInputs{content: map[string]DriverRevision{}, attempted: map[string]bool{}, listing: map[string]bool{}}
 	copied.readScopeInputs = inputs
 	if graph.sparse || base == nil || head == nil {
 		return &copied
 	}
-	listed, read := map[string]bool{}, map[string]bool{}
+	inputs.base, inputs.head = base, head
+	listed, read := map[string]bool{}, inputs.attempted
 	dirty = NormalizePaths(dirty)
 	if slices.Contains(dirty, ReadScopeTreesPath) {
 		before, _ := readScopeTrees(base)
@@ -209,6 +218,43 @@ func (graph *Graph) WithReadScopeSources(base, head *Source, dirty []string) *Gr
 		}
 	}
 	return &copied
+}
+
+// observeSiteFile records the BASE and HEAD bytes of a frontier site's own
+// file when a content-predicate tree of some unit holds it, so the observer
+// edge applies the predicate as it does to a dirty path (AFP-V0-9982). Each
+// file is read once per plan. Without sources, or when either endpoint cannot
+// be read within MaxSourceBytes, nothing is recorded and every predicate
+// reader under the tree stays selected (AFP-V0-9983).
+func (graph *Graph) observeSiteFile(name string) {
+	inputs := graph.readScopeInputs
+	if inputs == nil || inputs.base == nil || inputs.head == nil || !graph.predicateTreeHolds(name) {
+		return
+	}
+	inputs.mu.Lock()
+	defer inputs.mu.Unlock()
+	if inputs.attempted[name] {
+		return
+	}
+	inputs.attempted[name] = true
+	before, errBefore := inputs.base.ReadBounded(name, MaxSourceBytes)
+	after, errAfter := inputs.head.ReadBounded(name, MaxSourceBytes)
+	if errBefore == nil && errAfter == nil {
+		inputs.content[name] = DriverRevision{Base: before, Head: after, BaseExists: true, HeadExists: true}
+	}
+}
+
+// predicateTreeHolds reports whether a content-predicate tree of any unit
+// holds name.
+func (graph *Graph) predicateTreeHolds(name string) bool {
+	for _, id := range graph.order {
+		for _, rule := range graph.units[id].ReadScopeTrees {
+			if !rule.ListingOnly && scopeEntryHolds(rule.Tree, name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // treeDeclarationChanged compares parsed entries, including legacy reasons,
@@ -301,7 +347,10 @@ func (graph *Graph) treeScopeBears(rule ReadScopeTree, name string) bool {
 		changed, known := graph.readScopeInputs.listing[rule.Tree]
 		return !known || changed
 	}
-	revision, known := graph.readScopeInputs.content[name]
+	inputs := graph.readScopeInputs
+	inputs.mu.Lock()
+	revision, known := inputs.content[name]
+	inputs.mu.Unlock()
 	if !known || !revision.BaseExists || !revision.HeadExists {
 		return true
 	}

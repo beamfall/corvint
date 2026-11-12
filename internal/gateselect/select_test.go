@@ -268,14 +268,16 @@ func TestSelectPackagesReachesEmbeddingAncestorDependents(t *testing.T) {
 // name the file's own import gave it — an alias or a dot import — not only
 // its literal package name, or the package is wrongly treated as bounded.
 // runtime.Caller, under any name, reads frame metadata and is not a root
-// locator (AFP-V0-810), so `framer` is not selected.
+// locator (AFP-V0-810), so `framer` is not selected while it discards the
+// file (a file bound to a package-level variable is a rule (d) read,
+// AFP-V0-3661).
 func TestSelectPackagesResolvesAliasedAndDotRootLocatorImports(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"docs/x.md":                   "x\n",
 		"aliased/aliased_test.go":     "package aliased\n\nimport wd \"os\"\n\nvar _, _ = wd.Getwd()\n",
 		"dotimport/dotimport_test.go": "package dotimport\n\nimport . \"os\"\n\nvar _, _ = Getwd()\n",
-		"framer/framer_test.go":       "package framer\n\nimport rt \"runtime\"\n\nvar _, file, _, _ = rt.Caller(0)\n",
-		"framedot/framedot_test.go":   "package framedot\n\nimport . \"runtime\"\n\nvar _, file, _, _ = Caller(0)\n",
+		"framer/framer_test.go":       "package framer\n\nimport rt \"runtime\"\n\nfunc init() { _, file, _, _ := rt.Caller(0); _ = file }\n",
+		"framedot/framedot_test.go":   "package framedot\n\nimport . \"runtime\"\n\nfunc init() { _, file, _, _ := Caller(0); _ = file }\n",
 	})
 	var plan Receipt
 	plan.Provider.Go.State = "RUNNABLE"

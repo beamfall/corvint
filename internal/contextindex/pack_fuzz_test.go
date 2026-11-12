@@ -24,42 +24,6 @@ var (
 	packFuzzFixture *packFuzzBase
 )
 
-// FuzzPackSnapshotRefusesOrServesBoundedWalks splices arbitrary bytes into one
-// section of a well-formed pack and reseals the section's block digests, its
-// digest table sha256 and the header, so the mutation reaches the section
-// decoders rather than dying at a checksum. Under IDX-SNAP-V0-003 and
-// IDX-SNAP-V0-015 every load must refuse or return an index, never panic, and
-// an accepted index must let every deferred body read and every term-table
-// walk the ranking performs without a bound check of its own stay in range. A
-// section resealed unchanged must still load.
-func FuzzPackSnapshotRefusesOrServesBoundedWalks(f *testing.F) {
-	f.Add(uint8(0), uint8(0), uint32(0), uint16(0), []byte{})
-	f.Add(uint8(1), uint8(0), uint32(0), uint16(4), []byte{0xff, 0xff, 0xff, 0x7f})
-	f.Add(uint8(2), uint8(1), uint32(8), uint16(8), []byte{0, 0, 0, 0, 0, 0, 0, 1})
-	f.Add(uint8(15), uint8(0), uint32(4), uint16(4), []byte{9, 0, 0, 0})
-	f.Add(uint8(17), uint8(0), uint32(64), uint16(0), []byte("zz"))
-	f.Fuzz(func(t *testing.T, section, load uint8, offset uint32, cut uint16, patch []byte) {
-		base := packFuzzBaseFor(t)
-		pack := resealedPack(t, base, int(section)%len(base.header.Sections), int(offset), int(cut), patch)
-		file := &packFile{at: bytes.NewReader(pack), size: int64(len(pack)), mapping: pack}
-		loads := [3]snapshotLoad{loadFull, loadEvent, loadCompact}
-		index, err := decodePackSnapshot(file, base.identity, analyzerEngine(), loads[int(load)%len(loads)])
-		if err != nil && len(patch) == 0 && cut == 0 {
-			t.Fatalf("section %d resealed unchanged was refused: %v", int(section)%len(base.header.Sections), err)
-		}
-		if err != nil {
-			return
-		}
-		forgetPackHistory(index)
-		for _, source := range index.Sources {
-			source.Text()
-		}
-		if index.Vocabulary != nil {
-			walkTermTable(index.Vocabulary)
-		}
-	})
-}
-
 func packFuzzBaseFor(t *testing.T) *packFuzzBase {
 	packFuzzOnce.Do(func() {
 		index := taskContextFixture(t)
@@ -122,4 +86,40 @@ func resealedPack(t *testing.T, base *packFuzzBase, position, offset, cut int, p
 	}
 	copy(pack, slot)
 	return pack
+}
+
+// FuzzPackSnapshotRefusesOrServesBoundedWalks splices arbitrary bytes into one
+// section of a well-formed pack and reseals the section's block digests, its
+// digest table sha256 and the header, so the mutation reaches the section
+// decoders rather than dying at a checksum. Under IDX-SNAP-V0-003 and
+// IDX-SNAP-V0-015 every load must refuse or return an index, never panic, and
+// an accepted index must let every deferred body read and every term-table
+// walk the ranking performs without a bound check of its own stay in range. A
+// section resealed unchanged must still load.
+func FuzzPackSnapshotRefusesOrServesBoundedWalks(f *testing.F) {
+	f.Add(uint8(0), uint8(0), uint32(0), uint16(0), []byte{})
+	f.Add(uint8(1), uint8(0), uint32(0), uint16(4), []byte{0xff, 0xff, 0xff, 0x7f})
+	f.Add(uint8(2), uint8(1), uint32(8), uint16(8), []byte{0, 0, 0, 0, 0, 0, 0, 1})
+	f.Add(uint8(15), uint8(0), uint32(4), uint16(4), []byte{9, 0, 0, 0})
+	f.Add(uint8(17), uint8(0), uint32(64), uint16(0), []byte("zz"))
+	f.Fuzz(func(t *testing.T, section, load uint8, offset uint32, cut uint16, patch []byte) {
+		base := packFuzzBaseFor(t)
+		pack := resealedPack(t, base, int(section)%len(base.header.Sections), int(offset), int(cut), patch)
+		file := &packFile{at: bytes.NewReader(pack), size: int64(len(pack)), mapping: pack}
+		loads := [3]snapshotLoad{loadFull, loadEvent, loadCompact}
+		index, err := decodePackSnapshot(file, base.identity, analyzerEngine(), loads[int(load)%len(loads)])
+		if err != nil && len(patch) == 0 && cut == 0 {
+			t.Fatalf("section %d resealed unchanged was refused: %v", int(section)%len(base.header.Sections), err)
+		}
+		if err != nil {
+			return
+		}
+		forgetPackHistory(index)
+		for _, source := range index.Sources {
+			source.Text()
+		}
+		if index.Vocabulary != nil {
+			walkTermTable(index.Vocabulary)
+		}
+	})
 }

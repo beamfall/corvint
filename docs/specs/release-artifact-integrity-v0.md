@@ -198,6 +198,46 @@ Legacy evidence cannot qualify new source. Publication readers accept only the `
 destination and archive names; preparation creates no publication receipt. A host-only
 archive proof is partial and MUST NOT emit the five-target PASS report or private success witness.
 
+### Plan-aligned catalog and one-tag pipeline requirements (V1-5295, V1-5236)
+
+Context, failure modes and evidence: the "Plan-aligned release catalog and one-tag pipeline" section below.
+
+- `ARTIFACT-BIN-V0-520`: (proposed; V1-5295) The catalog's `targets` MUST equal the accepted
+  `PROD-INT-006` platform list (darwin/arm64, linux/amd64, linux/arm64), and the binaries with
+  role `product` MUST be exactly the binaries `PROD-INT-006` ships (`corvint`, `corvint-mcp`,
+  `corvint-docs`, `corvint-docs-mcp`, `corvint-update`). A `cmd/` executable the plan removes or
+  leaves without a 1.0 verdict MUST carry role `withheld`: it stays classified (the tree check of
+  `ARTIFACT-BIN-V0-001` still holds), cites the decision that withholds it (0596), has no version
+  set and no stamp rule, and is never selected, built or archived. `select` MUST refuse a
+  `NAME/vX.Y.Z` tag that names it with `withheld-binary`, and `build --binary` MUST refuse it
+  with the same code before building. Support binaries are unchanged.
+- `ARTIFACT-BIN-V0-521`: (proposed; V1-5295) A test MUST read the `PROD-INT-006` block of
+  `docs/specs/PRODUCT-PLAN-1.0.md`, take the target list from its "archives for ... with" clause
+  and the product binaries from its "Binaries per product" note, and fail when the embedded
+  catalog's targets or product binaries differ from them, naming each missing and extra item. A
+  plan block the test cannot find or parse fails the test; it is never skipped.
+- `ARTIFACT-BIN-V0-522`: (proposed; V1-5295) The catalog's `core` version set MUST be `corvint`,
+  `corvint-docs`, `corvint-mcp` and `corvint-docs-mcp`. The release candidate MUST carry the app
+  archives of exactly those apps (`internal/releasecandidate.CoreSetApps`) for exactly the
+  catalog's targets (`internal/releasecandidate.AppPlatforms`), both held equal to the catalog by
+  test, so a release-binary manifest of the catalog's targets assembles into a candidate. The
+  `corvint` core archive set of `ARTIFACT-GO-V0` and the candidate's four core archives are not
+  changed here; an install on darwin/amd64 therefore refuses with `candidate lacks host app
+  archive`, which is the plan's position that darwin/amd64 is not a 1.0 platform.
+- `ARTIFACT-BIN-V0-523`: (proposed; V1-5236) `release-binary release --tag TAG --output DIR
+  [--base FILE] [--declare-skew SET=REASON]... [--root DIR] [--binaries FILE]` MUST run the
+  selection of `ARTIFACT-BIN-V0-005` for TAG, build each selected binary at the tag's version by
+  the rules of `ARTIFACT-BIN-V0-002`, and no other binary, merge the entries into the release
+  manifest by `ARTIFACT-BIN-V0-003` and `-004`, then recheck DIR by `ARTIFACT-BIN-V0-007`
+  (`verify --output`). It prints one `corvint.release-run/1` JSON document: tag, scope, version,
+  the binaries built, the manifest's SHA-256 and the archive sets rechecked. It has no
+  `--host-only` mode, and like every other command it tags, signs and publishes nothing
+  (`ARTIFACT-BIN-V0-006`).
+- `ARTIFACT-BIN-V0-524`: (proposed; V1-5236) `release` MUST refuse a DIR that exists and is not
+  empty (`output-not-empty`), so no entry from another run is merged into its manifest, and MUST
+  leave DIR as it found it when any step fails: every file an earlier step of the same run wrote
+  is removed, and DIR is removed when the run created it.
+
 ### Per-binary release profile requirements (V1-5236, decision 0594 item 8)
 
 Context, design and traceability: the "Per-binary release profile" section below.
@@ -601,3 +641,48 @@ Commands observed on 2026-09-12:
 | R14, receipt-bearing descendant row combination | (a) | PASS, exit 0 (`RAI-C2`); after the fixture advances beyond its exact tag, tag fails and Go archive remains unwitnessed. |
 | R15, rollback prescription | (c) | This is a hypothetical rollback state, not current acceptance evidence; exercising it would revert production/spec behavior and is outside this evidence-only task. |
 | R16, owner-bound publication row | (c) | A passing row requires the owner to commit the binding receipt after an actual publication; this task forbids publication and cannot invent that receipt. |
+
+## Plan-aligned release catalog and one-tag pipeline (V1-5295, V1-5236)
+
+Decision 0596 accepted `PROD-INT-006` of `PRODUCT-PLAN-1.0.md`: archives for linux/amd64,
+linux/arm64 and darwin/arm64, and per product the binaries `corvint` and `corvint-mcp`
+(testing), `corvint-docs` and `corvint-docs-mcp` (documentation) and `corvint-update` (update).
+The per-binary catalog `tools/release-binary/binaries.json` still listed five targets and gave
+the product role to binaries the plan removes (the analyzers, `corvint-test-validity-mcp`, the
+test providers and runner) or leaves open (`corvint-cli`, `corvint-web-flows`), so a `vX.Y.Z` tag
+would have released 27 binaries for five targets (V1-5295). The per-binary build, manifest and tag
+selection already existed; what a tag still lacked was one command that turns the tag into a
+verified output directory without building any other binary (V1-5236). The workflow that runs it
+and publishes the output is a `.github/` change outside this section.
+
+The requirements `ARTIFACT-BIN-V0-520..524` are defined in the Requirements section above.
+
+### Failure modes
+
+- The plan's wording changes so the test can no longer find the clause or note it reads: the
+  test fails and names the block; it does not fall back to the old lists.
+- The catalog and the plan agree but the candidate's four core archives still include
+  darwin/amd64: the corvint archive alone installs nowhere new, and an install on darwin/amd64
+  refuses at the app step. Aligning the core archive gate to three targets is the
+  `release-process` change (`REL-V1-008`).
+- A withheld binary is still built by hand with `go build`: nothing here prevents that; it is
+  simply never part of a release.
+- A `release` run is interrupted between two writes: the run removes what it wrote, but a killed
+  process leaves files behind; the next run then refuses `output-not-empty` until DIR is emptied.
+
+### Acceptance evidence
+
+| Requirement | Evidence |
+|---|---|
+| `ARTIFACT-BIN-V0-520` | `TestCatalogMatchesTheAcceptedPlan` (embedded catalog), `TestWithheldBinaryIsNeverSelectedOrBuilt`, `TestEmbeddedCatalogNamesTheProductBinaries`, `make release-binaries-check` |
+| `ARTIFACT-BIN-V0-521` | `TestCatalogMatchesTheAcceptedPlan`, `TestPlanDriftIsNamed` (table of drifted catalogs and plan blocks) |
+| `ARTIFACT-BIN-V0-522` | `TestCoreSetAppsMatchTheCatalogVersionSet`, `TestAppPlatformsMatchTheCatalogTargets`, `internal/releasecandidate` app tests |
+| `ARTIFACT-BIN-V0-523` | `TestReleaseTagBuildsOnlyTheSelectedBinariesAndVerifies` |
+| `ARTIFACT-BIN-V0-524` | `TestReleaseTagRefusesNonEmptyOutputAndRollsBackOnFailure` |
+
+### Rollback
+
+Revert the catalog rows and targets, the `withheld` role, the `release` command and the
+candidate's `AppPlatforms` in one change; the five-target catalog then builds again and the
+candidate reads the four shipped platforms. No stored state or published artifact depends on
+either.

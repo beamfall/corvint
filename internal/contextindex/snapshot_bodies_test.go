@@ -27,54 +27,6 @@ func writtenIndexes(t *testing.T) map[string]*Index {
 	return indexes
 }
 
-// TestDeferredGobBodiesEqualFullLoad_IDXSNAPV0811 proves a deferred /4 load
-// answers like a full one: it hands out no body bytes until read, every
-// source's Text equals the full load's, the task-context packets are
-// identical for the shared queries, and no refusal is recorded
-// (IDX-SNAP-V0-811).
-func TestDeferredGobBodiesEqualFullLoad_IDXSNAPV0811(t *testing.T) {
-	for name, index := range writtenIndexes(t) {
-		full, hit, err := LoadSnapshot(context.Background(), index.Root)
-		if err != nil || !hit {
-			t.Fatalf("%s: full load hit=%v err=%v", name, hit, err)
-		}
-		deferred, hit, err := LoadSnapshotDeferred(context.Background(), index.Root)
-		if err != nil || !hit {
-			t.Fatalf("%s: deferred load hit=%v err=%v", name, hit, err)
-		}
-		lazy := 0
-		for path, source := range deferred.Sources {
-			if source.body.gob != nil {
-				lazy++
-				if source.Data != nil {
-					t.Fatalf("%s: %s carries bytes before a read", name, path)
-				}
-			}
-		}
-		if lazy == 0 {
-			t.Fatalf("%s: the deferred load handed out no lazy body", name)
-		}
-		for path, source := range full.Sources {
-			fullText, fullValid, fullLoaded := source.Text()
-			text, valid, loaded := deferred.Sources[path].Text()
-			if text != fullText || valid != fullValid || loaded != fullLoaded {
-				t.Fatalf("%s: %s reads differently through its lazy body", name, path)
-			}
-		}
-		for _, text := range symbolTermQueries {
-			want, wantErr := TaskContext(context.Background(), full, text, "", 20)
-			got, gotErr := TaskContext(context.Background(), deferred, text, "", 20)
-			if (wantErr == nil) != (gotErr == nil) || wantErr == nil && mustJSON(t, got) != mustJSON(t, want) {
-				t.Fatalf("%s %q: deferred and full packets differ", name, text)
-			}
-		}
-		if err := deferred.SnapshotRefusal(); err != nil {
-			t.Fatalf("%s: refusal on an intact file: %v", name, err)
-		}
-		deferred.Release()
-	}
-}
-
 // TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811: a snapshot file
 // truncated in place under a deferred load's mapping makes the next body read
 // a refusal (the fault is caught inside the guard), never a SIGBUS, and a

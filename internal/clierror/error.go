@@ -59,6 +59,5 @@ type Streams struct {
 
 func (s *Streams) Stdout() io.Writer     { return s.Out }
 func (s *Streams) Stderr() io.Writer     { return s.Err }
-func (s *Streams) Diagnostic() io.Writer { return s.Err }
 func (s *Streams) Finish()               {}
 func (s *Streams) Status(native int) int { return native }

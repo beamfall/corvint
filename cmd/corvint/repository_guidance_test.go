@@ -66,57 +66,30 @@ func guidanceRead(t *testing.T, root, command, base string) (guidanceReceipt, []
 	return result, raw
 }
 
-func TestRepositoryGuidanceImmutableDiscovery(t *testing.T) {
+// TestRepositoryGuidanceReviewCarriesNoInferredFeatures is RGV-V0-001 and RGV-V0-012 after
+// decision 0597: review is deterministic, read-only and emits no inferred feature fields.
+func TestRepositoryGuidanceReviewCarriesNoInferredFeatures(t *testing.T) {
 	t.Parallel()
-	t.Run("RGV-V0-003 immutable evidence", func(t *testing.T) {
-		t.Run("RGV-V0-005 overview composition", func(t *testing.T) {
-			t.Run("RGV-V0-012 deterministic nonmutation", func(t *testing.T) {
-				root, _ := guidanceFixture(t)
-				before := treeDigest(t, root)
-				for _, command := range []string{"features", "overview"} {
-					out, raw := guidanceRead(t, root, command, "")
-					_, again := guidanceRead(t, root, command, "")
-					if !bytes.Equal(raw, again) {
-						t.Fatal("nondeterministic output")
-					}
-					if out.Revision != guidanceGit(t, root, "rev-parse", "HEAD") || out.Tree != guidanceGit(t, root, "rev-parse", "HEAD^{tree}") {
-						t.Fatal("identity mismatch")
-					}
-					if out.Authority != "inferred" || out.Mutates || !out.Experimental {
-						t.Fatal("authority mismatch")
-					}
-					found := false
-					for _, f := range out.Features {
-						if f.Label == "greeting" {
-							found = true
-							if len(f.Evidence) != 2 {
-								t.Fatalf("collision lost evidence: %+v", f)
-							}
-						}
-						for _, e := range f.Evidence {
-							if e.Blob != guidanceGit(t, root, "rev-parse", "HEAD:"+e.Path) || e.Start < 1 || e.End < e.Start {
-								t.Fatal("invalid immutable evidence")
-							}
-						}
-					}
-					if !found || out.Index["state"] != "UNKNOWN" || (command == "overview" && (len(out.Entrypoints) < 2 || len(out.Tests) < 3)) {
-						t.Fatalf("missing composition: %+v", out)
-					}
-					if command == "features" && (bytes.Contains(raw, []byte(`"languages"`)) || bytes.Contains(raw, []byte(`"entrypoints"`)) || bytes.Contains(raw, []byte(`"tests"`))) {
-						t.Fatal("features emitted overview-only fields")
-					}
-					for _, call := range out.NextCalls {
-						if !call.Inert || strings.Contains(strings.Join(call.Argv, " "), "touch") {
-							t.Fatal("unsafe nextCall")
-						}
-					}
-				}
-				if treeDigest(t, root) != before {
-					t.Fatal("repository state mutated")
-				}
-			})
-		})
-	})
+	root, base := guidanceFixture(t)
+	before := treeDigest(t, root)
+	out, raw := guidanceRead(t, root, "review", base)
+	if _, again := guidanceRead(t, root, "review", base); !bytes.Equal(raw, again) {
+		t.Fatal("nondeterministic output")
+	}
+	if out.Revision != guidanceGit(t, root, "rev-parse", "HEAD") || out.Tree != guidanceGit(t, root, "rev-parse", "HEAD^{tree}") {
+		t.Fatal("identity mismatch")
+	}
+	if out.Authority != "inferred" || out.Mutates || !out.Experimental || out.Review == nil || out.Index["state"] != "UNKNOWN" {
+		t.Fatalf("receipt mismatch: %s", raw)
+	}
+	for _, member := range []string{`"features"`, `"changedFeatures"`, `"languages"`, `"entrypoints"`, `"manifests"`, `"nextCalls"`} {
+		if bytes.Contains(raw, []byte(member+":")) {
+			t.Fatalf("review emitted cut member %s: %s", member, raw)
+		}
+	}
+	if treeDigest(t, root) != before {
+		t.Fatal("repository state mutated")
+	}
 }
 
 func TestRepositoryGuidanceReviewBranches(t *testing.T) {
@@ -151,8 +124,8 @@ func TestRepositoryGuidanceReviewBranches(t *testing.T) {
 			if !bytes.Equal(raw, again) {
 				t.Fatal("review nondeterministic")
 			}
-			if out.Review.Affected.Revision != target || out.Review.Affected.Range.Base != base || len(out.Review.ChangedFeatures) == 0 {
-				t.Fatal("affected identity or changed scope missing")
+			if out.Review.Affected.Revision != target || out.Review.Affected.Range.Base != base {
+				t.Fatal("affected identity missing")
 			}
 			states := map[string]string{}
 			for _, r := range out.Review.Overlaps {
@@ -205,7 +178,7 @@ func TestRepositoryGuidanceRefBoundsAndDrift(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "ref drift") {
 				t.Fatalf("ref drift accepted: %v", err)
 			}
-			_, err = compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "overview", MaxRefs: 32}, func() { guidanceWrite(t, root, "dirty.txt", "changed") })
+			_, err = compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "review", Base: base, MaxRefs: 32}, func() { guidanceWrite(t, root, "dirty.txt", "changed") })
 			if err == nil {
 				t.Fatal("worktree drift accepted")
 			}
@@ -244,7 +217,7 @@ func TestRepositoryGuidanceAncestryTrustAndDeadline(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := compileGuidance(ctx, guidanceInvocation{Root: root, Command: "overview", MaxRefs: 32}, nil); err == nil {
+	if _, err := compileGuidance(ctx, guidanceInvocation{Root: root, Command: "review", Base: base, MaxRefs: 32}, nil); err == nil {
 		t.Fatal("cancelled request accepted")
 	}
 }
@@ -257,18 +230,11 @@ func guidanceGit(t *testing.T, root string, args ...string) string {
 func TestRepositoryGuidanceCandidateAndOverlapBounds(t *testing.T) {
 	t.Parallel()
 	root, base := guidanceFixture(t)
-	var markers strings.Builder
-	for i := 0; i < 300; i++ {
-		fmt.Fprintf(&markers, "// Feature: candidate-%03d\n", i)
-	}
-	guidanceWrite(t, root, "markers.go", markers.String())
 	guidanceWrite(t, root, "oversized.txt", strings.Repeat("x", (256<<10)+1))
-	guidanceWrite(t, root, "broken/package.json", "{")
-	guidanceWrite(t, root, "routes.ts", "router.get('/hello', handler); server.registerTool('mcp_demo', {});\n")
 	guidanceGit(t, root, "add", ".")
 	guidanceGit(t, root, "commit", "-qm", "bounded discovery")
-	out, _ := guidanceRead(t, root, "features", "")
-	if len(out.Features) != 256 || out.Omissions["features"] == 0 || out.Omissions["unread-sources"] == 0 || out.Omissions["manifest-parse"] == 0 {
+	out, _ := guidanceRead(t, root, "review", base)
+	if out.Omissions["unread-sources"] == 0 {
 		t.Fatalf("missing bound omissions: %v", out.Omissions)
 	}
 	guidanceGit(t, root, "checkout", "-qb", "peer", base)
@@ -300,31 +266,25 @@ func TestRepositoryGuidanceCandidateAndOverlapBounds(t *testing.T) {
 	}
 }
 
-func TestRepositoryGuidanceCLIAndLiteralRegistration(t *testing.T) {
+// TestRepositoryGuidanceRemovedVerbsRefuse is RGV-V0-001 after decision 0597: features and
+// overview get the usage refusal, and review keeps its help.
+func TestRepositoryGuidanceRemovedVerbsRefuse(t *testing.T) {
 	t.Parallel()
-	t.Run("RGV-V0-001 public dispatch", func(t *testing.T) {
-		t.Run("RGV-V0-004 literal registrations", func(t *testing.T) {
-			t.Run("RGV-V0-006 inert calls", func(t *testing.T) {
-				root, _ := guidanceFixture(t)
-				guidanceWrite(t, root, "routes.ts", "router.get('/hello', handler); server.registerTool('mcp_demo', {});\n")
-				guidanceGit(t, root, "add", ".")
-				guidanceGit(t, root, "commit", "-qm", "routes")
-				before := treeDigest(t, root)
-				for _, args := range [][]string{{"features"}, {"overview"}, {"help", "features"}, {"overview", "--help"}, {"help", "review"}} {
-					var stdout, stderr bytes.Buffer
-					if code := run(append([]string{"--root", root}, args...), strings.NewReader(""), &stdout, &stderr); code != 0 {
-						t.Fatalf("CLI %v: %d %s", args, code, stderr.String())
-					}
-					if len(args) == 1 && (!strings.Contains(stdout.String(), "/hello") || !strings.Contains(stdout.String(), "mcp_demo")) {
-						t.Fatal("literal registrations absent")
-					}
-				}
-				if treeDigest(t, root) != before {
-					t.Fatal("CLI mutated state")
-				}
-			})
-		})
-	})
+	root, _ := guidanceFixture(t)
+	before := treeDigest(t, root)
+	for _, args := range [][]string{{"features"}, {"overview"}} {
+		var stdout, stderr bytes.Buffer
+		if code := run(append([]string{"--root", root}, args...), strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 {
+			t.Fatalf("CLI %v: exit %d stdout %q", args, code, stdout.String())
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"--root", root, "help", "review"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("help review: %d %s", code, stderr.String())
+	}
+	if treeDigest(t, root) != before {
+		t.Fatal("CLI mutated state")
+	}
 }
 
 func TestRepositoryGuidanceCurrentRefDrift(t *testing.T) {
@@ -394,30 +354,14 @@ func TestRepositoryGuidanceCleanupFailureRefuses(t *testing.T) {
 	})
 }
 
-func TestRepositoryGuidanceDeletedFeatureIsExplicitUnknown(t *testing.T) {
+func TestRepositoryGuidanceDeletedPathReachesAffected(t *testing.T) {
 	t.Parallel()
 	root, base := guidanceFixture(t)
 	guidanceGit(t, root, "rm", "web/e2e/greeting.spec.ts")
 	guidanceGit(t, root, "commit", "-qm", "delete scenario")
 	out, _ := guidanceRead(t, root, "review", base)
-	if !strings.Contains(strings.Join(out.Unknown, " "), "deleted/base-only candidates are not discovered") {
-		t.Fatal("base-only inferred scope silently omitted")
-	}
 	if len(out.Review.Affected.Range.Paths) != 1 || out.Review.Affected.Range.Paths[0] != "web/e2e/greeting.spec.ts" {
 		t.Fatal("deleted path absent from affected receipt")
-	}
-}
-
-func TestRepositoryGuidanceEmptyOverviewFieldsRemainExplicit(t *testing.T) {
-	t.Parallel()
-	root, _ := guidanceFixture(t)
-	guidanceGit(t, root, "rm", "-r", "cmd", "web", "go.mod", "package.json")
-	guidanceGit(t, root, "commit", "-qm", "empty overview")
-	_, raw := guidanceRead(t, root, "overview", "")
-	for _, field := range []string{"languages", "entrypoints", "manifests", "tests"} {
-		if !bytes.Contains(raw, []byte(`"`+field+`":[]`)) {
-			t.Fatalf("empty overview field omitted: %s", field)
-		}
 	}
 }
 
@@ -433,7 +377,7 @@ func TestRepositoryGuidancePrivateStatusBudget(t *testing.T) {
 			guidanceGit(t, root, "commit", "-qm", "nontrivial inventory")
 			guidanceGit(t, root, "update-index", "--index-version=4")
 			before := treeDigest(t, root)
-			for _, args := range [][]string{{"features"}, {"overview"}, {"review", "--base", base, "--max-refs", "8"}} {
+			for _, args := range [][]string{{"review", "--base", base, "--max-refs", "8"}} {
 				var stdout, stderr bytes.Buffer
 				code := run(append([]string{"--root", root}, args...), strings.NewReader(""), &stdout, &stderr)
 				if code != 0 {
@@ -446,8 +390,8 @@ func TestRepositoryGuidancePrivateStatusBudget(t *testing.T) {
 				if err := json.Unmarshal(stdout.Bytes(), &receipt); err != nil {
 					t.Fatal(err)
 				}
-				if len(receipt.Features) != 256 || receipt.Omissions["features"] == 0 {
-					t.Fatal("nontrivial discovery bound unexercised")
+				if receipt.Review == nil {
+					t.Fatal("review section missing")
 				}
 			}
 			if treeDigest(t, root) != before {
@@ -622,86 +566,20 @@ func affectedChecksOf(checks []affectedCompactCheck) []affectedCheck {
 	return out
 }
 
-// RGV-V0-955 (V1-3528): a worktree whose only dirt is one untracked agent
-// settings file degrades overview and features to a MIXED unknown, as affected
-// plans the same tree with that path dirty instead of refusing, while review and
-// a tracked change still refuse.
-func TestGuidanceUntrackedOnlyDegradesLikeAffectedMixed(t *testing.T) {
+// TestGuidanceReviewRefusesUntrackedDirt is RGV-V0-002: review refuses untracked and tracked
+// dirt and names the path (the untracked-tolerating overview and features are cut, decision 0597).
+func TestGuidanceReviewRefusesUntrackedDirt(t *testing.T) {
 	t.Parallel()
 	root, base := guidanceFixture(t)
 	guidanceWrite(t, root, ".claude/settings.local.json", "{}\n")
-	for _, command := range []string{"overview", "features"} {
-		out, _ := guidanceRead(t, root, command, "")
-		if out.Omissions["untracked"] != 1 || !strings.Contains(strings.Join(out.Unknown, "\n"), `MIXED worktree: untracked paths outside the pinned HEAD tree were not read; dirty worktree or status drift: 1 path(s): ?? ".claude/settings.local.json"`) {
-			t.Fatalf("%s did not degrade to MIXED: %+v %v", command, out.Omissions, out.Unknown)
-		}
-	}
-	var stdout, stderr bytes.Buffer
-	if code := run([]string{"--root", root, "affected", "--base", base}, strings.NewReader(""), &stdout, &stderr); code != 0 {
-		t.Fatalf("affected refused the same tree: %d %s", code, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), `"dirty":[".claude/settings.local.json"]`) {
-		t.Fatalf("affected did not plan the same untracked path as dirty: %s %s", stdout.String(), stderr.String())
-	}
 	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "review", Base: base, MaxRefs: 32}, nil); err == nil || !strings.Contains(err.Error(), ".claude/settings.local.json") {
 		t.Fatalf("review accepted untracked dirt: %v", err)
 	}
-	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "overview", MaxRefs: 32}, func() { guidanceWrite(t, root, "later.txt", "x") }); err == nil || !strings.Contains(err.Error(), "status drift") {
-		t.Fatalf("untracked drift accepted: %v", err)
-	}
-	if err := os.Remove(filepath.Join(root, "later.txt")); err != nil {
+	if err := os.Remove(filepath.Join(root, ".claude/settings.local.json")); err != nil {
 		t.Fatal(err)
 	}
 	guidanceWrite(t, root, "go.mod", "module example.test/dirty\n")
-	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "features", MaxRefs: 32}, nil); err == nil || !strings.Contains(err.Error(), `M "go.mod"`) {
+	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "review", Base: base, MaxRefs: 32}, nil); err == nil || !strings.Contains(err.Error(), `M "go.mod"`) {
 		t.Fatalf("tracked change accepted: %v", err)
-	}
-}
-
-// RGV-V0-956 (V1-3532): a features label that is a canonical feature ID carries
-// featureId and an inert featureCall, and that call is answered by `corvint feature`.
-func TestRepositoryGuidanceFeaturesRoundTripToFeature(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.email", "test@example.test"}, {"config", "user.name", "Test"}} {
-		guidanceGit(t, root, args...)
-	}
-	guidanceWrite(t, root, "go.mod", "module example.test/demo\n\ngo 1.27.0\n")
-	guidanceWrite(t, root, "cmd/demo/main.go", "package main\n// Feature: greeting\nfunc main() {}\n")
-	guidanceWrite(t, root, "testing/features.yaml", "features:\n  - id: greeting\n    title: Greeting\n")
-	guidanceWrite(t, root, "testing/scenarios.yaml", "scenarios:\n")
-	// A mixed-language repository: feature refuses more than the ledger record here.
-	guidanceWrite(t, root, "web/greeting.ts", "export function greet(): string { return 'hi'; }\n")
-	guidanceWrite(t, root, "tools/greet.py", "def greet():\n    return 'hi'\n")
-	guidanceGit(t, root, "add", ".")
-	guidanceGit(t, root, "commit", "-qm", "base")
-	out, _ := guidanceRead(t, root, "features", "")
-	var call []string
-	for _, f := range out.Features {
-		switch f.Label {
-		case "greeting":
-			if f.FeatureID != "greeting" || !reflect.DeepEqual(f.FeatureCall, []string{"corvint", "feature", "greeting", "--limit", "1"}) {
-				t.Fatalf("canonical label lacks its feature call: %+v", f)
-			}
-			call = f.FeatureCall
-		case "cmd/demo":
-			if f.FeatureID != "" || f.FeatureCall != nil {
-				t.Fatalf("path label carries a feature ID: %+v", f)
-			}
-		}
-	}
-	if call == nil {
-		t.Fatalf("greeting feature missing: %+v", out.Features)
-	}
-	var stdout, stderr bytes.Buffer
-	if code := run(append([]string{"--root", root}, call[1:]...), strings.NewReader(""), &stdout, &stderr); code != 0 {
-		t.Fatalf("%v exit %d: %s", call, code, stderr.String())
-	}
-	var detail map[string]any
-	if err := json.Unmarshal(stdout.Bytes(), &detail); err != nil {
-		t.Fatalf("feature output: %v %s", err, stdout.String())
-	}
-	if !strings.Contains(stdout.String(), `"READY"`) || !strings.Contains(stdout.String(), "feature:greeting") {
-		t.Fatalf("feature did not resolve the listed ID: %s", stdout.String())
 	}
 }

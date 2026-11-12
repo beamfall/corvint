@@ -18,7 +18,3 @@ func configureProcess(command *exec.Cmd) {
 	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
 	command.WaitDelay = time.Minute
 }
-
-func descendantCleanupQualification() (bool, string) {
-	return false, "UNKNOWN: descendant containment is not implemented on this platform"
-}

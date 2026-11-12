@@ -5,13 +5,14 @@ package contextindex
 
 import (
 	"context"
-	"github.com/Beamfall/corvint/internal/gitstatus"
 	"io"
 	"os"
 	"os/exec"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
 func TestWorkerGitProcessGroup(t *testing.T) {

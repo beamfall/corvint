@@ -6,7 +6,7 @@ license: Apache-2.0
 compatibility: Requires the corvint binary on PATH. OpenSpec versions listed in interop/spec-toolchains/versions.json.
 metadata:
   author: beamfall
-  version: "0.1.1"
+  version: "0.1.2"
 ---
 
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -20,14 +20,14 @@ missing or a step fails, say so and let the OpenSpec workflow continue.
 
 ## Step 1: before apply, read context
 
-Take `<id>` from the change being applied and a one-line summary from its `proposal.md`.
+Take the files the change will edit from its `proposal.md` and `tasks.md`, and pass each one:
 
 ```bash
-corvint context --task "<change summary>" --subject openspec/changes/<id>/proposal.md
+corvint context --path <path> [--path <path> ...]
 ```
 
-Report the packet `state`, each result path with its evidence line, and every unknown. Suggest
-reading those files before implementing.
+Report, for each path, every section with its `state`, its items and every missing source.
+Suggest reading the listed instructions, tests and requirements before implementing.
 
 ## Step 2: after apply, read review advice
 

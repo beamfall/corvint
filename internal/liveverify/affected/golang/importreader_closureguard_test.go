@@ -14,7 +14,10 @@ import (
 // file each derive the module root from their own runtime.Caller(0) names,
 // capture stderr in a buffer, and set a literal environment. That package is a
 // proven reader: an import-set change selects it and a body-only change does
-// not. Each variant below that observes more keeps the unproven fallback.
+// not. Each variant below that observes more keeps the unproven fallback,
+// and since V1-3999 fix round 1 its Caller root, the directory of an unproven
+// listing, also holds it under rule (d) (AFP-V0-3664): a body-only edit
+// selects it.
 func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 	const header = "package probe\nimport (\"bytes\"; \"context\"; \"errors\"; \"os\"; \"os/exec\"; \"path/filepath\"; \"runtime\"; \"strings\"; \"testing\"; \"time\")\n" +
 		"var _ = errors.New\nvar _ = strings.Fields\n"
@@ -55,37 +58,37 @@ func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 		{"empty GOFLAGS reset", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS="`) + guardEnv("TestB", "b", `"GOFLAGS=", "GOWORK=off"`), false, false},
 		// AFP-V0-9600: Windows environment names are case-insensitive;
 		// only the exact uppercase reset may appear in a proven reader.
-		{"lowercase goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goflags=-f={{.Doc}}"`), true, false},
-		{"mixed-case GoFlags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "GoFlags=-f={{.Doc}}"`), true, false},
-		{"lowercase goenv after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goenv=custom.env"`), true, false},
-		{"lowercase empty goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goflags="`), true, false},
-		{"escaped lowercase goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "\x67oflags=-f={{.Doc}}"`), true, false},
-		{"mixed-case name outside Env assignment", guardEnv("TestA", "a", `"GOFLAGS="`) + "var flags = \"GoFlags\"\n", true, false},
-		{"non-empty GOFLAGS literal", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS=-mod=mod"`), true, false},
-		{"dynamic GOFLAGS value", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS="+os.Getenv("PROBE_FLAGS")`), true, false},
-		{"empty GOFLAGS reset outside an Env assignment", guardEnv("TestA", "a", `"GOTOOLCHAIN=local"`) + "var flags = []string{\"GOFLAGS=\"}\n", true, false},
+		{"lowercase goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goflags=-f={{.Doc}}"`), true, true},
+		{"mixed-case GoFlags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "GoFlags=-f={{.Doc}}"`), true, true},
+		{"lowercase goenv after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goenv=custom.env"`), true, true},
+		{"lowercase empty goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goflags="`), true, true},
+		{"escaped lowercase goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "\x67oflags=-f={{.Doc}}"`), true, true},
+		{"mixed-case name outside Env assignment", guardEnv("TestA", "a", `"GOFLAGS="`) + "var flags = \"GoFlags\"\n", true, true},
+		{"non-empty GOFLAGS literal", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS=-mod=mod"`), true, true},
+		{"dynamic GOFLAGS value", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS="+os.Getenv("PROBE_FLAGS")`), true, true},
+		{"empty GOFLAGS reset outside an Env assignment", guardEnv("TestA", "a", `"GOTOOLCHAIN=local"`) + "var flags = []string{\"GOFLAGS=\"}\n", true, true},
 		// Every Env assignment of a package that uses the reset must carry
 		// it: a later one without it brings the ambient flags back.
-		{"reset dropped by a later Env assignment", reassigned(`"GOFLAGS="`, `"GOWORK=off"`), true, false},
+		{"reset dropped by a later Env assignment", reassigned(`"GOFLAGS="`, `"GOWORK=off"`), true, true},
 		{"reset carried by every Env assignment", reassigned(`"GOFLAGS="`, `"GOWORK=off", "GOFLAGS="`), false, false},
-		{"reset in one guard, none in another", guardEnv("TestA", "a", `"GOFLAGS="`) + guardEnv("TestB", "b", `"GOWORK=off"`), true, false},
-		{"Env assigned from a variable", guardWith("TestA", "a", "environment := append(os.Environ(), \"GOFLAGS=\")\ncommand.Env = environment"), true, false},
-		{"Setenv of an empty GOFLAGS", guardEnv("TestA", "a", `"GOFLAGS="`) + "func TestC(t *testing.T) { t.Setenv(\"GOFLAGS\", \"\") }\n", true, false},
-		{"Setenv of a computed name", guard("TestA", "a") + "func init() { _ = os.Setenv(\"GO\"+\"FLAGS\", \"\") }\n", true, false},
+		{"reset in one guard, none in another", guardEnv("TestA", "a", `"GOFLAGS="`) + guardEnv("TestB", "b", `"GOWORK=off"`), true, true},
+		{"Env assigned from a variable", guardWith("TestA", "a", "environment := append(os.Environ(), \"GOFLAGS=\")\ncommand.Env = environment"), true, true},
+		{"Setenv of an empty GOFLAGS", guardEnv("TestA", "a", `"GOFLAGS="`) + "func TestC(t *testing.T) { t.Setenv(\"GOFLAGS\", \"\") }\n", true, true},
+		{"Setenv of a computed name", guard("TestA", "a") + "func init() { _ = os.Setenv(\"GO\"+\"FLAGS\", \"\") }\n", true, true},
 		// A proven listing whose root is spelled with a `..` literal still
 		// names the repository root to rule (d), so every edit selects it.
 		{"root climbed with a .. literal", "func TestA(t *testing.T) {\n" +
 			"_, file, _, _ := runtime.Caller(0)\nroot := filepath.Join(filepath.Dir(file), \"..\")\n" +
 			"command := exec.Command(\"go\", \"list\", \"-deps\", \"./cmd/tool\")\ncommand.Dir = root\n_, _ = command.Output()\n}\n", false, true},
-		{"one Caller root shared by name across tests", shared("TestA") + shared("TestB"), true, false},
+		{"one Caller root shared by name across tests", shared("TestA") + shared("TestB"), true, true},
 		{"one root reused by two listings", "func TestA(t *testing.T) {\n" +
 			"_, file, _, _ := runtime.Caller(0)\nroot := filepath.Dir(filepath.Dir(file))\n" +
 			"first := exec.Command(\"go\", \"list\", \"-deps\", \"./cmd/tool\")\nfirst.Dir = root\nout, err := first.Output()\n" +
-			"second := exec.Command(\"go\", \"list\", \"-deps\", \"./cmd/other\")\nsecond.Dir = root\nout, err = second.Output()\n_, _ = out, err\n}\n", true, false},
+			"second := exec.Command(\"go\", \"list\", \"-deps\", \"./cmd/other\")\nsecond.Dir = root\nout, err = second.Output()\n_, _ = out, err\n}\n", true, true},
 		{"stderr recovered from exec.ExitError", "func TestA(t *testing.T) {\n" +
 			"_, file, _, _ := runtime.Caller(0)\nroot := filepath.Dir(filepath.Dir(file))\n" +
 			"command := exec.Command(\"go\", \"list\", \"-deps\", \"./cmd/tool\")\ncommand.Dir = root\n" +
-			"if _, err := command.Output(); err != nil {\nvar exit *exec.ExitError\nif errors.As(err, &exit) { t.Fatalf(\"%s\", exit.Stderr) }\n}\n}\n", true, false},
+			"if _, err := command.Output(); err != nil {\nvar exit *exec.ExitError\nif errors.As(err, &exit) { t.Fatalf(\"%s\", exit.Stderr) }\n}\n}\n", true, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := importGraphRepository(t)
@@ -104,6 +107,13 @@ func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 			}
 			witness, hit := probeSelectedForBodyEdit(graph)
 			switch {
+			case test.unproven && test.unbounded:
+				// AFP-V0-3664: an unproven listing's location-source
+				// directory holds the unit, so every edit selects it.
+				if !hit {
+					t.Fatal("a body-only lib edit did not select the held probe")
+				}
+				return
 			case test.unproven && hit && witness.Kind == affected.WitnessBinaryExec:
 				// An unproven listing keeps its literal target as a binary
 				// edge, so a body edit selects it by that stronger witness.

@@ -83,7 +83,7 @@ func build(t *testing.T, root string, sources Sources, paths ...string) Brief {
 	return brief
 }
 
-var sectionNames = []string{"instructions", "owners", "tests", "flows", "requirements", "tickets"}
+var sectionNames = []string{"instructions", "tests", "requirements"}
 
 // checkInvariants holds for every brief: TBC-V1-010 order, limit and items; TBC-V1-011 state rules.
 func checkInvariants(t *testing.T, brief Brief) {
@@ -145,17 +145,5 @@ func equal(t *testing.T, what string, got, want any) {
 	t.Helper()
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("%s = %v, want %v", what, got, want)
-	}
-}
-
-func hasPrefixAndNames(t *testing.T, s Section, prefix string, names ...string) {
-	t.Helper()
-	if !strings.HasPrefix(s.Reason, prefix) {
-		t.Errorf("%s reason %q does not start with %q", s.Name, s.Reason, prefix)
-	}
-	for _, name := range names {
-		if !strings.Contains(s.Reason, name) {
-			t.Errorf("%s reason %q does not name %s", s.Name, s.Reason, name)
-		}
 	}
 }

@@ -24,7 +24,10 @@ type affectedSummary struct {
 	Selected        int            `json:"selected"`
 	Unknown         int            `json:"unknown"`
 	UnknownByReason map[string]int `json:"unknownByReason"`
-	Worktree        int            `json:"worktree"`
+	// UnresolvedPackages counts the selected Go packages whose reads nothing
+	// bounds, selected on every change (AFP-V0-9987); it never changes line.
+	UnresolvedPackages int `json:"unresolvedPackages"`
+	Worktree           int `json:"worktree"`
 }
 
 // summarizeAffectedPlan counts the full plan; excluded is the compact
@@ -45,14 +48,15 @@ func summarizeAffectedPlan(plan affected.Plan, excluded, worktree, committed int
 		line += fmt.Sprintf(" %s=%d", reason, byReason[reason])
 	}
 	return affectedSummary{
-		Committed:       committed,
-		Dirty:           len(plan.Dirty),
-		Excluded:        excluded,
-		Line:            strings.TrimSpace(line),
-		Scope:           plan.Scope,
-		Selected:        len(plan.Selected),
-		Unknown:         len(plan.Unknown),
-		UnknownByReason: byReason,
-		Worktree:        worktree,
+		Committed:          committed,
+		Dirty:              len(plan.Dirty),
+		Excluded:           excluded,
+		Line:               strings.TrimSpace(line),
+		Scope:              plan.Scope,
+		Selected:           len(plan.Selected),
+		Unknown:            len(plan.Unknown),
+		UnknownByReason:    byReason,
+		UnresolvedPackages: affectedUnresolvedPackages(plan.Selected),
+		Worktree:           worktree,
 	}
 }

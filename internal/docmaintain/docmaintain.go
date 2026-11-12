@@ -17,7 +17,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -385,22 +384,4 @@ func atomicWrite(path string, data []byte) error {
 func digestHex(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
-}
-
-// Summary is a small human-readable render used by callers (CLI, evidence)
-// that want a one-line-per-block summary without re-deriving it.
-func Summary(r Receipt) string {
-	summary := fmt.Sprintf("page=%s applied=%v preview=%v conflict=%v stopped=%q\n", r.Page, r.Applied, r.PreviewOnly, r.Conflict, r.StoppedReason)
-	for _, block := range r.Blocks {
-		summary += fmt.Sprintf("  %s/%s eligible=%v applied=%v skipped=%q old=%s new=%s\n",
-			block.Selector.Source, block.Selector.Package, block.Eligible, block.Applied, block.Skipped, short(block.OldSHA256), short(block.NewSHA256))
-	}
-	return summary
-}
-
-func short(sha string) string {
-	if len(sha) > 12 {
-		return sha[:12]
-	}
-	return sha
 }

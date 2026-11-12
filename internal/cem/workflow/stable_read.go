@@ -252,20 +252,6 @@ func addNonRegularCounts(counts map[string]any, nonRegular int) {
 	counts["nonRegular"] = nonRegular
 }
 
-// StablePolicyIssues returns the CEM-V1-145 counts and policy issues of a
-// stable map's hunks under limits, for a consumer outside the Core read
-// (CEM-V1-638). A map the stable parser refuses is an
-// error, never an empty issue list.
-func StablePolicyIssues(raw []byte, limits PolicyLimits) (map[string]any, []any, error) {
-	document, err := wire.ParseStable(raw)
-	if err != nil {
-		return nil, nil, err
-	}
-	change := wire.Map(document.Change)
-	counts, _ := countsAndWorklist(&change)
-	return counts, policyIssues(limits, counts), nil
-}
-
 // stableReport completes a stable report envelope. JSON adds the review
 // projection; a preview adds the Markdown; a published report writes the same
 // Markdown for every verifier outcome, locating the Git directories only after

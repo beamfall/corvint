@@ -71,7 +71,7 @@ func readApps(directory string) (map[string][]byte, error) {
 	}
 	files[appsManifestPath] = manifest
 	for _, app := range CoreSetApps {
-		for _, platform := range shippedPlatforms() {
+		for _, platform := range appPlatforms() {
 			raw, err := readRegular(filepath.Join(resolved, appArchiveName(app, platform)), maxInputBytes)
 			if err != nil {
 				return nil, fmt.Errorf("apps directory lacks %s: %w", appArchiveName(app, platform), err)
@@ -111,7 +111,7 @@ func assembleCoreOnly(ctx context.Context, options Options, core coreReport, cor
 	addCoreFiles(add, coreBytes)
 	add(appsManifestPath, appManifestRole, appBytes[appsManifestPath])
 	for _, app := range CoreSetApps {
-		for _, platform := range shippedPlatforms() {
+		for _, platform := range appPlatforms() {
 			add(appArchivePath(app, platform), appArchiveRole, appBytes[appArchivePath(app, platform)])
 		}
 	}

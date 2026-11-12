@@ -192,7 +192,7 @@ func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 		root := taskContextRepository(t)
 		rev := cemGit(t, root, "rev-parse", "HEAD")
 		writeCorpusFixture(t, root, rev, "cache")
-		commands := [][]string{{"context", "--task", "Split implementation", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}}
+		commands := [][]string{{"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}}
 		for _, args := range commands {
 			t.Run(args[0], func(t *testing.T) {
 				code, base, stderr := coreCLI(t, root, args...)
@@ -295,8 +295,8 @@ func TestCorpusNativeOptionIsolation(t *testing.T) {
 	t.Run("DCP-V1-012 DCP-V1-018 options", func(t *testing.T) {
 		root := taskContextRepository(t)
 		for _, args := range [][]string{
-			{"context", "--task", "--corpus"},
-			{"context", "--task", "--corpus=corpus.json"},
+			{"impact", "--base", "--corpus"},
+			{"impact", "--base", "--corpus=corpus.json"},
 			{"affected", "--repository", "--corpus=fixture.json"},
 		} {
 			var out, stderr bytes.Buffer
@@ -384,7 +384,7 @@ func TestCorpusRelayNativeFailureStdoutCopyDoesNotDoubleEnvelope(t *testing.T) {
 	useCoreBinary(t)
 	root := taskContextRepository(t)
 	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
-	args := []string{"--root", root, "context", "--corpus=corpus.json"}
+	args := []string{"--root", root, "affected", "--base", "abc1234", "--corpus=corpus.json"}
 	var baseline, baselineErr bytes.Buffer
 	if code, handled := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &baseline, &baselineErr); !handled || code == 0 {
 		t.Fatalf("native relay baseline: handled=%v code=%d stderr=%q", handled, code, baselineErr.String())
@@ -442,7 +442,7 @@ func TestCorpusAdoptionCLIMCPPagination(t *testing.T) {
 		if err = json.Unmarshal([]byte(out), &receipt); err != nil || len(receipt.Results) != 1 || receipt.Offset != 1 || receipt.Omitted == 0 {
 			t.Fatal("missing page metadata", err)
 		}
-		for _, args := range [][]string{{"context", "--task", "Split", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}} {
+		for _, args := range [][]string{{"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}} {
 			code, base, stderr := coreCLI(t, root, args...)
 			if code != 0 {
 				t.Fatal(stderr)

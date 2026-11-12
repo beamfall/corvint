@@ -31,6 +31,64 @@ func identGraphFixture(t *testing.T) *Index {
 	return index
 }
 
+func TestIdentGraphRefusesDamagedEncodings(t *testing.T) {
+	t.Run("TCP-V0-030", func(t *testing.T) {
+		index := identGraphFixture(t)
+		sources := len(index.Vocabulary.Paths)
+		encoded, err := index.Vocabulary.IdentGraph.MarshalBinary()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var truncated identGraph
+		if truncated.UnmarshalBinary(encoded[:len(encoded)-1]) == nil {
+			t.Fatal("a truncated encoding decoded")
+		}
+		damaged := *index.Vocabulary.IdentGraph
+		damaged.Targets = append([]uint32(nil), damaged.Targets...)
+		damaged.Targets[0] = uint32(sources)
+		if damaged.check(sources) == nil {
+			t.Fatal("an edge past the last node passed the check")
+		}
+		if index.Vocabulary.IdentGraph.check(sources+1) == nil {
+			t.Fatal("a graph over different paths passed the check")
+		}
+	})
+}
+
+func TestIdentGraphBounds(t *testing.T) {
+	t.Run("TCP-V0-033", func(t *testing.T) {
+		table := &TermTable{Paths: make([]string, identGraphMaxNodes+1)}
+		if graph := (&Index{}).buildIdentGraph(table); !graph.Bounded || len(graph.Targets) != 0 {
+			t.Fatalf("a tree past the node bound built edges: bounded=%v", graph.Bounded)
+		}
+		files := map[string]string{"go.mod": "module example.test/common\n\ngo 1.27.0\n"}
+		for number := 0; number <= identGraphMaxDefiners; number++ {
+			files[fmt.Sprintf("p%d/common.go", number)] = fmt.Sprintf("package p%d\n\nfunc Commonplace() {}\n", number)
+		}
+		files["user/user.go"] = "package user\n\nfunc Uses() { Commonplace() }\n"
+		index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if graph := index.Vocabulary.IdentGraph; len(graph.Targets) != 0 {
+			t.Fatalf("a name with %d definers joined files: %d edges", identGraphMaxDefiners+1, len(graph.Targets))
+		}
+	})
+}
+
+func TestIdentGraphNameEligibility(t *testing.T) {
+	t.Run("TCP-V0-030", func(t *testing.T) {
+		for name, want := range map[string]bool{
+			"Quexel": true, "retry_loop": true, "httpRetry": true, "V2Name": true,
+			"seed": false, "unexamined": false, "Foo": false, "naïve_x": false, "9lives": false,
+		} {
+			if identGraphName(name) != want {
+				t.Errorf("identGraphName(%q) = %v, want %v", name, !want, want)
+			}
+		}
+	})
+}
+
 // graphEdge finds the edge from one path to another, or fails.
 func graphEdge(t *testing.T, index *Index, from, to string) (uint32, string, bool) {
 	t.Helper()
@@ -88,51 +146,6 @@ func TestIdentGraphIsDerivedDeterministicallyFromTheIndex(t *testing.T) {
 	})
 }
 
-func TestIdentGraphRefusesDamagedEncodings(t *testing.T) {
-	t.Run("TCP-V0-030", func(t *testing.T) {
-		index := identGraphFixture(t)
-		sources := len(index.Vocabulary.Paths)
-		encoded, err := index.Vocabulary.IdentGraph.MarshalBinary()
-		if err != nil {
-			t.Fatal(err)
-		}
-		var truncated identGraph
-		if truncated.UnmarshalBinary(encoded[:len(encoded)-1]) == nil {
-			t.Fatal("a truncated encoding decoded")
-		}
-		damaged := *index.Vocabulary.IdentGraph
-		damaged.Targets = append([]uint32(nil), damaged.Targets...)
-		damaged.Targets[0] = uint32(sources)
-		if damaged.check(sources) == nil {
-			t.Fatal("an edge past the last node passed the check")
-		}
-		if index.Vocabulary.IdentGraph.check(sources+1) == nil {
-			t.Fatal("a graph over different paths passed the check")
-		}
-	})
-}
-
-func TestIdentGraphBounds(t *testing.T) {
-	t.Run("TCP-V0-033", func(t *testing.T) {
-		table := &TermTable{Paths: make([]string, identGraphMaxNodes+1)}
-		if graph := (&Index{}).buildIdentGraph(table); !graph.Bounded || len(graph.Targets) != 0 {
-			t.Fatalf("a tree past the node bound built edges: bounded=%v", graph.Bounded)
-		}
-		files := map[string]string{"go.mod": "module example.test/common\n\ngo 1.27.0\n"}
-		for number := 0; number <= identGraphMaxDefiners; number++ {
-			files[fmt.Sprintf("p%d/common.go", number)] = fmt.Sprintf("package p%d\n\nfunc Commonplace() {}\n", number)
-		}
-		files["user/user.go"] = "package user\n\nfunc Uses() { Commonplace() }\n"
-		index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if graph := index.Vocabulary.IdentGraph; len(graph.Targets) != 0 {
-			t.Fatalf("a name with %d definers joined files: %d edges", identGraphMaxDefiners+1, len(graph.Targets))
-		}
-	})
-}
-
 // A saved index whose graph passed a bound still loads, in the gob and pack
 // formats, and the loaded graph makes the slot abstain as graph-bounded.
 func TestIdentGraphBoundedSnapshotReloads(t *testing.T) {
@@ -150,12 +163,6 @@ func TestIdentGraphBoundedSnapshotReloads(t *testing.T) {
 				if err != nil || !hit || !loaded.Vocabulary.IdentGraph.Bounded {
 					t.Fatalf("format %q offsets %d: hit=%v err=%v", format, offsets, hit, err)
 				}
-				t.Setenv("CORVINT_CONTEXT_GRAPH", "on")
-				packet, err := TaskContext(context.Background(), loaded, graphFixtureTask, "", 20)
-				if err != nil || graphUnexamined(packet)["state"] != "graph-bounded" {
-					t.Fatalf("format %q offsets %d: err=%v receipt %v", format, offsets, err, graphUnexamined(packet))
-				}
-				t.Setenv("CORVINT_CONTEXT_GRAPH", "")
 			}
 		}
 		var decoded identGraph
@@ -163,19 +170,6 @@ func TestIdentGraphBoundedSnapshotReloads(t *testing.T) {
 		encoding[4] = 2
 		if decoded.UnmarshalBinary(encoding) == nil {
 			t.Fatal("a bounded flag other than 0 or 1 decoded")
-		}
-	})
-}
-
-func TestIdentGraphNameEligibility(t *testing.T) {
-	t.Run("TCP-V0-030", func(t *testing.T) {
-		for name, want := range map[string]bool{
-			"Quexel": true, "retry_loop": true, "httpRetry": true, "V2Name": true,
-			"seed": false, "unexamined": false, "Foo": false, "naïve_x": false, "9lives": false,
-		} {
-			if identGraphName(name) != want {
-				t.Errorf("identGraphName(%q) = %v, want %v", name, !want, want)
-			}
 		}
 	})
 }

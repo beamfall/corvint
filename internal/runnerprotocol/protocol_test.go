@@ -128,19 +128,19 @@ func fixtureProcess() {
 		}
 	}
 }
-func requireLinux(t *testing.T) {
+func requireLinux(t testing.TB) {
 	t.Helper()
 	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" && runtime.GOARCH != "riscv64") {
 		t.Skip("descriptor execution unavailable on this platform")
 	}
 }
-func write(t *testing.T, path, text string) {
+func write(t testing.TB, path, text string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(text), 0600); err != nil {
 		t.Fatal(err)
 	}
 }
-func gitFixture(t *testing.T, root string, args ...string) {
+func gitFixture(t testing.TB, root string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	cmd.Dir = root
@@ -149,7 +149,7 @@ func gitFixture(t *testing.T, root string, args ...string) {
 		t.Fatalf("git %v: %v %s", args, err, b)
 	}
 }
-func fixtureRepo(t *testing.T, mode string) string {
+func fixtureRepo(t testing.TB, mode string) string {
 	t.Helper()
 	root := t.TempDir()
 	gitFixture(t, root, "init", "-q")
@@ -159,7 +159,7 @@ func fixtureRepo(t *testing.T, mode string) string {
 	gitFixture(t, root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture")
 	return root
 }
-func selfPin(t *testing.T) (Pin, string) {
+func selfPin(t testing.TB) (Pin, string) {
 	t.Helper()
 	requireLinux(t)
 	path, err := os.Executable()
@@ -193,7 +193,7 @@ func fixtureResolved(t *testing.T) Resolved {
 	}
 	return resolved
 }
-func corpus(t *testing.T, runDir string) Corpus {
+func corpus(t testing.TB, runDir string) Corpus {
 	t.Helper()
 	inventory := filepath.Join(runDir, "inventory.json")
 	report := filepath.Join(runDir, "go.json")

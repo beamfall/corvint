@@ -59,6 +59,8 @@ type Outcome struct {
 	Record         *Record
 	WindowFallback string // named reason the in-order union is retained
 	Divergent      string // nonzero exit or timeout when run alone
+	// child: the run started an instrumented child (GLS-V0-053).
+	child bool
 }
 
 var listedTest = regexp.MustCompile(`^(Test|Example|Fuzz)\w*$`)
@@ -93,6 +95,13 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	flags := strings.TrimSpace(o.GOFLAGS + " -cover -covermode=atomic -coverpkg=" + o.Module + "/...")
 	// Clipped, so each worker's append below copies instead of sharing storage.
 	env := slices.Clip(append(os.Environ(), "GOFLAGS="+flags))
+	// C code reads the environment through getenv, outside the os audit
+	// (GLS-V0-053): a child a test builds from the module may link it.
+	listEnv := slices.Clip(append(os.Environ(), "GOFLAGS="+o.GOFLAGS, "PWD="+root))
+	moduleC, err := linksCCode(ctx, root, listEnv, "./...")
+	if err != nil {
+		return nil, err
+	}
 	slots := make(chan struct{}, o.Parallel) // test processes in flight
 	results := make([][]Outcome, len(o.Packages))
 	errs := make([]error, len(o.Packages))
@@ -154,6 +163,10 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 		if _, err := os.Stat(bin); err != nil {
 			return nil, nil // no test files
 		}
+		packageC, err := linksCCode(ctx, root, listEnv, "./"+pkg)
+		if err != nil {
+			return nil, err
+		}
 		list := exec.CommandContext(ctx, bin, "-test.list", ".*")
 		list.Dir, list.Env = dir, env
 		out, err := list.Output()
@@ -213,6 +226,11 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 		}
 		if windowsDir != "" {
 			outcomes = attributeWindows(covdata, outcomes, map[string]string{pkg: windowsDir})
+		}
+		for j := range outcomes {
+			if r := outcomes[j].Record; r != nil && (packageC || moduleC && outcomes[j].child) {
+				r.Env = bindWholeEnvironment(r.Env)
+			}
 		}
 		return outcomes, nil
 	}
@@ -331,6 +349,7 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 	})
 	for _, line := range strings.Split(string(auditData), "\n") {
 		if p, ok := strings.CutPrefix(line, "covered-child\t"); ok {
+			out.child = true
 			counters, _ := filepath.Glob(filepath.Join(p, "covcounters.*"))
 			if len(counters) == 0 {
 				out.Divergent = "missing-child-counters: " + p
@@ -374,6 +393,41 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 	// The in-order record owns everything it executed (Record.Union): the
 	// windows widen the test records, they do not narrow this one.
 	out.Record = &Record{Package: pkg, Name: name, Profile: data, Elapsed: time.Since(began), Union: name == InOrder, Env: bindings, EnvObserved: true}
+	return out
+}
+
+// cCodeFormat prints each package that could not be loaded, whose sources
+// are then unknown, and each non-standard package that compiles C, C++ or
+// SWIG sources.
+const cCodeFormat = `{{if or .Error .DepsErrors}}{{.ImportPath}}{{"\n"}}{{else if not .Standard}}{{if or .CgoFiles .SwigFiles .SwigCXXFiles}}{{.ImportPath}}{{"\n"}}{{end}}{{end}}`
+
+// linksCCode reports whether a non-standard package among the dependencies
+// of the test binaries and packages pattern names, under env, compiles C,
+// C++ or SWIG sources, whose getenv reads the os audit cannot see, or could
+// not be loaded (GLS-V0-053). A listing that fails is an error.
+func linksCCode(ctx context.Context, root string, env []string, pattern string) (bool, error) {
+	cmd := exec.CommandContext(ctx, "go", "list", "-e", "-deps", "-test", "-f", cCodeFormat, pattern)
+	cmd.Dir, cmd.Env = root, env
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("linecov: list C code of %s: %v: %s", pattern, err, strings.TrimSpace(stderr.String()))
+	}
+	return len(bytes.TrimSpace(out)) > 0, nil
+}
+
+// bindWholeEnvironment binds the whole environment as collector-modified,
+// which no environment holds, so the record's test is always kept and an
+// in-order record keeps its package whole (GLS-V0-053, GLS-V0-018).
+func bindWholeEnvironment(bindings []EnvBinding) []EnvBinding {
+	out := []EnvBinding{{Name: EnvAll, Value: EnvModified}}
+	for _, b := range bindings {
+		if b.Name != EnvAll {
+			out = append(out, b)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }
 

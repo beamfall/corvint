@@ -175,23 +175,9 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 	search := []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "search", "--artifact", fixture.Current, "--query", fixture.SearchQuery}
 	selected := func(id string) bool { return len(o.Selected) == 0 || slices.Contains(o.Selected, id) }
 	r.Selected = slices.Clone(o.Selected)
-	// context-query measures reads over an existing index snapshot, which the index scenarios
-	// leave behind in a whole run; a filtered run that skips them builds it once, unmeasured,
-	// first (PRB-V0-970).
-	indexed := false
 	for _, id := range ScenarioIDs {
 		if !selected(id) {
 			continue
-		}
-		if id == "context-query" && !indexed {
-			progress("setup: index snapshot for " + id)
-			if _, err := runOnce(ctx, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "index", "--if-stale"}, nil); err != nil {
-				return nil, fmt.Errorf("index setup for %s: %w", id, err)
-			}
-			indexed = true
-		}
-		if id == "index-cold-build" || id == "index-warm-build" {
-			indexed = true
 		}
 		progress("scenario: " + id)
 		var m ScenarioMeasured
@@ -214,8 +200,6 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 		case "index-warm-build":
 			// A matching snapshot exists: the freshness check every hook and packet verb pays.
 			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "index", "--if-stale"}, samples[id], 1, nil)
-		case "context-query":
-			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "context", "--task", fixture.ContextTask, "--subject", fixture.GoPath}, samples[id], 1, nil)
 		case "affected-go":
 			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "affected", "--path", fixture.GoPath}, samples[id], 1, nil)
 		case "affected-ts":

@@ -668,10 +668,6 @@ func (git sanitizedGit) runInput(ctx context.Context, input []byte, arguments ..
 	return git.runBounded(ctx, input, maximumGitOutputBytes, arguments...)
 }
 
-func (git sanitizedGit) runArchive(ctx context.Context, arguments ...string) ([]byte, error) {
-	return git.runBounded(ctx, nil, maximumGitArchiveBytes, arguments...)
-}
-
 func (git sanitizedGit) runBounded(ctx context.Context, input []byte, outputLimit int, arguments ...string) ([]byte, error) {
 	observation := procgroup.Run(ctx, procgroup.Spec{
 		Argv: append([]string{git.executable}, arguments...), Dir: git.dir, Env: git.env, Stdin: input,

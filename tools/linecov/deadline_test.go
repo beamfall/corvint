@@ -60,3 +60,46 @@ func TestDeclaredFailuresDropPhantoms(t *testing.T) {
 		t.Fatalf("declared failures %v", got)
 	}
 }
+
+// GLS-V0-054 (V1-4514 review of the qualify timeout): when a suite run's
+// deadline expires, the test binary panics and go test -json reports the
+// package failed with no result for the running test (the stream below is
+// go1.27.3's for a test that sleeps past -timeout=2s). The harness has no
+// declared failing test of the package, so it counts the package a crash,
+// and qualify counts every test the package declares as failing: a timeout
+// can add misses, never hide one. A package with no result is an error.
+func TestQualifySuiteTimeoutCountsEveryTestFailing(t *testing.T) {
+	dir := t.TempDir()
+	events := `{"Action":"start","Package":"m/p"}
+{"Action":"run","Package":"m/p","Test":"TestA"}
+{"Action":"pass","Package":"m/p","Test":"TestA","Elapsed":0}
+{"Action":"run","Package":"m/p","Test":"TestHang"}
+{"Action":"output","Package":"m/p","Test":"TestHang","Output":"panic: test timed out after 2s\n"}
+{"Action":"output","Package":"m/p","Test":"TestHang","Output":"\trunning tests:\n"}
+{"Action":"output","Package":"m/p","Test":"TestHang","Output":"\t\tTestHang (2s)\n"}
+{"Action":"output","Package":"m/p","Output":"FAIL\tm/p\t2.005s\n"}
+{"Action":"fail","Package":"m/p","Elapsed":2.005}
+`
+	if err := os.WriteFile(filepath.Join(dir, "events"), []byte(events), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\ncase \" $* \" in *' ./p '*) cat \"$EVENTS\"; exit 1;; esac\nexit 1\n"
+	if err := execfile.WriteFile(filepath.Join(dir, "go"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("EVENTS", filepath.Join(dir, "events"))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	failed, b, err := failingTests(dir, "m", []string{"p"}, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	heads := map[string][]string{"p": {"TestA", "TestHang", "TestZ"}}
+	failed = declaredFailures(failed, heads)
+	b.settle(failed, heads)
+	if len(failed) != 0 || !b.crash["p"] || len(b.build) != 0 {
+		t.Fatalf("timed-out package: failed %v crash %v build %v, want no test failure and a crash of p", failed, b.crash, b.build)
+	}
+	if _, _, err := failingTests(dir, "m", []string{"q"}, 2*time.Second); err == nil || !strings.Contains(err.Error(), "no result for q") {
+		t.Fatalf("a package with no result: %v, want an error", err)
+	}
+}

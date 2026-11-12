@@ -29,11 +29,17 @@ type Family struct {
 	// ExecMemberRunners names the family's runners that admit ExecPrefix,
 	// PathMap and Formatter (TRE-V0-081); nil admits none.
 	ExecMemberRunners func() []string
+	// SelectionRunners names the family's runners that have a selection
+	// plugin, and Selection builds that unbound plugin for one of them
+	// (AFP-V0-9985). A family without them serves the absent plugin.
+	SelectionRunners func() []string
+	Selection        func(runner string) RunnerPlugin
 }
 
 // families is the dispatch table, in lookup order (LGP-V0-010).
 var families = []Family{
-	{Name: "testrunner/dynamic", Runners: dynamic.Runners, Build: dynamic.Build, Parse: dynamic.Parse, ExecMemberRunners: dynamic.ExecMemberRunners},
+	{Name: "testrunner/dynamic", Runners: dynamic.Runners, Build: dynamic.Build, Parse: dynamic.Parse, ExecMemberRunners: dynamic.ExecMemberRunners,
+		SelectionRunners: dynamic.RubySelectionRunners, Selection: unboundRubyPlugin},
 	{Name: "testrunner/native", Runners: native.Runners, Build: native.Build, Parse: native.Parse},
 	{Name: "testrunner/platform", Runners: platform.Runners, Build: platform.Build, Parse: platform.Parse},
 	{Name: "testrunner/mobile", Runners: mobile.Runners, Build: mobile.Build, Parse: mobile.Parse},

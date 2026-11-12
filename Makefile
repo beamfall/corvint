@@ -214,6 +214,22 @@ cross-vet:
 		(cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=$$goos GOARCH=amd64 CGO_ENABLED=0 go vet ./...); \
 	done
 
+# deadcode installs golang.org/x/tools/cmd/deadcode at DEADCODE_VERSION for the host into a scratch
+# directory, runs it with -test for linux, darwin and windows on amd64 and arm64 one after another,
+# and fails unless the functions all six runs report equal tools/deadcode-ratchet/baseline.json,
+# which only shrinks (DCR-V0-001 to DCR-V0-005, docs/specs/deadcode-ratchet-v0.md). Each run's
+# JSON stays under the git dir, never in the tracked tree. deadcode-baseline rewrites the baseline
+# from the report; the count asserted in tools/deadcode-ratchet/baseline_test.go must change with it.
+# Neither is a GATE_STEPS step: six whole-program loads take about a minute.
+DEADCODE_VERSION := v0.52.0
+DEADCODE_RUN = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/deadcode-ratchet -version $(DEADCODE_VERSION) -out "$$(git rev-parse --absolute-git-dir)/deadcode"
+.PHONY: deadcode
+deadcode: ## Fail on an unreachable function the shrink-only dead-code baseline lacks, or a stale entry
+	@$(DEADCODE_RUN)
+.PHONY: deadcode-baseline
+deadcode-baseline: ## Rewrite tools/deadcode-ratchet/baseline.json from the six-configuration report
+	@$(DEADCODE_RUN) -write-baseline
+
 .PHONY: go-archive-gate
 go-archive-gate:
 	@script/go-archive-gate
@@ -762,8 +778,8 @@ release-candidate-bytes-test:
 	@script/release-candidate-bytes_test.sh
 
 # release-binaries-check validates tools/release-binary/binaries.json, the per-binary release
-# catalog (ARTIFACT-BIN-V0-001, V1-5236): every cmd/ executable classified once as product or
-# support, each entry citing its decision, version sets declared. It builds nothing.
+# catalog (ARTIFACT-BIN-V0-001, -520, V1-5236): every cmd/ executable classified once as product,
+# support or withheld, each entry citing its decision, version sets declared. It builds nothing.
 .PHONY: release-binaries-check
 release-binaries-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary check
@@ -785,6 +801,16 @@ release-binary: go-version
 release-manifest: go-version
 	@test -n "$(RELEASE_OUT)" || { echo "release-manifest: pass RELEASE_OUT=<dir> [RELEASE_BASE=<release-manifest.json>] [RELEASE_DECLARE_SKEW=SET=REASON]" >&2; exit 2; }
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary manifest --output "$(RELEASE_OUT)" $(if $(RELEASE_BASE),--base "$(RELEASE_BASE)") $(if $(RELEASE_DECLARE_SKEW),--declare-skew "$(RELEASE_DECLARE_SKEW)")
+
+# release-tag runs one release tag end to end into the absent or empty RELEASE_OUT: it selects
+# the tag's binaries (vX.Y.Z, SET/vX.Y.Z or NAME/vX.Y.Z), builds each of them and no other, merges
+# the release manifest over RELEASE_BASE (optional) and rechecks the output (ARTIFACT-BIN-V0-523,
+# -524). It never tags, publishes or opens a network connection. Example:
+#   make release-tag RELEASE_TAG=corvint-docs/v1.0.1 RELEASE_OUT=/tmp/rel-docs RELEASE_BASE=prev/release-manifest.json
+.PHONY: release-tag
+release-tag: go-version
+	@test -n "$(RELEASE_TAG)" && test -n "$(RELEASE_OUT)" || { echo "release-tag: pass RELEASE_TAG=<tag> RELEASE_OUT=<dir> [RELEASE_BASE=<release-manifest.json>] [RELEASE_DECLARE_SKEW=SET=REASON]" >&2; exit 2; }
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary release --tag "$(RELEASE_TAG)" --output "$(RELEASE_OUT)" $(if $(RELEASE_BASE),--base "$(RELEASE_BASE)") $(if $(RELEASE_DECLARE_SKEW),--declare-skew "$(RELEASE_DECLARE_SKEW)")
 
 # no-python-runtime-dependency-test is the GOC-V0-008 falsifying assertion: no build, test, hook or
 # packaging path names a Python interpreter.
