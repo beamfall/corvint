@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // runnerToolStubs puts an executable for each runner tool and lister name
@@ -21,7 +23,7 @@ func runnerToolStubs(t *testing.T, root string) string {
 	bin, log := t.TempDir(), filepath.Join(t.TempDir(), "launched.log")
 	script := "#!/bin/sh\nprintf '%s %s\\n' \"$0\" \"$*\" >> '" + log + "'\nexit 0\n"
 	for _, name := range []string{"python", "python3", "pytest", "node", "npx", "bundle", "ruby", "rspec", "rake"} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -29,7 +31,7 @@ func runnerToolStubs(t *testing.T, root string) string {
 	if err := os.MkdirAll(filepath.Dir(venv), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(venv, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(venv, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -102,7 +104,7 @@ func pytestAdopter(t *testing.T, extra map[string]string) (root, log string) {
 	log = filepath.Join(t.TempDir(), "runners.log")
 	script := "#!/bin/sh\nprintf '%s %s\\n' \"$(basename \"$0\")\" \"$*\" >> '" + log + "'\n[ \"$1\" = --version ] && echo 'stub 1.0'\nexit 0\n"
 	for _, name := range []string{"python", "uv", "make"} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
