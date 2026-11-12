@@ -22,7 +22,9 @@ substitution is such a `P.member` becomes the joined string. The route attribute
 `id`) must then be literals; `P` may appear in any form inside `element` (its tokens are kept for
 the AMAP-V0-882 comparison). Any element that fails these rules leaves the whole child as
 `jsx-expression`, so `non-literal-react-children` stays. A `key` attribute names React
-reconciliation, not a route option, and is ignored everywhere.
+reconciliation, not a route option, and is ignored everywhere. A `.map` child that expands under
+these rules is no longer a dynamic construct for the file's `dynamic-route-context` check; any other
+`.map` still is.
 
 `lexRoutes` now keeps a template literal's raw source in `code`, as `lexJS` does, so the template
 rule can see its substitutions. Because these routes change what a build derives from the same

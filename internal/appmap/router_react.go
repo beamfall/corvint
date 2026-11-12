@@ -98,6 +98,9 @@ func parseReactRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 // could select or compute routes, so the file's states are not read as declared.
 func reactDynamic(ts []token) bool {
 	for i, t := range ts {
+		if t.text == "map" && i > 2 && next(ts, i-3, "{") && reactMapExpands(ts, i-2) {
+			continue // a .map child expanded over a proven array (AMAP-V0-970)
+		}
 		if next(ts, i, "?") || next(ts, i, "&") && next(ts, i+1, "&") || next(ts, i, "|") && next(ts, i+1, "|") || t.kind == tokIdent && (t.text == "if" || t.text == "switch" || t.text == "for" || t.text == "while" || t.text == "map" && i > 0 && next(ts, i-1, ".")) {
 			return true
 		}
@@ -378,8 +381,9 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 				if value.kind == "element" {
 					element = value.str
 				}
-			case "Component", "errorElement", "ErrorBoundary", "loader", "action", "handle", "shouldRevalidate", "hydrateFallbackElement", "HydrateFallback":
-				// These do not supply route paths. Their behavior is not inferred.
+			case "key", "Component", "errorElement", "ErrorBoundary", "loader", "action", "handle", "shouldRevalidate", "hydrateFallbackElement", "HydrateFallback":
+				// These do not supply route paths. Their behavior is not inferred. A `key` names
+				// React reconciliation, not a route option (AMAP-V0-970).
 			default:
 				reason = "unsupported-react-option"
 			}
@@ -492,7 +496,9 @@ func reactJSX(ts []token, i, depth int) (jsValue, int, bool) {
 			if end <= i || !next(ts, end, "}") {
 				return jsValue{}, i, false
 			}
-			if end > i+1 {
+			if mapped, ok := reactMapChildren(ts, i+1, end, depth); ok {
+				children.arr = append(children.arr, mapped...) // AMAP-V0-970
+			} else if end > i+1 {
 				children.arr = append(children.arr, jsValue{kind: "jsx-expression", line: ts[i].line})
 			}
 			i = end + 1
@@ -935,4 +941,138 @@ func reactOpenOf(ts []token, c int) int {
 		}
 	}
 	return -1
+}
+
+// reactMapExpands reports whether the JSX child whose braces open at toks[a-1] expands under
+// AMAP-V0-970.
+func reactMapExpands(ts []token, a int) bool {
+	end := closeParen(ts, a-1)
+	if end <= a || !next(ts, end, "}") {
+		return false
+	}
+	_, ok := reactMapChildren(ts, a, end, 0)
+	return ok
+}
+
+// reactMapChildren expands the JSX child ts[a:b] (the tokens inside its braces) when it is exactly
+// `ARR.map(P => <Route .../>)`, `(P) =>` and a parenthesised element allowed, over a same-file array
+// constArray proves, each element an object literal: one Route per element, with each `P.member`
+// holding a literal string, and each template whose every substitution is one, read as that string.
+// P may remain only inside an `element` or `key` attribute; anything else refuses (AMAP-V0-970,
+// AMAP-V0-971).
+func reactMapChildren(ts []token, a, b, depth int) ([]jsValue, bool) {
+	if b-a < 8 || ts[a].kind != tokIdent || !next(ts, a+1, ".") || !word(ts, a+2, "map") || !next(ts, a+3, "(") ||
+		closeParen(ts, a+3) != b-1 || !next(ts, b-1, ")") {
+		return nil, false
+	}
+	k := a + 4
+	paren := next(ts, k, "(")
+	if paren {
+		k++
+	}
+	if k >= b || ts[k].kind != tokIdent {
+		return nil, false
+	}
+	param := ts[k].text
+	k++
+	if paren {
+		if !next(ts, k, ")") {
+			return nil, false
+		}
+		k++
+	}
+	if !next(ts, k, "=") || !next(ts, k+1, ">") {
+		return nil, false
+	}
+	k += 2
+	body := ts[k : b-1]
+	if next(ts, k, "(") && closeParen(ts, k) == b-2 {
+		body = ts[k+1 : b-2]
+	}
+	if len(body) < 2 || !next(body, 0, "<") || body[1].text != "Route" {
+		return nil, false
+	}
+	spans, ok := constArray(ts, ts[a].text)
+	if !ok || len(spans) == 0 {
+		return nil, false
+	}
+	out := make([]jsValue, 0, len(spans))
+	for _, sp := range spans {
+		el := append(append([]token{}, ts[sp[0]:sp[1]]...), token{kind: tokPunct, text: ","})
+		v, after := parseValue(el, 0)
+		if v.kind != "object" || after != len(el)-1 {
+			return nil, false
+		}
+		members := map[string]string{}
+		for _, pair := range v.obj {
+			if pair.key == "" {
+				return nil, false
+			}
+			if pair.value.kind == "string" {
+				members[pair.key] = pair.value.str
+			}
+		}
+		sub, ok := reactSubstitute(body, param, members)
+		if !ok {
+			return nil, false
+		}
+		route, end, ok := reactJSX(sub, 0, depth+1)
+		if !ok || end != len(sub) {
+			return nil, false
+		}
+		out = append(out, route)
+	}
+	return out, true
+}
+
+// reactSubstitute returns body with each `P.member` naming a literal string member, and each
+// template whose every substitution is such a member, replaced by that string; false when P is
+// then still read outside an `element` or `key` attribute value.
+func reactSubstitute(body []token, param string, members map[string]string) ([]token, bool) {
+	value := func(s string) (string, bool) {
+		m, ok := strings.CutPrefix(s, param+".")
+		if !ok {
+			return "", false
+		}
+		v, ok := members[m]
+		return v, ok
+	}
+	out := make([]token, 0, len(body))
+	for k := 0; k < len(body); k++ {
+		t := body[k]
+		if t.kind == tokIdent && t.text == param && !property(body, k) && next(body, k+1, ".") && k+2 < len(body) && body[k+2].kind == tokIdent && !next(body, k+3, "(") {
+			if v, ok := members[body[k+2].text]; ok {
+				out = append(out, token{kind: tokString, text: v, code: strconv.Quote(v), line: t.line})
+				k += 2
+				continue
+			}
+		}
+		if t.kind == tokTemplate && strings.Contains(t.code, "${") {
+			if v, ok := fillTemplate(t, value); ok {
+				out = append(out, token{kind: tokString, text: v, code: strconv.Quote(v), line: t.line})
+				continue
+			}
+		}
+		out = append(out, t)
+	}
+	for k, t := range out {
+		if t.kind == tokTemplate && strings.Contains(t.code, param) {
+			return nil, false
+		}
+		if t.kind != tokIdent || t.text != param || property(out, k) {
+			continue
+		}
+		o := enclosingOpen(out, k)
+		for o >= 0 {
+			up := enclosingOpen(out, o)
+			if up < 0 {
+				break
+			}
+			o = up
+		}
+		if o < 2 || !isPunct(out[o], "{") || !isPunct(out[o-1], "=") || !word(out, o-2, "element") && !word(out, o-2, "key") {
+			return nil, false
+		}
+	}
+	return out, true
 }
