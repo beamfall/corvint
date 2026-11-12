@@ -4581,5 +4581,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/pytest-provider-v1.md",
+    "title": "pytest provider V1",
+    "reqPrefix": "PYR-V1",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "`corvint test` runs the pytest files a plan selects through the compiled-in runner contract, one run per rootdir at tier `file`, with per-test results.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
