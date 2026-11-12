@@ -3,13 +3,13 @@
 Owner: Russell Lewis
 Date: 2026-11-06
 Requirement prefix: `GRG-V0`
-Intent status: accepted (owner instruction 2026-11-06: make Greptile a required check, "Yes, build it")
-Delivery status: experimental
+Intent status: retired 2026-11-12 (decision 0598)
+Delivery status: retired
 Authoritative inputs: owner instruction 2026-11-08 ("figure out why this is so difficult, and fix it": carry 5/5 across unchanged PR diffs); owner instructions 2026-11-06 (merge only at Greptile 5/5 on the current head with every Greptile thread resolved); `affected-plan-v0.md` AFP-V0-171 (user-posted success kept).
 
 ## Agent digest
-- Claim: The required gate accepts Greptile 5/5 on the head or an unchanged PR diff, with no unresolved Greptile threads.
-- Status: accepted (owner instruction 2026-11-06: make Greptile a required check, "Yes, build it") / experimental
+- Claim: Retired 2026-11-12 (decision 0598): the required Greptile gate, workflow and test are removed; Codex CLI reviews replace it.
+- Status: retired 2026-11-12 (decision 0598) / retired. History only: the status, workflow and test are removed.
 - Exists: `.github/workflows/greptile-gate.yml`; `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead`; `TestGRGV0002CarryOnlyUnchangedPRDiff`.
 - Blocked on: merge, a first hosted run, and adding `greptile-gate` to the main ruleset's required checks.
 - Read next: Requirements; Non-goals and failure modes.

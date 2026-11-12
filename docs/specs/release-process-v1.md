@@ -144,10 +144,9 @@ Non-goals:
   The nightly `release-gates.yml` run MUST contain exactly the REL-V1-012 gates, and a candidate tag
   MUST NOT be pushed unless that run passed on the tagged commit's main ancestor within the previous
   24 hours. (final round, M5)
-  `greptile-gate` is a merge check on main and is not a release gate. It stays a required status on
-  main through stable 1.0, with its waiver. A waiver used more than three times between M5a and
-  stable MUST be recorded in the release record as a known limit. The live ruleset is NOT_VERIFIED.
-  (decided 2026-11-09 under R42, D14)
+  Greptile is not part of the merge or release path: `greptile-gate` was removed from the main
+  ruleset and its workflow deleted, and the independent pre-merge review is a Codex CLI review
+  (decision 0598, 2026-11-12, superseding R42 D14).
 - `REL-V1-013`: Signed release record before publish. The RC publish and the stable promotion MUST
   each be preceded by the owner's signature in the acceptance record (change `acceptance-record`),
   listing each requirement's evidence or demotion, the NOT_RUN and NOT_OBSERVED items and the
@@ -221,7 +220,7 @@ Non-goals:
 | REL-V1-009 | B8b after 2026-12-01; A late batch |
 | REL-V1-010 | Too little trial activity; Too few live PRs |
 | REL-V1-011 | A lane on the benchmark host; A lane outside a session |
-| REL-V1-012 | A CEM gate in the release object; Tasks qualification on a new store; Documentation qualification alone on PATH; No nightly pass in the last 24 hours; A greptile waiver during the release |
+| REL-V1-012 | A CEM gate in the release object; Tasks qualification on a new store; Documentation qualification alone on PATH; No nightly pass in the last 24 hours |
 | REL-V1-013 | No signature; Allowed-signers changed in the released tree |
 | REL-V1-014 | A rebuild outside a class's paths; A changed path in no class; A third rebuild; Blocker found in a held-out repository |
 | REL-V1-015 | macOS fails on the release candidate; Flakes still open at the freeze |

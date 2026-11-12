@@ -588,19 +588,18 @@ list is an inventory to be confirmed by the lane before removal. The cut-over MU
 
 Required statuses (decided 2026-11-09 under R42, D15; medium confidence). `go-product` (decision
 0390) is the one required status context the cut-over replaces; the action's result job
-(GHA-V1-010) MUST report in its place. The `doc-gates`, `ci-control-plane` and `greptile-gate`
-contexts MUST stay unchanged. `ci-control-plane.yml` is trimmed, not deleted: its `control-plane`
+(GHA-V1-010) MUST report in its place. The `doc-gates` and `ci-control-plane`
+contexts MUST stay unchanged; `greptile-gate` is no longer required (retired 2026-11-12, decision 0598). `ci-control-plane.yml` is trimmed, not deleted: its `control-plane`
 and `merge-group` jobs stay and its `main-miss` and `forward-rows` jobs go (RMV-V1-028). The
 cut-over pull request MUST record the required-status list before and after. The live ruleset
 is NOT_VERIFIED; the lane reads it before the cut-over pull request is opened.
 
 #### Scenario: Required statuses after cut-over
 
-- **GIVEN** a required-status list of `go-product`, `doc-gates`, `ci-control-plane` and
-  `greptile-gate` before the cut-over
+- **GIVEN** a required-status list of `go-product`, `doc-gates` and `ci-control-plane` before
+  the cut-over
 - **WHEN** the cut-over pull request merges
-- **THEN** the list holds the action's result job, `doc-gates`, `ci-control-plane` and
-  `greptile-gate`
+- **THEN** the list holds the action's result job, `doc-gates` and `ci-control-plane`
 - **AND** the pull request body records both lists
 
 #### Scenario: No orphan caller

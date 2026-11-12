@@ -74,9 +74,8 @@
   2026-11-09 under R42, D9: one qualification for each of the three products; Tasks runs a new
   store through create, claim, submit, gate, complete and receipt audit. M7: each qualification
   installs from the candidate archive after checking `SHA256SUMS`.
-- `greptile-gate` (decided 2026-11-09 under R42, D14). It is a merge check on main and not a
-  release gate. It stays required on main through stable 1.0 with its waiver. The live ruleset
-  is NOT_VERIFIED.
+- `greptile-gate` was retired on 2026-11-12 (decision 0598, superseding D14). It is neither a
+  merge check nor a release gate; Codex CLI reviews replace it.
 - macOS (decided 2026-11-09 under R42, D7; REL-V1-015). Exhaustive macOS test and vet are a
   release gate on the freeze-candidate and release-candidate commits. The per-merge macOS check
   is advisory until its flake tickets close and 20 consecutive main runs pass; if that has not
