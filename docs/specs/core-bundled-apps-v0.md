@@ -129,7 +129,11 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
   without `--bin-dir` when that directory cannot be read (`UPD-V0-920`). It MUST also point at the
   manual core-set archive install in `docs/INSTALL.md`. When the missing executable is `corvint`
   itself (the `corvint-docs --corpus` read), the refusal MUST name only that manual install,
-  because the updater replaces an installed `corvint` and cannot place a first one. The
+  because the updater replaces an installed `corvint` and cannot place a first one. Where the
+  command would refuse, it MUST name only the manual install and say why: no `corvint` is beside
+  the running executable, or the `corvint` there is unnumbered (build 0 or none, or no answer to
+  `--version`), which the updater does not replace (`UPD-V0-010`). The MCP not-installed `next`
+  step MUST be the same hint for the server's own directory. The
   `version-mismatch` refusal MUST name the same command. The code and exit status of both refusals
   are unchanged.
 
@@ -179,7 +183,7 @@ assumed to pass.
 | `CMS-V0-913` | `cmd/corvint/flows_shim.go` (`runFlowsShim`), `forwardToDocs` in `cmd/corvint/docs_shim.go` | `TestCMSV0913FlowsShimForwardsToCorvintDocs` (a stand-in `corvint-docs` must receive the exact argument vector, so a native implementation in `corvint` fails it); `TestCMSV0913FlowsShimHelpIsNativeAndNamesCorvintDocs`; `TestCMSV0913FlowsShimReportsNotInstalled`; `TestCMSV0913FlowsShimRefusesRequireClean` |
 | `CMS-V0-914` | `cmd/corvint/flows_test_evidence.go` (`runFlowsTestEvidence`); `refuseFlowsTestEvidence` in `internal/command/flows` | `TestRSPV0051FlowProjection`; `TestCMSV0914TestEvidenceRefusesWithThePointerToCorvint`; `TestCMSV0914TestEvidenceRefusalIsReachable` |
 | `CMS-V0-915` | `tools/import-ratchet/areas.json` (`shared` prefixes `internal/appflows`, `internal/appmap`, `internal/flowcoverage`) | `TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs` (area keys; no tests-layer production import of `internal/command/flows`; `cmd/corvint`, `internal/testplan` and `internal/testsource` import a shared flow reader); `TestImportRatchet` (`IRT-V0-004`) for every other tests -> docs edge |
-| `CMS-V0-930` | `internal/docsenvelope/envelope.go` (`NotInstalledMessage`, `InstallHint`, `InstallCommand`), `version.go` (`CheckBeside`), `internal/mcp/toolgroup/errordetail.go` | `TestCMSV0930NotInstalledNamesTheInstallCommand` (the command with the test executable's directory, the manual install, a missing `corvint` naming only the manual install, quoting); `TestDocsShimReportsNotInstalled` asserts the command on `corvint docs`, `flows` and `how`; `TestDocsShimRefusesSiblingAtAnotherVersion` asserts it on `version-mismatch` |
+| `CMS-V0-930` | `internal/docsenvelope/envelope.go` (`NotInstalledMessage`, `InstallHint`, `installHint`, `InstallCommand`), `version.go` (`CheckBeside`), `internal/mcp/toolgroup/errordetail.go` (`Detail`) | `TestCMSV0930NotInstalledNamesTheInstallCommand` (no `corvint` beside the test executable names only the manual install; a numbered `corvint` gets the command with its directory; an unnumbered, build-0 or silent one and a missing `corvint` name only the manual install; quoting); `TestDocsShimReportsNotInstalled` asserts the manual install on `corvint docs`, `flows` and `how` with no `corvint` beside, and the command with `--bin-dir` once a numbered `corvint` stand-in is beside; `TestDocsShimRefusesSiblingAtAnotherVersion` asserts the hint on `version-mismatch`. The MCP `next` step is not asserted by a test |
 | `CMS-V0-916` | `tools/import-ratchet/baseline.json` (18 -> 17 edges) | `TestImportRatchet` (`IRT-V0-003`, `IRT-V0-004`, `IRT-V0-005`); the baseline scan and the seeded `cmd/corvint -> internal/command/flows` control in `TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs` |
 
 ## Compatibility and rollback
