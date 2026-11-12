@@ -1421,7 +1421,10 @@ func presentDigest(p string) (string, error) {
 }
 
 // keepPrevious copies a present app's installed bytes into the transaction as
-// previous-<app>, refusing when they changed since preparation.
+// previous-<app>, which an explicit rollback reads and a completion may replace
+// with the state it carries forward, and as prerun-<app>, which only the
+// restore of an interrupted run reads, refusing when they changed since
+// preparation (UPD-V0-921).
 func keepPrevious(stage string, m member) error {
 	b, err := readRegular(m.Destination, archiveLimit)
 	if err != nil {
@@ -1430,15 +1433,20 @@ func keepPrevious(stage string, m member) error {
 	if hash(b) != m.PreviousDigest {
 		return fmt.Errorf("installed %s changed during preparation", m.Name)
 	}
-	return os.WriteFile(filepath.Join(stage, "previous-"+m.Name), b, 0700)
+	for _, prefix := range []string{"previous-", "prerun-"} {
+		if err = os.WriteFile(filepath.Join(stage, prefix+m.Name), b, 0700); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// restoreMember puts back one app's state before the apply from transaction
-// txn: its previous bytes, or no file when it was absent. The destination must
+// restoreMember puts back one app's previous state from transaction txn: the
+// bytes in <prefix><app>, or no file when it was absent. The destination must
 // still hold the candidate.
-func restoreMember(ctx context.Context, txn string, m member) error {
+func restoreMember(ctx context.Context, txn, prefix string, m member) error {
 	if m.PreviousDigest != "" {
-		return activate(ctx, filepath.Join(txn, "previous-"+m.Name), m.Destination, m.CandidateDigest)
+		return activate(ctx, filepath.Join(txn, prefix+m.Name), m.Destination, m.CandidateDigest)
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -1461,7 +1469,7 @@ func restoreSwitched(ctx context.Context, txn string, switched []member) error {
 	defer cancel()
 	var failed []string
 	for i := len(switched) - 1; i >= 0; i-- {
-		if err := restoreMember(cleanup, txn, switched[i]); err != nil {
+		if err := restoreMember(cleanup, txn, "prerun-", switched[i]); err != nil {
 			failed = append(failed, switched[i].Name+": "+err.Error())
 		}
 	}
@@ -1536,7 +1544,7 @@ func (e engine) rollback(ctx context.Context, destination string) (string, []Set
 	for i, m := range rec.Members {
 		action := "unchanged"
 		if pending[i] {
-			if err := restoreMember(ctx, txn, m); err != nil {
+			if err := restoreMember(ctx, txn, "previous-", m); err != nil {
 				return p, set, fmt.Errorf("rollback member %s: %w", m.Name, err)
 			}
 			action = "restored"
@@ -1565,9 +1573,8 @@ func (e engine) rollback(ctx context.Context, destination string) (string, []Set
 // previous digest and bytes, and each member's when the member still holds
 // that receipt's candidate or is absent. A member changed by other means
 // keeps its own previous state. Without an earlier receipt nothing changes.
-// The copied previous-<app> files only replace ones this apply never
-// restores from: a carried member's own previous state is its candidate or
-// absent, and neither is restored from a file.
+// The copied previous-<app> files serve an explicit rollback only; the
+// restore of an interrupted run reads the untouched prerun-<app> copies.
 func (e engine) carryForward(stage, destination string, rec *receipt) error {
 	p, prior, err := e.rollbackReceipt(destination)
 	if errors.Is(err, errNoReceipt) {
