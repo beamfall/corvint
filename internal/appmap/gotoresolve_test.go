@@ -233,6 +233,13 @@ func TestAMAPV0974CoverageAndInferAgree(t *testing.T) {
 			"    await page.goto(r);\n" +
 			"  });\n" +
 			"}\n",
+		// A literal loop inside a test body: coverage and infer both read each value's visit.
+		"e2e/specs/inbody.spec.ts": "import { test } from '@playwright/test';\n" +
+			"test('in body', async ({ page }) => {\n" +
+			"  for (const p of ['audit', 'settings']) {\n" +
+			"    await page.goto(`/web/${p}`);\n" +
+			"  }\n" +
+			"});\n",
 	})
 	raw, err := ProjectModuleCoverage(context.Background(), m, Options{Full: true})
 	if err != nil {
@@ -250,13 +257,31 @@ func TestAMAPV0974CoverageAndInferAgree(t *testing.T) {
 		reached = append(reached, tmpl)
 	}
 	slices.Sort(reached)
-	want := []string{"/", "/manage/roles", "/manage/users", "/reports", "/settings"}
+	want := []string{"/", "/audit", "/manage/roles", "/manage/users", "/reports", "/settings"}
 	if !slices.Equal(reached, want) || cov.Reached != len(want) || cov.Total != 6 {
 		t.Fatalf("coverage reached %v (%d of %d), want %v of 6", reached, cov.Reached, cov.Total, want)
 	}
 	starts, _ := inferStarts(t, root, m)
 	if !slices.Equal(starts, reached) {
 		t.Errorf("infer start screens %v differ from coverage reached %v", starts, reached)
+	}
+	k, _, _, _, _, err := inferRead(context.Background(), m, []string{"e2e"}, nil, Options{Root: root, Full: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var visits []string
+	for _, tt := range k.Tests {
+		if tt.Title != "in body" {
+			continue
+		}
+		for _, st := range tt.Steps {
+			if st.Kind == StepVisit {
+				visits = append(visits, st.Target)
+			}
+		}
+	}
+	if !slices.Equal(visits, []string{"/web/audit", "/web/settings"}) {
+		t.Errorf("in-body loop visits = %v, want one goto per loop value", visits)
 	}
 	d := specFile(t, m, "e2e/specs/dynamic.spec.ts")
 	if len(d.Gotos) != 1 || d.Gotos[0].Reason != "non-literal-url" || d.Gotos[0].Screen != "" {

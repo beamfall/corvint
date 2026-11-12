@@ -1079,6 +1079,9 @@ func (x *skCtx) statement(a, b int) {
 	toks := x.f.toks
 	t := toks[a]
 	if t.kind == tokIdent && skControl[t.text] {
+		if t.text == "for" && x.loop(a, b) {
+			return
+		}
 		if x.hasAction(a, b) {
 			x.opaque(OpaqueParseUnsupported, "", a, b)
 		}
@@ -1100,6 +1103,47 @@ func (x *skCtx) statement(a, b int) {
 		return
 	}
 	x.expression(a, b, awaited)
+}
+
+// loop reads the braced `for (const X of ITER) { ... }` statement toks[a:b] once per value when
+// ITER holds proven exact strings and the body cannot bind X again: the shared loop resolver
+// (loopValues) that coverage reads loop gotos through, so infer and coverage see the same visits
+// (AMAP-V0-972/974). It reports false, leaving the statement to the caller, for any other loop.
+func (x *skCtx) loop(a, b int) bool {
+	toks := x.f.toks
+	if !next(toks, a+1, "(") {
+		return false
+	}
+	pc := closeParen(toks, a+1)
+	if pc < 0 || pc+1 >= b || !next(toks, pc+1, "{") || closeParen(toks, pc+1) != b-1 && closeParen(toks, pc+1) != b {
+		return false
+	}
+	open := pc + 1
+	ls := enclosingLoops(toks, open+1)
+	if len(ls) == 0 || ls[0].open != open {
+		return false
+	}
+	name := ls[0].name
+	values, ok := loopValues(toks, open+1, name)
+	if !ok || ls[0].close < 0 {
+		return false
+	}
+	for _, v := range values {
+		if secretscreen.MatchString(v) {
+			return false
+		}
+	}
+	prev, had := x.lits[name]
+	for _, v := range values {
+		x.lits[name] = v
+		x.block(open+1, ls[0].close)
+	}
+	if had {
+		x.lits[name] = prev
+	} else {
+		delete(x.lits, name)
+	}
+	return true
 }
 
 func (x *skCtx) declaration(a, b int) {
