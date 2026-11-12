@@ -99,13 +99,17 @@ type File struct {
 // Test is one listed test: its canonical ID and the file it lives in
 // (TIV-V1-001). Duplicate and Reason carry testid.List's marks
 // (CTI-V1-010, CTI-V1-011): a file-level ID with ReasonUnmapped names a file
-// whose tests the lister could not name one by one.
+// whose tests the lister could not name one by one. Kind and KindSource
+// label a pytest test unit, integration, e2e or UNKNOWN and say where the
+// label came from (PYR-V1-005); a label never changes selection in 1.0.
 type Test struct {
-	ID        string         `json:"id"`
-	File      string         `json:"file"`
-	Duplicate bool           `json:"duplicate,omitzero"`
-	Reason    string         `json:"reason,omitzero"`
-	Extra     jsontext.Value `json:",embed"`
+	ID         string         `json:"id"`
+	File       string         `json:"file"`
+	Duplicate  bool           `json:"duplicate,omitzero"`
+	Reason     string         `json:"reason,omitzero"`
+	Kind       string         `json:"kind,omitzero"`
+	KindSource string         `json:"kindSource,omitzero"`
+	Extra      jsontext.Value `json:",embed"`
 }
 
 // Failure is one instance whose lister failed: it is absent from Instances,

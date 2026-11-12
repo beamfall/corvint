@@ -60,6 +60,9 @@ type listing struct {
 	sources []string
 	command []string
 	receipt *Receipt
+	// kinds holds, per named entry, its kind and kind source when the
+	// lister labels kinds (pytest, PYR-V1-005).
+	kinds [][2]string
 }
 
 // add records one named test and the file it lives in.
@@ -149,7 +152,11 @@ func listInstance(ctx context.Context, input listInput, instance Declared) (Inst
 			}
 			unmapped[entry.ID] = true
 		}
-		record.Tests = append(record.Tests, Test{ID: entry.ID, File: file, Duplicate: entry.Duplicate, Reason: entry.Reason})
+		test := Test{ID: entry.ID, File: file, Duplicate: entry.Duplicate, Reason: entry.Reason}
+		if index < len(result.kinds) {
+			test.Kind, test.KindSource = result.kinds[index][0], result.kinds[index][1]
+		}
+		record.Tests = append(record.Tests, test)
 	}
 	return record, lister, nil
 }
@@ -531,9 +538,9 @@ func pythonFor(input listInput, root string) string {
 
 // listPytest runs `pytest --collect-only -q` with the instance root as its
 // rootdir and no cache writes (TIV-V1-004): every printed node ID becomes
-// one test (CTI-V1-006). Exit status 5 (nothing collected) is an empty
-// listing; any other failure, including a collection error, fails the
-// lister.
+// one test (CTI-V1-006), labelled with its kind (PYR-V1-005). Exit status
+// 5 (nothing collected) is an empty listing; any other failure, including
+// a collection error, fails the lister.
 func listPytest(ctx context.Context, input listInput, instance Declared) (listing, error) {
 	result := listing{command: []string{pythonFor(input, instance.Root), "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider", "--rootdir=.", "-c", relativeTo(instance.Root, instance.Config)}}
 	out, err := run(ctx, input, instance.Root, result.command)
@@ -558,6 +565,7 @@ func listPytest(ctx context.Context, input listInput, instance Declared) (listin
 		}
 		result.add(id, "", id.File)
 	}
+	labelPytest(input, instance, &result)
 	return result, nil
 }
 
