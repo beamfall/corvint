@@ -10,7 +10,7 @@ Each task names its requirement IDs and its proof. One commit per ticket.
    `TestAMAPV0974*` in `internal/appmap`.
 - [x] 3 React `.map` expansion, `key` ignored, builder `appmap-builder/4` (V1-5467).
    Requirements: AMAP-V0-970, 971. Proof: `TestAMAPV0970*`, `TestAMAPV0971*`.
-- [ ] 4 `flows appmap <sub>` help (V1-5471). Requirements: AMAP-V0-975. Proof:
+- [x] 4 `flows appmap <sub>` help (V1-5471). Requirements: AMAP-V0-975. Proof:
    `TestAMAPV0975*` in `cmd/corvint-docs`.
 - [ ] 5 `flows appmap build --worktree` and the refusal hint (V1-5472). Requirements:
    AMAP-V0-976, 977. Proof: `TestAMAPV0976*`, `TestAMAPV0977*`; `make capability-catalog`.
