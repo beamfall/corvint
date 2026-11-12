@@ -293,7 +293,7 @@ func completionFixture(t *testing.T) (engine, map[string]string) {
 // earlier receipt's candidate restores their pre-run bytes, not the earlier
 // receipt's previous state it carries forward for an explicit rollback.
 func TestUPDV0921CancelledCompletionRestoresPreRunMembers(t *testing.T) {
-	e, _ := completionFixture(t)
+	e, before := completionFixture(t)
 	releaseFixture(t, &e, scriptBinary(163, 0), appArchives(t, e.platform, 164))
 	preRun := setDigests(t, e)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -308,6 +308,15 @@ func TestUPDV0921CancelledCompletionRestoresPreRunMembers(t *testing.T) {
 	}
 	if got := setDigests(t, e); !sameDigests(got, preRun) {
 		t.Fatalf("cancelled completion left %v, want the pre-run set %v", got, preRun)
+	}
+	// The withdrawn receipt leaves the earlier one the anchor, so rollback
+	// reaches the set before the apply this run tried to complete.
+	e.beforeMember, e.config.AllowNetwork = nil, false
+	if _, err := e.run(context.Background(), "rollback"); err != nil {
+		t.Fatalf("rollback after a cancelled completion: %v", err)
+	}
+	if got := setDigests(t, e); !sameDigests(got, before) {
+		t.Fatalf("rollback left %v, want %v", got, before)
 	}
 }
 
@@ -337,9 +346,9 @@ func TestUPDV0921CompletionKeepsTheRollbackAnchor(t *testing.T) {
 		t.Fatal("second rollback matched a receipt")
 	}
 
-	// A completion interrupted after its receipt was written leaves both
-	// receipts; the completion supersedes the first, so rollback is not
-	// ambiguous and still reaches the set before the first apply.
+	// A completion interrupted after its receipt was written restores what it
+	// switched and withdraws its receipt, so the first receipt stays the anchor
+	// and rollback still reaches the set before the first apply.
 	e, before = completionFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -351,8 +360,8 @@ func TestUPDV0921CompletionKeepsTheRollbackAnchor(t *testing.T) {
 	if _, err = e.run(ctx, "apply"); err == nil {
 		t.Fatal("cancelled completion reported success")
 	}
-	if entries, _ := os.ReadDir(e.config.StateDir); len(entries) < 2 {
-		t.Fatalf("expected both receipts retained: %v", entries)
+	if entries, _ := os.ReadDir(e.config.StateDir); len(entries) != 1 {
+		t.Fatalf("expected only the first receipt retained: %v", entries)
 	}
 	e.beforeMember, e.config.AllowNetwork = nil, false
 	if _, err = e.run(context.Background(), "rollback"); err != nil {
