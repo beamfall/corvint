@@ -71,14 +71,14 @@ func TestGroupHangupJoinsLooseDescendantsBeforeWrapperCleanup(t *testing.T) {
 				t.Fatal(err)
 			}
 			mustWrite(t, filepath.Join(root, "manifest.json"), string(raw))
-			mustWrite(t, filepath.Join(root, "go.mod"), "module github.com/Beamfall/corvint\n\ngo 1.27.3\n")
+			mustWrite(t, filepath.Join(root, "go.mod"), "module github.com/Beamfall/corvint\n\ngo 1.27.4\n")
 			runGitTest(t, root, "init", "-q")
 			runGitTest(t, root, "add", ".")
 			runGitTest(t, root, "-c", "user.name=Corvint Test", "-c", "user.email=corvint@example.invalid", "commit", "-qm", "fixture")
 			quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
 			// Replace compilation only, including the wrapper's producer build. The producer
 			// calls the real main, preflight, worker pool, buildOnce and group cleanup.
-			shim := "#!/bin/sh\ncase $1 in\nenv) case $2 in GOVERSION) echo go1.27.3;; GOTOOLCHAIN) echo local;; esac;;\n" +
+			shim := "#!/bin/sh\ncase $1 in\nenv) case $2 in GOVERSION) echo go1.27.4;; GOTOOLCHAIN) echo local;; esac;;\n" +
 				"run) exec " + quote(os.Args[0]) + " -test.run=^TestHangupProcessHelper$ -- launcher;;\n" +
 				"build) if [ \"$2\" = -o ]; then\n" +
 				"printf '#!/bin/sh\\nexec %s -test.run=^TestHangupProcessHelper$ -- producer\\n' " + quote(quote(os.Args[0])) + " > \"$3\"\nchmod 700 \"$3\"\nelse\n" +

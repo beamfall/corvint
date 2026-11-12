@@ -40,7 +40,7 @@ func newConfineRepository(t *testing.T, declaration string) *confineRepository {
 	r := &confineRepository{t: t, ctx: context.Background(), root: root}
 	r.o = options{root: root, out: out, mode: "run", source: strings.Repeat("a", 40), runtime: filepath.Join(out, "runtime")}
 	reads := "package %s\nimport (\"os\"; \"path/filepath\"; \"testing\")\nfunc TestReadsRootSecret(t *testing.T) {\n\tif _, err := os.ReadFile(filepath.Join(\"..\", \"secret.txt\")); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
-	r.write("go.mod", "module "+confineModule+"\n\ngo 1.27.3\n")
+	r.write("go.mod", "module "+confineModule+"\n\ngo 1.27.4\n")
 	r.write("secret.txt", "repository path outside p\n")
 	r.write("p/p_test.go", strings.Replace(reads, "%s", "p", 1))
 	r.write("q/q_test.go", strings.Replace(reads, "%s", "q", 1))

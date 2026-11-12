@@ -29,7 +29,7 @@ var (
 	isolatedDirLine = regexp.MustCompile(`^\s*([A-Za-z_][A-Za-z0-9_]*)="\$RUNNER_TEMP/([A-Za-z0-9._-]+)"\s*$`)
 	// cp .github/cishards/a.go .github/cishards/b.json "$d/"   or   ... "$d/cmd/"
 	isolatedCpLine = regexp.MustCompile(`^\s*cp((?:\s+\.github/[A-Za-z0-9._/-]+)+)\s+"\$([A-Za-z_][A-Za-z0-9_]*)/((?:[A-Za-z0-9._-]+/)*)"\s*$`)
-	// printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
+	// printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.4\n' > "$d/go.mod"
 	isolatedModLine = regexp.MustCompile(`^\s*printf 'module ([^\\' ]+)\\n\\ngo ([0-9.]+)\\n' > "\$([A-Za-z_][A-Za-z0-9_]*)/go\.mod"\s*$`)
 	// Any copy of a protected helper source; each must belong to a parsed module.
 	helperCpLine = regexp.MustCompile(`^\s*cp\s.*\.github/(cishards|testconfine)/`)

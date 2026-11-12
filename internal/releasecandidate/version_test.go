@@ -101,7 +101,7 @@ func testPUBV0023ReleaseCandidateRC1AssemblesVerifiesAndInstalls(t *testing.T) {
 
 	stubAppBinaries(t)
 	output := filepath.Join(canonicalTemp(t), "candidates")
-	result, err := Assemble(t.Context(), Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), AppsDirectory: appsOutputFixture(t, version, "1", commit, "go1.27.3"), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: version})
+	result, err := Assemble(t.Context(), Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), AppsDirectory: appsOutputFixture(t, version, "1", commit, "go1.27.4"), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: version})
 	if err != nil {
 		t.Fatalf("%s Core-only assembly refused: %v", version, err)
 	}

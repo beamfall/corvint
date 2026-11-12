@@ -71,7 +71,7 @@ func VerifyContext(ctx context.Context, directory string) (*VerifiedCandidate, e
 		return nil, fmt.Errorf("candidate manifest: %w", err)
 	}
 	profile, admitted := candidateProfiles[manifest.Profile]
-	if !admitted || !versionPattern.MatchString(manifest.Version) || !manifestVersionLine(manifest) || manifest.GoVersion != "go1.27.3" || len(manifest.Sources) != len(profile.sources) {
+	if !admitted || !versionPattern.MatchString(manifest.Version) || !manifestVersionLine(manifest) || manifest.GoVersion != "go1.27.4" || len(manifest.Sources) != len(profile.sources) {
 		return nil, fmt.Errorf("candidate manifest identity is invalid")
 	}
 	for index, source := range manifest.Sources {
