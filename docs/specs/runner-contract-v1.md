@@ -357,7 +357,8 @@ Delivered by ticket V1-5416 (build-log `docs/build-log/2026-11-11-runner-contrac
   `--reporter=json`, writing through `PLAYWRIGHT_JSON_OUTPUT_NAME`. A file filter drops a leading
   `-` and is `exact` only when a non-empty inventory listing holds no other file of the instance
   whose path contains it; a test-level ID runs its file. Jest runs files by literal path
-  (`--runTestsByPath`, `--json --outputFile=REPORT`); pytest runs exact node IDs and reads the
+  (`--runTestsByPath`, `--json --outputFile=REPORT`) and selected tests through one anchored `-t`
+  pattern, and an unsupported setup runs its full command (JST-V1-003, JST-V1-008); pytest runs exact node IDs and reads the
   pytest-json-report report (`--json-report --json-report-file=REPORT`); RSpec runs spec files and
   writes `--format json --out REPORT` beside the progress formatter; a path starting with `-` is
   passed as `./path`. Minitest runs its full command with `runner-not-implemented` and has no
