@@ -5,8 +5,8 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
 
 - [ ] 1 File the ticket, reserve prefix `PYR-V1` and set `requirementRefs` to the ten IDs. Proof:
    `ticket show` read back.
-- [ ] 2 First commit: create `pytest-provider-v1.md`, its `docs/specs/README.md` row and the
-   regenerated index. Requirements: PYR-V1-001..010. Proof: spec diff.
+- [x] 2 First commit: create `pytest-provider-v1.md`, its `docs/specs/README.md` row and the
+   regenerated index. Requirements: PYR-V1-001..010. Proof: spec diff (V1-5456, first commit).
 - [ ] 3 pytest lister for `corvint inventory refresh`, one instance per rootdir. Requirements:
    PYR-V1-001. Proof: fixture inventory test.
 - [ ] 4 Wire the compiled-in pytest runner into `corvint test` at tier `file`; per-test outcomes and
