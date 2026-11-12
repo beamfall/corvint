@@ -260,7 +260,7 @@ func compareRecordedOutput(root, output, recorded string, files map[string][]byt
 	}
 	if st, err := os.Lstat(dir); err != nil || !st.IsDir() {
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fail("output directory unreadable")
+			return fmt.Errorf("output directory %s unreadable: %w", shown, err)
 		}
 		result.Output, result.OutputReason, result.Clean = OutputNotChecked, OutputMissingDir, false
 		return nil

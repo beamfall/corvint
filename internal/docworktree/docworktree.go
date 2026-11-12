@@ -70,6 +70,13 @@ func parse(raw []byte, base string, read func(path string) bool) Status {
 		x, y, path := record[0], record[1], record[3:]
 		if x == 'R' || x == 'C' {
 			i++ // the source path record
+			// A rename's source is gone from the worktree, so a check that read it at HEAD
+			// sees a change; a copy's source is unchanged.
+			if x == 'R' && base == Head && i < len(records) {
+				if source := string(records[i]); read == nil || read(source) {
+					changed = append(changed, source)
+				}
+			}
 		}
 		differs := y != ' '
 		if base == Head {

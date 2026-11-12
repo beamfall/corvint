@@ -126,7 +126,7 @@
       "class": "in-repo",
       "stability": "stable",
       "label": "corvint-flows/0",
-      "labelSource": "internal/appflows/flowplan.go",
+      "labelSource": "internal/appflows/flowschema.go",
       "tests": [
         {
           "package": "./internal/appflows",
