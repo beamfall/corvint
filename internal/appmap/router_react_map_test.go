@@ -104,3 +104,30 @@ func TestAMAPV0971UnprovenArrayStaysUnknown(t *testing.T) {
 		}
 	}
 }
+
+// AMAP-V0-971: an array that forEach, a length write or a map callback able to reach the array may
+// change stays unproven, as does a const declared in another function; a length read and a
+// two-parameter map callback keep the proof (AMAP-V0-970).
+func TestAMAPV0971ArrayMutationAndScope(t *testing.T) {
+	const routes = `return (<Routes><Route path="/" element={<Home />} />{sections.map(s => <Route path={s.path} element={<Page />} />)}</Routes>);`
+	const decl = `const sections = [{path: 'users'}]; `
+	for name, src := range map[string]string{
+		"forEach":            `function A() { ` + decl + `sections.forEach(s => { s.path = 'x'; }); ` + routes + ` }`,
+		"length assigned":    `function A() { ` + decl + `sections.length = 0; ` + routes + ` }`,
+		"length incremented": `function A() { ` + decl + `sections.length++; ` + routes + ` }`,
+		"length compound":    `function A() { ` + decl + `sections.length += 1; ` + routes + ` }`,
+		"callback by name":   `function A() { ` + decl + `sections.map(touch); ` + routes + ` }`,
+		"array parameter":    `function A() { ` + decl + `sections.map((s, i, all) => all); ` + routes + ` }`,
+		"rest parameter":     `function A() { ` + decl + `sections.map((...args) => args); ` + routes + ` }`,
+		"another function":   `function B() { ` + decl + `} function A() { ` + routes + ` }`,
+	} {
+		got, reasons := reactTemplates(t, src)
+		if !slices.Contains(reasons, "non-literal-react-children") || !slices.Equal(got, []string{"/"}) {
+			t.Errorf("%s: screens %v unknowns %v, want only / and non-literal-react-children", name, got, reasons)
+		}
+	}
+	got, reasons := reactTemplates(t, `function A() { `+decl+`if (sections.length > 0) { log(sections.map((s, i) => s.path)); } `+routes+` }`)
+	if !slices.Contains(got, "/users") || slices.Contains(reasons, "non-literal-react-children") {
+		t.Errorf("reads only: screens %v unknowns %v, want /users expanded", got, reasons)
+	}
+}

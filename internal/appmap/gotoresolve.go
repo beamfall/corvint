@@ -12,17 +12,62 @@ import (
 // `flows appmap infer` (readTests) both read through it, so the two verbs place the same screens
 // (AMAP-V0-974). Every function refuses, rather than guesses, when the proof is incomplete.
 
-// arrayUses are the only uses of a proven array besides its declaration: none of them can change
-// its elements or let other code reach it.
-var arrayUses = map[string]bool{"map": true, "forEach": true, "length": true}
+// arrayUse reports whether toks[k], an occurrence of a proven array's name, is one of the only
+// uses allowed besides its declaration, none of which can change the array or let other code reach
+// it: a read of `name.length` that no assignment or `++`/`--` follows, or `name.map(` with an
+// inline arrow callback of at most two parameters (the element and its index; a third parameter
+// or a rest parameter would receive the array itself). `forEach`, a callback passed by name and
+// every other member are refused (AMAP-V0-971).
+func arrayUse(toks []token, k int) bool {
+	if !next(toks, k+1, ".") || k+2 >= len(toks) || toks[k+2].kind != tokIdent {
+		return false
+	}
+	switch toks[k+2].text {
+	case "length":
+		return !assigned(toks, k+3)
+	case "map":
+		return next(toks, k+3, "(") && arrowCallback(toks, k+4)
+	}
+	return false
+}
 
-// constArray returns the element spans [a, b) of the array literal name binds, when the file
-// binds name exactly once, by a non-exported `const` at any depth (an optional type annotation and
-// `as const` allowed), to an array literal or to `useMemo(() => [...], deps)` (also
-// `React.useMemo` and `=> ([...])`); every other use of name is `name.map(`, `name.forEach(`,
-// `name.length` or the iterable of a `for (... of name)` header; no template substitution mentions
+// arrowCallback reports whether toks[at] starts an arrow function whose parameter list holds at
+// most two parameters and no rest parameter: `x =>`, `() =>`, `(x) =>`, `(x, i) =>` or a
+// destructuring pattern in their place.
+func arrowCallback(toks []token, at int) bool {
+	if at < len(toks) && toks[at].kind == tokIdent && next(toks, at+1, "=") && next(toks, at+2, ">") {
+		return true
+	}
+	if !next(toks, at, "(") {
+		return false
+	}
+	end := closeParen(toks, at)
+	if end <= at || !next(toks, end+1, "=") || !next(toks, end+2, ">") {
+		return false
+	}
+	commas, depth := 0, 0
+	for j := at + 1; j < end; j++ {
+		switch {
+		case next(toks, j, "(", "[", "{"):
+			depth++
+		case next(toks, j, ")", "]", "}"):
+			depth--
+		case depth == 0 && next(toks, j, ","):
+			commas++
+		case depth == 0 && next(toks, j, "."):
+			return false // a rest parameter
+		}
+	}
+	return commas <= 1 || commas == 2 && next(toks, end-1, ",") // a trailing comma after two
+}
+
+// constArray returns the element spans [a, b) of the array literal name binds at toks[use], when
+// the file binds name exactly once, by a non-exported `const` at any depth whose enclosing block
+// contains use (an optional type annotation and `as const` allowed), to an array literal or to
+// `useMemo(() => [...], deps)` (also `React.useMemo` and `=> ([...])`); every other use of name is
+// an arrayUse or the iterable of a `for (... of name)` header; no template substitution mentions
 // name; no element is empty or a spread; and the lexer met nothing it doubts (AMAP-V0-971).
-func constArray(toks []token, name string) ([][2]int, bool) {
+func constArray(toks []token, name string, use int) ([][2]int, bool) {
 	if len(toks) == 0 || toks[0].unsure {
 		return nil, false
 	}
@@ -39,14 +84,17 @@ func constArray(toks []token, name string) ([][2]int, bool) {
 				return nil, false
 			}
 			decl = k
-		case next(toks, k+1, ".") && k+2 < len(toks) && toks[k+2].kind == tokIdent && arrayUses[toks[k+2].text] &&
-			(toks[k+2].text == "length" || next(toks, k+3, "(")):
+		case arrayUse(toks, k):
 		case word(toks, k-1, "of") && next(toks, k+1, ")"):
 		default:
 			return nil, false
 		}
 	}
 	if decl < 0 {
+		return nil, false
+	}
+	// The declaration's block must contain the use: a const of another function is another binding.
+	if o := enclosingOpen(toks, decl); o >= 0 && !(o < use && use < closeParen(toks, o)) {
 		return nil, false
 	}
 	init := decl + 1
@@ -220,7 +268,7 @@ func enclosingLoops(toks []token, at int) []forOfLoop {
 		iter := [2]int{op + 4, k - 1}
 		switch {
 		case iter[1]-iter[0] == 1 && toks[iter[0]].kind == tokIdent && !toks[iter[0]].escaped:
-			if spans, ok := constArray(toks, toks[iter[0]].text); ok {
+			if spans, ok := constArray(toks, toks[iter[0]].text, iter[0]); ok {
 				l.values, _ = exactStrings(toks, spans)
 			}
 		case next(toks, iter[0], "[") && closeParen(toks, iter[0]) == iter[1]-1:
