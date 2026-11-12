@@ -126,3 +126,39 @@ func TestMTTV1006CoreServerServesNoTasksTool(t *testing.T) {
 		}
 	}
 }
+
+// MTT-V1-007 scenario: a call to each old corvint.flows.<x> name stays the
+// -32602 unknown-tool refusal, and its rule names the corvint.flows_<x> tool
+// that replaced it; an unknown name that was never a tool carries no rule.
+func TestMTTV1007OldFlowsNameNamesTheNewTool(t *testing.T) {
+	root, _, _ := followRootsFixture(t)
+	var requests []map[string]any
+	var renamed []capcatalog.MCPTool
+	for _, row := range capcatalog.MCPToolsFor(capcatalog.ServerCore) {
+		if strings.HasPrefix(row.Name, "corvint.flows_") {
+			renamed = append(renamed, row)
+			requests = append(requests, toolCall(len(requests)+1, row.Replaces[0], map[string]any{}))
+		}
+	}
+	requests = append(requests, toolCall(len(requests)+1, "corvint.flows.nope", map[string]any{}))
+	if len(renamed) != 6 {
+		t.Fatalf("flow rows: %d", len(renamed))
+	}
+	exit, responses, stderr := hookedSession(t, Hooks{Affected: stubAffectedRunner}, []string{"--root", root, "--tool-profile", coreDriftProfile}, requests...)
+	if exit != 0 || stderr != "" {
+		t.Fatalf("exit=%d stderr=%q", exit, stderr)
+	}
+	for index, row := range renamed {
+		rpc, _ := responses[float64(index+1)]["error"].(map[string]any)
+		data, _ := rpc["data"].(map[string]any)
+		allowed, _ := data["allowed"].([]any)
+		if rpc["code"] != float64(-32602) || data["reason"] != "unknown-tool" || data["field"] != "name" ||
+			data["rule"] != "renamed to "+row.Name+" (MTT-V1-007)" || !slices.Contains(allowed, any(row.Name)) {
+			t.Fatalf("%s: %#v", row.Replaces[0], responses[float64(index+1)])
+		}
+	}
+	rpc, _ := responses[float64(len(requests))]["error"].(map[string]any)
+	if data, _ := rpc["data"].(map[string]any); data["reason"] != "unknown-tool" || data["rule"] != nil {
+		t.Fatalf("never-a-tool name: %#v", rpc)
+	}
+}
