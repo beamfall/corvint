@@ -168,13 +168,14 @@ func trimCore(keys []string) []string {
 	return out
 }
 
-// gitTrue reads a Git boolean the way `git config --type=bool` does.
+// gitTrue reads a Git boolean conservatively: only false, no, off, 0 and the empty value are
+// false; every other value, a nonzero integer such as 2 included, counts as true.
 func gitTrue(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {
-	case "true", "yes", "on", "1":
-		return true
+	case "false", "no", "off", "0", "":
+		return false
 	}
-	return false
+	return true
 }
 
 // atWorktreeTop reports whether r's root is the top of a Git worktree: an empty prefix inside a

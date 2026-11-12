@@ -2428,7 +2428,7 @@ but does not read it; only non-Go syntax impact does.
   the top of its worktree, proven by an empty prefix as for a declared root (AFP-V0-156); a
   subdirectory refuses `appmap-root-unavailable` rather than widen the working-tree read above
   `--root` (a pinned build reads committed objects from the top whichever directory `--root`
-  names). A sparse checkout (`core.sparseCheckout` true) MUST refuse `appmap-root-unavailable`,
+  names). A sparse checkout (`core.sparseCheckout` set to any value but `false`, `no`, `off`, `0` or empty, so a nonzero integer counts) MUST refuse `appmap-root-unavailable`,
   since its excluded paths would read as deleted. The snapshot is a commit in a temporary
   repository that borrows the repository's object store through alternates and MUST carry the
   repository settings that decide what `git add` stores or skips: `core.autocrlf`, `core.eol`,
@@ -2815,7 +2815,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-973 | `TestAMAPV0973SpecHelperAttribution` in `gotoresolve_test.go` (a same-file helper call with a literal attributes `helper-goto`; a non-literal argument attributes nothing) |
 | AMAP-V0-974 | `TestAMAPV0974CoverageAndInferAgree` in `gotoresolve_test.go` (coverage reached equals infer start screens on the literal, loop and helper fixture; a dynamic array reaches nothing) |
 | AMAP-V0-975 | `TestAMAPV0975SubcommandHelp` in `cmd/corvint-docs/help_appmap_test.go` (trailing, interior and `-h` requests, the `--root` preamble, boolean flags and `help flows appmap SUB`; an unknown SUB and `--` keep the old behavior) |
-| AMAP-V0-976 | `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go` (an untracked manifest builds, the map carries `working_tree`, two builds are identical, and the repository's status and object count are unchanged); `TestAMAPV0976WorktreeRootAndConfig` in `internal/appmap/worktree_test.go` (a subdirectory `--root` and a sparse checkout refuse; `core.autocrlf`, `info/attributes` and `core.excludesFile` apply to the snapshot; no temporary directory survives success or failure) |
+| AMAP-V0-976 | `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go` (an untracked manifest builds, the map carries `working_tree`, two builds are identical, and the repository's status and object count are unchanged); `TestAMAPV0976WorktreeRootAndConfig` in `internal/appmap/worktree_test.go` (a subdirectory `--root` and a sparse checkout, `true` or `2`, refuse; `core.autocrlf`, `info/attributes` and `core.excludesFile` apply to the snapshot; no temporary directory survives success or failure) |
 | AMAP-V0-977 | `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go` (the default refusal names `--worktree`; each pinned flag refuses) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 

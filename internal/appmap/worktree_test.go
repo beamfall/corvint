@@ -176,6 +176,10 @@ func TestAMAPV0976WorktreeRootAndConfig(t *testing.T) {
 	if _, err := BuildWorktree(context.Background(), sparse, "appmap.json"); codeOf(err) != "appmap-root-unavailable" || !strings.Contains(err.Error(), "sparse checkout") {
 		t.Errorf("a sparse checkout: %v", err)
 	}
+	gitTest(t, sparse, "config", "core.sparseCheckout", "2")
+	if _, err := BuildWorktree(context.Background(), sparse, "appmap.json"); codeOf(err) != "appmap-root-unavailable" || !strings.Contains(err.Error(), "sparse checkout") {
+		t.Errorf("a sparse checkout set to a nonzero integer: %v", err)
+	}
 
 	crlf := strings.ReplaceAll(worktreeManifest, "\n", "\r\n")
 	autocrlf := worktreeFixture(t, crlf)
