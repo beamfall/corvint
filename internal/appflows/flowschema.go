@@ -30,7 +30,10 @@ const FlowsProfilePrefix = "corvint-flows/"
 // flowsSchema is one supported version: N and the closed member set the
 // reader decodes for it, then validates into a FlowsDeclaration.
 type flowsSchema struct {
-	version  int
+	version int
+	// profile is the version's `profile` literal, FlowsProfile(version); it is
+	// spelled out so the compatibility page reads it from code (CMP-V1-003).
+	profile  string
 	file     reflect.Type
 	validate func(file any) (*FlowsDeclaration, error)
 }
@@ -39,7 +42,7 @@ type flowsSchema struct {
 // the last is the one FlowsWriteVersion names and EncodeFlowsDeclaration
 // writes (FSV-V1-002, FSV-V1-006).
 var flowsSchemas = [...]flowsSchema{
-	{version: 0, file: reflect.TypeFor[flowsDeclarationFile](), validate: func(file any) (*FlowsDeclaration, error) {
+	{version: 0, profile: "corvint-flows/0", file: reflect.TypeFor[flowsDeclarationFile](), validate: func(file any) (*FlowsDeclaration, error) {
 		return validateFlowsV0(file.(*flowsDeclarationFile))
 	}},
 }

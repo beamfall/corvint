@@ -10,11 +10,12 @@ import (
 )
 
 // DMF-V1-005: porcelain records count against HEAD when staged or unstaged and against the index
-// only when unstaged; a rename's source record is skipped and the read predicate filters.
+// only when unstaged; a staged rename's source counts against HEAD only, and the read predicate
+// filters both sides of it.
 func TestDMFV1005ParseStatus(t *testing.T) {
 	raw := []byte(" M docs/a.md\x00M  docs/b.md\x00R  docs/new.md\x00docs/old.md\x00 M src/x.go\x00")
 	head := parse(raw, Head, Under("docs"))
-	if head.State != Dirty || head.Changed != 3 || !slices.Equal(head.Paths, []string{"docs/a.md", "docs/b.md", "docs/new.md"}) {
+	if head.State != Dirty || head.Changed != 4 || !slices.Equal(head.Paths, []string{"docs/a.md", "docs/b.md", "docs/new.md", "docs/old.md"}) {
 		t.Fatalf("head %+v", head)
 	}
 	index := parse(raw, Index, nil)
@@ -23,6 +24,13 @@ func TestDMFV1005ParseStatus(t *testing.T) {
 	}
 	if got := parse(raw, Head, Set("README.md")); got.State != Clean || got.Changed != 0 || got.Paths != nil {
 		t.Fatalf("unread paths counted %+v", got)
+	}
+	moved := []byte("R  elsewhere/owner.md\x00docs/owner.md\x00")
+	if got := parse(moved, Head, Set("docs/owner.md")); got.State != Dirty || !slices.Equal(got.Paths, []string{"docs/owner.md"}) {
+		t.Fatalf("moved-out source not counted %+v", got)
+	}
+	if got := parse([]byte("C  docs/copy.md\x00docs/owner.md\x00"), Head, Set("docs/owner.md")); got.State != Clean {
+		t.Fatalf("copy source counted %+v", got)
 	}
 	var many []byte
 	for _, name := range []string{"f", "e", "d", "c", "b", "a"} {
