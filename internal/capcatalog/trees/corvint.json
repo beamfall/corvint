@@ -725,6 +725,33 @@
     },
     {
       "path": [
+        "instructions"
+      ],
+      "command": "corvint instructions",
+      "summary": "Print the instruction load set of a tracked file (experimental, IID-V0)",
+      "usage": [
+        "corvint [--root PATH] instructions --subject PATH --host HOST --host-version VERSION --cwd DIR --profile default"
+      ],
+      "flags": [
+        "--cwd",
+        "--host",
+        "--host-version",
+        "--profile",
+        "--root",
+        "--subject"
+      ],
+      "required": [
+        "--subject PATH",
+        "--host HOST",
+        "--host-version VERSION",
+        "--cwd DIR",
+        "--profile"
+      ],
+      "example": "corvint instructions --subject PATH --host HOST --host-version VERSION --cwd DIR --profile default",
+      "help": "corvint instructions --help"
+    },
+    {
+      "path": [
         "inventory"
       ],
       "command": "corvint inventory",
