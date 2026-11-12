@@ -7,8 +7,11 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
    `ticket show` read back.
 - [x] 2 First commit: create `pytest-provider-v1.md`, its `docs/specs/README.md` row and the
    regenerated index. Requirements: PYR-V1-001..010. Proof: spec diff (V1-5456, first commit).
-- [ ] 3 pytest lister for `corvint inventory refresh`, one instance per rootdir. Requirements:
-   PYR-V1-001. Proof: fixture inventory test.
+- [x] 3 pytest lister for `corvint inventory refresh`, one instance per rootdir. Requirements:
+   PYR-V1-001. Proof: fixture inventory test. The `pytest-collect` lister of change
+   `test-inventory` already collects per rootdir; `TestPYRV1001PyprojectRootIsListed` and
+   `TestPYRV1001TwoRootdirsAreTwoInstances` (`internal/testinventory`) prove both scenarios, and
+   `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) proves affected runs none.
 - [ ] 4 Wire the compiled-in pytest runner into `corvint test` at tier `file`; per-test outcomes and
    durations keyed by canonical ID. Requirements: PYR-V1-002, 003, 004. Proof: mixed-plan and
    failing-test fixtures.
