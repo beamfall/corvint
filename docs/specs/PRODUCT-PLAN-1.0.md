@@ -1616,8 +1616,8 @@ list.
     on a pinned repository.
   - Notes: (decided 2026-11-09 under R42, D7, D9, D14, M5 and M7) The macOS exhaustive test and
     vet are a release gate on the freeze and release candidates, while the per-merge macOS check
-    stays advisory (REL-V1-015). `greptile-gate` stays required on main through stable 1.0 and is
-    not a release gate (REL-V1-012). The nightly gate and the archive install smoke for the
+    stays advisory (REL-V1-015). Greptile was removed from the merge path (decision 0598,
+    2026-11-12); it is not a release gate (REL-V1-012). The nightly gate and the archive install smoke for the
     documentation product are release gates (REL-V1-012), named in the release record
     (REL-V1-013). `init` and
     `adopt` are 1.0 first-run verbs; their first-run behaviour is product gap (a), served by
