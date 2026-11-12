@@ -80,7 +80,7 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 	if err != nil {
 		hint := ""
 		if roots.ManifestRepo == "" && errors.Is(err, errAbsentAtRevision) {
-			hint = worktreeHint(root, manifestPath)
+			hint = worktreeHint(mr, manifestPath)
 		}
 		return nil, invalidManifest("manifest: %v%s", err, hint)
 	}
