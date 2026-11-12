@@ -35,7 +35,7 @@ func TestMTTV1001TableRules(t *testing.T) {
 		}
 	}
 	// 20 corpus tools until docs-mcp-hardening removes docs_recommend_tests
-	// (DMF-V1-009), plus docs_draft and docs_consume; docs_how is planned.
+	// (change docs-mcp-hardening), plus docs_draft and docs_consume; docs_how is planned.
 	if docs != 22 {
 		t.Fatalf("%d registered docs rows on %s, want 22", docs, ServerDocs)
 	}

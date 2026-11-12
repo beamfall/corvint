@@ -33,7 +33,7 @@ const (
 	AvailabilityPlanned      = "planned"
 )
 
-// The typed tool-error codes every served tool lists (DMF-V1-010, MTT-V1-001).
+// The typed tool-error codes every served tool lists (change docs-mcp-hardening, MTT-V1-001).
 const (
 	ErrorServerBusy = "server-busy"
 	ErrorCancelled  = "cancelled"
@@ -499,7 +499,7 @@ func mcpToolRows() []MCPTool {
 			Summary:       "Answer a how-to question from the application map",
 			OutputProfile: "site-knowledge-how/0", Errors: errorsOf(),
 			CLIEquivalent: "corvint-docs how --json",
-			Note:          "lands with change how-rewrite (HOW-V1-011); no server registers it yet",
+			Note:          "lands with change how-rewrite; no server registers it yet",
 		},
 
 		// The retiring standalone server and the deliberate CLI-only answers.
