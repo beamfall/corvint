@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -317,6 +318,48 @@ func TestUPDV0921CancelledCompletionRestoresPreRunMembers(t *testing.T) {
 	}
 	if got := setDigests(t, e); !sameDigests(got, before) {
 		t.Fatalf("rollback left %v, want %v", got, before)
+	}
+}
+
+// A retry of an apply killed after it switched an app but before corvint keeps
+// that app's state before the killed run, so rollback after the retry reaches
+// the set before either run.
+func TestUPDV0921RetryAfterKillKeepsMemberAnchors(t *testing.T) {
+	e := setEngine(t)
+	writeScript(t, filepath.Join(e.config.BinDir, "corvint"), 162)
+	if err := execfile.WriteFile(filepath.Join(e.config.BinDir, "corvint-docs"), appBinary("corvint-docs", 162), 0700); err != nil {
+		t.Fatal(err)
+	}
+	before := setDigests(t, e)
+	releaseClient(t, &e, 163)
+	// The process dies at the corvint switch: the switched apps are not restored.
+	e.beforeMember = func(name string) {
+		if name == "corvint" {
+			runtime.Goexit()
+		}
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = e.run(context.Background(), "apply")
+	}()
+	<-done
+	if got := setDigests(t, e); sameDigests(got, before) {
+		t.Fatal("the killed run switched no app")
+	}
+	e.beforeMember = nil
+	if _, err := e.run(context.Background(), "apply"); err != nil {
+		t.Fatalf("retry: %v", err)
+	}
+	if got := setDigests(t, e); !sameDigests(got, wantSet(163)) {
+		t.Fatalf("retried set %v", got)
+	}
+	e.config.AllowNetwork = false
+	if _, err := e.run(context.Background(), "rollback"); err != nil {
+		t.Fatal(err)
+	}
+	if got := setDigests(t, e); !sameDigests(got, before) {
+		t.Fatalf("rollback after a retried apply left %v, want %v", got, before)
 	}
 }
 
