@@ -236,7 +236,7 @@ Delivered by ticket V1-5448 (build-log `docs/build-log/2026-11-11-run-evidence.m
 | RVD-V1-008 | `TestRVDV1008NoListingVerb` (`cmd/corvint`); the "removed verb" scenario, `TestRVDV1008RunsVerbIsUnknown` (`cmd/corvint`), is skipped: gated on change `source-removal` |
 | RVD-V1-009 | `TestRVDV1009RetentionAt21Runs`, `TestRVDV1009SizeCap` (`internal/runevidence`) |
 | RVD-V1-010 | `TestRVDV1010CorruptRecordSkipped`, `TestRVDV1010UnreadableLogRebuilt`, `TestRVDV1010LockWaitIsBounded`, `TestRVDV1010ReadIsBounded` (`internal/runevidence`), `TestRVDV1010StatusNamesCorruptRecord` (`internal/command/flows`), `TestRVDV1010CLIWriteFailureKeepsExitCode` (`cmd/corvint`) |
-| RVD-V1-011 | `TestRVDV1011StoredResultsDoNotChangePlan` (`tools/import-ratchet`) |
+| RVD-V1-011 | `TestRVDV1011NoSelectionPackageReadsTheStore`, `TestRVDV1011StoredResultsDoNotChangePlan` (`tools/import-ratchet`) |
 | RVD-V1-012 | `TestRVDV1012ReadMissingStoreWritesNothing`, `TestRVDV1010CorruptRecordSkipped` (`internal/runevidence`), `TestRVDV1007FlowsReadersUseStore`, `TestRVDV1007FlowsToolsReadStore` (`internal/command/flows`), `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`), `TestRVDV1012TestEvidenceReadsStoreWithoutWriting` (`internal/testevidencedoc`) |
 
 ## Non-goals
