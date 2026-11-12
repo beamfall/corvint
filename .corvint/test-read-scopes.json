@@ -2172,6 +2172,7 @@
     "tools/gate-ledger": [
       "Makefile",
       "internal/gateselect/",
+      "internal/noncodemap/",
       "internal/taskprojection/taskprojection.go",
       "script/batch-precheck.sh",
       "tools/gate-affected-select/main.go"
