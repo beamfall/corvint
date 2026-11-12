@@ -138,7 +138,7 @@ attachments retain explicit projection omissions and mandatory check fallback.
 
 ## Native evidence consumers
 
-Use the inline `--corpus=FILE` option on `query`, `context`, `impact`, `affected`, `test-validity`,
+Use the inline `--corpus=FILE` option on `impact`, `affected`, `test-validity`,
 `work observe`, `work propose-wave`, or `cem status/verify/report`. It adds a separately attributed
 `documentation` member and preserves native result members. Work evidence carries no task authority.
 Impact follows exact source anchors and one explicitly recorded relation; incomplete selection always

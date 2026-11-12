@@ -15,7 +15,7 @@
     },
     {
       "path": "cmd/corvint/taskcontext.go",
-      "sha256": "1fb7762ed693fb7e3f842affebd515646eff3017bf9762b64916c4f3c5cc3026"
+      "sha256": "a2cfa00e67a566cd7fd08e4c207be65a248c815a96702d947b43a6033d0c82f8"
     }
   ],
   "useCaseId": "UC-TASK-ORIENTATION"

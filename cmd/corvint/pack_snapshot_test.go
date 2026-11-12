@@ -13,44 +13,27 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
-// packDogfoodTasks are the twenty task shapes the pack must answer exactly as
-// the gob snapshot and the build do: the dogfood questions asked of this
-// fixture, each run with and without a subject.
-var packDogfoodTasks = []struct{ task, subject string }{
-	{"does `Split` keep empty keys", "cache/demux.go"},
-	{"add a test for Split with an empty key", "cache/demux_test.go"},
-	{"rename Split to Partition across the cache package", "cache/demux.go"},
-	{"what does the cache package export", "cache/demux.go"},
-	{"features.yaml lists no features; add one", "testing/features.yaml"},
-	{"the go.mod module path is example.test/ctx", "go.mod"},
-	{"why does TestSplit only pass k", "cache/demux_test.go"},
-	{"key demux split", "cache/demux.go"},
-	{"cache demux", "cache/demux_test.go"},
-	{"return key unchanged", "cache/demux.go"},
-	{"which files mention Split", "go.mod"},
-	{"package cache string key", "cache/demux.go"},
-	{"testing features", "testing/features.yaml"},
-	{"module ctx go 1.27", "go.mod"},
-	{"Split(key string) string", "cache/demux.go"},
-	{"TestSplit calls Split", "cache/demux_test.go"},
-	{"no such identifier anywhere", "cache/demux.go"},
-	{"cache/demux.go returns its key", "cache/demux_test.go"},
-	{"demux_test", "cache/demux.go"},
-	{"features: []", "cache/demux.go"},
+// packReadInvocations are the read verbs the pack must answer exactly as the gob snapshot and
+// the build do: impact over each tracked fixture path and over a pair, and the instruction load
+// set, which reads instruction bodies (decision 0597 removed the task packet these once used).
+func packReadInvocations(root string) [][]string {
+	invocations := [][]string{
+		{"--root", root, "impact", "cache/demux.go", "cache/demux_test.go"},
+		{"--root", root, "instructions", "--subject", "cache/demux.go", "--host", "codex",
+			"--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"},
+	}
+	for _, path := range []string{"cache/demux.go", "cache/demux_test.go", "go.mod", "testing/features.yaml"} {
+		invocations = append(invocations, []string{"--root", root, "impact", path})
+	}
+	return invocations
 }
 
-// TestPackSnapshotReadsWithoutChangingAByteOnTwentyTasks pins proposed
-// IDX-SNAP-V0-015's identity row: on every dogfood task, with and without a
-// subject, the pack hit emits the bytes the build and the gob hit emit.
-func TestPackSnapshotReadsWithoutChangingAByteOnTwentyTasks(t *testing.T) {
+// TestPackSnapshotReadsWithoutChangingAByte pins IDX-SNAP-V0-015's identity row: on every read
+// invocation the pack hit emits the bytes the build and the gob hit emit.
+func TestPackSnapshotReadsWithoutChangingAByte(t *testing.T) {
 	t.Parallel()
 	root := taskContextRepository(t)
-	invocations := make([][]string, 0, 2*len(packDogfoodTasks))
-	for _, item := range packDogfoodTasks {
-		invocations = append(invocations,
-			[]string{"--root", root, "context", "--task", item.task},
-			[]string{"--root", root, "context", "--task", item.task, "--subject", item.subject})
-	}
+	invocations := packReadInvocations(root)
 	run := func(snapshotFormat string) []string {
 		t.Helper()
 		return candidatePackets(t, invocations, []string{"CORVINT_SNAPSHOT_FORMAT=" + snapshotFormat})
@@ -80,7 +63,7 @@ func TestPackSnapshotReadsWithoutChangingAByteOnTwentyTasks(t *testing.T) {
 			t.Fatalf("pack hit differs from the build for %v:\n%s\n%s", invocations[position], cold[position], pack)
 		}
 	}
-	// A corrupt body is refused when a packet reads it: the verb recompiles
+	// A corrupt body is refused when a read reads it: the verb recompiles
 	// through the loader that refuses the whole pack and answers from the gob.
 	packed, err := os.ReadFile(packPaths[0])
 	if err != nil {

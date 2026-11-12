@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-11-01
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-11 (decision 0597)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0597 (context proven only) deleted the context ranking stack with the ranked packet (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: native tickets V1-3273, V1-0219, V1-3710, V1-0114, V1-0116 and V1-2716,
 decision 0027 (corroboration order), decision 0377 and `TCP-V0-048..050` in the
@@ -17,7 +19,7 @@ No index, snapshot, pack, root verb or wire profile changes.
 
 ## Agent digest
 - Claim: Opt-in RRF, additive and acronym orderings, span hit ranges, fallbacks and merging, and allocation-free term matching, each measured on the frozen bench.
-- Status: proposed; experimental; the original RRF and additive variants failed the frozen gate; membership-preserving variants stay opt-in; the acronym rule and span modes stay opt-in pending owner decision.
+- Status: retired 2026-11-11 (decision 0597) / retired
 - Exists: `CORVINT_CONTEXT_RRF`, `CORVINT_CONTEXT_ADDITIVE`, `CORVINT_CONTEXT_ACRONYMS=prose`, `CORVINT_CONTEXT_SPANS=hits|merged`, and `matchTerms` with a text-sized interner.
 - Blocked on: the remaining three frozen retrieval releases, historical manifest subjects absent at their pinned bases, and the ContextBench dataset for V1-2716 AC1; the 63-task history-backed replay is now measured with errors retained (TCP-V0-2223).
 - Read next: Requirements; Measurements; Failure modes; Rollback.

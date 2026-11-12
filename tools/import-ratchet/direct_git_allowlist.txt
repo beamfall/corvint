@@ -35,19 +35,14 @@ tools/affected-zero-unknown-replay/main.go:git: CombinedOutput with the inherite
 tools/beamfall-shadow/main.go:gitLimitedBytes: fixed minimal environment with its own byte limits and git output limit exceeded error text
 tools/cem-release-suites/main.go:gitCommand: inherits the environment minus Git selection variables with no timeout; callers wire the command
 tools/conflict-markers-check/main.go:main: inherits the environment with no timeout or output bound and prints exec's error
-tools/cw-trial/generate.go:gitBytes: inherits the environment with no output bound; the error text carries exec's error and stderr
-tools/cw-trial/main.go:backfillRecords: cat-file -e success test with the inherited environment and no timeout
-tools/cw-trial/main.go:git: inherits the environment plus fixed variables with no output bound; the error wraps exec's error
+tools/deadcode-ratchet/main.go:packagePatterns: ls-files -z with the inherited environment and unbounded stdout; the error wraps exec's error
 tools/declaration-compat-check/main.go:atPin: cat-file -e then show with the inherited environment and no timeout; the error text carries stderr
 tools/declaration-compat-check/main.go:atPin: cat-file -e then show with the inherited environment and no timeout; the error text carries stderr
 tools/declaration-compat-check/main.go:tracked: inherits the environment with no timeout or output bound; the error wraps exec's error
 tools/docs-ci-plan/main.go:repo.git: classifierSha256 in .github/qualifications/docs-only.json binds tools/docs-ci-plan only (DCI-V0-855), so an edit requalifies it and a gitrun import adds unbound code
-tools/flows-smoke/main.go:buildFixture: CombinedOutput with a fixed fixture environment and pinned author dates and no timeout; the message carries exec's error and combined output
-tools/heading-nav-bench/main.go:git: inherits the environment with no output bound and returns exec's error unchanged
 tools/py-signal-lint/main.go:main: inherits the environment with no timeout or output bound and prints exec's error
 tools/release-binary/build.go:gitOutput: inherits the environment with no output bound; the error text carries exec's error and stderr
 tools/requirement-id-collisions/main.go:git: maps exec.ExitError to its own exit code and stderr error and passes the caller environment minus GIT_ variables
-tools/retrieval-bench/main.go:git: inherits the environment plus fixed variables with no output bound; the error wraps exec's error
 tools/runner-qualification/main.go:gitOutput: the git-pin-check-failed message wraps exec's error text and the environment is inherited
 tools/test-exec-writes-check/main.go:run: inherits the environment with no timeout or output bound
 tools/test-read-scopes-check/main.go:droppedDeclarations: inherits the environment with no timeout or output bound

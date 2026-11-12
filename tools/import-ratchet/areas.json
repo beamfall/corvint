@@ -73,7 +73,6 @@
         "internal/testsupport",
         "internal/testvalidity",
         "internal/testvaliditymodel",
-        "internal/trace",
         "internal/untrackedallowance",
         "internal/versionline",
         "internal/webdialect",

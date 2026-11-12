@@ -8,8 +8,8 @@ schema: spec-driven
 
 context: |
   Corvint (a local, read-only context and review tool) is available as `corvint`.
-  Before `apply` implements a change, run `corvint context --task "<change summary>"
-  --subject openspec/changes/<id>/proposal.md` and read the files it lists.
+  Before `apply` implements a change, run `corvint context --path <path>` for each
+  file the change will edit and read the instructions, tests and requirements it lists.
   After `apply`, run `corvint affected --base <full base commit>` and
   `corvint review --base <full base commit>`. Report their output verbatim,
   including every unknown, NOT_PRODUCED and refusal. `corvint review` refuses a
@@ -18,11 +18,11 @@ context: |
 
 rules:
   tasks:
-    - Start the task list with a read-only step to run `corvint context --task "<change summary>" --subject openspec/changes/<id>/proposal.md` before apply implements anything.
+    - Start the task list with a read-only step to run `corvint context --path <path>` for each file the change will edit before apply implements anything.
     - End the task list with a read-only step to run `corvint affected --base <full base commit>` and `corvint review --base <full base commit>` after apply, reporting every unknown and NOT_PRODUCED verbatim.
 
 operations:
   apply:
     guidance:
-      - Before implementing, run `corvint context --task "<change summary>" --subject openspec/changes/<id>/proposal.md` and read the listed files. Corvint is read-only advice.
+      - Before implementing, run `corvint context --path <path>` for each file the change will edit and read what it lists. Corvint is read-only advice.
       - After implementing, run `corvint affected --base <full base commit>` and `corvint review --base <full base commit>` and report their output verbatim, including every unknown and NOT_PRODUCED. Never block, edit or commit because of it.

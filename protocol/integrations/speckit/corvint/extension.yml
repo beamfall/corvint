@@ -6,7 +6,7 @@ schema_version: "1.0"
 extension:
   id: corvint
   name: "Corvint context and review"
-  version: "0.1.1"
+  version: "0.1.2"
   description: "Read-only Corvint context before /speckit.implement and Corvint review after it"
   author: "Beamfall"
   repository: https://github.com/beamfall/corvint
@@ -23,7 +23,7 @@ provides:
   commands:
     - name: speckit.corvint.context
       file: commands/speckit.corvint.context.md
-      description: "Report Corvint task context for the feature's spec.md and plan.md (read-only)"
+      description: "Report the Corvint path brief for the feature's spec.md and plan.md (read-only)"
     - name: speckit.corvint.review
       file: commands/speckit.corvint.review.md
       description: "Report Corvint affected tests and review advice for the working diff (read-only)"

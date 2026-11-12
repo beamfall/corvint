@@ -1,10 +1,7 @@
 package contextindex
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 )
@@ -114,67 +111,4 @@ func recipeFixtureIndex(t *testing.T) *Index {
 		t.Fatal(err)
 	}
 	return index
-}
-
-func recipePacket(t *testing.T, index *Index, mode, task string) map[string]any {
-	t.Helper()
-	t.Setenv("CORVINT_CONTEXT_RECIPE", mode)
-	packet, err := TaskContext(context.Background(), index, task, "", 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return packet
-}
-
-// TestContextRecipeDefaultPathIsByteIdentical pins the default path against a
-// packet captured with the recipe unset (lane byte-identity rule). The golden
-// was first captured at 2a76e40, before recipe R existed, and re-captured on
-// the staged tree after TCP-V0-015 and TCP-V0-016 landed; that re-capture
-// added only the `test` relation and the answerability member. The TCP-V0-016(b)
-// support-disclosure repair later corrected required=0 to 1 and its reason for
-// this one-known-term fixture; every other packet field stayed byte-identical.
-// TCP-V0-011 subsequently corrects only pair examination/count for its named
-// path: subject-absent/null becomes examined/0; all other bytes are retained.
-// Decision 0146 then adds only the supported verdict's nearest_claims block.
-// Decision 0346 (TCP-V0-023) then adds only the `trust` member on each evidence
-// row and the empty `coverage.governance_refused` array. TCP-V0-047 then adds
-// only the `instruction-routed` entry to `coverage.unexamined`.
-func TestContextRecipeDefaultPathIsByteIdentical(t *testing.T) {
-	t.Run("TCP-V0-018", func(t *testing.T) {
-		packet := recipePacket(t, recipeFixtureIndex(t), "", recipeFixtureTask)
-		encoded, err := json.MarshalIndent(packet, "", "  ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		golden, err := os.ReadFile("testdata/context-recipe-default-golden.json")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(append(encoded, '\n'), golden) {
-			t.Fatalf("default packet drifted from the golden:\n%s", encoded)
-		}
-	})
-}
-
-// TestContextRecipeRetiredFlagsAreIgnored keeps retired experiment settings
-// from selecting an unpromoted order (decision 0078).
-func TestContextRecipeRetiredFlagsAreIgnored(t *testing.T) {
-	t.Run("TCP-V0-018", func(t *testing.T) {
-		index := recipeFixtureIndex(t)
-		before, err := json.Marshal(recipePacket(t, index, "", recipeFixtureTask))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, mode := range []string{"r", "r+anchor", "r+doctail", "r+anchor+doctail", "r+doctail+anchor"} {
-			t.Run(mode, func(t *testing.T) {
-				after, err := json.Marshal(recipePacket(t, index, mode, recipeFixtureTask))
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !bytes.Equal(before, after) {
-					t.Fatalf("retired recipe %q changed the default packet", mode)
-				}
-			})
-		}
-	})
 }

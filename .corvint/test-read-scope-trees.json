@@ -76,31 +76,46 @@
     },
     "tools/flow-guide-check": {
       "cmd/": {
-        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk cmd/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk cmd/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate, which matches only refuse calls and the guide recovery table codes the check reads (AFP-V0-3300 to AFP-V0-3302, AFP-V0-9980)",
+        "contentPredicate": "[rR]efuse\\w*\\s*\\(|local-reason-missing|whole-reason-missing|unsupported-object-alternates|unpinned-review|RESOURCE_COLLISION|OUT_OF_SCOPE",
         "samples": [
           "return refuse(\"work-not-found\")",
           "return RefusePending()",
-          "UNKNOWN_GATE"
+          "refuse \"local-reason-missing run on the offload host\"",
+          "refuse \"whole-reason-missing set HEAVY_WHOLE_REASON\"",
+          "code: \"unsupported-object-alternates\"",
+          "return \"unpinned-review\"",
+          "Kind: \"RESOURCE_COLLISION\"",
+          "Kind: \"OUT_OF_SCOPE\""
         ]
       },
       "internal/": {
-        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk internal/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk internal/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate, which matches only refuse calls and the guide recovery table codes the check reads (AFP-V0-3300 to AFP-V0-3302, AFP-V0-9980)",
+        "contentPredicate": "[rR]efuse\\w*\\s*\\(|local-reason-missing|whole-reason-missing|unsupported-object-alternates|unpinned-review|RESOURCE_COLLISION|OUT_OF_SCOPE",
         "samples": [
           "return refuse(\"work-not-found\")",
           "return RefusePending()",
-          "UNKNOWN_GATE"
+          "refuse \"local-reason-missing run on the offload host\"",
+          "refuse \"whole-reason-missing set HEAVY_WHOLE_REASON\"",
+          "code: \"unsupported-object-alternates\"",
+          "return \"unpinned-review\"",
+          "Kind: \"RESOURCE_COLLISION\"",
+          "Kind: \"OUT_OF_SCOPE\""
         ]
       },
       "script/": "tools/flow-guide-check/main.go globs script/*.sh, walks script/ (sourceText) and stats each script/ span of the guide (AFP-V0-3011 (1), (2))",
       "tools/": {
-        "reason": "tools/flow-guide-check/main.go sourceText walks tools/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "reason": "tools/flow-guide-check/main.go sourceText walks tools/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate, which matches only refuse calls and the guide recovery table codes the check reads (AFP-V0-3300 to AFP-V0-3302, AFP-V0-9980)",
+        "contentPredicate": "[rR]efuse\\w*\\s*\\(|local-reason-missing|whole-reason-missing|unsupported-object-alternates|unpinned-review|RESOURCE_COLLISION|OUT_OF_SCOPE",
         "samples": [
           "return refuse(\"work-not-found\")",
           "return RefusePending()",
-          "UNKNOWN_GATE"
+          "refuse \"local-reason-missing run on the offload host\"",
+          "refuse \"whole-reason-missing set HEAVY_WHOLE_REASON\"",
+          "code: \"unsupported-object-alternates\"",
+          "return \"unpinned-review\"",
+          "Kind: \"RESOURCE_COLLISION\"",
+          "Kind: \"OUT_OF_SCOPE\""
         ]
       }
     },

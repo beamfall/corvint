@@ -37,14 +37,6 @@ func (v VerifiedCorpus) Snapshot() (*Artifact, error) {
 	return ParseArtifact(v.canonical)
 }
 
-func BuildVerified(ctx context.Context, root string, m Manifest) (VerifiedCorpus, error) {
-	a, err := Build(ctx, root, m)
-	if err != nil {
-		return VerifiedCorpus{}, err
-	}
-	return verifiedCorpus(a)
-}
-
 func BuildIncrementalVerified(ctx context.Context, root string, m Manifest, ids []ShardIdentity, priorRaw []byte, expected string) (VerifiedCorpus, *IncrementalCache, IncrementalStats, error) {
 	a, cache, stats, err := BuildIncremental(ctx, root, m, ids, priorRaw, expected)
 	if err != nil {

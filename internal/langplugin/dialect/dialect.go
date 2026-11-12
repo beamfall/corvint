@@ -11,7 +11,6 @@ package dialect
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"sync"
 )
 
@@ -150,21 +149,4 @@ func LookupRegion(name string) (Region, bool) {
 	defer mu.RUnlock()
 	region, ok := regions[name]
 	return region, ok
-}
-
-// ImpactNames returns every registered impact dialect, sorted.
-func ImpactNames() []string { return names(impacts) }
-
-// RegionNames returns every registered region dialect, sorted.
-func RegionNames() []string { return names(regions) }
-
-func names[T any](table map[string]T) []string {
-	mu.RLock()
-	defer mu.RUnlock()
-	out := make([]string, 0, len(table))
-	for name := range table {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
 }

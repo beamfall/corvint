@@ -76,18 +76,6 @@ func snapshotDelta(before, after map[string]string) []string {
 	return delta
 }
 
-// ledgerIgnoringRepository is the harness fixture with .corvint/ gitignored,
-// which is the one condition under which harness event may append the
-// self-observation ledger row.
-func ledgerIgnoringRepository(t *testing.T) string {
-	t.Helper()
-	root := ledgerRepository(t)
-	cemWrite(t, root, ".gitignore", ".corvint/\n.context-corvint/\n")
-	cemGit(t, root, "add", ".gitignore")
-	cemGit(t, root, "commit", "-qm", "ignore .corvint")
-	return root
-}
-
 // TestReadOnlyVerbsWriteNothing is the filesystem tripwire for the verbs the
 // root help lists as reading without mutating repository or trace state
 // (init, adopt, impact, docs, lrf; GPK-V0-007, AGENTS.md invariant 4). Each

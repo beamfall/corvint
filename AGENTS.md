@@ -51,14 +51,14 @@ Corvint is a local-first, proof-carrying context compiler for software agents.
 
 ## Product binaries
 
-The product binaries are `corvint`, `corvint-docs`, `corvint-cli`, the MCP servers `corvint-mcp`,
-`corvint-docs-mcp` and `corvint-test-validity-mcp`, `corvint-web-flows`, `corvint-test-runner`, the
-test providers `corvint-go-test-provider`, `corvint-js-test-provider` and
-`corvint-ruby-test-provider`, every `corvint-analyzer-*` and `corvint-update`;
-`tools/release-binary/binaries.json` is the catalog that names them, cites each one's decision and
-says which must share a version, and each is released on its own (decision 0594 item 8,
-`ARTIFACT-BIN-V0-001`). The list sits outside the invariants because their text is pinned by the
-`acceptance-record` change (ACR-V1-012).
+The product binaries are `corvint`, `corvint-docs`, `corvint-mcp`, `corvint-docs-mcp` and
+`corvint-update`; they are the binaries the accepted plan ships (`PROD-INT-006`, decision 0596),
+built for linux/amd64, linux/arm64 and darwin/arm64. `tools/release-binary/binaries.json` is the
+catalog that names them, cites each one's decision and says which must share a version, and each
+is released on its own (decision 0594 item 8, `ARTIFACT-BIN-V0-001`). Every other `cmd/`
+executable is either release tooling (`support`) or `withheld`: the plan removes it or leaves it
+without a 1.0 verdict, so no release builds it (`ARTIFACT-BIN-V0-520`). The list sits outside the
+invariants because their text is pinned by the `acceptance-record` change (ACR-V1-012).
 
 ## Spec-driven development
 

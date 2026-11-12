@@ -14,7 +14,8 @@ func TestDCPV1097CorpusDepthFlag(t *testing.T) {
 		want string
 	}{
 		{[]string{"impact", "--corpus-depth=2"}, "--corpus-depth requires --corpus=FILE"},
-		{[]string{"context", "--corpus=corpus.json", "--corpus-depth=2"}, "--corpus-depth applies only to impact and affected"},
+		{[]string{"test-validity", "--corpus=corpus.json", "--corpus-depth=2"}, "--corpus-depth applies only to impact and affected"},
+		{[]string{"context", "--corpus=corpus.json"}, "--corpus is supported only on native evidence reads"},
 		{[]string{"impact", "--corpus=corpus.json", "--corpus-depth=0"}, "invalid or duplicate --corpus-depth=N (1-16)"},
 		{[]string{"impact", "--corpus=corpus.json", "--corpus-depth=17"}, "invalid or duplicate --corpus-depth=N (1-16)"},
 		{[]string{"impact", "--corpus=corpus.json", "--corpus-depth", "2"}, "invalid or duplicate --corpus-depth=N (1-16)"},

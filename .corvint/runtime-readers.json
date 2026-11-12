@@ -206,6 +206,14 @@
       "reason": "the 1.x compatibility surface list (V1-5434, CMP-V1-001), read by tools/compatibility-table through the listPath literal when make compatibility-check or make compatibility-table runs; the package tests write their own list, so a change selects that package by the enclosing-package rule; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
     },
     {
+      "path": "tools/deadcode-ratchet/baseline.json",
+      "reason": "the shrink-only dead-function baseline (V1-4801, DCR-V0-004), read by tools/deadcode-ratchet through the defaultBaseline literal when make deadcode or make deadcode-baseline runs it, and embedded by its package tests (go:embed in baseline_test.go); enclosing-package and embed reader rules keep that selection; never loaded by a computed name (AZU-V0-002)"
+    },
+    {
+      "path": "tools/deadcode-ratchet/testdata/",
+      "reason": "tools/deadcode-ratchet baseline and run fixtures (V1-4801, DCR-V0-004), embedded only by its package tests (go:embed testdata in ratchet_test.go); enclosing-package and embed reader rules keep that selection; never executed by the product or loaded by a build or CI driver (AZU-V0-002)"
+    },
+    {
       "path": "tools/import-ratchet/areas.json",
       "reason": "the import-ratchet area manifest (V1-4800, IRT-V0-001), read only by the tools/import-ratchet tests through the manifestPath literal; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
     },

@@ -197,8 +197,12 @@ asking for a local run. `script/heavy.sh --print-lock-dir` prints the slot lock 
 would use (DCW-V0-357).
 When `corvint test --base SHA --dry-run --manifest M` selects packages whole (a dependency change
 such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prints one
-`HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
-each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
+`HEAVY_SELECTION=M HEAVY_SELECTION_SCOPE=S script/heavy.sh go test ...` command per package, and
+`HEAVY_SELECTION=M` admits each package M selects whole without a typed `HEAVY_WHOLE_REASON`
+(ASD-V0-891). S is M's scope, so a VERIFY list built from the plan records FULL or narrowed; a FULL M
+prints a `heavy.sh: FULL-selection:` line naming its reason on every run and plan (the run is
+coverage, not narrowing evidence), and a command whose S no longer matches M is refused
+(ASD-V0-5190 to ASD-V0-5192). A run missing both
 `HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
 Before choosing a focused `-run` pattern for a selected package, run
 `corvint test --base SHA --dry-run --pins`: it prints one `pins go:PKG -run '^(...)$'` line per
@@ -565,15 +569,13 @@ Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= ori
   the new file the same `//go:build` line, or add a windows main. `make windows-main-check` finds
   it in seconds; run it when you add a file to a build-tagged main package. It is not a step of
   `make windows-vet`, whose recipe the `AFP-V0-054` parity test pins to the CI vet commands.
-- Sealed evidence before push (DCW-V0-348, V1-2805, V1-1773): the batch-head checkout installs
-  `script/pre-push-dogfood-seal.sh` the same way. It runs `script/dogfood-batch-check.sh` against
-  the pushed branch's merge base with `origin/main` and refuses `dogfood-seal-missing` while any
-  commit, including one made after the seal, is unbound; it also refuses (`dogfood-seal-not-checked`)
-  a pushed branch that is not the checked-out HEAD or a tree with uncommitted tracked changes. Git's
-  hook stdin can be read once, so a hook running both scripts reads it first:
-  `refs=$(cat); printf '%s\n' "$refs" | script/pre-push-windows-vet.sh "$@" || exit 1;
-  printf '%s\n' "$refs" | exec script/pre-push-dogfood-seal.sh "$@"`. `git push --no-verify` bypasses
-  it and stays an explicit, reported choice. Lanes that only commit locally never run it.
+- Batch checks before push (V1-5330): `DCW-V0-348` and its seal hook are retired;
+  `script/pre-push-dogfood-seal.sh` no longer exists, so do not install a hook that calls it, and
+  remove one an older version of this section installed (a hook that execs a missing script fails
+  every push). Before pushing a `claude/batch-*` branch run `make batch-precheck` (`ASD-V0-029`),
+  which writes a receipt bound to HEAD on a full pass, then `make batch-push-check` (`ASD-V0-035`),
+  which refuses unless that receipt names the pushed revision. The Windows vet hook above stays the
+  only installed pre-push hook. Lanes that only commit locally run neither.
 
 ## 4. No polling in lanes; long commands are bounded (ASD-V0-016)
 
@@ -1145,7 +1147,7 @@ One lane runs this flow, in order; each step names the command and the section t
    its absolute executable path. Use that path for the following reads; rerun it after source edits.
    A build failure stops orientation. Keep the emitted freshness verdict with the task evidence.
    Run `corvint index --if-stale`, then `corvint affected --base FULL_SHA` and
-   `corvint context --task "..."`; retain the `query` and `impact` receipts.
+   `corvint context --path PATH` for each file you will edit; retain the `affected` receipt.
    A wide or UNKNOWN selection means focused tests only.
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
    development"). Check requirement IDs with `make requirement-ids-free`.

@@ -1,21 +1,11 @@
 package wire
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cemcode"
 )
-
-func repoRoot(t *testing.T) string {
-	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return root
-}
 
 func TestStrictJSONRejections(t *testing.T) {
 	cases := []struct {

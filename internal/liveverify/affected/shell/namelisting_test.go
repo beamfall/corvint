@@ -42,8 +42,24 @@ func TestNameListingForms_AFPV09961(t *testing.T) {
 		"quoted_glob":   "ls script | grep -c 'a*'\ngrep -c '*' docs/x.md\n",
 		"while_true":    "while true; do ls script | wc -l; exit 0; done\n",
 		"write_literal": "ls script | wc -l\ncat docs/x.md > out.txt\n",
+
+		// A `#!` line naming a shell the lexer reads (AFP-V0-9961).
+		"shebang_bash":     "#!/bin/bash\nls script | wc -l\n",
+		"shebang_sh":       "#!/bin/sh\nls script | wc -l\n",
+		"shebang_env_bash": "#!/usr/bin/env bash\nls script | wc -l\n",
+		"shebang_space":    "#! /usr/bin/env zsh\nls script | wc -l\n",
 	}
 	refused := map[string]string{
+		// Every other `#!` line: the lexer reads it as a comment, and the
+		// interpreter it names may not read the file as a shell does.
+		"grammar_shebang_python":   "#!/usr/bin/env python3\nls script | wc -l\n",
+		"grammar_shebang_awk":      "#!/usr/bin/awk -f\nls script | wc -l\n",
+		"grammar_shebang_option":   "#!/bin/bash -x\nls script | wc -l\n",
+		"grammar_shebang_env_opt":  "#!/usr/bin/env -S bash\nls script | wc -l\n",
+		"grammar_shebang_env_name": "#!/usr/bin/env CLICOLOR_FORCE=1 bash\nls script | wc -l\n",
+		"grammar_shebang_bats":     "#!/usr/bin/env bats\nls script | wc -l\n",
+		"grammar_shebang_relative": "#!bash\nls script | wc -l\n",
+
 		"ls_l":          "ls -l script | wc -l\n",
 		"ls_long":       "ls --all script | wc -l\n",
 		"find_newer":    "find script -newer script/a.sh | wc -l\n",
@@ -107,9 +123,21 @@ func TestNameListingForms_AFPV09961(t *testing.T) {
 		"read_env":     "read -r PATH < docs/x.md\nls script | wc -l\n",
 		"for_env":      "for PATH in docs/x.md; do echo x; done\nls script | wc -l\n",
 		"printf_env":   "printf -v PATH '%s' stub\nls script | wc -l\n",
-		"default_env":  ": \"${CLICOLOR_FORCE:=1}\"\nls script\n",
-		"input_var":    "ls script | wc -l\nwhile read -r l; do echo \"$l\"; done < \"$list\"\n",
-		"subshell_fn":  "count() { ls script | wc -l; }\ntest \"$(count)\" -eq 1\n",
+		// Bash's printf %n writes the output count into the named variable.
+		"printf_count_var":   "printf '%n' PATH\nls -R . | wc -l\n",
+		"printf_count_width": "printf '%5n' PATH\nls script | wc -l\n",
+		"printf_count_split": "printf %\"n\" PATH\nls script | wc -l\n",
+		"printf_count_octal": "printf '\\045n' PATH\nls script | wc -l\n",
+		"printf_count_hex":   "printf '\\x25n' PATH\nls script | wc -l\n",
+		// printf prints `\%` as a backslash and still reads `%n`; the shell
+		// drops an unquoted backslash; bash accepts length modifiers.
+		"printf_count_escaped": "printf '\\%n' PATH\nls script | wc -l\n",
+		"printf_count_unquote": "printf \\%n PATH\nls script | wc -l\n",
+		"printf_count_long":    "printf '%ln' PATH\nls script | wc -l\n",
+		"printf_count_hh":      "printf '%5hhn' PATH\nls script | wc -l\n",
+		"default_env":          ": \"${CLICOLOR_FORCE:=1}\"\nls script\n",
+		"input_var":            "ls script | wc -l\nwhile read -r l; do echo \"$l\"; done < \"$list\"\n",
+		"subshell_fn":          "count() { ls script | wc -l; }\ntest \"$(count)\" -eq 1\n",
 		// The base's plain_rest row, admitted before the closed grammar: its
 		// `set -eu` and `while read` loop are refused constructs now
 		// (AFP-V0-9961). The admitted row above keeps the rest.
@@ -531,7 +559,7 @@ func TestNameListingGrammarPositions_AFPV09961(t *testing.T) {
 		if !listed {
 			t.Fatalf("no admitted listing pipeline in %q", text)
 		}
-		return nameListingAdmitted(parsed, true)
+		return nameListingAdmitted(parsed, "", true)
 	}
 	for wrapper := range wrappers {
 		for _, before := range []bool{true, false} {
@@ -554,7 +582,7 @@ func TestNameListingGrammarPositions_AFPV09961(t *testing.T) {
 			t.Errorf("%s leaked inside a substitution: %q", row.name, text)
 		}
 	}
-	if !nameListingAdmitted(parse(listing+"echo \"$(echo ok)\"\n"), true) {
+	if !nameListingAdmitted(parse(listing+"echo \"$(echo ok)\"\n"), "", true) {
 		t.Errorf("control substitution refused")
 	}
 }

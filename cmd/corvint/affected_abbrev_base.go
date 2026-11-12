@@ -89,13 +89,19 @@ func resolveAffectedAbbrevBase(invocation *affectedInvocation) error {
 // with the full-id hint, and a prefix naming several commits with ambiguous-affected-base, never
 // guessed (AFP-V0-230, AFP-V0-232, ACX-V0-854).
 func resolveBaseArgument(root, value string) (string, error) {
+	return resolveCommitArgument(root, "--base", value)
+}
+
+// resolveCommitArgument is resolveBaseArgument for the option name, --base or
+// affected's --head (AFP-V0-9989).
+func resolveCommitArgument(root, name, value string) (string, error) {
 	if value == "" || validGitObjectID(value) { // a prefix or a revision is the only other admitted shape
 		return value, nil
 	}
 	prefix := value
 	revision := !validAbbreviatedObjectID(prefix)
 	refuse := func() error {
-		return argumentError("--base " + prefix + " is not a commit in this repository" + affectedBaseHint(prefix))
+		return argumentError(name + " " + prefix + " is not a commit in this repository" + affectedBaseHint(prefix))
 	}
 	stdout, err := affectedAbbrevGit(root, "rev-parse", "--verify", "--quiet", "--end-of-options", prefix+"^{commit}")
 	if err != nil {
@@ -103,7 +109,7 @@ func resolveBaseArgument(root, value string) (string, error) {
 			return "", refuse()
 		}
 		if candidates := affectedAmbiguousCommits(root, prefix); len(candidates) > 1 {
-			return "", &gokernel.Error{Code: affectedAmbiguousBaseCode, Message: "--base " + prefix + " matches more than one commit (" + strings.Join(candidates, ", ") + "); pass the full commit id"}
+			return "", &gokernel.Error{Code: affectedAmbiguousBaseCode, Message: name + " " + prefix + " matches more than one commit (" + strings.Join(candidates, ", ") + "); pass the full commit id"}
 		}
 		return "", refuse()
 	}

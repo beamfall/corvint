@@ -28,19 +28,11 @@
       "reason": "spaced spelling of docs corpus audit-report"
     },
     {
-      "word": "--worktree-overlay",
-      "reason": "core context option the --corpus=FILE join skips while finding the positional task"
-    },
-    {
       "word": "impact",
       "reason": "core read the --corpus=FILE join runs in corvint"
     },
     {
       "word": "affected",
-      "reason": "core read the --corpus=FILE join runs in corvint"
-    },
-    {
-      "word": "context",
       "reason": "core read the --corpus=FILE join runs in corvint"
     },
     {

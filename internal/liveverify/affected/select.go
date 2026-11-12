@@ -372,6 +372,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
+	plan.Unknown = append(plan.Unknown, graph.symlinkTargets(normalized)...)
 	graph.selectOwnershipAudit(&plan, reached, normalized)
 	coverageReaders := make(map[string]map[string]Witness)
 	// AZU-V0-006: the coverage proof counts a caller only when this plan runs

@@ -189,14 +189,3 @@ func pinExecutable(root, path string, allowResolvedOutside bool) (FilePin, strin
 	}
 	return FilePin{Path: relative, ResolvedPath: resolvedLabel, SHA256: hex.EncodeToString(hash.Sum(nil)), Size: targetInfo.Size()}, logical, nil
 }
-
-func verifyExecutable(root string, expected FilePin, allowResolvedOutside bool) (string, error) {
-	actual, absolute, err := pinExecutable(root, expected.Path, allowResolvedOutside)
-	if err != nil {
-		return "", err
-	}
-	if actual != expected {
-		return "", failure("stale-toolchain", "%s no longer matches its pin", expected.Path)
-	}
-	return absolute, nil
-}

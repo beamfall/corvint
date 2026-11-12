@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -246,6 +245,42 @@ func gitOutput(t *testing.T, root string, arguments ...string) string {
 	return string(bytes.TrimSpace(output))
 }
 
-func digestBytes(value []byte) string {
-	return fmt.Sprintf("%x", sha256.Sum256(value))
+// taskContextRepository is a small committed Go repository for the context and snapshot tests.
+func taskContextRepository(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	files := map[string]string{
+		"go.mod":                "module example.test/ctx\n\ngo 1.27.0\n",
+		"cache/demux.go":        "package cache\n\nfunc Split(key string) string { return key }\n",
+		"cache/demux_test.go":   "package cache\n\nfunc TestSplit() { _ = Split(\"k\") }\n",
+		"testing/features.yaml": "features: []\n",
+	}
+	for name, content := range files {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, arguments := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "fixture"}} {
+		command := fixtureGitCommand(arguments...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", arguments, err, output)
+		}
+	}
+	return root
+}
+
+func repositoryListing(t *testing.T, root string) string {
+	t.Helper()
+	command := fixtureGitCommand("status", "--porcelain", "--ignored")
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(output)
 }

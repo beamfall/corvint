@@ -187,6 +187,9 @@ func nameListingPipeline(parsed script, index int) (int, bool) {
 // admitted, and every construct it does not recognise keeps every listing a
 // content read. A test file is admitted only when
 //
+//   - its first line is no `#!` line, or one shellInterpreter admits: the
+//     lexer reads `#!` as a comment, and another interpreter would run the
+//     file under a grammar the lexer does not model;
 //   - it defines no function and holds no here-document, `case` statement or
 //     `((` arithmetic command, which the lexer folds away without commands
 //     whose words the rules below could see;
@@ -201,8 +204,8 @@ func nameListingPipeline(parsed script, index int) (int, bool) {
 // write needs to be judged environment-style. The environment the runner
 // exports before the unit starts is outside the unit's words and is not
 // modelled.
-func nameListingAdmitted(parsed script, test bool) bool {
-	if !test || len(parsed.functions) != 0 || len(parsed.data) != 0 || parsed.cases != 0 || parsed.arithmetic != 0 {
+func nameListingAdmitted(parsed script, firstLine string, test bool) bool {
+	if !test || !shellInterpreter(firstLine) || len(parsed.functions) != 0 || len(parsed.data) != 0 || parsed.cases != 0 || parsed.arithmetic != 0 {
 		return false
 	}
 	covered, listed := map[int]bool{}, map[string]bool{}
@@ -226,6 +229,28 @@ func nameListingAdmitted(parsed script, test bool) bool {
 		}
 	}
 	return true
+}
+
+// lexedShells are the interpreters whose grammar the lexer reads.
+var lexedShells = map[string]bool{"sh": true, "bash": true, "dash": true, "zsh": true, "ksh": true}
+
+// shellInterpreter reports a first line that is no `#!` line, or one that
+// runs a shell the lexer reads: `#!/path/<shell>`, or `#!/usr/bin/env
+// <shell>` with no option and no NAME=value field. Every other `#!` line,
+// with an argument, another program or another env form, is refused.
+func shellInterpreter(firstLine string) bool {
+	rest, ok := strings.CutPrefix(strings.TrimSuffix(firstLine, "\r"), "#!")
+	if !ok {
+		return true
+	}
+	fields := strings.Fields(rest)
+	switch {
+	case len(fields) == 1 && strings.HasPrefix(fields[0], "/"):
+		return lexedShells[path.Base(fields[0])]
+	case len(fields) == 2 && fields[0] == "/usr/bin/env":
+		return lexedShells[fields[1]]
+	}
+	return false
 }
 
 // braceName is a `{name}` word, which before a redirection operator makes
@@ -352,8 +377,10 @@ func singleField(raw string) bool {
 //   - control words and redirections alone (`then`, `else`, `fi`, `done`,
 //     whose only arguments can be redirections);
 //   - `echo`, `true`, `false`, `:` or `exit` with any arguments;
-//   - `printf` whose first argument is fixed and does not begin with `-`,
-//     since bash's printf reads options only before its first operand;
+//   - `printf` whose first argument is fixed, does not begin with `-`, and
+//     holds no conversion or escape that writes a variable
+//     (printfFormatWrites), since bash's printf reads options only before
+//     its first operand;
 //   - `test`, `[` or `[[` as testArguments and conditionalArguments admit;
 //   - an operand reader (`cat`, `head`, `tail`, `wc`, `sort`, `cmp`) or a
 //     non-recursive grep with no expansion in any argument, as
@@ -387,7 +414,8 @@ func gateCommand(words []string, listed map[string]bool) bool {
 	case "", "fi", "done", "echo", "true", "false", ":", "exit":
 		return true
 	case "printf":
-		return len(args) > 0 && fixedWord(args[0]) && !strings.HasPrefix(unquote(args[0]), "-")
+		return len(args) > 0 && fixedWord(args[0]) && !strings.HasPrefix(unquote(args[0]), "-") &&
+			!printfFormatWrites(args[0])
 	case "test", "[":
 		return testArguments(word, args)
 	case "[[":
@@ -395,6 +423,40 @@ func gateCommand(words []string, listed map[string]bool) bool {
 	}
 	if operandReaders[word] || patternReaders[word] {
 		return !slices.ContainsFunc(args, expanding) && plainOperands(word, args, listed)
+	}
+	return false
+}
+
+// printfFormatWrites reports a printf format that can assign a variable.
+// Bash's printf stores the count of bytes written so far into the variable
+// its `%n` conversion names, so `printf '%n' PATH` sets PATH to 0. A numeric
+// escape (`\NNN`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`) is refused too, since
+// printf expands one inside its format before reading conversions. Quote
+// characters are dropped first, so a split spelling such as `%"n"` is caught,
+// and a conversion ending in a backslash is refused. Any other backslash is
+// read as transparent: the shell drops an unquoted one (`\%n` reaches printf
+// as `%n`), and printf prints an unknown escape such as `\%` as a backslash
+// and still reads the `%` that follows as a conversion. Flags, width,
+// precision and the length modifiers bash accepts (`%ln`, `%hhn`) are skipped
+// before the conversion character is read. The check is conservative: it can
+// refuse a format that writes nothing, never the reverse.
+func printfFormatWrites(raw string) bool {
+	format := strings.NewReplacer(`'`, "", `"`, "").Replace(raw)
+	for index := 0; index < len(format); index++ {
+		switch format[index] {
+		case '\\':
+			if index+1 < len(format) && strings.IndexByte("01234567xuU", format[index+1]) >= 0 {
+				return true
+			}
+		case '%':
+			index++
+			for index < len(format) && strings.IndexByte("-+ #0123456789.*hlLqjzt", format[index]) >= 0 {
+				index++
+			}
+			if index < len(format) && (format[index] == 'n' || format[index] == '\\') {
+				return true
+			}
+		}
 	}
 	return false
 }

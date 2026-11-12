@@ -400,7 +400,7 @@ func rejectArtifactPath(t *testing.T, config Config, path string) {
 func TestGo127LiveOutputConforms(t *testing.T) {
 	outputDir := t.TempDir()
 	cmd := exec.Command("go", "test", "-count=1", "-json", "-artifacts", "-outputdir", outputDir, "./testdata/livefixture")
-	cmd.Env = append(cmd.Environ(), "GOTOOLCHAIN=local")
+	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("live Go fixture failed: %v", err)

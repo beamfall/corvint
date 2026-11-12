@@ -38,8 +38,6 @@ type Group struct {
 	Deadline time.Duration
 }
 
-func (group Group) Tools() []bridge.ToolDescriptor { return group.Registry.Tools() }
-
 func (group Group) Call(ctx context.Context, name string, arguments map[string]any) (map[string]any, *protocol.RPCError) {
 	raw, err := json.Marshal(arguments)
 	if err != nil {

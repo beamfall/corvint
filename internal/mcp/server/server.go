@@ -630,16 +630,8 @@ func (connection *connection) writeRPCErrorContext(ctx context.Context, id *prot
 	return connection.writeValueContext(ctx, value)
 }
 
-func (connection *connection) writeNotification(method string, params map[string]any) error {
-	return connection.writeNotificationContext(nil, method, params)
-}
-
 func (connection *connection) writeNotificationContext(ctx context.Context, method string, params map[string]any) error {
 	return connection.writeValueContext(ctx, map[string]any{"jsonrpc": protocol.JSONRPCVersion, "method": method, "params": params})
-}
-
-func (connection *connection) writeValue(value any) error {
-	return connection.writeValueContext(nil, value)
 }
 
 func (connection *connection) writeValueContext(ctx context.Context, value any) error {

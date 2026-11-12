@@ -3,54 +3,45 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
-
-	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
-// taskContextOptions is the parsed `context` invocation (task-context-packet-v0).
+// taskContextOptions is the parsed `context` or `instructions` invocation: the path brief
+// (TBC-V1-009) or the instruction doctor (IID-V0-001). The task packet is removed (decision 0597).
 type taskContextOptions struct {
-	root, task, subject                                                     string
+	root, subject                                                           string
 	instructionHost, instructionVersion, instructionCWD, instructionProfile string
 	instructionFlags                                                        map[string]bool
-	limit                                                                   int
-	limitSet                                                                bool
-	// overlay is --worktree-overlay (DIRTY-CACHE-940); absent, the wire is unchanged.
-	overlay bool
 	// paths is --path, the path brief (TBC-V1-009); set, no other field but root applies.
 	paths []string
+	// deprecatedAlias marks the `context --instruction-*` spelling, which prints one stderr line
+	// naming `corvint instructions` (IID-V0-001).
+	deprecatedAlias bool
+	// ignoredFlags is set when the alias was given --task, --limit or --worktree-overlay, which
+	// callers of the removed task packet always passed; they are accepted, ignored and warned about.
+	ignoredFlags bool
 }
 
-const taskContextDefaultLimit = 20
+// instructionAliasDeprecation is the stderr line of the `context --instruction-*` alias.
+const instructionAliasDeprecation = "corvint: context --subject --instruction-* is deprecated and stays for one release; run corvint instructions --subject PATH --host HOST --host-version VERSION --cwd DIR --profile default\n"
 
-// parseTaskContextInvocation recognises `[--root PATH] context (--task TEXT | TEXT)
-// [--subject PATH] [--limit N]`; any other shape is not a context invocation.
+// ignoredTaskFlagsWarning is the stderr line when the alias ignores the removed packet flags.
+const ignoredTaskFlagsWarning = "corvint: context --task, --limit and --worktree-overlay are ignored: the task packet was removed (decision 0597)\n"
+
+// contextTaskRemoved is the refusal for the removed task packet (decision 0597).
+const contextTaskRemoved = "corvint context no longer compiles a task packet (decision 0597); for a change run corvint affected --base <sha> or corvint impact PATH, and for one file run corvint context --path PATH"
+
+// parseTaskContextInvocation recognises `[--root PATH] context ...`; any other shape is not a
+// context invocation.
 func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, error) {
-	if _, requested, _ := parseHelpInvocation(arguments); requested {
-		return taskContextOptions{}, false, nil
+	options, rest, requested := verbInvocation(arguments, "context")
+	if !requested {
+		return options, false, nil
 	}
-	position := commandPositionAfterRoots(arguments)
-	if position < 0 || arguments[position] != "context" {
-		return taskContextOptions{}, false, nil
-	}
-	options := taskContextOptions{root: ".", limit: taskContextDefaultLimit}
-	for index := 0; index < position; index++ {
-		if arguments[index] == "--root" {
-			options.root, index = arguments[index+1], index+1
-			continue
-		}
-		options.root = strings.TrimPrefix(arguments[index], "--root=")
-	}
-	taskSet, flagTaskSet := false, false
-	positionals := []string{}
-	rest := arguments[position+1:]
 	if isPathContext(rest) {
 		options, err := parsePathContextArguments(options, rest)
 		if err != nil {
@@ -59,243 +50,226 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 		options.root, err = resolveExplicitRoot(options.root)
 		return options, true, err
 	}
+	options.deprecatedAlias = true
+	options, err := parseInstructionArguments(options, rest, "--instruction-")
+	return options, true, err
+}
+
+// parseInstructionsInvocation recognises `[--root PATH] instructions ...`, the instruction doctor
+// (IID-V0-001); any other shape is not an instructions invocation.
+func parseInstructionsInvocation(arguments []string) (taskContextOptions, bool, error) {
+	options, rest, requested := verbInvocation(arguments, "instructions")
+	if !requested {
+		return options, false, nil
+	}
+	options, err := parseInstructionArguments(options, rest, "--")
+	return options, true, err
+}
+
+// verbInvocation returns the leading --root and the arguments after verb, or false when the
+// arguments ask for help or name another verb.
+func verbInvocation(arguments []string, verb string) (taskContextOptions, []string, bool) {
+	if _, requested, _ := parseHelpInvocation(arguments); requested {
+		return taskContextOptions{}, nil, false
+	}
+	position := commandPositionAfterRoots(arguments)
+	if position < 0 || arguments[position] != verb {
+		return taskContextOptions{}, nil, false
+	}
+	options := taskContextOptions{root: "."}
+	for index := 0; index < position; index++ {
+		if arguments[index] == "--root" {
+			options.root, index = arguments[index+1], index+1
+			continue
+		}
+		options.root = strings.TrimPrefix(arguments[index], "--root=")
+	}
+	return options, arguments[position+1:], true
+}
+
+// parseInstructionArguments reads --subject and the four instruction flags, each spelled prefix
+// plus host, host-version, cwd or profile. The context alias accepts and ignores --task, --limit and
+// --worktree-overlay with a stderr warning, and refuses task text with no instruction flags.
+func parseInstructionArguments(options taskContextOptions, rest []string, prefix string) (taskContextOptions, error) {
 	for index := 0; index < len(rest); index++ {
 		if !argparseOptionLike(rest[index]) {
-			positionals = append(positionals, rest[index])
-			continue
-		}
-		if rest[index] == worktreeOverlayFlag {
-			options.overlay = true
-			continue
+			if options.deprecatedAlias {
+				return options, argumentError(contextTaskRemoved)
+			}
+			return options, argumentError("unrecognized arguments: " + rest[index])
 		}
 		flag, value, inline := strings.Cut(rest[index], "=")
+		name := strings.TrimPrefix(flag, prefix)
+		switch {
+		case options.deprecatedAlias && flag == "--worktree-overlay" && !inline:
+			options.ignoredFlags = true
+			continue
+		case options.deprecatedAlias && (flag == "--task" || flag == "--limit"):
+			options.ignoredFlags = true
+			if !inline {
+				if index+1 >= len(rest) || argparseOptionLike(rest[index+1]) {
+					return options, argumentError("argument " + flag + ": expected one argument")
+				}
+				index++
+			}
+			continue
+		case flag == "--subject":
+		case strings.HasPrefix(flag, prefix) && (name == "host" || name == "host-version" || name == "cwd" || name == "profile"):
+		case options.deprecatedAlias && options.ignoredFlags:
+			// A removed packet flag came first (e.g. `--worktree-overlay --path a`): name the cut,
+			// not the flag it hid.
+			return options, argumentError(contextTaskRemoved)
+		default:
+			return options, argumentError("unrecognized arguments: " + rest[index])
+		}
 		if !inline {
 			if index+1 >= len(rest) || argparseOptionLike(rest[index+1]) {
-				return options, true, argumentError("argument " + flag + ": expected one argument")
+				return options, argumentError("argument " + flag + ": expected one argument")
 			}
 			value, index = rest[index+1], index+1
 		}
-		switch flag {
-		case "--instruction-host", "--instruction-host-version", "--instruction-cwd", "--instruction-profile":
-			if options.instructionFlags == nil {
-				options.instructionFlags = make(map[string]bool)
-			}
-			if options.instructionFlags[flag] {
-				return options, true, argumentError("argument " + flag + ": may not be repeated")
-			}
-			options.instructionFlags[flag] = true
-			switch flag {
-			case "--instruction-host":
-				options.instructionHost = value
-			case "--instruction-host-version":
-				options.instructionVersion = value
-			case "--instruction-cwd":
-				options.instructionCWD = value
-			case "--instruction-profile":
-				options.instructionProfile = value
-			}
-		case "--task":
-			options.task, taskSet, flagTaskSet = value, true, true
-		case "--subject":
+		if flag == "--subject" {
 			options.subject = value
-		case "--limit":
-			limit, err := strconv.Atoi(value)
-			if err != nil {
-				return options, true, argumentError("argument --limit: invalid int value: " + strconv.Quote(value))
-			}
-			options.limit, options.limitSet = limit, true
-		default:
-			return options, true, argumentError("unrecognized arguments: " + rest[index])
+			continue
+		}
+		if options.instructionFlags == nil {
+			options.instructionFlags = make(map[string]bool)
+		}
+		if options.instructionFlags[flag] {
+			return options, argumentError("argument " + flag + ": may not be repeated")
+		}
+		options.instructionFlags[flag] = true
+		switch name {
+		case "host":
+			options.instructionHost = value
+		case "host-version":
+			options.instructionVersion = value
+		case "cwd":
+			options.instructionCWD = value
+		case "profile":
+			options.instructionProfile = value
 		}
 	}
-	// TCP-V0-062 (V1-0993): one positional is the task when --task is absent.
-	switch {
-	case len(positionals) > 1:
-		return options, true, argumentError(contextPositionalTaskRefusal("context accepts at most one positional task"))
-	case len(positionals) == 1 && flagTaskSet:
-		return options, true, argumentError(contextPositionalTaskRefusal("argument --task: not allowed with a positional task"))
-	case len(positionals) == 1:
-		options.task, taskSet = positionals[0], true
-	}
-	if err := checkContextViewArguments(options, taskSet); err != nil {
-		return options, true, err
+	if err := checkInstructionArguments(options, prefix); err != nil {
+		return options, err
 	}
 	resolved, err := resolveExplicitRoot(options.root)
 	if err != nil {
-		return options, true, err
+		return options, err
 	}
 	options.root = resolved
-	return options, true, nil
+	return options, nil
 }
 
-// contextPositionalTaskRefusal appends the one copyable form to a refused
-// positional-task shape (TCP-V0-062).
-func contextPositionalTaskRefusal(reason string) string {
-	return reason + "; quote the task once or pass --task, for example: corvint context --task \"fix the parser\""
-}
-
-// checkContextViewArguments refuses incomplete instruction-prediction flags and a missing task.
-func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
-	if len(options.instructionFlags) > 0 {
-		if len(options.instructionFlags) != 4 || options.subject == "" {
-			return argumentError("instruction prediction requires --instruction-host, --instruction-host-version, --instruction-cwd, --instruction-profile default and --subject")
+// checkInstructionArguments refuses incomplete instruction-prediction flags and a bare context.
+func checkInstructionArguments(options taskContextOptions, prefix string) error {
+	if options.deprecatedAlias && len(options.instructionFlags) == 0 && options.subject == "" {
+		if options.ignoredFlags {
+			return argumentError(contextTaskRemoved)
 		}
-		if options.instructionProfile != "default" {
-			return argumentError("argument --instruction-profile: requires default, an explicit conditional assumption")
-		}
+		return argumentError("the following arguments are required: --path")
 	}
-	if !taskSet {
-		return argumentError("the following arguments are required: --task")
+	if len(options.instructionFlags) != 4 || options.subject == "" {
+		return argumentError("instruction prediction requires " + prefix + "host, " + prefix + "host-version, " + prefix + "cwd, " + prefix + "profile default and --subject")
+	}
+	if options.instructionProfile != "default" {
+		return argumentError("argument " + prefix + "profile: requires default, an explicit conditional assumption")
 	}
 	return nil
 }
 
-// runTaskContext compiles one packet and prints it. Read-only: the tree's
-// snapshot when `corvint index` wrote one, else one index build over the
-// committed tree; no trace, ledger, or snapshot write on any path.
+// runTaskContext prints the path brief or the instruction load set. Read-only: the tree's
+// snapshot when `corvint index` wrote one, else one index build over the committed tree.
 func runTaskContext(ctx context.Context, options taskContextOptions, stdout, stderr io.Writer) int {
 	if len(options.paths) > 0 {
 		return runPathContext(ctx, options, stdout, stderr)
 	}
-	load := loadContextSnapshot
-	if options.overlay {
-		// The overlay reuses every HEAD source, so it loads them eagerly.
-		load = contextindex.LoadContextSnapshot
+	if options.deprecatedAlias {
+		_, _ = io.WriteString(stderr, instructionAliasDeprecation)
+		if options.ignoredFlags {
+			_, _ = io.WriteString(stderr, ignoredTaskFlagsWarning)
+		}
 	}
-	packet, hit, built, err := compileTaskContext(ctx, options, load)
+	loadSet, err := compileInstructionLoadSet(ctx, options, contextindex.LoadContextSnapshotDeferred)
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
-		packet, hit, built, err = compileTaskContext(ctx, options, contextindex.LoadContextSnapshot)
-	}
-	if err == nil && !hit {
-		noteSnapshotMissBuild(stderr, "context", options.root, built)
-	}
-	if runtimeenv.Value("BENCH_SNAPSHOT_TRACE") == "1" {
-		fmt.Fprintf(stderr, "corvint-bench-snapshot: hit=%t\n", hit)
+		loadSet, err = compileInstructionLoadSet(ctx, options, contextindex.LoadContextSnapshot)
 	}
 	if err != nil {
 		emitError(stderr, err)
 		return 2
 	}
-	encoded, err := gokernel.CanonicalJSON(packet)
-	if err != nil {
-		emitError(stderr, err)
-		return 2
-	}
-	if _, err := stdout.Write(append(encoded, '\n')); err != nil {
-		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write task-context packet"})
+	if err := gokernel.WriteCanonicalJSON(stdout, map[string]any{"instruction_load_set": loadSet, "mutates": false}); err != nil {
+		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write instruction load set"})
 		return 2
 	}
 	return 0
 }
 
-const taskContextHelp = `Compile the task-context packet: the files to read for one task.
+const taskContextHelp = `Print the path brief of a file or directory.
 
 Usage:
-  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]
-  corvint [--root PATH] context --task TEXT --subject PATH
-    --instruction-host HOST --instruction-host-version VERSION
-    --instruction-cwd DIR --instruction-profile default
-  corvint [--root PATH] context TEXT [...]   (one positional TEXT is --task TEXT)
   corvint [--root PATH] context --path PATH [--path PATH ...]
 
-The --path form prints the path brief (corvint-path-brief/0, non-blocking): for
-each file or directory, read from the committed tree at HEAD, six sections in a
-fixed order: instructions, owners, tests, flows, requirements, tickets. Each
-section states OBSERVED, INCOMPLETE or NOT_OBSERVED with a reason, a total and
-whether it was cut at 64 items, and every item names the link that put it
-there. Nothing is ranked. A missing optional source (corvint-tasks, CODEOWNERS,
-the flows file, test evidence, the requirement-link file) is named in its
-section and never fails the command. --path takes no task text, ticket or
-change range; the report for a change range is the corvint impact command.
+The path brief (corvint-path-brief/1, non-blocking): for each file or
+directory, read from the committed tree at HEAD, three sections in a fixed
+order: instructions, tests, requirements. Each section states OBSERVED,
+INCOMPLETE or NOT_OBSERVED with a reason, a total and whether it was cut at 64
+items, and every item names the link that put it there. Nothing is ranked. A
+missing optional source (test evidence, the affected plan, the requirement-link
+file) is named in its section and never fails the command. --path takes no
+task text, ticket or change range; the report for a change range is the
+corvint impact command.
 
-Writes nothing; Go-only (task-context-packet-v0, experimental). The packet lists
-files admitted by relations a term search cannot express, each with one
-evidence line naming the relation, then fills the remaining slots with the
-files a term search would list:
+The instruction load set moved to corvint instructions. For one release,
+context --subject PATH with --instruction-host, --instruction-host-version,
+--instruction-cwd and --instruction-profile default prints the same object and
+one deprecation line on stderr. The alias accepts and ignores --task, --limit
+and --worktree-overlay (the removed task packet's flags) with one more warning line.
 
-  pair            the test or source counterpart of the subject (or of a path
-                  the task names), by naming convention, module directory, or
-                  mirrored test/source directory
-  mentioned       a tracked path the task names, by full path or unambiguous
-                  basename
-  definition      a file defining an identifier the task names
-  reverse-import  a file importing the subject (Go, Python, web rules of impact)
-  cochange        a file that changed in the same recent commits as the subject
-                  (the last 200 non-merge commits; commits over a cap ignored,
-                  50 paths for a history of 50 commits or fewer, 8 for one
-                  filling the window, linear between)
-  sibling         the subject's directory, then its parent subtree where the
-                  task's identifiers appear
-  lexical         distinct task terms in the file or its path
-
-The instruction flags request an experimental conditional project-file prediction
-(IID-V0), currently qualified only for Codex 0.153.2 default source rules. All four
-flags and a tracked --subject are required together. Actual host configuration, global instructions and session load state remain
-UNKNOWN. Predictions never change repository governance or detect semantic conflicts.
-
---subject names the task's own path (a changed or commented file). It is
-carried under "subject" and never appears among "results": it is the subject
-of the question, not one of its answers. Without --subject the packet has the
-retrieval shape (mentioned, definition, lexical). "state" is READY when at
-least one result exists and NO_CANDIDATES otherwise; --limit defaults to 20.
-
---worktree-overlay (experimental, DIRTY-CACHE-940..942) reads tracked dirty
-paths from the worktree over the HEAD snapshot instead of the committed tree.
-Rows citing them carry authority worktree-overlay, low confidence and the
-worktree blob id; untracked paths are never read. It writes nothing.
+Writes nothing. The task packet (--task) is removed (decision 0597): for a
+change run corvint affected --base SHA or corvint impact PATH.
 `
 
-// loadContextSnapshot is the context verb's snapshot read. On a miss it also
-// carries the loader's repository observation to the build, so the miss
-// costs one identity/status pair instead of two (IDX-SNAP-V0-002: the
-// loader reads the repository exactly as the build's opening observation).
-// A pack hit verifies each body when the packet first reads it; a body that
-// fails is ErrSnapshotRefused, and runTaskContext recompiles through
-// LoadContextSnapshot, which refuses the pack whole (IDX-SNAP-V0-015).
-var loadContextSnapshot = contextindex.LoadContextSnapshotDeferred
+const instructionsHelp = `Print the instruction load set of a tracked file (experimental, IID-V0).
 
-// compileTaskContext reads the snapshot through load, builds on a miss, and
-// compiles the packet. It also returns how long a miss's build took.
-func compileTaskContext(ctx context.Context, options taskContextOptions, load func(context.Context, string) (*contextindex.Index, bool, *contextindex.LoaderObservation, error)) (map[string]any, bool, time.Duration, error) {
+Usage:
+  corvint [--root PATH] instructions --subject PATH --host HOST
+    --host-version VERSION --cwd DIR --profile default
+
+Prints a conditional project-file prediction: which tracked AGENTS.md and
+CLAUDE.md files a host would load for the subject, read from the committed
+tree. It is currently qualified only for Codex 0.153.2 default source rules.
+All four flags and a tracked --subject are required together; --cwd is
+repository-relative and an ancestor of the subject. Actual host configuration,
+global instructions and session load state remain UNKNOWN. Predictions never
+change repository governance or detect semantic conflicts.
+
+Writes nothing.
+`
+
+// compileInstructionLoadSet reads the snapshot through load, builds on a miss, and returns the
+// instruction load set for the subject.
+func compileInstructionLoadSet(ctx context.Context, options taskContextOptions, load func(context.Context, string) (*contextindex.Index, bool, *contextindex.LoaderObservation, error)) (map[string]any, error) {
 	index, hit, opening, err := load(ctx, options.root)
 	if err != nil {
-		return nil, hit, 0, err
+		return nil, err
 	}
-	var built time.Duration
 	if !hit {
-		started := time.Now()
 		index, err = contextindex.BuildContextObserved(ctx, options.root, options.subject, opening)
-		built = time.Since(started)
-	}
-	if err != nil {
-		return nil, hit, built, err
-	}
-	if options.overlay {
-		if index, err = contextindex.OverlayWorktree(ctx, index); err != nil {
-			return nil, hit, built, err
+		if err != nil {
+			return nil, err
 		}
 	}
-	packet, err := contextindex.TaskContext(ctx, index, options.task, options.subject, options.limit)
-	if err == nil && len(options.instructionFlags) > 0 {
-		var loadSet map[string]any
-		loadSet, err = contextindex.InstructionLoadSet(index, options.subject, contextindex.InstructionLoadOptions{
-			Host: options.instructionHost, Version: options.instructionVersion, CWD: options.instructionCWD, Profile: options.instructionProfile,
-		})
-		if err == nil {
-			packet["instruction_load_set"] = loadSet
-		}
-	}
-	// The instruction load set reads bodies after
-	// TaskContext's own refusal check; a deferred body that failed there
-	// refuses the packet too, so runTaskContext reloads eagerly
-	// (IDX-SNAP-V0-814).
+	loadSet, err := contextindex.InstructionLoadSet(index, options.subject, contextindex.InstructionLoadOptions{
+		Host: options.instructionHost, Version: options.instructionVersion, CWD: options.instructionCWD, Profile: options.instructionProfile,
+	})
 	if err == nil {
+		// A deferred pack body that failed verification refuses the read; the caller reloads
+		// eagerly (IDX-SNAP-V0-814, IDX-SNAP-V0-815).
 		err = index.SnapshotRefusal()
 	}
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
-		// The caller reloads eagerly; this read's mapping ends here
-		// (IDX-SNAP-V0-815).
 		index.Release()
 	}
-	return packet, hit, built, err
+	return loadSet, err
 }

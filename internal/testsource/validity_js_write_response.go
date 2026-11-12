@@ -134,18 +134,6 @@ func (st writeStep) next(k int) int {
 	return k
 }
 
-func (st writeStep) has(k int) bool {
-	if !within(k, st.span) {
-		return false
-	}
-	for _, sk := range st.skip {
-		if within(k, sk) {
-			return false
-		}
-	}
-	return true
-}
-
 // writeStepFacts reads one step's first user action and its waits.
 func jsReaderWriteStepFacts(r *jsReader, st writeStep) writeStepFacts {
 	s := r.S
