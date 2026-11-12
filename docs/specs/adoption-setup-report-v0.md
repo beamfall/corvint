@@ -64,7 +64,8 @@ fix. It extends the existing `adopt` verb instead of adding a parallel `doctor` 
   worktree fallback store `.corvint/index/` is checked against the ignore rules.
 - `ADS-V0-802`: (experimental under the standing lane auto-accept (2026-11-01); V1-3725) a fifth
   check, `test-commands`, MUST read the project-owned declaration
-  `.github/cishards/test-commands.json` (`corvint-test-commands/0`, `STR-V0-003`) through the
+  `.corvint/test-commands.json` (`corvint-test-commands/0`, `STR-V0-003`; the path since
+  `RNC-V1-013`, which also reports its runner and instance entries) through the
   `ADS-V0-007` read rules and report `gap` when it is absent or unreadable, with the reason as
   evidence. A readable declaration is `ok`, with one evidence line for the Go entry and one per
   declared language (its argv, or `none` with the project's reason), and one line naming each

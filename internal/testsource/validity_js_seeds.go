@@ -132,41 +132,41 @@ func SeedFindings(name, text string, rules SeedRules) []testvalidity.SourceFindi
 	if !IsTestFile(name) || ValidityFindings(name, text).Uncertain {
 		return out
 	}
-	r := &jsReader{s: parseSource(name, text), name: name}
-	r.read()
-	hooks := r.seedHooks()
+	r := &jsReader{S: parseSource(name, text), Name: name}
+	r.Read()
+	hooks := seedHooks(r)
 	seeds := []seed{}
 	for i, h := range hooks {
-		seeds = append(seeds, r.seedsIn(h.body, rules, -1, i)...)
+		seeds = append(seeds, seedsIn(r, h.body, rules, -1, i)...)
 	}
-	for i, d := range r.decls {
-		if d.kind == "test" && d.hasBody {
-			seeds = append(seeds, r.seedsIn(d.body, rules, i, -1)...)
+	for i, d := range r.Decls {
+		if d.Kind == "test" && d.HasBody {
+			seeds = append(seeds, seedsIn(r, d.Body, rules, i, -1)...)
 		}
 	}
 	slices.SortStableFunc(seeds, func(a, b seed) int { return a.at - b.at })
 	testOf := func(sd seed) string {
 		if sd.owner >= 0 {
-			return r.at(r.decls[sd.owner].line)
+			return jsReaderAt(r, r.Decls[sd.owner].Line)
 		}
-		return r.at(hooks[sd.hook].line)
+		return jsReaderAt(r, hooks[sd.hook].line)
 	}
 	for _, sd := range seeds {
 		if sd.unresolved != "" {
 			out = append(out, testvalidity.SourceFinding{Rule: testvalidity.RuleSeedValidationUnresolved, Severity: testvalidity.SeverityAdvisory,
-				Test: testOf(sd), Location: r.at(sd.line), Cause: r.at(sd.line),
+				Test: testOf(sd), Location: jsReaderAt(r, sd.line), Cause: jsReaderAt(r, sd.line),
 				Message: "abstained: the " + sd.res.Name + " seed cannot be checked against the declared validation (" + sd.unresolved + ")"})
 			continue
 		}
 		if why := seedSelfInvalid(sd); why != "" {
 			out = append(out, testvalidity.SourceFinding{Rule: testvalidity.RuleSeedValidationRejected, Severity: testvalidity.SeverityAdvisory,
-				Test: testOf(sd), Location: r.at(sd.line), Cause: r.at(sd.line),
+				Test: testOf(sd), Location: jsReaderAt(r, sd.line), Cause: jsReaderAt(r, sd.line),
 				Message: "the server's " + sd.res.Name + " validation rejects this seed: " + why})
 		}
 	}
 	// Seeds that run in one setup sequence: a hook alone, and each test with the hooks around it.
 	inScope := func(h seedHook, testAt int) bool {
-		return h.scope < 0 || within(testAt, r.decls[h.scope].body)
+		return h.scope < 0 || within(testAt, r.Decls[h.scope].Body)
 	}
 	reported := map[[2]int]bool{}
 	check := func(group []seed, rule string) {
@@ -185,12 +185,12 @@ func SeedFindings(name, text string, rules SeedRules) []testvalidity.SourceFindi
 					continue
 				}
 				reported[key] = true
-				message := "the server's " + a.res.Name + " validation rejects this seed after the one at " + r.at(a.line) + ": " + why
+				message := "the server's " + a.res.Name + " validation rejects this seed after the one at " + jsReaderAt(r, a.line) + ": " + why
 				if rule == testvalidity.RuleSeedSiblingCollision {
-					message = "this seed collides with the sibling seed at " + r.at(a.line) + " (" + testOf(a) + ") in the same tenant: " + why
+					message = "this seed collides with the sibling seed at " + jsReaderAt(r, a.line) + " (" + testOf(a) + ") in the same tenant: " + why
 				}
 				out = append(out, testvalidity.SourceFinding{Rule: rule, Severity: testvalidity.SeverityAdvisory,
-					Test: testOf(b), Location: r.at(b.line), Cause: r.at(a.line), Message: message})
+					Test: testOf(b), Location: jsReaderAt(r, b.line), Cause: jsReaderAt(r, a.line), Message: message})
 			}
 		}
 	}
@@ -206,12 +206,12 @@ func SeedFindings(name, text string, rules SeedRules) []testvalidity.SourceFindi
 	for i := range hooks {
 		check(resolved(func(sd seed) bool { return sd.hook == i }), testvalidity.RuleSeedValidationRejected)
 	}
-	for t, d := range r.decls {
-		if d.kind != "test" {
+	for t, d := range r.Decls {
+		if d.Kind != "test" {
 			continue
 		}
 		check(resolved(func(sd seed) bool {
-			return sd.owner == t || sd.hook >= 0 && inScope(hooks[sd.hook], d.at)
+			return sd.owner == t || sd.hook >= 0 && inScope(hooks[sd.hook], d.At)
 		}), testvalidity.RuleSeedValidationRejected)
 	}
 	check(resolved(func(sd seed) bool { return sd.owner >= 0 }), testvalidity.RuleSeedSiblingCollision)
@@ -221,40 +221,40 @@ func SeedFindings(name, text string, rules SeedRules) []testvalidity.SourceFindi
 			continue
 		}
 		skipped := []string{}
-		for _, d := range r.decls {
-			if d.kind == "test" && inScope(h, d.at) {
-				skipped = append(skipped, r.at(d.line))
+		for _, d := range r.Decls {
+			if d.Kind == "test" && inScope(h, d.At) {
+				skipped = append(skipped, jsReaderAt(r, d.Line))
 			}
 		}
 		if len(skipped) == 0 {
 			continue
 		}
 		out = append(out, testvalidity.SourceFinding{Rule: testvalidity.RuleSeedHookBlastRadius, Severity: testvalidity.SeverityAdvisory,
-			Test: r.at(h.line), Location: r.at(h.line), Cause: skipped[0],
-			Message: fmt.Sprintf("a failing seed in this %s hook skips %d test(s): %s", strings.Fields(r.s.tokens[h.at].Text)[0], len(skipped), strings.Join(skipped, ", "))})
+			Test: jsReaderAt(r, h.line), Location: jsReaderAt(r, h.line), Cause: skipped[0],
+			Message: fmt.Sprintf("a failing seed in this %s hook skips %d test(s): %s", strings.Fields(r.S.Tokens[h.at].Text)[0], len(skipped), strings.Join(skipped, ", "))})
 	}
 	return out
 }
 
 // seedHooks finds every `beforeAll`/`beforeEach` (bare or `test.`) hook with a literal body.
-func (r *jsReader) seedHooks() []seedHook {
-	s := r.s
+func seedHooks(r *jsReader) []seedHook {
+	s := r.S
 	out := []seedHook{}
-	for k := range s.tokens {
-		if !s.ident(k, "beforeAll") && !s.ident(k, "beforeEach") {
+	for k := range s.Tokens {
+		if !s.Ident(k, "beforeAll") && !s.Ident(k, "beforeEach") {
 			continue
 		}
-		if s.memberAccess(k) && !s.ident(k-2, "test") || !s.punct(k+1, "(") || s.match[k+1] < 0 || r.inExampleBody(k, -1) {
+		if s.MemberAccess(k) && !s.Ident(k-2, "test") || !s.Punct(k+1, "(") || s.Match[k+1] < 0 || r.InExampleBody(k, -1) {
 			continue
 		}
-		args := s.splitArgs(k+1, s.match[k+1])
+		args := s.SplitArgs(k+1, s.Match[k+1])
 		for a := len(args) - 1; a >= 0; a-- {
-			if body, _, ok := s.functionBody(args[a][0]); ok && body[1] <= args[a][1] {
+			if body, _, ok := s.FunctionBody(args[a][0]); ok && body[1] <= args[a][1] {
 				scope := -1
-				if chain := r.ancestors(k); len(chain) > 0 {
+				if chain := r.Ancestors(k); len(chain) > 0 {
 					scope = chain[0]
 				}
-				out = append(out, seedHook{at: k, line: s.tokens[k].Line, body: body, scope: scope})
+				out = append(out, seedHook{at: k, line: s.Tokens[k].Line, body: body, scope: scope})
 				break
 			}
 		}
@@ -263,15 +263,15 @@ func (r *jsReader) seedHooks() []seedHook {
 }
 
 // seedsIn returns the seed calls in body that a resource matches.
-func (r *jsReader) seedsIn(body [2]int, rules SeedRules, owner, hook int) []seed {
-	s := r.s
+func seedsIn(r *jsReader, body [2]int, rules SeedRules, owner, hook int) []seed {
+	s := r.S
 	out := []seed{}
 	for k := body[0]; k < body[1]; k++ {
-		if !s.ident(k, "") || !s.punct(k+1, "(") || s.match[k+1] < 0 {
+		if !s.Ident(k, "") || !s.Punct(k+1, "(") || s.Match[k+1] < 0 {
 			continue
 		}
-		args := s.splitArgs(k+1, s.match[k+1])
-		name := s.tokens[k].Text
+		args := s.SplitArgs(k+1, s.Match[k+1])
+		name := s.Tokens[k].Text
 		for i := range rules.Resources {
 			res := &rules.Resources[i]
 			object := -1
@@ -280,19 +280,19 @@ func (r *jsReader) seedsIn(body [2]int, rules SeedRules, owner, hook int) []seed
 				if len(args) > 0 {
 					object = args[len(args)-1][0]
 				}
-			case s.memberAccess(k) && (name == "post" || name == "put") && len(args) > 0 && s.loneString(args[0]) &&
-				slices.Contains(res.Paths, strings.SplitN(s.tokens[args[0][0]].Text, "?", 2)[0]):
-				if len(args) > 1 && s.punct(args[1][0], "{") {
-					object, _ = r.objectMember(args[1][0], "data")
+			case s.MemberAccess(k) && (name == "post" || name == "put") && len(args) > 0 && s.LoneString(args[0]) &&
+				slices.Contains(res.Paths, strings.SplitN(s.Tokens[args[0][0]].Text, "?", 2)[0]):
+				if len(args) > 1 && s.Punct(args[1][0], "{") {
+					object, _ = objectMember(r, args[1][0], "data")
 				}
 			default:
 				continue
 			}
-			sd := seed{res: res, at: k, line: s.tokens[k].Line, owner: owner, hook: hook}
-			if object < 0 || !s.punct(object, "{") || s.match[object] < 0 {
+			sd := seed{res: res, at: k, line: s.Tokens[k].Line, owner: owner, hook: hook}
+			if object < 0 || !s.Punct(object, "{") || s.Match[object] < 0 {
 				sd.unresolved = "the seeded record is not an object literal"
 			} else {
-				sd.fields, sd.unresolved = r.seedFields(object, res)
+				sd.fields, sd.unresolved = seedFields(r, object, res)
 			}
 			out = append(out, sd)
 			break
@@ -304,15 +304,15 @@ func (r *jsReader) seedsIn(body [2]int, rules SeedRules, owner, hook int) []seed
 // objectMember returns the value token index of key in the object literal at open, or -1. A later
 // key replaces an earlier one, as at run time. plain is false when any member is a spread, a
 // computed or inexact key, a method or a shorthand, since such a member may set key.
-func (r *jsReader) objectMember(open int, key string) (at int, plain bool) {
-	s := r.s
+func objectMember(r *jsReader, open int, key string) (at int, plain bool) {
+	s := r.S
 	at = -1
-	for _, el := range s.splitArgs(open, s.match[open]) {
+	for _, el := range s.SplitArgs(open, s.Match[open]) {
 		if el[1] <= el[0] {
 			continue
 		}
-		t := s.tokens[el[0]]
-		if el[1]-el[0] < 3 || !s.punct(el[0]+1, ":") || t.Kind != appmap.JSIdent && (t.Kind != appmap.JSString || !t.Literal) {
+		t := s.Tokens[el[0]]
+		if el[1]-el[0] < 3 || !s.Punct(el[0]+1, ":") || t.Kind != appmap.JSIdent && (t.Kind != appmap.JSString || !t.Literal) {
 			return -1, false
 		}
 		if t.Text == key {
@@ -323,8 +323,8 @@ func (r *jsReader) objectMember(open int, key string) (at int, plain bool) {
 }
 
 // seedFields reads every field a rule names as a literal; the first one that is not abstains.
-func (r *jsReader) seedFields(open int, res *SeedResource) (map[string]seedValue, string) {
-	s := r.s
+func seedFields(r *jsReader, open int, res *SeedResource) (map[string]seedValue, string) {
+	s := r.S
 	needed := []string{}
 	if res.Tenant != "" {
 		needed = append(needed, res.Tenant)
@@ -347,7 +347,7 @@ func (r *jsReader) seedFields(open int, res *SeedResource) (map[string]seedValue
 	}
 	fields := map[string]seedValue{}
 	for _, field := range needed {
-		v, plain := r.objectMember(open, field)
+		v, plain := objectMember(r, open, field)
 		if !plain {
 			return nil, "the record has a spread, computed or shorthand member"
 		}
@@ -357,7 +357,7 @@ func (r *jsReader) seedFields(open int, res *SeedResource) (map[string]seedValue
 			}
 			return nil, "field " + field + " is not set literally"
 		}
-		value, ok := r.literalValue(v, s.match[open])
+		value, ok := jsReaderLiteralValue(r, v, s.Match[open])
 		if !ok {
 			return nil, "field " + field + " is not a literal"
 		}
@@ -367,16 +367,16 @@ func (r *jsReader) seedFields(open int, res *SeedResource) (map[string]seedValue
 }
 
 // literalValue reads a lone string, number or boolean value ending at the next top-level comma.
-func (r *jsReader) literalValue(v, close int) (seedValue, bool) {
-	s := r.s
-	neg := s.punct(v, "-")
+func jsReaderLiteralValue(r *jsReader, v, close int) (seedValue, bool) {
+	s := r.S
+	neg := s.Punct(v, "-")
 	if neg {
 		v++
 	}
-	if v+1 < close && !s.punct(v+1, ",") || v >= close {
+	if v+1 < close && !s.Punct(v+1, ",") || v >= close {
 		return seedValue{}, false
 	}
-	t := s.tokens[v]
+	t := s.Tokens[v]
 	switch {
 	case t.Kind == appmap.JSNumber:
 		n, err := strconv.ParseFloat(strings.ReplaceAll(t.Text, "_", ""), 64)

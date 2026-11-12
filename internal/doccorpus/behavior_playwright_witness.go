@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/jstestprovider"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // PlaywrightWitnessImportSchema names the importer's closed output bundle.
@@ -129,7 +129,7 @@ type playwrightReportEntry struct {
 type playwrightWitnessContext struct {
 	request  BehaviorAdapterRequest
 	registry BehaviorRegistry
-	receipt  testvaliditydoc.Document
+	receipt  testvaliditymodel.Document
 	prefix   string
 	digest   string
 	input    BehaviorAdapterInput
@@ -277,7 +277,7 @@ func (c playwrightWitnessContext) repositoryPath(absolute string) (string, bool)
 // witness returns the test's witness or the named reason it stays unwitnessed.
 func (c playwrightWitnessContext) witness(test BehaviorTest) (PlaywrightWitness, string, string, []string) {
 	identity := c.receipt.Playwright.Identity
-	var native *jstestprovider.Anchor
+	var native *jstestreceipt.Anchor
 	fullName := ""
 	for _, outcome := range c.receipt.Playwright.Tests {
 		if outcome.ID != test.ID || outcome.Anchor == nil {
@@ -337,16 +337,16 @@ func (c playwrightWitnessContext) witness(test BehaviorTest) (PlaywrightWitness,
 	return PlaywrightWitness{TestID: test.ID, Project: test.Project, Title: test.Title, Retry: *result.Retry, ReportTestID: entry.id, ReportSHA256: c.reportID, RunSHA256: c.digest, Document: string(document), SHA256: Digest(document), Observation: link}, "", "", nil
 }
 
-func (c playwrightWitnessContext) observedTest(test BehaviorTest) (testvaliditydoc.Test, bool) {
+func (c playwrightWitnessContext) observedTest(test BehaviorTest) (testvaliditymodel.Test, bool) {
 	for _, observed := range c.receipt.Tests {
 		if observed.ID == test.ID && observed.Project != nil && observed.Project.Name == test.Project {
 			return observed, true
 		}
 	}
-	return testvaliditydoc.Test{}, false
+	return testvaliditymodel.Test{}, false
 }
 
-func playwrightReceiptState(observed testvaliditydoc.Test) (string, string) {
+func playwrightReceiptState(observed testvaliditymodel.Test) (string, string) {
 	switch observed.State {
 	case "passed":
 	case "skipped":
@@ -367,7 +367,7 @@ func playwrightReceiptState(observed testvaliditydoc.Test) (string, string) {
 
 // sharedReceiptTuple reports whether more than one qualified receipt outcome has this file, line,
 // project and full title, so no report result could be attributed to exactly one of them.
-func (c playwrightWitnessContext) sharedReceiptTuple(anchor *jstestprovider.Anchor, project, fullName string) bool {
+func (c playwrightWitnessContext) sharedReceiptTuple(anchor *jstestreceipt.Anchor, project, fullName string) bool {
 	count := 0
 	for _, outcome := range c.receipt.Playwright.Tests {
 		if outcome.Anchor != nil && outcome.Project != nil && outcome.Anchor.File == anchor.File && outcome.Anchor.Line == anchor.Line && outcome.Project.Name == project && outcome.FullName == fullName {

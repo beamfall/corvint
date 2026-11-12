@@ -134,7 +134,7 @@ func sourceValidity(r Repo, options SourceValidityOptions, apps *readBudget) (So
 	var flags *testvalidity.FlagLookups
 	for _, name := range files {
 		if m := RSpecQualifiedRef.FindStringSubmatch(name); m != nil {
-			file, test, err := r.qualifiedValidity(commit, m, supports, apps)
+			file, test, err := qualifiedValidity(r, commit, m, supports, apps)
 			if err != nil {
 				return SourceValidityReport{}, err
 			}
@@ -142,15 +142,15 @@ func sourceValidity(r Repo, options SourceValidityOptions, apps *readBudget) (So
 			report.Tests = append(report.Tests, test)
 			continue
 		}
-		data, err := r.committedFile(commit, name)
+		data, err := committedFile(r, commit, name)
 		if err != nil {
 			return SourceValidityReport{}, err
 		}
 		support := testvalidity.RubySupport{}
 		if strings.HasSuffix(name, "_spec.rb") {
-			support = r.rubySupport(commit, name, supports, apps)
+			support = rubySupport(r, commit, name, supports, apps)
 			if flags == nil {
-				read, err := r.flagLookups(commit)
+				read, err := flagLookups(r, commit)
 				if err != nil {
 					return SourceValidityReport{}, err
 				}
@@ -161,7 +161,7 @@ func sourceValidity(r Repo, options SourceValidityOptions, apps *readBudget) (So
 		file, tests := readSourceValidity(name, string(data), support)
 		if IsTestFile(name) && !strings.HasSuffix(name, "_spec.rb") && !file.Uncertain {
 			if seeds == nil {
-				if seeds, err = r.seedRules(commit); err != nil {
+				if seeds, err = RepoSeedRules(r, commit); err != nil {
 					return SourceValidityReport{}, err
 				}
 			}
@@ -171,12 +171,12 @@ func sourceValidity(r Repo, options SourceValidityOptions, apps *readBudget) (So
 		report.Tests = append(report.Tests, tests...)
 	}
 	for _, link := range options.Links {
-		parity, err := r.seedParity(commit, link)
+		parity, err := seedParity(r, commit, link)
 		if err != nil {
 			return SourceValidityReport{}, err
 		}
 		report.SeedParity = append(report.SeedParity, parity)
-		assertions, err := r.assertionParity(commit, link)
+		assertions, err := assertionParity(r, commit, link)
 		if err != nil {
 			return SourceValidityReport{}, err
 		}
@@ -193,8 +193,8 @@ func sourceValidity(r Repo, options SourceValidityOptions, apps *readBudget) (So
 // seedRules reads the committed seed rule file at commit (TSA-V0-240) and returns the seed
 // findings of one JS/TS test file under it: none when the file is absent, and one file-level
 // SEED-VALIDATION-UNRESOLVED abstention when it does not decode.
-func (r Repo) seedRules(commit string) (func(name, text string) []testvalidity.SourceFinding, error) {
-	data, found, err := r.readOne(commit, SeedRulesPath, MaxFileBytes)
+func RepoSeedRules(r Repo, commit string) (func(name, text string) []testvalidity.SourceFinding, error) {
+	data, found, err := readOne(r, commit, SeedRulesPath, MaxFileBytes)
 	if err != nil || !found {
 		return func(string, string) []testvalidity.SourceFinding { return nil }, err
 	}
@@ -212,8 +212,8 @@ func (r Repo) seedRules(commit string) (func(name, text string) []testvalidity.S
 
 // committedFile reads one committed file at commit, refusing tests-source-unavailable when it is
 // not a committed regular file.
-func (r Repo) committedFile(commit, name string) ([]byte, error) {
-	data, found, err := r.readOne(commit, name, MaxFileBytes)
+func committedFile(r Repo, commit, name string) ([]byte, error) {
+	data, found, err := readOne(r, commit, name, MaxFileBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (r Repo) committedFile(commit, name string) ([]byte, error) {
 // qualifiedValidity reads one qualified reference `SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE`: the
 // shared example evaluated through that one inclusion, reported under the reference. A reference
 // the reader cannot bind is one ABSTAINED test with the refusal reason (TSA-V0-089..091).
-func (r Repo) qualifiedValidity(commit string, m []string, supports map[string]testvalidity.RubySupport, apps *readBudget) (SourceValidityFile, SourceValidityTest, error) {
+func qualifiedValidity(r Repo, commit string, m []string, supports map[string]testvalidity.RubySupport, apps *readBudget) (SourceValidityFile, SourceValidityTest, error) {
 	q := testvalidity.RSpecInclusion{SpecPath: m[1], SharedPath: m[3]}
 	fmt.Sscanf(m[2], "%d", &q.IncludeLine)
 	fmt.Sscanf(m[4], "%d", &q.ExampleLine)
@@ -238,18 +238,18 @@ func (r Repo) qualifiedValidity(commit string, m []string, supports map[string]t
 			return SourceValidityFile{}, SourceValidityTest{}, refuse("tests-invalid-arguments", "%q is not a repository-relative file path", path)
 		}
 	}
-	spec, err := r.committedFile(commit, q.SpecPath)
+	spec, err := committedFile(r, commit, q.SpecPath)
 	if err != nil {
 		return SourceValidityFile{}, SourceValidityTest{}, err
 	}
 	shared := spec
 	if q.SharedPath != q.SpecPath {
-		if shared, err = r.committedFile(commit, q.SharedPath); err != nil {
+		if shared, err = committedFile(r, commit, q.SharedPath); err != nil {
 			return SourceValidityFile{}, SourceValidityTest{}, err
 		}
 	}
 	q.SpecText, q.SharedText = string(spec), string(shared)
-	q.Support = r.rubySupport(commit, q.SpecPath, supports, apps)
+	q.Support = rubySupport(r, commit, q.SpecPath, supports, apps)
 	source, ref := RSpecInclusionSource(q)
 	file := SourceValidityFile{Path: ref, Findings: source.Findings}
 	if source.Read != testvalidity.ExampleSourceLocated {
@@ -377,17 +377,17 @@ func specPrefix(name string) string {
 // rubySupport reads the committed support set of a spec at commit once per prefix. A read that
 // fails or exceeds the bounds leaves the set unbound with a named reason, so helper resolution
 // abstains instead of guessing (TSA-V0-088). The application source it binds draws on apps.
-func (r Repo) rubySupport(commit, name string, cache map[string]testvalidity.RubySupport, apps *readBudget) testvalidity.RubySupport {
+func rubySupport(r Repo, commit, name string, cache map[string]testvalidity.RubySupport, apps *readBudget) testvalidity.RubySupport {
 	prefix := specPrefix(name)
 	if support, ok := cache[prefix]; ok {
 		return support
 	}
-	files, _, err := r.readFiles(commit, RubySupportPaths(prefix))
+	files, _, err := readFiles(r, commit, RubySupportPaths(prefix))
 	support := testvalidity.RubySupport{Files: files}
 	if err != nil {
 		support = testvalidity.RubySupport{Unbound: "rspec-support-unreadable"}
 	}
-	support.App = r.rubyApp(commit, prefix, apps)
+	support.App = rubyApp(r, commit, prefix, apps)
 	cache[prefix] = support
 	return support
 }
@@ -401,8 +401,8 @@ const maxAppFiles = 20000
 // once. Every read draws on budget, which the command shares across all spec prefixes, so a file
 // over a bound or past the budget reads as absent and ReadAll fails. A listing that fails or
 // exceeds maxAppFiles lists none, so no target resolves.
-func (r Repo) rubyApp(commit, prefix string, budget *readBudget) *testvalidity.RubyApp {
-	entries, err := r.tree(commit, func(path string) bool {
+func rubyApp(r Repo, commit, prefix string, budget *readBudget) *testvalidity.RubyApp {
+	entries, err := r.Tree(commit, func(path string) bool {
 		rest, ok := strings.CutPrefix(path, prefix)
 		return ok && (rest == "db/schema.rb" || (strings.HasPrefix(rest, "app/") || strings.HasPrefix(rest, "lib/") || strings.HasPrefix(rest, "config/")) && strings.HasSuffix(rest, ".rb"))
 	}, maxAppFiles)
@@ -412,8 +412,8 @@ func (r Repo) rubyApp(commit, prefix string, budget *readBudget) *testvalidity.R
 	listed := map[string]entry{}
 	paths := make([]string, 0, len(entries))
 	for _, e := range entries {
-		listed[e.path] = e
-		paths = append(paths, e.path)
+		listed[e.Path] = e
+		paths = append(paths, e.Path)
 	}
 	slices.Sort(paths)
 	read := map[string]string{}
@@ -423,14 +423,14 @@ func (r Repo) rubyApp(commit, prefix string, budget *readBudget) *testvalidity.R
 		if len(batch) > budget.files {
 			return false
 		}
-		data, used, err := r.blobs(batch, budget.bytes)
+		data, used, err := r.Blobs(batch, budget.bytes)
 		if err != nil {
 			return false
 		}
 		budget.files -= len(batch)
 		budget.bytes -= used
 		for _, e := range batch {
-			read[e.path] = string(data[e.oid])
+			read[e.Path] = string(data[e.Oid])
 		}
 		return true
 	}

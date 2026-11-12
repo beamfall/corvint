@@ -7,8 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 type jsSourceFile struct {
@@ -22,7 +23,7 @@ type jsSourceFile struct {
 // reader and used only when its SHA-256 equals the retained digest. An outcome with no anchor, an
 // anchor that binds no single digest key, or a file the reader says is not a JS/TS test file keeps
 // its projection.
-func applyJSSources(tests []Test, receipt jstestprovider.Receipt, worktree *os.Root, root string, read ExampleSourceReader) {
+func applyJSSources(tests []Test, receipt jstestreceipt.Receipt, worktree *os.Root, root string, read ExampleSourceReader) {
 	files := map[string]jsSourceFile{}
 	for index, outcome := range receipt.Tests {
 		if index >= len(tests) || tests[index].Name != outcome.Name || outcome.Anchor == nil || outcome.Anchor.Line <= 0 {
@@ -45,11 +46,11 @@ func applyJSSources(tests []Test, receipt jstestprovider.Receipt, worktree *os.R
 		if file.reason == "" {
 			if placed, found := placeJSExample(file.examples, line); found {
 				source, line = file.examples[placed], placed
-				tests[index].Location.placeSource(file.relative, placed, source)
+				tests[index].Location.PlaceSource(file.relative, placed, source)
 			} else {
 				source.Read = testvalidity.HygieneReasonJSExampleUnplaced
 				if tests[index].Location != nil {
-					tests[index].Location.Absent[locationTitlePath] = LocationSourceUnplaced
+					tests[index].Location.Absent[testvaliditymodel.LocationTitlePath] = LocationSourceUnplaced
 				}
 			}
 		}
@@ -67,7 +68,7 @@ func applyJSSources(tests []Test, receipt jstestprovider.Receipt, worktree *os.R
 // equals the outcome's full name. Exactly one match sets the location's file, declaring line and
 // title path; more than one names file and line declaration-ambiguous; none leaves the location
 // as it was. The projection is unchanged: only an anchor-bound reading moves an axis.
-func placeJSDeclarations(tests []Test, receipt jstestprovider.Receipt, files map[string]jsSourceFile, worktree *os.Root, root string, read ExampleSourceReader) {
+func placeJSDeclarations(tests []Test, receipt jstestreceipt.Receipt, files map[string]jsSourceFile, worktree *os.Root, root string, read ExampleSourceReader) {
 	keys := []string{}
 	for key := range receipt.Identity.TestFileDigests {
 		if filepath.IsAbs(key) {
@@ -106,10 +107,10 @@ func placeJSDeclarations(tests []Test, receipt jstestprovider.Receipt, files map
 		switch len(matches) {
 		case 0:
 		case 1:
-			location.placeSource(matches[0].file, matches[0].line, matches[0].source)
+			location.PlaceSource(matches[0].file, matches[0].line, matches[0].source)
 		default:
-			location.Absent[locationFile] = LocationDeclarationAmbiguous
-			location.Absent[locationLine] = LocationDeclarationAmbiguous
+			location.Absent[testvaliditymodel.LocationFile] = LocationDeclarationAmbiguous
+			location.Absent[testvaliditymodel.LocationLine] = LocationDeclarationAmbiguous
 		}
 	}
 }
@@ -120,7 +121,7 @@ func unplacedJSDeclaration(location *Location) bool {
 	if location == nil || location.File != "" || location.Line > 0 {
 		return false
 	}
-	reason := location.Absent[locationFile]
+	reason := location.Absent[testvaliditymodel.LocationFile]
 	return reason == LocationNotDeclaration || reason == LocationNotRecorded
 }
 
@@ -155,7 +156,7 @@ func readJSSource(worktree *os.Root, root, key, digest string, read ExampleSourc
 		return file
 	}
 	data, err := ReadFile(worktree, relative)
-	if err != nil || digestHex(data) != digest {
+	if err != nil || testvaliditymodel.DigestHex(data) != digest {
 		file.reason = testvalidity.HygieneReasonJSSourceUnbound
 		return file
 	}

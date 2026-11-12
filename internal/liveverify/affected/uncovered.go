@@ -3,6 +3,15 @@ package affected
 
 import "strings"
 
+// CoverageUnproven is implemented by a plugin whose rules leave consumers of a
+// unit it cannot model (SLF-V1-002, SLF-V1-004): given a changed unit and the
+// plugin's frontier entries, it reports that no selectable test can be proven
+// absent, so the unit is unknown NO_SELECTABLE_TEST and never Uncovered. It
+// only adds uncertainty; it never removes a selection or an unknown.
+type CoverageUnproven interface {
+	CoverageUnproven(id string, frontier []string) bool
+}
+
 // coverageGap inspects modelled and declared callers before claiming that no
 // selectable test can observe a changed unit (AZU-V0-006). It does not narrow
 // the ordinary reach: callers and path readers have already been selected.
@@ -30,6 +39,10 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 	// RUBY-AFFECTED-V0-761: a template without a route-dispatched spec has
 	// unresolved runtime dispatch, not proof that no test can observe it.
 	if strings.HasPrefix(id, "ruby:view:") && !graph.testReach[id] {
+		uncertain = true
+	}
+	owner := strings.SplitN(id, ":", 2)[0]
+	if unproven, declares := graph.claimants[owner].(CoverageUnproven); declares && unproven.CoverageUnproven(id, graph.frontierBy[owner]) {
 		uncertain = true
 	}
 	inspect := func(caller string) {
@@ -88,6 +101,7 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 				graph.readers(readers, input)
 				graph.unboundedReadersOf(readers, graph.unboundedDirty(input))
 				graph.scopedReadersOf(readers, input)
+				graph.deletedScriptObserversOf(readers, input, make(map[string]bool))
 				readersByPath[file] = readers
 			}
 			for unit := range readers {

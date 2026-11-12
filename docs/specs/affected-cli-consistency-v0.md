@@ -101,6 +101,10 @@ driving Corvint from scripts.
   no units. Otherwise the advice SHALL omit it and SHALL carry the unknown entry
   `FOCUSED_TEST_COMMAND_UNDECLARED`, which names the missing declaration and points to the
   declared mandatory checks (the Makefile gate or the AGENTS.md Verify commands) as the next step.
+  Amended by RNC-V1-013 (V1-5416, 2026-11-11): the declaration is `.corvint/test-commands.json`
+  (or Corvint's own old path), and without one `corvint test` plans with each runner's built-in
+  default full command rather than a FULL scope with no units, so the entry names the new path and
+  says that; the two goldens below are regenerated again.
   Compatibility: the change moves one `advice.checks` entry into `advice.unknown` and keeps
   `advice.status` `PLAN_ONLY`. `advice.unknown` is free text outside the CCF-V1-007 (d) register
   and no member, type or CCF-V1-002 identifier changes, so under CCF-V1-006 it is compatible and

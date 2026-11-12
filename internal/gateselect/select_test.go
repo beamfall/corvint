@@ -103,7 +103,8 @@ func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 			var plan Receipt
 			plan.Provider.Go.State = "RUNNABLE"
 			plan.Plan.Dirty = []string{tc.dirty}
-			if got := verdict(plan, root); got != tc.verdict {
+			requireCorvintConfig(t, plan, root, tc.dirty)
+			if got := attributionVerdict(plan, root); got != tc.verdict {
 				t.Fatalf("verdict = %q, want %q", got, tc.verdict)
 			}
 		})
@@ -138,7 +139,8 @@ func TestSelectPackagesNarrowsSealedChangeEvidenceReaders(t *testing.T) {
 			var plan Receipt
 			plan.Provider.Go.State = "RUNNABLE"
 			plan.Plan.Dirty = []string{tc.dirty}
-			if got := verdict(plan, root); got != tc.verdict {
+			requireCorvintConfig(t, plan, root, tc.dirty)
+			if got := attributionVerdict(plan, root); got != tc.verdict {
 				t.Fatalf("verdict = %q, want %q", got, tc.verdict)
 			}
 		})

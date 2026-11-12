@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -272,8 +273,8 @@ func AdmitE2E(cfg E2EConfig) error {
 		if !cfg.KeepReporters {
 			return refuseE2E("keep-reporters-qualification-requires-keep-reporters")
 		}
-		if q.Verdict != KeepReportersQualified || keepReportersQualificationError(*q) != nil {
-			return refuseE2E(keepReportersQualificationInvalid)
+		if q.Verdict != KeepReportersQualified || jstestreceipt.KeepReportersQualificationError(*q) != nil {
+			return refuseE2E(jstestreceipt.KeepReportersQualificationInvalid)
 		}
 	}
 	if cfg.Freshness != nil {

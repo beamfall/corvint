@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 const (
@@ -1767,12 +1767,12 @@ func (a *behaviorAdapter) runtimeWitnessed(registry BehaviorRegistry, discovery 
 		a.gap("test:"+test.ID, "missing-runtime-witness", test.ID, "runtime", "qualified receipt bytes do not match the run identity", "retain the exact native receipt and its SHA-256 identity")
 		return false
 	}
-	decoded, err := testvaliditydoc.Decode([]byte(receiptInput.Document))
+	decoded, err := testvaliditymodel.Decode([]byte(receiptInput.Document))
 	if err != nil {
 		a.gapFromInput(receiptInput, "missing-runtime-witness", test.ID, "", "native receipt is not a qualified closed provider document", "supply canonical qualified Playwright receipt bytes")
 		return false
 	}
-	document := testvaliditydoc.Project(decoded)
+	document := testvaliditymodel.Project(decoded)
 	if !behaviorAdapterReceiptMatches(document, discovery, link, test, run) {
 		a.gapFromInput(receiptInput, "runtime-identity-contradiction", test.ID, "", "native receipt lacks the exact passing test/project/retry", "retain the matching qualified execution rather than a similarly named run")
 		return false
@@ -1780,7 +1780,7 @@ func (a *behaviorAdapter) runtimeWitnessed(registry BehaviorRegistry, discovery 
 	return a.runtimeEventsMatch(flows, test, run)
 }
 
-func behaviorAdapterReceiptMatches(document testvaliditydoc.Document, discovery BehaviorDiscovery, link ObservationLink, test BehaviorTest, run BehaviorRun) bool {
+func behaviorAdapterReceiptMatches(document testvaliditymodel.Document, discovery BehaviorDiscovery, link ObservationLink, test BehaviorTest, run BehaviorRun) bool {
 	if document.Playwright == nil || document.TestsOmitted != 0 || document.Run.Execution.State == "INCOMPLETE" || document.Run.Freshness.State == "STALE" {
 		return false
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/rubytestprovider"
 	"github.com/Beamfall/corvint/internal/testvalidity"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 const (
@@ -143,7 +144,7 @@ func TestLPCVV0135RubyOptionalMembersDecodeClosed(t *testing.T) {
 	if shared := carriedDocument.Tests[0].Location; shared.Absent["titlePath"] != LocationSharedExample || len(shared.IncludedAt) != 1 {
 		t.Fatalf("shared example location=%+v", shared)
 	}
-	carriedDocument.Tests[0].Location = rubyLocation(rubyDocument(t, "passed"), rubyDocument(t, "passed").Examples[0])
+	carriedDocument.Tests[0].Location = testvaliditymodel.RubyLocation(rubyDocument(t, "passed"), rubyDocument(t, "passed").Examples[0])
 	after, err := json.Marshal(carriedDocument)
 	if err != nil {
 		t.Fatal(err)

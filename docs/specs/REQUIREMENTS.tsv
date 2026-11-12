@@ -226,6 +226,12 @@ AFP-V0-9961	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; deliv
 AFP-V0-9962	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)	unrecorded	-
 AFP-V0-9963	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)	unrecorded	-
 AFP-V0-9964	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)	unrecorded	-
+AFP-V0-9990	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5191, V1-5193, V1-5194)	unrecorded	-
+AFP-V0-9991	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5193)	unrecorded	-
+AFP-V0-9992	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5191)	unrecorded	-
+AFP-V0-9993	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5191)	unrecorded	-
+AFP-V0-9994	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5191)	unrecorded	-
+AFP-V0-9995	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5191)	unrecorded	-
 AFP-V0-9965	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5368)	unrecorded	-
 AFP-V0-3334	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5178)	standing	2026-10-11; V1-5178
 AFP-V0-9012	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5018)	standing	2026-10-11; V1-5018
@@ -404,6 +410,7 @@ AFP-V0-107	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delive
 AFP-V0-108	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery delivered; V1-5201)	unrecorded	-
 AFP-V0-109	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery delivered; V1-5201)	unrecorded	-
 AFP-V0-110	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-10; delivery partial; V1-5201)	unrecorded	-
+AFP-V0-3642	docs/specs/affected-plan-selection-v0.md	(proposed; experimental under the owner's standing lane auto-accept	standing	-
 AFP-V0-9970	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5382)	unrecorded	-
 AFP-V0-9971	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5382)	unrecorded	-
 AFP-V0-9972	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5217)	unrecorded	-
@@ -412,7 +419,6 @@ AFP-V0-9974	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; deliv
 AFP-V0-9975	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5226)	unrecorded	-
 AFP-V0-9976	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5226)	unrecorded	-
 AFP-V0-9977	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5226)	unrecorded	-
-AFP-V0-3642	docs/specs/affected-plan-selection-v0.md	(proposed; experimental under the owner's standing lane auto-accept	standing	-
 AFP-V0-9987	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; experimental; V1-4399) The default `affected-plan/1`	unrecorded	-
 AFP-V0-9988	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; experimental; V1-4399; extends TSP-V0-7311 (V1-4439) and	unrecorded	-
 AFP-V0-9989	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; experimental; V1-4399) `corvint affected --base BASE	unrecorded	-
@@ -1450,6 +1456,18 @@ BBF-V0-216	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2030, d
 BBF-V0-217	docs/specs/browser-behavior-falsification-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2688, GH #1789) A request	standing	2026-10-11; V1-2688; #1789
 BBF-V0-218	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2688) Execution rebuilds the plan, which rechecks every storage-st	unrecorded	-
 BBF-V0-219	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2688) Plans, reports and receipts without `authentication` are	unrecorded	-
+CTI-V1-001	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) One ID f	standing	2026-10-11; V1-5398
+CTI-V1-002	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) Escape r	standing	2026-10-11; V1-5398
+CTI-V1-003	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) Go name	standing	2026-10-11; V1-5398
+CTI-V1-004	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) Vitest a	standing	2026-10-11; V1-5398
+CTI-V1-005	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) Playwrig	standing	2026-10-11; V1-5398
+CTI-V1-006	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) pytest n	standing	2026-10-11; V1-5398
+CTI-V1-007	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) RSpec an	standing	2026-10-11; V1-5398
+CTI-V1-008	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) File-lev	standing	2026-10-11; V1-5398
+CTI-V1-009	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) One ID e	standing	2026-10-11; V1-5398
+CTI-V1-010	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) Duplicat	standing	2026-10-11; V1-5398
+CTI-V1-011	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) Unmappab	standing	2026-10-11; V1-5398
+CTI-V1-012	docs/specs/canonical-test-id-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5398) Legacy k	standing	2026-10-11; V1-5398
 CAP-V0-8800	docs/specs/capability-catalog-v0.md	(accepted by the owner's 2026-11-08 clicat charter; V1-4846)	owner	2026-11-08; V1-4846
 CAP-V0-9300	docs/specs/capability-catalog-v0.md	(accepted by the owner's 2026-11-05 clicontract repair charter; V1-2685)	owner	2026-11-05; V1-2685
 CAP-V0-9302	docs/specs/capability-catalog-v0.md	(accepted by the owner's 2026-11-05 clicontract repair charter; V1-3738)	owner	2026-11-05; V1-3738
@@ -2437,6 +2455,12 @@ CTR-V0-009	docs/specs/compat-trial-v0.md	Preregistered rubric, budgets, and scor
 CTR-V0-010	docs/specs/compat-trial-v0.md	Containment and harness reuse. Replay stays local; per `E:99`, external executio	unrecorded	-
 CTR-V0-011	docs/specs/compat-trial-v0.md	Proposed; unaccepted and does not authorize implementation. Changed-executable a	unrecorded	-
 CTR-V0-012	docs/specs/compat-trial-v0.md	Proposed; unaccepted and does not authorize implementation. Observation record s	unrecorded	-
+CMP-V1-001	docs/specs/compatibility-promise-v1.md	(accepted automatically under G14, decision 0596; V1-5434) `docs/COMPATIBILITY.m	owner	decision 0596; V1-5434
+CMP-V1-002	docs/specs/compatibility-promise-v1.md	(accepted automatically under G14, decision 0596; V1-5434) A row MUST be `stable	owner	decision 0596; V1-5434
+CMP-V1-003	docs/specs/compatibility-promise-v1.md	(accepted automatically under G14, decision 0596; V1-5434) The stable set MUST b	owner	decision 0596; V1-5434
+CMP-V1-004	docs/specs/compatibility-promise-v1.md	(accepted automatically under G14, decision 0596; V1-5434) A `stable` surface MU	owner	decision 0596; V1-5434
+CMP-V1-005	docs/specs/compatibility-promise-v1.md	(accepted automatically under G14, decision 0596; V1-5434) `docs/COMPATIBILITY.m	owner	decision 0596; V1-5434
+CMP-V1-006	docs/specs/compatibility-promise-v1.md	(accepted automatically under G14, decision 0596; V1-5434) No profile label MUST	owner	decision 0596; V1-5434
 CWT-V0-001	docs/specs/confidently-wrong-trial-v0.md	Claim grammar. Every reply MUST end with one fenced JSON block	unrecorded	-
 CWT-V0-002	docs/specs/confidently-wrong-trial-v0.md	Verdicts. A claim whose kind the task's gold covers is `TRUE` when its value is	unrecorded	-
 CWT-V0-003	docs/specs/confidently-wrong-trial-v0.md	Arms. `none` supplies the task text only; `grep` adds the top-K paths of	unrecorded	-
@@ -2552,7 +2576,7 @@ PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 requireme
 PRS-V1-015	docs/specs/corvint-1.0-product-and-release-v1.md	Automatic developer and user-facing flow documentation MUST use revision-pinned	unrecorded	-
 PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 requirement (restored by amendment 2026-10-22 after the 2026-10-21	unrecorded	-
 PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	The expanded capabilities MUST retain exact-candidate acceptance evidence and	unrecorded	-
-PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio	unrecorded	-
+PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); amended per owner	standing	2026-10-11
 PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO	unrecorded	-
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
 PRS-V1-910	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3313) `corvint	standing	2026-10-31; V1-3313
@@ -4613,6 +4637,18 @@ DCLI-V0-004	docs/specs/direct-native-cli-authority-v0.md	**Provenance/trust.** A
 DCLI-V0-005	docs/specs/direct-native-cli-authority-v0.md	**Common computation/currentness.** Preserve fixed protected paths, release/adap	unrecorded	-
 DCLI-V0-006	docs/specs/direct-native-cli-authority-v0.md	**Negative acceptance.** Closed decoder rejects old/new mixed fields, unknown ho	unrecorded	-
 DCLI-V0-007	docs/specs/direct-native-cli-authority-v0.md	**Rollback.** Revoke/raise protected generation floor, withdraw the direct quali	unrecorded	-
+DMF-V1-001	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Waived claims show as	owner	decision 0596; V1-5409
+DMF-V1-002	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) One repository docs c	owner	decision 0596; V1-5409
+DMF-V1-003	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Maintain check exit c	owner	decision 0596; V1-5409
+DMF-V1-004	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Complete citation che	owner	decision 0596; V1-5409
+DMF-V1-005	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Reports say when the	owner	decision 0596; V1-5409
+DMF-V1-006	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Byte failures name th	owner	decision 0596; V1-5409
+DMF-V1-007	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) No clean result witho	owner	decision 0596; V1-5409
+DMF-V1-008	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Distinct tool descrip	owner	decision 0596; V1-5409
+DMF-V1-009	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) No second test-select	owner	decision 0596; V1-5409
+DMF-V1-010	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Actionable tool error	owner	decision 0596; V1-5409
+DMF-V1-011	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) Rebuilt corpus served	owner	decision 0596; V1-5409
+DMF-V1-013	docs/specs/docs-mcp-hardening-v1.md	(accepted automatically under G14, decision 0596; V1-5409) `docs consume` stale	owner	decision 0596; V1-5409
 DCI-V0-001	docs/specs/documentation-ci-v0.md	The classifier MUST read a clean checkout at the full captured target SHA, requi	unrecorded	-
 DCI-V0-002	docs/specs/documentation-ci-v0.md	The closed path scope MUST be modified existing mode-100644 `README.md` and,	unrecorded	-
 DCI-V0-003	docs/specs/documentation-ci-v0.md	README fenced and indented code bytes MUST remain identical. The admitted Markdo	unrecorded	-
@@ -5427,6 +5463,21 @@ FPK-V0-055	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experim
 FPK-V0-056	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-920	docs/specs/falsifiable-packet-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3042) a `prov	standing	2026-10-31; V1-3042
 FPK-V0-740	docs/specs/falsifiable-packet-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-2382) A Go	standing	2026-11-01; V1-2382
+FIH-V1-001	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Pre-registration befo	owner	decision 0596; V1-5405
+FIH-V1-002	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Composition of a faul	owner	decision 0596; V1-5405
+FIH-V1-003	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Faults sit on changed	owner	decision 0596; V1-5405
+FIH-V1-004	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Baseline and quaranti	owner	decision 0596; V1-5405
+FIH-V1-005	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) A kill is confirmed t	owner	decision 0596; V1-5405
+FIH-V1-006	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) A miss blocks	owner	decision 0596; V1-5405
+FIH-V1-007	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) PRs are counted and t	owner	decision 0596; V1-5405
+FIH-V1-008	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) One adapter per runne	owner	decision 0596; V1-5405
+FIH-V1-009	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Pinned and reproducib	owner	decision 0596; V1-5405
+FIH-V1-010	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Cost check in two ste	owner	decision 0596; V1-5405
+FIH-V1-011	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Go first, built once	owner	decision 0596; V1-5405
+FIH-V1-012	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Held-out fault sets	owner	decision 0596; V1-5405
+FIH-V1-013	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) No dependency on remo	owner	decision 0596; V1-5405
+FIH-V1-014	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Case accounting and t	owner	decision 0596; V1-5405
+FIH-V1-015	docs/specs/fault-injection-harness-v1.md	(accepted automatically under G14, decision 0596; V1-5405) Line-level proven	owner	decision 0596; V1-5405
 FDM-V0-001	docs/specs/flow-document-maintenance-v0.md	`flows docs maintain --preview` MUST write nothing, returning proposed page and	unrecorded	-
 FDM-V0-002	docs/specs/flow-document-maintenance-v0.md	`--apply --expected-proposal SHA256` MUST freshly derive the proposal and refuse	unrecorded	-
 FDM-V0-003	docs/specs/flow-document-maintenance-v0.md	Both outputs absent permits exclusive creation. Both present requires an explici	unrecorded	-
@@ -5434,6 +5485,13 @@ FDM-V0-004	docs/specs/flow-document-maintenance-v0.md	Stage both files before pu
 FDM-V0-005	docs/specs/flow-document-maintenance-v0.md	Only after both publications succeed may stdout contain the canonical versioned	unrecorded	-
 FDM-V0-006	docs/specs/flow-document-maintenance-v0.md	With identical material inputs, options and outputs, apply MUST return the previ	unrecorded	-
 FDM-V0-007	docs/specs/flow-document-maintenance-v0.md	Maintenance MUST preserve existing AFU fixed-template rendering and claim semant	unrecorded	-
+FSV-V1-001	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) The profile carries t	owner	decision 0596; V1-5410
+FSV-V1-002	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) A closed list of supp	owner	decision 0596; V1-5410
+FSV-V1-003	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) One shared reader	owner	decision 0596; V1-5410
+FSV-V1-004	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) An unsupported versio	owner	decision 0596; V1-5410
+FSV-V1-005	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) Flow reports refuse r	owner	decision 0596; V1-5410
+FSV-V1-006	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) The writer emits a ve	owner	decision 0596; V1-5410
+FSV-V1-007	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) Release smoke test wi	owner	decision 0596; V1-5410
 GL-V0-001	docs/specs/gate-ledger-v0.md	A step MUST be skipped only when the ledger holds a pass whose key equals the ke	unrecorded	-
 GL-V0-002	docs/specs/gate-ledger-v0.md	(accepted, decision 0511) A whole-step record MUST be	owner	decision 0511
 GL-V0-003	docs/specs/gate-ledger-v0.md	A step without a declared input scope MUST run and MUST NOT be recorded. A step	unrecorded	-
@@ -6723,6 +6781,15 @@ NEA-V0-014	docs/specs/new-e2e-test-acceptance-v0.md	(proposed; V1-2688) `externa
 NEA-V0-015	docs/specs/new-e2e-test-acceptance-v0.md	(proposed; V1-2688) Before each repeat or probe run the worker runs the health h	unrecorded	-
 NEA-V0-016	docs/specs/new-e2e-test-acceptance-v0.md	(proposed; V1-2688) A report from an `external_app` request carries `external` w	unrecorded	-
 NEA-V0-017	docs/specs/new-e2e-test-acceptance-v0.md	(proposed; V1-2688) A /0 assessment or report whose verdict is `blocked` names	unrecorded	-
+NCM-V1-001	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Full by	standing	2026-10-11; V1-5424
+NCM-V1-002	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Map entr	standing	2026-10-11; V1-5424
+NCM-V1-003	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Recordin	standing	2026-10-11; V1-5424
+NCM-V1-004	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Narrowin	standing	2026-10-11; V1-5424
+NCM-V1-005	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Paths ne	standing	2026-10-11; V1-5424
+NCM-V1-006	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Corvint	standing	2026-10-11; V1-5424
+NCM-V1-007	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Versione	standing	2026-10-11; V1-5424
+NCM-V1-008	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Stale en	standing	2026-10-11; V1-5424
+NCM-V1-009	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Determin	standing	2026-10-11; V1-5424
 NGI-V0-001	docs/specs/non-go-impact-v0.md	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,	unrecorded	-
 NGI-V0-002	docs/specs/non-go-impact-v0.md	Default and expanded committed ranges MUST bind Ruby/JS/TS path	unrecorded	-
 NGI-V0-003	docs/specs/non-go-impact-v0.md	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic	unrecorded	-
@@ -6886,6 +6953,18 @@ OCM-V0-952	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing
 OCM-V0-080	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4140) An	standing	2026-11-01; V1-4140
 OCM-V0-940	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-0585) `ocm link` has an	standing	V1-0585
 OCM-V0-700	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3693; refines	standing	2026-11-01; V1-3693
+OSC-V1-001	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) Each	standing	2026-10-11; V1-5399
+OSC-V1-002	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) An ADDED	standing	2026-10-11; V1-5399
+OSC-V1-003	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) Every	standing	2026-10-11; V1-5399
+OSC-V1-004	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) For ever	standing	2026-10-11; V1-5399
+OSC-V1-005	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) In	standing	2026-10-11; V1-5399
+OSC-V1-006	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) A change	standing	2026-10-11; V1-5399
+OSC-V1-007	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) The	standing	2026-10-11; V1-5399
+OSC-V1-008	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) Each spe	standing	2026-10-11; V1-5399
+OSC-V1-009	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) A propos	standing	2026-10-11; V1-5399
+OSC-V1-010	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399)	standing	2026-10-11; V1-5399
+OSC-V1-011	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) The chec	standing	2026-10-11; V1-5399
+OSC-V1-012	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) The Make	standing	2026-10-11; V1-5399
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
 UPD-V0-003	docs/specs/operator-update-v0.md	Downloads, release discovery, extracted bytes/members and subprocess output/time	unrecorded	-
@@ -7619,6 +7698,24 @@ RVN-V0-005	docs/specs/run-verified-navigation-v0.md	The status MUST be exactly o
 RVN-V0-006	docs/specs/run-verified-navigation-v0.md	When receipts are supplied, the `screen` and `flow` projections MUST print the	unrecorded	-
 RVN-V0-007	docs/specs/run-verified-navigation-v0.md	The fact and its text MUST always carry authority `learned`. A run status MUST N	unrecorded	-
 RVN-V0-008	docs/specs/run-verified-navigation-v0.md	Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate	unrecorded	-
+RNC-V1-001	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) One comp	standing	2026-10-11; V1-5416
+RNC-V1-002	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Discover	standing	2026-10-11; V1-5416
+RNC-V1-003	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Selectio	standing	2026-10-11; V1-5416
+RNC-V1-004	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) All seve	standing	2026-10-11; V1-5416
+RNC-V1-005	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Per-test	standing	2026-10-11; V1-5416
+RNC-V1-006	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Missing	standing	2026-10-11; V1-5416
+RNC-V1-007	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Runners	standing	2026-10-11; V1-5416
+RNC-V1-008	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Kill swi	standing	2026-10-11; V1-5416
+RNC-V1-009	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) External	standing	2026-10-11; V1-5416
+RNC-V1-010	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Jest pro	standing	2026-10-11; V1-5416
+RNC-V1-011	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Tier and	standing	2026-10-11; V1-5416
+RNC-V1-012	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Canonica	standing	2026-10-11; V1-5416
+RNC-V1-013	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Full com	standing	2026-10-11; V1-5416
+RNC-V1-014	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Runner i	standing	2026-10-11; V1-5416
+RNC-V1-015	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Determin	standing	2026-10-11; V1-5416
+RNC-V1-016	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Argument	standing	2026-10-11; V1-5416
+RNC-V1-017	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Provider	standing	2026-10-11; V1-5416
+RNC-V1-018	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Shell pr	standing	2026-10-11; V1-5416
 RSP-V0-001	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
 RSP-V0-002	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
 RSP-V0-003	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Ev	standing	2026-10-11; decision 0592
@@ -7723,6 +7820,14 @@ LTA-V0-016	docs/specs/secret-screen-writer-v0.md	The writer screen's JWT-shaped 
 LTA-V0-017	docs/specs/secret-screen-writer-v0.md	The writer screen's `sk-` vendor branch MUST require, after a word boundary and	unrecorded	-
 LTA-V0-019	docs/specs/secret-screen-writer-v0.md	The writer screen's private-key branches MUST redact from a	unrecorded	-
 LTA-V0-020	docs/specs/secret-screen-writer-v0.md	The prefilter's credential-name scan MUST scan the lowered text's field-byte run	unrecorded	-
+SLF-V1-001	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Python import roots from configuration an	owner	decision 0596; V1-5401
+SLF-V1-002	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Unresolved in-repository absolute import	owner	decision 0596; V1-5401
+SLF-V1-003	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Glob imports	owner	decision 0596; V1-5401
+SLF-V1-004	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Manual mocks	owner	decision 0596; V1-5401
+SLF-V1-005	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Literal Vitest and Jest configuration	owner	decision 0596; V1-5401
+SLF-V1-006	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Fault injection before a new rule narrows	owner	decision 0596; V1-5401
+SLF-V1-007	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) One verdict and one effect per unknown	owner	decision 0596; V1-5401
+SLF-V1-008	docs/specs/selection-hardening-v1.md	(accepted, decision 0596 G14; V1-5401) Test and driver counts reported separatel	owner	decision 0596; V1-5401
 SOL-V0-001	docs/specs/self-observation-ledger-v0.md	Event handlers for `session-start`, `user-prompt`, and `file-change` MUST attemp	unrecorded	-
 SOL-V0-002	docs/specs/self-observation-ledger-v0.md	Rows MUST contain no task text, source body, command, credential, or agent-memor	unrecorded	-
 SOL-V0-003	docs/specs/self-observation-ledger-v0.md	Each row is at most 2 KiB; the ledger is at most 128 KiB. On overflow, the write	unrecorded	-
@@ -8500,6 +8605,18 @@ TCN-V0-013	docs/specs/test-consolidation-planner-v0.md	The TCN-V0-002 variation 
 TCN-V0-014	docs/specs/test-consolidation-planner-v0.md	A variation naming one fact key in both `requires` and `step_facts`, whatever th	unrecorded	-
 TCN-V0-015	docs/specs/test-consolidation-planner-v0.md	Step facts MUST be a member of the TCN-V0-005 duplicate class key: two variation	unrecorded	-
 TCN-V0-016	docs/specs/test-consolidation-planner-v0.md	In V0 `REUSED` is synthetic-only: no provider document a real run emits yields a	unrecorded	-
+TIV-V1-001	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) One comm	standing	2026-10-11; V1-5406
+TIV-V1-002	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Only the	standing	2026-10-11; V1-5406
+TIV-V1-003	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Runner i	standing	2026-10-11; V1-5406
+TIV-V1-004	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) One list	standing	2026-10-11; V1-5406
+TIV-V1-005	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Inventor	standing	2026-10-11; V1-5406
+TIV-V1-006	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Absent i	standing	2026-10-11; V1-5406
+TIV-V1-007	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Config,	standing	2026-10-11; V1-5406
+TIV-V1-008	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) A change	standing	2026-10-11; V1-5406
+TIV-V1-009	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Invalid	standing	2026-10-11; V1-5406
+TIV-V1-010	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Refresh	standing	2026-10-11; V1-5406
+TIV-V1-011	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Refresh	standing	2026-10-11; V1-5406
+TIV-V1-012	docs/specs/test-inventory-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5406) Add-only	standing	2026-10-11; V1-5406
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation	unrecorded	-
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	Inputs MUST identify the source snapshot, selectors, configuration, executable/t	unrecorded	-
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u	unrecorded	-

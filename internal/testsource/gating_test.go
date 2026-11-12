@@ -107,9 +107,9 @@ func TestLintAllLinesReadsUnchangedFiles(t *testing.T) {
 // compared with itself (TSA-V0-013, TSA-V0-020).
 func TestRenderKeepsRegexAndSubstitutions(t *testing.T) {
 	s := parseSource("e2e/a.spec.ts", "expect(a).toMatch(/foo/i);\nexpect(a).toMatch(/bar/i);\nexpect(`${x}`).toBe(`${y}`);\n")
-	first, _ := s.readExpect(0)
-	second, _ := s.readExpect(first.end + 2)
-	if a, b := s.render(0, first.end+1), s.render(first.end+2, second.end+1); a == b || a != "expect(a).toMatch(/foo/i)" {
+	first, _ := s.ReadExpect(0)
+	second, _ := s.ReadExpect(first.End + 2)
+	if a, b := s.Render(0, first.End+1), s.Render(first.End+2, second.End+1); a == b || a != "expect(a).toMatch(/foo/i)" {
 		t.Fatalf("regex renders %q and %q", a, b)
 	}
 	report := LintText("e2e/a.spec.ts", "test('t', () => {\n  expect(`${actual}`).toBe(`${expected}`);\n  expect(`${same}`).toBe(`${same}`);\n});\n")

@@ -28,19 +28,19 @@ type xfImport struct {
 
 // xfImports returns every module specifier the file imports, re-exports or requires, in source
 // order.
-func (s *source) xfImports() []xfImport {
+func xfImports(s *source) []xfImport {
 	out := []xfImport{}
 	literal := func(k int) bool {
-		return k < len(s.tokens) && s.tokens[k].Kind == appmap.JSString && s.tokens[k].Literal
+		return k < len(s.Tokens) && s.Tokens[k].Kind == appmap.JSString && s.Tokens[k].Literal
 	}
-	for k := range s.tokens {
+	for k := range s.Tokens {
 		switch {
-		case s.ident(k, "from") && literal(k+1):
-			out = append(out, xfImport{s.tokens[k+1].Text, s.tokens[k+1].Line, s.xfBound(k)})
-		case s.ident(k, "import") && !s.memberAccess(k) && literal(k+1):
-			out = append(out, xfImport{s.tokens[k+1].Text, s.tokens[k+1].Line, nil})
-		case (s.ident(k, "require") || s.ident(k, "import")) && !s.memberAccess(k) && s.punct(k+1, "(") && literal(k+2) && (s.punct(k+3, ")") || s.punct(k+3, ",")):
-			out = append(out, xfImport{s.tokens[k+2].Text, s.tokens[k+2].Line, nil})
+		case s.Ident(k, "from") && literal(k+1):
+			out = append(out, xfImport{s.Tokens[k+1].Text, s.Tokens[k+1].Line, xfBound(s, k)})
+		case s.Ident(k, "import") && !s.MemberAccess(k) && literal(k+1):
+			out = append(out, xfImport{s.Tokens[k+1].Text, s.Tokens[k+1].Line, nil})
+		case (s.Ident(k, "require") || s.Ident(k, "import")) && !s.MemberAccess(k) && s.Punct(k+1, "(") && literal(k+2) && (s.Punct(k+3, ")") || s.Punct(k+3, ",")):
+			out = append(out, xfImport{s.Tokens[k+2].Text, s.Tokens[k+2].Line, nil})
 		}
 	}
 	return out
@@ -48,14 +48,14 @@ func (s *source) xfImports() []xfImport {
 
 // xfBound returns the names an `import ... from` or `export ... from` clause ending at the `from`
 // token k names, imported and local alike, or nil when no such clause starts the statement.
-func (s *source) xfBound(k int) []string {
+func xfBound(s *source, k int) []string {
 	names := []string{}
-	for j := k - 1; j >= 0 && !s.punct(j, ";"); j-- {
-		if s.ident(j, "import") || s.ident(j, "export") {
+	for j := k - 1; j >= 0 && !s.Punct(j, ";"); j-- {
+		if s.Ident(j, "import") || s.Ident(j, "export") {
 			return names
 		}
-		if s.ident(j, "") {
-			names = append(names, s.tokens[j].Text)
+		if s.Ident(j, "") {
+			names = append(names, s.Tokens[j].Text)
 		}
 	}
 	return nil
@@ -68,8 +68,8 @@ func xfSibling(spec string) bool {
 }
 
 // xfSiblingImport returns the file's first sibling module import.
-func (s *source) xfSiblingImport() (xfImport, bool) {
-	for _, im := range s.xfImports() {
+func xfSiblingImport(s *source) (xfImport, bool) {
+	for _, im := range xfImports(s) {
 		if xfSibling(im.spec) {
 			return im, true
 		}
@@ -83,8 +83,8 @@ var xfStubWords = []string{"stub", "mock", "msw", "handler", "route", "fake", "i
 
 // xfStubImport returns the file's first sibling import that may declare a stub table (TSA-V0-301,
 // TSA-V0-302).
-func (s *source) xfStubImport() (xfImport, bool) {
-	for _, im := range s.xfImports() {
+func xfStubImport(s *source) (xfImport, bool) {
+	for _, im := range xfImports(s) {
 		if !xfSibling(im.spec) {
 			continue
 		}
@@ -103,11 +103,11 @@ func (s *source) xfStubImport() (xfImport, bool) {
 // xfFixtureImport returns the import most likely to declare a fixture the file does not: its first
 // sibling module import, else its first import of a module other than `@playwright/test`
 // (TSA-V0-303, TSA-V0-307).
-func (s *source) xfFixtureImport() (xfImport, bool) {
-	if im, ok := s.xfSiblingImport(); ok {
+func xfFixtureImport(s *source) (xfImport, bool) {
+	if im, ok := xfSiblingImport(s); ok {
 		return im, true
 	}
-	for _, im := range s.xfImports() {
+	for _, im := range xfImports(s) {
 		if im.spec != "@playwright/test" {
 			return im, true
 		}
@@ -117,17 +117,17 @@ func (s *source) xfFixtureImport() (xfImport, bool) {
 
 // xfWhere describes an import for a message and returns its `path:line`, or the location and
 // "another file" when the file names none.
-func (s *source) xfWhere(im xfImport, ok bool, location string) (string, string) {
+func xfWhere(s *source, im xfImport, ok bool, location string) (string, string) {
 	if !ok {
 		return "another file", location
 	}
-	cause := fmt.Sprintf("%s:%d", s.path, im.line)
+	cause := fmt.Sprintf("%s:%d", s.Path, im.line)
 	return fmt.Sprintf("%q (imported at %s)", im.spec, cause), cause
 }
 
 // xfAbstain records a withheld advisory reading (TSA-V0-300).
-func (s *source) xfAbstain(rule, reason, test, location, cause, message string) {
-	s.abstentions = append(s.abstentions, testvalidity.RuleAbstention{
+func xfAbstain(s *source, rule, reason, test, location, cause, message string) {
+	s.Abstentions = append(s.Abstentions, testvalidity.RuleAbstention{
 		Rule: rule, Reason: reason, Test: test, Location: location, Cause: cause, Message: message,
 	})
 }
@@ -146,16 +146,16 @@ var xfNotSeeding = map[string]bool{"addInitScript": true, "addCookies": true, "a
 
 // xfSeedingCall reports a seeding call inside r: a call `name(` or `x.name(` whose name is a
 // seeding name (TSA-V0-305).
-func (s *source) xfSeedingCall(r [2]int) bool {
+func xfSeedingCall(s *source, r [2]int) bool {
 	for j := r[0]; j < r[1]; j++ {
-		if !s.ident(j, "") || !s.punct(j+1, "(") || s.ident(j-1, "function") || s.match[j+1] < 0 || s.punct(s.match[j+1]+1, "{") {
+		if !s.Ident(j, "") || !s.Punct(j+1, "(") || s.Ident(j-1, "function") || s.Match[j+1] < 0 || s.Punct(s.Match[j+1]+1, "{") {
 			continue // not a call: a function or method declaration `name(...) {`
 		}
-		name := s.tokens[j].Text
+		name := s.Tokens[j].Text
 		if xfNotSeeding[name] {
 			continue
 		}
-		if xfSeedExact[name] && s.memberAccess(j) {
+		if xfSeedExact[name] && s.MemberAccess(j) {
 			return true
 		}
 		lower := strings.ToLower(name)
@@ -179,7 +179,7 @@ func (s *source) xfSeedingCall(r [2]int) bool {
 // that the file declares and whose function, or that of a declared fixture it requests in turn,
 // makes a seeding call; or a `beforeEach` or `beforeAll` hook in the test's scope whose callback
 // makes one.
-func (s *source) xfSeeded(d decl, fixtures map[string]chFixture, bindings map[string]string) bool {
+func xfSeeded(s *source, d decl, fixtures map[string]chFixture, bindings map[string]string) bool {
 	seen := map[string]bool{}
 	var seeds func(name string) bool
 	seeds = func(name string) bool {
@@ -188,14 +188,14 @@ func (s *source) xfSeeded(d decl, fixtures map[string]chFixture, bindings map[st
 			return false
 		}
 		seen[name] = true
-		params, body, ok := s.chFunction(f.fn)
+		params, body, ok := chFunction(s, f.fn)
 		if !ok {
 			return false
 		}
-		if s.xfSeedingCall(body) {
+		if xfSeedingCall(s, body) {
 			return true
 		}
-		for _, dep := range s.chBindings(params) {
+		for _, dep := range chBindings(s, params) {
 			if seeds(dep) {
 				return true
 			}
@@ -208,8 +208,8 @@ func (s *source) xfSeeded(d decl, fixtures map[string]chFixture, bindings map[st
 		}
 	}
 	for _, hook := range []string{"beforeEach", "beforeAll"} {
-		for _, at := range s.chHooks(hook) {
-			if s.xfInScope(at, d) && s.xfSeedingCall(s.chHookCallback(at)) {
+		for _, at := range chHooks(s, hook) {
+			if xfInScope(s, at, d) && xfSeedingCall(s, chHookCallback(s, at)) {
 				return true
 			}
 		}
@@ -219,12 +219,12 @@ func (s *source) xfSeeded(d decl, fixtures map[string]chFixture, bindings map[st
 
 // xfInScope reports a hook call at token i that applies to test d: every describe whose callback
 // holds the hook also holds the test.
-func (s *source) xfInScope(i int, d decl) bool {
-	for _, g := range s.decls {
-		if g.kind != "describe" || i < g.open || i > g.close {
+func xfInScope(s *source, i int, d decl) bool {
+	for _, g := range s.Decls {
+		if g.Kind != "describe" || i < g.Open || i > g.Close {
 			continue
 		}
-		if d.at < g.open || d.at > g.close {
+		if d.At < g.Open || d.At > g.Close {
 			return false
 		}
 	}
@@ -246,15 +246,15 @@ var xfPlaywrightOptions = map[string]bool{
 
 // xfUndeclaredFixture returns the first fixture, in parameter order, that the test requests and
 // the file neither declares nor knows as a Playwright built-in or option (TSA-V0-307).
-func (s *source) xfUndeclaredFixture(params [2]int, fixtures map[string]chFixture) string {
-	if !s.punct(params[0], "{") || s.match[params[0]] < 0 {
+func xfUndeclaredFixture(s *source, params [2]int, fixtures map[string]chFixture) string {
+	if !s.Punct(params[0], "{") || s.Match[params[0]] < 0 {
 		return ""
 	}
-	for _, e := range s.splitArgs(params[0], s.match[params[0]]) {
-		if !s.ident(e[0], "") {
+	for _, e := range s.SplitArgs(params[0], s.Match[params[0]]) {
+		if !s.Ident(e[0], "") {
 			continue
 		}
-		name := s.tokens[e[0]].Text
+		name := s.Tokens[e[0]].Text
 		if _, ok := fixtures[name]; !ok && !xfPlaywrightOptions[name] {
 			return name
 		}

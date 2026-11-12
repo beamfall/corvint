@@ -192,6 +192,9 @@ type affectedInvocation struct {
 	// JobsDeclaration is set only by `affected jobs`: the CI job input
 	// declaration evaluated over the range (AFP-V0-2341).
 	JobsDeclaration string
+	// ProposeDataMap is set only by `affected --propose-data-map`: the
+	// recorded-reads file the proposal is written from (NCM-V1-003).
+	ProposeDataMap string
 }
 
 type playwrightAffectedReceipt struct {
@@ -269,7 +272,7 @@ const (
 	adviceMaxMandatoryChecks = 16
 	adviceNote               = "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says"
 	adviceFocusedCommand     = "corvint test --base %s --dry-run"
-	adviceFocusedUndeclared  = "FOCUSED_TEST_COMMAND_UNDECLARED: " + sessiontest.DeclarationPath + " is absent, so corvint test --dry-run would fall back to a FULL scope with no units; run the declared mandatory checks instead"
+	adviceFocusedUndeclared  = "FOCUSED_TEST_COMMAND_UNDECLARED: " + sessiontest.CommandsPath + " is absent, so corvint test --dry-run would plan with each runner's built-in default full command (RNC-V1-013); declare the commands there, or run the declared mandatory checks instead"
 	adviceNoGateUnknown      = "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
 	adviceUnreadableUnknown  = "MANDATORY_DECLARATION_UNREADABLE: %s exists but is not a readable regular file"
 	adviceMakefileReason     = "the repository Makefile declares a gate target, so the full gate stays mandatory at the project terminal boundary, not as the default next step"
@@ -405,6 +408,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(rest) != 0 && rest[0] == "jobs" {
 		return parseAffectedJobsOptions(rest[1:])
+	}
+	if len(rest) != 0 && (rest[0] == "--propose-data-map" || strings.HasPrefix(rest[0], "--propose-data-map=")) {
+		return parseAffectedProposeDataMapOptions(rest)
 	}
 	invocation := affectedInvocation{}
 	baseSet := false
@@ -917,6 +923,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	if invocation.JobsDeclaration != "" {
 		return runAffectedJobs(ctx, invocation, stdout, stderr)
 	}
+	if invocation.ProposeDataMap != "" {
+		return runAffectedProposeDataMap(invocation, stdout, stderr)
+	}
 	if invocation.Head != "" {
 		// AFP-V0-9989: plan a clean checkout of --head, written from Git
 		// objects into private scratch; the root's checkout is never read.
@@ -955,7 +964,7 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		return 2
 	}
 	if invocation.Summary {
-		return writeAffectedVerdict(receipt, invocation.Format, stdout, stderr)
+		return writeAffectedVerdict(receipt, invocation.Root, invocation.Format, readInventoryVerdict(ctx, invocation.Root, invocation.Worktree || invocation.Base == ""), stdout, stderr)
 	}
 	if invocation.Format == "text" {
 		compact, ok := receipt.(affectedCompactReceipt)
@@ -1930,12 +1939,18 @@ func compileAffectedAdvice(root string, graph *affected.Graph, plan affected.Pla
 // default next step is the narrowed run, and the declared exhaustive commands
 // stay the terminal-boundary checks a project policy may require. A root
 // without the test-command declaration gets an unknown entry instead, since
-// that command would select nothing there (ACX-V0-853).
+// that command would plan with undeclared built-in defaults there
+// (ACX-V0-853, RNC-V1-013).
 func withFocusedNextStep(advice affectedAdvice, root, base string, plan affected.Plan) affectedAdvice {
 	if base == "" || len(plan.Dirty) == 0 {
 		return advice
 	}
-	if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))); err != nil || !info.Mode().IsRegular() {
+	// The adopter declaration (RNC-V1-013) or Corvint's own old path.
+	declared := func(name string) bool {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(name)))
+		return err == nil && info.Mode().IsRegular()
+	}
+	if !declared(sessiontest.CommandsPath) && !declared(sessiontest.DeclarationPath) {
 		advice.Unknown = sortedUniqueStrings(append(advice.Unknown, adviceFocusedUndeclared))
 		return advice
 	}

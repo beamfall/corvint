@@ -35,7 +35,9 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/runner-contract/
 9. Argument length: argument file where the runner accepts one, otherwise widen to file level, and
    to the runner's full command if still over the limit (review T-M9; RNC-V1-016).
 10. Unowned change, removed runner, unavailable runner: run all tests with a named reason;
-    `UNOWNED_DIRTY_PATH` comes off the allowlist (owner decision R32 (2026-11-09)).
+    `UNOWNED_DIRTY_PATH` comes off the allowlist (owner decision R32 (2026-11-09)). Scope ruling
+    (orchestrator, 2026-11-11): a path a Go selection rule attributes is owned by the Go instance
+    and narrows; the allowlist admits `UNOWNED_DIRTY_PATH` only for such a path.
 11. Results: per test, with per-test durations in every runner's receipt (owner decision R19
     (2026-11-09); change `per-test-durations`), feeding PROD-TEST-020 (owner decision R7
     (2026-11-09); change `run-evidence`).
@@ -56,7 +58,8 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/runner-contract/
 - A runner listed in the inventory or in `.corvint/test-commands.json` has been removed from the
   repository: all tests run with reason `runner-removed` (owner decision R32 (2026-11-09)).
 - A changed path that no runner instance owns: all tests run with a named reason;
-  `UNOWNED_DIRTY_PATH` is no longer an allowlisted pass (owner decision R32 (2026-11-09)).
+  `UNOWNED_DIRTY_PATH` is no longer an allowlisted pass (owner decision R32 (2026-11-09)) unless a
+  Go selection rule attributes the path (scope ruling, 2026-11-11).
 - Discovery output unparseable or stale: the runner's selection widens to its full declared command
   with a reason; never an empty selection. Inventory absent: `inventory-absent`; stale:
   `inventory-stale`.

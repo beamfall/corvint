@@ -12,8 +12,8 @@ import (
 	"unicode"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/jstestprovider"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // Run-verified navigation (docs/specs/run-verified-navigation-v0.md, RVN-V0): passing and failing
@@ -63,7 +63,7 @@ type StepVerification struct {
 
 type receiptInput struct {
 	sha string
-	r   jstestprovider.Receipt
+	r   jstestreceipt.Receipt
 }
 
 // Verification is the decoded run evidence for one projection call: PWP receipts and agent-declared
@@ -81,9 +81,9 @@ func verifyError(code, format string, args ...any) error {
 // blocking on a FIFO, unchanged in identity, size and modification time while read, within the
 // PWP bound.
 func readReceipt(filename string) ([]byte, error) {
-	raw, ok := readRegular(filename, testvaliditydoc.MaxInputBytes)
+	raw, ok := readRegular(filename, testvaliditymodel.MaxInputBytes)
 	if !ok {
-		return nil, verifyError("appmap-verify-invalid-receipt", "--receipt must name a regular file of at most %d bytes, unchanged while read", testvaliditydoc.MaxInputBytes)
+		return nil, verifyError("appmap-verify-invalid-receipt", "--receipt must name a regular file of at most %d bytes, unchanged while read", testvaliditymodel.MaxInputBytes)
 	}
 	return raw, nil
 }
@@ -162,11 +162,11 @@ func LoadPlanVerification(maps []*Map, receiptFiles, binds []string) (*Verificat
 		if err != nil {
 			return nil, err
 		}
-		in, err := testvaliditydoc.Decode(raw)
+		in, err := testvaliditymodel.Decode(raw)
 		if err != nil {
 			return nil, verifyError("appmap-verify-invalid-receipt", "--receipt is not a canonical Playwright external provider document")
 		}
-		doc := testvaliditydoc.Project(in)
+		doc := testvaliditymodel.Project(in)
 		if doc.Playwright == nil {
 			return nil, verifyError("appmap-verify-invalid-receipt", "--receipt is not a Playwright external (PWP) receipt")
 		}
@@ -320,21 +320,21 @@ func (e *verifier) verify(st Step) *StepVerification {
 			}
 			out.Outcomes++
 			passed, failed := false, false
-			if jstestprovider.QualifiedReceiptBindingReady(in.r, t) {
-				passed = t.State == jstestprovider.StatePassed
-				failed = t.State == jstestprovider.StateFailed || t.State == jstestprovider.StateTimedOut
+			if jstestreceipt.QualifiedReceiptBindingReady(in.r, t) {
+				passed = t.State == jstestreceipt.StatePassed
+				failed = t.State == jstestreceipt.StateFailed || t.State == jstestreceipt.StateTimedOut
 			}
 			if !passed && !failed {
 				reasons["inconclusive-outcome"] = true
 				continue
 			}
-			rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t)
+			rev, _ := jstestreceipt.QualifiedApplicationRevision(in.r, t)
 			project := ""
 			if t.Project != nil {
 				project = t.Project.Name
 			}
 			identity := "declared"
-			if in.r.Profile == jstestprovider.AttestedExternalProfile || (in.r.Profile == jstestprovider.SensitiveExternalProfile && in.r.ApplicationAttestation != nil) {
+			if in.r.Profile == jstestreceipt.AttestedExternalProfile || (in.r.Profile == jstestreceipt.SensitiveExternalProfile && in.r.ApplicationAttestation != nil) {
 				identity = "attested"
 			}
 			ev := evidence{ref: ReceiptRef{SHA256: in.sha, TestKey: t.ID, Project: project, Profile: in.r.Profile}, revision: rev, identity: identity}

@@ -107,9 +107,12 @@ func TestSymlinkOperand_V15368(t *testing.T) {
 		// (a) An added data file is unowned, so UNOWNED_DIRTY_PATH covers it
 		// by chance, not by a rule about the link.
 		{"a_added_data_below_target", "real/new.txt", changeAdded, []string{"lister_test.sh"}, nil},
-		// (b) A deleted shell file raises UNINDEXED_SOURCE_PATH, which covers
-		// it by chance.
-		{"b_deleted_below_target", "real/gone.sh", changeDeleted, []string{"lister_test.sh"}, nil},
+		// (b) A deleted shell file raised UNINDEXED_SOURCE_PATH, which covered
+		// it by chance. With the walk facts of AFP-V0-9990 no unit walks a
+		// directory that holds it, so that unknown is gone and the deletion is
+		// a miss without the tree's links, like the documentation row below;
+		// the links close it (the with-links check).
+		{"b_deleted_below_target", "real/gone.sh", changeDeleted, []string{"lister_test.sh"}, []string{"lister_test.sh"}},
 		// (b) A path the repository declares documentation raises no unknown,
 		// so a deletion below a link to it is missed: CONFIRMED.
 		{"b_deleted_below_documentation_target", "guide/old.md", changeDeleted, []string{"doclister_test.sh"}, []string{"doclister_test.sh"}},

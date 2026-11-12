@@ -39,7 +39,8 @@ func TestAFPV0825StaleCheckReusesThePlanHEAD(t *testing.T) {
 	module := "example.test/self"
 	// dryRun returns the exit code and stderr of one `test --dry-run` and the
 	// Git processes it spawned, with this binary claiming info as its build.
-	// The fixture declares no full scope, so its plan is incomplete (exit 3).
+	// The fixture declares no full commands, so its plan runs the built-in
+	// defaults and is complete (exit 0, RNC-V1-013).
 	dryRun := func(info *debug.BuildInfo) (int, string, []string) {
 		stubSelfBuildInfo(t, info)
 		if err := os.WriteFile(argv, nil, 0o644); err != nil {
@@ -75,7 +76,7 @@ func TestAFPV0825StaleCheckReusesThePlanHEAD(t *testing.T) {
 		}
 		planCode, _, plan := dryRun(unstamped)
 		code, stderr, spawned := dryRun(info)
-		if code != planCode || code != 3 {
+		if code != planCode || code != 0 {
 			t.Fatalf("%s: test --dry-run exited %d, %d without a stamp: %s", state.name, code, planCode, stderr)
 		}
 		line := "corvint-test: DEGRADED " + own.Code + ": " + selfBinaryNotice(own) + "\n"
@@ -165,8 +166,8 @@ func TestAFPV0825FailedOrSlowHEADReadIsUnverified(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			code := runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run"}, strings.NewReader(""), &stdout, &stderr)
 			line := "corvint-test: DEGRADED " + selfBinaryUnverifiedCode + ": this binary was built from commit " + shortRevision(built) + ", which could not be compared with HEAD here"
-			if code != 3 || !strings.Contains(stderr.String(), line) {
-				t.Fatalf("test --dry-run exited %d, want 3 with %q:\n%s", code, line, stderr.String())
+			if code != 0 || !strings.Contains(stderr.String(), line) {
+				t.Fatalf("test --dry-run exited %d, want 0 (the built-in defaults, RNC-V1-013) with %q:\n%s", code, line, stderr.String())
 			}
 		})
 	}

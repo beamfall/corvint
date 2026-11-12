@@ -8,9 +8,13 @@
   `unplanned-reads.jsonl`) add nothing. Declared documentation paths keep `DECLARED_DOCUMENTATION`
   (`internal/liveverify/affected/select.go`, integ 9ec3a29d0) and add no test.
 - A path no runner owns, and a removed or unavailable runner, run all tests with a named reason
-  (owner decision R32, 2026-11-09). NCM-V1-001 states this; `UNOWNED_DIRTY_PATH` comes off the
-  allowlist in `internal/gateselect/allowlist.go` (integ 9ec3a29d0), which change `source-removal`
-  also cites.
+  (owner decision R32, 2026-11-09). NCM-V1-001 states this. Orchestrator ruling 2026-11-11 (under
+  the owner's 2026-11-02 delegation, `docs/build-log/2026-11-11-ncm-owned-paths.md`): a non-code path
+  a Go rule already attributes (its enclosing package directory, a package's testdata, a go:embed
+  input, a declared reader) is owned and narrows to that attribution; only a path no runner
+  attributes runs everything, with reason `unowned-path`. The selector that holds the Go index
+  decides this, so `UNOWNED_DIRTY_PATH` stays on the allowlist in
+  `internal/gateselect/allowlist.go`. Earlier text took it off that allowlist.
 - The map profile is `corvint-data-map/0`. Every other declaration new in 1.0 starts at `/0`
   (`corvint-flows/0`, `corvint-test-inventory/0`), and nothing reads an earlier data map, so there
   is no reason to start at `/1` (review docs F17). Earlier text proposed `corvint-data-map/1` and
@@ -44,8 +48,10 @@
 
 ## Open questions
 
-- Classification of `.corvint/changes/`, `.corvint/deferred-intents/`, the committed inventory file
-  and the `unplanned-reads.enabled` marker under NCM-V1-006 (today: configuration, full run).
+- Classification of `.corvint/deferred-intents/`, the committed inventory file and the
+  `unplanned-reads.enabled` marker under NCM-V1-006 (today: configuration, full run). A sealed CEM
+  under `.corvint/changes/` named by a full commit is settled as change evidence (2026-11-12,
+  `docs/build-log/2026-11-12-ncm-sealed-cem-evidence.md`); other names there stay configuration.
 - Whether the existing hand-written read declarations later fold into the map.
 
 ## Rollback

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/rubytestprovider"
 	"github.com/Beamfall/corvint/internal/testvalidity"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // playwrightReceipt is a stock Playwright receipt binding root/e2e/login.spec.ts, with one passed
@@ -73,7 +74,7 @@ func TestLPCVV0145PlaywrightLocation(t *testing.T) {
 func TestLPCVV0145ProfiledPlaywrightAnchorsAreDeclarations(t *testing.T) {
 	root := t.TempDir()
 	input := playwrightReceipt(t, root)
-	input.js.Profile = "corvint-playwright-external/0" // a profiled receipt decodes only canonically
+	input.JS.Profile = "corvint-playwright-external/0" // a profiled receipt decodes only canonically
 	located := Locate(Project(input), input, root)
 	failed := located.Tests[1].Location
 	if failed.File != "e2e/login.spec.ts" || failed.Line != 12 || failed.Absent["file"] != "" {
@@ -111,15 +112,15 @@ func TestLPCVV0148RubyLocationAndSharedGroup(t *testing.T) {
 		t.Fatalf("shared location=%s %v", data, err)
 	}
 
-	shared.placeSource("spec/user_spec.rb", 3, testvalidity.ExampleSource{TitlePath: []string{"User", "reads"}})
+	shared.PlaceSource("spec/user_spec.rb", 3, testvalidity.ExampleSource{TitlePath: []string{"User", "reads"}})
 	if shared.TitlePath != nil || shared.Absent["titlePath"] != LocationSharedExample {
 		t.Fatalf("a shared example took a title path: %+v", shared)
 	}
-	plain.placeSource("spec/user_spec.rb", 2, testvalidity.ExampleSource{})
+	plain.PlaceSource("spec/user_spec.rb", 2, testvalidity.ExampleSource{})
 	if plain.Absent["titlePath"] != LocationTitleNotLiteral {
 		t.Fatalf("a non-literal title path is not marked: %+v", plain)
 	}
-	plain.placeSource("spec/user_spec.rb", 2, testvalidity.ExampleSource{TitlePath: []string{"User", "saves"}})
+	plain.PlaceSource("spec/user_spec.rb", 2, testvalidity.ExampleSource{TitlePath: []string{"User", "saves"}})
 	if !reflect.DeepEqual(plain.TitlePath, []string{"User", "saves"}) || len(plain.Absent) != 0 {
 		t.Fatalf("a literal title path is not recorded: %+v", plain)
 	}
@@ -209,8 +210,8 @@ func TestLPCVV0151StaticProjection(t *testing.T) {
 // reading carries one; the static projection reports the same.
 func TestLPCVV0146AmbiguousLineTitlePathAbsent(t *testing.T) {
 	ambiguous := testvalidity.ExampleSource{Read: testvalidity.HygieneReasonJSLineAmbiguous, Findings: []testvalidity.SourceFinding{}, TitlePath: []string{"b"}}
-	location := newLocation()
-	location.placeSource("e2e/two.spec.ts", 2, ambiguous)
+	location := testvaliditymodel.NewLocation()
+	location.PlaceSource("e2e/two.spec.ts", 2, ambiguous)
 	if want := (&Location{File: "e2e/two.spec.ts", Line: 2, Absent: map[string]string{"titlePath": LocationLineAmbiguous}}); !reflect.DeepEqual(location, want) {
 		t.Fatalf("location=%+v want %+v", location, want)
 	}

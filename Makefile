@@ -104,6 +104,7 @@ GATE_STEPS = \
   mkfifo-build-tags-check \
   mkfifo-build-tags-test \
   no-python-runtime-dependency-test \
+  openspec-validate-test \
   pre-push-windows-vet-test \
   register-shell-test-test \
   release-binaries-check \
@@ -568,6 +569,19 @@ ci-least-privilege-check:
 ci-least-privilege-test:
 	@script/check-ci-least-privilege_test.sh
 
+# compatibility-table regenerates docs/COMPATIBILITY.md, the 1.x compatibility promise, from
+# tools/compatibility-table/surfaces.json. compatibility-check fails, naming the row, when the page
+# differs from the generated one, a stable row names a contract test that does not exist, a row's
+# stability does not follow from its class and tests, or the list holds a surface CMP-V1-003 and
+# CMP-V1-005 do not name or misses one they do (docs/specs/compatibility-promise-v1.md).
+.PHONY: compatibility-table
+compatibility-table: ## Regenerate docs/COMPATIBILITY.md from tools/compatibility-table/surfaces.json
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/compatibility-table --write
+
+.PHONY: compatibility-check
+compatibility-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/compatibility-table >/dev/null
+
 # spec-toolchain-conformance installs the OpenSpec and Spec Kit releases pinned in
 # interop/spec-toolchains/versions.json with checksum verification, runs their validators, and
 # asserts that Corvint's derived obligations equal upstream's own view (STA-V0-011,
@@ -876,6 +890,32 @@ py-signal-lint:
 .PHONY: flow-guide-check
 flow-guide-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/flow-guide-check
+
+# OSC-V1-011 (V1-5399): the Go check of the OpenSpec change folders, their propose, apply and archive
+# stages, the one OpenSpec root and the spec Health: lines (docs/specs/openspec-check-v1.md). It needs
+# full history: a shallow clone refuses with history-unavailable. OPENSPEC_BASE=<rev> also checks the
+# commits of <rev>..HEAD that opt in to a change (OSC-V1-003, OSC-V1-004), which otherwise report
+# NOT_RUN; a finding listed in tools/openspec-check/baseline.txt is reported only, and that file
+# only shrinks.
+.PHONY: openspec-check
+openspec-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/openspec-check $(if $(OPENSPEC_BASE),--base "$(OPENSPEC_BASE)")
+
+# OSC-V1-012 (V1-5399): openspec validate --all from docs/specs at the one pinned version of
+# @fission-ai/openspec, telemetry off. A folder that fails validation fails the target; --strict
+# warnings are printed and fail nothing. Without the command, or at another version, it prints
+# NOT_RUN and exits 0 locally and fails in CI (CI=true). The pin moves only in a commit that shows
+# openspec validate --all passing at the new version. No product binary calls the command.
+OPENSPEC_VERSION := 1.17.0
+.PHONY: openspec-validate
+openspec-validate: ## Run openspec validate --all at the pinned OpenSpec version (NOT_RUN locally without it)
+	@script/openspec-validate.sh "$(OPENSPEC_VERSION)"
+
+# OSC-V1-011: the focused-docs release gate's checks (.github/workflows/release-gates.yml and the
+# Tasks gate of the same name) plus openspec-check, for that gate to call as one target.
+.PHONY: focused-docs
+focused-docs: ## Run the focused-docs gate checks, including openspec-check
+	@$(MAKE) --no-print-directory spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check openspec-check
 
 .PHONY: error-code-ownership-check
 error-code-ownership-check:
@@ -1190,6 +1230,7 @@ DOC_GATE_TARGETS := \
   binary-blobs-check \
   capabilities-check \
   ci-least-privilege-check \
+  compatibility-check \
   conflict-markers-check \
   decision-numbers-check \
   declaration-compat-check \
@@ -1205,6 +1246,7 @@ DOC_GATE_TARGETS := \
   long-lines-check \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
+  openspec-check \
   py-signal-lint \
   requirement-definitions-check \
   selection-baseline-check \
@@ -1433,6 +1475,7 @@ shell-test: \
   merge-drivers-test \
   mkfifo-build-tags-test \
   no-python-runtime-dependency-test \
+  openspec-validate-test \
   pre-push-windows-vet-test \
   register-shell-test-test \
   release-candidate-bytes-test \
@@ -1561,3 +1604,7 @@ ticket-gate-test:
 .PHONY: cutover-payloads-test
 cutover-payloads-test:
 	@script/cutover-payloads_test.sh
+
+.PHONY: openspec-validate-test
+openspec-validate-test:
+	@script/openspec-validate_test.sh

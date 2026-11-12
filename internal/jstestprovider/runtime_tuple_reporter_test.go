@@ -7,15 +7,17 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 // externalTableNodes derives, per runner, the Node releases the shared table
 // admits for any external profile with the given browser source.
 func externalTableNodes(source string) map[string][]string {
 	nodes := map[string][]string{}
-	for _, row := range admittedRuntimeTuples {
-		if isExternalProfile(row.profile) && row.source == source && !slices.Contains(nodes[row.runner], row.node) {
-			nodes[row.runner] = append(nodes[row.runner], row.node)
+	for _, row := range jstestreceipt.AdmittedRuntimeTuples {
+		if jstestreceipt.IsExternalProfile(row.Profile) && row.Source == source && !slices.Contains(nodes[row.Runner], row.Node) {
+			nodes[row.Runner] = append(nodes[row.Runner], row.Node)
 		}
 	}
 	for runner := range nodes {

@@ -942,8 +942,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `schema` and `capabilities` alone: tool advertisement needs no rederivation, and an artifact whose
   header cannot be read still fails startup with `corpus-unavailable`. The first tool call opens
   and rederives the artifact (`DCP-V1-011`; amended by `DCR-V1-416` to the verified read) and keeps it; a later call reuses it only while the
-  artifact bytes still match the startup digest and every pinned revision still resolves to its
-  tree, and otherwise rederives. A rederivation failure is that call's typed failure. Each result
+  artifact bytes still match the served digest and every pinned revision still resolves to its
+  tree, and otherwise rederives. When the configured file's bytes change, the next call opens the
+  new artifact with the same verified read and serves it, replacing the served digest and header,
+  or refuses with the verification reason and never answers from the replaced artifact
+  (`DMF-V1-011`). A rederivation failure is that call's typed failure. Each result
   reports `load` as `first-call` or `reused` with the load time.
 - `DCP-V1-144`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1236;
   V1-1982)) Live readers re-resolve only the symbol anchors cited by the records a query returns
@@ -1173,7 +1176,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
 - `DCP-V1-195`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1254;
   V1-1995)) The corpus MCP bridge derives the query index once for each
   opened artifact, on the first call to an index-backed tool (`docs_concept`, `docs_flow`,
-  `docs_claims`, `docs_dependencies`, `docs_recommend_tests`, `docs_gaps`, `docs_intent`,
+  `docs_claims`, `docs_dependencies`, `docs_gaps`, `docs_intent`,
   `docs_navigation`, `docs_vocabulary`), before any freshness work. Later calls and every path of a
   batch reuse that index, or its corpus refusal, until the artifact memo is replaced; a cancelled
   derivation is not kept. Receipts are the bytes the unmemoized query returns.
@@ -1392,7 +1395,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   pinned revisions are immutable Git content and are never reported stale because the checkout
   moved on.
 - `DCP-V1-310`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1490; V1-2333) `locate` and
-  `recommend-tests` (`corvint.docs_locate`, `corvint.docs_recommend_tests`) accept an optional
+  `recommend-tests` (`corvint.docs_locate` and the `docs corpus recommend-tests` CLI read; the
+  `corvint.docs_recommend_tests` MCP tool is removed by DMF-V1-009) accept an optional
   `repository`, the root-commit identity of the primary or a declared additional repository, and
   then return or select only records anchored at the path in that repository. A repository
   qualifier on any other operation, an undeclared repository (`corpus-refused`) or an empty MCP

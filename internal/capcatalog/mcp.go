@@ -31,7 +31,6 @@ func MCPTools() []MCPTool {
 		{"corvint.docs_inventory", "corvint-mcp --tool-profile corpus (/2 artifacts)", "Page through the corpus inventory"},
 		{"corvint.docs_locate", "corvint-mcp --tool-profile corpus", "Where a path is documented, including the subjects documenting it through one documents hop, or module and symbol subjects ranked by a query, with line anchors ([DCS-V1-594](specs/documentation-corpus-search-ranking-v1.md))"},
 		{"corvint.docs_navigation", "corvint-mcp --tool-profile corpus", "Navigation structure of one flow id, or of the flows a query selects by name or linked test ([DCS-V1-596..597](specs/documentation-corpus-search-ranking-v1.md))"},
-		{"corvint.docs_recommend_tests", "corvint-mcp --tool-profile corpus", "Tests the corpus links to a subject, plus the subjects documenting the path and their test links ([DCS-V1-595](specs/documentation-corpus-search-ranking-v1.md))"},
 		{"corvint.docs_search", "corvint-mcp --tool-profile corpus", "Search the corpus; compact receipt by default, receipt: \"full\" for the full one"},
 		{"corvint.docs_trace", "corvint-mcp --tool-profile corpus", "Walk relations to a depth"},
 		{"corvint.docs_validate", "corvint-mcp --tool-profile corpus", "Validate the corpus artifact"},

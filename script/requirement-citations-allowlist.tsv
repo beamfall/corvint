@@ -35,6 +35,9 @@ LRF-001	fixture requirement id that exists only inside test fixtures (interop/ce
 LRF-CLI-001	fixture requirement id that exists only inside test fixtures (cmd/corvint/core_freeze_test.go)
 NAV-007	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
 NET-V0-001	fixture requirement id that exists only inside test fixtures (internal/capcatalog/capcatalog_test.go)
+NOPE-V1-001	fixture requirement id that exists only inside test fixtures (tools/openspec-check/main_test.go)
+NOPE-V1-002	fixture requirement id that exists only inside test fixtures (tools/openspec-check/main_test.go)
+OLD-V1-001	fixture requirement id that exists only inside test fixtures (tools/openspec-check/main_test.go)
 OTH-V0-001	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
 R-001	fixture requirement id that exists only inside test fixtures (internal/pathbrief/brief_test.go)
 R-002	fixture requirement id that exists only inside test fixtures (internal/pathbrief/brief_test.go)
@@ -55,3 +58,5 @@ X-V0-005	fixture requirement id that exists only inside test fixtures (internal/
 X-V0-006	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
 X-V0-007	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
 XGPK-V0-014	negative case of the spec-coverage-audit id matcher test: a token that must not read as GPK-V0-014
+XYZ-V1-001	fixture requirement id that exists only inside test fixtures (tools/openspec-check/main_test.go)
+XYZ-V1-002	fixture requirement id that exists only inside test fixtures (tools/openspec-check/main_test.go)

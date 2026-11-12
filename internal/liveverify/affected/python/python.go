@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -35,7 +36,17 @@ const (
 	// not only string literals, so the plugin modules it loads are not all
 	// visible in source text (AFP-V0-188).
 	FrontierPytestPlugins = "python:pytest-plugins-unresolved"
+	// FrontierAbsoluteImport reports an absolute import whose first dotted
+	// component names a directory or module of the repository's Python tree
+	// but which resolves to no unit (SLF-V1-002). Its site is the importing
+	// file and its direction OUTBOUND, so the plan selects the importer.
+	FrontierAbsoluteImport = "python:absolute-import-unresolved"
 )
+
+// absoluteImportSiteBound caps the sites of FrontierAbsoluteImport named in
+// Result.Frontier; one `reason:+N` entry counts the rest, and FrontierSites
+// records every one (SLF-V1-002, as the TypeScript plugin bounds its own).
+const absoluteImportSiteBound = 16
 
 // SourceRoots are the directory prefixes stripped when deriving a dotted module
 // name, in addition to the repository root itself. They cover the layouts a
@@ -78,6 +89,16 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	files = append(files, helpers...)
 	slices.Sort(files)
 	frontier := map[string]bool{}
+	// tree names every directory that holds Python source and every module
+	// stem: an absolute import whose first component is one of them is
+	// in-repository (SLF-V1-002).
+	tree := pythonTree(files)
+	// roots are the configured and layout import roots of SLF-V1-001, read
+	// only while its narrowing gate is on (SLF-V1-006).
+	var roots []string
+	if importRootsNarrowing {
+		roots = importRoots(root, files)
+	}
 	// moduleNames maps each dotted name a file is importable under to its unit
 	// identities. One file can be importable under several names because a
 	// source root may or may not be on the interpreter's path, and one name can
@@ -116,16 +137,46 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			units[index].Sources = append(units[index].Sources, relative)
 		}
 		rawImports[id] = append(rawImports[id], refs...)
-		for _, name := range moduleAliases(relative) {
+		for _, name := range append(moduleAliases(relative), rootAliases(relative, roots)...) {
 			if !slices.Contains(moduleNames[name], id) {
 				moduleNames[name] = append(moduleNames[name], id)
 			}
 		}
 	}
-	resolve(units, rawImports, moduleNames, frontier)
+	absolute := map[string]bool{}
+	resolve(units, rawImports, moduleNames, frontier, tree, absolute)
 	linkConftests(units)
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
-	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+	result := affected.Result{Units: units}
+	if len(absolute) != 0 {
+		sites := sortedKeys(absolute)
+		named := min(len(sites), absoluteImportSiteBound)
+		for _, site := range sites[:named] {
+			frontier[FrontierAbsoluteImport+":"+site] = true
+		}
+		if extra := len(sites) - named; extra > 0 {
+			frontier[FrontierAbsoluteImport+":+"+strconv.Itoa(extra)] = true
+		}
+		result.FrontierSites = map[string][]string{FrontierAbsoluteImport: sites}
+	}
+	result.Frontier = sortedKeys(frontier)
+	return result, nil
+}
+
+// pythonTree returns the set of names an in-repository absolute import can
+// start with (SLF-V1-002): every directory component of a Python file's path
+// and every module stem. The plugin reads only `.py` files, so a directory
+// holding no Python source below it cannot satisfy an import.
+func pythonTree(files []string) map[string]bool {
+	tree := make(map[string]bool, len(files))
+	for _, relative := range files {
+		parts := strings.Split(relative, "/")
+		for _, part := range parts[:len(parts)-1] {
+			tree[part] = true
+		}
+		tree[strings.TrimSuffix(parts[len(parts)-1], ".py")] = true
+	}
+	return tree
 }
 
 // linkConftests adds, to every unit declaring a test, an import edge to each
@@ -183,15 +234,35 @@ type importRef struct {
 // is a package. Python runs every ancestor package's __init__ before the
 // submodule, so the ancestors are edges too, not only the longest match
 // (AFP-V0-681); each name reaches every file that owns it (AFP-V0-682).
-func resolve(units []affected.Unit, rawImports map[string][]importRef, moduleNames map[string][]string, frontier map[string]bool) {
+//
+// An absolute import that resolves to nothing although its first component
+// names something in tree records its importing file in absolute, the sites
+// of FrontierAbsoluteImport (SLF-V1-002); one naming nothing in the tree is
+// third-party and records nothing.
+//
+// A name that only prefixes observed module names is a namespace package (a
+// directory with no `__init__.py`): importing it loads no repository code, so
+// it raises nothing.
+func resolve(units []affected.Unit, rawImports map[string][]importRef, moduleNames map[string][]string, frontier map[string]bool, tree, absolute map[string]bool) {
+	namespaces := make(map[string]bool, len(moduleNames))
+	for name := range moduleNames {
+		for cut := strings.LastIndex(name, "."); cut > 0; cut = strings.LastIndex(name, ".") {
+			name = name[:cut]
+			namespaces[name] = true
+		}
+	}
 	for index := range units {
 		unit := &units[index]
 		edges := make(map[string]bool, len(rawImports[unit.ID]))
 		for _, ref := range rawImports[unit.ID] {
 			targets, ok := resolveRef(ref, moduleNames)
 			if !ok {
-				if ref.dots > 0 {
+				first, _, _ := strings.Cut(ref.module, ".")
+				switch {
+				case ref.dots > 0:
 					frontier[FrontierRelativeImport] = true
+				case first != "" && tree[first] && !namespaces[ref.module]:
+					absolute[ref.owner] = true
 				}
 				continue
 			}

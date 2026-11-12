@@ -275,14 +275,14 @@ var coreNameLiterals = map[string]map[string]coreLiteral{
 	},
 	"internal/contextindex": {}, // the context-anchor suffix table left with the ranking code (decision 0597)
 	"internal/testsource": {
-		"jest":       {8, "modelled runner constant and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
-		"vitest":     {3, "modelled runner constant and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
+		"jest":       {7, "modelled runner constant and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
+		"vitest":     {2, "modelled runner constant and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
 		"mocha":      {3, "modelled runner constant and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
-		"playwright": {5, "modelled runner constant, assertion framework and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
+		"playwright": {3, "modelled runner constant, assertion framework and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
 		"jasmine":    {1, "assertion framework label"},
 		"cypress":    {3, "assertion framework label and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
 		"ava":        {1, "JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
-		"rspec":      {5, "assertion/teardown framework label and discovery runner switch"},
+		"rspec":      {2, "assertion/teardown framework label and discovery runner switch"},
 		"ruby":       {1, "example-join report language field"},
 	},
 	"internal/liveverify/affected/languages": {},

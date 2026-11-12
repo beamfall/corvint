@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/testid"
 )
 
 // Plan is one per-package go test plan: the committed-range plan of
@@ -34,9 +35,15 @@ type Plan struct {
 }
 
 // Invocation is one `go test` package argument and its -run filter.
+// TestIDs names what it runs by canonical test ID (CTI-V1-009): the
+// package-level ID of a whole package, one ID per kept top-level test of a
+// narrowed one, and none for a compile-only run, which runs no test. The
+// package directory is relative to the watch root, the repository root of a
+// module at the root.
 type Invocation struct {
 	Package string
-	Run     string `json:",omitempty"`
+	Run     string   `json:",omitempty"`
+	TestIDs []string `json:",omitempty"`
 }
 
 // Event is a local observation, never a CI receipt or a proof. Each result
@@ -56,6 +63,10 @@ type Event struct {
 	// event: the in-process save-to-answer latency (PRB-V0-1014).
 	ReplanMillis float64 `json:",omitempty"`
 	Message      string  `json:",omitempty"`
+	// Inventory is what Options.Inventory read for this plan: the committed
+	// test inventory judged against the working tree (TIV-V1-002). It is
+	// read on every save and never refreshed here.
+	Inventory any `json:",omitempty"`
 }
 
 // Options configures one loop.
@@ -78,6 +89,9 @@ type Options struct {
 	// NonGo plans the working tree of an index whose Language is not Go;
 	// nil refuses such an index before the first save.
 	NonGo func(ctx context.Context, diffs []linecov.FileDiff) (any, error)
+	// Inventory, when set, reads the state each plan event reports beside
+	// the plan; it must only read.
+	Inventory func(ctx context.Context) any
 }
 
 // ErrSourceStopped wraps the event source failure the loop ends with.
@@ -141,7 +155,11 @@ func Run(ctx context.Context, o Options) error {
 			return replanErr(ctx, err)
 		}
 		p.ElapsedMS = time.Since(start).Milliseconds()
-		if err := emit(Event{Kind: "plan", Plan: &p, LanguagePlan: lp, ReplanMillis: linecov.Millis(time.Since(start))}); err != nil {
+		var inventory any
+		if o.Inventory != nil {
+			inventory = o.Inventory(ctx)
+		}
+		if err := emit(Event{Kind: "plan", Plan: &p, LanguagePlan: lp, ReplanMillis: linecov.Millis(time.Since(start)), Inventory: inventory}); err != nil {
 			return err
 		}
 		if o.Run == nil {
@@ -198,14 +216,32 @@ func goPlan(ctx context.Context, o Options, diffs []linecov.FileDiff, p *Plan) e
 		pp := p.Packages[d]
 		switch pp.Mode {
 		case linecov.Whole:
-			p.Run = append(p.Run, Invocation{Package: "./" + d})
+			p.Run = append(p.Run, Invocation{Package: "./" + d, TestIDs: testIDs(d, nil)})
 		case linecov.Tests:
-			p.Run = append(p.Run, Invocation{Package: "./" + d, Run: "^(" + strings.Join(pp.Tests, "|") + ")$"})
+			p.Run = append(p.Run, Invocation{Package: "./" + d, Run: "^(" + strings.Join(pp.Tests, "|") + ")$", TestIDs: testIDs(d, pp.Tests)})
 		case linecov.Compile:
 			p.Run = append(p.Run, Invocation{Package: "./" + d, Run: "^$"})
 		}
 	}
 	return nil
+}
+
+// testIDs is the canonical test IDs of package directory dir: the
+// package-level ID when tests is empty, else one ID per top-level test. A
+// directory that is not a clean relative path names no ID.
+func testIDs(dir string, tests []string) []string {
+	pkg, err := testid.New(testid.Go, dir)
+	if err != nil {
+		return nil
+	}
+	if len(tests) == 0 {
+		return []string{pkg.String()}
+	}
+	ids := make([]string, 0, len(tests))
+	for _, test := range tests {
+		ids = append(ids, pkg.Child(test).String())
+	}
+	return ids
 }
 
 // TestArgs is the go test argv of one planned invocation. It runs under the

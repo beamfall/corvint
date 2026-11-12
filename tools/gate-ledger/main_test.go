@@ -537,17 +537,28 @@ func packageRepository(t *testing.T, files map[string]string) string {
 	return root
 }
 
-// selectorFixtureSources returns every non-test source of internal/gateselect and its one
-// in-module import, the stdlib-only internal/taskprojection leaf, read under internal and rebased
-// onto the fixture module, keyed by fixture path. The directory is listed, not named file by file,
-// so a new gateselect source cannot leave the fixture unbuildable (V1-3476); a new in-module import
-// fails here by name.
+// selectorFixtureSources returns every non-test source of internal/gateselect and its two
+// in-module imports, the stdlib-only internal/taskprojection and internal/noncodemap leaves, read
+// under internal and rebased onto the fixture module, keyed by fixture path. The gateselect and
+// noncodemap directories are listed, not named file by file, so a new source cannot leave the
+// fixture unbuildable (V1-3476); a new in-module import fails here by name.
 func selectorFixtureSources(internal string) (map[string]string, error) {
 	sources, err := filepath.Glob(filepath.Join(internal, "gateselect", "*.go"))
 	if err != nil || len(sources) == 0 {
 		return nil, fmt.Errorf("list internal/gateselect: %v", err)
 	}
 	names := []string{"taskprojection/taskprojection.go"}
+	// internal/noncodemap is the stdlib-only non-code path decision gateselect
+	// applies (NCM-V1-001); copy all of it, as the fixture's selector runs it.
+	leaves, err := filepath.Glob(filepath.Join(internal, "noncodemap", "*.go"))
+	if err != nil {
+		return nil, fmt.Errorf("list internal/noncodemap: %v", err)
+	}
+	for _, leaf := range leaves {
+		if !strings.HasSuffix(leaf, "_test.go") {
+			names = append(names, "noncodemap/"+filepath.Base(leaf))
+		}
+	}
 	for _, source := range sources {
 		// qualified.go narrows Select's set with the whole affected engine and is
 		// tested in internal/gateselect; the fixture's wrapper calls Select, so
@@ -568,7 +579,7 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 			return nil, err
 		}
 		for _, imported := range inModule.FindAllStringSubmatch(string(data), -1) {
-			if imported[1] != "internal/gateselect" && imported[1] != "internal/taskprojection" {
+			if imported[1] != "internal/gateselect" && imported[1] != "internal/taskprojection" && imported[1] != "internal/noncodemap" {
 				return nil, fmt.Errorf("internal/%s imports %s, which this fixture does not copy; add it to selectorFixtureSources", name, imported[1])
 			}
 		}
@@ -805,6 +816,7 @@ func testGoTestPartialPassRerun(t *testing.T, bad string) {
 		"tools/gate-affected-select/main_test.go": "package main\nimport \"testing\"\nfunc TestSelector(t *testing.T) {}\n",
 		"internal/gateselect/select_test.go":      "package gateselect\nimport \"testing\"\nfunc TestSelect(t *testing.T) {}\n",
 		"internal/taskprojection/leaf_test.go":    "package taskprojection\nimport \"testing\"\nfunc TestLeaf(t *testing.T) {}\n",
+		"internal/noncodemap/leaf_test.go":        "package noncodemap\nimport \"testing\"\nfunc TestLeaf(t *testing.T) {}\n",
 		"go.mod":                                  "module example.com/fixture\n\ngo 1.27\n",
 		"main_test.go":                            "package main\nimport \"testing\"\nfunc TestRoot(t *testing.T) {}\n",
 		"good/good_test.go":                       "package good\nimport \"testing\"\nfunc TestGood(t *testing.T) {}\n",

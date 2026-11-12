@@ -158,12 +158,15 @@ non-empty hint. An unknown code the function does not know MUST map to `forces-f
 
 ### Requirement: SLF-V1-008 Test and driver counts reported separately
 
-The plan summary and JSON MUST report the number of selected test units and the number of selected
-driver units as separate values. Driver units MUST NOT be counted as tests. The summary MUST list
-driver units only in verbose output. (PROD-TEST-015)
+The `corvint affected` stderr headline MUST report the number of selected test units and the
+number of selected driver units as separate values, `tests=<n> drivers=<m>`, placed where the
+headline's line bound (AFP-V0-3642) cannot cut them. Driver units MUST NOT be counted as tests. The
+headline MUST list driver units only in verbose output. The JSON plan's `tests` and `drivers`
+members wait for the next affected-plan profile version; the affected-plan/0 and /1 profiles stay
+frozen for 1.0 (CCF-V1-006). (PROD-TEST-015)
 
 #### Scenario: Driver units excluded from the test count
 
 - **GIVEN** a plan with three selected test units and two driver units
-- **WHEN** `corvint affected` prints its summary
+- **WHEN** `corvint affected` prints its stderr headline
 - **THEN** it shows `tests=3 drivers=2`

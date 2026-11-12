@@ -290,6 +290,11 @@ type digestUnit struct {
 	// ImportGraphReadsFiles is part of the digest when set (AFP-V0-9010).
 	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitzero"`
 
+	// The walk facts are part of the digest when set (AFP-V0-9995).
+	WalkDirectories []string `json:"walkDirectories,omitempty"`
+	WalkOpaque      string   `json:"walkOpaque,omitempty"`
+	RunNames        []string `json:"runNames,omitempty"`
+
 	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
 	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`
 }
@@ -1019,6 +1024,10 @@ func projectUnit(unit Unit) digestUnit {
 		ImportGraphReadsAll:  unit.ImportGraphReadsAll,
 		// AFP-V0-9010.
 		ImportGraphReadsFiles: unit.ImportGraphReadsFiles,
+		// AFP-V0-9995.
+		WalkDirectories: unit.WalkDirectories,
+		WalkOpaque:      unit.WalkOpaque,
+		RunNames:        unit.RunNames,
 	}
 }
 

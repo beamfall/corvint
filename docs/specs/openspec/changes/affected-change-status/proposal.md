@@ -46,6 +46,18 @@ cost on every plan.
   (AFP-V0-9963).
 - The graph cache carries the new field under a new cache version (AFP-V0-9964).
 
+## Impact
+
+- Code: `internal/liveverify/affected` (change status from the base tree, `Graph.WithChangeStatus`,
+  the path-literal and unbounded reader rules of `Select`) and the shell plugin's command
+  classification. `Select(graph, dirty)` keeps its signature and reads every path as `unknown`.
+- Wire and cache: the graph cache gains the name-listing field under a new cache version; the
+  plan JSON is unchanged.
+- Specs: `docs/specs/affected-plan-selection-v0.md` (AFP-V0-9133 and AFP-V0-9134 amended,
+  AFP-V0-9960 to AFP-V0-9964 added) and the regenerated `REQUIREMENTS.tsv`.
+- Users: fewer shell tests selected on an edit of an existing file; no selection is removed for
+  any other status.
+
 ## Non-goals
 
 - Deleted-script admission (AFP-V0-2751, V1-5191). It is on an unmerged branch and stays there.
