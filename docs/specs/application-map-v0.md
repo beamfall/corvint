@@ -2347,9 +2347,9 @@ but does not read it; only non-Go syntax impact does.
   (V1-4077): an older binary refused a newer map only as "not application-map/0 JSON", which reads
   as a corrupt file. Non-goals: tolerating unknown members, or a raw-bytes digest that would let an
   older reader skip them. Rollback: remove `newerMapMember`; the refusal code is unchanged.
-- `AMAP-V0-970`: (experimental, auto-accepted under G14 (decision 0596) as it implements accepted
-  PROD-DOCS-006; V1-5467; OpenSpec change `appmap-usable-ui-map`; amending `AMAP-V0-190`) In a
-  `react-router/0` router file, a JSX child `{ARR.map(P => <Route .../>)}` (also `(P) =>` and a
+- `AMAP-V0-970`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5467)
+  Implementing accepted PROD-DOCS-006 and amending `AMAP-V0-190` (OpenSpec change
+  `appmap-usable-ui-map`): in a `react-router/0` router file, a JSX child `{ARR.map(P => <Route .../>)}` (also `(P) =>` and a
   parenthesised element) MUST expand into one route per element of ARR when ARR is bound by
   exactly one non-exported `const` in the same file, at any depth, to an array literal or to
   `useMemo(() => [...], deps)` (also `React.useMemo` and `=> ([...])`) returning one, every element
@@ -2364,7 +2364,7 @@ but does not read it; only non-Go syntax impact does.
     scan refuses on any second declaration or parameter of ARR.
   - Falsifier: `TestAMAPV0970MapOverSameFileArray` in `router_react_map_test.go`.
   - Rollback: delete `reactMapChildren` and the `key` case, restore `appmap-builder/3`.
-- `AMAP-V0-971`: (experimental, auto-accepted under G14 (decision 0596); V1-5467) A `.map` child
+- `AMAP-V0-971`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5467) A `.map` child
   MUST stay the unknown `non-literal-react-children` and expand nothing when ARR has a second
   declaration, is exported, imported or a parameter, escapes into any use other than `.map(`,
   `.forEach(`, `.length` or a `for ... of` iterable (a mutator call such as `push`, `splice` or
@@ -2373,7 +2373,7 @@ but does not read it; only non-Go syntax impact does.
   but a member holding a literal string.
   - Falsifier: `TestAMAPV0971UnprovenArrayStaysUnknown` in `router_react_map_test.go`.
   - Rollback: as AMAP-V0-970.
-- `AMAP-V0-972`: (experimental, auto-accepted under G14 (decision 0596); V1-5468) A `goto`,
+- `AMAP-V0-972`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468) A `goto`,
   `waitForURL` or `toHaveURL` argument that is the variable X of an enclosing braced
   `for (const X of ITER)` loop, or a template whose every substitution is X, MUST resolve to one
   goto per value when ITER is an inline array of exact strings, or a same-file array bound under
@@ -2387,29 +2387,30 @@ but does not read it; only non-Go syntax impact does.
     without a braced body.
   - Falsifier: `TestAMAPV0972LoopGotos` in `gotoresolve_test.go`.
   - Rollback: delete `gotoresolve.go` and its callers in `tests.go` and `site_knowledge_ts.go`.
-- `AMAP-V0-973`: (experimental, auto-accepted under G14 (decision 0596); V1-5468; extending
-  `AMAP-V0-342` to specs) A spec or workflow file's call to an AMAP-V0-342 navigation helper (same
+- `AMAP-V0-973`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468)
+  Extending `AMAP-V0-342` to specs: a spec or workflow file's call to an AMAP-V0-342 navigation helper (same
   file or imported by name from a test file) with a literal argument MUST attribute the screen the
   call places to the spec, with basis `helper-goto` and the call line as its `via`, and the
   candidate MUST be kept in the file's `helper_gotos`. A call whose URL places no screen
   attributes nothing.
   - Falsifier: `TestAMAPV0973SpecHelperAttribution` in `gotoresolve_test.go`.
   - Rollback: delete the spec branch of the join that reads `helperGotos`.
-- `AMAP-V0-974`: (experimental, auto-accepted under G14 (decision 0596); V1-5468) The build and
+- `AMAP-V0-974`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468) The build and
   infer MUST resolve loop gotos through one shared resolver. On a fixture whose specs navigate by
   literal, loop and helper gotos, the screens `flows appmap coverage` reports reached MUST equal
   the start screens `flows appmap infer` reports. A goto that does not resolve MUST keep its
   reason and MUST NOT make a screen reached.
   - Falsifier: `TestAMAPV0974CoverageAndInferAgree` in `gotoresolve_test.go`.
   - Rollback: as AMAP-V0-972.
-- `AMAP-V0-975`: (experimental, auto-accepted under G14 (decision 0596); V1-5471)
+- `AMAP-V0-975`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5471)
   `corvint-docs [--root PATH] flows appmap SUB ...` MUST print SUB's own help (usage, flags,
   required inputs and one example) when `--help` or `-h` appears anywhere before `--`, and so MUST
   `corvint-docs help flows appmap SUB`. A SUB that is not a command keeps the existing behavior.
   - Falsifier: `TestAMAPV0975SubcommandHelp` in `cmd/corvint-docs/help_appmap_test.go`.
   - Rollback: delete the `node:` topic in `parseHelpInvocation` and `helpText`.
-- `AMAP-V0-976`: (experimental, auto-accepted under G14 (decision 0596); V1-5472; an explicit
-  exception to the committed-objects rule of `AMAP-V0-001`) `flows appmap build --worktree` MUST
+- `AMAP-V0-976`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5472)
+  As an explicit exception to the committed-objects rule of `AMAP-V0-001`, `flows appmap build
+  --worktree` MUST
   build from the working tree of `--root`: tracked files with their uncommitted edits and
   deletions, and untracked files the repository's ignore rules do not exclude. It MUST write
   nothing to the repository: the snapshot is a commit in a temporary repository that borrows the
@@ -2423,7 +2424,7 @@ but does not read it; only non-Go syntax impact does.
     snapshot, since the Git environment carries no global configuration.
   - Falsifier: `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go`.
   - Rollback: delete `worktree.go`, the `WorkingTree` member and the flag.
-- `AMAP-V0-977`: (experimental, auto-accepted under G14 (decision 0596); V1-5472) Without
+- `AMAP-V0-977`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5472) Without
   `--worktree`, a build MUST keep refusing a manifest absent at the revision as
   `appmap-invalid-manifest`; when that manifest exists as a working-tree file of `--root`, the
   message MUST name `--worktree`. `--worktree` MUST refuse with `--revision`, `--repo`,
