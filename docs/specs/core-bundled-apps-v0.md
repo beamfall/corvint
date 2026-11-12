@@ -127,8 +127,11 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
   `corvint-update apply --allow-network --component core --bin-dir DIR`, with `DIR` the running
   executable's directory after symlink resolution, single-quoted when it needs shell quoting, and
   without `--bin-dir` when that directory cannot be read (`UPD-V0-920`). It MUST also point at the
-  manual core-set archive install in `docs/INSTALL.md`. The `version-mismatch` refusal MUST name
-  the same command. The code and exit status of both refusals are unchanged.
+  manual core-set archive install in `docs/INSTALL.md`. When the missing executable is `corvint`
+  itself (the `corvint-docs --corpus` read), the refusal MUST name only that manual install,
+  because the updater replaces an installed `corvint` and cannot place a first one. The
+  `version-mismatch` refusal MUST name the same command. The code and exit status of both refusals
+  are unchanged.
 
 ## Non-goals, trust boundary and failure modes
 

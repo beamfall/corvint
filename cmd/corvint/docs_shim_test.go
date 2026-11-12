@@ -88,7 +88,7 @@ func TestDocsShimDoesNotForwardHelpOrNativeFlags(t *testing.T) {
 }
 
 // A missing corvint-docs is the named NOT_INSTALLED gap, exit 2, on both forwarded shapes, and
-// names the form the user ran.
+// names the form the user ran and the command that installs the core set (CMS-V0-930).
 func TestDocsShimReportsNotInstalled(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	for _, test := range []struct {
@@ -98,11 +98,13 @@ func TestDocsShimReportsNotInstalled(t *testing.T) {
 		{[]string{"docs", "corpus", "info"}, "corvint docs is served"},
 		{[]string{"impact", "--corpus=corpus.json", "a.go"}, "corvint --corpus is served"},
 		{[]string{"affected", "--corpus-depth", "2"}, "corvint --corpus-depth is served"},
+		{[]string{"flows", "map"}, "corvint flows is served"},
+		{[]string{"how", "x"}, "corvint how is served"},
 	} {
 		args := test.args
 		var stdout, stderr bytes.Buffer
 		code := run(args, strings.NewReader(""), &stdout, &stderr)
-		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "not-installed"`) || !strings.Contains(stderr.String(), "NOT_INSTALLED") || !strings.Contains(stderr.String(), "corvint-docs") || !strings.Contains(stderr.String(), test.names) {
+		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "not-installed"`) || !strings.Contains(stderr.String(), "NOT_INSTALLED") || !strings.Contains(stderr.String(), "corvint-docs") || !strings.Contains(stderr.String(), test.names) || !strings.Contains(stderr.String(), "corvint-update apply --allow-network --component core --bin-dir") {
 			t.Errorf("%q: exit %d stdout %q stderr %q", args, code, &stdout, &stderr)
 		}
 	}
@@ -205,7 +207,7 @@ func TestDocsShimRefusesSiblingAtAnotherVersion(t *testing.T) {
 	capture := besideDocsApp(t, "corvint-docs 9.9.9 (build 1, commit "+strings.Repeat("9", 40)+")")
 	var stdout, stderr bytes.Buffer
 	code := run([]string{"docs", "nav"}, strings.NewReader(""), &stdout, &stderr)
-	if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "version-mismatch"`) || !strings.Contains(stderr.String(), "corvint-docs is version 9.9.9") || !strings.Contains(stderr.String(), "install the set at one version") {
+	if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "version-mismatch"`) || !strings.Contains(stderr.String(), "corvint-docs is version 9.9.9") || !strings.Contains(stderr.String(), "one release: install the core set with: corvint-update apply --allow-network --component core") {
 		t.Fatalf("exit %d stdout %q stderr %q", code, &stdout, &stderr)
 	}
 	if _, err := os.Stat(capture); err == nil {
