@@ -188,8 +188,9 @@ measure. None of them drops a unit the change can reach.
   commands of the test held to this same grammar. (3) Every command outside an admitted
   pipeline is one of: control words and redirections alone (`if`, `then`, `else`, `elif`,
   `fi`, `while`, `until`, `do`, `done`, `!`, `{ }`, `( )` joined by `;`, `&`, `&&`, `||` or
-  `|`); `echo`, `true`, `false`, `:` or `exit`; `printf` whose first argument is literal and
-  does not begin with `-`; `test` or `[` whose literal arguments beginning with `-` are `-e -f
+  `|`); `echo`, `true`, `false`, `:` or `exit`; `printf` whose first argument is literal,
+  does not begin with `-` and holds no `%n` conversion or numeric escape (bash's `printf`
+  stores its output count in the variable a `%n` names); `test` or `[` whose literal arguments beginning with `-` are `-e -f
   -d -h -L -z -n -eq -ne -lt -le -gt -ge -a -o`, where an argument holding an expansion is a
   double-quoted single field and appears only as `[ X ]`, `[ ! X ]`, `[ -z X ]`, `[ -n X ]` or
   `[ X OP Y ]` with OP one of `= == != -eq -ne -lt -le -gt -ge`; `[[` with the same unary
