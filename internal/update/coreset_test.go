@@ -289,6 +289,28 @@ func completionFixture(t *testing.T) (engine, map[string]string) {
 	return e, before
 }
 
+// A cancelled equal-corvint completion that switched members still holding the
+// earlier receipt's candidate restores their pre-run bytes, not the earlier
+// receipt's previous state it carries forward for an explicit rollback.
+func TestUPDV0921CancelledCompletionRestoresPreRunMembers(t *testing.T) {
+	e, _ := completionFixture(t)
+	releaseFixture(t, &e, scriptBinary(163, 0), appArchives(t, e.platform, 164))
+	preRun := setDigests(t, e)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	e.beforeMember = func(name string) {
+		if name == "corvint-mcp" {
+			cancel()
+		}
+	}
+	if _, err := e.run(ctx, "apply"); err == nil {
+		t.Fatal("cancelled completion reported success")
+	}
+	if got := setDigests(t, e); !sameDigests(got, preRun) {
+		t.Fatalf("cancelled completion left %v, want the pre-run set %v", got, preRun)
+	}
+}
+
 // An equal-build completion keeps the way back to the set before the apply it
 // completes: its receipt carries that apply's corvint and member anchors.
 func TestUPDV0921CompletionKeepsTheRollbackAnchor(t *testing.T) {
