@@ -15,6 +15,7 @@ import (
 	"github.com/Beamfall/corvint/.github/cishards"
 	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/selectionswitch"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
@@ -133,6 +134,15 @@ type Input struct {
 	// declaration names but the planned tree no longer declares
 	// (RemovedRunners); any one runs every test (RNC-V1-004).
 	Removed []string
+	// ContractTests maps a selected plan unit to the canonical file-level
+	// test IDs of the test files it selected that a compiled-in runner can
+	// run (PYR-V1-002, PYR-V1-003). Such a unit runs those files through
+	// the runner adapter instead of its language's full command.
+	ContractTests map[string][]string
+	// Selection is the CORVINT_SELECTION kill switch (NMS-V1-008): `full`
+	// runs every test, and a named runner runs its full suite on every
+	// instance while the others stay narrowed (PYR-V1-009).
+	Selection selectionswitch.Switch
 	// LineUnits maps a selected Go import path to its GLS-V0-020 line
 	// decision; LineIndex is the manifest's lineIndex record. Both are empty
 	// without --line-index.
@@ -343,6 +353,8 @@ func Build(input Input) (Manifest, error) {
 	}
 	languages := map[string]bool{}
 	provided := map[string]bool{}
+	ran := map[string]Unit{}
+	fallbacks := map[string]string{}
 	for _, id := range input.Selected {
 		// A make target or CI job (AZU-V0-001) is run by make or CI, not by
 		// a language adapter; the affected plan reports it.
@@ -350,7 +362,19 @@ func Build(input Input) (Manifest, error) {
 			// Each consumer has its own project-owned argv, rather than a
 			// language-wide full command. The caller pins it in Declared.
 			languages[id] = true
-		} else if input.RunnerProfile != ProfileCI && providerUnit(input.Declared, id) {
+		} else if units, fallback, ok := runnerUnits(input, id); ok {
+			// PYR-V1-003: a compiled-in runner runs the selected files from
+			// each owning instance root, at tier file.
+			for _, unit := range units {
+				ran[unit.Unit] = unit
+			}
+		} else if language, _, _ := strings.Cut(id, ":"); fallback != "" {
+			// PYR-V1-009: the language full command runs, with the reason.
+			languages[language] = true
+			if fallbacks[language] == "" {
+				fallbacks[language] = fallback
+			}
+		} else if input.RunnerProfile != ProfileCI && providerUnit(input.Declared, id) && !input.Selection.Forces(providerRunner(id)) {
 			// STR-V0-8702: a declared provider runs the selected file itself,
 			// so the file alone does not need its language's full command.
 			// Everything else that names the language still adds it. The ci
@@ -364,6 +388,19 @@ func Build(input Input) (Manifest, error) {
 	if len(input.Removed) != 0 {
 		// RNC-V1-004, owner decision R32: a removed runner runs every test.
 		fullReason = ReasonRunnerRemoved + ": " + strings.Join(input.Removed, ", ") + " is named by the inventory or " + CommandsPath + " but no longer declared, so every test runs"
+	}
+	forced := map[string]bool{}
+	if input.Selection.All {
+		// PYR-V1-009, NMS-V1-008: `full` runs every test.
+		fullReason = input.Selection.Line("every runner's full suite")
+	} else {
+		for _, instance := range input.Instances {
+			// A forced runner runs its full suite on every instance, and
+			// other runners stay narrowed (PYR-V1-009).
+			if language, ok := runnerLanguages[instance.Runner]; ok && input.Selection.Forces(instance.Runner) {
+				languages[language], forced[instance.Key()] = true, true
+			}
+		}
 	}
 	modules := map[string]bool{}
 	for _, entry := range input.Unknown {
@@ -466,7 +503,7 @@ func Build(input Input) (Manifest, error) {
 				languages[language] = true
 			}
 		}
-	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 && len(provided) == 0 {
+	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 && len(provided) == 0 && len(ran) == 0 {
 		manifest.Scope, manifest.Reason = ScopeNothing, strings.TrimPrefix(input.GoSelection, "NOTHING ")
 	}
 	if len(goRun) != 0 {
@@ -486,11 +523,52 @@ func Build(input Input) (Manifest, error) {
 		// the declared full commands, it does not drop a selected test.
 		manifest.Units = append(manifest.Units, Unit{Adapter: AdapterProvider, Shard: 0, Slice: SliceWhole, Unit: id})
 	}
+	for _, id := range sortedKeys(unitSet(ran)) {
+		// A runner unit runs only in a narrowed plan whose language full
+		// command does not already run its file: FULL and a language
+		// another selection or frontier widened run the instance's full
+		// command instead (PYR-V1-003).
+		unit := ran[id]
+		if manifest.Scope != ScopeNarrowed || languages[runnerLanguages[strings.SplitN(unit.Instance, "@", 2)[0]]] {
+			continue
+		}
+		manifest.Units = append(manifest.Units, unit)
+	}
 	for _, language := range sortedKeys(languages) {
 		manifest.declaredLanguage(input, language)
 	}
+	if manifest.Scope == ScopeNarrowed {
+		// PYR-V1-009: a full command the kill switch forced, or that runs
+		// because a selection could not go through its runner, says why.
+		for index, unit := range manifest.Units {
+			key, ok := strings.CutPrefix(unit.Unit, "declared:")
+			if !ok || unit.Adapter != AdapterDeclared {
+				continue
+			}
+			runner, _, instance := strings.Cut(key, "@")
+			language := key
+			if instance {
+				language = runnerLanguages[runner]
+			}
+			switch {
+			case forced[key]:
+				manifest.Units[index].Reason, manifest.Units[index].ReasonCode = killSwitchReason(input.Selection, runner), ReasonKillSwitch
+			case fallbacks[language] != "":
+				manifest.Units[index].Reason, manifest.Units[index].ReasonCode = fallbacks[language], ReasonRunnerFallback
+			}
+		}
+	}
 	manifest.Incomplete = append(manifest.Incomplete, input.SelectionIncomplete...)
 	return manifest.bounded(), nil
+}
+
+// unitSet is the key set of units.
+func unitSet(units map[string]Unit) map[string]bool {
+	set := make(map[string]bool, len(units))
+	for key := range units {
+		set[key] = true
+	}
+	return set
 }
 
 // placeGo expands the Go run set into execution units on the unchanged

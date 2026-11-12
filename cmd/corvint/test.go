@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -25,6 +26,7 @@ import (
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/selectionswitch"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 	"github.com/Beamfall/corvint/internal/testinventory"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
@@ -101,6 +103,19 @@ reports no usable result leaves those tests NOT_RUN with the reason and
 the run INCOMPLETE (exit 3), never PASS (STR-V0-8701 to STR-V0-8707).
 Example: "providers": {"vitest": ["corvint-js-test-provider", "unit",
 "--dir", "web"]}.
+The local profile runs the pytest files the plan selected (the files the
+advisory python -m pytest command names) through the compiled-in pytest
+runner (adapter "runner"), one pytest run per rootdir from it, at tier
+file, printed as corvint-test: RUNNER; the receipt records each test's
+canonical ID, outcome and call-phase duration, and the Python and pytest
+versions and lockfile SHA-256. A missing interpreter or pytest, no tests
+collected, a deselected test or an unreadable report leaves the run
+INCOMPLETE (exit 3) with a typed reason, never PASS (PYR-V1-002 to
+PYR-V1-008). CORVINT_SELECTION=full runs every test and
+CORVINT_SELECTION=full:<runner>[,<runner>] runs each named runner's full
+suite, printed as corvint-test: FULL with reason kill-switch; any other
+value exits 2 with kill-switch-value-unknown (PYR-V1-009, NMS-V1-008).
+Example: CORVINT_SELECTION=full:pytest corvint test --base main.
 A Go package selected only because its own test files changed runs just
 the Test, Example and Fuzz functions those files declare (-run, slice
 "selected" in the manifest) when no unchanged test file of the package
@@ -375,6 +390,13 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
+	// PYR-V1-009, NMS-V1-008: a kill-switch value outside the grammar is
+	// refused before any work.
+	selection, err := selectionswitch.Parse(os.Getenv(selectionswitch.Env))
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: selectionswitch.ReasonUnknown, Message: err.Error()})
+		return 2
+	}
 	var shardPlan *sessiontest.ShardPlan
 	if options.shardPlan != "" {
 		// STR-V0-055: the plan is read as the other shard inputs are, before
@@ -479,6 +501,7 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})
 	}
 	input.Removed = sessiontest.RemovedRunners(input.Declared, input.Instances, inventory.Undeclared)
+	input.Selection = selection
 	if options.goParallel != 0 {
 		input.Declared = input.Declared.WithGoParallel(options.goParallel)
 	}
@@ -520,8 +543,16 @@ func testCommandNotices(m sessiontest.Manifest, declared sessiontest.Declared, r
 		_, _ = fmt.Fprintf(stderr, "corvint-test: NOTICE the full commands are read from the old path %s for one release; move them to %s\n", sessiontest.DeclarationPath, sessiontest.CommandsPath)
 	}
 	goDefault := false
+	files := map[string]int{}
 	for _, unit := range m.Units {
 		name, declaredUnit := strings.CutPrefix(unit.Unit, "declared:")
+		if unit.Adapter == sessiontest.AdapterRunner {
+			files[unit.Instance]++
+		}
+		if declaredUnit && (unit.ReasonCode == sessiontest.ReasonKillSwitch || unit.ReasonCode == sessiontest.ReasonRunnerFallback) {
+			// PYR-V1-009: every full-suite fallback is printed with its reason.
+			_, _ = fmt.Fprintf(stderr, "corvint-test: FULL %s: %s\n", name, unit.Reason)
+		}
 		switch {
 		case unit.Adapter == sessiontest.AdapterGo || (declaredUnit && name == sessiontest.AdapterGo):
 			goDefault = declared.GoDefault
@@ -533,6 +564,10 @@ func testCommandNotices(m sessiontest.Manifest, declared sessiontest.Declared, r
 	}
 	if goDefault {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: DEFAULT go: %s declares no go member, so go test runs with no declared environment or flags\n", sessiontest.CommandsPath)
+	}
+	for _, key := range slices.Sorted(maps.Keys(files)) {
+		// PYR-V1-002: the tier label of each runner instance's selection.
+		_, _ = fmt.Fprintf(stderr, "corvint-test: RUNNER %s: %d selected file(s) at tier file through the compiled-in runner\n", key, files[key])
 	}
 }
 
@@ -779,6 +814,9 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	if unread != "" {
 		input.SelectionIncomplete = append(input.SelectionIncomplete, unread)
 	}
+	// PYR-V1-002, PYR-V1-007: the pytest files the advisory command names
+	// are the files the pytest runner runs.
+	input.ContractTests = pytestContractTests(root, graph, receipt.Plan)
 	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
 	for _, entry := range receipt.Plan.Unknown {
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})

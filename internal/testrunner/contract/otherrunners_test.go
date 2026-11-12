@@ -54,13 +54,15 @@ func TestRNCV1005JestReport(t *testing.T) {
 }
 
 // RNC-V1-003: pytest names each selection as an exact node ID relative to
-// the instance root (the rootdir), parameter parts verbatim.
+// the instance root (the rootdir), parameter parts verbatim. PYR-V1-004
+// replaced the pytest-json-report plugin flags with pytest's own JUnit XML
+// report, which needs no plugin.
 func TestRNCV1003PytestSelection(t *testing.T) {
 	instance := Instance{Runner: testid.Pytest, Root: "svc", Config: "svc/pytest.ini"}
 	got := command(t, Request{Instance: instance, Full: []string{"python", "-m", "pytest"}, Report: "/r.json", Tests: []string{
 		"pytest:svc/tests/test_a.py::TestA::test_x[1-2]", "pytest:svc/tests/test_b.py", "pytest:svc/-x_test.py::test_y",
 	}})
-	want := []string{"python", "-m", "pytest", "--json-report", "--json-report-file=/r.json", "./-x_test.py::test_y", "tests/test_a.py::TestA::test_x[1-2]", "tests/test_b.py"}
+	want := []string{"python", "-m", "pytest", "--rootdir=.", "--junitxml=/r.json", "-o", "junit_family=xunit1", "-o", "junit_duration_report=call", "./-x_test.py::test_y", "tests/test_a.py::TestA::test_x[1-2]", "tests/test_b.py"}
 	if !slices.Equal(got.Argv, want) || !got.Exact || got.Dir != "svc" || got.Tier != TierFile {
 		t.Fatalf("pytest: %+v, want %q", got, want)
 	}

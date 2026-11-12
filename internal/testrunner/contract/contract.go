@@ -109,10 +109,13 @@ type ParseRequest struct {
 
 // Result is one test's outcome and duration under its canonical test ID
 // (RNC-V1-005, RNC-V1-012). Granularity is `test` unless the report names
-// no finer unit than the file (or the Go package).
+// no finer unit than the file (or the Go package). RunnerOutcome is the
+// runner's own outcome word when it is finer than Outcome (pytest's
+// xfailed and xpassed, PYR-V1-004); it is absent otherwise.
 type Result struct {
 	ID             string             `json:"testId"`
 	Outcome        string             `json:"outcome"`
+	RunnerOutcome  string             `json:"runnerOutcome,omitempty"`
 	DurationMillis int64              `json:"durationMillis"`
 	Granularity    testid.Granularity `json:"granularity"`
 }

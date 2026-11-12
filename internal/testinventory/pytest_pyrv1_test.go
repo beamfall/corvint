@@ -95,8 +95,12 @@ func TestPYRV1001TwoRootdirsAreTwoInstances(t *testing.T) {
 	if got := testsOf(b); !reflect.DeepEqual(got, []Test{{ID: "pytest:services/b/test_b.py::test_b", File: "services/b/test_b.py"}}) {
 		t.Fatalf("instance b tests %+v", got)
 	}
-	if !slices.ContainsFunc(calls, func(call string) bool { return strings.HasPrefix(call, "services/a: ") && strings.HasSuffix(call, "-c pyproject.toml") }) ||
-		!slices.ContainsFunc(calls, func(call string) bool { return strings.HasPrefix(call, "services/b: ") && strings.HasSuffix(call, "-c pytest.ini") }) {
+	if !slices.ContainsFunc(calls, func(call string) bool {
+		return strings.HasPrefix(call, "services/a: ") && strings.HasSuffix(call, "-c pyproject.toml")
+	}) ||
+		!slices.ContainsFunc(calls, func(call string) bool {
+			return strings.HasPrefix(call, "services/b: ") && strings.HasSuffix(call, "-c pytest.ini")
+		}) {
 		t.Fatalf("lister calls %q", calls)
 	}
 }

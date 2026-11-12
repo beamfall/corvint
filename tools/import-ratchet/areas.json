@@ -63,6 +63,7 @@
         "internal/runhygiene",
         "internal/runtimeenv",
         "internal/secretscreen",
+        "internal/selectionswitch",
         "internal/shaderdialect",
         "internal/specindex",
         "internal/taskprojection",
