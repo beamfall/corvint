@@ -1105,6 +1105,10 @@ func (x *skCtx) statement(a, b int) {
 	x.expression(a, b, awaited)
 }
 
+// maxSKLoopValues bounds how many values a test-body loop is unrolled for; a longer loop keeps
+// its single opaque step.
+const maxSKLoopValues = 32
+
 // loop reads the braced `for (const X of ITER) { ... }` statement toks[a:b] once per value when
 // ITER holds proven exact strings and the body cannot bind X again: the shared loop resolver
 // (loopValues) that coverage reads loop gotos through, so infer and coverage see the same visits
@@ -1124,8 +1128,11 @@ func (x *skCtx) loop(a, b int) bool {
 		return false
 	}
 	name := ls[0].name
+	if x.params[name] || x.pageArgs[name] {
+		return false // a parameter of the same name would read before the loop's literal
+	}
 	values, ok := loopValues(toks, open+1, name)
-	if !ok || ls[0].close < 0 {
+	if !ok || ls[0].close < 0 || len(values) > maxSKLoopValues {
 		return false
 	}
 	for _, v := range values {
