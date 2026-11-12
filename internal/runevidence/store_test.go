@@ -181,7 +181,7 @@ func TestRVDV1006RowsFromBothProfiles(t *testing.T) {
 		fmt.Sprintf("%+v", stripDuration(parsed.Rows[0])) != fmt.Sprintf("%+v", stripDuration(want)) || parsed.Rows[1].Outcome != "failed" {
 		t.Fatalf("receipt rows %+v", parsed.Rows)
 	}
-	// A receipt with testId (CTI-V1-009) is keyed by it; without, by its unit (CTI-V1-012).
+	// A receipt with testId (change canonical-test-id) is keyed by it; without, by its unit.
 	withID := bytes.Replace(receipt(commitA, treeA, "go:m/a=PASS"), []byte(`"unit":"go:m/a"`), []byte(`"testId":"go:m/a::","unit":"go:m/a"`), 1)
 	if parsed, err := Parse(withID); err != nil || parsed.Rows[0].TestID != "go:m/a::" {
 		t.Fatalf("testId not read: %v %+v", err, parsed.Rows)

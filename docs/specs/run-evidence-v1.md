@@ -12,8 +12,8 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/run-evidence/` 
 ## Agent digest
 - Claim: A private append-only store under the Git directory keeps each test run, written by test and ingest commands and read by default by flow reports.
 - Status: accepted / partial. Change `run-evidence` auto-accepted under G14 (decision 0596); delivered under V1-5448.
-- Exists: `internal/runevidence`; `corvint test` appends each receipt; `flows ingest --record`; flows status, map, gaps, impact, `test-evidence` and the MCP flows tools read the store; `--no-store`.
-- Blocked on: `corvint watch` writes no receipt, so its append (RVD-V1-004) is not yet built; the Tasks digest check (RVD-V1-003) is NOT_RUN here.
+- Exists: `internal/runevidence`; `corvint test` and `corvint watch` append each receipt; `flows ingest --record`; flows status, map, gaps, impact, `test-evidence` and the MCP flows tools read the store; `--no-store`.
+- Blocked on: the RVD-V1-008 "removed verb" scenario is gated on change `source-removal`; the Tasks digest check (RVD-V1-003) is NOT_RUN here.
 - Read next: Surfaces; Traceability.
 
 ## User and boundary
@@ -114,6 +114,10 @@ runs. The store is read through the commands in RVD-V1-007.
 - WHEN a user runs `corvint runs`
 - THEN the command is unknown, as after change `source-removal`
 
+Gated: this scenario holds only once change `source-removal` deletes `corvint runs`, which the R38
+order delivers after this change. Until then `TestRVDV1008RunsVerbIsUnknown` skips with the reason
+"gated on change source-removal: `corvint runs` still exists until that change deletes it".
+
 - `RVD-V1-009`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5448) Bounded retention
 
 After each append, the writer MUST keep for every test the newest 20 records containing it and MUST
@@ -163,16 +167,25 @@ store. Every reader in RVD-V1-007 MUST leave it unchanged.
 Delivered by ticket V1-5448 (build-log `docs/build-log/2026-11-11-run-evidence.md`):
 
 - `internal/runevidence` (shared layer, standard library only) owns the store at
-  `<git-dir>/corvint/evidence/` (`git rev-parse --absolute-git-dir`, so a linked worktree has its
-  own): `records/<sha256>.json` written once through a temporary file and a rename, `log.jsonl`
-  appended under an exclusive `flock` on `log.lock`, directories `0700` and files `0600`, and a
-  linked `<git-dir>/corvint` or store directory refused before anything is created in it
-  (RVD-V1-001 to RVD-V1-003). Each log line carries `id`, `profile`, `tree`, `commit`,
+  `<git-dir>/corvint/evidence/`. The store is per worktree: `<git-dir>` is
+  `git rev-parse --absolute-git-dir`, which in a linked worktree is its own
+  `.git/worktrees/<name>`, so each linked worktree has its own store and `git worktree remove`
+  deletes that store with it. `records/<sha256>.json` is written once through a temporary file and
+  a rename; `log.jsonl` is appended under an exclusive `flock` on `log.lock`, taken without
+  blocking and retried for at most 5 s, after which the append fails as
+  `run-evidence-write-failed`; each appended line is synced; a log whose last line a dead writer
+  left without a newline is rewritten whole, never appended to. Directories are `0700` and files
+  `0600`; a linked `<git-dir>/corvint` or store directory is refused before anything is created in
+  it, and the log and lock files open with `O_NOFOLLOW` where the platform has it
+  (RVD-V1-001 to RVD-V1-003, RVD-V1-010). Each log line carries `id`, `profile`, `tree`, `commit`,
   `instances`, `writtenAt`, and two added members: `tests` (the record's test keys, so a reader can
   name the tests of a record that no longer hashes to its name) and `bytes` (for the cap).
   Retention keeps the newest 20 records per test, the newest record always, then the oldest go
   until the records fit 64 MiB (RVD-V1-009). The append lock needs `flock`; on a host without it
-  (Windows) every append reports `run-evidence-write-failed`.
+  (Windows) every append reports `run-evidence-write-failed`. A read is bounded: at most 4096 log
+  entries, and at most the cap plus one record of record bytes, newest first; a store past either
+  bound is damaged, so the newest records within them are read and `run-evidence-corrupt` is
+  reported (RVD-V1-010).
 - Rows (RVD-V1-006): a `corvint-test-run/0` receipt gives one row per unit outcome, granularity
   `file` (a receipt unit is a Go package or a test file on this tree), keyed by the outcome's
   `testId` when present (CTI-V1-009) and otherwise by its unit (CTI-V1-012), with the outcome
@@ -185,8 +198,12 @@ Delivered by ticket V1-5448 (build-log `docs/build-log/2026-11-11-run-evidence.m
   `corvint-test: run-evidence-write-failed CAUSE` without changing the exit status (RVD-V1-004,
   RVD-V1-010); `flows ingest --record` appends the document it prints and names the record on
   stderr, and a failed append exits 2 with `run-evidence-write-failed` (RVD-V1-005). `corvint
-  watch` is not yet built: it runs `go test` itself and writes no receipt. No GitHub Action is on
-  this tree; one that runs `corvint test` appends through it.
+  watch` reads each save's `go test -json` streams with the Go adapter's parser and appends one
+  `corvint-test-run/0` receipt per save that ran tests (tool `corvint watch`, scope `NARROWED`, no
+  manifest digest, source the HEAD and dirty paths it planned against) through the same writer,
+  printing `corvint-watch: run-evidence-write-failed CAUSE` on a failure with no change of exit
+  status; `--dry-run` writes nothing (RVD-V1-004). No GitHub Action is on this tree; one that runs
+  `corvint test` appends through it.
 - Readers (RVD-V1-007): `flows status`, `map`, `gaps` and `impact` (and their MCP tools) read the
   store's records, oldest first, then the `--evidence` files; `--no-store` reads only the files
   (the MCP tools take no such argument). A receipt row becomes a LOCALLY_OBSERVED record that never
@@ -198,26 +215,29 @@ Delivered by ticket V1-5448 (build-log `docs/build-log/2026-11-11-run-evidence.m
   with its tree and `at_revision`; stored runs never change the answer's status. Up to 8192 stored
   records are read, newest first, with `truncated` set past that.
 - No listing verb (RVD-V1-008). `corvint runs` still exists on this tree until change
-  `source-removal` deletes it; it does not read the store.
-- No selection path reads the store (RVD-V1-011); STR-V0-011 names the store as an accepted
-  receipt reader for reports only.
+  `source-removal` deletes it; it does not read the store. The scenario that it is unknown is gated
+  on that change.
+- No selection path reads the store (RVD-V1-011): no affected, test-plan, gate, runner-selection,
+  plan-snapshot or `sessiontest` package imports `internal/runevidence` or
+  `internal/testevidencedoc` or calls an appflows store reader, which the import-ratchet scan pins;
+  STR-V0-011 names the store as an accepted receipt reader for reports only.
 
 ## Traceability
 
 | Requirement | Evidence |
 |---|---|
 | RVD-V1-001 | `TestRVDV1001HashNamedRecordsAndLog` (`internal/runevidence`), `TestRVDV1004CLITestAppendsOneRecordPerRun` (`cmd/corvint`) |
-| RVD-V1-002 | `TestRVDV1001HashNamedRecordsAndLog`, `TestRVDV1002ConcurrentAppends` (`internal/runevidence`) |
+| RVD-V1-002 | `TestRVDV1001HashNamedRecordsAndLog`, `TestRVDV1002ConcurrentAppends`, `TestRVDV1002AppendAfterTornTail`, `TestRVDV1002LinkedLogAndLockRefused` (`internal/runevidence`) |
 | RVD-V1-003 | `TestRVDV1001HashNamedRecordsAndLog` (`internal/runevidence`); the `corvint-tasks receipt put` digest check is NOT_RUN (a Tasks write, refused in the delivering lane) |
-| RVD-V1-004 | `TestRVDV1004CLITestAppendsOneRecordPerRun` (`cmd/corvint`); `corvint watch` not yet built |
+| RVD-V1-004 | `TestRVDV1004CLITestAppendsOneRecordPerRun`, `TestRVDV1004WatchAppendsOneRecordPerSave` (`cmd/corvint`), `TestRVDV1004WatchReceipt` (`internal/sessiontest`) |
 | RVD-V1-005 | `TestRVDV1005IngestRecord` (`internal/command/flows`) |
 | RVD-V1-006 | `TestRVDV1006RowsFromBothProfiles` (`internal/runevidence`) |
 | RVD-V1-007 | `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`), `TestRVDV1007FlowsReadersUseStore`, `TestRVDV1007FlowsToolsReadStore` (`internal/command/flows`) |
-| RVD-V1-008 | `TestRVDV1008NoListingVerb` (`cmd/corvint`) |
+| RVD-V1-008 | `TestRVDV1008NoListingVerb` (`cmd/corvint`); the "removed verb" scenario, `TestRVDV1008RunsVerbIsUnknown` (`cmd/corvint`), is skipped: gated on change `source-removal` |
 | RVD-V1-009 | `TestRVDV1009RetentionAt21Runs`, `TestRVDV1009SizeCap` (`internal/runevidence`) |
-| RVD-V1-010 | `TestRVDV1010CorruptRecordSkipped`, `TestRVDV1010UnreadableLogRebuilt` (`internal/runevidence`), `TestRVDV1010StatusNamesCorruptRecord` (`internal/command/flows`), `TestRVDV1010CLIWriteFailureKeepsExitCode` (`cmd/corvint`) |
-| RVD-V1-011 | `TestRVDV1011StoredResultsDoNotChangePlan` (`cmd/corvint`) |
-| RVD-V1-012 | `TestRVDV1012ReadMissingStoreWritesNothing`, `TestRVDV1010CorruptRecordSkipped` (`internal/runevidence`), `TestRVDV1007FlowsReadersUseStore`, `TestRVDV1007FlowsToolsReadStore` (`internal/command/flows`), `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`) |
+| RVD-V1-010 | `TestRVDV1010CorruptRecordSkipped`, `TestRVDV1010UnreadableLogRebuilt`, `TestRVDV1010LockWaitIsBounded`, `TestRVDV1010ReadIsBounded` (`internal/runevidence`), `TestRVDV1010StatusNamesCorruptRecord` (`internal/command/flows`), `TestRVDV1010CLIWriteFailureKeepsExitCode` (`cmd/corvint`) |
+| RVD-V1-011 | `TestRVDV1011NoSelectionPackageReadsTheStore` (`tools/import-ratchet`) |
+| RVD-V1-012 | `TestRVDV1012ReadMissingStoreWritesNothing`, `TestRVDV1010CorruptRecordSkipped` (`internal/runevidence`), `TestRVDV1007FlowsReadersUseStore`, `TestRVDV1007FlowsToolsReadStore` (`internal/command/flows`), `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`), `TestRVDV1012TestEvidenceReadsStoreWithoutWriting` (`internal/testevidencedoc`) |
 
 ## Non-goals
 
