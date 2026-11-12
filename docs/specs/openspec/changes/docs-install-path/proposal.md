@@ -15,7 +15,8 @@ Requirement IDs this change adds: UPD-V0-920, UPD-V0-921, UPD-V0-922 and CMS-V0-
 (checked 2026-11-12).
 Intent status: accepted (auto, 2026-11-12; standing auto-accept of 2026-10-11 and G14, see the
 acceptance log)
-Delivery status: not-started
+Delivery status: experimental (implemented on `claude/docs-install`; a published release carrying
+the app archives is NOT_RUN until the release workflow publishes them)
 Written before dispatch: yes.
 Layout: this folder follows G14 (`proposal.md`, `design.md`, `tasks.md`,
 `specs/operator-update/spec.md`).
