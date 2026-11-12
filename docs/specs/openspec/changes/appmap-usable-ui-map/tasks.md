@@ -12,8 +12,8 @@ Each task names its requirement IDs and its proof. One commit per ticket.
    Requirements: AMAP-V0-970, 971. Proof: `TestAMAPV0970*`, `TestAMAPV0971*`.
 - [x] 4 `flows appmap <sub>` help (V1-5471). Requirements: AMAP-V0-975. Proof:
    `TestAMAPV0975*` in `cmd/corvint-docs`.
-- [ ] 5 `flows appmap build --worktree` and the refusal hint (V1-5472). Requirements:
-   AMAP-V0-976, 977. Proof: `TestAMAPV0976*`, `TestAMAPV0977*`; `make capability-catalog`.
+- [x] 5 `flows appmap build --worktree` and the refusal hint (V1-5472). Requirements:
+   AMAP-V0-976, 977. Proof: `TestAMAPV0976*` in `internal/appmap`, `TestAMAPV0977*` in `internal/command/flows`; `make capability-catalog`.
 - [ ] 6 Per-package tests, vet, windows-vet, doc gates, the lane binary on the reproduction
    fixture, and archive. Requirements: AMAP-V0-970 to 977. Proof: commands and exit codes in the
    handback.

@@ -85,7 +85,7 @@ at the revision but present as a working-tree file names `--worktree`.
 
 ## Acceptance evidence
 
-`TestAMAPV0970*` to `TestAMAPV0977*` in `internal/appmap` and `cmd/corvint-docs`, the
+`TestAMAPV0970*` to `TestAMAPV0977*` in `internal/appmap`, `cmd/corvint-docs` and `internal/command/flows`, the
 per-package test runs, and the lane binary on the reproduction fixture (coverage before and after,
 infer start screens, `--help` output, a `--worktree` build of an uncommitted fixture).
 
