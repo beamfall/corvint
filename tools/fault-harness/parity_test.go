@@ -23,7 +23,7 @@ func TestGoParityWithOracle_FIH_V1_011(t *testing.T) {
 	repo.writeGoModule()
 	pin := repo.commit("fixture")
 	oracle := filepath.Join(t.TempDir(), "affected-edit-oracle")
-	if out, err := command(ctx, ".", 10*time.Minute, "go", "build", "-o", oracle, "../affected-edit-oracle"); err != nil {
+	if out, err := command(ctx, ".", 10*time.Minute, "go", "build", "-buildvcs=false", "-o", oracle, "../affected-edit-oracle"); err != nil {
 		t.Fatalf("build oracle: %v\n%s", err, out)
 	}
 	planner, mode := fakePlanner(t)
