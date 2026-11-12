@@ -298,14 +298,14 @@ func TestAMAPV0972LoopRebindsAndMutation(t *testing.T) {
 		"e2e/specs/increment.spec.ts": loopOver("const PAGES = ['/web/audit'];\nPAGES.length++;"),
 		"e2e/specs/third.spec.ts":     loopOver("const PAGES = ['/web/audit'];\nPAGES.map((p, i, all) => all);"),
 		"e2e/specs/scope.spec.ts":     loopOver("function setup() {\n  const PAGES = ['/web/audit'];\n}"),
-		"e2e/specs/reads.spec.ts":     loopOver("const PAGES = ['/web/audit'];\nif (PAGES.length > 0) { log(PAGES.map((p, i) => p)); }"),
+		"e2e/specs/reads.spec.ts":     loopOver("const PAGES = ['/web/audit'];\nlog(PAGES.map((p, i) => p));"),
 	}
 	_, m := gotoFixture(t, cases)
 	for p := range cases {
 		f := specFile(t, m, p)
 		if p == "e2e/specs/reads.spec.ts" {
 			if got := gotoURLs(f); !slices.Equal(got, []string{"/web/audit"}) {
-				t.Errorf("%s: a length read and a two-parameter map keep the proof, gotos %v", p, got)
+				t.Errorf("%s: a two-parameter map that only reads keeps the proof, gotos %v", p, got)
 			}
 			continue
 		}
@@ -323,5 +323,44 @@ func TestAMAPV0972LoopRebindsAndMutation(t *testing.T) {
 	}
 	if !slices.Equal(routes, []string{"exact /web/reports", "exact /web/settings"}) {
 		t.Errorf("refs loop routes = %v", routes)
+	}
+}
+
+// AMAP-V0-972: a loop body that may bind the loop variable again keeps the goto unknown: a nested
+// loop header, braced or not (`for await`), and a declaration list naming it; every `.length`
+// use of a const array leaves its loop unproven.
+func TestAMAPV0972ConservativeBodies(t *testing.T) {
+	spec := func(body string) string {
+		return "import { test } from '@playwright/test';\n" + body
+	}
+	outer := func(body string) string {
+		return spec("test('t', async ({ page }) => {\n" +
+			"  for (const u of ['/web/audit', '/web/reports']) {\n" +
+			"    " + body + "\n" +
+			"    await page.goto(u);\n" +
+			"  }\n" +
+			"});\n")
+	}
+	loopOver := func(prelude string) string {
+		return spec(prelude + "\ntest('t', async ({ page }) => {\n" +
+			"  for (const r of PAGES) {\n" +
+			"    await page.goto(r);\n" +
+			"  }\n" +
+			"});\n")
+	}
+	cases := map[string]string{
+		"e2e/specs/forawait.spec.ts":  outer("for await (u of rows) foo(u);"),
+		"e2e/specs/unbraced.spec.ts":  outer("for (u of rows) foo(u);"),
+		"e2e/specs/letlist.spec.ts":   outer("let a, u;"),
+		"e2e/specs/predec.spec.ts":    loopOver("const PAGES = ['/web/audit'];\n--PAGES.length;"),
+		"e2e/specs/pattern.spec.ts":   loopOver("const PAGES = ['/web/audit'];\n[PAGES.length] = [0];"),
+		"e2e/specs/forlength.spec.ts": loopOver("const PAGES = ['/web/audit'];\nfor (PAGES.length of [0]) {}"),
+	}
+	_, m := gotoFixture(t, cases)
+	for p := range cases {
+		f := specFile(t, m, p)
+		if len(f.Gotos) != 1 || f.Gotos[0].Screen != "" || f.Gotos[0].Reason != "non-literal-url" {
+			t.Errorf("%s gotos = %+v, want one non-literal-url", p, f.Gotos)
+		}
 	}
 }

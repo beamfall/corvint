@@ -106,8 +106,8 @@ func TestAMAPV0971UnprovenArrayStaysUnknown(t *testing.T) {
 }
 
 // AMAP-V0-971: an array that forEach, a length write or a map callback able to reach the array may
-// change stays unproven, as does a const declared in another function; a length read and a
-// two-parameter map callback keep the proof (AMAP-V0-970).
+// change stays unproven, as does a const declared in another function; a two-parameter map
+// callback that only reads keeps the proof (AMAP-V0-970).
 func TestAMAPV0971ArrayMutationAndScope(t *testing.T) {
 	const routes = `return (<Routes><Route path="/" element={<Home />} />{sections.map(s => <Route path={s.path} element={<Page />} />)}</Routes>);`
 	const decl = `const sections = [{path: 'users'}]; `
@@ -126,8 +126,34 @@ func TestAMAPV0971ArrayMutationAndScope(t *testing.T) {
 			t.Errorf("%s: screens %v unknowns %v, want only / and non-literal-react-children", name, got, reasons)
 		}
 	}
-	got, reasons := reactTemplates(t, `function A() { `+decl+`if (sections.length > 0) { log(sections.map((s, i) => s.path)); } `+routes+` }`)
+	got, reasons := reactTemplates(t, `function A() { `+decl+`log(sections.map((s, i) => s.path)); `+routes+` }`)
 	if !slices.Contains(got, "/users") || slices.Contains(reasons, "non-literal-react-children") {
 		t.Errorf("reads only: screens %v unknowns %v, want /users expanded", got, reasons)
+	}
+}
+
+// AMAP-V0-971: only proven shapes keep an array: its declaration, a `for (const|let x of name)`
+// header and `name.map(` with an inline arrow callback whose body neither assigns, updates nor
+// calls through the callback parameter. Every `.length` use and a member write in the callback
+// body leave it unproven.
+func TestAMAPV0971ConservativeUses(t *testing.T) {
+	const routes = `return (<Routes><Route path="/" element={<Home />} />{sections.map(s => <Route path={s.path} element={<Page />} />)}</Routes>);`
+	const decl = `const sections = [{path: 'users'}]; `
+	for name, src := range map[string]string{
+		"pre-decrement length":  `function A() { ` + decl + `--sections.length; ` + routes + ` }`,
+		"pre-increment length":  `function A() { ` + decl + `++sections.length; ` + routes + ` }`,
+		"array pattern length":  `function A() { ` + decl + `[sections.length] = [0]; ` + routes + ` }`,
+		"object pattern length": `function A() { ` + decl + `({a: sections.length} = o); ` + routes + ` }`,
+		"for header length":     `function A() { ` + decl + `for (sections.length of [0]) {} ` + routes + ` }`,
+		"length read":           `function A() { ` + decl + `if (sections.length > 0) {} ` + routes + ` }`,
+		"member write in map":   `function A() { ` + decl + `sections.map(s => { s.path = 'x'; }); ` + routes + ` }`,
+		"call on map param":     `function A() { ` + decl + `sections.map(s => s.touch()); ` + routes + ` }`,
+		"element escapes":       `function A() { ` + decl + `sections.map(s => touch(s)); ` + routes + ` }`,
+		"member write in loop":  `function A() { ` + decl + `for (const s of sections) { s.path = 'x'; } ` + routes + ` }`,
+	} {
+		got, reasons := reactTemplates(t, src)
+		if !slices.Contains(reasons, "non-literal-react-children") || !slices.Equal(got, []string{"/"}) {
+			t.Errorf("%s: screens %v unknowns %v, want only / and non-literal-react-children", name, got, reasons)
+		}
 	}
 }
