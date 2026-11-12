@@ -35,6 +35,36 @@ func TestMTTV1005RemovedGroupsRefuseWithATypedReason(t *testing.T) {
 	}
 }
 
+// MTT-V1-005: only an argument in flag position asks for a removed group;
+// --corpus-artifact or a removed group name as another flag's value is that
+// flag's to refuse, never the profile-moved reason.
+func TestMTTV1005RemovedGroupMatchesOnlyFlagPosition(t *testing.T) {
+	corpus, docs := removedGroups["corpus"], removedGroups["docs"]
+	for _, tc := range []struct {
+		arguments []string
+		want      string
+	}{
+		{[]string{"--root", "--corpus-artifact"}, ""},
+		{[]string{"--follow-ref", "--corpus-artifact", "--root", "/r"}, ""},
+		{[]string{"--tool-profile", "--corpus-artifact"}, ""},
+		{[]string{"--root", "--tool-profile", "docs"}, ""},
+		{[]string{"--workspace", "--corpus-artifact"}, ""},
+		{[]string{"--root", "/r", "--corpus-artifact", "corpus.json"}, corpus},
+		{[]string{"--root", "/r", "--corpus-artifact"}, corpus},
+		{[]string{"--root", "/r", "--tool-profile", "flows,docs"}, docs},
+		{[]string{"--root", "/r", "--tool-profile"}, ""},
+	} {
+		if got := removedGroupReason(tc.arguments); got != tc.want {
+			t.Fatalf("%q: got %q want %q", tc.arguments, got, tc.want)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	run(context.Background(), []string{"--root", "--corpus-artifact"}, strings.NewReader(""), &stdout, &stderr)
+	if strings.Contains(stderr.String(), "profile-moved") {
+		t.Fatalf("a --root value was read as the corpus flag: %q", stderr.String())
+	}
+}
+
 // MTT-V1-005 scenario: with every group it keeps, corvint mcp lists no
 // test_validity and no docs tool, labels test_evidence preview, and a call to
 // corvint.test_validity is the unknown-tool error.

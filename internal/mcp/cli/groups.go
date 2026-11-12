@@ -30,18 +30,28 @@ var removedGroups = map[string]string{
 	"test-validity": "group-removed: corvint mcp no longer serves the test-validity group (MTT-V1-005); corvint test-validity answers on the command line",
 }
 
+// valueFlags are the corvint mcp flags that take the next argument as their
+// value, with --corpus-artifact, which took one before the corpus group moved.
+var valueFlags = []string{"--corpus-artifact", "--error-profile", "--follow-ref", "--protocol-version", "--root", "--tool-profile", "--workspace"}
+
 // removedGroupReason names the refusal for a --tool-profile list that asks for
 // a removed group, or for --corpus-artifact, which only the corpus group read;
-// "" when neither appears.
+// "" when neither appears. Only an argument in flag position counts: the value
+// of another flag, such as `--root --corpus-artifact`, is that flag's to refuse.
 func removedGroupReason(arguments []string) string {
-	for index, argument := range arguments {
+	for index := 0; index < len(arguments); index++ {
+		argument := arguments[index]
 		if argument == "--corpus-artifact" {
 			return removedGroups["corpus"]
 		}
-		if argument != "--tool-profile" || index+1 == len(arguments) {
+		if !slices.Contains(valueFlags, argument) || index+1 == len(arguments) {
 			continue
 		}
-		for _, token := range strings.Split(arguments[index+1], ",") {
+		index++
+		if argument != "--tool-profile" {
+			continue
+		}
+		for _, token := range strings.Split(arguments[index], ",") {
 			if reason := removedGroups[token]; reason != "" {
 				return reason
 			}
