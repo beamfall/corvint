@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -323,8 +324,15 @@ func TestUPDV0921CancelledCompletionRestoresPreRunMembers(t *testing.T) {
 
 // A retry of an apply killed after it switched an app but before corvint keeps
 // that app's state before the killed run, so rollback after the retry reaches
-// the set before either run.
+// the set before either run, including when a newer release appeared between
+// the killed run and the retry.
 func TestUPDV0921RetryAfterKillKeepsMemberAnchors(t *testing.T) {
+	for _, retry := range []int{163, 164} {
+		t.Run(strconv.Itoa(retry), func(t *testing.T) { retryAfterKill(t, retry) })
+	}
+}
+
+func retryAfterKill(t *testing.T, retry int) {
 	e := setEngine(t)
 	writeScript(t, filepath.Join(e.config.BinDir, "corvint"), 162)
 	if err := execfile.WriteFile(filepath.Join(e.config.BinDir, "corvint-docs"), appBinary("corvint-docs", 162), 0700); err != nil {
@@ -348,10 +356,11 @@ func TestUPDV0921RetryAfterKillKeepsMemberAnchors(t *testing.T) {
 		t.Fatal("the killed run switched no app")
 	}
 	e.beforeMember = nil
+	releaseClient(t, &e, retry)
 	if _, err := e.run(context.Background(), "apply"); err != nil {
 		t.Fatalf("retry: %v", err)
 	}
-	if got := setDigests(t, e); !sameDigests(got, wantSet(163)) {
+	if got := setDigests(t, e); !sameDigests(got, wantSet(retry)) {
 		t.Fatalf("retried set %v", got)
 	}
 	e.config.AllowNetwork = false
