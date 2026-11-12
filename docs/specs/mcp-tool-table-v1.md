@@ -93,8 +93,13 @@ when the file differs from the generator output. (owner decision R30 (2026-11-09
 
 - `MTT-V1-003`: (accepted automatically under G14, decision 0596; V1-5447) The servers register exactly the table's tools
 
-Each server MUST register exactly the tools and input schemas its table rows name. A test MUST fail on
-a registered tool without a row or a row without a registered tool. (owner decision R30 (2026-11-09))
+Each server MUST register exactly the tools and input property names its table rows name. A test MUST
+fail on a registered tool without a row, a row without a registered tool, or a registered input
+property set that differs from the row's. (owner decision R30 (2026-11-09))
+
+Earlier wording, narrowed in review on 2026-11-11 (V1-5447) because the table records each input's
+name and description but no type or required flag, so a type or required-list comparison has nothing
+to compare against: "exactly the tools and input schemas its table rows name."
 
 **Scenario: An unlisted tool**
 - GIVEN a new tool registered on `corvint mcp` with no table row
@@ -147,12 +152,20 @@ used through its CLI. (owner decision R17 (2026-11-09); PROD-TASK-007)
 - `MTT-V1-007`: (accepted automatically under G14, decision 0596; V1-5447) One naming convention
 
 Every tool name MUST follow `corvint.<area>_<verb>` with exactly one dot. Renamed tools MUST list
-their old names in the row's `replaces` column. (owner decision R30 (2026-11-09))
+their old names in the row's `replaces` column. (owner decision R30 (2026-11-09)) A call to an old
+name MUST stay the `-32602` `unknown-tool` refusal of MCPV0-952, and its `data.rule` MUST name the
+replacing tool (`renamed to corvint.flows_<x> (MTT-V1-007)`), so a client configured with the old
+name learns the new one. (added in review on 2026-11-11, V1-5447)
 
 **Scenario: A flow tool**
 - GIVEN the flow gaps tool
 - WHEN the table is read
 - THEN its name is `corvint.flows_gaps` and `replaces` lists `corvint.flows.gaps`
+
+**Scenario: A call to an old name**
+- GIVEN `corvint mcp --tool-profile flows`
+- WHEN a client calls `corvint.flows.gaps`
+- THEN the call is refused `-32602` with reason `unknown-tool` and a rule naming `corvint.flows_gaps`
 
 - `MTT-V1-008`: (accepted automatically under G14, decision 0596; V1-5447) `CORVINT_SELECTION` in the `affected` tool
 
@@ -164,6 +177,21 @@ R13 (2026-11-09); PROD-TEST-013)
 - GIVEN `CORVINT_SELECTION=fastest` in the server environment
 - WHEN a client calls the `affected` tool
 - THEN every test is selected and the result carries the unknown-value reason
+
+Delivered state (V1-5447, 2026-11-11):
+
+- No command line reads `CORVINT_SELECTION` yet: neither `corvint affected` nor `corvint test`
+  parses it, so there is no second parser to keep in step. "The CLI grammar" is the grammar of the
+  kill-switch requirement of change `narrowing-measurement`, implemented once in
+  `internal/selectionswitch` (`Parse`); the `affected` tool is its only caller, and the command line
+  must call the same `Parse` when that change lands.
+- Known fail-closed limit: `full:<runner>[,<runner>]` widens to every test, not only the named
+  runners, because the planner serves no per-runner full plan. The result echoes the named runners
+  in `selection.runners` and its `detail` says the answer was widened.
+- The echoed value is bounded: `selection.value` and the value quoted in `detail` carry at most 256
+  bytes of it; a longer value is cut at a UTF-8 boundary and ends with the marker
+  `...(truncated, N bytes)`, N being the full length, and `selection.runners` lists only the
+  runners wholly inside the kept bytes.
 
 - `MTT-V1-009`: (accepted automatically under G14, decision 0596; V1-5447) Same answer as the command line
 
