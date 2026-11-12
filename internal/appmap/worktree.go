@@ -63,8 +63,9 @@ func BuildWorktree(ctx context.Context, root, manifestPath string) (*Map, error)
 	if err != nil {
 		return nil, newSourceUnavailable("git-common-dir", err)
 	}
-	fields := strings.Fields(string(out))
-	if len(fields) != 2 {
+	// One value per line; a common directory may contain spaces, so split on newlines only.
+	fields := strings.Split(strings.TrimRight(strings.ReplaceAll(string(out), "\r\n", "\n"), "\n"), "\n")
+	if len(fields) != 2 || fields[0] == "" || fields[1] == "" {
 		return nil, newSourceUnavailable("git-common-dir", nil)
 	}
 	common, format := fields[0], fields[1]

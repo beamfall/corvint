@@ -349,12 +349,13 @@ func TestAMAPV0972ConservativeBodies(t *testing.T) {
 			"});\n")
 	}
 	cases := map[string]string{
-		"e2e/specs/forawait.spec.ts":  outer("for await (u of rows) foo(u);"),
-		"e2e/specs/unbraced.spec.ts":  outer("for (u of rows) foo(u);"),
-		"e2e/specs/letlist.spec.ts":   outer("let a, u;"),
-		"e2e/specs/predec.spec.ts":    loopOver("const PAGES = ['/web/audit'];\n--PAGES.length;"),
-		"e2e/specs/pattern.spec.ts":   loopOver("const PAGES = ['/web/audit'];\n[PAGES.length] = [0];"),
-		"e2e/specs/forlength.spec.ts": loopOver("const PAGES = ['/web/audit'];\nfor (PAGES.length of [0]) {}"),
+		"e2e/specs/forawait.spec.ts":   outer("for await (u of rows) foo(u);"),
+		"e2e/specs/unbraced.spec.ts":   outer("for (u of rows) foo(u);"),
+		"e2e/specs/letlist.spec.ts":    outer("let a, u;"),
+		"e2e/specs/asyncarrow.spec.ts": outer("['/b'].map(async (u) => foo());"),
+		"e2e/specs/predec.spec.ts":     loopOver("const PAGES = ['/web/audit'];\n--PAGES.length;"),
+		"e2e/specs/pattern.spec.ts":    loopOver("const PAGES = ['/web/audit'];\n[PAGES.length] = [0];"),
+		"e2e/specs/forlength.spec.ts":  loopOver("const PAGES = ['/web/audit'];\nfor (PAGES.length of [0]) {}"),
 	}
 	_, m := gotoFixture(t, cases)
 	for p := range cases {

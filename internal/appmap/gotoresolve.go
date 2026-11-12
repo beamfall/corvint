@@ -494,12 +494,30 @@ func rebinds(toks []token, open, close int, name string) bool {
 		case !next(toks, k-1, "(", ",") || !next(toks, k+1, ")", ","):
 			return true
 		default:
-			if o := enclosingOpen(toks, k); o <= open || !isPunct(toks[o], "(") || !callParen(toks, o) {
+			if o := enclosingOpen(toks, k); o <= open || !isPunct(toks[o], "(") || !callParen(toks, o) || arrowParams(toks, o) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// arrowParams reports whether the `(` at toks[o] opens an arrow's parameter list, as in
+// `async (r) => ...`, where callParen alone would read `async (` as a call. An unmatched paren
+// counts as one, so the caller refuses.
+func arrowParams(toks []token, o int) bool {
+	depth := 0
+	for c := o; c < len(toks); c++ {
+		switch {
+		case isPunct(toks[c], "("):
+			depth++
+		case isPunct(toks[c], ")"):
+			if depth--; depth == 0 {
+				return next(toks, c+1, "=") && next(toks, c+2, ">")
+			}
+		}
+	}
+	return true
 }
 
 // bindingWords start a loop header or a declaration that may bind a name inside a loop body.
