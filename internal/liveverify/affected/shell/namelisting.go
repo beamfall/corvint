@@ -433,8 +433,13 @@ func gateCommand(words []string, listed map[string]bool) bool {
 // escape (`\NNN`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`) is refused too, since
 // printf expands one inside its format before reading conversions. Quote
 // characters are dropped first, so a split spelling such as `%"n"` is caught,
-// and a conversion ending in a backslash is refused. The check is
-// conservative: it can refuse a format that writes nothing, never the reverse.
+// and a conversion ending in a backslash is refused. Any other backslash is
+// read as transparent: the shell drops an unquoted one (`\%n` reaches printf
+// as `%n`), and printf prints an unknown escape such as `\%` as a backslash
+// and still reads the `%` that follows as a conversion. Flags, width,
+// precision and the length modifiers bash accepts (`%ln`, `%hhn`) are skipped
+// before the conversion character is read. The check is conservative: it can
+// refuse a format that writes nothing, never the reverse.
 func printfFormatWrites(raw string) bool {
 	format := strings.NewReplacer(`'`, "", `"`, "").Replace(raw)
 	for index := 0; index < len(format); index++ {
@@ -443,10 +448,9 @@ func printfFormatWrites(raw string) bool {
 			if index+1 < len(format) && strings.IndexByte("01234567xuU", format[index+1]) >= 0 {
 				return true
 			}
-			index++
 		case '%':
 			index++
-			for index < len(format) && strings.IndexByte("-+ #0123456789.*", format[index]) >= 0 {
+			for index < len(format) && strings.IndexByte("-+ #0123456789.*hlLqjzt", format[index]) >= 0 {
 				index++
 			}
 			if index < len(format) && (format[index] == 'n' || format[index] == '\\') {

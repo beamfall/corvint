@@ -190,7 +190,8 @@ measure. None of them drops a unit the change can reach.
   `fi`, `while`, `until`, `do`, `done`, `!`, `{ }`, `( )` joined by `;`, `&`, `&&`, `||` or
   `|`); `echo`, `true`, `false`, `:` or `exit`; `printf` whose first argument is literal,
   does not begin with `-` and holds no `%n` conversion or numeric escape (bash's `printf`
-  stores its output count in the variable a `%n` names); `test` or `[` whose literal arguments beginning with `-` are `-e -f
+  stores its output count in the variable a `%n` names; a length modifier such as `%ln` or
+  a backslash before the `%` still forms one); `test` or `[` whose literal arguments beginning with `-` are `-e -f
   -d -h -L -z -n -eq -ne -lt -le -gt -ge -a -o`, where an argument holding an expansion is a
   double-quoted single field and appears only as `[ X ]`, `[ ! X ]`, `[ -z X ]`, `[ -n X ]` or
   `[ X OP Y ]` with OP one of `= == != -eq -ne -lt -le -gt -ge`; `[[` with the same unary
