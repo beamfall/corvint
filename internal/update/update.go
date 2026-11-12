@@ -685,6 +685,10 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		if err = e.carryForward(stage, destination, &rec); err != nil {
 			return r, err
 		}
+	} else if len(rec.Members) > 0 {
+		if err = e.carryInterrupted(stage, &rec); err != nil {
+			return r, err
+		}
 	}
 	encoded, _ := json.MarshalIndent(rec, "", "  ")
 	// The durable recovery description precedes the only destination switch. A
@@ -1592,6 +1596,51 @@ func (e engine) carryForward(stage, destination string, rec *receipt) error {
 		return err
 	}
 	rec.PreviousDigest, rec.Supersedes = prior.PreviousDigest, filepath.Base(txn)
+	return carryMembers(stage, txn, prior, rec)
+}
+
+// carryInterrupted keeps the member anchors of an earlier run of this same
+// apply (same corvint previous and candidate digests) that was killed after it
+// switched some apps but before it switched corvint (UPD-V0-921): a member
+// that still holds that run's candidate takes that run's previous state, so
+// the retry does not record the switched bytes as the state to roll back to.
+// The retry's receipt supersedes that run's.
+func (e engine) carryInterrupted(stage string, rec *receipt) error {
+	entries, err := os.ReadDir(e.config.StateDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		dir := filepath.Join(e.config.StateDir, entry.Name())
+		if !transactionName.MatchString(entry.Name()) || dir == stage {
+			continue
+		}
+		// An incomplete or unreadable transaction is not a run this one can
+		// carry from; the retention sweep owns it.
+		b, err := readRegular(filepath.Join(dir, "receipt.json"), metadataLimit)
+		if err != nil {
+			continue
+		}
+		var prior receipt
+		if json.Unmarshal(b, &prior) != nil {
+			continue
+		}
+		if prior.Component != rec.Component || prior.Destination != rec.Destination ||
+			prior.PreviousDigest != rec.PreviousDigest || prior.CandidateDigest != rec.CandidateDigest {
+			continue
+		}
+		if err = carryMembers(stage, dir, prior, rec); err != nil {
+			return err
+		}
+		rec.Supersedes = entry.Name()
+	}
+	return nil
+}
+
+// carryMembers gives each member of rec that still holds prior's candidate, or
+// is absent, prior's previous state and its saved bytes from txn.
+func carryMembers(stage, txn string, prior receipt, rec *receipt) error {
+	var err error
 	for i, m := range rec.Members {
 		j := slices.IndexFunc(prior.Members, func(o member) bool { return o.Name == m.Name })
 		if j < 0 {
