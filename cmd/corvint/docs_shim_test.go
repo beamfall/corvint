@@ -104,10 +104,42 @@ func TestDocsShimReportsNotInstalled(t *testing.T) {
 		args := test.args
 		var stdout, stderr bytes.Buffer
 		code := run(args, strings.NewReader(""), &stdout, &stderr)
-		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "not-installed"`) || !strings.Contains(stderr.String(), "NOT_INSTALLED") || !strings.Contains(stderr.String(), "corvint-docs") || !strings.Contains(stderr.String(), test.names) || !strings.Contains(stderr.String(), "corvint-update apply --allow-network --component core --bin-dir") {
+		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "not-installed"`) || !strings.Contains(stderr.String(), "NOT_INSTALLED") || !strings.Contains(stderr.String(), "corvint-docs") || !strings.Contains(stderr.String(), test.names) || !strings.Contains(stderr.String(), "docs/INSTALL.md describes (the updater replaces an installed corvint, and none is beside this executable)") {
 			t.Errorf("%q: exit %d stdout %q stderr %q", args, code, &stdout, &stderr)
 		}
 	}
+	// With a numbered corvint beside the running executable the refusal names the updater
+	// command for that directory.
+	dir := besideFile(t, "corvint", "#!/bin/sh\nprintf '%s\\n' 'corvint 1.0.0 (build 5, commit "+strings.Repeat("a", 40)+")'\n")
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"flows", "map"}, strings.NewReader(""), &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "install the core set with: corvint-update apply --allow-network --component core --bin-dir ") || !strings.Contains(stderr.String(), filepath.Base(dir)) {
+		t.Errorf("numbered corvint beside: exit %d stderr %q", code, &stderr)
+	}
+}
+
+// besideFile writes an executable named name beside the running test executable and removes it
+// when the test ends; it returns that directory.
+func besideFile(t *testing.T, name, script string) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in is a shell script")
+	}
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved, err := filepath.EvalSymlinks(self); err == nil {
+		self = resolved
+	}
+	path := filepath.Join(filepath.Dir(self), name)
+	if _, err := os.Lstat(path); err == nil {
+		t.Fatalf("%s already exists", path)
+	}
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Skipf("cannot write beside the test executable: %v", err)
+	}
+	t.Cleanup(func() { os.Remove(path) })
+	return filepath.Dir(self)
 }
 
 // DIRTY-CACHE-016: the docs group refuses --require-clean in the shim, before it looks for
@@ -207,7 +239,7 @@ func TestDocsShimRefusesSiblingAtAnotherVersion(t *testing.T) {
 	capture := besideDocsApp(t, "corvint-docs 9.9.9 (build 1, commit "+strings.Repeat("9", 40)+")")
 	var stdout, stderr bytes.Buffer
 	code := run([]string{"docs", "nav"}, strings.NewReader(""), &stdout, &stderr)
-	if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "version-mismatch"`) || !strings.Contains(stderr.String(), "corvint-docs is version 9.9.9") || !strings.Contains(stderr.String(), "one release: install the core set with: corvint-update apply --allow-network --component core") {
+	if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "version-mismatch"`) || !strings.Contains(stderr.String(), "corvint-docs is version 9.9.9") || !strings.Contains(stderr.String(), "one release: install the core set from its release archives as docs/INSTALL.md describes") {
 		t.Fatalf("exit %d stdout %q stderr %q", code, &stdout, &stderr)
 	}
 	if _, err := os.Stat(capture); err == nil {
