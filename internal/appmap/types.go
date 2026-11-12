@@ -18,7 +18,7 @@ const (
 	// change to what BuildRoots derives from the same inputs, so `--from` rebuilds a map an
 	// earlier compiler wrote instead of carrying it forward. A binary built from a VCS checkout
 	// also binds its revision (builderIdentity), so an unbumped compiler change still rebuilds.
-	BuilderVersion = "appmap-builder/3"
+	BuilderVersion = "appmap-builder/4"
 
 	DialectUIRouter = "ui-router-states/0"
 	DialectRails    = "rails-routes/0"
@@ -138,6 +138,8 @@ type Map struct {
 	// Roots pins every aliased root the map read and what it supplied; absent for a single-root
 	// map (AMAP-V0-018).
 	Roots []RootPin `json:"roots,omitempty"`
+	// WorkingTree marks a map built unpinned from a working tree (AMAP-V0-976); absent otherwise.
+	WorkingTree *WorkingTree `json:"working_tree,omitempty"`
 	// HashPrefix is the manifest's hash-routing prefix, kept so projections can print a loadable URL.
 	HashPrefix string `json:"hash_prefix"`
 	// BasePath is the manifest's router basename (AMAP-V0-191); absent when empty.
@@ -304,7 +306,9 @@ type TestFile struct {
 	// otherwise, so a named class reads as before (V1-0974).
 	ClassExport string `json:"class_export,omitempty"`
 	// HelperGotos are a page object's literal URLs passed to a one-hop navigation helper: learned
-	// remedy candidates, never a screen binding (AMAP-V0-342).
+	// remedy candidates, never a screen binding (AMAP-V0-342). For a spec or workflow they are the
+	// helper calls whose placed screens the file is attributed with basis `helper-goto`
+	// (AMAP-V0-973).
 	HelperGotos []Goto `json:"helper_gotos,omitempty"`
 }
 

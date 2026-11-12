@@ -207,7 +207,7 @@ The counts changed on 2026-11-09 under R42, E8 and D11: eleven rows left `undete
 | `go-production-kernel-migration-v0.md` | GPK-V0 | OUT-OF-1.0 | archive in place | B9 | 6/6 paths; 142 hits | Migration record; AGENTS.md invariant 7 stops citing it (design.md outline). |
 | `go-test-evidence-v0.md` | GTE-V0 | OUT-OF-1.0 | archive in place | C1 | no paths; 2 hits | Decided 2026-11-09 under R42, E8: `tools/gotest-evidence` has no importer in `cmd` or `internal`; only CI cost and line-coverage files name it. |
 | `gopls-client-session-v0.md` | GCS-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
-| `greptile-gate-v0.md` | GRG-V0 | MERGE | active | - | no paths; 3 hits | Decided 2026-11-09 under R42, D11: `greptile-gate.yml` is kept for 1.0 until the owner removes the required status (RMV-V1-035), so its spec stays active and is not archived in B8b. Earlier class, superseded by D11: archive in place, B8b. |
+| `greptile-gate-v0.md` | GRG-V0 | MERGE | retired | - | no paths; 3 hits | Retired 2026-11-12 (decision 0598, superseding D11): the owner removed the required `greptile-gate` status and the workflow is deleted; Codex CLI reviews replace it. |
 | `harness-authority-relation-v0.md` | HAR-V0 | RETIRE | archive in place | C1 | no paths; 0 hits | Superseded by decision 0009. |
 | `heading-navigation-experiment-v0.md` | HNE-V0 | OUT-OF-1.0 | archive in place | B9 | 1/1 paths; 1 hits | Experiment; tools/heading-nav-bench removal is not scheduled in any batch. |
 | `host-lifecycle-qualification-v1.md` | HLQ-V1 | retired | archive in place | C1 | no paths; 2 hits | Already retired (decision 0594 or earlier); add the Health line only. |

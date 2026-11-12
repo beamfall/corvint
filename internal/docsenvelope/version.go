@@ -102,13 +102,13 @@ func CheckBeside(ctx context.Context, executable string, self versionline.Line) 
 	}
 	other, err := ProbeVersion(ctx, executable)
 	if err != nil {
-		return filepath.Base(executable) + " beside " + self.Name + " did not state its version (" + err.Error() + "); install the set at one version"
+		return filepath.Base(executable) + " beside " + self.Name + " did not state its version (" + err.Error() + "); " + InstallHint()
 	}
 	reason := Mismatch(self, other)
 	if reason == "" {
 		return ""
 	}
-	return reason + "; the executables beside each other must be one release: install the set at one version"
+	return reason + "; the executables beside each other must be one release: " + InstallHint()
 }
 
 // limitedWriter discards bytes past its bound so a hostile --version cannot

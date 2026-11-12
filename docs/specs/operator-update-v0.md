@@ -13,7 +13,7 @@ and implement V1-0505; `../../AGENTS.md` invariants 4 and 7; `../INSTALL.md` upg
 - Status: proposed technical contract under owner-requested V1-0505 outcome / experimental
 - Exists: separate `../../cmd/corvint-update` and `../../internal/update`; focused regression and actual macOS evidence are required before delivery.
 - Blocked on: final focused checks, independent review, actual published-archive lifecycle and native completion. Publisher identity and full Tasks qualification remain NOT_VERIFIED/NOT_OBSERVED.
-- Read next: Requirements; Trust boundary and limits; Acceptance evidence. A Core switch refreshes index snapshots of named and indexed enclosing checkouts (`UPD-V0-008`). `check` states the installed-to-available relation (`UPD-V0-009`). An unnumbered local install (build 0 or none) still checks, as `installedBuildStatus` `UNNUMBERED`, and `apply` refuses to replace it (`UPD-V0-010`). A stop is observed before switch or rollback, and the old build restarts under a cleanup context (`UPD-V0-015`); check and apply share the Tasks report binding (`UPD-V0-016`), read per platform with a legacy fallback (`UPD-V0-017`). Every check names the component's official source (`beamfall/corvint` for Core, `beamfall/corvint-tasks` for Tasks, decision 0594) and channel, admits RC and developer prereleases, and explains an UNKNOWN freshness (`UPD-V0-367`); `--github-token-env` authenticates API reads only (`UPD-V0-368`).
+- Read next: Requirements; Trust boundary and limits; Acceptance evidence. A Core switch refreshes index snapshots of named and indexed enclosing checkouts (`UPD-V0-008`). `check` states the installed-to-available relation (`UPD-V0-009`). An unnumbered local install (build 0 or none) still checks, as `installedBuildStatus` `UNNUMBERED`, and `apply` refuses to replace it (`UPD-V0-010`). A stop is observed before switch or rollback, and the old build restarts under a cleanup context (`UPD-V0-015`); check and apply share the Tasks report binding (`UPD-V0-016`), read per platform with a legacy fallback (`UPD-V0-017`). Every check names the component's official source (`beamfall/corvint` for Core, `beamfall/corvint-tasks` for Tasks, decision 0594) and channel, admits RC and developer prereleases, and explains an UNKNOWN freshness (`UPD-V0-367`); `--github-token-env` authenticates API reads only (`UPD-V0-368`). A core apply installs and rolls back the whole core set, `corvint` with its three apps (`UPD-V0-920` to `UPD-V0-922`).
 
 ## Human intent and current state
 
@@ -311,6 +311,58 @@ The baseline is manual archive verification and copying binaries, with external 
   token without read access to the repository yields an unreadable inventory reported as UNKNOWN.
   Falsifier: a request to any host other than `api.github.com` carrying the token, or a token
   value in output. Rollback of this requirement: remove the option; requests stay anonymous.
+- `UPD-V0-920`: (proposed 2026-11-12; delivery experimental; V1-5466) `apply --component core`
+  MUST install `corvint` and, on a platform the release catalog ships app archives for
+  (darwin/arm64, linux/amd64, linux/arm64), every core-set app (`corvint-docs`, `corvint-docs-mcp`,
+  `corvint-mcp`) from the same release into the same directory (`CMS-V0-002`). Each app MUST come
+  from the release asset `<app>_<goos>_<goarch>.tar.gz` whose digest equals its row in the release
+  `SHA256SUMS`; its root `<app>_<goos>_<goarch>/` MUST hold the executable, a `SHA256SUMS` that is
+  exactly the executable's row, and only notice files byte-equal to the `corvint` archive's (an
+  archive with no notice file is admitted, since the installed notices are the `corvint` archive's). Each
+  app MUST pass the platform inspection, and its `--version` MUST name the app and agree with the
+  `corvint` candidate's line (one version, one commit when both are stamped) before any destination
+  changes. The receipt MUST record every member with its previous digest (empty when absent) and
+  candidate digest, and the apps MUST switch before `corvint`. An app absent before the apply MUST be
+  placed without replacing a file that appeared meanwhile: a hard link, or an exclusive create
+  written and synced where the file system refuses the link. On a supported Core platform outside
+  that list the apply MUST install `corvint` alone and say so in the qualification line. The set is
+  the `core` component's executables, so `UPD-V0-004`'s one component per apply still holds.
+  Failure modes: a release published without app archives refuses (`UPD-V0-922`); darwin/amd64
+  keeps `corvint` alone. Falsifier: an apply that leaves any app at another digest than the
+  release's, or installs an app whose version disagrees. Rollback of this requirement: drop the
+  app step; the core apply installs `corvint` alone again.
+- `UPD-V0-921`: (proposed 2026-11-12; delivery experimental; V1-5466) `rollback` of a receipt with
+  members MUST restore every member: put back its previous bytes, or remove it when it was absent
+  before, with `corvint` last. It MUST first check that every member is at its candidate digest or
+  already at its previous state, and refuse with the member named otherwise, before changing
+  anything, so an interrupted rollback can run again. When an apply fails or is cancelled after
+  some members switched, it MUST restore those members, from the bytes they held before that run,
+  under a bounded cleanup context, and then withdraw that run's receipt before returning the error,
+  so an earlier receipt stays the rollback anchor. An apply that finds a receipt of an earlier
+  run from the same `corvint` previous digest, killed before it switched `corvint`, MUST carry it
+  even when a newer release has since replaced that run's candidate; it MUST carry that run's previous state forward for each member that still holds its
+  candidate or is absent, and supersede that receipt. A receipt without members MUST roll back `corvint` alone. An apply that
+  leaves `corvint` unrewritten (`UPD-V0-922`) and finds a receipt whose candidate is the installed
+  `corvint` MUST carry that receipt's anchor forward: its `corvint` previous digest and bytes, and
+  each member's previous state when the member still holds that receipt's candidate or is absent,
+  naming the transaction it supersedes; rollback MUST ignore a retained superseded receipt, so the
+  rollback still reaches the set before the first apply. A receipt that left `corvint` unrewritten
+  MUST report `corvint` `unchanged` on rollback, and when no member is at its candidate the
+  rollback MUST refuse with nothing to restore. Failure modes: a
+  process kill between two renames leaves a mixed set that every member refuses with
+  `version-mismatch` (`CMS-V0-002`) and that a rerun apply completes. Falsifier: a rollback that
+  leaves an app installed that was absent before, a cancelled apply that returns with a member
+  switched, or a rollback after a completion that leaves `corvint` at the completed build. Rollback of this requirement: receipts lose `Members`; rollback restores `corvint`.
+- `UPD-V0-922`: (proposed 2026-11-12; delivery experimental; V1-5466) On a platform in the app
+  list, a release that lacks an app archive, or whose `SHA256SUMS` lacks its row, MUST refuse the
+  apply with the app named and every destination unchanged. When the candidate `corvint` is the
+  installed build with equal bytes, the apply MUST install every app that is absent or differs from
+  its candidate, leave `corvint` unrewritten, and answer `unchanged` only when every member equals
+  its candidate. Failure modes: until the release workflow publishes app archives every apply on
+  those platforms refuses and the manual archive install in `docs/INSTALL.md` is the path.
+  Falsifier: an `unchanged` result while an app is absent, or an apply that changes a destination
+  and then refuses for a missing archive. Rollback of this requirement: the equal build answers
+  `unchanged` again.
 
 ## Non-goals
 
@@ -370,6 +422,9 @@ With it, only the operator's control program is run (`UPD-V0-011`).
 | UPD-V0-017 | `tasksDeclaration`, `tasksReportAsset`, `RunTasksArchive` | `TestUPDV0017PerPlatformTasksReports`: a release with both archives and per-platform reports, the same beside a legacy report naming the other platform, and the legacy single-platform layout each check and apply; a legacy report for the other platform alone is `UNKNOWN` and refused; `TestUPDV0017TasksReportAssetPerPlatform`: the producer names one report per target, bound to the archive digest, without the host-local path |
 | UPD-V0-367 | `officialSource`, `channel`, `discover`, `unknownReason` | `TestUPDV0367CheckExplainsSourceAndUnknown`: a prerelease `v1.0.0-rc.3` is selected beside a later Tasks prerelease and a draft (2 observed); a Tasks-only inventory, an empty inventory, HTTP 403 and no network grant each stay UNKNOWN with the installed build and an actionable reason; no state written; `TestUPDV0367ReleasesObservedSerialisedAndTokenRefusal`: the serialised result carries `"releasesObserved":0` for a read empty inventory and no count for an unread one, and an unset-token refusal names source and channel, with Tasks naming `beamfall/corvint-tasks` (decision 0594); live (2026-10-30, Linux amd64): Core build 7 and Tasks build 7 checks against `beamfall/corvint` report UNKNOWN with `lists 0 published release(s)` (`docs/build-log/2026-10-30-official-update-sources.md`) |
 | UPD-V0-368 | `--github-token-env`, `get` | `TestUPDV0368TokenReachesOnlyTheAPIHost`: the token reaches `api.github.com` only, never `github.com` or the asset host, `authenticated` is set and the token never appears in the result; an unset variable refuses with its name; `TestUPDV0367ReleasesObservedSerialisedAndTokenRefusal`: rollback with an unset token variable is not refused on it; live authenticated check NOT_RUN (no token on the lane host) |
+| UPD-V0-920 | `prepareApps`, `prepareApp`, `verifyApp`, `setApps`, `coreSetApps`, `appPlatforms`, receipt `Members` | `TestUPDV0920ApplyInstallsTheWholeCoreSet`: from build 162 with no apps, one apply leaves `corvint` and the three apps at the release digests, lists the set and records three members with empty previous digests; an app whose `--version` names another version or another app, a foreign notice, or an inner checksum that disagrees refuses naming `corvint-docs` with every destination unchanged. `TestUPDV0920SetListsMatchTheReleaseCatalog`: the app and platform lists equal `internal/releasecandidate`'s. `TestUPDV0920AppArchiveWithoutNotices`: an app archive with no notice file is accepted |
+| UPD-V0-921 | `rollback`, `rollbackReceipt` (`Supersedes`), `carryForward`, `carryInterrupted`, `carryMembers`, `restoreMember`, `restoreSwitched`, `keepPrevious`, `activate`, `createAbsent` | `TestUPDV0921RollbackAndInterruptedSetRestore`: rollback restores `corvint` and a previous `corvint-docs` and removes the two apps absent before; a second rollback matches no receipt; a hand-changed `corvint-mcp` refuses naming it with nothing changed, and once that member is back at its previous state the rollback reruns; an apply cancelled after the first app switched returns an error with every destination as before. `TestUPDV0921CompletionKeepsTheRollbackAnchor`: apply, delete `corvint-mcp`, completion apply, rollback returns `corvint` and `corvint-docs` to their bytes before the first apply and removes the other apps, and a second rollback refuses; a completion cancelled after its receipt was written withdraws it, leaving only the first receipt, and rollback still reaches the set before the first apply; `TestUPDV0921CancelledCompletionRestoresPreRunMembers`: a cancelled completion with new member bytes restores the pre-run set and a later rollback reaches the set before the first apply; `TestUPDV0921RetryAfterKillKeepsMemberAnchors`: an apply killed at the `corvint` switch, then retried against the same release or a newer one, rolls back to the set before either run; a completion with no earlier receipt rolls back to `corvint` `unchanged` (not rewritten) and a second rollback refuses with nothing to restore. `TestUPDV0921SwitchFailuresRestoreTheApps`: a `corvint` activation conflict after every app switched restores them; a destination that appears before an absent app is placed refuses, keeps that file and restores the switched app. `TestUPDV0921RollbackRefusesATamperedMember`: a receipt member with an unknown name or another destination refuses with nothing changed. The link-refused fallback of `createAbsent` is not exercised by a test |
+| UPD-V0-922 | `prepareApps` errors, `appsPending`, `applySet` | `TestUPDV0922MissingAppRefusesAndEqualBuildCompletesTheSet`: a missing `corvint-mcp` archive and a missing `corvint-docs` `SHA256SUMS` row refuse naming the app with nothing changed and no staging kept; `corvint` at the release build with the apps absent installs them without rewriting `corvint` and answers `applied`, then `unchanged`; `darwin_amd64` installs `corvint` alone with the qualification line |
 | UPD-V0-006 | owned bounded process probes | `TestUPDV0006SubprocessCancellationCleanup`: timeout/interruption descendant cleanup |
 
 Actual macOS evidence MUST start disposable installs with retained Core/Tasks bytes, exercise the
