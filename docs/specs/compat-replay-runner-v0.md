@@ -135,7 +135,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
 - `CRR-V0-002`: Environment allow-list, reconciled with the mandatory determinism variables.
   - (a) The launched command's environment MUST equal the descriptor's `env` allowlist
     (`CTR-V0-001`) exactly, set through `Cmd.Env` on every launch, never inherited;
-    `tools/cw-trial/main.go:1500` and `tools/cem-trial/main.go:1310@d8029f80` explicitly inherit the full environment and are not the replay policy.
+    `tools/cw-trial/main.go` (line 1500 at b55635262; the tool was removed by change context-proven-only) and `tools/cem-trial/main.go:1310@d8029f80` explicitly inherit the full environment and are not the replay policy.
     `Cmd.Env` MUST also be non-nil for an *empty* allowlist, because a nil `Cmd.Env` inherits
     `os.Environ()`. At the extraction base, `conformance/cli-parity-v0/process.go` used
     `append([]string(nil), spec.Env...)` and returned nil for an empty allowlist; the delivered
@@ -154,7 +154,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     (`:208`) that bounds termination, cleanup, reap and quiescence proof. The one alternative
     `CTR-V0-010` names is weighed and rejected here: `compat-trial-v0.md:55`'s "second working
     `Setpgid`+`Cancel`+`WaitDelay` pattern" is three lines
-    (`tools/retrieval-bench/procgroup_unix.go:14-16`) and could be written directly in
+    (`tools/retrieval-bench/procgroup_unix.go` (lines 14-16 at b55635262; the tool was removed by change context-proven-only)) and could be written directly in
     `tools/compat-trial` without touching an in-use conformance harness, but it yields
     containment alone — no `Started`/`ExitObserved` record, no per-stream overflow, drain or
     quiescence observation, and no adjudication seam — which `CRR-V0-006`(d) and (e)'s row 7
@@ -361,7 +361,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     Replay retains the zero-value `OverflowFail` policy: the trial adapters' explicit
     `OverflowTruncate` policy MUST NOT be reused for byte-equality judgments.
   - (c) Stdin: supply `stdin{path,sha256}` from the descriptor rather than hard-code
-    EOF stdin as the trial `runCommand` adapters do (`tools/cw-trial/main.go:1498`, `tools/cem-trial/main.go:1279@4b106859`), and
+    EOF stdin as the trial `runCommand` adapters do (`tools/cw-trial/main.go` (line 1498 at b55635262; the tool was removed by change context-proven-only), `tools/cem-trial/main.go:1279@4b106859`), and
     refuse before launch when the stdin file's computed digest differs from the pinned `sha256`.
   - (d) Budgets: `CTR-V0-003`'s 10 s per-process ceiling and 120 s request budget per `tasks[]`
     entry, cumulative across that entry's six repetitions (decision 0054), MUST each be enforced by *actively* cancelling and terminating the

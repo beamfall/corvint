@@ -135,12 +135,12 @@ func validExecEntries(member map[string][]string) error {
 }
 
 // applyBinaryExecs sets each unit's command edges, given each unit's
-// directory and module and the command unit in each command directory: the
+// directory and module, the command unit in each command directory and the
+// goListUnits scans of each unit: the
 // literal edges always, and the declared edges unless the declaration is
 // unreadable or invalid, which widens every plan instead.
-func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories []string, owners map[string]module, commands map[string]string, frontier map[string]bool) {
+func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories []string, owners map[string]module, commands map[string]string, frontier map[string]bool, listed []map[string]goListFile) {
 	edges := make([]map[string]bool, len(units))
-	listed := goListUnits(root, units, directories, owners)
 	for index := range units {
 		edges[index] = literalExecs(root, units[index], directories[index], owners[directories[index]], commands, listed[index])
 	}

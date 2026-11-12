@@ -10,7 +10,7 @@ recovery map"); read it first, and the section it names for each step. `make flo
 checks this skill and that section against the real CLI, Makefile and scripts (ASD-V0-996).
 
 1. Orient: run `script/lane-corvint.sh` and use its worktree executable for reads; then `corvint index --if-stale`, `corvint affected --base FULL_SHA`, and
-   `corvint context --task "..."`. Read tickets on any host, journal or not, with the
+   `corvint context --path PATH` for each file you will edit. Read tickets on any host, journal or not, with the
    dispatch's staged snapshot: `CORVINT_TASKS_SNAPSHOT=TICKET_DIR/queue-snapshot.json corvint-tasks
    ticket show <ID>`; screen lane branches with `corvint-tasks ticket delivery-screen <ID>...
    --lane-refs` (add `--unaudited` on a host without the Tasks journal). See section 12.

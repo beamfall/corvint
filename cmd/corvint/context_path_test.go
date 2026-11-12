@@ -37,15 +37,14 @@ func TestPathContextParse(t *testing.T) {
 	// Where a flag can stand, `--path=` is the flag whatever its value holds: a declared option is
 	// read before the rule that a token with a space is positional text.
 	options, err = parse("--path= fix the parser")
-	if err != nil || !slices.Equal(options.paths, []string{" fix the parser"}) || options.task != "" {
+	if err != nil || !slices.Equal(options.paths, []string{" fix the parser"}) {
 		t.Fatalf("inline value with spaces %+v, %v", options, err)
 	}
-	// Task text that begins with the flag's spelling is the task of the task form when it is the
-	// value of `--task`.
+	// The value of another flag is that flag's own, so `--task --path=...` is the removed task
+	// form, which refuses (decision 0597).
 	for _, args := range [][]string{{"--task", "--path= fix the parser"}, {"--limit", "3", "--task", "--path= fix the parser"}} {
-		options, err = parse(args...)
-		if err != nil || options.task != "--path= fix the parser" || len(options.paths) != 0 {
-			t.Errorf("%v: %+v, %v", args, options, err)
+		if _, err = parse(args...); err == nil || !strings.Contains(err.Error(), "decision 0597") {
+			t.Errorf("%v: err = %v", args, err)
 		}
 	}
 	for _, c := range []struct {
@@ -55,7 +54,7 @@ func TestPathContextParse(t *testing.T) {
 		{[]string{"--path"}, "expected one argument"},
 		{[]string{"--path", "a", "some task text"}, "corvint impact"},
 		{[]string{"--path", "a", "--task=fix the parser"}, "corvint impact"},
-		{[]string{"--worktree-overlay", "--path", "a"}, "--worktree-overlay"},
+		{[]string{"--worktree-overlay", "--path", "a"}, "decision 0597"},
 		{[]string{"--path", "--path", "a"}, "expected one argument"},
 		{[]string{"--path", "a", "--base", "X"}, "corvint impact"},
 		{[]string{"--path", "a", "--task", "t"}, "corvint impact"},
@@ -67,11 +66,6 @@ func TestPathContextParse(t *testing.T) {
 		if _, err := parse(c.args...); err == nil || !strings.Contains(err.Error(), c.mentions) {
 			t.Errorf("%v: err = %v, want one naming %q", c.args, err, c.mentions)
 		}
-	}
-	// The task form is unchanged and carries no paths.
-	options, err = parse("--task", "t")
-	if err != nil || options.task != "t" || len(options.paths) != 0 {
-		t.Errorf("task form: %+v, %v", options, err)
 	}
 }
 

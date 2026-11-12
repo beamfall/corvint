@@ -281,11 +281,10 @@ query, the lifecycle hook or a Go or TypeScript affected plan reached users unme
 - `PRB-V0-057`: After the seven scenarios of `PRB-V0-050`, the harness MUST measure, in order,
   over the fixture's code repository: `index-cold-build` (`index`, every sample after removing the
   repository's index snapshots, no unmeasured run); `index-warm-build` (`index --if-stale` against
-  a matching snapshot); `context-query` (`context --task <fixed task> --subject <Go path>`);
-  `affected-go` and `affected-ts` (`affected --path` on a fixed Go and TypeScript source). Each of
-  the last four takes one unmeasured run. The budgets file MUST bound exactly the ten scenarios in
-  that order. (Amended 2026-11-09 by decision 0594: the corpus MCP pair, the `lifecycle-hook`
-  adapter scenario and `--lsp off` left with the surfaces they measured. Amended by `PRB-V0-1014`: two watch scenarios follow the ten.)
+  a matching snapshot); `affected-go` and `affected-ts` (`affected --path` on a fixed Go and
+  TypeScript source). Each of the last three takes one unmeasured run. The budgets file MUST bound
+  exactly the nine scenarios in that order. (Amended 2026-11-09 by decision 0594: the corpus MCP pair, the `lifecycle-hook`
+  adapter scenario and `--lsp off` left with the surfaces they measured. Amended by `PRB-V0-1014`: two watch scenarios follow the nine. Amended 2026-11-11 by decision 0597: `context-query` left with the task packet it measured.)
 - `PRB-V0-058`: The fixture MUST generate the code repository deterministically (generator
   `corvint-perf-budget-fixture/2`, `/3` since `PRB-V0-1014`; the app and Ruby repositories are unchanged): `GoPackages` Go
   packages and `TSModules` TypeScript modules whose imports form a binary tree, a test file per Go
@@ -332,7 +331,7 @@ Status for `PRB-V0-1014`: accepted under the owner's standing auto-accept (2026-
 Owner statement (2026-11-09): the on-save answer must be Wallaby-like, at once; no budget scenario
 measured it, so a regression in the save-to-answer path reached users unmeasured.
 
-- `PRB-V0-1014`: After the ten scenarios of `PRB-V0-057`, the harness MUST measure, in order,
+- `PRB-V0-1014`: After the nine scenarios of `PRB-V0-057`, the harness MUST measure, in order,
   `watch-replan` and `watch-replan-self`: each is one measured `corvint watch --once --dry-run
   --index FILE` run, the whole save-to-answer path of a cold process (index load, working-tree diff,
   package listing, head-test parse, analysis and narrowing) with no test executed, one unmeasured
@@ -366,9 +365,8 @@ could never record a baseline). They amend `PRB-V0-029`, `PRB-V0-043` and `PRB-V
 - `PRB-V0-970`: `perf-budget --scenario ID`, repeatable, MUST measure and judge only the named
   `ScenarioIDs` scenarios (the two MCP scenarios are measured together and only the named ones
   are reported); the report lists them as `selected`, its checks cover only them, and an unknown or
-  repeated ID exits 2 before anything runs. A filter that selects `context-query`
-  without either index scenario MUST first build the code repository's index
-  snapshot once, unmeasured, as the index scenarios leave it in a whole run. Without `--scenario` the run is unchanged. With
+  repeated ID exits 2 before anything runs. (Amended 2026-11-11 by decision 0597: the
+  index setup for a filtered `context-query` left with that scenario.) Without `--scenario` the run is unchanged. With
   `--record-baseline`, a filtered run MUST replace only the selected scenarios' measurements in the
   existing baseline, each carrying `PRB-V0-053` provenance (the run's start time, its clean
   revision, the corvint executable's SHA-256 and the run's host), and MUST refuse, leaving the file

@@ -387,15 +387,6 @@ func inventoryDistributions(packages [][]string) []Distribution {
 	return output
 }
 
-func hasPyMdown(extensions []string) bool {
-	for _, extension := range extensions {
-		if strings.HasPrefix(extension, "pymdownx.") {
-			return true
-		}
-	}
-	return false
-}
-
 func createStateDirectories(root string) error {
 	for _, relative := range []string{"cache", "config", "data", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(root, relative), 0700); err != nil {
@@ -403,14 +394,6 @@ func createStateDirectories(root string) error {
 		}
 	}
 	return nil
-}
-
-func sortedInventory(packages [][]string) [][]string {
-	output := append([][]string(nil), packages...)
-	sort.Slice(output, func(left, right int) bool {
-		return strings.Join(output[left], "\x00") < strings.Join(output[right], "\x00")
-	})
-	return output
 }
 
 func environmentSHA256(inventory string, lock SourcePin, mkdocs, python FilePin, options DiscoverOptions) [32]byte {
@@ -442,6 +425,21 @@ func validateOptionDigests(options []OptionDigest) error {
 			return failure("mkdocs-config-authority-invalid", "MkDocs returned duplicate option ownership")
 		}
 		seen[option.Name] = struct{}{}
+	}
+	return nil
+}
+
+// validateTrustAttestation admits only a project-owned trust attestation bound to the discovered
+// environment; discovery runs the authoritative config load only after it passes.
+func validateTrustAttestation(environment Environment, trust EnvironmentTrustAttestation) error {
+	if trust.Profile != "corvint-doccompiler-environment-trust/0" {
+		return failure("environment-untrusted", "a project-owned environment trust attestation is required")
+	}
+	if trust.EnvironmentSHA256 != environment.Toolchain.EnvironmentSHA256 {
+		return failure("environment-untrusted", "trust attestation does not bind the discovered environment")
+	}
+	if strings.TrimSpace(trust.Authority) == "" || !revisionPattern.MatchString(trust.Revision) {
+		return failure("environment-untrusted", "trust attestation must name an authority and immutable revision")
 	}
 	return nil
 }

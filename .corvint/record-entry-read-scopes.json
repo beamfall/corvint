@@ -27,14 +27,14 @@
         ".corvint/changes/8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8.cem.json"
       ],
       "reason": "conformance/use-cases-v0/main_test.go testUCV0ProfileMigration validates the fixed ledger; validator.read follows its pinned receipt subjects, including only the listed sealed CEM. The ledger and receipt JSON inputs are included in the source binding.",
-      "sourceSha256": "f71f6635990df89014756bb4cfd3b3204ac8e3fccc0a4f83c0d5e22a716bac25"
+      "sourceSha256": "e9dfc2734d951db2369157395e691e143c242c5274045a93d73f3cb18fb3302c"
     },
     "go:github.com/Beamfall/corvint/internal/cem/wire": {
       "reads": [
         ".corvint/changes/"
       ],
       "reason": "internal/cem/wire/corpus_test.go corpusFailures calls os.ReadDir(dir) and parses every .cem.json; firstSealed also depends on directory order.",
-      "sourceSha256": "971978b93066d13c607bdcab4e4f8c07b75ec7c8a5649869c79cf70598d61335"
+      "sourceSha256": "ce3eafadd89da6e446d0cf69e2c82d8df9110e71724aaae8d8016b673018ff33"
     },
     "shell:script/batch-precheck_test.sh": {
       "reads": [],
@@ -59,7 +59,7 @@
     "shell:script/lane-scripts_test.sh": {
       "reads": [],
       "reason": "script/lane-scripts_test.sh uses fixed expected build-log messages in the lane-dispatch fixtures it creates in ld, a scratch repository, not this checkout's records.",
-      "sourceSha256": "f25e3760f5ef0f09625d105d5daf80424cf8a4610d72a9a340a1305414f87121"
+      "sourceSha256": "25a9334dad6a9381d396a3e0192666c96cb438911e6e36451b1a1979397c8ad1"
     },
     "shell:script/requirement-id-collisions_test.sh": {
       "reads": [],

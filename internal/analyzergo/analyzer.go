@@ -945,60 +945,6 @@ func decodedBase64Bytes(b []byte) int {
 	}
 	return n
 }
-func skipJSONValue(b []byte, start int) (int, bool) {
-	if start >= len(b) {
-		return 0, false
-	}
-	if b[start] == '"' {
-		end, _, _, ok := scanJSONString(b, start)
-		return end + 1, ok
-	}
-	if b[start] != '{' && b[start] != '[' {
-		i := start
-		for i < len(b) && !jsonDelimiter(b[i]) {
-			i++
-		}
-		return i, i > start
-	}
-	var closes [maxJSONDepth + 1]byte
-	depth := 1
-	if b[start] == '{' {
-		closes[0] = '}'
-	} else {
-		closes[0] = ']'
-	}
-	for i := start + 1; i < len(b); i++ {
-		if b[i] == '"' {
-			end, _, _, ok := scanJSONString(b, i)
-			if !ok {
-				return 0, false
-			}
-			i = end
-			continue
-		}
-		if b[i] == '{' || b[i] == '[' {
-			if depth == len(closes) {
-				return 0, false
-			}
-			if b[i] == '{' {
-				closes[depth] = '}'
-			} else {
-				closes[depth] = ']'
-			}
-			depth++
-		}
-		if b[i] == '}' || b[i] == ']' {
-			if b[i] != closes[depth-1] {
-				return 0, false
-			}
-			depth--
-			if depth == 0 {
-				return i + 1, true
-			}
-		}
-	}
-	return 0, false
-}
 func skipJSONSpace(b []byte, i int) int {
 	for i < len(b) && (b[i] == ' ' || b[i] == '\t' || b[i] == '\r') {
 		i++
@@ -1007,11 +953,6 @@ func skipJSONSpace(b []byte, i int) int {
 }
 func jsonDelimiter(b byte) bool {
 	return b == '{' || b == '}' || b == '[' || b == ']' || b == ',' || b == ':' || b == ' ' || b == '\t' || b == '\r'
-}
-func nextColon(b []byte, i int) bool {
-	for i++; i < len(b) && (b[i] == ' ' || b[i] == '\t' || b[i] == '\r'); i++ {
-	}
-	return i < len(b) && b[i] == ':'
 }
 func scanJSONString(b []byte, start int) (int, int, bool, bool) {
 	decoded, plain := 0, true
@@ -1730,10 +1671,6 @@ func credentialBearingImport(value string) bool {
 	return strings.Contains(authority, "@")
 }
 
-func go127MatchFile(name, body string) (bool, error) {
-	return go127MatchFileForTarget(name, body, "darwin", "arm64")
-}
-
 func go127MatchFileForTarget(name, body, goos, goarch string) (bool, error) {
 	_, reason := buildExprForTarget(body, goos, goarch)
 	if reason == "EXACT_BINDING_UNAVAILABLE" {
@@ -1950,9 +1887,6 @@ Lines:
 	return expr.String(), ""
 }
 
-func buildExpr(body string) (string, string) {
-	return buildExprForTarget(body, "darwin", "arm64")
-}
 func parseLegacyConstraints(lines []string) (constraint.Expr, error) {
 	var expr constraint.Expr
 	for _, line := range lines {
@@ -2083,12 +2017,6 @@ func collectBuildTags(expr constraint.Expr, tags *[maxBuildVariables]string, n *
 		return false
 	}
 }
-func itoa(n int) string {
-	if n >= 10 {
-		return string(rune('0'+n/10)) + string(rune('0'+n%10))
-	}
-	return string(rune('0' + n))
-}
 func releaseTags() []string {
 	return []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6", "go1.7", "go1.8", "go1.9", "go1.10", "go1.11", "go1.12", "go1.13", "go1.14", "go1.15", "go1.16", "go1.17", "go1.18", "go1.19", "go1.20", "go1.21", "go1.22", "go1.23", "go1.24", "go1.25", "go1.26", "go1.27"}
 }
@@ -2147,15 +2075,6 @@ func appendUint32(b []byte, n uint32) []byte {
 	var frame [4]byte
 	binary.BigEndian.PutUint32(frame[:], n)
 	return append(b, frame[:]...)
-}
-func add(c *candidate, f Fact) string {
-	prospective, reason := admitFact(c, f)
-	if reason != "" {
-		return reason
-	}
-	c.Facts = append(c.Facts, f)
-	c.outputBytes = prospective
-	return ""
 }
 func admitFact(c *candidate, f Fact) (int, string) {
 	if len(c.Facts) >= MaxFacts {
@@ -2314,7 +2233,6 @@ func h1(s string) bool {
 	b, e := base64.StdEncoding.DecodeString(s[3:])
 	return e == nil && len(b) == sha256.Size && base64.StdEncoding.EncodeToString(b) == s[3:]
 }
-func importPath(s string) bool { return logicalPath(s) }
 func factField(s string) bool {
 	if len(s) == 0 || len(s) > 4096 {
 		return false

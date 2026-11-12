@@ -3,14 +3,20 @@
 Owner: Russell Lewis
 Date: 2026-10-19
 Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114, V1-2124, V1-1908, V1-1925, V1-1478); V1-2842 and V1-2843 experimental under the standing lane auto-accept (2026-10-27)
-Delivery status: experimental
+Delivery status: experimental; actor authorization retired V1-4822
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
 owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224, V1-2039 / GitHub #1291, V1-2040 / GitHub #1292, V1-2041 / GitHub #1293, V1-2104 / GitHub #1339, V1-2108 / GitHub #1340, V1-2114 / GitHub #1339 and V1-2124 / GitHub #1366, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
+Retired slice (2026-11-11): V1-4822 retires the test-only actor authorization slice (TSA-V0-033 to
+TSA-V0-039); it had no caller outside its own tests. The shared Ruby logical-line reader it first
+carried stays live in `internal/testsource/ruby_lexical.go` for the RSpec, seed-parity and teardown
+readers. See `docs/build-log/2026-11-11-actor-auth-retirement.md`; restore the four
+`internal/testsource/actor_auth*.go` files from b55635262788687c3eea9a08a94378e4ab8856a4 to roll back.
+
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114, V1-2124, V1-1908, V1-1925, V1-1478); V1-2842 and V1-2843 experimental under the standing lane auto-accept (2026-10-27)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114, V1-2124, V1-1908, V1-1925, V1-1478); V1-2842 and V1-2843 experimental under the standing lane auto-accept (2026-10-27)/experimental; actor authorization retired V1-4822
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown`, `corvint tests citations` and `corvint tests example-join` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -265,12 +271,13 @@ Ticket V1-1770, GitHub #1115. A test that logs in as a fixture actor whose role 
 ability its request needs fails with a 403 that reads like an application bug. This slice finds
 that mismatch statically, before a run, for a literal subset of one stack: JS/TS fixtures and tests
 on the client side, and Rails routes, controllers and a CanCanCan-style `Ability` class on the
-server side. It is library-only (`testsource.ActorAuthorization`); it reads no declared role table,
+server side. Retired by V1-4822 (2026-11-11): the requirements below are kept as history and
+confer no delivered capability. It was library-only (`testsource.ActorAuthorization`); it read no declared role table,
 because the literal Ruby forms below are parsed directly. It lives in this spec rather than the
 test-validity or application-map specs because it is a static read of committed test source, like
 lint and duplicates, and it projects no runtime receipt.
 
-- `TSA-V0-033`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Actor-role resolution
+- `TSA-V0-033`: (retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Actor-role resolution
   MUST bind a request to a fixture actor only through literal forms. A fixture is an exported
   `function NAME(` or `const NAME = (...) =>` builder in a non-test JS/TS file whose body calls a
   user factory: a call whose callee chain names `user`, or whose arguments carry a `role:` key. The
@@ -282,7 +289,7 @@ lint and duplicates, and it projects no runtime receipt.
   In a test, `const V = [await] FIXTURE(...)` binds V, and the latest call whose name contains
   `login` or `signin` before the request, in the same test or before it outside every test, sets
   the actor from its `V.KEY` argument.
-- `TSA-V0-034`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Request-to-ability
+- `TSA-V0-034`: (retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Request-to-ability
   resolution MUST read a request as `X.get|post|put|patch|delete('/path')` inside a test, where a
   template substitution may fill a whole path segment and then matches only a dynamic route
   segment. A call on a receiver named like `request` whose path is anything else (a variable, a
@@ -292,7 +299,7 @@ lint and duplicates, and it projects no runtime receipt.
   literal `authorize! :action, Constant` in that action of `app/controllers/<controller>_controller.rb`.
   A check inside a nested block or a `rescue`/`else`/`when` clause, or after a statement that can
   leave the action early (`return`, `raise`, `fail`, `throw`), is conditional (`check-conditional`).
-- `TSA-V0-035`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Rule-set evaluation MUST
+- `TSA-V0-035`: (retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Rule-set evaluation MUST
   read `app/models/ability.rb` as a `class Ability` whose `initialize` calls `send(user.role)` (or
   `public_send`, optionally `.to_sym`), where each argument-free method is the rule set of the role
   it names, and a bare call to another rule set inside it is inheritance. A role holds an ability
@@ -303,20 +310,20 @@ lint and duplicates, and it projects no runtime receipt.
   `cannot` without starting with it (`return can ...`, `x ||= can ...`) and a control keyword such as
   `return` are unparsed, and any unparsed statement in the closure makes a grant or a denial UNKNOWN
   (`statement-unparsed`), because it could grant or revoke.
-- `TSA-V0-036`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A denied request MUST be
+- `TSA-V0-036`: (retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A denied request MUST be
   reported with status `UNAUTHORIZED` and code `ACTOR-UNAUTHORIZED`. The report names the test file,
   line and title, the method and path, the actor (fixture, key, role, where the role was seeded),
   the route and the check with their file:line, and `grantedBy`, the granting rule file:line of each
   lowest sufficient role. A lowest sufficient role holds the ability and inherits no other role
   that holds it. The report also lists `alternatives`, every other fixture actor whose resolved
   role holds the ability.
-- `TSA-V0-037`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) The report (schema
+- `TSA-V0-037`: (retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) The report (schema
   `corvint-tests-actor-authorization/0`) MUST read committed objects only at one revision, within
   the package's `MaxFiles` and `MaxFileBytes` bounds. It MUST list the closed set of supported input
   forms and every resolved fixture actor. It MUST be deterministic over the same inputs. Its verdict
   is `ACTOR_UNAUTHORIZED` when any request is unauthorized, else `UNKNOWN` when any is unknown, else
   `CLEAN`. An `AUTHORIZED` or `EXEMPT` request does not change the verdict.
-- `TSA-V0-038`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Every link that does not
+- `TSA-V0-038`: (retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Every link that does not
   resolve MUST make the request `UNKNOWN`, never authorized or unauthorized. The reason names the
   first failing link, with a file:line detail, from this closed set:
   - actor links: `actor-unbound`, `actor-not-literal`, `actor-key-not-user`, `actor-key-ambiguous`,
@@ -330,7 +337,7 @@ lint and duplicates, and it projects no runtime receipt.
     empty role), `inheritance-cycle`, `rule-conditional`, `rule-cannot`, `statement-unparsed`.
 
   Every request MUST carry one of the four statuses.
-- `TSA-V0-039`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A test that asserts a
+- `TSA-V0-039`: (retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A test that asserts a
   401, 403 or 422 status with `toBe`, `toEqual`, `toStrictEqual` or `toHaveStatus` on a numeric
   literal, not negated with `.not`, on a subject that is a response status (`x.status()`, `x.status`,
   `x.statusCode`, or the response itself for `toHaveStatus`), MUST have every request reported `EXEMPT` with reason `asserts-rejection` and the
@@ -349,7 +356,7 @@ evidence: the issue's assistant/manager repository as a synthetic Git fixture. T
 lowest role `manager` (admin excluded because it inherits manager), and alternative `beta.manager`.
 The manager pair is `AUTHORIZED`, the 403-asserting test is `EXEMPT`, and each closed UNKNOWN reason
 has its own case. No live qualification on a real suite was run (NOT_RUN). Rollback removes
-`internal/testsource/actor_auth*.go` and this section; nothing is persisted.
+`internal/testsource/actor_auth*.go` and this section; nothing is persisted. V1-4822 (2026-11-11) applied that rollback to the code; the section stays as history.
 
 ### Static test-validity rules (V1-1783, V1-1784)
 
@@ -1075,7 +1082,7 @@ record that one of the test's actions produced is still present, so the delete c
 owner's standing auto-accept (2026-10-11). Which actions produce which dependents comes from a
 project-owned side-effect declaration, never from a guess. Deriving that graph from the source of the
 system under test is a named residual. The reading reuses the TSA-V0-010 lexer and declaration model
-for JS/TS and the logical-line Ruby reader of TSA-V0-034 for RSpec.
+for JS/TS and the logical-line Ruby reader first written for TSA-V0-034, now `internal/testsource/ruby_lexical.go`, for RSpec.
 
 - `TSA-V0-110`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) `corvint tests teardown
   --files PATH[,PATH...] --declaration PATH [--receipt FILE ...] [--rev REV]` MUST read at most 256
@@ -2088,7 +2095,7 @@ No live qualification on a real suite was run (NOT_RUN). Rollback removes `rubyV
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-396 | `internal/testsource/actor_auth_rails.go`, `internal/testsource/teardown_reading.go` | `TestRSpecValueOpenersBalance`, `TestSourceValidityQualifiedSupportParse`, `TestTeardownConditionalCleanup` | experimental |
+| TSA-V0-396 | `internal/testsource/ruby_lexical.go`, `internal/testsource/teardown_reading.go` | `TestRSpecValueOpenersBalance`, `TestSourceValidityQualifiedSupportParse`, `TestTeardownConditionalCleanup` | experimental |
 | TSA-V0-397 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionUnreadSupportIsolated`, `TestSourceValidityQualifiedSupportParse` | experimental |
 
 ## Outcome, cleanup, input and vacuity rules (V1-1919, V1-1930, V1-1931, V1-1932)
@@ -3632,13 +3639,13 @@ No live qualification on a real suite was performed. The setup-select provider h
 | TSA-V0-030 | `internal/testsource/uistate.go`, `internal/testsource/git.go`, `internal/testsource/lint.go` | `TestOneShotUnknown`, `TestLintFollowsImportedHelpers`, `TestCrossVariantFollowing`, `TestLintImportedHelperUncertainty`, `TestLintImportBudgetIsCumulative` | experimental |
 | TSA-V0-031 | `internal/testsource/variants.go`, `internal/testsource/uistate.go`, `cmd/corvint/tests.go` | `TestLintRuleFixtures`, `TestCrossVariantEvidence`, `TestCrossVariantFollowing`, `TestLintMultiLineChangeScope`, `TestTestsLintAdvisoryCLI` | experimental |
 | TSA-V0-032 | `internal/testsource/variants.go`, `internal/testsource/lint.go`, `cmd/corvint/tests.go` | `TestCrossVariantEvidence`, `TestNewRuleSuppression`, `TestLintFollowsImportedHelpers`, `TestTestsLintAdvisoryCLI` | experimental |
-| TSA-V0-033 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationUnknownLinks`, `TestActorAuthorizationReviewRegressions` | experimental |
-| TSA-V0-034 | `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationUnknownLinks`, `TestActorAuthorizationReviewRegressions` | experimental |
-| TSA-V0-035 | `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationInheritance`, `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationReviewRegressions` | experimental |
-| TSA-V0-036 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationInheritance` | experimental |
-| TSA-V0-037 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationDeterministic` | experimental |
-| TSA-V0-038 | `internal/testsource/actor_auth.go`, `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationUnknownLinks`, `TestActorAuthorizationReviewRegressions` | experimental |
-| TSA-V0-039 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationReviewRegressions` | experimental |
+| TSA-V0-033 | retired by V1-4822 (source removed after b55635262) | `TestActorAuthorizationIssueRepro` (removed), `TestActorAuthorizationUnknownLinks` (removed), `TestActorAuthorizationReviewRegressions` (removed) | retired |
+| TSA-V0-034 | retired by V1-4822 (source removed after b55635262) | `TestActorAuthorizationIssueRepro` (removed), `TestActorAuthorizationUnknownLinks` (removed), `TestActorAuthorizationReviewRegressions` (removed) | retired |
+| TSA-V0-035 | retired by V1-4822 (source removed after b55635262) | `TestActorAuthorizationInheritance` (removed), `TestActorAuthorizationIssueRepro` (removed), `TestActorAuthorizationReviewRegressions` (removed) | retired |
+| TSA-V0-036 | retired by V1-4822 (source removed after b55635262) | `TestActorAuthorizationIssueRepro` (removed), `TestActorAuthorizationInheritance` (removed) | retired |
+| TSA-V0-037 | retired by V1-4822 (source removed after b55635262) | `TestActorAuthorizationIssueRepro` (removed), `TestActorAuthorizationDeterministic` (removed) | retired |
+| TSA-V0-038 | retired by V1-4822 (source removed after b55635262) | `TestActorAuthorizationUnknownLinks` (removed), `TestActorAuthorizationReviewRegressions` (removed) | retired |
+| TSA-V0-039 | retired by V1-4822 (source removed after b55635262) | `TestActorAuthorizationIssueRepro` (removed), `TestActorAuthorizationReviewRegressions` (removed) | retired |
 | TSA-V0-045 | `internal/testsource/validity.go` | `TestIsolatedInSerialForms`, `TestIsolatedInSerialTagAndQuotedKey` | experimental |
 | TSA-V0-046 | `internal/testsource/validity.go` | `TestIsolatedInSerialNegatives`, `TestIsolatedInSerialTagAndQuotedKey` | experimental |
 | TSA-V0-047 | `internal/testvalidity/source_rules.go`, `internal/testsource/validity.go` | `TestIsolatedInSerialForms`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
@@ -4114,7 +4121,7 @@ beyond the derived index, which the schema bump rebuilds.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-460 | `internal/contextindex/analyzer_bounds.go` | `TestAnalyzerBoundsFailClosed` | experimental |
-| TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/setup_shared.go`, `internal/contextindex/registry_dialect.go`, `internal/contextindex/ruby_autoload.go`, `internal/contextindex/ruby_verification.go` | `TestAnalyzerBoundsFailClosed`, `TestRubyNestingOverflowIsBounded`, `TestOversizedRegistryManifestFailsClosed`, `TestSharedExhaustedBranchOutranksLaterFind`, `TestSharedLookupBoundAtProductionValue`, `TestNGIV0052RSpecNeedsDeclaredGem` | experimental |
+| TSA-V0-460 | `internal/contextindex/analyzer_bounds.go` | `TestAnalyzerBoundsFailClosed` (removed) | experimental |
+| TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/setup_shared.go`, `internal/contextindex/registry_dialect.go`, `internal/contextindex/ruby_autoload.go`, `internal/contextindex/ruby_verification.go` | `TestAnalyzerBoundsFailClosed` (removed), `TestRubyNestingOverflowIsBounded`, `TestOversizedRegistryManifestFailsClosed`, `TestSharedExhaustedBranchOutranksLaterFind`, `TestSharedLookupBoundAtProductionValue`, `TestNGIV0052RSpecNeedsDeclaredGem` | experimental |
 | TSA-V0-462 | `internal/contextindex/setup_shared.go` | `TestSharedResolutionCacheSkipsCycleMarkers`, `TestSharedExhaustedBranchOutranksLaterFind` | experimental |
-| TSA-V0-463 | `internal/contextindex/analyzer_bounds_test.go` | `TestAnalyzerBoundsFailClosed` | experimental |
+| TSA-V0-463 | `internal/contextindex/analyzer_bounds_test.go` | `TestAnalyzerBoundsFailClosed` (removed) | experimental |

@@ -202,18 +202,6 @@ func mergeIdentGraphArcs(nodes uint32, arcs []identGraphArc, names []string) *id
 	return graph
 }
 
-// edges returns node's CSR range.
-func (graph *identGraph) edges(node uint32) (int, int) {
-	return int(graph.Offsets[node]), int(graph.Offsets[node+1])
-}
-
-// name returns an edge label's identifier and whether the edge's source
-// node references it (true) or defines it (false).
-func (graph *identGraph) name(label uint32) (string, bool) {
-	id := label >> 1
-	return graph.NameBytes[graph.NameOffsets[id]:graph.NameOffsets[id+1]], label&identGraphReferenceBit != 0
-}
-
 // check refuses a decoded graph that would index outside its arrays or name a
 // node outside the sourceCount paths of the term table it rides in.
 func (graph *identGraph) check(sourceCount int) error {

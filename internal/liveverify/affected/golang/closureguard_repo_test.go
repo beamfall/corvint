@@ -36,7 +36,8 @@ func TestClosureGuardIsProvenImportGraphReader_AFPV09600(t *testing.T) {
 	}
 	source := affected.DiskSource(root)
 	owner := module{dir: ".", path: "github.com/Beamfall/corvint", listed: true}
-	unit, _, _, _, _, err := Language{}.observeDirectory(source, owner, directory, files, []string{directory}, map[string]bool{}, &readKindAliases{})
+	var contingent []contingentRead
+	unit, _, _, _, _, err := Language{}.observeDirectory(source, owner, directory, files, []string{directory}, map[string]bool{}, &readKindAliases{}, &contingent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,6 +49,12 @@ func TestClosureGuardIsProvenImportGraphReader_AFPV09600(t *testing.T) {
 	}
 	units := []affected.Unit{unit}
 	scans := goListUnits(source, units, []string{directory}, map[string]module{directory: owner})
+	// AFP-V0-3664: its runtime.Caller roots are only the directories of
+	// these listings, so the proof keeps it bounded.
+	applyContingentReads(units, [][]contingentRead{contingent}, scans)
+	if len(contingent) == 0 || units[0].UnboundedReads != "" || units[0].LocatesRoot {
+		t.Fatalf("internal/closureguard: %d contingent reads, unbounded reads %q", len(contingent), units[0].UnboundedReads)
+	}
 	if units[0].ImportGraphReadsFiles {
 		t.Fatalf("internal/closureguard is an unproven import-graph reader; scans=%+v", scans[0])
 	}

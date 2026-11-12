@@ -180,7 +180,7 @@ handback. Full repository and external interoperability qualification are outsid
 | DTL-V0-006 | Makefile; script/doc-gate-timed.sh; script/doc-gates-summary.sh (DOC_GATE_JOBS guard) | TestDTLV0006TimingPreservesFailure; `make batch-precheck-test` group `8b` (empty/zero/non-integer DOC_GATE_JOBS refused); measured per-target timings |
 | DTL-V0-007 | script/go-test-shard.sh; script/heavy.sh | TestDTLV0007ShardCoverageAndFailure; TestDTLV0007ShardInventoryRealPolicy; TestDTLV0007InheritedGoflagsKeepCoverage; TestDTLV0007ListAliasAndArgsRefused (including `--` after `go test`); retained real selected-failure control |
 | DTL-V0-008 | .corvint/unbounded-readers.json | Source audit in docs/build-log/2026-11-03-dogtools.md; confined admission NOT_PRODUCED |
-| DTL-V0-009 | cmd/corvint/test.go | TestDTLV0009TestFormatJSON (removed) |
+| DTL-V0-009 | cmd/corvint/test.go | TestDTLV0009TestFormatJSON (removed) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
 | DTL-V0-010 | .github/testconfine/cmd/main.go; lane guide | TestDTLV0010MissingRootNamesRecovery in .github/testconfine/cmd/main_test.go; retained uncommitted path controls |
 | DTL-V0-011 | internal/corerelease/export.go (moved from internal/companionrelease by decision 0594) | TestDTLV0011StderrOnce |
 | DTL-V0-012 | script/tracked-ignored-check.sh; Makefile | TestDTLV0012TrackedIgnoredFault |

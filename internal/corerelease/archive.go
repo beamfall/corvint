@@ -4,8 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"sort"
 	"time"
@@ -90,11 +88,6 @@ func buildTarGz(entries []ArchiveEntry) ([]byte, error) {
 // archiveSizeLimit is maxRetainedArchiveBytes outside tests; a test lowers it
 // to drive the refusal without allocating the full bound.
 var archiveSizeLimit int64 = maxRetainedArchiveBytes
-
-func sha256Hex(data []byte) string {
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
-}
 
 // buildTarGzTwice calls build twice — each call independently reconstructs
 // the entry set, mirroring how buildComponentTwice reruns go build from

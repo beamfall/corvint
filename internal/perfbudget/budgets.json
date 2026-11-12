@@ -163,25 +163,6 @@
       ]
     },
     {
-      "id": "context-query",
-      "samples": 5,
-      "targets": [],
-      "ceilings": [
-        {
-          "metric": "p95_wall_ms",
-          "limit": 1000,
-          "status": "enforced",
-          "reason": "regression ceiling (PRB-V0-059): 3x the baseline p95 (262 ms, recorded 2026-10-28T13:18:29Z with corvint 8501edc5 on a contended host), rounded up to 500 ms; not a product target"
-        },
-        {
-          "metric": "peak_rss_bytes",
-          "limit": 134217728,
-          "status": "enforced",
-          "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (64 MiB), rounded up to 64 MiB; not a product target"
-        }
-      ]
-    },
-    {
       "id": "affected-go",
       "samples": 5,
       "targets": [],
@@ -601,66 +582,6 @@
         "p50_wall_ms": 47.96,
         "p95_wall_ms": 49.49,
         "peak_rss_bytes": 46530560,
-        "provenance": {
-          "recorded_at": "2026-10-28T13:18:29Z",
-          "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",
-          "executable_sha256": "ef9977c4f43ab7e8eeac22f701c9f9c9c6948d72bfc83ea14d97e0a7607c1645",
-          "host": {
-            "goos": "darwin",
-            "goarch": "arm64",
-            "go_version": "go1.27.3",
-            "cores": 12,
-            "load_before": [
-              65.76,
-              67.33,
-              48.51
-            ],
-            "load_after": [
-              46.83,
-              62.77,
-              47.41
-            ],
-            "contended": true
-          }
-        }
-      },
-      {
-        "id": "context-query",
-        "command": [
-          "corvint",
-          "--root",
-          "<fixture>/code-app",
-          "context",
-          "--task",
-          "change Word0002 in pkg/p0002 so the invoice ledger word is reported",
-          "--subject",
-          "pkg/p0002/p0002.go"
-        ],
-        "samples": [
-          {
-            "wall_ms": 243.53,
-            "peak_rss_bytes": 61259776
-          },
-          {
-            "wall_ms": 236.76,
-            "peak_rss_bytes": 60243968
-          },
-          {
-            "wall_ms": 261.91,
-            "peak_rss_bytes": 61784064
-          },
-          {
-            "wall_ms": 242.29,
-            "peak_rss_bytes": 60456960
-          },
-          {
-            "wall_ms": 262.09,
-            "peak_rss_bytes": 67256320
-          }
-        ],
-        "p50_wall_ms": 243.53,
-        "p95_wall_ms": 262.09,
-        "peak_rss_bytes": 67256320,
         "provenance": {
           "recorded_at": "2026-10-28T13:18:29Z",
           "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",

@@ -372,6 +372,8 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	}
 	measured := make([]Result, len(set.Changes))
 	errs := make([]error, len(set.Changes))
+	// ASC-V0-782: each replayed change's wall seconds per step, reported on stderr only.
+	timings := make([]*stepTimes, len(set.Changes))
 	// ASC-V0-778: a change whose record matches its exact inputs is read, not replayed.
 	// TSP-V0-7330: the guard is DIR's trusted copy, read once; its bytes join the cache key.
 	// A guard that cannot be read is left out of tmp, so every change records an `unreadable:`
@@ -399,6 +401,9 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	} else {
 		fmt.Fprintf(os.Stderr, "selection-baseline: REUSE %d of %d change results recorded for byte-identical planner, selector, tool, change, costs, go, git and environment, key %s, in %s (SELECTION_BASELINE_CACHE=off replays every change)\n", reused, len(set.Changes), hex.EncodeToString(cache.stamp), cache.dir)
 	}
+	var workers int
+	var replayStart time.Time
+	var replayWall time.Duration
 	if len(pending) > 0 {
 		tmp, err := os.MkdirTemp("", "selection-baseline-")
 		if err != nil {
@@ -414,6 +419,7 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 		// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own local clone, so
 		// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
 		jobs := replayJobs(len(pending))
+		workers = jobs
 		clones := make(chan string, jobs)
 		for i := range jobs {
 			clone := filepath.Join(tmp, fmt.Sprintf("repo%d", i))
@@ -423,6 +429,7 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 			clones <- clone
 		}
 		var wg sync.WaitGroup
+		replayStart = time.Now()
 		for _, i := range pending {
 			c := set.Changes[i]
 			wg.Add(1)
@@ -430,7 +437,8 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 				defer wg.Done()
 				clone := <-clones
 				defer func() { clones <- clone }()
-				measured[i], errs[i] = measure(ctx, clone, tmp, guard, module, corvint, selector, c, costs)
+				timings[i] = &stepTimes{}
+				measured[i], errs[i] = measure(ctx, clone, tmp, guard, module, corvint, selector, c, costs, timings[i])
 				if errs[i] == nil && cache != nil && cacheable(measured[i]) {
 					if err := cache.store(keys[i], measured[i]); err != nil {
 						fmt.Fprintf(os.Stderr, "selection-baseline: result cache record for %s not written: %v\n", c.ID, err)
@@ -439,6 +447,7 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 			}()
 		}
 		wg.Wait()
+		replayWall = time.Since(replayStart)
 		if cache != nil {
 			cache.prune()
 		}
@@ -450,6 +459,12 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 		r.Results = append(r.Results, res)
 		fmt.Fprintf(os.Stderr, "selection-baseline: %s plan=%s verdict=%s ci=%s packages=%d cost=%.3f whole=%d misses=%d test=%s test-extra=%d test-omitted=%d test-misses=%d\n",
 			res.ID, res.PlanScope, res.Verdict, res.CIScope, len(res.Packages), res.CostShare, res.WholePackages, len(res.Misses), res.TestScope, len(res.TestExtra), len(res.TestOmitted), len(res.TestMisses))
+		if timings[i] != nil {
+			fmt.Fprintf(os.Stderr, "selection-baseline: TIMING %s %s\n", res.ID, timings[i])
+		}
+	}
+	if len(pending) > 0 {
+		fmt.Fprintln(os.Stderr, timingSummary(set.Changes, timings, workers, replayWall))
 	}
 	r.Summary = Summarize(r.Results)
 	r.Verdicts = append(Moved(set.Changes, r.Results), verdictLines(r.Summary, set.Floor)...)
@@ -486,20 +501,23 @@ func defaultReplayJobs(n, cpus int, override string) int {
 	return max(1, min(jobs, n))
 }
 
-func measure(ctx context.Context, clone, tmp, guard, module, corvint, selector string, c change, costs map[string]float64) (Result, error) {
+func measure(ctx context.Context, clone, tmp, guard, module, corvint, selector string, c change, costs map[string]float64, steps *stepTimes) (Result, error) {
 	res := Result{ID: c.ID, Kind: c.Kind, Base: c.Base, Head: c.Head, PR: c.PR, Failures: c.Failures}
+	start := time.Now()
 	if _, err := run(ctx, clone, "git", "checkout", "--quiet", "--force", "--detach", c.Head); err != nil {
 		return res, err
 	}
 	if _, err := run(ctx, clone, "git", "clean", "-ffdxq"); err != nil {
 		return res, err
 	}
+	start = steps.mark("checkout", start)
 	// The replay runs one current binary over historical trees on purpose, so
 	// the AFP-V0-9730 stale-binary refusal is accepted; the plan stays marked.
 	raw, err := run(ctx, clone, corvint, "affected", "--base", c.Base, "--accept-stale-binary")
 	if err != nil {
 		return res, err
 	}
+	start = steps.mark("affected", start)
 	var p plan
 	if err := json.Unmarshal([]byte(raw), &p); err != nil {
 		return res, fmt.Errorf("plan: %w", err)
@@ -512,10 +530,12 @@ func measure(ctx context.Context, clone, tmp, guard, module, corvint, selector s
 	if err != nil {
 		return res, err
 	}
+	start = steps.mark("selector", start)
 	manifestPath := filepath.Join(tmp, c.ID+".manifest.json")
 	if err := dryRunManifest(ctx, clone, corvint, c.Base, manifestPath); err != nil {
 		return res, err
 	}
+	start = steps.mark("test", start)
 	var m manifest
 	data, err := os.ReadFile(manifestPath)
 	if err == nil {
@@ -527,6 +547,7 @@ func measure(ctx context.Context, clone, tmp, guard, module, corvint, selector s
 	m.nested = nestedModuleUnits(clone, module, m.Excluded)
 	var mapped []string
 	res.GithubChange, res.GithubInputs, mapped = githubGuard(ctx, clone, guard, c.Base, c.Head)
+	start = steps.mark("guard", start)
 	fillPlan(&res, p)
 	fillVerdict(&res, audit, costs)
 	applyMappedInputs(&res, module, mapped, costs)
@@ -540,6 +561,7 @@ func measure(ctx context.Context, clone, tmp, guard, module, corvint, selector s
 			if err != nil {
 				return res, fmt.Errorf("%s: %w", c.ID, err)
 			}
+			steps.mark("universe", start)
 		}
 		if err := contractAgreement(audit, m, universe); err != nil {
 			return res, fmt.Errorf("%s: %w", c.ID, err)

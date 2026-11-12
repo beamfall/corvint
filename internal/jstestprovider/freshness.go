@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"reflect"
-	"strconv"
 
 	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/secretscreen"
@@ -125,5 +124,3 @@ func freshnessProjections(r Receipt) []testvalidity.Projection {
 	}
 	return out
 }
-
-func freshProcessLabel(p FreshProcessIdentity) string { return strconv.Itoa(p.PID) + ":" + p.Start }

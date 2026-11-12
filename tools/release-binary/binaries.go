@@ -38,7 +38,9 @@ type Target struct {
 func (t Target) id() string { return t.GOOS + "/" + t.GOARCH }
 
 // Binary is one cmd/ executable. Role product means it is released as its own archive; role
-// support means release tooling that is built explicitly and never archived.
+// support means release tooling that is built explicitly and never archived; role withheld means
+// an executable the accepted plan removes or leaves without a 1.0 verdict: it stays classified
+// but is never selected, built or archived (ARTIFACT-BIN-V0-520).
 // Stamp is how the binary carries its release identity: "" (the default) means its main
 // package declares the `-X` stamp variables the release builder sets and `build` checks that
 // they are declared; "none" means the binary carries no stamp (an analyzer's `--version` is a
@@ -159,8 +161,8 @@ func (c Catalog) validate() error {
 		if binary.Package != "./cmd/"+binary.Name {
 			return fmt.Errorf("binary %q: package must be ./cmd/%s, found %q", binary.Name, binary.Name, binary.Package)
 		}
-		if binary.Role != "product" && binary.Role != "support" {
-			return fmt.Errorf("binary %q: role must be product or support, found %q", binary.Name, binary.Role)
+		if binary.Role != "product" && binary.Role != "support" && binary.Role != "withheld" {
+			return fmt.Errorf("binary %q: role must be product, support or withheld, found %q", binary.Name, binary.Role)
 		}
 		if !decisionPattern.MatchString(binary.Decision) {
 			return fmt.Errorf("binary %q cites no accepted decision (want four digits, found %q)", binary.Name, binary.Decision)
@@ -169,11 +171,11 @@ func (c Catalog) validate() error {
 			return fmt.Errorf("binary %q: stamp must be omitted or none, found %q", binary.Name, binary.Stamp)
 		}
 		if binary.Stamp == "none" && binary.Role != "product" {
-			return fmt.Errorf("binary %q: a support binary has no stamp rule", binary.Name)
+			return fmt.Errorf("binary %q: a %s binary has no stamp rule", binary.Name, binary.Role)
 		}
 		if binary.VersionSet != "" {
 			if binary.Role != "product" {
-				return fmt.Errorf("binary %q: a support binary has no version set", binary.Name)
+				return fmt.Errorf("binary %q: a %s binary has no version set", binary.Name, binary.Role)
 			}
 			if _, declared := c.VersionSets[binary.VersionSet]; !declared {
 				return fmt.Errorf("binary %q names undeclared version set %q", binary.Name, binary.VersionSet)
@@ -206,7 +208,7 @@ func (c Catalog) checkAgainstTree(root string) error {
 	listed := c.names(func(Binary) bool { return true })
 	for name := range inTree {
 		if !listed[name] {
-			problems = append(problems, "cmd/"+name+" is not classified in the catalog as product or support")
+			problems = append(problems, "cmd/"+name+" is not classified in the catalog as product, support or withheld")
 		}
 	}
 	if len(problems) > 0 {
@@ -233,6 +235,14 @@ func (c Catalog) find(name string) (Binary, bool) {
 		}
 	}
 	return Binary{}, false
+}
+
+// refuseUnreleased names why a known binary that is not a product is never released.
+func refuseUnreleased(binary Binary) error {
+	if binary.Role == "withheld" {
+		return fmt.Errorf("withheld-binary: %q is withheld from release by decision %s (the accepted plan does not ship it)", binary.Name, binary.Decision)
+	}
+	return fmt.Errorf("support-binary: %q is release tooling and is never released", binary.Name)
 }
 
 // products returns the product binaries in catalog order; set "" means every product.

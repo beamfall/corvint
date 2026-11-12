@@ -54,6 +54,7 @@
         "corvint [--root PATH] affected [--full] --snapshot RECEIPT",
         "corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH",
         "corvint [--root PATH] affected [--full | --summary] [--require-clean] --base FULL_COMMIT_ID [--format json|text] [--fail-fast-order]",
+        "corvint [--root PATH] affected [--full | --summary] --base FULL_COMMIT_ID --head COMMIT [--format json|text] [--accept-stale-binary]",
         "corvint [--root PATH] affected --base FULL_COMMIT_ID --line-index FILE [--line-test-timeout DURATION] [--line-exec PATH]",
         "corvint [--root PATH] affected [--base FULL_COMMIT_ID] --playwright-config PATH [--playwright-discovery FILE] [--playwright-env NAME[=VALUE] ...]",
         "corvint [--root PATH] affected --ownership-audit",
@@ -71,6 +72,7 @@
         "--fail-fast-order",
         "--format",
         "--full",
+        "--head",
         "--line-exec",
         "--line-index",
         "--line-test-timeout",
@@ -496,26 +498,18 @@
         "context"
       ],
       "command": "corvint context",
-      "summary": "Compile the task-context packet: the files to read for one task",
+      "summary": "Print the path brief of a file or directory",
       "usage": [
-        "corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]",
-        "corvint [--root PATH] context --task TEXT --subject PATH --instruction-host HOST --instruction-host-version VERSION --instruction-cwd DIR --instruction-profile default",
-        "corvint [--root PATH] context TEXT [...]   (one positional TEXT is --task TEXT)",
         "corvint [--root PATH] context --path PATH [--path PATH ...]"
       ],
       "flags": [
-        "--instruction-cwd",
-        "--instruction-host",
-        "--instruction-host-version",
-        "--instruction-profile",
-        "--limit",
         "--path",
-        "--root",
-        "--subject",
-        "--task"
+        "--root"
       ],
-      "required": [],
-      "example": "corvint context --task TEXT",
+      "required": [
+        "--path PATH"
+      ],
+      "example": "corvint context --path PATH",
       "help": "corvint context --help"
     },
     {
@@ -535,42 +529,6 @@
       ],
       "example": "corvint docs SUBCOMMAND",
       "help": "corvint docs --help"
-    },
-    {
-      "path": [
-        "feature"
-      ],
-      "command": "corvint feature",
-      "summary": "Compile the implemented experimental feature context slice",
-      "usage": [
-        "corvint [--root PATH] feature FEATURE_ID [--limit N] [--budget-bytes N]"
-      ],
-      "flags": [
-        "--budget-bytes",
-        "--limit",
-        "--root"
-      ],
-      "required": [
-        "FEATURE_ID"
-      ],
-      "example": "corvint feature FEATURE_ID",
-      "help": "corvint feature --help"
-    },
-    {
-      "path": [
-        "features"
-      ],
-      "command": "corvint features",
-      "summary": "Experimental inferred repository guidance: features, overview and review",
-      "usage": [
-        "corvint [--root PATH] features"
-      ],
-      "flags": [
-        "--root"
-      ],
-      "required": [],
-      "example": "corvint features",
-      "help": "corvint features --help"
     },
     {
       "path": [
@@ -700,7 +658,8 @@
         "corvint [--root PATH] impact [--limit N] [--provider FILE]... [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]... [--language-profile non-go-syntax-v0] [--require-clean] [--producer] PATH...",
         "corvint [--root PATH] impact --capabilities",
         "corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N] [--range-profile expanded-256]",
-        "corvint impact --app-root DIR --test-root ALIAS=ABSOLUTE_ROOT --manifest FILE --base COMMIT [--manifest-repo ALIAS] [--at REV] [--test-at REV] [--ledger FILE]"
+        "corvint impact --app-root DIR --test-root ALIAS=ABSOLUTE_ROOT --manifest FILE --base COMMIT [--manifest-repo ALIAS] [--at REV] [--test-at REV] [--ledger FILE]",
+        "corvint impact command."
       ],
       "flags": [
         "--app-root",
@@ -827,26 +786,10 @@
     },
     {
       "path": [
-        "overview"
-      ],
-      "command": "corvint overview",
-      "summary": "Experimental inferred repository guidance: features, overview and review",
-      "usage": [
-        "corvint [--root PATH] overview"
-      ],
-      "flags": [
-        "--root"
-      ],
-      "required": [],
-      "example": "corvint overview",
-      "help": "corvint overview --help"
-    },
-    {
-      "path": [
         "review"
       ],
       "command": "corvint review",
-      "summary": "Experimental inferred repository guidance: features, overview and review",
+      "summary": "Experimental change review: affected plan and local branch overlap",
       "usage": [
         "corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]"
       ],

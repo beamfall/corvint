@@ -338,7 +338,9 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 				toolchain = true
 			}
 			if gitWalksTree(plain, word, args, privateRoots, private) {
+				// A git walk is no name-listing read (AFP-V0-9961).
 				treeWalk = true
+				contentWalk = true
 			}
 			switch {
 			case word == "source" || word == ".":
@@ -393,7 +395,8 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 			}
 		}
 	}
-	listings := nameListingAdmitted(parsed, test)
+	firstLine, _, _ := strings.Cut(text, "\n")
+	listings := nameListingAdmitted(parsed, firstLine, test)
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
 	if builds && !test {
@@ -422,7 +425,7 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		unit.UnboundedNamesOnly = listings && !contentWalk
 	}
 	unit.PlacesFileNames = placesFileNames(commands, len(parsed.commands), resolve.placement(test && !strings.HasSuffix(relative, ".bats")))
-	tokens, globs, listed := pathTokens(parsed, temp, test, listings, !redefinesUtilities(parsed, text))
+	tokens, globs, listed := pathTokens(parsed, temp, test, !redefinesUtilities(parsed, text), listings)
 	unit.PathGlobs = sortedKeys(globs)
 	if len(tokens)+len(globs) > maxPathTokens {
 		unit.PathGlobs = nil
@@ -1562,7 +1565,7 @@ func underTempRoot(value string, roots map[string]bool) bool {
 // this file; when a function, alias, hash, enable or PATH assignment may make
 // them run something else, readWords drops none of their operands
 // (AFP-V0-9977).
-func pathTokens(parsed script, temp map[string]bool, test, listings, utilities bool) (map[string]bool, map[string]bool, map[string]bool) {
+func pathTokens(parsed script, temp map[string]bool, test, utilities, listings bool) (map[string]bool, map[string]bool, map[string]bool) {
 	tokens, globs := map[string]bool{}, map[string]bool{}
 	content, names := map[string]bool{}, map[string]bool{}
 	held := content

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Beamfall/corvint/internal/langplugin/runnernames"
 
 	"github.com/Beamfall/corvint/internal/testrunner"
 )
@@ -79,14 +78,16 @@ func (p absentPlugin) Evidence(context.Context, EvidenceRequest) ([]NativeEviden
 }
 
 // SelectionPlugin exposes registered selection pieces. Bound execution inputs
-// still come from core factories; lookup confers no qualification.
+// still come from core factories; lookup confers no qualification. The plugin
+// comes from the registering family's table row, never from a runner name the
+// registry names itself (AFP-V0-9985).
 func SelectionPlugin(runner string) (RunnerPlugin, bool) {
-	if _, ok := Lookup(runner); !ok {
+	family, ok := Lookup(runner)
+	if !ok {
 		return nil, false
 	}
-	switch runner {
-	case runnernames.RunnerRspec, runnernames.RunnerMinitest, runnernames.RunnerTestUnit, runnernames.RunnerRailsTest:
-		return &RubyPlugin{key: testrunner.InventoryKey{Runner: runner}}, true
+	if family.Selection != nil && family.SelectionRunners != nil && has(family.SelectionRunners(), runner) {
+		return family.Selection(runner), true
 	}
 	return absentPlugin{runner}, true
 }

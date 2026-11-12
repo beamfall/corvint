@@ -125,7 +125,13 @@ func TestBaselineReplayParallelBytesASDV0925(t *testing.T) {
 			t.Fatal(err)
 		}
 		reports = append(reports, data)
-		progress = append(progress, lines)
+		// ASC-V0-782: the TIMING lines carry wall seconds and the worker count, so they
+		// differ between runs by design; every other progress byte must not.
+		kept, timing := splitTimingLines(lines)
+		if want := len(set.Changes) + 1; timing != want {
+			t.Fatalf("jobs=%s: %d TIMING lines, want %d (one per replayed change and the summary)\n%s", jobs, timing, want, lines)
+		}
+		progress = append(progress, kept)
 		for i, res := range result.Results {
 			if res.ID != set.Changes[i].ID {
 				t.Fatalf("result %d=%s", i, res.ID)
@@ -149,4 +155,18 @@ func TestBaselineReplayParallelBytesASDV0925(t *testing.T) {
 	if finished("second") >= finished("first") {
 		t.Fatal("fixture did not complete out of order")
 	}
+}
+
+// splitTimingLines removes the ASC-V0-782 TIMING lines from progress and counts them.
+func splitTimingLines(progress []byte) ([]byte, int) {
+	var kept bytes.Buffer
+	count := 0
+	for _, line := range bytes.SplitAfter(progress, []byte("\n")) {
+		if bytes.HasPrefix(line, []byte("selection-baseline: TIMING ")) {
+			count++
+			continue
+		}
+		kept.Write(line)
+	}
+	return kept.Bytes(), count
 }

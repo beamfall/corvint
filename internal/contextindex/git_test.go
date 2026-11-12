@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/Beamfall/corvint/internal/execfile"
-	"github.com/Beamfall/corvint/internal/gitrun"
 	"io"
 	"os"
 	"os/exec"
@@ -15,6 +13,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // gitBlobHashAllocationPayload is deliberately constructed before benchmark

@@ -690,6 +690,21 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		}
 		builder.evaluated = builder.evaluated || expander.evaluated
 		driverMergeReasons(&builder.evaluatedBy, expander.evaluatedBy)
+		// AFP-V0-3600: an evaluated target whose every make value can reach
+		// only a GOCACHE value runs literal text, so the AFP-V0-3122 hedge
+		// guards no missed alternative. Only a whole-tree reader (AFP-V0-9401)
+		// qualifies: every dirty path selects it and its dependents through
+		// its file-set edge, so no read outside its recorded edges, which
+		// the hedge also covers (AFP-V0-9051), can be missed. It keeps the
+		// proof's edges too.
+		if builder.evaluated && builder.uncertified && builder.readsTree && !builder.computed && !shared.evaluated && !shared.uncertified {
+			if scans, ok := registry.evaluatedCacheOnly(parsed, rule, target); ok {
+				builder.evaluated = false
+				for _, scan := range scans {
+					builder.merge(registry, scan)
+				}
+			}
+		}
 		units = append(units, registry.unit(builder))
 	}
 	return units

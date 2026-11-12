@@ -75,20 +75,8 @@ var (
 	// rubyManifestBound bounds one Gemfile, Gemfile.lock or Rakefile read for the Ruby
 	// verification command; past it the command is withheld as unknown.
 	rubyManifestBound = &analyzerBound{"ruby-manifest", 256 << 10, "bytes", "unknown-language-verification"}
-	// sourceBytesBound records the index's per-source size admission (maxSourceBytes): a larger
-	// source is excluded and every analyzer reads it as unreadable. It is not lowerable.
-	sourceBytesBound = &analyzerBound{"source-bytes", maxSourceBytes, "bytes", "source-unreadable"}
 )
 
 // sourceSizeExclusion is the Exclusion reason admittedEntries (index.go) gives a source past
 // maxSourceBytes; TestOversizedRegistryManifestFailsClosed fails if the two drift.
 const sourceSizeExclusion = "source exceeds size bound"
-
-// analyzerBounds is every declared bound, in a fixed order.
-var analyzerBounds = []*analyzerBound{
-	setupClosureBound, sharedReexportBound, sharedLookupBound, sharedTemplateBound,
-	webConfigBytesBound, webConfigDepthBound, webConfigVisitBound,
-	registryManifestBound, registryExcludedJSONBound, registryDeclarationBound, registryAccessorBound,
-	registryKeyBound,
-	rubyNestingBound, rubyResolutionBound, rubySiteBound, rubyManifestBound, sourceBytesBound,
-}

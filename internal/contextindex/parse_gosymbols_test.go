@@ -2,13 +2,8 @@ package contextindex
 
 import (
 	"context"
-	"strings"
 	"testing"
 )
-
-func testSource() Source {
-	return Source{Path: "sample.go", BlobHash: strings.Repeat("0", 40)}
-}
 
 // TestGoImportsReportsRefusal fixes the same contract for the import table.
 // goImports already unioned the scanner in on a parse failure, but reported

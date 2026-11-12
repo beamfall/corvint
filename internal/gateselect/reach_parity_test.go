@@ -20,6 +20,8 @@ import (
 // `user` imports `mid` from its tests alone, so a change to `core` reaches
 // `user` and stops before `beyond`. `framer` reads only runtime frame metadata
 // and `framed` imports it: neither is a rule (d) unit (AFP-V0-810, V1-2758).
+// framer discards every frame value inside a function: a frame value bound to
+// a package-level variable is a rule (d) read (AFP-V0-3661).
 func TestReachMatchesThePlannerGraph_V12727(t *testing.T) {
 	test := func(name string) string {
 		return "package " + name + "\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n"
@@ -44,7 +46,7 @@ func TestReachMatchesThePlannerGraph_V12727(t *testing.T) {
 		"far/far_test.go":       test("far"),
 		"namer/namer.go":        "package namer\n\nvar Target = \"./walker\"\n",
 		"namer/namer_test.go":   test("namer"),
-		"framer/framer.go":      "package framer\n\nimport \"runtime\"\n\nvar _, file, _, _ = runtime.Caller(0)\nvar n = runtime.Callers(0, nil)\nvar f = runtime.FuncForPC(0)\nvar frames = runtime.CallersFrames(nil)\n",
+		"framer/framer.go":      "package framer\n\nimport \"runtime\"\n\nfunc init() {\n\t_, file, _, _ := runtime.Caller(0)\n\t_ = file\n\t_ = runtime.Callers(0, nil)\n\t_ = runtime.FuncForPC(0)\n\t_ = runtime.CallersFrames(nil)\n}\n",
 		"framer/framer_test.go": test("framer"),
 		"framed/framed.go":      "package framed\n\nimport _ \"example.com/fixture/framer\"\n",
 		"framed/framed_test.go": test("framed"),

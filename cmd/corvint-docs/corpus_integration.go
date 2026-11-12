@@ -76,7 +76,8 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		return 2, true
 	}
 	command := original[pos]
-	allowed := command == "context" || command == "impact" || command == "affected" || command == "test-validity"
+	// The context task packet is removed (decision 0597); its corpus search join goes with it.
+	allowed := command == "impact" || command == "affected" || command == "test-validity"
 	if !allowed {
 		emitError(stderr, argumentError("--corpus is supported only on native evidence reads"))
 		return 2, true
@@ -150,18 +151,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		emitCorpusError(stderr, err)
 		return 2, true
 	}
-	query := flagValue(original, "--task")
-	if command == "context" {
-		// TCP-V0-062: a positional task searches the corpus exactly as --task does.
-		if task := contextPositionalTask(original[pos+1:]); task != "" {
-			query = task
-		}
-	}
 	request := doccorpus.Request{Operation: "info"}
-	if command == "context" {
-		request.Operation = "search"
-		request.Query = query
-	}
 	receipt, err := doccorpus.QueryLive(ctx, corpus, request, overlay)
 	if err != nil {
 		emitCorpusError(stderr, err)
@@ -333,21 +323,4 @@ func runCoreRead(ctx context.Context, args []string, stdin io.Reader, stdout, st
 		emitError(stderr, &gokernel.Error{Code: "internal-error", Message: "cannot run " + docsenvelope.CoreBinary + ": " + err.Error()})
 	}
 	return 2
-}
-
-// contextPositionalTask is the positional TEXT of `context (--task TEXT | TEXT) [OPTIONS]`
-// (TCP-V0-062): the first token that is neither an option nor an option's value. Every context
-// option but --worktree-overlay takes one value.
-func contextPositionalTask(rest []string) string {
-	for index := 0; index < len(rest); index++ {
-		token := rest[index]
-		switch {
-		case !argparseOptionLike(token):
-			return token
-		case token == "--worktree-overlay", strings.Contains(token, "="):
-		case index+1 < len(rest) && !argparseOptionLike(rest[index+1]):
-			index++
-		}
-	}
-	return ""
 }

@@ -45,32 +45,32 @@ call is reported as `NOT_RUN`, never as survival.
 
 ## Requirements
 
-- **CKN-V0-001:** `Build` MUST compile a kernel from an immutable index, pinning each governing
+- `CKN-V0-001`: `Build` MUST compile a kernel from an immutable index, pinning each governing
   authority to the blob hash that index read, and MUST refuse (`unsupported-kernel-authority`) an
   authority the index did not pin or an empty governance array. A non-immutable index MUST be
   refused with `invalid-kernel-index`. The kernel MUST record the index revision.
 
-- **CKN-V0-002:** The canonical JSON document, envelope excluded, MUST be at most 600 bytes. When a
+- `CKN-V0-002`: The canonical JSON document, envelope excluded, MUST be at most 600 bytes. When a
   requested requirement list does not fit, rows MUST be dropped from the tail and the dropped count
   recorded in `omitted`; when the authorities alone exceed the bound the build MUST refuse with
   `unsupported-kernel-budget` rather than emit an over-budget kernel.
 
-- **CKN-V0-003:** Requirement ids MUST resolve through the pinned `docs/specs/REQUIREMENTS.tsv`
+- `CKN-V0-003`: Requirement ids MUST resolve through the pinned `docs/specs/REQUIREMENTS.tsv`
   blob and the pinned blob of the spec that row names, never the worktree. An id absent from the
   pinned table, or a spec absent from the indexed revision, MUST be refused with
   `unsupported-kernel-requirement`; the kernel never substitutes a worktree reading for a pinned one.
   A repeated id is one requirement and MUST be pinned once.
 
-- **CKN-V0-004:** `digest` MUST be the SHA-256 of the canonical JSON of every other member and MUST
+- `CKN-V0-004`: `digest` MUST be the SHA-256 of the canonical JSON of every other member and MUST
   be deterministic for equal inputs. Any change to the authorities, requirements, revision or
   omitted count MUST change the digest.
 
-- **CKN-V0-005:** `Render` MUST emit exactly one fenced envelope: the fence, `BEGIN CORVINT KERNEL`,
+- `CKN-V0-005`: `Render` MUST emit exactly one fenced envelope: the fence, `BEGIN CORVINT KERNEL`,
   the canonical JSON on one line, `END CORVINT KERNEL`, the closing fence. `InjectionBlock` MUST
   produce that same block for the session-start and user-prompt adapter paths, with no requirement
   list.
 
-- **CKN-V0-006:** `Verify` MUST locate the envelope inside arbitrary text, including a
+- `CKN-V0-006`: `Verify` MUST locate the envelope inside arbitrary text, including a
   post-compaction summary with prose before and after it, and MUST report exactly one of:
   `missing` (no `BEGIN CORVINT KERNEL` marker), `corrupt` (unterminated envelope, an envelope whose
   body differs from an earlier one in the same text, non-canonical or
@@ -83,11 +83,11 @@ call is reported as `NOT_RUN`, never as survival.
   is no longer tracked), or `intact`. A `stale` verdict MUST name each mismatching path with its
   expected and actual blob hash.
 
-- **CKN-V0-007:** Every operation MUST be read-only, per AGENTS.md invariant 4: no index, trace,
+- `CKN-V0-007`: Every operation MUST be read-only, per AGENTS.md invariant 4: no index, trace,
   cache or ledger write, no process spawn beyond the index build the host verb already performs, and
   no network. The kernel MUST carry no source content.
 
-- **CKN-V0-008:** `corvint [--root PATH] kernel [--requirements ID,...]` MUST print the rendered
+- `CKN-V0-008`: `corvint [--root PATH] kernel [--requirements ID,...]` MUST print the rendered
   block and exit 0. `corvint [--root PATH] kernel verify` MUST read text from stdin, print the
   verdict as one canonical JSON line, and exit 0 only on `intact`; every other state MUST exit
   non-zero. Verify stdin is limited to 131,072 bytes (`gokernel.MaxInputBytes`); a longer input MUST
@@ -95,7 +95,7 @@ call is reported as `NOT_RUN`, never as survival.
   `--requirements` given to `verify`, MUST be refused with `invalid-arguments` before any repository
   read.
 
-- **CKN-V0-009:** `corvint host-adapter codex` and `corvint host-adapter claude-code` MUST append
+- `CKN-V0-009`: `corvint host-adapter codex` and `corvint host-adapter claude-code` MUST append
   the kernel to the `session-start` and `user-prompt` `additionalContext` only when the environment
   variable `CORVINT_EXPERIMENTAL_COMPACTION_KERNEL` is exactly `1`; with it unset or any other value
   the adapter output MUST be unchanged, and no other event carries the kernel. The block MUST be

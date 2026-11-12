@@ -98,8 +98,8 @@ func TestCLIProfile9300LiteralHelpValues(t *testing.T) {
 	}{
 		{"cem prepare", []string{"cem", "prepare", "--non-regular", "unknown", "--help"}},
 		{"cem prepare", []string{"cem", "prepare", "--spec", "cem/1.0", "--path-policy", "base", "--help"}},
-		{"context", []string{"context", "--instruction-profile", "default", "--help"}},
-		{"context", []string{"--instruction-profile", "default", "context", "--help"}},
+		{"instructions", []string{"instructions", "--profile", "default", "--help"}},
+		{"instructions", []string{"--profile", "default", "instructions", "--help"}},
 		{"cem prepare", []string{"cem", "prepare", "--replace", "--help"}},
 	} {
 		t.Run(strings.Join(row.args, " "), func(t *testing.T) {

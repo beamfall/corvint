@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 // rootDigest hashes every path, mode, and regular-file content under root,
@@ -39,13 +37,4 @@ func rootDigest(t *testing.T, root string) string {
 		t.Fatal(err)
 	}
 	return hex.EncodeToString(digest.Sum(nil))
-}
-
-func canonicalValue(t *testing.T, value any) string {
-	t.Helper()
-	encoded, err := gokernel.CanonicalJSON(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(encoded)
 }

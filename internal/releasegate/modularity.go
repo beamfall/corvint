@@ -264,18 +264,6 @@ func sourcePackages(ctx context.Context, root string, entries []treeEntry, inven
 	}
 	return packages, nil
 }
-func hasBuildConstraint(data []byte) bool {
-	for _, line := range bytes.Split(data, []byte{'\n'}) {
-		trimmed := strings.TrimSpace(string(line))
-		if strings.HasPrefix(trimmed, "//go:build") || strings.HasPrefix(trimmed, "// +build") {
-			return true
-		}
-		if trimmed != "" && !strings.HasPrefix(trimmed, "//") {
-			break
-		}
-	}
-	return false
-}
 
 func selectedForAnyTarget(name string, data []byte, targets []BuildTarget) (bool, error) {
 	expression, err := buildConstraint(data)
@@ -339,14 +327,6 @@ func buildConstraint(data []byte) (constraint.Expr, error) {
 	return legacy, nil
 }
 
-func (target BuildTarget) matchesTag(tag string) bool {
-	for _, allowed := range target.tags() {
-		if tag == allowed {
-			return true
-		}
-	}
-	return false
-}
 func (target BuildTarget) tags() []string {
 	tags := append([]string{target.GOOS, target.GOARCH, target.Compiler}, target.releaseTags()...)
 	tags = append(tags, target.CustomTags...)
@@ -360,14 +340,6 @@ func (target BuildTarget) tags() []string {
 }
 func (target BuildTarget) releaseTags() []string {
 	return append([]string(nil), target.ReleaseTags...)
-}
-
-func releaseMinor(tag string) (int, bool) {
-	if !strings.HasPrefix(tag, "go1.") {
-		return 0, false
-	}
-	minor, err := strconv.Atoi(strings.TrimPrefix(tag, "go1."))
-	return minor, err == nil && minor >= 1
 }
 
 func knownConstraintTags(expression constraint.Expr, targets []BuildTarget) bool {
@@ -400,22 +372,6 @@ func knownConstraintTags(expression constraint.Expr, targets []BuildTarget) bool
 
 func knownOSArchTags() []string {
 	return []string{"aix", "android", "darwin", "dragonfly", "freebsd", "illumos", "ios", "js", "linux", "netbsd", "openbsd", "plan9", "solaris", "wasip1", "windows", "386", "amd64", "arm", "arm64", "loong64", "mips", "mips64", "mips64le", "mipsle", "ppc64", "ppc64le", "riscv64", "s390x", "wasm"}
-}
-
-func fileNameMatchesTarget(name string, target BuildTarget) bool {
-	base := strings.TrimSuffix(path.Base(name), ".go")
-	parts := strings.Split(base, "_")
-	if len(parts) < 2 {
-		return true
-	}
-	knownOS := map[string]bool{"aix": true, "android": true, "darwin": true, "dragonfly": true, "freebsd": true, "illumos": true, "ios": true, "js": true, "linux": true, "netbsd": true, "openbsd": true, "plan9": true, "solaris": true, "wasip1": true, "windows": true}
-	knownArch := map[string]bool{"386": true, "amd64": true, "arm": true, "arm64": true, "loong64": true, "mips": true, "mips64": true, "mips64le": true, "mipsle": true, "ppc64": true, "ppc64le": true, "riscv64": true, "s390x": true, "wasm": true}
-	for _, suffix := range parts[1:] {
-		if knownOS[suffix] && suffix != target.GOOS || knownArch[suffix] && suffix != target.GOARCH {
-			return false
-		}
-	}
-	return true
 }
 
 // packageRuntimeFindings type-checks all selected files together.  Object
