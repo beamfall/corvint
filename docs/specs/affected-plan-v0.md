@@ -3290,7 +3290,7 @@ existing jobs and check names are unchanged. Both honor the AFP-V0-081 batched s
   Falsifier: a sibling prefix (`internal/changee2e-other/`) that triggers the run, or a changee2e
   change that does not. Rollback: drop the change-check step and its `if:` guards.
 - **AFP-V0-435:** (proposed; V1-1687) Before the live tests, the `cce-live` job MUST require the
-  qualified Playwright tuple of `internal/jstestprovider/external.go` for 1.64.0: the installed
+  qualified Playwright tuple of `internal/jstestreceipt/external.go` for 1.64.0: the installed
   `playwright-core/browsers.json` pins `chromium-headless-shell` revision 1248, the cached
   executable reports `Google Chrome for Testing 156.0.8078.4`, and `node --version` is `v24.11.1`.
   Any mismatch, unreadable manifest or missing executable MUST fail the job with one error that
