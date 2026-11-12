@@ -113,8 +113,12 @@ func storedRecords(record runevidence.Record) ([]TestRunEvidence, error) {
 		}
 		if row.Outcome != "not-run" {
 			attempt := RunAttempt{Ordinal: 1, Outcome: row.Outcome, AssertionAnchors: []RunAnchor{}, Attachments: []RunAttachment{}}
+			// A row with no durationMs is NOT_MEASURED: DurationMS stays zero and the attempt is
+			// marked, never read as a measured 0 ms.
 			if row.DurationMs != nil {
 				attempt.DurationMS = *row.DurationMs
+			} else {
+				attempt.durationNotMeasured = true
 			}
 			r.Attempts = append(r.Attempts, attempt)
 		}
