@@ -26,10 +26,10 @@ requirement IDs and its proof.
    Requirements: SLF-V1-007. Proof: three-surface parity test.
 - [ ] 8 Fault-injection cases per narrowing rule; enable each rule only after its cases pass.
    Requirements: SLF-V1-006. Proof: FIH-V1 report per rule.
-- [x] 9 Split test and driver counts. Requirements: SLF-V1-008. Proof: summary and JSON golden
+- [ ] 9 Split test and driver counts. Requirements: SLF-V1-008. Proof: summary and JSON golden
       tests. Done for the stderr headline (SLF-V1-008 as amended 2026-11-11 under owner
       delegation): `TestAffectedHeadlineCountsTestsAndDriversApart_SLFV1008` and
       `TestAffectedHeadlineCountsSurviveTheLineBound_SLFV1008`. JSON members: Not yet built (frozen
-      profile CCF-V1-006).
+      profile CCF-V1-006), so the task stays open until the JSON golden test exists.
 - [ ] 10 Tests under "Acceptance evidence"; NMS-V1 before and after figures; build-log entry;
     complete through the Tasks gate. Proof: retained reports, `receipt audit`.

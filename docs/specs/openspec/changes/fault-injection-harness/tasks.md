@@ -1,6 +1,8 @@
 # Tasks: fault-injection-harness
 
 Each task names its requirement IDs and its proof.
+Task 7 was delivered before task 6, so it is listed first (OSC-V1-005); the task numbers are
+kept because the spec and the build log cite them.
 
 - [x] 1 File the ticket, reserve prefix `FIH-V1` and set `requirementRefs` to the fifteen IDs.
    Proof: `ticket show` read back. V1-5405 filed; FIH-V1 reserved.
@@ -13,13 +15,13 @@ Each task names its requirement IDs and its proof.
    too-few-non-code, same-thirty, shortfall and too-few-flow-reaching tests.
 - [x] 5 Baseline, quarantine and the omitted-quarantined count. Requirements: FIH-V1-004. Proof:
    flaky-baseline and omitted-quarantined tests.
+- [x] 7 Verdict writer: four counts, G3 sentence, Wilson bound, two N for code and non-code faults,
+   line-level proven label. Requirements: FIH-V1-002, 007, 014, 015. Proof: verdict fixture tests.
 - [ ] 6 Cost check step 1 by 2026-11-16 (full-suite timing of the seven pinned repositories; the
    held-out part of the projection stays NOT_OBSERVED until the draw) and step 2 by
    2026-11-27 (the probe), then the remaining six adapters (A18). Requirements: FIH-V1-008, 009,
    010. Proof: timing report with the projection against 96 host-hours; probe report;
    missing-adapter and pin-mismatch tests.
-- [x] 7 Verdict writer: four counts, G3 sentence, Wilson bound, two N for code and non-code faults,
-   line-level proven label. Requirements: FIH-V1-002, 007, 014, 015. Proof: verdict fixture tests.
 - [ ] 8 Seal pre-registrations; run the seven sets; write verdicts. Requirements: FIH-V1-006, 007.
    Proof: seven verdict files at the RC SHA.
 - [ ] 9 After the draw (PRR-V1-004, which needs the first candidate tag): write and hash the four
