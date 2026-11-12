@@ -12,11 +12,12 @@ import (
 )
 
 // RNC-V1-003, RNC-V1-014: Jest runs the selected files by literal path,
-// exact for files and whole-file for a test-level ID, from the instance
-// root; the full command adds only the report flags.
+// exact for files, and a test-level ID adds a -t name pattern that no
+// listing proves exact (JST-V1-003), from the instance root; the full
+// command adds only the report flags.
 func TestRNCV1003JestSelection(t *testing.T) {
 	instance := Instance{Runner: testid.Jest, Root: "web", Config: "web/jest.config.js"}
-	base := Request{Instance: instance, Full: []string{"npx", "jest"}, Report: "/r.json", Tier: TierFile}
+	base := Request{Instance: instance, Full: []string{"npx", "jest"}, Report: "/r.json", Tier: TierFile, Jest: supportedJest("web/jest.config.js")}
 	with := func(tests ...string) Request {
 		request := base
 		request.Tests = tests
@@ -26,7 +27,7 @@ func TestRNCV1003JestSelection(t *testing.T) {
 	if want := []string{"npx", "jest", "--json", "--outputFile=/r.json", "--runTestsByPath", "./-dash.test.js", "src/a.test.js", "src/b.test.js"}; !slices.Equal(got.Argv, want) || !got.Exact || got.Dir != "web" {
 		t.Fatalf("files: %+v, want %q", got, want)
 	}
-	if got := command(t, with("jest:web/src/a.test.js::math::adds")); got.Exact || !strings.Contains(got.Reason, "whole file") {
+	if got := command(t, with("jest:web/src/a.test.js::math::adds")); got.Exact || !slices.Contains(got.Argv, "-t") || !strings.Contains(got.Reason, "no inventory listing") {
 		t.Fatalf("test-level: %+v", got)
 	}
 	if got := command(t, base); !slices.Equal(got.Argv, []string{"npx", "jest", "--json", "--outputFile=/r.json"}) || got.Tier != TierFull || !got.Exact {
