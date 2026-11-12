@@ -319,6 +319,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Runner contract V1 | [`runner-contract-v1.md`](runner-contract-v1.md) RNC-V1-001..018 | accepted | partial | One compiled-in contract drives every blocking runner by canonical test ID and runner instance; every fallback runs a full command with a reason. |
 | Non-code map V1 | [`non-code-map-v1.md`](non-code-map-v1.md) NCM-V1-001..009 | accepted | partial | A changed non-code file runs every test unless a proven, accepted map entry narrows it; some paths always run everything. |
 | Docs MCP Hardening V1 | [`docs-mcp-hardening-v1.md`](docs-mcp-hardening-v1.md) DMF-V1-001..013 | accepted automatically under G14 (decision 0596, 2026-11-10; V1-5409) | implemented | One docs check reports staleness honestly; docs MCP tools get distinct descriptions, one actionable error shape and a corpus reload without restart. |
+| Jest runner V1 | [`jest-runner-v1.md`](jest-runner-v1.md) JST-V1-001..010 | accepted | not-started | Jest runs inside the compiled-in runner contract: named discovery, anchored name selection with an honest `exact`, per-test results, full runs for odd setups. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have

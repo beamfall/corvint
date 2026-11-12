@@ -4581,5 +4581,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/jest-runner-v1.md",
+    "title": "Jest runner V1",
+    "reqPrefix": "JST-V1",
+    "intent": "accepted",
+    "delivery": "not-started",
+    "claim": "Jest runs inside the compiled-in runner contract: named discovery, anchored name selection with an honest `exact`, per-test results, full runs for odd setups.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
