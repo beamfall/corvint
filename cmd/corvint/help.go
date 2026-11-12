@@ -68,8 +68,14 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	case directTopic != "":
 		return directTopic, true, nil
 	case len(rest) > 1 && rest[0] == "help":
-		// `corvint help flows appmap build` names one subcommand of the tree (CAP-V0-042).
+		// `corvint help flows appmap build` names one subcommand of the tree (CAP-V0-042) and
+		// prints what `corvint flows appmap build --help` prints (CAP-V0-056).
 		if _, ok := findTreeNode(rest[1:]); ok {
+			if rest[1] != "help" {
+				if topic, requested, err := parseHelpInvocation(append(slices.Clone(rest[1:]), "--help")); requested && err == nil {
+					return topic, true, nil
+				}
+			}
 			return nodeHelpPrefix + strings.Join(rest[1:], " "), true, nil
 		}
 		return "", true, unknownHelpTopic(rest[1:])
@@ -203,11 +209,9 @@ func topicText(topic string) string {
 		return rootHelp
 	case "impact":
 		return impactHelp
-	case "feature":
-		return featureHelp
 	case "cem":
 		return cemHelp
-	case "features", "overview", "review":
+	case "review":
 		return repositoryGuidanceHelp
 	case "affected":
 		return affectedHelp
@@ -227,6 +231,8 @@ func topicText(topic string) string {
 		return watchHelp
 	case "context":
 		return taskContextHelp + cpuProfileHelpNote
+	case "instructions":
+		return instructionsHelp + cpuProfileHelpNote
 	case "index":
 		return indexHelp
 	case "init", "adopt":
@@ -258,13 +264,13 @@ Commands:
     init  alias of adopt
     adopt  bounded repository inventory; --setup lists setup gaps
     index  write the index snapshot
-    context  task-context packet: files to read
+    context  path brief of a file or directory
     impact  path or range impact
     affected  affected-test plan
     cem  Change Evidence Map tool
   Experimental, context and review:
-    feature  one declared feature's context (GPK-V0)
-    features | overview | review  inferred repository guidance (RGV-V0)
+    instructions  instruction load set of a tracked file (IID-V0)
+    review  change review: affected plan and branch overlap (RGV-V0)
     docs  source-derived documentation (SDD-V0)
     flows  application flows and assertions (AFU-V0)
     how  how do I GOAL: alias of flows appmap how (CMS-V0)
@@ -287,10 +293,10 @@ Global options:
 Support boundary:
   Experimental verbs carry no stability promise; parentheses name the owning spec.
   Internal and historical verbs stay callable but unlisted (corvint help --json).
-  Local-only; no network or telemetry. init, adopt, feature and impact are
+  Local-only; no network or telemetry. init, adopt and impact are
   qualified on Darwin and Linux only.
   init, adopt, impact and docs read without mutating repository or trace
-  state. impact, feature, docs and index best-effort append a bounded row to
+  state. impact, docs and index best-effort append a bounded row to
   the self-observation ledger (.corvint/self-observations.jsonl) on an
   unsupported-* failure; a ledger storage failure never alters the response.
   cem begin, prepare, cite and mark write local CEM artifacts; cem report,
@@ -374,29 +380,6 @@ after the document. Results are diagnostic: no strength axis joins them until
 the live matrix is qualified. Experimental.
 `
 
-const featureHelp = `Compile the implemented experimental feature context slice.
-
-Usage:
-  corvint [--root PATH] feature FEATURE_ID [--limit N] [--budget-bytes N]
-
-Known and unknown feature IDs are supported on Darwin and Linux. --limit 1
-returns known ledger-only context even with non-Go sources. Larger limits admit
-Go candidate ranking; known non-Go ranking is refused with
-unsupported-feature-repository. Unknown IDs remain OUT_OF_SCOPE; feature
-inventory is unsupported in this explicit-ID command; use experimental features
-for inferred discovery. --limit defaults to 10 (range 1-50).
---budget-bytes bounds the complete packet and retains omitted-result counts.
-Repository and trace state are read-only; do not substitute a legacy runtime
-for a typed unsupported result. See docs/specs/go-production-kernel-migration-v0.md.
-
-FEATURE_ID is the lowercase kebab-case ID a source declares with a feature:ID
-marker, such as feature:checkout-flow; a requirement prefix such as GPK-V0 is
-refused. Use features to list inferred candidates.
-
-Example:
-  corvint feature --limit 1 checkout-flow
-`
-
 const activationHelp = `Compile one bounded mechanical repository inventory.
 
 Usage:
@@ -429,6 +412,8 @@ Usage:
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full | --summary] [--require-clean]
           --base FULL_COMMIT_ID [--format json|text] [--fail-fast-order]
+  corvint [--root PATH] affected [--full | --summary] --base FULL_COMMIT_ID
+          --head COMMIT [--format json|text] [--accept-stale-binary]
   corvint [--root PATH] affected --base FULL_COMMIT_ID --line-index FILE [--line-test-timeout DURATION] [--line-exec PATH]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
@@ -498,6 +483,19 @@ edits in repositories without the ownership ratchet (AZU-V0-9901).
 It cannot be combined with --full or
 --playwright-config; --format json (the default) is the JSON document.
 Example: corvint affected --base FULL_SHA --format text
+--json (AFP-V0-9988) is --format json: the output is already JSON by default,
+so it changes no byte; it is refused with --format text.
+selectedFlat (AFP-V0-9987) lists plan.selected flat, in plan order, one
+{unitId, test, witness, dirtyPath, reason} per unit: test is the Go package
+import path for a go: unit, the unit's only test file, or else the unit id;
+witness is the witness kind. summary.unresolvedPackages counts the selected Go
+packages whose reads nothing bounds (UNBOUNDED_READER), which every change
+selects. Both only report the selection and never change it.
+Example: corvint affected --base FULL_SHA | jq -r '.selectedFlat[] | .test'
+Every form writes each witness as one object: kind and dirtyPath always;
+viaLength in the default plan and --by-path, via in --full (and in the
+default plan for a chain plan.viaLinks cannot state); anyDirtyPath and cause
+on UNBOUNDED_READER; glob; readScope {declaration, entry} (AFP-V0-9988).
 --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
 the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
 tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
@@ -560,6 +558,19 @@ recorded blob OID changes"). Refused under --full, --summary, --format text,
 --by-path, --path, --snapshot, --provider, --playwright-config and
 --appmap-impact (unsupported-affected-line-index-profile).
 Example: corvint affected --base FULL_SHA --line-index linecov.idx
+
+--head COMMIT (experimental, AFP-V0-9989; requires --base) replays a commit
+pair without a worktree: the plan is the --base plan of a clean checkout of
+COMMIT, written from this repository's Git objects into private temporary
+scratch that is removed before exit, so the working tree, index and untracked
+files are never read and revision is COMMIT. COMMIT takes the same forms as
+--base. It is refused with --path, --paths-from, --worktree, --snapshot,
+--require-clean, --fail-fast-order, --by-path, --provider, --repository,
+--appmap-impact, the --playwright-* and --line-* options, whose inputs lie
+outside Git objects, and with unsupported-affected-head when COMMIT's tree
+holds a gitlink or symlink or the scratch checkout fails. A binary built at
+another commit needs --accept-stale-binary to replay it (AFP-V0-9730).
+Example: corvint affected --base BASE_SHA --head HEAD_SHA --accept-stale-binary
 
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,
@@ -1211,29 +1222,22 @@ func rootPreambleValue(arguments []string, index int) bool {
 	return index < len(arguments) && (arguments[index] == "--" || !argparseOptionLike(arguments[index]))
 }
 
-const repositoryGuidanceHelp = `Experimental inferred repository guidance: features, overview and review.
+const repositoryGuidanceHelp = `Experimental change review: affected plan and local branch overlap.
 
 Usage:
-  corvint [--root PATH] features
-  corvint [--root PATH] overview
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
 
-All three are read-only and need a clean HEAD; features and overview degrade to
-a MIXED unknown when the only dirt is untracked.
-
-Features are bounded heuristic candidates with immutable blob/line evidence, not
-accepted feature IDs. A label that is a canonical feature ID also carries featureId
-and featureCall, the inert argv of corvint feature for it with --limit 1, which answers READY only
-for a declared feature record. Overview includes inert suggested argv. Review composes
-advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
+Read-only; needs a clean HEAD (any dirt refuses). Review composes advisory
+affected advice and local refs/heads overlap hints; max-refs is 1..32.
 review.affected is the compact affected-plan/1 document; review.affectedFull
 names the argv that prints the full affected-plan/0 plan and that plan's digest.
 A corvint binary built from Go source that differs from this checkout's HEAD
 (self-binary-stale) makes review exit 2 with a fix: line, as corvint affected
 does; an unverified binary is named in review.affected and in unknown.
-Missing sources, index data and bounded branch paths remain unknown. No scripts,
-tests or suggestions execute. No index, trace or observation ledger is written.
-CEM, OCM, frontier and mandatory test obligations remain open.
+Missing sources and bounded branch paths remain unknown. No scripts or tests
+execute. No index, trace or observation ledger is written. CEM, OCM, frontier
+and mandatory test obligations remain open. The inferred features, overview
+and feature commands are removed (decision 0597).
 review reads one repository: --workspace FILE, or a discovered
 --root/.corvint/workspace.json without --no-workspace, refuses as
 workspace-unsupported naming the ignored aliases.

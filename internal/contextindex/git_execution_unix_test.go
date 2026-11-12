@@ -5,7 +5,6 @@ package contextindex
 import (
 	"context"
 	"fmt"
-	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func qualifiedGitTestEnvironment(t *testing.T) []string {

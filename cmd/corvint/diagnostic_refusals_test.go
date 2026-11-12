@@ -85,12 +85,6 @@ func TestConvertedRefusalDiagnostics(t *testing.T) {
 			want := refusalEnvelope("invalid-arguments", "not a Git repository: "+root, subjectOf("value", directory), evidenceOf("root", root), fixesOf("cli.use-git-repository-root"), "")
 			return cliRun(want, "--root", directory, "affected")(t)
 		},
-		"feature platform": func(t *testing.T) refusalRun {
-			_, err := parseFeatureArgumentsForPlatform(options{featureLimit: 10}, []string{"a-first"}, "windows")
-			var stderr bytes.Buffer
-			emitError(&stderr, err)
-			return refusalRun{exit: 2, stderr: stderr.String(), want: platformEnvelope("unsupported-feature-platform", "native Go feature is qualified only on Darwin and Linux")}
-		},
 		"genesis platform": func(t *testing.T) refusalRun {
 			var stdout, stderr bytes.Buffer
 			exit := runActivationForPlatform(context.Background(), filepath.Join(t.TempDir(), "missing"), "init", nil, "windows", &stdout, &stderr)

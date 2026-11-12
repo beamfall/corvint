@@ -19,17 +19,3 @@ func TestRSPV0051CLIReadAndNoWrite(t *testing.T) {
 		}
 	}
 }
-func TestRSPV0051CLIHelpAndInvalid(t *testing.T) {
-	for _, args := range [][]string{{"test-evidence", "--help"}, {"help", "test-evidence"}} {
-		code, out, diag := runCLI(t, args...)
-		if code != 0 || diag != "" || !strings.Contains(out, "--explain") || !strings.Contains(out, "Example:") {
-			t.Fatalf("%d %s %s", code, out, diag)
-		}
-	}
-	for _, args := range [][]string{{"test-evidence"}, {"test-evidence", "--explain", "x"}, {"test-evidence", "x", "--lines", "0:0"}} {
-		code, _, _ := runCLI(t, args...)
-		if code != 2 {
-			t.Fatalf("accepted %v", args)
-		}
-	}
-}

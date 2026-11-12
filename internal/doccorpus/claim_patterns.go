@@ -32,7 +32,7 @@ const (
 var CorpusPatternNames = []string{"token-disjoint", "templated-text", "anchor-cluster", "broad-anchor", "uniform-shape"}
 
 var corpusPatternRules = map[string]string{
-	"token-disjoint": "the claim has at least one code-like mention (DCP-V1-340) and none resolves in a cited span",
+	"token-disjoint": "the claim has at least one code-like mention (DCX-V1-340) and none resolves in a cited span",
 	"templated-text": "the claim's normalized template (lowercase; mentions, the subject name and digit runs replaced; whitespace collapsed) has at least min_words words and is shared by claims on at least min_subjects distinct subjects",
 	"anchor-cluster": "at least min_claims claims cite the identical anchor (repository, revision, path, start, end, span hash)",
 	"broad-anchor":   "a cited anchor spans at least max_lines lines, or is a whole file (span hash equals file hash) of at least whole_file_min_lines lines",

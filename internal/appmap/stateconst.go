@@ -191,13 +191,6 @@ func (t *constTable) forRouter(e blobEntry, data []byte) constLookup {
 	}
 }
 
-// resolve reads local.member through a table f declares or imports; allow is the one token (or -1)
-// that may pass the table along, the `.constant(...)` argument that registers it (AMAP-V0-022).
-func (t *constTable) resolve(f *constFile, local, member string, allow int) (string, []Anchor, bool) {
-	v, at, why := t.lookup(f, local, member, allow, "")
-	return v, at, why == ""
-}
-
 // lookup is resolve with the reason it fails (AMAP-V0-026). A registration injected as inj (di)
 // also reads an enum only when every member is a literal string (AMAP-V0-024), follows one level
 // of re-export in the imported file (AMAP-V0-025), and requires every file the registering file f,

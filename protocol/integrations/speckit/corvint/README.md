@@ -11,7 +11,7 @@ install guard, not a support claim for every version in it.
 
 | Name | Kind | Runs |
 |---|---|---|
-| `speckit.corvint.context` | command | `corvint context --task TEXT --subject PATH` for the feature's `spec.md` and `plan.md` |
+| `speckit.corvint.context` | command | `corvint context --path PATH` for the feature's `spec.md` and `plan.md` |
 | `speckit.corvint.review` | command | `corvint affected --base BASE` and `corvint review --base BASE` |
 | `before_implement` | hook, `optional: true` | `speckit.corvint.context` |
 | `after_implement` | hook, `optional: true` | `speckit.corvint.review` |

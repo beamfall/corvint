@@ -15,7 +15,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   (`docs/decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md`) defines the Core loop as one
   native Go binary with no account, network, hosted service, database service, embeddings or daemon
   (`docs/specs/corvint-1.0-product-and-release-v1.md:90@efcd3ea7`) and rejects a permanent daemon in the
-  default binary (`docs/specs/corvint-1.0-product-and-release-v1.md:203@b7b9e11e`). Decision 0081
+  default binary (`docs/specs/corvint-1.0-product-and-release-v1.md:208@b7b9e11e`). Decision 0081
   (`docs/decisions/0081-local-admin-console-accepted-2026-09-07.md:24-31@4e183223`) keeps even the optional
   console operator-started, foreground only, loopback only, with no service and no durable state;
   decision 0594 (`docs/decisions/0594-refocus-on-test-selection-2026-11-09.md`) removed that console.
@@ -27,9 +27,9 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   since-removed console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:511-512@d5d6e05c`).
+  (`cmd/corvint/help.go:509-510@d5d6e05c`).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
-  (`cmd/corvint/help.go:290@306e7664`). Fetching the commits a step needs is the runner's job.
+  (`cmd/corvint/help.go:296@a8866a48`). Fetching the commits a step needs is the runner's job.
 
 ## Mutation classes (AGENTS.md invariant 4)
 
@@ -48,13 +48,13 @@ The self-observation append happens only when that ledger path is gitignored by 
 At `01b6804` the root `.gitignore` names the ledger but not its temporaries, so in a fresh clone
 with no `.corvint/.gitignore` (which `corvint index` creates) no row is written; the worked example
 and a forced `unsupported-impact-path-suffix` refusal both left `.corvint/` unchanged. A ledger
-storage failure never alters the response (`cmd/corvint/help.go:293-295@96bde7a3`).
+storage failure never alters the response (`cmd/corvint/help.go:299-301@8178d7b3`).
 
 ## Commands safe as a triggered step
 
 Each takes `--root PATH` (default: the current directory) and reads the checkout at `HEAD`. Every
 base must be a full 40-hex commit id that is present in the clone, so a shallow CI checkout must
-fetch enough history to contain it (`cmd/corvint/help.go:450@a892984d`). On an argument or input refusal each
+fetch enough history to contain it (`cmd/corvint/help.go:435@a892984d`). On an argument or input refusal each
 prints one JSON object with `"ok": false` to stderr and exits 2.
 
 Scope: the table lists the steps that answer a question about one change against a fixed base,
@@ -70,13 +70,13 @@ about their safety as a triggered step.
 
 Where each row was verified:
 
-- `affected`: profile `cmd/corvint/affected.go:39@af9fb447`; exits `cmd/corvint/affected.go:869-936@94cce29d`; its
-  refusals are emitted without the ledger recorder (`cmd/corvint/main.go:746-751@7ed11581`); help text
-  "runs no test, writes no repository state" (`cmd/corvint/help.go:511@f024c3ab`).
+- `affected`: profile `cmd/corvint/affected.go:39@af9fb447`; exits `cmd/corvint/affected.go:904-982@fec70bb6`; its
+  refusals are emitted without the ledger recorder (`cmd/corvint/main.go:654-659@7ed11581`); help text
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:509@f024c3ab`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls
   as for `affected`; envelope
-  `cmd/corvint/main.go:932@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
-  the index in memory (`cmd/corvint/main.go:810@7219f23e`) and writes no snapshot store (`.git/corvint/index`).
+  `cmd/corvint/main.go:830@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
+  the index in memory (`cmd/corvint/main.go:718@7219f23e`) and writes no snapshot store (`.git/corvint/index`).
 - 1.0 labels: `docs/specs/corvint-1.0-product-and-release-v1.md` classification table.
 - Every exit code in the table was also observed: 0 in the worked example and 2 from `affected` and `impact` given a short base.
 
@@ -91,10 +91,10 @@ as part of that dated run.
 
 Corvint sets no whole-command timeout on these steps. Some internal Git steps carry their own
 deadline and fail the command when it expires: the index build and the range-impact diff use 30 s
-(`internal/contextindex/git.go:27@e8c8d0ea`, `internal/contextindex/index.go:344@c925936b`,
+(`internal/contextindex/git.go:27@e8c8d0ea`, `internal/contextindex/index.go:334@c925936b`,
 `internal/contextindex/range_impact.go:124@c925936b`), and `affected` reads `git status` under 10 s
 (`internal/liveverify/affected/dirty.go:37@bb3abea6`, `internal/liveverify/affected/dirty.go:53@d3f19770`). Otherwise
-the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1188@5434511f`,
+the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1069@5434511f`,
 `cmd/corvint/signals_unix.go:11-12@4a4dfd65`); the exit code a signal produces is not documented here
 (unknown). The automation host must set its own step timeout. No timeout has been qualified; 5
 minutes per step is a suggestion that leaves more than 20 times the loaded measurements as

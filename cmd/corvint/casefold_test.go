@@ -104,8 +104,8 @@ func assertFreshness(t *testing.T, receipt map[string]any, dirty []string) {
 }
 
 // TestCaseFoldCollidingPathsAreDisclosedNotSilentlyMerged checks GPK-V0-006
-// at the CLI: over two tracked paths differing only in case, index, query,
-// context and path impact each carry both paths pinned to their own committed
+// at the CLI: over two tracked paths differing only in case, index, query
+// and path impact each carry both paths pinned to their own committed
 // blob (never the other case's bytes), the worktree divergence is disclosed
 // as `mixed-worktree` naming the colliding path, range impact refuses by name
 // over that divergence, and every answer is deterministic.
@@ -117,15 +117,6 @@ func TestCaseFoldCollidingPathsAreDisclosedNotSilentlyMerged(t *testing.T) {
 	if code, _, stderr := runCLI(t, "--root", root, "index"); code != 0 {
 		t.Fatalf("index exit %d: %s", code, stderr)
 	}
-	t.Run("context", func(t *testing.T) {
-		code, stdout, stderr := runCLITwice(t, "--root", root, "context", "--task", "mint token")
-		if code != 0 {
-			t.Fatalf("exit %d: %s", code, stderr)
-		}
-		if got := evidenceBlobs(t, decodeReceipt(t, stdout)); !maps.Equal(got, blobs) {
-			t.Fatalf("context evidence = %v, want %v", got, blobs)
-		}
-	})
 	for path, blob := range blobs {
 		t.Run("impact "+path, func(t *testing.T) {
 			code, stdout, stderr := runCLITwice(t, "--root", root, "impact", path)

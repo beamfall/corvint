@@ -46,7 +46,7 @@ func querySmoke(ctx context.Context, binary string, smoke Smoke, fixture, versio
 	if err != nil {
 		return SmokeReport{Status: statusFail, VersionOutput: version, Reason: "fixture status: " + err.Error()}
 	}
-	output, err := runCaptured(ctx, binary, "--root", fixture, "context", "--task", smoke.QueryTask, "--limit", smoke.QueryLimit)
+	output, err := runCaptured(ctx, binary, "--root", fixture, "context", "--path", smoke.QueryPath)
 	if err != nil {
 		return SmokeReport{Status: statusFail, VersionOutput: version, Reason: fmt.Sprintf("query failed: %v: %s", err, truncate(output))}
 	}
@@ -55,32 +55,39 @@ func querySmoke(ctx context.Context, binary string, smoke Smoke, fixture, versio
 		return SmokeReport{Status: statusFail, VersionOutput: version, Reason: "fixture status: " + statusErr.Error()}
 	}
 	report := SmokeReport{Status: statusPass, VersionOutput: version, RepositoryUnchanged: before == after && after == ""}
-	return classifyQuery(report, output, smoke.ExpectedIntent)
+	return classifyQuery(report, output, smoke.ExpectedState)
 }
 
-// classifyQuery requires a real successful receipt: the resolved intent must be
-// the expected one and the repository must be provably unchanged.
-func classifyQuery(report SmokeReport, output, expectedIntent string) SmokeReport {
-	// Decision 0594 removed `query`; the smoke reads `corvint context`, whose first result names
-	// the kind of the highest-ranked evidence.
+// classifyQuery requires a real path brief: the instructions section of the first path must
+// have the expected state and the repository must be provably unchanged. Decision 0594 removed
+// `query` and decision 0597 removed the `context --task` packet, so the smoke reads
+// `context --path`; QueryIntent records the observed instructions state.
+func classifyQuery(report SmokeReport, output, expectedState string) SmokeReport {
 	var decoded struct {
-		OK      bool `json:"ok"`
-		Results []struct {
-			Kind string `json:"kind"`
-		} `json:"results"`
+		Profile string `json:"profile"`
+		Paths   []struct {
+			Sections []struct {
+				Name  string `json:"name"`
+				State string `json:"state"`
+			} `json:"sections"`
+		} `json:"paths"`
 	}
 	if err := json.Unmarshal([]byte(output), &decoded); err != nil {
 		report.Status = statusFail
 		report.Reason = "query output is not JSON: " + truncate(output)
 		return report
 	}
-	if decoded.OK && len(decoded.Results) > 0 {
-		report.QueryIntent = decoded.Results[0].Kind
+	if decoded.Profile == "corvint-path-brief/1" && len(decoded.Paths) > 0 {
+		for _, section := range decoded.Paths[0].Sections {
+			if section.Name == "instructions" {
+				report.QueryIntent = section.State
+			}
+		}
 	}
-	report.QueryOK = report.QueryIntent == expectedIntent
+	report.QueryOK = report.QueryIntent == expectedState
 	if !report.QueryOK {
 		report.Status = statusFail
-		report.Reason = "query resolved intent " + strconv.Quote(report.QueryIntent) + " want " + strconv.Quote(expectedIntent)
+		report.Reason = "path brief instructions state " + strconv.Quote(report.QueryIntent) + " want " + strconv.Quote(expectedState)
 		return report
 	}
 	if !report.RepositoryUnchanged {
@@ -90,8 +97,8 @@ func classifyQuery(report SmokeReport, output, expectedIntent string) SmokeRepor
 	return report
 }
 
-// makeQueryFixture builds a throwaway repository with the uniquely
-// highest-ranked root AGENTS.md the authority-start query requires.
+// makeQueryFixture builds a throwaway repository whose root AGENTS.md the path
+// brief reads as its instructions section.
 func makeQueryFixture(ctx context.Context, workspace string, smoke Smoke) (string, error) {
 	fixture := filepath.Join(workspace, "smoke-fixture")
 	if err := os.RemoveAll(fixture); err != nil {

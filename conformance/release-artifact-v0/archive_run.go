@@ -802,17 +802,6 @@ func writePrivateFile(name string, content []byte, mode os.FileMode) error {
 	return os.WriteFile(name, content, mode)
 }
 
-func writeSyncedExclusive(name string, content []byte, mode os.FileMode) error {
-	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
-	if err != nil {
-		return err
-	}
-	_, writeErr := file.Write(content)
-	syncErr := file.Sync()
-	closeErr := file.Close()
-	return errors.Join(writeErr, syncErr, closeErr)
-}
-
 func writeSyncedExclusiveRoot(root *os.Root, name string, content []byte, mode os.FileMode) error {
 	file, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 	if err != nil {

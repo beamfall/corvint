@@ -457,8 +457,63 @@ cannot silently go missing or outlive its command.
   text keeps routing to it (CAP-V0-005).
 - `CAP-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685) `AGENTS.md`
   MUST state that new functionality ships with its help and catalog entry and that the
-  capabilities check enforces it. `CAP-V0-051` to `CAP-V0-059` are reserved for this slice and
-  unassigned.
+  capabilities check enforces it. `CAP-V0-051` to `CAP-V0-054` and `CAP-V0-059` are reserved for
+  this slice and unassigned.
+- `CAP-V0-055`: (experimental under the standing lane auto-accept (2026-11-11); V1-4814; amends
+  `CAP-V0-042`) The `corvint` CLI help and refusal conformance kit MUST be one table-driven test
+  (`TestCLIKit`, `cmd/corvint/cli_kit_test.go`) over one table holding one row per node of the
+  `corvint` command tree plus the root. A row names the command's path, the code it refuses an
+  unknown option with, and only the extra argument vectors that command needs (further refusals,
+  help after other options, `--help` read as a value, text its help must carry, and refusals a
+  separate process must make). The kit MUST fail on any `clitree.Problems` finding, a node listed
+  twice, a tree node without a row, a row that names no node, a duplicated row, or a dispatched verb
+  without a row, so a new command ships with its row. It runs in process apart from its
+  separate-process refusal rows, under a PATH that is an empty directory (no help or refusal path it
+  drives starts Git, so no platform skips it), and runs one command with `-run 'TestCLIKit/^PATH$'`
+  (spaces as `_`), so the slow command package is never run whole for it. It replaces the
+  per-command help and refusal copies (`CAP-V0-058`).
+- `CAP-V0-056`: (experimental under the standing lane auto-accept (2026-11-11); V1-4814; amends
+  `CAP-V0-042` and `CAP-V0-044`) For every row, `PATH --help`, `PATH -h` and `corvint help PATH`,
+  each with no root, with `--root DIR` and with `--root=DIR` where DIR is not a repository, and the
+  row's help-after-options vectors (GPK-V0-062, GPK-V0-064) MUST exit 0, print exactly the help of
+  the topic `PATH --help` resolves to and that topic MUST be the node's own (`CAP-V0-042`), with
+  nothing on stderr, no stdin read and no repository opened. The help MUST end in a line feed, name
+  the path, `Required:` and an example (`CAP-V0-044`), and name each direct subcommand of the node;
+  a top-level verb's help MUST follow the house format (`CCF-V1-650`). `corvint help PATH` MUST print
+  the same bytes as `corvint PATH --help`; before this change `corvint help flows appmap build`
+  printed the derived node page while `--help` printed the authored build-step help. A verb that
+  owns its `--root` after the verb (`mcp`, AHI-373) refuses a global `--root` before it, even with
+  `--help`. A row's `--help` read as an option value or after `--` MUST NOT be a help request.
+- `CAP-V0-057`: (experimental under the standing lane auto-accept (2026-11-11); V1-4814) For every
+  row, an unknown option after the path, and each further refusal vector of the row, MUST exit 2
+  under a repository root with nothing on stdout, no stdin read and exactly one stderr line: a JSON
+  object with `ok` false and a `code` equal to the row's code, from the closed argument set
+  (`invalid-arguments`, a command's own `COMMAND-invalid-arguments`, or `not-installed` for a shim
+  whose bundled app is absent; the kit's PATH is an empty directory, so the result does not depend
+  on the host). A row's separate-process vectors (`init --revision`, `adopt --unknown`), run through
+  the test binary's second entry point, MUST be refused the same way. Under a root that is not a
+  repository the same unknown option MUST still be refused with such an envelope and never as
+  `internal-error`. Before every top-level verb a bare `--root` followed by an option-like token
+  MUST be refused as a missing value (decision 0181), and `corvint help TOPIC` for an unknown topic
+  MUST name every dispatched verb. Before this change `test-plan page-state` and `test-plan
+  prefixes` reported their argument errors as `internal-error`; they now report
+  `test-plan-invalid-arguments` with the same message. The one exception is `cem verify-stable`,
+  whose frozen contract (`CEM-V1-017`) prints its verdict as one JSON object on stdout, exits 2 and
+  writes nothing on stderr; the kit checks that form for its row.
+- `CAP-V0-058`: (experimental under the standing lane auto-accept (2026-11-11); V1-4814) The help
+  and refusal copies the kit subsumes MUST be deleted: `TestCAPV0042EveryTreeNodeAnswersHelp`
+  (removed), `TestEveryVerbHelpFollowsTheHouseFormat` (removed),
+  `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` (removed),
+  `TestHFlagAliasesHelpFlag` (removed), `TestHelpFlagAnywhereFollowsArgparse` (removed),
+  `TestRootPreambleFollowsArgparseOptionLikeClassification` (removed),
+  `TestUnknownHelpTopicIsConventionalError` (removed), `TestRSPV0051CLIHelpAndInvalid` (removed),
+  `TestActivationArgumentErrorsAndHelp` (removed), `TestTestPlanHelp` (removed) and
+  `TestCEMHelpSurfaces` (removed). Every traceability row that cited one of them MUST cite
+  `TestCLIKit` instead. The kit compares help to the topic text the binary serves and refusals to
+  their envelope and code; the only fixed texts are each row's `helpContains` (a flag or usage form
+  a reader relies on: `--explain`, `--full-receipt`, `test-plan consolidate --input FILE`, and the
+  root verb lines for `cem`, `test-plan`, `adopt` and `init`); a command's semantic refusals (input
+  files, repository state) stay in that command's own tests.
 - `CAP-V0-970`: (experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)
   The help parser (`clitree.Synopses`) MUST NOT read an example as a synopsis: a line of an
   `Example:` or `Examples:` section (the header line, or the indented block under it up to the
@@ -788,6 +843,15 @@ it by shipping `help --json` and a snapshot); output schemas, exit codes or flag
 node; generating help text; checking that a node's summary or example is true; a CI step (the
 check runs in the existing Go test shards).
 
+CAP-V0-055 to CAP-V0-058 failure modes: the kit checks shape, not truth. A help topic that is wrong
+but well formed passes, as do a refusal with the right code and a misleading message and a row whose
+extra vectors miss a command-specific refusal; those stay with each command's own tests. The kit
+runs in process except for its separate-process rows, so an exit path that only a separate process
+takes is seen only for those vectors. A new command whose unknown option is refused with a code
+outside the closed argument set fails the kit until its refusal is fixed or the set is amended here.
+The PATH it runs under is empty, so a shim that must find its bundled app is checked only in its
+`not-installed` form.
+
 CAP-V0-040 to CAP-V0-050 failure modes: the dispatch scan is lexical. It reads a switch,
 comparison or lookup only on a value named like an argument slice (`arg*`, `rest`, `tokens`,
 `tail`, `remaining`, `words`, `cmd`, or `.Args`), so a subcommand dispatched on a differently named
@@ -820,6 +884,10 @@ To roll back only CAP-V0-030 to CAP-V0-032, delete `internal/capcatalog/workflow
 test, the `Workflows` fields of `Registry` and `Catalog` and the `workflows` derivation entry,
 `cmd/corvint/help_appmap_workflow.go` and its test, the registry line and the `flows appmap build`
 help topic in `cmd/corvint/help.go`, then regenerate the catalog.
+To roll back only CAP-V0-055 to CAP-V0-058, delete `cmd/corvint/cli_kit_test.go`, restore the
+eleven deleted tests from the parent of the change and their traceability citations, and revert
+the `corvint help PATH` resolution and the two `test-plan` refusal codes; no stored state depends
+on them.
 To roll back only CAP-V0-040 to CAP-V0-050, delete `internal/clitree`, `internal/capcatalog/trees/`,
 `CLI-RATCHET.tsv`, `tools/capabilities-check/trees.go` and `entrypoint.go` with their tests and
 calls in `run`, `cmd/corvint/command_tree.go`, `internal/tasks/cli/command_tree.go`, the
@@ -866,20 +934,24 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-030 | `capcatalog.Workflow`, `Catalog.Workflows`, `cmd/corvint/help_appmap_workflow.go` (`appmapAdoptionWorkflow`), `capabilityRegistry`, `internal/capcatalog/catalog.json` | `TestCAPV0030HelpJSONCarriesTheAppmapWorkflow`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
 | CAP-V0-031 | `capcatalog.BuildWorkflow`, `stepSections`, `stepRequiredFlags`, `StepHelp`, `GuideProblems` (workflow schemas) | `TestCAPV0031WorkflowDerivedFromStepHelp`, `TestCAPV0031StepHelpRendersTheStep`, `TestCAPV0018ShippedGuideMatchesTheLiveCatalog` |
 | CAP-V0-032 | `appmapAdoptionWorkflow` step `Requires` | `TestCAPV0032ShippedWorkflowRequiresEarlierSteps` |
-| CAP-V0-040 | `clitree.Builder`, `cmd/corvint/command_tree.go` (`buildCommandTree`, `helpTopics`), `internal/tasks/cli/command_tree.go` | `TestCAPV0040TreeDerivesFromHelp`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli); the `corvint-test` tree left with decision 0593 |
+| CAP-V0-040 | `clitree.Builder`, `cmd/corvint/command_tree.go` (`buildCommandTree`, `helpTopics`), `internal/tasks/cli/command_tree.go` | `TestCAPV0040TreeDerivesFromHelp`, `TestCLIKit` (cmd/corvint; the internal/tasks/cli copy left with the Tasks CLI); the `corvint-test` tree left with decision 0593 |
 | CAP-V0-041 | `clitree.ScanDirs`, `argumentSlice` | `TestCAPV0041ScanFindsDispatch` |
-| CAP-V0-042 | `nodeHelpTopic`, `nodeHelpText`, `parentTopicPointer`, `clitree.Render`, `clitree.Find`, `clitree.LeadingWords`, tasks command help | `TestCAPV0042FindRenderAndLeadingWords`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli); the `corvint-test` cases left with decision 0593 |
+| CAP-V0-042 | `nodeHelpTopic`, `nodeHelpText`, `parentTopicPointer`, `clitree.Render`, `clitree.Find`, `clitree.LeadingWords`, tasks command help | `TestCAPV0042FindRenderAndLeadingWords`, `TestCLIKit` (cmd/corvint; the internal/tasks/cli copy left with the Tasks CLI); the `corvint-test` cases left with decision 0593 |
 | CAP-V0-043 | `commandTreeInternal` (three binaries), `Tree.Words`, `Tree.AllFlags` | `TestCAPV0043WordsAndFlagsVocabulary`, `TestCAPV0047RepositoryCommandTreesMatchDispatch` |
-| CAP-V0-044 | `clitree.MinimalExample`, `helpExampleTrailer`, `treeHelp` | `TestCAPV0040TreeDerivesFromHelp`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli) |
+| CAP-V0-044 | `clitree.MinimalExample`, `helpExampleTrailer`, `treeHelp` | `TestCAPV0040TreeDerivesFromHelp`, `TestCLIKit` (cmd/corvint) |
 | CAP-V0-045 | `commandTreeRefs`, `capcatalog.CommandTreeRef`, `internal/capcatalog/trees/*.json`, `make capability-catalog` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree` (removed) |
 | CAP-V0-046 | `help --tree` topic, `CommandTreeJSON` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree` (removed) |
 | CAP-V0-047 | `CheckTrees`, `treeDrift`, `clitree.Problems`, `servesMCP` | `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0047SyntheticDriftFails`, `TestCAPV0047NewMCPServerToolNeedsRow` |
 | CAP-V0-048 | `internal/capcatalog/CLI-RATCHET.tsv`, `readRatchet`, `ratchetCeiling`, `ratchetBaseline` | `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047SyntheticDriftFails` (ratchet cases) |
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
+| CAP-V0-055 | `cmd/corvint/cli_kit_test.go` (`cliKitTable`) | `TestCLIKit` (its `CAP-V0-055` subtest) |
+| CAP-V0-056 | `parseHelpInvocation` (`corvint help PATH` resolves as `PATH --help`), `cmd/corvint/help.go` | `TestCLIKit` (every row's help forms) |
+| CAP-V0-057 | `runTestPlanPageState`, `runTestPlanPrefixes` (`testPlanArgumentError`) | `TestCLIKit` (every row's refusals) |
+| CAP-V0-058 | deletion of the eleven copies; traceability rows repointed | `TestCLIKit` |
 | CAP-V0-950 | `internal/capcatalog/slice.go` (`Slice`), `cmd/corvint` (`parseHelpInvocation`, `catalogCommandJSON`, root help), `internal/tasks/cli` (`Run`) | `TestCAPV0950EveryCommandSlicesUnderTheBudget` (internal/capcatalog), `TestCAPV0950HelpJSONCommandSlice` (cmd/corvint; independent command subtests, timings in `docs/build-log/2026-11-05-slow-test-speedups.md`), the `help --tree` cases of `TestCAPV0046HelpJSONIsTheTree` (removed) (internal/tasks/cli) |
 | CAP-V0-700 | `internal/companioncli` (`Answer`), the `main` of each named companion | `internal/companionrelease/companion_cli_contract_test.go`'s `TestCAPV0700CompanionsAnswerTheSharedContract` (removed) (all eight built binaries, five forms, outside a repository); `TestCAPV0700AnswerHandlesOnlyTheContractForms` (internal/companioncli) (the `internal/companionrelease` tests were deleted by decision 0594; 1a838f144 is the last tree with them) |
-| CAP-V0-701 | `parseOptions` (`cmd/corvint-console`), `main` (`cmd/corvint-update`) | `TestCAPV0701CompanionsRefuseStrayArgumentsFirst` (removed) |
+| CAP-V0-701 | `parseOptions` (`cmd/corvint-console`), `main` (`cmd/corvint-update`) | `TestCAPV0701CompanionsRefuseStrayArgumentsFirst` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (removed) (internal/tasks/cli) |
 | CAP-V0-820 | `unknownVerb`, `nearestVerbs` (`internal/tasks/cli/unknown_verb.go`) | `TestCAPV0820_UnknownVerbIsCodedAndSuggestsNearest` (removed), `TestCAPV0820_VerbGroupsRefuseUnknownVerb` (removed), `TestCAPV0820_NoSuggestionBeyondThreshold` (removed) (internal/tasks/cli) |
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
@@ -892,8 +964,8 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
 | CAP-V0-979 | `internal/clitree/scan.go` (`eventTable`, the event-key filter in `scanPackage`) | `TestCAPV0979EventValuesAreNotDispatch` (internal/clitree), `TestCAPV0979EventValuesAreNotDrift` (tools/capabilities-check) |
 | CAP-V0-780 | `tools/capabilities-check/check.go` (`newCommandChecklist`) | `TestCAPV0780NewCommandNamesEveryArtifact` (a stub command names all three artifacts; a companion binary keeps the plain detail) |
-| CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (removed) (cmd/corvint) |
-| CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (removed) (cmd/corvint) |
+| CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (removed) (cmd/corvint) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
+| CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (removed) (cmd/corvint) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
 
 | CAP-V0-7700 | `internal/cliapp`, `tools/cli-discovery-gen`, `internal/capcatalog/trees.go`, all companion roots, full-node catalog | `TestCAPV07700EveryBinaryHasTree`, `TestCAPV07700NodeCatalog`, `TestCAPV07700ShippedHelp` |
 

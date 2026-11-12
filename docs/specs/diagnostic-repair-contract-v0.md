@@ -294,9 +294,10 @@ use the change as cover for a lower number.
 `subject` is a typed `kind`/`value` pair rather than one string. The bare string was the cheaper
 option and was set aside on evidence. One file refuses four different sorts of thing: an argument
 whose count is wrong, one supplied path, a missing captured revision index, and a module that is
-not slash-qualified (all in the removed working-tree impact compiler). Two more sorts appear in the doc compiler: a document read
-as authority at `internal/doccompiler/build.go:158` and a host facility at
-`internal/doccompiler/build.go:32`. One string can hold any of those only by encoding its own sort
+not slash-qualified (all in the removed working-tree impact compiler). Two more sorts appeared in the doc compiler: a document read
+as authority, now at `internal/doccompiler/discover.go:436@3823605e`, and a host facility, the
+site build's process-containment refusal (removed with that build by V1-4828; it was line 32 of
+the doc compiler's build.go at b55635262788687c3eea9a08a94378e4ab8856a4). One string can hold any of those only by encoding its own sort
 inside the text, which is the parsing `DRC-V0-012` forbids. The revision-alongside-a-path worry
 that kept this open is answered without a third field: the revision a path was checked against is a
 measured fact, so it is `evidence` under `DRC-V0-002` and the pair stays two fields. The owner

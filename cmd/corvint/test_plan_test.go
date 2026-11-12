@@ -46,6 +46,20 @@ func testPlanGit(t *testing.T, root string, args ...string) string {
 	return string(out)
 }
 
+// V1-5363: every testPlanGit command carries maintenance.auto=false and gc.auto=0, so a fixture
+// commit spawns no detached `git maintenance run --auto` whose transient
+// .git/objects/maintenance.lock a later snapshotTree walk could list and then fail to lstat.
+func TestTestPlanGitDisablesAutoMaintenance(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	testPlanGit(t, root, "init", "-q")
+	for key, want := range map[string]string{"maintenance.auto": "false", "gc.auto": "0"} {
+		if got := strings.TrimSpace(testPlanGit(t, root, "config", "--get", key)); got != want {
+			t.Errorf("testPlanGit sees %s=%q, want %q", key, got, want)
+		}
+	}
+}
+
 func testPlanVariation(id string, extra map[string]any) map[string]any {
 	v := map[string]any{
 		"variation_id": id, "spec": "tests/e2e/book.spec.ts", "app": "admin", "setup": "scenarios/club.ts",
@@ -251,14 +265,6 @@ func TestTestPlanCheckExitCodes(t *testing.T) {
 		if code != 1 || stdout != "" || !strings.Contains(stderr, `"code": "`+c.code+`"`) {
 			t.Errorf("%s: exit %d stdout %q stderr %s", name, code, stdout, stderr)
 		}
-	}
-}
-
-func TestTestPlanHelp(t *testing.T) {
-	t.Parallel()
-	code, stdout, _ := runTestPlanCLI(t, "test-plan", "--help")
-	if code != 0 || !strings.Contains(stdout, "test-plan consolidate --input FILE") || !strings.Contains(rootHelp, "test-plan") {
-		t.Fatalf("exit %d help %q", code, stdout)
 	}
 }
 

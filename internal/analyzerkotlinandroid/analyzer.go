@@ -655,9 +655,6 @@ func qualified(value string) bool {
 	}
 	return true
 }
-func fact(request Request, input Input, kind, subject, predicate, value string) Fact {
-	return factAt(request, input, 1, 1, 1, 1, kind, subject, predicate, value)
-}
 func factAt(request Request, input Input, sl, sc, el, ec int, kind, subject, predicate, value string) Fact {
 	output := Fact{kind, input.Handle, "-", subject, predicate, value, request.CompilationUnitID, "", sl, sc, el, ec}
 	output.EvidenceSHA256 = evidence(request, output, input.SHA256)
@@ -688,13 +685,6 @@ func compareFact(left, right Fact) int {
 		}
 	}
 	return 0
-}
-func echoes(request Request) []Echo {
-	output := make([]Echo, 0, len(request.Inputs))
-	for _, input := range request.Inputs {
-		output = append(output, Echo{input.Handle, input.SHA256})
-	}
-	return output
 }
 func rejectSentinel(reason string) []byte {
 	output, ok := encodeSentinel(reason)

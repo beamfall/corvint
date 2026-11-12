@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func identAttributeRepository(t *testing.T) string {
@@ -367,40 +368,6 @@ func TestWriteSnapshotDoesNotRewriteMatchingGitIgnore(t *testing.T) {
 	}
 	if os.SameFile(before, after) {
 		t.Fatal("IDX-SNAP-V0-005: different .gitignore content was rewritten in place")
-	}
-}
-
-func TestBuildContextMatchesBuildIncludingImportEvidence(t *testing.T) {
-	t.Parallel()
-	full := taskContextFixture(t)
-	narrow, err := BuildContext(context.Background(), full.Root, "cache/cache.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, kept := narrow.Imports["server/server.go"]; !kept {
-		t.Fatalf("the importer of the subject's package lost its edge: %v", narrow.Imports)
-	}
-	if !reflect.DeepEqual(narrow.Imports, full.Imports) {
-		t.Fatalf("cold imports differ from a full snapshot: cold %v full %v", narrow.Imports, full.Imports)
-	}
-	task := "Change Demux in cache/cache.go and rerun the suite"
-	fromFull, err := TaskContext(context.Background(), full, task, "cache/cache.go", 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fromNarrow, err := TaskContext(context.Background(), narrow, task, "cache/cache.go", 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(fromFull, fromNarrow) {
-		t.Fatalf("packets differ:\n%v\n%v", fromFull, fromNarrow)
-	}
-	none, err := BuildContext(context.Background(), full.Root, "legacy/Legacy.groovy")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(none.Imports, full.Imports) {
-		t.Fatalf("a subject with no import rule lost test-anchor edges: %v", none.Imports)
 	}
 }
 

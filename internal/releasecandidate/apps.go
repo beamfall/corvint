@@ -28,13 +28,22 @@ import (
 // release (ARTIFACT-BIN-V0-509..511, CMS-V0-002, V1-5237). The release-binary
 // tests hold this list equal to the catalog's set.
 var CoreSetApps = []string{
-	"corvint-cli",
 	"corvint-docs",
 	"corvint-docs-mcp",
 	"corvint-mcp",
-	"corvint-test-runner",
-	"corvint-test-validity-mcp",
-	"corvint-web-flows",
+}
+
+// AppPlatforms are the `<goos>_<goarch>` pairs a candidate carries app archives
+// for: the release catalog's targets, which are the PROD-INT-006 platforms
+// (ARTIFACT-BIN-V0-520, -522), sorted. Each is also a shipped core archive
+// platform; the core archive set itself (darwin/amd64 included) belongs to the
+// corvint archive gate and is not narrowed here, so an install on a shipped
+// core platform outside this list refuses at the app step. The release-binary
+// tests hold this list equal to the catalog's targets.
+var AppPlatforms = []string{
+	"darwin_arm64",
+	"linux_amd64",
+	"linux_arm64",
 }
 
 const (
@@ -95,11 +104,15 @@ func splitPlatform(platform string) (goos, goarch string) {
 	return goos, goarch
 }
 
+// appPlatforms returns AppPlatforms; candidate assembly, reading and the
+// manifest check all iterate it, never the core archive platforms.
+func appPlatforms() []string { return AppPlatforms }
+
 func appArchiveName(app, platform string) string { return app + "_" + platform + ".tar.gz" }
 func appArchivePath(app, platform string) string { return "apps/" + appArchiveName(app, platform) }
 
 // appAssetCount is the number of app archives a candidate carries.
-func appAssetCount() int { return len(CoreSetApps) * len(shippedCoreArchives) }
+func appAssetCount() int { return len(CoreSetApps) * len(AppPlatforms) }
 
 // verifyApps binds every core-set app archive to the release manifest and the
 // manifest to the candidate's own release identity: each app is recorded at
@@ -135,7 +148,7 @@ func verifyApps(files map[string][]byte, assets map[string]Asset, manifest Manif
 			}
 			rows[row.Name] = row
 		}
-		for _, platform := range shippedPlatforms() {
+		for _, platform := range appPlatforms() {
 			name := appArchiveName(app, platform)
 			row, recorded := rows[name]
 			if !recorded {

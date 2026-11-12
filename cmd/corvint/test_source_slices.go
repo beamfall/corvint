@@ -64,7 +64,8 @@ import (
 // function. A package whose every test is kept stays whole; one with none
 // runs `-run ^$`, which still builds and vets the package and its tests.
 
-// testSourceSliceLimit bounds the per-candidate plans source slicing makes.
+// testSourceSliceLimit bounds the per-candidate plans source slicing makes, a
+// rejected candidate's plan included (TSP-V0-006, amended 2026-11-11, V1-5162).
 const testSourceSliceLimit = 16
 
 // testSourceForeign are directory suffixes whose code the lexical model
@@ -84,8 +85,9 @@ type testSourceCandidate struct {
 // TSP-V0-006 cannot slice before reading base, and returns the rest.
 func testSourceEligibles(plan affected.Plan, graph *affected.Graph, candidates []testSourceCandidate, sliced map[string]sessiontest.GoSlice) []testSourceCandidate {
 	var eligible []testSourceCandidate
+	planned := 0
 	for _, candidate := range candidates {
-		if reason := testSourceEligible(plan, graph, &candidate, len(eligible)); reason != "" {
+		if reason := testSourceEligible(plan, graph, &candidate, &planned); reason != "" {
 			sliced[candidate.pkg] = sessiontest.GoSlice{Reason: reason}
 			continue
 		}
@@ -105,8 +107,11 @@ func testSourceOwnPaths(eligible []testSourceCandidate) []string {
 
 // testSourceEligible fills candidate.own and candidate.tests and returns ""
 // when the package's own dirty paths are its non-test .go files and its test
-// files, and the other dirty paths do not select it.
-func testSourceEligible(plan affected.Plan, graph *affected.Graph, candidate *testSourceCandidate, planned int) string {
+// files, and the other dirty paths do not select it. planned counts the plans of
+// other dirty paths made so far, whether or not they rejected their candidate:
+// a change with many candidates that the other paths select would otherwise
+// plan once per candidate without bound (V1-5162).
+func testSourceEligible(plan affected.Plan, graph *affected.Graph, candidate *testSourceCandidate, planned *int) string {
 	var rest []string
 	for _, dirty := range plan.Dirty {
 		switch {
@@ -127,9 +132,10 @@ func testSourceEligible(plan affected.Plan, graph *affected.Graph, candidate *te
 	if len(rest) == 0 {
 		return ""
 	}
-	if planned >= testSourceSliceLimit {
+	if *planned >= testSourceSliceLimit {
 		return candidate.fallback + " (source slicing plans at most 16 packages)"
 	}
+	*planned++
 	for _, other := range testSliceSelect(graph, rest).Selected {
 		if other.UnitID == "go:"+candidate.pkg {
 			return candidate.fallback + " (also selected by " + other.Witness.Kind + " via " + other.Witness.DirtyPath + ")"

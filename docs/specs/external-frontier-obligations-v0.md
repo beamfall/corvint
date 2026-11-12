@@ -150,11 +150,11 @@ this document, its index rows, and decision 0313. No other surface changes in ei
 |---|---|---|
 | `EFO-V0-001` | `parseObligationsInvocation`, `readObligationsInput` in `cmd/corvint/obligations.go` | `TestObligationsArguments` (removed), `TestObligationsCommandRefusesRetiredMap` (removed); V1-3017 bounded input read: `TestObligationsInputReadIsBounded` (removed) |
 | `EFO-V0-002` | `Obligations`, `joinImpact` in `internal/extevidence/obligations.go` | `TestCEMV1210FrozenObligationsAdmitNoMap` (removed) |
-| `EFO-V0-003`, `EFO-V0-007` | `StableObligations` in `internal/extevidence/obligations_stable.go`, `digest` in `internal/extevidence/obligations.go` | `TestCEMV1130StableObligationsAccepts` (removed), `TestObligationsCommandRefusesRetiredMap` (removed) |
-| `EFO-V0-004`, `EFO-V0-005` | `associate`, `fromRow`, `toMap` in `internal/extevidence/obligations.go` | `TestObligationsHunkAssociations` (removed) |
-| `EFO-V0-006` | `providerSummary`, `obligationsState`, `associate` in `internal/extevidence/obligations.go` | `TestObligationsExplicitUnknowns` (removed) |
+| `EFO-V0-003`, `EFO-V0-007` | `StableObligations` in `internal/extevidence/obligations_stable.go`, `digest` in `internal/extevidence/obligations.go` | `TestCEMV1130StableObligationsAccepts` (removed), `TestObligationsCommandRefusesRetiredMap` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing tests; a path or function its row names remains; no test cites it now, V1-5333) |
+| `EFO-V0-004`, `EFO-V0-005` | `associate`, `fromRow`, `toMap` in `internal/extevidence/obligations.go` | `TestObligationsHunkAssociations` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
+| `EFO-V0-006` | `providerSummary`, `obligationsState`, `associate` in `internal/extevidence/obligations.go` | `TestObligationsExplicitUnknowns` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
 | `EFO-V0-008` | `boundAssociations`, `associationKey` in `internal/extevidence/obligations.go` | `TestObligationsDeterministicAndBounded` (removed) |
-| `EFO-V0-009` | `toMap`, `obligationsUntrusted` in `internal/extevidence/obligations.go` | `TestObligationsPrivate` (removed) |
+| `EFO-V0-009` | `toMap`, `obligationsUntrusted` in `internal/extevidence/obligations.go` | `TestObligationsPrivate` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
 
 ## Unresolved decisions and promotion or kill criteria
 
