@@ -66,7 +66,7 @@
         "type": "source",
         "path": "internal/mcp/server/server.go"
       },
-      "reviewed_at": "4b6fe35011fadbe4a182468858b3bcf4d54677e3"
+      "reviewed_at": "8490dcc5b1d3726bc91a1121d471c3a5c0167dd0"
     },
     {
       "from": "mcp-discover",
