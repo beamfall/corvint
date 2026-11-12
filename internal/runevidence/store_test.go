@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -401,4 +402,166 @@ func treeDigest(t *testing.T, dir string) string {
 		t.Fatal(err)
 	}
 	return out.String()
+}
+
+// RVD-V1-002, RVD-V1-010: a writer that died mid-line leaves a log without a final newline. The
+// next append rewrites the log rather than joining its line to the torn one, so the log stays
+// readable and lists the new record.
+func TestRVDV1002AppendAfterTornTail(t *testing.T) {
+	s := testStore(t)
+	first, err := s.Append(receipt(commitA, treeA, "go:m/a=PASS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(s.Dir, logName)
+	torn := append(mustRead(t, logPath), []byte(`{"id":"`+strings.Repeat("f", 20))...)
+	if err := os.WriteFile(logPath, torn, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.Append(receipt(commitB, treeB, "go:m/a=FAIL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := mustRead(t, logPath)
+	if !bytes.HasSuffix(raw, []byte("\n")) {
+		t.Fatalf("log still torn:\n%s", raw)
+	}
+	entries := readLog(t, s)
+	if len(entries) != 2 || entries[0].ID != first || entries[1].ID != second {
+		t.Fatalf("log after torn tail %+v", entries)
+	}
+	snapshot, err := s.Read()
+	if err != nil || snapshot.LogUnreadable || len(snapshot.Reasons) != 0 || len(snapshot.Records) != 2 ||
+		snapshot.Latest()["go:m/a"].Outcome != "failed" {
+		t.Fatalf("read after torn tail %+v %v", snapshot, err)
+	}
+}
+
+// RVD-V1-010: an append waits a bounded time for a lock another writer holds, then fails with
+// ErrLockBusy (the caller prints run-evidence-write-failed) and writes no record.
+func TestRVDV1010LockWaitIsBounded(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("the advisory lock exists on linux and darwin only")
+	}
+	s := testStore(t)
+	s.LockWait = 150 * time.Millisecond
+	if err := makeStoreDirs(filepath.Dir(s.Dir), s.Dir, filepath.Join(s.Dir, recordsDir)); err != nil {
+		t.Fatal(err)
+	}
+	unlock, err := lockFile(filepath.Join(s.Dir, lockName), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	_, err = s.Append(receipt(commitA, treeA, "go:m/a=PASS"))
+	waited := time.Since(started)
+	unlock()
+	if !errors.Is(err, ErrLockBusy) {
+		t.Fatalf("append under a held lock returned %v", err)
+	}
+	if waited < s.LockWait || waited > s.LockWait+2*time.Second {
+		t.Fatalf("append waited %s for a %s lock wait", waited, s.LockWait)
+	}
+	if names, _ := listRecords(filepath.Join(s.Dir, recordsDir)); len(names) != 0 {
+		t.Fatalf("a refused append wrote records %v", names)
+	}
+	if _, err := s.Append(receipt(commitA, treeA, "go:m/a=PASS")); err != nil {
+		t.Fatalf("append after release: %v", err)
+	}
+}
+
+// RVD-V1-002: the writer opens neither the log nor the lock through a final symlink, so a linked
+// file cannot carry the append outside the store.
+func TestRVDV1002LinkedLogAndLockRefused(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("O_NOFOLLOW and the advisory lock exist on linux and darwin only")
+	}
+	for _, name := range []string{logName, lockName} {
+		t.Run(name, func(t *testing.T) {
+			s := testStore(t)
+			if _, err := s.Append(receipt(commitA, treeA, "go:m/a=PASS")); err != nil {
+				t.Fatal(err)
+			}
+			outside := filepath.Join(t.TempDir(), "outside")
+			if err := os.WriteFile(outside, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			target := filepath.Join(s.Dir, name)
+			if err := os.Remove(target); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(outside, target); err != nil {
+				t.Fatal(err)
+			}
+			_, err := s.Append(receipt(commitB, treeB, "go:m/b=PASS"))
+			if name == lockName && err == nil {
+				t.Fatal("append took a linked lock file")
+			}
+			if got := mustRead(t, outside); len(got) != 0 {
+				t.Fatalf("append wrote through the linked %s: %q", name, got)
+			}
+		})
+	}
+}
+
+// RVD-V1-010: a read of a damaged store is bounded. A log naming more than MaxReadRecords entries
+// is read only for its newest MaxReadRecords; records past the byte budget are not read. Either is
+// reported as run-evidence-corrupt, and the newest records are the ones kept.
+func TestRVDV1010ReadIsBounded(t *testing.T) {
+	t.Run("records", func(t *testing.T) {
+		s := testStore(t)
+		id, err := s.Append(receipt(commitA, treeA, "go:m/a=PASS"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		line := mustRead(t, filepath.Join(s.Dir, logName))
+		if err := os.WriteFile(filepath.Join(s.Dir, logName), bytes.Repeat(line, MaxReadRecords+5), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := s.Read()
+		if err != nil || len(snapshot.Records) != MaxReadRecords || snapshot.Records[0].Entry.ID != id ||
+			!slices.Equal(snapshot.Reasons, []string{ReasonCorrupt}) {
+			t.Fatalf("records %d reasons %v err %v", len(snapshot.Records), snapshot.Reasons, err)
+		}
+	})
+	t.Run("bytes", func(t *testing.T) {
+		saved := readSlack
+		readSlack = 0
+		t.Cleanup(func() { readSlack = saved })
+		s := testStore(t)
+		var ids []string
+		for index := range 4 {
+			id, err := s.Append(receipt(commitA, treeA, fmt.Sprintf("go:m/t%d=PASS", index)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			ids = append(ids, id)
+		}
+		one := int64(len(receipt(commitA, treeA, "go:m/t0=PASS")))
+		bounded := Store{Dir: s.Dir, CapBytes: 2*one + one/2}
+		snapshot, err := bounded.Read()
+		if err != nil || len(snapshot.Records) != 2 || snapshot.Records[0].Entry.ID != ids[2] || snapshot.Records[1].Entry.ID != ids[3] ||
+			len(snapshot.Corrupt) != 0 || !slices.Equal(snapshot.Reasons, []string{ReasonCorrupt}) {
+			t.Fatalf("bounded read %+v %v", snapshot, err)
+		}
+	})
+	t.Run("unreadable log", func(t *testing.T) {
+		s := testStore(t)
+		if _, err := s.Append(receipt(commitA, treeA, "go:m/a=PASS")); err != nil {
+			t.Fatal(err)
+		}
+		dir := filepath.Join(s.Dir, recordsDir)
+		for index := range maxListEntries + 10 {
+			if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("junk-%d", index)), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := os.WriteFile(filepath.Join(s.Dir, logName), []byte("not a log line\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := s.Read()
+		if err != nil || !snapshot.LogUnreadable || len(snapshot.Records) > 1 {
+			t.Fatalf("fallback read %d records %v", len(snapshot.Records), err)
+		}
+	})
 }
