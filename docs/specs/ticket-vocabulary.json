@@ -343,6 +343,7 @@
   },
   "changeFolders": {
     "2026-11-11-context-proven-only": "preview",
+    "2026-11-12-appmap-usable-ui-map": "flows",
     "2026-11-12-canonical-test-id": "inventory",
     "2026-11-12-deadcode-ratchet": "gates",
     "acceptance-record": "specs",

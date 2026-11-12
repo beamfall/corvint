@@ -1,9 +1,12 @@
 package appmap
 
 import (
+	"maps"
 	"path"
 	"slices"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 // The TypeScript reader of site knowledge (SKH-V0-010, SKH-V0-020): Playwright and Cypress page
@@ -659,9 +662,36 @@ func (f *skFile) readTests(busy []bool) {
 		if f.cypress {
 			u.pageArgs["cy"] = true
 		}
-		f.tests = append(f.tests, u)
+		f.tests = append(f.tests, loopTests(toks, i, toks[j+1], u)...)
 		i = close
 	}
+}
+
+// loopTests returns the units of the test u whose call is toks[at] and whose title is the token
+// title: one per value when the test sits in a literal for-of loop (loopValues) and its title is a
+// template naming only the loop variable, with the variable bound and the title filled, as long as
+// the filled titles are distinct and none is secret-shaped; otherwise u alone (AMAP-V0-972).
+func loopTests(toks []token, at int, title token, u *skUnit) []*skUnit {
+	name := soleSubst(title)
+	if name == "" {
+		return []*skUnit{u}
+	}
+	values, ok := loopValues(toks, at, name)
+	if !ok {
+		return []*skUnit{u}
+	}
+	out, seen := make([]*skUnit, 0, len(values)), map[string]bool{}
+	for _, v := range values {
+		t, _ := fillTemplate(title, func(string) (string, bool) { return v, true })
+		if seen[t] || secretscreen.MatchString(v) || secretscreen.MatchString(t) {
+			return []*skUnit{u}
+		}
+		seen[t] = true
+		c := *u
+		c.title, c.lits, c.pageArgs = t, map[string]string{name: v}, maps.Clone(u.pageArgs)
+		out = append(out, &c)
+	}
+	return out
 }
 
 // skStmtEnd returns the index just past the statement that starts at a: a ';' at depth 0, a line
@@ -998,6 +1028,9 @@ func (m *SKModel) tsSteps(u *skUnit) []SKStep {
 	x := &skCtx{m: m, f: u.file, c: u.class, u: u, pageArgs: map[string]bool{}, params: map[string]bool{},
 		locals: map[string]skLoc{}, inst: map[string]string{}, lits: map[string]string{}}
 	for n, v := range u.file.consts {
+		x.lits[n] = v
+	}
+	for n, v := range u.lits {
 		x.lits[n] = v
 	}
 	for p := range u.pageArgs {
