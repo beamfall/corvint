@@ -1599,11 +1599,12 @@ func (e engine) carryForward(stage, destination string, rec *receipt) error {
 	return carryMembers(stage, txn, prior, rec)
 }
 
-// carryInterrupted keeps the member anchors of an earlier run of this same
-// apply (same corvint previous and candidate digests) that was killed after it
-// switched some apps but before it switched corvint (UPD-V0-921): a member
-// that still holds that run's candidate takes that run's previous state, so
-// the retry does not record the switched bytes as the state to roll back to.
+// carryInterrupted keeps the member anchors of an earlier run from the same
+// corvint previous digest that was killed after it switched some apps but
+// before it switched corvint (UPD-V0-921), even when a newer release has since
+// replaced that run's candidate: a member that still holds that run's
+// candidate takes that run's previous state, so the retry does not record the
+// switched bytes as the state to roll back to.
 // The retry's receipt supersedes that run's.
 func (e engine) carryInterrupted(stage string, rec *receipt) error {
 	entries, err := os.ReadDir(e.config.StateDir)
@@ -1627,7 +1628,7 @@ func (e engine) carryInterrupted(stage string, rec *receipt) error {
 			continue
 		}
 		if prior.Component != rec.Component || prior.Destination != rec.Destination ||
-			prior.PreviousDigest != rec.PreviousDigest || prior.CandidateDigest != rec.CandidateDigest {
+			prior.PreviousDigest != rec.PreviousDigest {
 			continue
 		}
 		matches[entry.Name()] = prior
