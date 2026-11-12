@@ -5,6 +5,7 @@ Date: 2026-11-11
 Requirement prefix: `FIH-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5405)
 Delivery status: experimental; partially delivered
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/fault-injection-harness/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/fault-injection-harness/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-TEST-002, PROD-TEST-011, PROD-INT-008),

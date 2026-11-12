@@ -5,6 +5,7 @@ Date: 2026-11-11
 Requirement prefix: `FSV-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5410)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/flow-schema-version/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/flow-schema-version/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-INT-016, PROD-DOCS-011, PROD-INT-004),

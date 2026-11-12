@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-11
 Intent status: accepted
 Delivery status: partial
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/non-code-map/` (`proposal.md`,
 `design.md`, `tasks.md` and `specs/non-code-map/spec.md`), `docs/specs/PRODUCT-PLAN-1.0.md`
 (PROD-TEST-002, PROD-TEST-008, PROD-TEST-012, PROD-TEST-019) and
