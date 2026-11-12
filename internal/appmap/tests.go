@@ -167,16 +167,7 @@ func readFacts(text string) fileFacts {
 			}
 			f.selectors = append(f.selectors, newSelector(kind, value, name, strength, t.line))
 		case dotted && (t.text == "goto" || t.text == "waitForURL" || t.text == "toHaveURL"):
-			g := rawGoto{line: t.line}
-			if i+2 < len(toks) && (toks[i+2].kind == tokString || toks[i+2].kind == tokTemplate) && !toks[i+2].inexact && whole(i+2) {
-				g.url = toks[i+2].text
-				if secretscreen.MatchString(g.url) {
-					g.url, g.reason = "", "secret-shaped"
-				}
-			} else {
-				g.reason = "non-literal-url"
-			}
-			f.gotos = append(f.gotos, g)
+			f.gotos = append(f.gotos, gotoTargets(toks, i+2, whole(i+2), t.line)...)
 		case t.text == "expect" && !dotted:
 			f.asserts++
 		case (t.text == "test" || t.text == "it") && !dotted:

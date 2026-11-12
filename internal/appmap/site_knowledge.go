@@ -275,6 +275,9 @@ type skUnit struct {
 	end      int // last line
 	title    string
 	method   *SKMethod
+	// lits binds a literal for-of loop variable to one of its values in a test the loop repeats
+	// (AMAP-V0-972); nil otherwise.
+	lits map[string]string
 }
 
 type skClass struct {

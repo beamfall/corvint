@@ -40,7 +40,7 @@ var errorDetails = map[string]errorDetail{
 	"unsupported-tool":            {"the server does not answer this tool", false, "call tools/list and use a listed tool"},
 	"invalid-arguments":           {"the arguments do not satisfy the tool's input schema", false, "check the arguments against the inputSchema in tools/list"},
 	repoenvelope.CollisionCode:    {"the answer contains the untrusted-data envelope terminator and was withheld", false, ""},
-	docsenvelope.NotInstalledCode: {"the corvint-docs executable this tool runs is not installed", false, "install corvint-docs beside the server or on PATH"},
+	docsenvelope.NotInstalledCode: {"the corvint-docs executable this tool runs is not installed", false, ""},
 }
 
 // Detail returns the message, retryability and next step of a tool error: message when it says
@@ -57,6 +57,10 @@ func Detail(code, message string) (string, bool, string) {
 	}
 	if !known {
 		return text, false, ""
+	}
+	if code == docsenvelope.NotInstalledCode {
+		// The next step names this server's own directory, so it is computed per call (CMS-V0-930).
+		return text, d.retryable, docsenvelope.InstallHint()
 	}
 	return text, d.retryable, d.next
 }
