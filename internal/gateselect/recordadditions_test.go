@@ -18,8 +18,6 @@ import (
 // AFP-V0-3423: re-observe A instead of trusting the receipt. Name-only, fixed
 // sibling and declared directory readers narrow in both selectors; exact
 // names, real enumeration and unknowns remain. M and an absent base never narrow.
-// The selectors now run everything for the sealed CEM (NCM-V1-006, V1-5424);
-// the build-log entry keeps its narrowing.
 func TestAddedRecordEntryBothSelectors_AFPV3423(t *testing.T) {
 	const cem = ".corvint/changes/1111111111111111111111111111111111111111.cem.json" //corvint:fixture-path
 	const log = "docs/build-log/2026-11-09-probe.md"                                 //corvint:fixture-path
@@ -127,13 +125,9 @@ func TestAddedRecordEntryBothSelectors_AFPV3423(t *testing.T) {
 				for _, pkg := range want {
 					packages = append(packages, fixtureModule+"/"+pkg)
 				}
+				// A sealed CEM is change evidence, not configuration
+				// (NCM-V1-006), so it keeps its narrowing too.
 				expected := strings.Join(packages, " ")
-				switch {
-				case dirty == cem:
-					// NCM-V1-006 (V1-5424): a sealed CEM is Corvint
-					// configuration; every selector runs everything.
-					expected = "FALLBACK corvint-config " + cem
-				}
 				if got != expected {
 					t.Errorf("%s %s %s: %v; want %v", mode, name, dirty, lines, expected)
 				}

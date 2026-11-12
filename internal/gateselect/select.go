@@ -744,14 +744,10 @@ func planReaders(plan Receipt, index *repositoryIndex, module, root string) map[
 }
 
 // sealedEvidence reports a sealed CEM name directly under .corvint/changes/:
-// a 40- or 64-digit lowercase hexadecimal commit and `.cem.json`.
+// a 40- or 64-digit lowercase hexadecimal commit and `.cem.json`. The
+// non-code decision exempts the same shape from corvint-config (NCM-V1-006).
 func sealedEvidence(p string) bool {
-	name, sealed := strings.CutPrefix(p, sealedChanges)
-	commit, named := strings.CutSuffix(name, ".cem.json")
-	if !sealed || !named || (len(commit) != 40 && len(commit) != 64) {
-		return false
-	}
-	return !strings.ContainsFunc(commit, func(r rune) bool { return (r < '0' || r > '9') && (r < 'a' || r > 'f') })
+	return noncodemap.SealedEvidence(p)
 }
 
 // documentationPathsPath is the repository's documentation declaration

@@ -233,6 +233,17 @@ func TestNCMV1006CorvintConfigSelectsEverything(t *testing.T) {
 	if doc.Lines[0].Reason != ReasonDocumentation {
 		t.Fatalf("lines = %+v, want DECLARED_DOCUMENTATION", doc.Lines)
 	}
+	// A sealed CEM named by a full commit is change evidence: no line, so the
+	// selector's evidence attribution stands (ADN-V0-011). Any other name
+	// under changes/ (x.cem.json above) stays configuration.
+	for _, sealed := range []string{".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json", ".corvint/changes/" + strings.Repeat("ab", 32) + ".cem.json"} {
+		if got := Decide(Input{Dirty: []string{sealed}}); len(got.Lines) != 0 {
+			t.Fatalf("%s: lines = %+v, want none", sealed, got.Lines)
+		}
+	}
+	for _, forged := range []string{".corvint/changes/0123456789ABCDEF0123456789abcdef01234567.cem.json", ".corvint/changes/x/0123456789abcdef0123456789abcdef01234567.cem.json"} {
+		wantFull(t, Decide(Input{Dirty: []string{forged}}), ReasonCorvintConfig, forged)
+	}
 }
 
 func TestNCMV1006FlowFileAddsLinkedTestsOnly(t *testing.T) {
