@@ -19,8 +19,9 @@ const coreDriftProfile = "flows,test-evidence,affected"
 
 // tableDrift compares a server's listed tools with its table rows
 // (MTT-V1-003): a listed tool without a row, a row without a listed tool, or
-// a listed input schema whose properties differ from the row's described
-// inputs. Each problem names the tool.
+// a listed input schema whose property names differ from the row's described
+// inputs. The table records no input type or required flag, so neither is
+// compared. Each problem names the tool.
 func tableDrift(rows []capcatalog.MCPTool, listed []map[string]any) []string {
 	want := map[string]capcatalog.MCPTool{}
 	for _, row := range rows {
