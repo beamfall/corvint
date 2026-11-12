@@ -45,7 +45,7 @@ func writeFile(t *testing.T, root, name, content string) {
 
 func runGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false"}, args...)...)
+	command := exec.Command("git", append([]string{"-C", root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 	out, err := command.CombinedOutput()
 	if err != nil {
