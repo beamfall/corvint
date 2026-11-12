@@ -132,7 +132,6 @@
       "internal/testsource/",
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -301,7 +300,6 @@
       "internal/testsource/",
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -411,7 +409,6 @@
       "internal/testsource/",
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -698,7 +695,6 @@
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
       "internal/testvaliditymodel/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -1035,7 +1031,6 @@
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
       "internal/testvaliditymodel/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -1183,7 +1178,6 @@
       "internal/testsource/",
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -1393,7 +1387,6 @@
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
       "internal/testvaliditymodel/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -1577,7 +1570,6 @@
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
       "internal/testvaliditymodel/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -1817,7 +1809,6 @@
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
       "internal/testvaliditymodel/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -2009,7 +2000,6 @@
       "internal/testsource/",
       "internal/testvalidity/",
       "internal/testvaliditydoc/",
-      "internal/trace/",
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
@@ -2059,7 +2049,6 @@
       "conformance/test-validity-v0/route-stubs.json"
     ],
     "internal/testvaliditydoc/externalorigins": [],
-    "internal/trace": [],
     "internal/workqueue": [],
     "internal/workspace": [],
     "protocol/integrations": [],
@@ -2143,9 +2132,6 @@
       "internal/",
       "tools/"
     ],
-    "tools/cw-trial": [
-      "benchmarks/results/"
-    ],
     "tools/declaration-compat-check": [],
     "tools/docs-ci-plan": [
       "go.mod",
@@ -2166,10 +2152,13 @@
     ],
     "tools/flow-guide-check": [
       ".claude/skills/corvint-lane-flow/SKILL.md",
+      ".corvint/test-read-scope-trees.json",
       "Makefile",
       "cmd/",
       "docs/LANE-ORCHESTRATION.md",
       "internal/",
+      "internal/capcatalog/trees/",
+      "internal/dogfoodflow/",
       "script/",
       "tools/"
     ],
@@ -2183,7 +2172,6 @@
       "script/batch-precheck.sh",
       "tools/gate-affected-select/main.go"
     ],
-    "tools/heading-nav-bench": [],
     "tools/linecov": [
       ".github/workflows/ci.yml"
     ],
@@ -2194,7 +2182,6 @@
     ],
     "tools/plugin-dirs": [],
     "tools/requirement-id-collisions": [],
-    "tools/retrieval-bench": [],
     "tools/runner-plugin": [],
     "tools/runner-qualification": [],
     "tools/selection-baseline": [
@@ -2217,7 +2204,8 @@
       ".github/forward-rows/tiers.jq",
       ".github/forward-rows/tiers.sh"
     ],
-    "tools/unbounded-readers": []
+    "tools/unbounded-readers": [],
+    "tools/deadcode-ratchet": []
   },
   "profile": "corvint-test-read-scopes/0"
 }
