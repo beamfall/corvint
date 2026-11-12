@@ -87,21 +87,77 @@ func coreArchiveOf(t *testing.T, platform string, binary []byte) []byte {
 func releaseClient(t *testing.T, e *engine, build int) { t.Helper(); releasePadded(t, e, build, 0) }
 func releasePadded(t *testing.T, e *engine, build, pad int) {
 	t.Helper()
-	binary := scriptBinary(build, pad)
+	releaseFixture(t, e, scriptBinary(build, pad), appArchives(t, e.platform, build))
+}
+
+// appBinary is the fixture executable of core-set app at build.
+func appBinary(app string, build int) []byte {
+	return []byte(fmt.Sprintf("#!/bin/sh\necho '%s 1.0.0-rc.1 (build %d)'\n", app, build))
+}
+
+// writeApps installs every core-set app at build in e's bin directory.
+func writeApps(t *testing.T, e engine, build int) {
+	t.Helper()
+	for _, app := range setApps(e.platform) {
+		if err := execfile.WriteFile(filepath.Join(e.config.BinDir, app), appBinary(app, build), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// appArchiveOf is app's release archive for platform holding binary.
+func appArchiveOf(t *testing.T, app, platform string, binary []byte) []byte {
+	t.Helper()
+	prefix := app + "_" + platform + "/"
+	files := map[string][]byte{prefix + app: binary, prefix + "SHA256SUMS": []byte(hash(binary) + "  " + app + "\n")}
+	for _, n := range []string{"LICENSE", "LICENSE-APACHE-2.0", "LICENSING.md", "PROVENANCE.md"} {
+		files[prefix+n] = []byte("notice")
+	}
+	return archiveBytes(t, files)
+}
+
+// appArchives is every core-set app archive the release ships for platform at build.
+func appArchives(t *testing.T, platform string, build int) map[string][]byte {
+	t.Helper()
+	apps := map[string][]byte{}
+	for _, app := range setApps(platform) {
+		apps[app] = appArchiveOf(t, app, platform, appBinary(app, build))
+	}
+	return apps
+}
+
+// releaseFixture serves one release with the corvint archive of binary, each
+// app archive in apps and a SHA256SUMS row for every archive except omitRows.
+func releaseFixture(t *testing.T, e *engine, binary []byte, apps map[string][]byte, omitRows ...string) {
+	t.Helper()
 	a := coreArchiveOf(t, e.platform, binary)
 	name := "corvint_" + e.platform + ".tar.gz"
+	archives := map[string][]byte{name: a}
 	r := release{Tag: "v1.0.0-rc.1", Published: time.Now(), Prerelease: true, Body: "experimental", Assets: []asset{{name, "https://github.com/archive"}, {"SHA256SUMS", "https://github.com/sums"}, {"verification-report.json", "https://github.com/qualification"}}}
+	for app, b := range apps {
+		n := app + "_" + e.platform + ".tar.gz"
+		archives[n] = b
+		r.Assets = append(r.Assets, asset{n, "https://github.com/apps/" + n})
+	}
+	var sums strings.Builder
+	for n, b := range archives {
+		if !slices.Contains(omitRows, n) {
+			sums.WriteString(hash(b) + "  " + n + "\n")
+		}
+	}
 	rows, _ := json.Marshal([]release{r})
 	e.client = &http.Client{Transport: transportFunc(func(req *http.Request) (*http.Response, error) {
 		var b []byte
-		switch req.URL.Path {
-		case "/archive":
+		switch {
+		case req.URL.Path == "/archive":
 			b = a
-		case "/qualification":
+		case strings.HasPrefix(req.URL.Path, "/apps/"):
+			b = archives[strings.TrimPrefix(req.URL.Path, "/apps/")]
+		case req.URL.Path == "/qualification":
 			parts := strings.Split(e.platform, "_")
 			b = []byte(fmt.Sprintf(`{"schema":"corvint.release-go-archive-report.v2","verdict":"PASS","targets":[{"goos":%q,"goarch":%q,"archiveName":%q,"retainedBinary":{"sha256":%q},"retainedArchive":{"sha256":%q}}]}`, parts[0], parts[1], name, hash(binary), hash(a)))
-		case "/sums":
-			b = []byte(hash(a) + "  " + name + "\n")
+		case req.URL.Path == "/sums":
+			b = []byte(sums.String())
 		default:
 			b = rows
 		}
@@ -460,6 +516,7 @@ func TestUPDV0004UnchangedCleanupAndDestinationDrift(t *testing.T) {
 	e := fixtureEngine(t)
 	dest := filepath.Join(e.config.BinDir, "corvint")
 	writeScript(t, dest, 163)
+	writeApps(t, e, 163)
 	releaseClient(t, &e, 163)
 	for i := 0; i < 3; i++ {
 		r, err := e.run(context.Background(), "apply")
@@ -584,7 +641,7 @@ func TestUPDV0005PreparedReceiptInterruptionRecovery(t *testing.T) {
 	candidate := filepath.Join(stage, "candidate")
 	writeScript(t, candidate, 163)
 	candidateDigest, _ := digest(candidate)
-	rec := receipt{e.config.Component, dest, hash(previous), candidateDigest}
+	rec := receipt{Component: e.config.Component, Destination: dest, PreviousDigest: hash(previous), CandidateDigest: candidateDigest}
 	b, _ := json.Marshal(rec)
 	if err = os.WriteFile(filepath.Join(stage, "receipt.json"), b, 0600); err != nil {
 		t.Fatal(err)
@@ -680,7 +737,11 @@ func TestUPDV0007RetentionBoundInterruptedSweepAndRollback(t *testing.T) {
 	}
 	first, second, third := applied[0], applied[1], applied[2]
 	stage := filepath.Dir(first.Receipt)
-	want := []string{killed, filepath.Join(stage, "archive.tar.gz"), filepath.Join(stage, "smoke-home"), filepath.Join(stage, "extracted", "corvint_"+e.platform, "corvint")}
+	want := []string{killed, filepath.Join(stage, "archive.tar.gz"), filepath.Join(stage, "smoke-home")}
+	if setApps(e.platform) != nil {
+		want = append(want, filepath.Join(stage, "apps"))
+	}
+	want = append(want, filepath.Join(stage, "extracted", "corvint_"+e.platform, "corvint"))
 	if strings.Join(first.Removed, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("first apply removed %q, want %q", first.Removed, want)
 	}
@@ -815,6 +876,7 @@ func TestUPDV0008CoreSwitchRefreshesIndexedCheckouts(t *testing.T) {
 	}
 	// An unchanged apply switches nothing and refreshes nothing.
 	writeScript(t, dest, 163)
+	writeApps(t, e, 163)
 	e.config.AllowNetwork = true
 	if r, err = e.execute(context.Background(), "apply"); err != nil || r.Action != "unchanged" || r.IndexRefresh != nil {
 		t.Fatalf("unchanged apply: %+v %v", r, err)
@@ -827,7 +889,7 @@ func TestUPDV0008CoreSwitchRefreshesIndexedCheckouts(t *testing.T) {
 	os.Mkdir(stage, 0700)
 	writeScript(t, filepath.Join(stage, "previous"), 1)
 	previous, _ := digest(filepath.Join(stage, "previous"))
-	encoded, _ := json.Marshal(receipt{"tasks", tasks, previous, current})
+	encoded, _ := json.Marshal(receipt{Component: "tasks", Destination: tasks, PreviousDigest: previous, CandidateDigest: current})
 	os.WriteFile(filepath.Join(stage, "receipt.json"), encoded, 0600)
 	e.config.Component, e.config.AllowNetwork = "tasks", false
 	if r, err = e.execute(context.Background(), "rollback"); err != nil || r.IndexRefresh != nil {

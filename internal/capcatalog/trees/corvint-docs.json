@@ -1768,6 +1768,7 @@
         "corvint-docs [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]",
         "corvint-docs [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]",
         "corvint-docs [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
+        "corvint-docs [--root PATH] flows appmap build --manifest FILE --worktree [--no-workspace]",
         "corvint-docs [--root PATH] flows appmap coverage --map FILE [--budget N | --full]",
         "corvint-docs [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV] [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]",
         "corvint-docs [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
@@ -1836,7 +1837,8 @@
         "--text",
         "--trace",
         "--verify",
-        "--workspace"
+        "--workspace",
+        "--worktree"
       ],
       "required": [],
       "example": "corvint-docs flows appmap actions --map FILE",
@@ -1924,7 +1926,8 @@
       "command": "corvint-docs flows appmap build",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]"
+        "corvint-docs [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
+        "corvint-docs [--root PATH] flows appmap build --manifest FILE --worktree [--no-workspace]"
       ],
       "flags": [
         "--from",
@@ -1936,7 +1939,8 @@
         "--revision",
         "--root",
         "--verify",
-        "--workspace"
+        "--workspace",
+        "--worktree"
       ],
       "required": [
         "--manifest FILE"

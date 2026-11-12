@@ -277,6 +277,7 @@ one component at a time. Core remains offline. Build from source with
 
 ```sh
 corvint-update check --allow-network --component core
+corvint-update apply --allow-network --component core --bin-dir /absolute/path/bin
 corvint-update check --allow-network --component tasks
 corvint-update apply --allow-network --component tasks
 corvint-update rollback --component tasks
@@ -288,7 +289,22 @@ qualification or another operator-owned installation. Check is read-only. Apply 
 opt-in, verifies archive and internal checksums, checks host/build identity, probes version/help,
 retains prior bytes and a prepared transaction, then atomically switches the one destination.
 Rollback needs no network and refuses foreign destination or saved-byte drift. Failures before
-activation leave the destination untouched. Downgrades, unknown builds, symlinked managed paths,
+activation leave the destination untouched.
+
+The `core` component is the whole core set (`CMS-V0-002`, `UPD-V0-920` to `UPD-V0-922`): on
+macOS Apple silicon, Linux x86-64 and Linux ARM64 one apply installs `corvint-docs`,
+`corvint-docs-mcp` and `corvint-mcp` from the same release beside `corvint`, each from its
+`<app>_<goos>_<goarch>.tar.gz` archive bound by the release `SHA256SUMS`, its inner checksum, the
+`corvint` archive's notices and a `--version` naming the same release. This is the command the
+`not-installed` refusal of `corvint docs`, `corvint flows` and `corvint how` names, with `--bin-dir`
+set to the directory of the running `corvint`. Apps switch before `corvint`; a failure or
+cancellation between switches restores the members already switched, and `rollback` restores the
+whole set, removing apps that were absent before. A release that lacks an app archive or its
+`SHA256SUMS` row refuses with the app named and changes nothing; until the published releases carry
+the app archives, use the manual core-set install above. When `corvint` is already the release's
+build, apply installs only the missing or differing apps. On macOS Intel, which ships no app
+archives, apply installs `corvint` alone and says so in the result. The updater replaces an
+installed `corvint`; it does not place a first one. Downgrades, unknown builds, symlinked managed paths,
 unsafe archives and incomplete release discovery refuse automatic activation.
 
 Index snapshots are keyed by the Core executable, so a Core apply or rollback then runs the new

@@ -824,7 +824,7 @@ but does not read it; only non-Go syntax impact does.
   `internal/appmap/endpoints.go`, `internal/command/flows/flows_appmap_endpoints.go` and the verb's dispatch.
   Status: experimental under the standing lane auto-accept (2026-10-11; V1-2850; GitHub #1907).
 - `AMAP-V0-215`: A map MUST carry `builder`, the compiler's `appmap.BuilderVersion`
-  (`appmap-builder/3`; bumped from `/1` by the V1-3932 React route ranking and to `/3` by the AMAP-V0-881 screen `dialect`), which is bumped in the same change as any change to what a build derives
+  (`appmap-builder/4`; bumped from `/1` by the V1-3932 React route ranking, to `/3` by the AMAP-V0-881 screen `dialect` and to `/4` by the AMAP-V0-970 mapped React routes and AMAP-V0-972/973 loop and helper gotos), which is bumped in the same change as any change to what a build derives
   from the same inputs. The map digest is computed with `builder` and `digest` both empty, so the
   member is provenance, not content, and a map written before it keeps its digest. `BuildFrom`
   rebuilds in full with the reason `builder-version-differs` when MAP's `builder` is absent or
@@ -2347,6 +2347,140 @@ but does not read it; only non-Go syntax impact does.
   (V1-4077): an older binary refused a newer map only as "not application-map/0 JSON", which reads
   as a corrupt file. Non-goals: tolerating unknown members, or a raw-bytes digest that would let an
   older reader skip them. Rollback: remove `newerMapMember`; the refusal code is unchanged.
+- `AMAP-V0-970`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5467)
+  Implementing accepted PROD-DOCS-006 and amending `AMAP-V0-190` (OpenSpec change
+  `appmap-usable-ui-map`): in a `react-router/0` router file, a JSX child `{ARR.map(P => <Route .../>)}` (also `(P) =>` and a
+  parenthesised element) MUST expand into one route per element of ARR when ARR is bound by
+  exactly one non-exported `const` in the same file, at any depth, whose enclosing block contains
+  the `.map` call, to an array literal or to
+  `useMemo(() => [...], deps)` (also `React.useMemo` and `=> ([...])`) returning one, every element
+  is an object literal, and every route attribute that names `P` reads a member holding a literal
+  string, directly (`path={P.path}`) or through a template whose every substitution is such a
+  member. `P` may appear in any form inside `element`, whose tokens keep `P.member` literals
+  substituted. A `key` attribute names React reconciliation and MUST be ignored on every route.
+  These routes change what a build derives, so `appmap.BuilderVersion` is `appmap-builder/4`.
+  - Non-goals: computed arrays (`.filter`, spreads, function results, imports), routes inside a
+    `.map` callback with a block body, and elements that are not object literals.
+  - Failure modes: a binding the conservative scan misses could give a route the wrong path; the
+    scan refuses on any second declaration or parameter of ARR.
+  - Falsifier: `TestAMAPV0970MapOverSameFileArray` in `router_react_map_test.go`.
+  - Rollback: delete `reactMapChildren` and the `key` case, restore `appmap-builder/3`.
+- `AMAP-V0-971`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5467) A `.map` child
+  MUST stay the unknown `non-literal-react-children` and expand nothing when ARR has a second
+  declaration, is exported, imported or a parameter, is declared in a block that does not contain
+  the use (another function's `const`), a template substitution or escaped identifier could name
+  it, any element is not an object literal, a route attribute reads `P` as anything but a member
+  holding a literal string, or ARR has any use other than its declaration and these two accepted
+  shapes: the iterable of a `for (const|let x of ARR)` header, and `ARR.map(` with an inline arrow
+  callback of at most two parameters and no rest parameter (a third parameter would receive the
+  array). The body that sees the element (the loop body, or the callback body to the `.map(`
+  call's closing parenthesis) MUST hold no assignment or compound assignment (a JSX attribute's `=`
+  excepted), no `++`, `--` or `delete`, no call, computed member or member call on the element
+  name, no template substitution other than a plain member path, and no doubted token; an element
+  handed to a call as an argument, or used bare anywhere but a whole JSX attribute value (returned,
+  or put in an array or object literal, where an alias could change it later), keeps the proof
+  only when every element is an exact string. The
+  scan accepts these proven shapes rather than detecting writes: every `.length` use, `.forEach(`,
+  a callback passed by name, a mutator call, an index assignment and any other token after ARR
+  refuse. The same rules bind the arrays AMAP-V0-972 loops over.
+  - Failure modes: the accept-list is deliberately narrow, so a harmless read such as
+    `ARR.length`, `ARR[0]`, a block-bodied callback with a local `const`, or `log(e.path)` in the
+    callback leaves the children unknown; a component rendered from the callback that mutates
+    the element it receives (`<Page s={e} />`) is runtime behaviour the scan does not see.
+  - Falsifier: `TestAMAPV0971UnprovenArrayStaysUnknown` in `router_react_map_test.go`; also
+    `TestAMAPV0971ArrayMutationAndScope` and `TestAMAPV0971ConservativeUses` in
+    `router_react_map_test.go`.
+  - Rollback: as AMAP-V0-970.
+- `AMAP-V0-972`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468) A `goto`,
+  `waitForURL` or `toHaveURL` argument that is the variable X of an enclosing braced
+  `for (const X of ITER)` loop, or a template whose every substitution is X, MUST resolve to one
+  goto per value when ITER is an inline array of exact strings, or a same-file array bound under
+  the AMAP-V0-971 rules whose elements are exact strings, and the loop body is one the reader can
+  prove binds X nowhere: it holds no nested `for` header (braced or not, `for await` included), no
+  declaration or binding keyword (`const`, `let`, `var`, `function`, `class`, `catch`), no doubted
+  token, X only as a whole argument of a call (`f(X)`, `f(a, X)`), and every template
+  substitution that mentions X is exactly X. The reference
+  check (AMAP-V0-091) reads such a goto through the same resolver, as one exact route per value. `flows appmap build` records one goto per value on the goto's line. `flows appmap infer`
+  reads a `test(...)` call inside such a loop as one test per value, with X bound to the value and
+  its title filled, when the filled titles are distinct; otherwise it keeps one dynamic test. Any
+  other argument keeps `non-literal-url`.
+  - Non-goals: `forEach`, `for (let ...)`, index loops, destructured loop variables, and loops
+    without a braced body.
+  - Failure modes: the body accept-list is deliberately narrow and refuses rather than detects
+    bindings, so a body with any local declaration, a nested loop over anything, or X in an
+    expression such as `base + X` or `X.path` keeps `non-literal-url` even when X is never bound
+    again.
+  - Falsifier: `TestAMAPV0972LoopGotos` in `gotoresolve_test.go`; also
+    `TestAMAPV0972LoopRebindsAndMutation` and `TestAMAPV0972ConservativeBodies` in
+    `gotoresolve_test.go`.
+  - Rollback: delete `gotoresolve.go` and its callers in `tests.go` and `site_knowledge_ts.go`.
+- `AMAP-V0-973`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468)
+  Extending `AMAP-V0-342` to specs: a spec or workflow file's call to an AMAP-V0-342 navigation helper (same
+  file or imported by name from a test file) with a literal argument MUST attribute the screen the
+  call places to the spec, with basis `helper-goto` and the call line as its `via`, and the
+  candidate MUST be kept in the file's `helper_gotos`. A call whose URL places no screen
+  attributes nothing.
+  - Falsifier: `TestAMAPV0973SpecHelperAttribution` in `gotoresolve_test.go`.
+  - Rollback: delete the spec branch of the join that reads `helperGotos`.
+- `AMAP-V0-974`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468) The build and
+  infer MUST resolve loop gotos through one shared resolver. On a fixture whose specs navigate by
+  literal, loop and helper gotos, the screens `flows appmap coverage` reports reached MUST equal
+  the start screens `flows appmap infer` reports. A literal loop inside a test body MUST yield
+  one infer visit per loop value, read through the same resolver as coverage. A goto that does
+  not resolve MUST keep its reason and MUST NOT make a screen reached.
+  - Falsifier: `TestAMAPV0974CoverageAndInferAgree` in `gotoresolve_test.go`.
+  - Rollback: as AMAP-V0-972.
+- `AMAP-V0-975`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5471)
+  `corvint-docs [--root PATH] flows appmap SUB ...` MUST print SUB's own help (usage, flags,
+  required inputs and one example) when `--help` or `-h` appears anywhere before `--`, and so MUST
+  `corvint-docs help flows appmap SUB`. A SUB that is not a command keeps the existing behavior.
+  - Falsifier: `TestAMAPV0975SubcommandHelp` in `cmd/corvint-docs/help_appmap_test.go`.
+  - Rollback: delete the `node:` topic in `parseHelpInvocation` and `helpText`.
+- `AMAP-V0-976`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5472)
+  As an explicit exception to the committed-objects rule of `AMAP-V0-001`, `flows appmap build
+  --worktree` MUST
+  build from the working tree of `--root`: tracked files with their uncommitted edits and
+  deletions, tracked files the ignore rules match (force-added, in the index though not in
+  `HEAD`), and untracked files the repository's ignore rules do not exclude. `--root` MUST be
+  the top of its worktree, proven by an empty prefix as for a declared root (AFP-V0-156); a
+  subdirectory refuses `appmap-root-unavailable` rather than widen the working-tree read above
+  `--root` (a pinned build reads committed objects from the top whichever directory `--root`
+  names). A sparse checkout (`core.sparseCheckout` set to any value but `false`, `no`, `off`, `0` or empty, so a nonzero integer counts) MUST refuse `appmap-root-unavailable`,
+  since its excluded paths would read as deleted. The snapshot is a commit in a temporary
+  repository that borrows the repository's object store through alternates and MUST carry the
+  repository settings that decide what `git add` stores or skips: `core.autocrlf`, `core.eol`,
+  `core.safecrlf`, `core.filemode`, `core.symlinks`, `core.ignorecase`,
+  `core.precomposeunicode` and `core.excludesFile` (unset when the repository leaves them unset),
+  and its `info/exclude` and `info/attributes` files. The build MUST write no file, ref or index of
+  the repository; Git may refresh the modification time of an object of the shared store that the
+  snapshot also needs, and writes an object it cannot refresh there (a read-only store) to the
+  temporary repository instead. The temporary repository MUST be removed when the build returns,
+  including when a termination signal cancels the command context. The map MUST carry the optional member
+  `working_tree` `{"base_revision": <HEAD or "">, "evidence": "unpinned"}`, and `revision` names
+  the snapshot commit, which the same working tree reproduces. Readers decode the member
+  (AMAP-V0-960).
+  - Non-goals: aliased roots, `--from` builds of an unpinned map, and verbs that re-read source at
+    the map revision (they refuse the snapshot commit as an unknown revision).
+  - Failure modes: untracked files that only the user's global excludes file ignores enter the
+    snapshot, and global or system settings do not apply, since the Git environment carries no
+    global or system configuration. Clean filters (`filter.<driver>.clean` or `.process`, for
+    example Git LFS) are not run, so a filtered path is stored as its working-tree bytes, and
+    `working-tree-encoding` conversion follows the same carried configuration only. An index entry
+    marked skip-worktree or assume-unchanged outside a sparse checkout is read from the working
+    tree, so a skip-worktree file absent from disk reads as deleted. A process killed outright
+    (SIGKILL) leaves the temporary repository in the system temporary directory.
+  - Falsifier: `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go`; also
+    `TestAMAPV0976WorktreeRootAndConfig` in `internal/appmap/worktree_test.go`.
+  - Rollback: delete `worktree.go`, the `WorkingTree` member and the flag.
+- `AMAP-V0-977`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5472) Without
+  `--worktree`, a build MUST keep refusing a manifest absent at the revision as
+  `appmap-invalid-manifest`; when that manifest exists as a working-tree file of `--root` and
+  `--root` is the top of its worktree (so `--worktree` could build it), the message MUST name
+  `--worktree`. `--worktree` MUST refuse with `--revision`, `--repo`,
+  `--manifest-repo`, `--repo-revision`, `--workspace`, `--from`, `--verify` or an implicit
+  workspace file.
+  - Falsifier: `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go`.
+  - Rollback: as AMAP-V0-976.
 
 - `AMAP-V0-9501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4660)
   Tests may reuse an immutable committed seed for an unchanged fixture directory, but each
@@ -2692,6 +2826,14 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-881 | `TestAMAPV0881ReadersRankAsBuilder_V13954` in `dialect_rank_v13954_test.go`; `TestAMAPV0600RankingStaysWithinReact_V13932` (a screen with its dialect cleared ranks nothing) |
 | AMAP-V0-882 | `TestAMAPV0882SameElementAcrossTreesMerges_V13935`, `TestAMAPV0882DifferentElementStaysAmbiguous_V13935` in `alternate_routes_v13935_test.go` (VanillaTwisted rebuild `NOT_RUN` in the lane) |
 | AMAP-V0-960 | `TestAMAPV0960NewerMapMemberRefusalNamesMember` (a built map with an added top-level member refuses `appmap-invalid-map` naming the member, `BuilderVersion` and the upgrade step; another schema with an unknown member, and trailing data, keep the generic refusal) |
+| AMAP-V0-970 | `TestAMAPV0970MapOverSameFileArray` in `router_react_map_test.go` (a const, a nested const and a `useMemo` array; `path={s.path}` and a template path; `key` ignored; `appmap-builder/4`) |
+| AMAP-V0-971 | `TestAMAPV0971UnprovenArrayStaysUnknown` in `router_react_map_test.go` (a second declaration, an export, a mutator, an index assignment, a non-literal element and a bare `P` path keep `non-literal-react-children`); `TestAMAPV0971ArrayMutationAndScope` in `router_react_map_test.go` (`forEach`, a length write, `++` and `+=`, a callback by name, a third or rest callback parameter and another function's `const` stay unknown; a two-parameter reading callback still expands); `TestAMAPV0971ConservativeUses` in `router_react_map_test.go` (prefix `++`/`--`, pattern and `for`-header length writes, a length read, a member write, a member call and an escaping element in the callback, and a member write in a `for ... of` body stay unknown) |
+| AMAP-V0-972 | `TestAMAPV0972LoopGotos` in `gotoresolve_test.go` (an inline array, a const array and a template loop resolve one goto per value; a shadowed variable, a `let` loop and a call result keep `non-literal-url`; infer expands one test per value); `TestAMAPV0972LoopRebindsAndMutation` in `gotoresolve_test.go` (nested `for` headers binding the variable by array or object destructuring, bare assignment or `in`; a `forEach`, length-written or third-parameter-mapped array and another function's `const` keep `non-literal-url`; the reference check reads loop gotos as exact routes); `TestAMAPV0972ConservativeBodies` in `gotoresolve_test.go` (an unbraced `for await` and `for` header, a `let a, X;` list, and prefix-decrement, pattern and `for`-header length uses keep `non-literal-url`) |
+| AMAP-V0-973 | `TestAMAPV0973SpecHelperAttribution` in `gotoresolve_test.go` (a same-file helper call with a literal attributes `helper-goto`; a non-literal argument attributes nothing) |
+| AMAP-V0-974 | `TestAMAPV0974CoverageAndInferAgree` in `gotoresolve_test.go` (coverage reached equals infer start screens on the literal, loop and helper fixture; a literal loop inside a test body yields one infer visit per value; a dynamic array reaches nothing) |
+| AMAP-V0-975 | `TestAMAPV0975SubcommandHelp` in `cmd/corvint-docs/help_appmap_test.go` (trailing, interior and `-h` requests, the `--root` preamble, boolean flags and `help flows appmap SUB`; an unknown SUB and `--` keep the old behavior) |
+| AMAP-V0-976 | `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go` (an untracked manifest builds, the map carries `working_tree`, two builds are identical, the repository's status and object count are unchanged, and a force-added spec its ignore rules match is mapped); `TestAMAPV0976WorktreeRootAndConfig` in `internal/appmap/worktree_test.go` (a subdirectory `--root` and a sparse checkout, `true` or `2`, refuse; `core.autocrlf`, `info/attributes` and `core.excludesFile` apply to the snapshot; no temporary directory survives success or failure) |
+| AMAP-V0-977 | `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go` (the default refusal names `--worktree`; each pinned flag refuses) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,

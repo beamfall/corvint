@@ -80,6 +80,10 @@ func lexRoutes(text string, ruby bool) ([]token, bool) {
 				t.text, t.subst, t.inexact, t.unsure, i = readTemplate(text, i)
 				closed = !t.unsure
 				t.kind = tokTemplate
+				if t.subst {
+					// The raw substitutions, as lexJS keeps them (AMAP-V0-970).
+					t.code = text[start+strings.Index(text[start:i], "${") : i]
+				}
 			} else {
 				t.text, t.inexact, closed, i = readQuoted(text, i)
 				t.kind = tokString
