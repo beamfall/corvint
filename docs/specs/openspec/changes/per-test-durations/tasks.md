@@ -12,19 +12,24 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    test that ignores the fields.
 - [ ] 3 Read durations in the Go, Vitest, Jest, Playwright, pytest and RSpec adapters.
    Requirements: PTD-V1-002, PTD-V1-006. Proof: one report fixture per runner, including a retry.
-   Open (V1-5449): the Go adapter of `corvint test` records each package's `Elapsed` in the receipt,
-   and the `internal/testrunner` adapters read the Vitest, Jest, Playwright (attempt sum and each
-   attempt), pytest and RSpec report times, with a fixture each. A `corvint test` receipt still
-   records NOT_MEASURED for the other runners: the Vitest and Playwright provider receipt names no
-   per-test time, and Jest, pytest and RSpec run through the declared-command adapter, which reads
-   no report. Those receipt adapters are not yet built (changes `jest-provider`, `pytest-provider`
-   and `ruby-providers`), so this task stays unticked.
+   The `internal/testrunner` adapters read every runner's report time, with a fixture each
+   (V1-5449). In the `corvint test` receipt, per runner:
+   - [x] Go: package-level `Elapsed`, only for a package whose tests ran.
+   - [x] Vitest: the provider receipt's test `durationMs`, summed per file unit.
+   - [x] Playwright: the provider receipt's `attemptDetails` durations, summed per test and per file
+     unit, including a retry. `attemptDurationsMs` stays on the `corvint-test-runner` observation:
+     a receipt outcome is a file, so the receipt has no per-test attempt list.
+   - [ ] Jest: not yet built. `corvint test` runs Jest through the declared-command adapter, which
+     reads no report; the receipt adapter belongs to change `jest-provider`.
+   - [ ] pytest: not yet built, as Jest; change `pytest-provider`.
+   - [ ] RSpec: not yet built, as Jest; change `ruby-providers`.
 - [ ] 4 Add the time field to the Minitest reporter and read it.
    Requirements: PTD-V1-002. Proof: Minitest fixture with measured durations.
    Open (V1-5449): Corvint's Minitest reporter records `DurationMs` from `Minitest::Result#time` and
-   the reader takes it as `minitest-reporter`, with a fixture. A `corvint test` receipt runs
-   Minitest through the declared-command adapter, which reads no report, so its Minitest outcomes
-   stay NOT_MEASURED until the `ruby-providers` adapter exists; this task stays unticked.
+   the reader takes it as `minitest-reporter`; a Go test pins the reporter source and parses a
+   report in its exact output shape. A `corvint test` receipt runs Minitest through the
+   declared-command adapter, which reads no report, so its Minitest outcomes stay NOT_MEASURED
+   until the `ruby-providers` adapter exists; this task stays unticked.
 - [x] 5 Mark file-granularity durations and keep invocation time separate.
    Requirements: PTD-V1-004, PTD-V1-005. Proof: a file-level fixture; an invocation time test.
 - [x] 6 Copy durations into run evidence rows and wire the consumers.
