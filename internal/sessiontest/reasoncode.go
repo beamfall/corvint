@@ -34,6 +34,15 @@ const (
 	ReasonSourceSliceBound       = "direct-source-slice-bound"
 	ReasonReachedPrefix          = "reached-via-" // + the witness kind in kebab case
 	ReasonOther                  = "other"
+	// ReasonTierFile: a runner unit runs its whole selected file, the file
+	// tier (PYR-V1-002, owner decision R8).
+	ReasonTierFile = "tier-file"
+	// ReasonKillSwitch: CORVINT_SELECTION forced the unit's full suite
+	// (PYR-V1-009, NMS-V1-008).
+	ReasonKillSwitch = "kill-switch"
+	// ReasonRunnerFallback: a language full command runs because a
+	// selection could not go through its compiled-in runner (PYR-V1-009).
+	ReasonRunnerFallback = "runner-fallback"
 )
 
 // witnessReason matches the "whole: KIND via PATH" form of a whole unit
@@ -52,6 +61,12 @@ func ReasonCode(reason string) string {
 		return ""
 	case reason == moduleReason:
 		return ReasonNestedModule
+	case strings.HasPrefix(reason, tierFilePrefix):
+		return ReasonTierFile
+	case strings.HasPrefix(reason, ReasonKillSwitch+": "):
+		return ReasonKillSwitch
+	case strings.HasPrefix(reason, runnerFallbackPrefix):
+		return ReasonRunnerFallback
 	case strings.HasPrefix(reason, "whole: MUST_RUN ("):
 		// A declared must-run unit (AFP-V0-2485); its prose carries the
 		// project's free-text reason, so no substring rule below may read it.

@@ -38,6 +38,13 @@ func splitProviderUnit(id string) (runner, file string, ok bool) {
 	return runner, file, ok && runner != "" && file != ""
 }
 
+// providerRunner is the runner of a "typescript:<runner>:<path>" unit id,
+// or "" for any other id.
+func providerRunner(id string) string {
+	runner, _, _ := splitProviderUnit(id)
+	return runner
+}
+
 // providerUnit reports whether a declared provider runs the selected unit id
 // (STR-V0-8702): its runner is declared, its path is a clean
 // repository-relative path that cannot be read as an option, and a Vitest

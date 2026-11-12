@@ -19,6 +19,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
 // Terminal outcomes of one execution unit (STR-V0-010).
@@ -92,6 +93,16 @@ type Invocation struct {
 	Outcomes            []Outcome `json:"outcomes"`
 	Runner              string    `json:"runner"`
 	Version             string    `json:"version"`
+	// The members below are added for a runner invocation (PYR-V1-002,
+	// PYR-V1-004, PYR-V1-006, PYR-V1-008) and absent on every other one:
+	// its instance key and tier, each test's canonical ID, outcome and
+	// call-phase duration, the typed reasons it is not a clean set of
+	// outcomes, and its environment record.
+	Instance    string             `json:"instance,omitempty"`
+	Tier        string             `json:"tier,omitempty"`
+	Tests       []contract.Result  `json:"tests,omitempty"`
+	Reasons     []string           `json:"reasons,omitempty"`
+	Environment *RunnerEnvironment `json:"environment,omitempty"`
 }
 
 // Receipt is the STR-V0-010 corvint-test-run/0 document of one shard.
@@ -131,6 +142,14 @@ type Planned struct {
 	Dir   string
 	Env   []string
 	Units []Unit
+	// Instance, Tier and Full are set on a runner invocation: its instance
+	// key, its selection tier and the instance's full command, which the
+	// discovery probe runs with --version (PYR-V1-006).
+	Instance string
+	Tier     string
+	Full     []string
+	// probed is the runner version the discovery probe read.
+	probed string
 }
 
 // Invocations derives one shard's typed argv (STR-V0-005, STR-V0-006): one
@@ -206,6 +225,7 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 			planned = append(planned, Planned{Adapter: AdapterDeclared, Argv: argv, Dir: dir, Env: []string{}, Units: []Unit{unit}})
 		}
 	}
+	planned = append(planned, runnerInvocations(m, declared, shard, root)...)
 	return append(planned, providerInvocations(m, declared, shard)...)
 }
 
@@ -298,12 +318,23 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			break
 		}
 		if len(invocation.Argv) == 0 {
-			receipt.Incomplete = append(receipt.Incomplete, invocation.Units[0].Unit+": "+DeclarationPath+" names no command for it")
+			reason := invocation.Units[0].Unit + ": " + DeclarationPath + " names no command for it"
+			if invocation.Adapter == AdapterRunner {
+				reason = invocation.Instance + ": " + contract.ReasonRunnerUnavailable + ": no full command resolves for the instance, or the contract refused its selection"
+			}
+			receipt.Incomplete = append(receipt.Incomplete, reason)
 			receipt.Invocations = append(receipt.Invocations, providerUnavailable(planned, key, manifests)...)
+			receipt.Invocations = append(receipt.Invocations, runnerUnavailable(planned, key, reason, manifests)...)
 			planned = withoutRunner(planned, key)
 			continue
 		}
 		runner, version, hidden, err := r.discover(discoverCtx, invocation, deadline)
+		probed := ""
+		if err == nil && invocation.Adapter == AdapterRunner {
+			probed, err = r.probeRunner(discoverCtx, invocation, deadline, runner)
+		} else if err != nil && invocation.Adapter == AdapterRunner && !errors.Is(err, errDiscoveryBudget) {
+			err = fmt.Errorf("%s: %w", contract.ReasonRunnerUnavailable, err)
+		}
 		if err != nil && (errors.Is(err, errDiscoveryBudget) || (ctx.Err() == nil && discoverCtx.Err() != nil)) {
 			// The budget ended this runner's discovery: no later probe or
 			// adapter starts (V1-1311).
@@ -314,12 +345,19 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		if err != nil {
 			receipt.Incomplete = append(receipt.Incomplete, key+": "+err.Error())
 			// STR-V0-8705: a provider that cannot be discovered leaves each
-			// of its selected tests recorded NOT_RUN beside the reason.
+			// of its selected tests recorded NOT_RUN beside the reason, and
+			// so does a runner instance (PYR-V1-006).
 			receipt.Invocations = append(receipt.Invocations, providerUnavailable(planned, key, manifests)...)
+			receipt.Invocations = append(receipt.Invocations, runnerUnavailable(planned, key, err.Error(), manifests)...)
 			planned = withoutRunner(planned, key)
 			continue
 		}
 		versions[key] = [2]string{runner, version}
+		for index := range planned {
+			if planned[index].Adapter == AdapterRunner && runnerKey(planned[index]) == key {
+				planned[index].probed = probed
+			}
+		}
 		// AZU-V0-9923: the declared Go suite adds the hidden packages its
 		// discovery listed, which ./... alone skips.
 		for index := range planned {
@@ -438,6 +476,7 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 	if _, err := Encode(receipt); err != nil {
 		for index := range receipt.Invocations {
 			receipt.Invocations[index].Argv, receipt.Invocations[index].Outcomes = []string{}, []Outcome{}
+			receipt.Invocations[index].Tests = nil
 		}
 		receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("the receipt exceeded %d bytes; argv and outcomes dropped", MaxDocumentBytes))
 		receipt.Result = ResultIncomplete
@@ -451,6 +490,10 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 // depends on, or withdraws, another declared command that runs `go`
 // (AZU-V0-9923).
 func runnerKey(invocation Planned) string {
+	if invocation.Adapter == AdapterRunner {
+		// A runner instance is discovered on its own (PYR-V1-003).
+		return invocation.Adapter + " " + invocation.Instance
+	}
 	if invocation.Dir != "" && invocation.Adapter == AdapterDeclared && len(invocation.Argv) != 0 {
 		// A runner instance's command is looked up from its own root.
 		return invocation.Adapter + " ./" + invocation.Dir + " " + invocation.Argv[0]
@@ -727,7 +770,22 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 		Adapter: planned.Adapter, Argv: planned.Argv, Dir: planned.Dir, Env: nonNil(plannedEnv), EnvDigest: envDigest,
 		Exit: -1, Outcomes: []Outcome{}, Runner: identity[0], Version: identity[1],
 	}
-	cmd := exec.CommandContext(runCtx, identity[0], planned.Argv[1:]...)
+	argv := planned.Argv
+	report := ""
+	if planned.Adapter == AdapterRunner {
+		recorded.Instance, recorded.Tier = planned.Instance, planned.Tier
+		// The report is a fresh private file outside the repository; the
+		// receipt keeps the placeholder argv.
+		dir, err := os.MkdirTemp("", "corvint-runner-")
+		if err != nil {
+			recorded.Outcomes = notRun(planned.Units)
+			return recorded, "a runner report directory could not be made: " + err.Error(), nil
+		}
+		defer os.RemoveAll(dir)
+		report = filepath.Join(dir, "report")
+		argv = withReport(planned.Argv, report)
+	}
+	cmd := exec.CommandContext(runCtx, identity[0], argv[1:]...)
 	cmd.Dir, cmd.Env, cmd.Stderr, cmd.WaitDelay = r.workDir(planned.Dir), env, r.Errors, 10*time.Second
 	ownGroup(cmd)
 	stdout, err := cmd.StdoutPipe()
@@ -741,9 +799,13 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 	}
 	packages := map[string]string{}
 	var document providerCapture
+	output := runnerOutput{out: r.Output}
 	switch planned.Adapter {
 	case AdapterGo:
 		packages = parseTestEvents(stdout, r.Output)
+	case AdapterRunner:
+		_, _ = io.Copy(&output, stdout)
+		output.flush()
 	case AdapterProvider:
 		// The receipt document is read, not echoed: providerOutcomes writes
 		// the summary and the failing tests it names.
@@ -763,6 +825,9 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 		stop = "cancelled while an adapter ran; its process group was killed"
 	case runCtx.Err() != nil:
 		stop = fmt.Sprintf("the shard exceeded its %s total budget while an adapter ran; its process group was killed", budget)
+	}
+	if planned.Adapter == AdapterRunner {
+		return r.recordRunner(recorded, planned, stop, report, identity[1], &output)
 	}
 	if planned.Adapter == AdapterProvider {
 		var unobserved []string

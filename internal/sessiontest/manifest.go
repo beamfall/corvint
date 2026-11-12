@@ -62,6 +62,10 @@ const (
 	// AdapterProvider runs selected Vitest and Playwright test files through
 	// a declared corvint-js-test-provider command (STR-V0-8701).
 	AdapterProvider = "provider"
+	// AdapterRunner runs the selected test files of one runner instance
+	// through the compiled-in runner contract, one invocation per instance
+	// (RNC-V1-001, PYR-V1-003); only pytest runs this way today.
+	AdapterRunner = "runner"
 
 	ProfileLocal = "local"
 	ProfileCI    = "ci"
@@ -103,9 +107,15 @@ type Unit struct {
 	// ReasonCode is Reason's stable code from the closed ReasonCode enum
 	// (STR-V0-548); a tool reads it instead of matching the prose.
 	ReasonCode string `json:"reasonCode,omitempty"`
-	Shard      int    `json:"shard"`
-	Slice      string `json:"slice"`
-	Unit       string `json:"unit"`
+	// Instance is the `<runner>@<root>` key of the runner instance a
+	// runner unit runs in (RNC-V1-014); Tier is the tier its selection was
+	// made at (PYR-V1-002). Both are set only on a runner unit, whose Unit
+	// is the canonical file-level test ID of the selected file.
+	Instance string `json:"instance,omitempty"`
+	Tier     string `json:"tier,omitempty"`
+	Shard    int    `json:"shard"`
+	Slice    string `json:"slice"`
+	Unit     string `json:"unit"`
 }
 
 // Key is the canonical (unit, slice) pair.

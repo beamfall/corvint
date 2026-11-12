@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/python"
+	"github.com/Beamfall/corvint/internal/testid"
 )
 
 // The advisory pytest check (AFP-V0-472 to AFP-V0-477).
@@ -77,49 +78,12 @@ type pytestConfig struct {
 // selected no Python test file; otherwise every reason it cannot name a
 // runnable command is one NO_ADVISORY_PYTEST_COMMAND line.
 func advisoryPytestCheck(root string, graph *affected.Graph, plan affected.Plan) ([]affectedCheck, []string) {
-	units := map[string][]string{}
-	seen := map[string]bool{}
-	candidates := []string{}
-	for _, selection := range plan.Selected {
-		if !strings.HasPrefix(selection.UnitID, advicePythonUnitPrefix) {
-			continue
-		}
-		for _, file := range selection.Tests {
-			if strings.HasSuffix(file, ".py") {
-				units[selection.UnitID] = append(units[selection.UnitID], file)
-				if !seen[file] {
-					seen[file] = true
-					candidates = append(candidates, file)
-				}
-			}
-		}
-	}
-	if len(candidates) == 0 {
-		return nil, nil
-	}
-	sort.Strings(candidates)
-	config, files, unknown := settlePytestConfig(root, candidates)
+	files, units, config, unknown := pytestSelectedFiles(root, graph, plan)
 	if unknown != "" {
 		return nil, []string{unknown}
 	}
-	if !config.declared && !hasConftest(graph, candidates) {
-		declared, bound := adviceDeclaresPytestDependency(root)
-		if bound != "" {
-			return nil, []string{fmt.Sprintf(advicePytestDependencyUnbounded, bound)}
-		}
-		if !declared {
-			return nil, []string{adviceNoPytestDeclared}
-		}
-	}
 	if len(files) == 0 {
-		patterns := strings.Join(config.pythonFiles, " ")
-		if patterns == "" {
-			patterns = "(empty)"
-		}
-		return nil, []string{fmt.Sprintf(adviceNoPytestModule, len(units), patterns)}
-	}
-	if len(files) > adviceMaxPytestFiles {
-		return nil, []string{fmt.Sprintf(advicePytestBoundUnknown, len(files), adviceMaxPytestFiles)}
+		return nil, nil
 	}
 	// A leading `./` keeps a dash-leading file from being read as a pytest
 	// option, as AFP-V0-066 does for RSpec.
@@ -140,6 +104,85 @@ func advisoryPytestCheck(root string, graph *affected.Graph, plan affected.Plan)
 	}
 	reason += ", so these test modules are the plausible first pass"
 	return []affectedCheck{{Command: command, Kind: adviceKindAdvisory, Reason: reason, Source: adviceSourcePlan}}, nil
+}
+
+// pytestSelectedFiles is the pytest test modules the plan selected, sorted:
+// the Python test files of its Python units that the pytest configuration's
+// python_files admits (AFP-V0-472 to AFP-V0-474). units maps each Python
+// unit to its selected .py test files. Both the advisory command and
+// `corvint test` (PYR-V1-007) run exactly these files. unknown is the
+// NO_ADVISORY_PYTEST_COMMAND line when no runnable set can be named; files
+// is then empty.
+func pytestSelectedFiles(root string, graph *affected.Graph, plan affected.Plan) (files []string, units map[string][]string, config pytestConfig, unknown string) {
+	units = map[string][]string{}
+	seen := map[string]bool{}
+	candidates := []string{}
+	for _, selection := range plan.Selected {
+		if !strings.HasPrefix(selection.UnitID, advicePythonUnitPrefix) {
+			continue
+		}
+		for _, file := range selection.Tests {
+			if strings.HasSuffix(file, ".py") {
+				units[selection.UnitID] = append(units[selection.UnitID], file)
+				if !seen[file] {
+					seen[file] = true
+					candidates = append(candidates, file)
+				}
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, units, pytestConfig{}, ""
+	}
+	sort.Strings(candidates)
+	config, files, unknown = settlePytestConfig(root, candidates)
+	if unknown != "" {
+		return nil, units, pytestConfig{}, unknown
+	}
+	if !config.declared && !hasConftest(graph, candidates) {
+		declared, bound := adviceDeclaresPytestDependency(root)
+		if bound != "" {
+			return nil, units, config, fmt.Sprintf(advicePytestDependencyUnbounded, bound)
+		}
+		if !declared {
+			return nil, units, config, adviceNoPytestDeclared
+		}
+	}
+	if len(files) == 0 {
+		patterns := strings.Join(config.pythonFiles, " ")
+		if patterns == "" {
+			patterns = "(empty)"
+		}
+		return nil, units, config, fmt.Sprintf(adviceNoPytestModule, len(units), patterns)
+	}
+	if len(files) > adviceMaxPytestFiles {
+		return nil, units, config, fmt.Sprintf(advicePytestBoundUnknown, len(files), adviceMaxPytestFiles)
+	}
+	return files, units, config, ""
+}
+
+// pytestContractTests maps each selected Python unit to the canonical
+// file-level pytest IDs of its files among the selected pytest modules
+// (pytestSelectedFiles), the files `corvint test` runs through the pytest
+// runner (PYR-V1-002, PYR-V1-007). A unit with none is absent and keeps its
+// language's full command.
+func pytestContractTests(root string, graph *affected.Graph, plan affected.Plan) map[string][]string {
+	files, units, _, unknown := pytestSelectedFiles(root, graph, plan)
+	if unknown != "" || len(files) == 0 {
+		return nil
+	}
+	tests := map[string][]string{}
+	for unit, unitFiles := range units {
+		for _, file := range unitFiles {
+			if _, found := slices.BinarySearch(files, file); !found {
+				continue
+			}
+			if id, err := testid.New(testid.Pytest, file); err == nil && !slices.Contains(tests[unit], id.String()) {
+				tests[unit] = append(tests[unit], id.String())
+			}
+		}
+	}
+	return tests
 }
 
 // settlePytestConfig finds the configuration pytest would read for the test

@@ -40,10 +40,14 @@ type AdapterManifest struct {
 // declared full command, execute that command and cancel the same kill. For
 // the provider adapter (STR-V0-8701), discover is the provider's version
 // probe, plan the declared provider argv plus the selected test files,
-// execute that run and its receipt document, and cancel the same kill.
+// execute that run and its receipt document, and cancel the same kill. For
+// the runner adapter (PYR-V1-003), discover is the command's version probe
+// and the runner's own --version probe, plan the compiled-in contract's
+// selection argv, execute that run and its machine report, and cancel the
+// same kill.
 func AdapterManifests() map[string]AdapterManifest {
 	manifests := map[string]AdapterManifest{}
-	for _, adapter := range []string{AdapterGo, AdapterDeclared, AdapterProvider} {
+	for _, adapter := range []string{AdapterGo, AdapterDeclared, AdapterProvider, AdapterRunner} {
 		manifests[adapter] = AdapterManifest{Adapter: adapter, Operations: slices.Clone(adapterOperations), Profile: AdapterManifestProfile}
 	}
 	return manifests

@@ -42,7 +42,11 @@ func stampTestIDs(invocations []Invocation, goDir func(string) (string, bool)) {
 	for index := range invocations {
 		outcomes := invocations[index].Outcomes
 		for at := range outcomes {
-			outcomes[at].TestID = UnitTestID(outcomes[at].Unit, goDir)
+			// A runner unit's outcome already names its canonical ID
+			// (PYR-V1-004); every other outcome takes its unit's.
+			if outcomes[at].TestID == "" {
+				outcomes[at].TestID = UnitTestID(outcomes[at].Unit, goDir)
+			}
 		}
 	}
 }
