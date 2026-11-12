@@ -727,6 +727,10 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		if restoreErr := restoreSwitched(ctx, stage, switchedApps); restoreErr != nil {
 			return r, fmt.Errorf("%w; restoring the switched core-set apps failed: %v", err, restoreErr)
 		}
+		// Every destination is back at its pre-run bytes, so this run's receipt is
+		// withdrawn: an earlier receipt stays the rollback anchor (UPD-V0-921).
+		prepared = false
+		r.Receipt = ""
 		return r, err
 	}
 	r.Action = "applied"
