@@ -172,6 +172,26 @@ func TestPYRV1009KillSwitch(t *testing.T) {
 		}
 	}
 
+	// A forced Go runs its whole universe with the reason; pytest stays
+	// narrowed.
+	input.Universe = []string{"m/a", "m/b"}
+	input.Selection, _ = selectionswitch.Parse("full:go")
+	if m, err = Build(input); err != nil {
+		t.Fatal(err)
+	}
+	var goUnits []string
+	for _, unit := range m.Units {
+		if unit.Adapter == AdapterGo {
+			goUnits = append(goUnits, unit.Unit)
+			if unit.ReasonCode != ReasonKillSwitch || unit.Slice != SliceWhole {
+				t.Fatalf("forced Go unit %+v", unit)
+			}
+		}
+	}
+	if !slices.Equal(goUnits, []string{"go:m/a", "go:m/b"}) || !slices.Contains(unitsOf(m), "runner pytest:services/b/test_b.py") {
+		t.Fatalf("full:go units %q", unitsOf(m))
+	}
+
 	// Another runner's switch leaves pytest narrowed.
 	input.Selection, _ = selectionswitch.Parse("full:jest")
 	if m, err = Build(input); err != nil {

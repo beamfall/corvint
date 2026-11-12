@@ -7436,16 +7436,16 @@ PSL-V0-024	docs/specs/pulse-snapshot-lease-v0.md	Corvint dogfood runs first in s
 PSL-V0-025	docs/specs/pulse-snapshot-lease-v0.md	Beamfall dogfood runs second during an actual roadmap-authorized task. Pulse MUS	unrecorded	-
 PSL-V0-026	docs/specs/pulse-snapshot-lease-v0.md	Rollback is process termination and selection of existing one-shot Corvint comma	unrecorded	-
 PSL-V0-027	docs/specs/pulse-snapshot-lease-v0.md	Delivery and performance claims are stage-specific. P0-A cannot inherit P0-B/P0-	unrecorded	-
-PYR-V1-001	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Discovery	unrecorded	-
-PYR-V1-002	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Selection granularity	unrecorded	-
-PYR-V1-003	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Run through `corvint test`	unrecorded	-
-PYR-V1-004	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Per-test results	unrecorded	-
-PYR-V1-005	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Kind label	unrecorded	-
-PYR-V1-006	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Fail closed on runner trouble	unrecorded	-
-PYR-V1-007	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Advisory command and run agree	unrecorded	-
-PYR-V1-008	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Environment recorded	unrecorded	-
-PYR-V1-009	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Kill switch and fallbacks	unrecorded	-
-PYR-V1-010	docs/specs/pytest-provider-v1.md	(proposed 2026-11-09; delivery not-started) Harness adapter	unrecorded	-
+PYR-V1-001	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Discovery	owner	decision 0596; V1-5456
+PYR-V1-002	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Selection granularity	owner	decision 0596; V1-5456
+PYR-V1-003	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Run through `corvint	owner	decision 0596; V1-5456
+PYR-V1-004	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Per-test results	owner	decision 0596; V1-5456
+PYR-V1-005	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Kind label	owner	decision 0596; V1-5456
+PYR-V1-006	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Fail closed on runner	owner	decision 0596; V1-5456
+PYR-V1-007	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Advisory command and	owner	decision 0596; V1-5456
+PYR-V1-008	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Environment recorded	owner	decision 0596; V1-5456
+PYR-V1-009	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Kill switch and fallb	owner	decision 0596; V1-5456
+PYR-V1-010	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Harness adapter	owner	decision 0596; V1-5456
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con	unrecorded	-
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	Completed qualified non-Stop events MUST derive repository scope exclusively fro	unrecorded	-
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	Qualified Stop MUST derive the active handle inside the same protected scope, co	unrecorded	-

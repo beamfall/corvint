@@ -114,7 +114,7 @@ INCOMPLETE (exit 3) with a typed reason, never PASS (PYR-V1-002 to
 PYR-V1-008). CORVINT_SELECTION=full runs every test and
 CORVINT_SELECTION=full:<runner>[,<runner>] runs each named runner's full
 suite, printed as corvint-test: FULL with reason kill-switch; any other
-value exits 2 with kill-switch-value-unknown (PYR-V1-009, NMS-V1-008).
+value exits 2 with kill-switch-value-unknown (PYR-V1-009, owner decision R13).
 Example: CORVINT_SELECTION=full:pytest corvint test --base main.
 A Go package selected only because its own test files changed runs just
 the Test, Example and Fuzz functions those files declare (-run, slice
@@ -390,7 +390,7 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
-	// PYR-V1-009, NMS-V1-008: a kill-switch value outside the grammar is
+	// PYR-V1-009, owner decision R13: a kill-switch value outside the grammar is
 	// refused before any work.
 	selection, err := selectionswitch.Parse(os.Getenv(selectionswitch.Env))
 	if err != nil {

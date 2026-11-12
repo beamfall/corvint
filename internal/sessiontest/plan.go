@@ -139,7 +139,7 @@ type Input struct {
 	// run (PYR-V1-002, PYR-V1-003). Such a unit runs those files through
 	// the runner adapter instead of its language's full command.
 	ContractTests map[string][]string
-	// Selection is the CORVINT_SELECTION kill switch (NMS-V1-008): `full`
+	// Selection is the CORVINT_SELECTION kill switch (owner decision R13): `full`
 	// runs every test, and a named runner runs its full suite on every
 	// instance while the others stay narrowed (PYR-V1-009).
 	Selection selectionswitch.Switch
@@ -391,9 +391,19 @@ func Build(input Input) (Manifest, error) {
 	}
 	forced := map[string]bool{}
 	if input.Selection.All {
-		// PYR-V1-009, NMS-V1-008: `full` runs every test.
+		// PYR-V1-009, owner decision R13: `full` runs every test.
 		fullReason = input.Selection.Line("every runner's full suite")
 	} else {
+		if input.Selection.Forces(testid.Go) && fullReason == "" {
+			// A forced Go runs every package of its universe whole, each
+			// with the switch's reason (PYR-V1-009).
+			goRun = append([]string{}, input.Universe...)
+			forcedGo := make(map[string]GoSlice, len(input.Universe))
+			for _, pkg := range input.Universe {
+				forcedGo[pkg] = GoSlice{Reason: killSwitchReason(input.Selection, testid.Go), FullReason: killSwitchReason(input.Selection, testid.Go)}
+			}
+			input.GoSlices, input.LineUnits = forcedGo, nil
+		}
 		for _, instance := range input.Instances {
 			// A forced runner runs its full suite on every instance, and
 			// other runners stay narrowed (PYR-V1-009).

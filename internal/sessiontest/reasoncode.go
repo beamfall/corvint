@@ -38,7 +38,7 @@ const (
 	// tier (PYR-V1-002, owner decision R8).
 	ReasonTierFile = "tier-file"
 	// ReasonKillSwitch: CORVINT_SELECTION forced the unit's full suite
-	// (PYR-V1-009, NMS-V1-008).
+	// (PYR-V1-009, owner decision R13).
 	ReasonKillSwitch = "kill-switch"
 	// ReasonRunnerFallback: a language full command runs because a
 	// selection could not go through its compiled-in runner (PYR-V1-009).
