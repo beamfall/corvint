@@ -2,9 +2,11 @@
 
 Build in this order. Each task names its requirement IDs and the proof that closes it.
 
-- [ ] 1 Create `docs/specs/jest-runner-v1.md` with JST-V1-001 to JST-V1-010 from the spec delta as
+- [x] 1 Create `docs/specs/jest-runner-v1.md` with JST-V1-001 to JST-V1-010 from the spec delta as
    proposed, and regenerate `docs/specs/REQUIREMENTS.tsv`. File the G23 Jest ticket.
    Requirements: JST-V1-001 to JST-V1-010. Proof: the spec toolchain check passes; ticket ID cited.
+   V1-5455 filed (the G23 Jest end-to-end ticket); `docs/specs/jest-runner-v1.md` created and
+   `make spec-requirements-check` passes.
 - [ ] 2 Add Jest to the built-in runner set with its default command and instances.
    Requirements: JST-V1-001, JST-V1-006, JST-V1-007. Proof: unit tests for the default command,
    two roots and `full:jest`.
