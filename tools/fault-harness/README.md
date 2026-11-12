@@ -64,7 +64,10 @@ measurements that make the verdict `INVALID`; an excluded case counts toward nei
 non-code minimum of 30 measured cases; a miss is never waived.
 The release sentence is printed only for a `ZERO_MISS` verdict.
 
-Only the Go adapter exists. `--go-test` sets the argv prefix that runs `go test` (Corvint runs use
-the repository's heavy wrapper, as the oracle's corpus does). Runner commands are trusted operator
+The Go and pytest adapters exist. `--go-test` sets the argv prefix that runs `go test` (Corvint runs use
+the repository's heavy wrapper, as the oracle's corpus does). `--pytest` sets the argv prefix that
+runs pytest (default `python -m pytest`); the pytest adapter selects node IDs and reads pytest's
+JUnit XML report through the compiled-in runner contract (PYR-V1-010), and its dependent units are
+every collected test file, a conservative superset. Runner commands are trusted operator
 input with process-group containment, not a sandbox. Clones are private, removed after each case,
 and refused when the destination exists.
