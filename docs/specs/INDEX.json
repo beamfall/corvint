@@ -895,7 +895,9 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "internal/docviews"
+    ]
   },
   {
     "path": "docs/specs/cross-repository-breakage-map-v0.md",
@@ -1723,6 +1725,7 @@
     "closableToday": false,
     "implementation": [
       "internal/trace",
+      "internal/tracerecordrepo",
       "internal/secretscreen",
       "internal/contextindex",
       "cmd/corvint"
@@ -1789,9 +1792,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/contextindex/local_completion_context.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/local-observability-dashboard-v0.md",
@@ -3200,8 +3201,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/tracerecordrepo",
-      "internal/gitrun",
+      "internal/cem/gitrun",
       "internal/contextindex",
       "internal/groupreap",
       "cmd/corvint"
@@ -4592,25 +4592,16 @@
     "health": "KEEP"
   },
   {
-    "path": "docs/specs/deadcode-ratchet-v0.md",
-    "title": "Dead-Function Ratchet V0",
-    "reqPrefix": "DCR-V0",
-    "intent": "proposed",
-    "delivery": "experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)",
-    "claim": "`make deadcode` runs a pinned dead-code analyzer for six GOOS/GOARCH configurations and fails unless the functions all six report equal a shrink-only baseline.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": []
-  },
-  {
     "path": "docs/specs/plugin-envelope-v0.md",
     "title": "Plugin Envelope V0 (`corvint-plugin/1`)",
     "reqPrefix": "CPE-V0",
     "intent": "proposed",
     "delivery": "experimental",
     "claim": "One stdio envelope, `corvint-plugin/1`, for every out-of-process plugin; any plugin failure yields UNKNOWN or abstention, never a narrower answer.",
-    "dependsOn": [],
+    "dependsOn": [
+      "docs/specs/core-bundled-apps-v0.md",
+      "docs/specs/runner-selection-plugins-v0.md"
+    ],
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
@@ -4622,6 +4613,18 @@
     "intent": "accepted (decision 0058; moved from the learned-trace spec by decision 0597)",
     "delivery": "experimental",
     "claim": "`internal/secretscreen.Pattern` and its prefilter redact credential-shaped text, with a prefilter that returns exactly the complete pattern's matches.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/deadcode-ratchet-v0.md",
+    "title": "Dead-Function Ratchet V0",
+    "reqPrefix": "DCR-V0",
+    "intent": "proposed",
+    "delivery": "experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)",
+    "claim": "`make deadcode` runs a pinned dead-code analyzer for six GOOS/GOARCH configurations and fails unless the functions all six report equal a shrink-only baseline.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
