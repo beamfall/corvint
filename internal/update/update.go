@@ -1610,6 +1610,7 @@ func (e engine) carryInterrupted(stage string, rec *receipt) error {
 	if err != nil {
 		return err
 	}
+	matches := map[string]receipt{}
 	for _, entry := range entries {
 		dir := filepath.Join(e.config.StateDir, entry.Name())
 		if !transactionName.MatchString(entry.Name()) || dir == stage {
@@ -1629,10 +1630,25 @@ func (e engine) carryInterrupted(stage string, rec *receipt) error {
 			prior.PreviousDigest != rec.PreviousDigest || prior.CandidateDigest != rec.CandidateDigest {
 			continue
 		}
-		if err = carryMembers(stage, dir, prior, rec); err != nil {
+		matches[entry.Name()] = prior
+	}
+	// Carry from the one matching run no other matching run supersedes: the head of a chain
+	// of killed retries. Several heads are an ambiguous history, so nothing is carried.
+	heads := map[string]bool{}
+	for name := range matches {
+		heads[name] = true
+	}
+	for _, m := range matches {
+		delete(heads, m.Supersedes)
+	}
+	if len(heads) != 1 {
+		return nil
+	}
+	for name := range heads {
+		if err := carryMembers(stage, filepath.Join(e.config.StateDir, name), matches[name], rec); err != nil {
 			return err
 		}
-		rec.Supersedes = entry.Name()
+		rec.Supersedes = name
 	}
 	return nil
 }
