@@ -141,9 +141,16 @@ type release struct {
 // receipt is a prepared transaction's recovery description. Members are the
 // core-set apps the apply handled beside corvint; a receipt without them,
 // such as one written before UPD-V0-920, means corvint alone.
+//
+// A core apply that leaves corvint unrewritten carries the rollback anchor of
+// the receipt it completes forward: that receipt's corvint previous digest and
+// previous bytes, and its members' when they still hold its candidates or are
+// absent. Supersedes names the completed transaction, which rollback then
+// ignores while both are retained (UPD-V0-921).
 type receipt struct {
 	Component, Destination, PreviousDigest, CandidateDigest string
 	Members                                                 []member `json:",omitempty"`
+	Supersedes                                              string   `json:",omitempty"`
 }
 
 // member is one core-set app of a receipt; PreviousDigest is empty when the
@@ -673,6 +680,11 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 			}
 		}
 		rec.Members = append(rec.Members, a.member)
+	}
+	if c.Component == "core" && candidateDigest == oldDigest {
+		if err = e.carryForward(stage, destination, &rec); err != nil {
+			return r, err
+		}
 	}
 	encoded, _ := json.MarshalIndent(rec, "", "  ")
 	// The durable recovery description precedes the only destination switch. A
@@ -1271,6 +1283,19 @@ func runProcess(ctx context.Context, binary, home, arg string) procgroup.Observa
 	}
 	return procgroup.Run(ctx, procgroup.Spec{Argv: []string{binary, arg}, Dir: dir, Env: env, Timeout: 10 * time.Second, ShutdownTimeout: 2 * time.Second, OutputLimit: 64 << 10, ObserveDescendants: true})
 }
+
+// smokeFailure names why a smoke run failed: its error, else its nonzero exit
+// status, else the unconfirmed process-group cleanup.
+func smokeFailure(o procgroup.Observation) string {
+	switch {
+	case o.Err != nil:
+		return o.Err.Error()
+	case o.ExitStatus != 0:
+		return fmt.Sprintf("exit status %d", o.ExitStatus)
+	default:
+		return "process group cleanup not confirmed"
+	}
+}
 func smoke(ctx context.Context, binary, home, arg string) error {
 	o := runProcess(ctx, binary, home, arg)
 	if o.Err != nil || o.ExitStatus != 0 || !o.OwnedProcessGroupCleanup {
@@ -1340,12 +1365,7 @@ func activate(ctx context.Context, source, destination, old string) error {
 		return err
 	}
 	if old == "" {
-		// An empty old digest means the destination must be absent: a hard link
-		// never replaces a file that appeared meanwhile (UPD-V0-920).
-		if _, err = os.Lstat(destination); !errors.Is(err, os.ErrNotExist) {
-			return errors.New("destination appeared before activation")
-		}
-		return os.Link(temp, destination)
+		return createAbsent(temp, destination, b)
 	}
 	current, err := digest(destination)
 	if err != nil {
@@ -1358,6 +1378,38 @@ func activate(ctx context.Context, source, destination, old string) error {
 		return err
 	}
 	return os.Rename(temp, destination)
+}
+
+// createAbsent places the staged temp at a destination that must be absent
+// (UPD-V0-920): a hard link, or where the file system refuses links an
+// exclusive create written and synced from b. Neither replaces a file that
+// appeared meanwhile.
+func createAbsent(temp, destination string, b []byte) error {
+	err := os.Link(temp, destination)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, os.ErrExist) {
+		return errors.New("destination appeared before activation")
+	}
+	f, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0755)
+	if errors.Is(err, os.ErrExist) {
+		return errors.New("destination appeared before activation")
+	}
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(b)
+	if err == nil {
+		err = f.Sync()
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		os.Remove(destination)
+	}
+	return err
 }
 
 // presentDigest is p's digest, or "" when nothing is at p.
@@ -1475,6 +1527,11 @@ func (e engine) rollback(ctx context.Context, destination string) (string, []Set
 			}
 		}
 	}
+	// A receipt that left corvint unrewritten and has no member still at its
+	// candidate has nothing to restore: refuse instead of reporting a no-op.
+	if rec.PreviousDigest == rec.CandidateDigest && !slices.Contains(pending, true) {
+		return "", nil, errors.New("rollback has nothing to restore: the receipt left corvint unrewritten and every member is at its previous state")
+	}
 	var set []SetMember
 	for i, m := range rec.Members {
 		action := "unchanged"
@@ -1489,14 +1546,77 @@ func (e engine) rollback(ctx context.Context, destination string) (string, []Set
 		}
 		set = append(set, SetMember{m.Name, action})
 	}
-	if err = activate(ctx, filepath.Join(txn, "previous"), destination, rec.CandidateDigest); err != nil {
-		return p, set, err
+	action := "unchanged"
+	if rec.PreviousDigest != rec.CandidateDigest {
+		if err = activate(ctx, filepath.Join(txn, "previous"), destination, rec.CandidateDigest); err != nil {
+			return p, set, err
+		}
+		action = "restored"
 	}
 	if len(rec.Members) > 0 {
-		set = append(set, SetMember{"corvint", "restored"})
+		set = append(set, SetMember{"corvint", action})
 	}
 	return p, set, nil
 }
+
+// carryForward points a receipt for an apply that leaves corvint unrewritten
+// at the rollback anchor of the receipt it completes, so superseding that
+// receipt keeps the way back to the set before it (UPD-V0-921): corvint's
+// previous digest and bytes, and each member's when the member still holds
+// that receipt's candidate or is absent. A member changed by other means
+// keeps its own previous state. Without an earlier receipt nothing changes.
+// The copied previous-<app> files only replace ones this apply never
+// restores from: a carried member's own previous state is its candidate or
+// absent, and neither is restored from a file.
+func (e engine) carryForward(stage, destination string, rec *receipt) error {
+	p, prior, err := e.rollbackReceipt(destination)
+	if errors.Is(err, errNoReceipt) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("the receipt this apply completes: %w", err)
+	}
+	txn := filepath.Dir(p)
+	if err = copyVerified(filepath.Join(txn, "previous"), filepath.Join(stage, "previous"), prior.PreviousDigest); err != nil {
+		return err
+	}
+	rec.PreviousDigest, rec.Supersedes = prior.PreviousDigest, filepath.Base(txn)
+	for i, m := range rec.Members {
+		j := slices.IndexFunc(prior.Members, func(o member) bool { return o.Name == m.Name })
+		if j < 0 {
+			continue
+		}
+		o := prior.Members[j]
+		if m.PreviousDigest != "" && m.PreviousDigest != o.CandidateDigest {
+			continue
+		}
+		own := filepath.Join(stage, "previous-"+m.Name)
+		if o.PreviousDigest == "" {
+			if err = os.Remove(own); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		} else if err = copyVerified(filepath.Join(txn, "previous-"+m.Name), own, o.PreviousDigest); err != nil {
+			return err
+		}
+		rec.Members[i].PreviousDigest = o.PreviousDigest
+	}
+	return nil
+}
+
+// copyVerified copies src to dst at mode 0700 when src's digest is want.
+func copyVerified(src, dst, want string) error {
+	b, err := readRegular(src, archiveLimit)
+	if err != nil {
+		return err
+	}
+	if hash(b) != want {
+		return errors.New("rollback previous digest conflict for " + filepath.Base(src))
+	}
+	return os.WriteFile(dst, b, 0700)
+}
+
+// errNoReceipt is rollbackReceipt's answer when no receipt matches.
+var errNoReceipt = errors.New("rollback requires a matching receipt, found 0")
 
 // rollbackReceipt finds the one receipt whose corvint candidate is installed
 // at destination and whose previous copy is intact.
@@ -1509,9 +1629,11 @@ func (e engine) rollbackReceipt(destination string) (string, receipt, error) {
 	if err != nil {
 		return "", receipt{}, err
 	}
-	var matches []string
-	var matched receipt
-	previousDigest := ""
+	type match struct {
+		path string
+		rec  receipt
+	}
+	var matches []match
 	for _, entry := range entries {
 		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "transaction-") {
 			continue
@@ -1534,20 +1656,32 @@ func (e engine) rollbackReceipt(destination string) (string, receipt, error) {
 			if err != nil || d != r.PreviousDigest {
 				return "", receipt{}, errors.New("rollback previous digest conflict")
 			}
-			if previousDigest != "" && (previousDigest != r.PreviousDigest || !slices.Equal(matched.Members, r.Members)) {
-				return "", receipt{}, errors.New("ambiguous rollback history: different prior digests")
-			}
-			previousDigest = r.PreviousDigest
-			if len(matches) == 0 {
-				matched = r
-			}
-			matches = append(matches, p)
+			matches = append(matches, match{p, r})
 		}
 	}
-	if len(matches) == 0 {
-		return "", receipt{}, fmt.Errorf("rollback requires a matching receipt, found %d", len(matches))
+	// A receipt that a retained completion receipt supersedes is not a
+	// separate history: the completion carries its anchor forward.
+	superseded := map[string]bool{}
+	for _, m := range matches {
+		if m.rec.Supersedes != "" {
+			superseded[m.rec.Supersedes] = true
+		}
 	}
-	return matches[0], matched, nil
+	var kept []match
+	for _, m := range matches {
+		if !superseded[filepath.Base(filepath.Dir(m.path))] {
+			kept = append(kept, m)
+		}
+	}
+	if len(kept) == 0 {
+		return "", receipt{}, errNoReceipt
+	}
+	for _, m := range kept[1:] {
+		if m.rec.PreviousDigest != kept[0].rec.PreviousDigest || !slices.Equal(m.rec.Members, kept[0].rec.Members) {
+			return "", receipt{}, errors.New("ambiguous rollback history: different prior digests")
+		}
+	}
+	return kept[0].path, kept[0].rec, nil
 }
 func parseSums(b []byte) (map[string]string, error) {
 	m := map[string]string{}
@@ -1815,7 +1949,7 @@ func (e engine) prepareApp(ctx context.Context, rel release, sums map[string]str
 	}
 	o := runProcess(ctx, candidate, home, "--version")
 	if o.Err != nil || o.ExitStatus != 0 || !o.OwnedProcessGroupCleanup {
-		return appCandidate{}, fmt.Errorf("version smoke failed: %v", o.Err)
+		return appCandidate{}, fmt.Errorf("%s version smoke failed: %s", app, smokeFailure(o))
 	}
 	line, err := docsenvelope.ParseVersionLine(string(o.Stdout))
 	if err != nil {
