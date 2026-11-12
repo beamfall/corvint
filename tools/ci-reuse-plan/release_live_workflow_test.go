@@ -316,7 +316,7 @@ func TestAFPV0434CCELiveRunsOnlyWhenChangee2eChanges(t *testing.T) {
 // AFP-V0-435: before the live tests, the job fails with an error naming the expected tuple
 // unless Playwright pins headless shell build 1248, that build's executable reports the
 // qualified version, and node is the qualified version. The expected tuple equals the 1.64.0 row
-// of qualifiedBundledBrowsers, which qualify checks receipts against.
+// of jstestreceipt.QualifiedBundledBrowsers, which qualify checks receipts against.
 func TestAFPV0435CCELiveRefusesAnUnqualifiedHeadlessShell(t *testing.T) {
 	skipWithoutCCELive(t)
 	testplatform.SkipPOSIXShell(t, "the tuple check runs under bash with #!/bin/sh spies")
@@ -324,10 +324,10 @@ func TestAFPV0435CCELiveRefusesAnUnqualifiedHeadlessShell(t *testing.T) {
 		t.Skip("jq is not available")
 	}
 	script := stepScript(t, jobBlock(t, readWorkflow(t, "ci.yml"), "cce-live"), "tuple")
-	src := readText(t, "../../internal/jstestprovider/external.go")
+	src := readText(t, "../../internal/jstestreceipt/external.go")
 	row := regexp.MustCompile(`"1\.64\.0": \{\s*revision:\s*"([0-9]+)",\s*observedVersion:\s*"([^"]+)",`).FindStringSubmatch(src)
 	if row == nil {
-		t.Fatal("no 1.64.0 row in qualifiedBundledBrowsers")
+		t.Fatal("no 1.64.0 row in jstestreceipt.QualifiedBundledBrowsers")
 	}
 	for _, line := range []string{"want_build=" + row[1], "want_version='" + row[2] + "'", "want_node=v24.11.1"} {
 		if strings.Count(script, line+"\n") != 1 {

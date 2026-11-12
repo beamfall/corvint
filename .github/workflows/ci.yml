@@ -2826,7 +2826,7 @@ jobs:
         env:
           PW_DIR: ${{ runner.temp }}/pw
         run: |
-          # The 1.64.0 tuple of qualifiedBundledBrowsers (internal/jstestprovider/external.go).
+          # The 1.64.0 tuple of QualifiedBundledBrowsers (internal/jstestreceipt/external.go).
           want_build=1248
           want_version='Google Chrome for Testing 156.0.8078.4'
           want_node=v24.11.1
