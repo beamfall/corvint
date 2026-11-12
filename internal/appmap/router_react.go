@@ -992,7 +992,7 @@ func reactMapChildren(ts []token, a, b, depth int) ([]jsValue, bool) {
 	if len(body) < 2 || !next(body, 0, "<") || body[1].text != "Route" {
 		return nil, false
 	}
-	spans, ok := constArray(ts, ts[a].text)
+	spans, ok := constArray(ts, ts[a].text, a)
 	if !ok || len(spans) == 0 {
 		return nil, false
 	}
