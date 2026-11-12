@@ -164,6 +164,14 @@ func TestAMAPV0976WorktreeRootAndConfig(t *testing.T) {
 	if _, err := BuildWorktree(context.Background(), root, "appmap.json"); err != nil {
 		t.Fatal(err)
 	}
+	// A Git directory whose path holds a space still resolves its common directory.
+	spaced := filepath.Join(t.TempDir(), "my repo")
+	if err := os.Rename(worktreeFixture(t, worktreeManifest), spaced); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := BuildWorktree(context.Background(), spaced, "appmap.json"); err != nil {
+		t.Errorf("a worktree under a path with a space: %v", err)
+	}
 	if _, err := BuildWorktree(context.Background(), filepath.Join(root, "src"), "appmap.json"); codeOf(err) != "appmap-root-unavailable" || !strings.Contains(err.Error(), "not the top of a Git worktree") {
 		t.Errorf("a --root below the worktree top: %v", err)
 	}
