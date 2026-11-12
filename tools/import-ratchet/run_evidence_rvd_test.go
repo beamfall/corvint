@@ -54,11 +54,11 @@ var rvdCorvintAllowed = []string{
 	"test_evidence.go runTestEvidence testevidencedoc",
 }
 
-// TestRVDV1011NoSelectionPackageReadsTheStore pins RVD-V1-011 in the import graph: no package that
+// TestRVDV1011StoredResultsDoNotChangePlan pins RVD-V1-011 in the import graph: no package that
 // selects tests imports the store or the test-evidence reader, or calls an appflows store reader;
 // inside appflows only runstore.go reaches the store; and in cmd/corvint only the corvint test
 // writer and the named readers reference it. A stored result therefore cannot reach a plan.
-func TestRVDV1011NoSelectionPackageReadsTheStore(t *testing.T) {
+func TestRVDV1011StoredResultsDoNotChangePlan(t *testing.T) {
 	m, _ := loadEmbedded(t)
 	root := filepath.Join("..", "..")
 	graph, err := scanModule(root, m.Module)

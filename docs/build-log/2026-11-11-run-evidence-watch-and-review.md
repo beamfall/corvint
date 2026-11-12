@@ -29,9 +29,11 @@ RVD-V1-010, RVD-V1-011 and RVD-V1-012 in `docs/specs/run-evidence-v1.md`. Follow
   record of bytes, newest first, and lists a bounded number of directory entries when the log is
   unreadable; a store past a bound reports `run-evidence-corrupt`.
 - The log and lock files open with `O_NOFOLLOW`, and an appended line is synced.
-- `TestRVDV1011StoredResultsDoNotChangePlan` held by construction, since nothing read the store. It
-  is replaced by an import-ratchet source scan: no selection package imports the store or the
-  test-evidence reader or calls an appflows store reader, with a spy that proves the scan sees one.
+- `TestRVDV1011StoredResultsDoNotChangePlan` held by construction, since nothing read the store. Its
+  body is replaced by an import-ratchet source scan under the same name (it moves to
+  `tools/import-ratchet`): no selection package imports the store or the test-evidence reader or
+  calls an appflows store reader, with a spy that proves the scan sees one. The name is kept
+  because `traceability-tests-check --range` checks round 1's commit, which cites it.
 - A read-purity digest test now covers `corvint test-evidence`'s `storedRuns` on an intact and a
   damaged store.
 - The spec states that the store is per worktree, so `git worktree remove` deletes it.
