@@ -105,7 +105,8 @@ func arrowCallback(toks []token, at int) (params []string, body int, ok bool) {
 // provably unable to change it: no assignment operator other than a JSX attribute's `=`, no `++`,
 // `--` or `delete`, no doubted token, no template substitution other than a plain member path, and
 // no call, computed member or member call on a name. passes reports a name handed to a call as an
-// argument, which only an immutable element survives.
+// argument, or the bare element used anywhere but a whole JSX attribute value (returned, or put
+// in an array or object), which only an immutable element survives.
 func cleanBody(toks []token, lo, hi int, names []string) (ok, passes bool) {
 	if hi <= lo || hi > len(toks) {
 		return false, false
@@ -129,7 +130,7 @@ func cleanBody(toks []token, lo, hi int, names []string) (ok, passes bool) {
 			return false, false
 		case next(toks, j, "=") && !comparisonOrArrow(toks, j) && !jsxAttribute(toks, j, lo):
 			return false, false
-		case t.kind == tokIdent && slices.Contains(names, t.text) && !property(toks, j):
+		case t.kind == tokIdent && slices.Contains(names, t.text) && !property(toks, j) && !(next(toks, j+1, "=") && jsxAttribute(toks, j+1, lo)):
 			c := j + 1
 			for next(toks, c, "?") && next(toks, c+1, ".") || next(toks, c, ".") {
 				if next(toks, c, "?") {
@@ -143,7 +144,15 @@ func cleanBody(toks []token, lo, hi int, names []string) (ok, passes bool) {
 			if next(toks, c, "(", "[") || c < len(toks) && toks[c].kind == tokTemplate {
 				return false, false // a call or computed member through the element
 			}
-			if o := enclosingOpen(toks, j); o > lo && isPunct(toks[o], "(") && callParen(toks, o) {
+			o := enclosingOpen(toks, j)
+			switch {
+			case o > lo && isPunct(toks[o], "(") && arrowParams(toks, o):
+				return false, false // a nested arrow parameter shadows the element
+			case o > lo && isPunct(toks[o], "(") && callParen(toks, o):
+				passes = true
+			case c == j+1 && !(o == j-1 && isPunct(toks[o], "{") && next(toks, c, "}") && jsxAttribute(toks, o-1, lo)):
+				// The bare element outside a whole JSX attribute value (returned, or put in an
+				// array or object) can be aliased and changed later.
 				passes = true
 			}
 		}
