@@ -104,6 +104,18 @@ export const router = createBrowserRouter([
 		t.Errorf("HEAD moved to %s", got)
 	}
 
+	// A force-added file the ignore rules match is part of the working tree.
+	writeFile(t, root, ".git/info/exclude", "e2e/specs/forced.spec.ts\n")
+	writeFile(t, root, "e2e/specs/forced.spec.ts", "test('f', async ({ page }) => { await page.goto('/'); });\n")
+	gitTest(t, root, "add", "-f", "e2e/specs/forced.spec.ts")
+	forced, err := BuildWorktree(context.Background(), root, "appmap.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testPaths(forced); !slices.Equal(got, []string{"e2e/specs/drafts.spec.ts", "e2e/specs/forced.spec.ts"}) {
+		t.Errorf("test files %v: the force-added spec belongs, the ignored one does not", got)
+	}
+
 	// An unborn branch builds from the untracked files alone, with an empty base revision.
 	unborn := t.TempDir()
 	gitTest(t, unborn, "init", "-q")

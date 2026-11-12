@@ -107,6 +107,11 @@ func BuildWorktree(ctx context.Context, root, manifestPath string) (*Map, error)
 	if _, err := work.git(4096, nil, "--git-dir="+gitDir, "--work-tree="+work.root, "add", "-A"); err != nil {
 		return nil, newSourceUnavailable("snapshot add", err)
 	}
+	// A tracked file the ignore rules match (force-added with `git add -f`) is in the
+	// repository's index although HEAD may lack it, so the snapshot adds it too.
+	if err := work.addForced(gitDir); err != nil {
+		return nil, err
+	}
 	tree, err := snap.git(4096, nil, "write-tree")
 	if err != nil {
 		return nil, newSourceUnavailable("snapshot write-tree", err)
@@ -129,6 +134,33 @@ func BuildWorktree(ctx context.Context, root, manifestPath string) (*Map, error)
 		return nil, err
 	}
 	return m, nil
+}
+
+// addForced stages into the snapshot index every file of the repository's index that its ignore
+// rules match and that still exists in the working tree; `add -A` alone skips an ignored path the
+// snapshot index, seeded from HEAD, does not yet hold.
+func (r repo) addForced(gitDir string) error {
+	out, err := r.git(1<<24, nil, "ls-files", "-z", "--cached", "--ignored", "--exclude-standard")
+	if err != nil {
+		return orProcessFailure(err, newSourceUnavailable("snapshot ls-files", err))
+	}
+	var present []byte
+	for _, path := range strings.Split(string(out), "\x00") {
+		if path == "" {
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(r.root, filepath.FromSlash(path))); err == nil {
+			present = append(append(present, path...), 0)
+		}
+	}
+	if len(present) == 0 {
+		return nil
+	}
+	if _, err := r.git(4096, present, "--literal-pathspecs", "--git-dir="+gitDir, "--work-tree="+r.root,
+		"add", "-f", "--pathspec-from-file=-", "--pathspec-file-nul"); err != nil {
+		return newSourceUnavailable("snapshot add forced", err)
+	}
+	return nil
 }
 
 // snapshotKeys are the repository settings that decide what `git add` stores for a working-tree
