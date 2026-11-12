@@ -67,7 +67,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_NAME: ${{ github.event_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          # Logins whose ci-control-plane-waiver status waives the check; must equal greptile-gate.yml.
+          # Logins whose ci-control-plane-waiver status waives the check. Keep in step with the waiver poster.
           WAIVER_APPROVERS: "Russe11"
         run: |
           set -euo pipefail
