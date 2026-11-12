@@ -14,25 +14,39 @@ import (
 // The report fixtures are each runner's documented report shape, written by hand: Vitest, Jest,
 // Playwright, pytest, RSpec and Ruby are not installed on the delivering host.
 const (
+	// Jest's `--json` report (jestjs.io/docs/cli#--json, the AggregatedResult of
+	// @jest/test-result: testResults[].assertionResults[].duration in milliseconds, absent when
+	// not timed); Vitest's `--reporter=json` writes the same Jest-compatible shape
+	// (vitest.dev/guide/reporters#json-reporter).
 	ptdJestReport = `{"numTotalTests":2,"numPassedTests":2,"numFailedTests":0,"numPendingTests":0,"numTodoTests":0,"success":true,
 "testResults":[{"name":"/r/math.test.ts","status":"passed","message":"","assertionResults":[
 {"title":"adds","fullName":"math > adds","status":"passed","failureMessages":[],"duration":DURATION},
 {"title":"subtracts","fullName":"math > subtracts","status":"passed","failureMessages":[]}]}]}`
+	// Playwright's JSON reporter (playwright.dev/docs/test-reporters#json, the JSONReport type of
+	// @playwright/test/reporter): suites[].specs[].tests[].results[], one result per retry, each
+	// with its own duration in milliseconds.
 	ptdPlaywrightReport = `{"suites":[{"title":"login.spec.ts","file":"login.spec.ts","specs":[{"id":"s1","title":"signs in","file":"login.spec.ts","tests":[
 {"projectId":"chromium","projectName":"chromium","status":"flaky","expectedStatus":"passed","results":[
 {"status":"failed","retry":0,"duration":900,"error":{"message":"boom"}},{"status":"passed","retry":1,"duration":700}]}]},
 {"id":"s2","title":"signs out","file":"login.spec.ts","tests":[
 {"projectId":"chromium","projectName":"chromium","status":"expected","expectedStatus":"passed","results":[{"status":"passed","retry":0,"duration":40}]}]}],"suites":[]}],
 "errors":[],"stats":{"expected":1,"unexpected":0,"flaky":1,"skipped":0}}`
+	// pytest's `--junitxml` report (docs.pytest.org/en/stable/how-to/output.html#creating-junitxml-format-files):
+	// testcase elements with a time attribute in seconds, omitted here on one case.
 	ptdPytestReport = `<?xml version="1.0" encoding="utf-8"?>
 <testsuites><testsuite name="pytest" tests="2" errors="0" failures="0" skipped="0">
 <testcase classname="tests.test_a" name="test_timed" file="tests/test_a.py" time="0.25"></testcase>
 <testcase classname="tests.test_a" name="test_untimed" file="tests/test_a.py"></testcase>
 </testsuite></testsuites>`
+	// RSpec's `--format json` report (RSpec::Core::Formatters::JsonFormatter, rspec-core 3.13):
+	// examples[].run_time in seconds.
 	ptdRSpecReport = `{"version":"3.13.0","examples":[
 {"id":"./spec/a_spec.rb[1:1]","description":"works","status":"passed","file_path":"./spec/a_spec.rb","run_time":0.012},
 {"id":"./spec/a_spec.rb[1:2]","description":"lingers","status":"passed","file_path":"./spec/a_spec.rb"}],
 "summary":{"example_count":2,"failure_count":0,"pending_count":0,"errors_outside_of_examples_count":0}}`
+	// Corvint's own Minitest reporter output, reporters/minitest_reporter.rb: JSON.generate of
+	// Profile, Complete, Count, Tests and Problems, each Tests row {ID, Name, State} with DurationMs
+	// from Minitest::Result#time (TestPTDV1002MinitestReporterOutput pins the reporter source).
 	ptdMinitestReport = `{"Profile":"corvint-minitest/0","Complete":true,"Count":3,"Tests":[
 {"ID":"CalcTest#test_add","Name":"test_add","State":"PASSED","DurationMs":7},
 {"ID":"CalcTest#test_sub","Name":"test_sub","State":"PASSED"},
@@ -137,9 +151,40 @@ func TestPTDV1002MinitestReporterDuration(t *testing.T) {
 	if test := ptdTest(t, unittest, "CalcTest#test_add"); test.DurationMs != nil || test.DurationSource != "" {
 		t.Fatalf("unittest kept a reporter duration: %+v", test)
 	}
+}
+
+// PTD-V1-002 (Minitest receipt scenario, reporter half): the embedded reporter writes DurationMs
+// from Minitest::Result#time on each row, and the Go reader takes a report in exactly the shape
+// that reporter emits. Ruby's JSON.generate keeps the row hash's insertion order, so a skipped row
+// is {ID, Name, State, Message, DurationMs} and a failed one adds FailureKind before Message.
+func TestPTDV1002MinitestReporterOutput(t *testing.T) {
 	reporter, err := reporters.ReadFile("reporters/minitest_reporter.rb")
-	if err != nil || !bytes.Contains(reporter, []byte("row[:DurationMs] = (time * 1000).round")) {
-		t.Fatalf("the embedded Minitest reporter does not record Minitest::Result#time: %v", err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{
+		"row = {ID: \"#{result.klass}##{result.name}\", Name: result.name, State: state}",
+		"row[:DurationMs] = (result.time * 1000).round if result.time.is_a?(Numeric)",
+		"f.write(JSON.generate(Profile: 'corvint-minitest/0', Complete: true,",
+		"Count: @rows.length, Tests: @rows, Problems: []))",
+	} {
+		if !bytes.Contains(reporter, []byte(line)) {
+			t.Fatalf("the embedded Minitest reporter no longer has %q", line)
+		}
+	}
+	output := `{"Profile":"corvint-minitest/0","Complete":true,"Count":3,"Tests":[` +
+		`{"ID":"CalcTest#test_add","Name":"test_add","State":"PASSED","DurationMs":7},` +
+		`{"ID":"CalcTest#test_skip","Name":"test_skip","State":"SKIPPED","Message":"later","DurationMs":0},` +
+		`{"ID":"CalcTest#test_boom","Name":"test_boom","State":"FAILED","FailureKind":"UNKNOWN","Message":"UnexpectedError: RuntimeError","DurationMs":1234}],"Problems":[]}`
+	minitest, err := Parse(tr.Input{Runner: "minitest", ExitCode: 1, FailureExitCodes: []int{1}, Reports: map[string][]byte{"minitest.json": []byte(output)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ptdWant(t, ptdTest(t, minitest, "CalcTest#test_add"), 7, testduration.SourceMinitest)
+	ptdWant(t, ptdTest(t, minitest, "CalcTest#test_skip"), 0, testduration.SourceMinitest)
+	ptdWant(t, ptdTest(t, minitest, "CalcTest#test_boom"), 1234, testduration.SourceMinitest)
+	if len(minitest.DurationInvalid) != 0 || !minitest.Complete {
+		t.Fatalf("minitest reporter output: invalid %v complete %v problems %v", minitest.DurationInvalid, minitest.Complete, minitest.Problems)
 	}
 }
 
