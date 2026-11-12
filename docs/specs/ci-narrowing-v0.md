@@ -668,7 +668,7 @@ classifier rejects platform filenames, build constraints and scripts from its ro
   alone is not grounds to cancel a live entry. The cleanup workflow SHALL serialize without
   cancelling its in-progress run. Cleanup is eventual: hosted scheduling/API delays may defer it.
 - `CIN-V0-5019`: This capacity change SHALL preserve required-status contexts (`go-product`,
-  `doc-gates`, `ci-control-plane`, plus the independently governed `greptile-gate`), advisory
+  `doc-gates`, `ci-control-plane`; `greptile-gate` was removed by decision 0598), advisory
   names and nightly coverage. Its build log SHALL retain the 2026-11-07 job 128372903198
   created 10:02 / started 11:06 observation, four advisory shards plus CEM occupying all five
   slots, and an after-measurement pending a day of PRs. Local tests SHALL execute cleanup
