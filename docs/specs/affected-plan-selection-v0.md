@@ -3846,7 +3846,8 @@ AFP-V0-3600 to AFP-V0-3602 (V1-5179): `evaluatedCacheOnly`, `strictWords` and `l
 its call in `makeUnits` (`driver.go`), and the assignment and `node --test` allowlists in
 `driver_shell.go` are covered by
 `TestDriverEvaluatedWholeTreeReader_AFP_V0_3600`, `TestDriverEvaluatedCacheOnlyFailClosed_AFP_V0_3600`,
-the AFP-V0-3600 cases of `TestDriverEnumerationKeepsComputedFallback_AFPV09402`,
+the AFP-V0-3600 cases of `TestDriverEnumerationKeepsComputedFallback_AFPV09402` and
+`TestDriverFrontierSiteWitnessNamesEdgeOrReason_AFPV09402` (`driver_frontier_witness_test.go`),
 `TestDriverGoSelectionAssignments_AFP_V0_3601`, `TestDriverGoSelectionAssignmentsFailClosed_AFP_V0_3601`,
 `TestDriverNodeTestFiles_AFP_V0_3602` and `TestDriverNodeTestFilesFailClosed_AFP_V0_3602` in
 `internal/liveverify/affected/driver_compsite_test.go`; the mutation results, the histogram and
@@ -3963,7 +3964,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 |---|---|---|
 | AFP-V0-9400 | `driverShellScanner.script` in `internal/liveverify/affected/driver_shell.go` | `TestDriverHeredocConsumers_AFPV09400` in `internal/liveverify/affected/driver_avdrv_test.go`: wrapper, generated script, substitution, nested output, unclosed and tab-stripped body; workflow selection and quoted-text controls |
 | AFP-V0-9401 | `driverShellScanner.simple`, `goInvocation`, `driverUnitBuilder.unit` | `TestDriverSharedEnumeration_AFPV09401`, `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationDoesNotInventReaders_AFPV09401`, `TestDriverEnumerationSymlinkTargets_AFPV09401`: direct and nested commands, new/deleted/unindexed files, unknown directories, file and directory links, negative controls |
-| AFP-V0-9402 | `Graph.driverSites` in `internal/liveverify/affected/driver.go` | `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationKeepsComputedFallback_AFPV09402`: tested-owner callers, unrelated exclusions, empty change, retained computed witnesses |
+| AFP-V0-9402 | `Graph.driverSites` in `internal/liveverify/affected/driver.go` | `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationKeepsComputedFallback_AFPV09402`, `TestDriverFrontierSiteWitnessNamesEdgeOrReason_AFPV09402`: tested-owner callers, unrelated exclusions, empty change, retained computed witnesses, each naming its site edge and reason; an AFP-V0-3600 whole-tree reader takes the file-set witness instead |
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
