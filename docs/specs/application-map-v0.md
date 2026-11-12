@@ -2368,36 +2368,49 @@ but does not read it; only non-Go syntax impact does.
 - `AMAP-V0-971`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5467) A `.map` child
   MUST stay the unknown `non-literal-react-children` and expand nothing when ARR has a second
   declaration, is exported, imported or a parameter, is declared in a block that does not contain
-  the use (another function's `const`), escapes into any use other than a read of `.length` that no
-  assignment, compound assignment, `++` or `--` follows, `.map(` with an inline arrow callback of
-  at most two parameters and no rest parameter (a third parameter would receive the array), or a
-  `for ... of` iterable (`.forEach(`, a callback passed by name, a mutator call such as `push`,
-  `splice` or `sort`, a length write and an index assignment are such uses), a template
-  substitution or escaped identifier could name it, any element is not an object literal, or a
-  route attribute reads `P` as anything but a member holding a literal string. The same rules
-  bind the arrays AMAP-V0-972 loops over.
-  - Failure modes: the callback of an allowed `.map(` may still assign a member of an object
-    element (`ARR.map(e => (e.path = x))`); the scan does not follow member writes through the
-    callback parameter.
+  the use (another function's `const`), a template substitution or escaped identifier could name
+  it, any element is not an object literal, a route attribute reads `P` as anything but a member
+  holding a literal string, or ARR has any use other than its declaration and these two accepted
+  shapes: the iterable of a `for (const|let x of ARR)` header, and `ARR.map(` with an inline arrow
+  callback of at most two parameters and no rest parameter (a third parameter would receive the
+  array). The body that sees the element (the loop body, or the callback body to the `.map(`
+  call's closing parenthesis) MUST hold no assignment or compound assignment (a JSX attribute's `=`
+  excepted), no `++`, `--` or `delete`, no call, computed member or member call on the element
+  name, no template substitution other than a plain member path, and no doubted token; an element
+  handed to a call as an argument keeps the proof only when every element is an exact string. The
+  scan accepts these proven shapes rather than detecting writes: every `.length` use, `.forEach(`,
+  a callback passed by name, a mutator call, an index assignment and any other token after ARR
+  refuse. The same rules bind the arrays AMAP-V0-972 loops over.
+  - Failure modes: the accept-list is deliberately narrow, so a harmless read such as
+    `ARR.length`, `ARR[0]`, a block-bodied callback with a local `const`, or `log(e.path)` in the
+    callback leaves the children unknown; a component rendered from the callback that mutates
+    the element it receives (`<Page s={e} />`) is runtime behaviour the scan does not see.
   - Falsifier: `TestAMAPV0971UnprovenArrayStaysUnknown` in `router_react_map_test.go`; also
-    `TestAMAPV0971ArrayMutationAndScope` in `router_react_map_test.go`.
+    `TestAMAPV0971ArrayMutationAndScope` and `TestAMAPV0971ConservativeUses` in
+    `router_react_map_test.go`.
   - Rollback: as AMAP-V0-970.
 - `AMAP-V0-972`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468) A `goto`,
   `waitForURL` or `toHaveURL` argument that is the variable X of an enclosing braced
   `for (const X of ITER)` loop, or a template whose every substitution is X, MUST resolve to one
   goto per value when ITER is an inline array of exact strings, or a same-file array bound under
-  the AMAP-V0-971 rules whose elements are exact strings, and no other binding of X (a
-  declaration, an assignment, a function or arrow parameter, a `catch` binding, a destructuring
-  pattern, or a nested `for (... of|in ...)` header naming X before its `of` or `in`, destructured
-  or not, as in `for (const [k, X] of ...)`) lies between the loop and the use. The reference
+  the AMAP-V0-971 rules whose elements are exact strings, and the loop body is one the reader can
+  prove binds X nowhere: it holds no nested `for` header (braced or not, `for await` included), no
+  declaration or binding keyword (`const`, `let`, `var`, `function`, `class`, `catch`), no doubted
+  token, X only as a whole argument of a call (`f(X)`, `f(a, X)`), and every template
+  substitution that mentions X is exactly X. The reference
   check (AMAP-V0-091) reads such a goto through the same resolver, as one exact route per value. `flows appmap build` records one goto per value on the goto's line. `flows appmap infer`
   reads a `test(...)` call inside such a loop as one test per value, with X bound to the value and
   its title filled, when the filled titles are distinct; otherwise it keeps one dynamic test. Any
   other argument keeps `non-literal-url`.
   - Non-goals: `forEach`, `for (let ...)`, index loops, destructured loop variables, and loops
     without a braced body.
+  - Failure modes: the body accept-list is deliberately narrow and refuses rather than detects
+    bindings, so a body with any local declaration, a nested loop over anything, or X in an
+    expression such as `base + X` or `X.path` keeps `non-literal-url` even when X is never bound
+    again.
   - Falsifier: `TestAMAPV0972LoopGotos` in `gotoresolve_test.go`; also
-    `TestAMAPV0972LoopRebindsAndMutation` in `gotoresolve_test.go`.
+    `TestAMAPV0972LoopRebindsAndMutation` and `TestAMAPV0972ConservativeBodies` in
+    `gotoresolve_test.go`.
   - Rollback: delete `gotoresolve.go` and its callers in `tests.go` and `site_knowledge_ts.go`.
 - `AMAP-V0-973`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468)
   Extending `AMAP-V0-342` to specs: a spec or workflow file's call to an AMAP-V0-342 navigation helper (same
@@ -2810,8 +2823,8 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-882 | `TestAMAPV0882SameElementAcrossTreesMerges_V13935`, `TestAMAPV0882DifferentElementStaysAmbiguous_V13935` in `alternate_routes_v13935_test.go` (VanillaTwisted rebuild `NOT_RUN` in the lane) |
 | AMAP-V0-960 | `TestAMAPV0960NewerMapMemberRefusalNamesMember` (a built map with an added top-level member refuses `appmap-invalid-map` naming the member, `BuilderVersion` and the upgrade step; another schema with an unknown member, and trailing data, keep the generic refusal) |
 | AMAP-V0-970 | `TestAMAPV0970MapOverSameFileArray` in `router_react_map_test.go` (a const, a nested const and a `useMemo` array; `path={s.path}` and a template path; `key` ignored; `appmap-builder/4`) |
-| AMAP-V0-971 | `TestAMAPV0971UnprovenArrayStaysUnknown` in `router_react_map_test.go` (a second declaration, an export, a mutator, an index assignment, a non-literal element and a bare `P` path keep `non-literal-react-children`); `TestAMAPV0971ArrayMutationAndScope` in `router_react_map_test.go` (`forEach`, a length write, `++` and `+=`, a callback by name, a third or rest callback parameter and another function's `const` stay unknown; a length read and a two-parameter callback still expand) |
-| AMAP-V0-972 | `TestAMAPV0972LoopGotos` in `gotoresolve_test.go` (an inline array, a const array and a template loop resolve one goto per value; a shadowed variable, a `let` loop and a call result keep `non-literal-url`; infer expands one test per value); `TestAMAPV0972LoopRebindsAndMutation` in `gotoresolve_test.go` (nested `for` headers binding the variable by array or object destructuring, bare assignment or `in`; a `forEach`, length-written or third-parameter-mapped array and another function's `const` keep `non-literal-url`; the reference check reads loop gotos as exact routes) |
+| AMAP-V0-971 | `TestAMAPV0971UnprovenArrayStaysUnknown` in `router_react_map_test.go` (a second declaration, an export, a mutator, an index assignment, a non-literal element and a bare `P` path keep `non-literal-react-children`); `TestAMAPV0971ArrayMutationAndScope` in `router_react_map_test.go` (`forEach`, a length write, `++` and `+=`, a callback by name, a third or rest callback parameter and another function's `const` stay unknown; a two-parameter reading callback still expands); `TestAMAPV0971ConservativeUses` in `router_react_map_test.go` (prefix `++`/`--`, pattern and `for`-header length writes, a length read, a member write, a member call and an escaping element in the callback, and a member write in a `for ... of` body stay unknown) |
+| AMAP-V0-972 | `TestAMAPV0972LoopGotos` in `gotoresolve_test.go` (an inline array, a const array and a template loop resolve one goto per value; a shadowed variable, a `let` loop and a call result keep `non-literal-url`; infer expands one test per value); `TestAMAPV0972LoopRebindsAndMutation` in `gotoresolve_test.go` (nested `for` headers binding the variable by array or object destructuring, bare assignment or `in`; a `forEach`, length-written or third-parameter-mapped array and another function's `const` keep `non-literal-url`; the reference check reads loop gotos as exact routes); `TestAMAPV0972ConservativeBodies` in `gotoresolve_test.go` (an unbraced `for await` and `for` header, a `let a, X;` list, and prefix-decrement, pattern and `for`-header length uses keep `non-literal-url`) |
 | AMAP-V0-973 | `TestAMAPV0973SpecHelperAttribution` in `gotoresolve_test.go` (a same-file helper call with a literal attributes `helper-goto`; a non-literal argument attributes nothing) |
 | AMAP-V0-974 | `TestAMAPV0974CoverageAndInferAgree` in `gotoresolve_test.go` (coverage reached equals infer start screens on the literal, loop and helper fixture; a dynamic array reaches nothing) |
 | AMAP-V0-975 | `TestAMAPV0975SubcommandHelp` in `cmd/corvint-docs/help_appmap_test.go` (trailing, interior and `-h` requests, the `--root` preamble, boolean flags and `help flows appmap SUB`; an unknown SUB and `--` keep the old behavior) |

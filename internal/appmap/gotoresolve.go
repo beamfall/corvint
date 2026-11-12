@@ -1,6 +1,7 @@
 package appmap
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/secretscreen"
@@ -13,37 +14,71 @@ import (
 // (AMAP-V0-974). Every function refuses, rather than guesses, when the proof is incomplete.
 
 // arrayUse reports whether toks[k], an occurrence of a proven array's name, is one of the only
-// uses allowed besides its declaration, none of which can change the array or let other code reach
-// it: a read of `name.length` that no assignment or `++`/`--` follows, or `name.map(` with an
-// inline arrow callback of at most two parameters (the element and its index; a third parameter
-// or a rest parameter would receive the array itself). `forEach`, a callback passed by name and
-// every other member are refused (AMAP-V0-971).
-func arrayUse(toks []token, k int) bool {
-	if !next(toks, k+1, ".") || k+2 >= len(toks) || toks[k+2].kind != tokIdent {
-		return false
+// uses allowed besides its declaration: the iterable of a `for (const|let x of name)` header, or
+// `name.map(` with an inline arrow callback of at most two parameters (the element and its index; a
+// third or rest parameter would receive the array itself). In both the body that sees the element
+// must be clean (cleanBody). Every other use, `.length` and `.forEach(` included, is refused rather
+// than checked for writes (AMAP-V0-971). passes reports that the body hands the element to a call,
+// which constArray accepts only for elements that are exact strings.
+func arrayUse(toks []token, k int) (ok, passes bool) {
+	switch {
+	case word(toks, k-1, "of") && next(toks, k+1, ")") && k >= 5 && toks[k-2].kind == tokIdent &&
+		(word(toks, k-3, "const") || word(toks, k-3, "let")) && next(toks, k-4, "(") && word(toks, k-5, "for"):
+		lo := k + 1 // the body is a braced block or one statement
+		hi := bodyEnd(toks, lo+1)
+		if hi < 0 {
+			return false, false
+		}
+		return cleanBody(toks, lo, hi, []string{toks[k-2].text})
+	case next(toks, k+1, ".") && word(toks, k+2, "map") && !property(toks, k) && next(toks, k+3, "("):
+		params, body, ok := arrowCallback(toks, k+4)
+		if !ok {
+			return false, false
+		}
+		return cleanBody(toks, body, closeParen(toks, k+3), params)
 	}
-	switch toks[k+2].text {
-	case "length":
-		return !assigned(toks, k+3)
-	case "map":
-		return next(toks, k+3, "(") && arrowCallback(toks, k+4)
-	}
-	return false
+	return false, false
 }
 
-// arrowCallback reports whether toks[at] starts an arrow function whose parameter list holds at
-// most two parameters and no rest parameter: `x =>`, `() =>`, `(x) =>`, `(x, i) =>` or a
-// destructuring pattern in their place.
-func arrowCallback(toks []token, at int) bool {
+// bodyEnd returns the index just past the statement starting at toks[at]: a braced block's
+// closing brace, or the first `;` outside brackets; -1 when neither bounds it.
+func bodyEnd(toks []token, at int) int {
+	if next(toks, at, "{") {
+		if c := closeParen(toks, at); c > at {
+			return c
+		}
+		return -1
+	}
+	depth := 0
+	for j := at; j < len(toks); j++ {
+		switch {
+		case next(toks, j, "(", "[", "{"):
+			depth++
+		case next(toks, j, ")", "]", "}"):
+			if depth--; depth < 0 {
+				return -1
+			}
+		case depth == 0 && next(toks, j, ";"):
+			return j
+		}
+	}
+	return -1
+}
+
+// arrowCallback reads the arrow function starting at toks[at] whose parameter list holds at most two
+// parameters and no rest parameter (`x =>`, `() =>`, `(x) =>`, `(x, i) =>` or a destructuring
+// pattern in their place): every identifier of the list, and the index of the token just before
+// its body (the `>` of `=>`).
+func arrowCallback(toks []token, at int) (params []string, body int, ok bool) {
 	if at < len(toks) && toks[at].kind == tokIdent && next(toks, at+1, "=") && next(toks, at+2, ">") {
-		return true
+		return []string{toks[at].text}, at + 2, true
 	}
 	if !next(toks, at, "(") {
-		return false
+		return nil, 0, false
 	}
 	end := closeParen(toks, at)
 	if end <= at || !next(toks, end+1, "=") || !next(toks, end+2, ">") {
-		return false
+		return nil, 0, false
 	}
 	commas, depth := 0, 0
 	for j := at + 1; j < end; j++ {
@@ -54,11 +89,136 @@ func arrowCallback(toks []token, at int) bool {
 			depth--
 		case depth == 0 && next(toks, j, ","):
 			commas++
-		case depth == 0 && next(toks, j, "."):
-			return false // a rest parameter
+		case next(toks, j, "."):
+			return nil, 0, false // a rest parameter
+		case toks[j].kind == tokIdent:
+			params = append(params, toks[j].text)
 		}
 	}
-	return commas <= 1 || commas == 2 && next(toks, end-1, ",") // a trailing comma after two
+	if commas > 1 && !(commas == 2 && next(toks, end-1, ",")) { // a trailing comma after two
+		return nil, 0, false
+	}
+	return params, end + 2, true
+}
+
+// cleanBody reports whether toks(lo, hi), the body that sees an array element through names, is
+// provably unable to change it: no assignment operator other than a JSX attribute's `=`, no `++`,
+// `--` or `delete`, no doubted token, no template substitution other than a plain member path, and
+// no call, computed member or member call on a name. passes reports a name handed to a call as an
+// argument, which only an immutable element survives.
+func cleanBody(toks []token, lo, hi int, names []string) (ok, passes bool) {
+	if hi <= lo || hi > len(toks) {
+		return false, false
+	}
+	for j := lo + 1; j < hi; j++ {
+		t := toks[j]
+		switch {
+		case t.escaped || t.unsure || isPunct(t, "\\") || word(toks, j, "delete"):
+			return false, false
+		case t.kind == tokTemplate:
+			subs, ok := templateSubs(t.code)
+			if !ok {
+				return false, false
+			}
+			for _, sub := range subs {
+				if !memberPath(sub) {
+					return false, false
+				}
+			}
+		case next(toks, j, "+") && next(toks, j+1, "+"), next(toks, j, "-") && next(toks, j+1, "-"):
+			return false, false
+		case next(toks, j, "=") && !comparisonOrArrow(toks, j) && !jsxAttribute(toks, j, lo):
+			return false, false
+		case t.kind == tokIdent && slices.Contains(names, t.text) && !property(toks, j):
+			c := j + 1
+			for next(toks, c, "?") && next(toks, c+1, ".") || next(toks, c, ".") {
+				if next(toks, c, "?") {
+					c++
+				}
+				if c+1 >= len(toks) || toks[c+1].kind != tokIdent {
+					return false, false
+				}
+				c += 2
+			}
+			if next(toks, c, "(", "[") || c < len(toks) && toks[c].kind == tokTemplate {
+				return false, false // a call or computed member through the element
+			}
+			if o := enclosingOpen(toks, j); o > lo && isPunct(toks[o], "(") && callParen(toks, o) {
+				passes = true
+			}
+		}
+	}
+	return true, passes
+}
+
+// comparisonOrArrow reports whether the `=` at toks[j] belongs to `==`, `===`, `!=`, `!==`, `<=`,
+// `>=` or `=>` rather than to an assignment.
+func comparisonOrArrow(toks []token, j int) bool {
+	switch {
+	case next(toks, j+1, "=", ">"), next(toks, j-1, "=", "!"):
+		return true
+	case next(toks, j-1, "<"):
+		return !next(toks, j-2, "<")
+	case next(toks, j-1, ">"):
+		return !next(toks, j-2, ">")
+	}
+	return false
+}
+
+// jsxAttribute reports whether the `=` at toks[j] joins a JSX attribute name to its `{...}` or
+// string value inside an opening tag that starts after toks[lo].
+func jsxAttribute(toks []token, j, lo int) bool {
+	if j < 2 || toks[j-1].kind != tokIdent || next(toks, j-2, ".") || j+1 >= len(toks) ||
+		!(next(toks, j+1, "{") || toks[j+1].kind == tokString) {
+		return false
+	}
+	depth := 0
+	for k := j - 2; k > lo; k-- {
+		switch {
+		case next(toks, k, ")", "]", "}"):
+			depth++
+		case next(toks, k, "(", "[", "{"):
+			if depth == 0 {
+				return false
+			}
+			depth--
+		case depth > 0:
+		case next(toks, k, "<"):
+			return k+1 < len(toks) && toks[k+1].kind == tokIdent
+		case next(toks, k, ">", ";"):
+			return false
+		}
+	}
+	return false
+}
+
+// callParen reports whether the `(` at toks[o] opens a call's argument list.
+func callParen(toks []token, o int) bool {
+	if o == 0 {
+		return false
+	}
+	p := toks[o-1]
+	if p.kind == tokIdent {
+		return !controlWords[p.text] && !keywordBeforeParen[p.text]
+	}
+	return isPunct(p, ")") || isPunct(p, "]")
+}
+
+// keywordBeforeParen are words a `(` may follow without being a call.
+var keywordBeforeParen = map[string]bool{"return": true, "typeof": true, "await": true, "yield": true,
+	"case": true, "in": true, "of": true, "void": true, "catch": true, "function": true}
+
+// memberPath reports whether s is a plain name or member path such as `s.path`.
+func memberPath(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, part := range strings.Split(s, ".") {
+		if part == "" || !identChars(part) || strings.ContainsAny(part, " \t\n()[]{}=+-*/%&|^!?:;,<>`'\"") {
+			return false
+		}
+	}
+	return true
 }
 
 // constArray returns the element spans [a, b) of the array literal name binds at toks[use], when
@@ -71,7 +231,7 @@ func constArray(toks []token, name string, use int) ([][2]int, bool) {
 	if len(toks) == 0 || toks[0].unsure {
 		return nil, false
 	}
-	decl := -1
+	decl, passes := -1, false
 	for k, t := range toks {
 		switch {
 		case t.escaped || isPunct(t, "\\") || t.unsure:
@@ -84,10 +244,12 @@ func constArray(toks []token, name string, use int) ([][2]int, bool) {
 				return nil, false
 			}
 			decl = k
-		case arrayUse(toks, k):
-		case word(toks, k-1, "of") && next(toks, k+1, ")"):
 		default:
-			return nil, false
+			ok, p := arrayUse(toks, k)
+			if !ok {
+				return nil, false
+			}
+			passes = passes || p
 		}
 	}
 	if decl < 0 {
@@ -159,7 +321,13 @@ func constArray(toks []token, name string, use int) ([][2]int, bool) {
 	if end < len(toks) && !next(toks, end, ";", "}") && !(toks[end].kind == tokIdent && toks[end].line > toks[end-1].line) {
 		return nil, false
 	}
-	return arrayElements(toks, open)
+	spans, ok := arrayElements(toks, open)
+	if ok && passes { // an element handed to a call survives only when it is immutable
+		if _, strs := exactStrings(toks, spans); !strs {
+			return nil, false
+		}
+	}
+	return spans, ok
 }
 
 // arrayElements splits the array literal whose `[` is toks[open] into its element spans; an empty
@@ -298,71 +466,63 @@ func loopValues(toks []token, at int, name string) ([]string, bool) {
 	return nil, false
 }
 
-// rebinds reports whether toks(open, close) may bind name again: a declaration (`const`, `let`,
-// `var`, `function`, `class`), an assignment, a single arrow parameter, a function, arrow or catch
-// parameter list or destructuring pattern holding name, a `for (... of|in ...)` header that names
-// it before its `of` or `in` (destructured or not), or a token the reader doubts (AMAP-V0-972).
+// rebinds reports whether toks(open, close) may bind name again. Rather than detect each binding
+// form, it accepts only a body it can prove: no nested `for` (braced or not, `for await`
+// included), no declaration or binding keyword (`const`, `let`, `var`, `function`, `class`,
+// `catch`), no doubted token, name only as a whole call argument (`f(name)`, `f(a, name)`), and
+// every template substitution that mentions name exactly name (AMAP-V0-972).
 func rebinds(toks []token, open, close int, name string) bool {
 	for k := open + 1; k < close; k++ {
 		t := toks[k]
-		if t.escaped || t.unsure || isPunct(t, "\\") {
+		switch {
+		case t.escaped || t.unsure || isPunct(t, "\\"):
 			return true
-		}
-		if t.kind != tokIdent || t.text != name || property(toks, k) {
-			continue
-		}
-		if k > 0 && toks[k-1].kind == tokIdent {
-			switch toks[k-1].text {
-			case "const", "let", "var", "function", "class":
+		case t.kind == tokTemplate:
+			subs, ok := templateSubs(t.code)
+			if !ok {
 				return true
 			}
-		}
-		if next(toks, k+1, "=") && !next(toks, k+2, "=") {
-			return true // an assignment or a single arrow parameter `name =>`
-		}
-		// Walk the enclosing brackets inside the loop body: a parameter list or a pattern binds.
-		for c := k; ; {
-			o := enclosingOpen(toks, c)
-			if o <= open {
-				break
-			}
-			end := closeParen(toks, o)
-			switch {
-			case isPunct(toks[o], "("):
-				if next(toks, end+1, "=") && next(toks, end+2, ">") || word(toks, o-1, "catch") {
+			for _, sub := range subs {
+				if sub != name && mentions(sub, name) {
 					return true
 				}
-				if next(toks, end+1, "{", ":") && !(o > 0 && toks[o-1].kind == tokIdent && controlWords[toks[o-1].text]) {
-					return true // a function or method parameter list
-				}
-				if word(toks, o-1, "for") && forHeadBinds(toks, o, end, k) {
-					return true // `for (name of ...)`, `for (const [k, name] in ...)` and the like
-				}
-			case next(toks, end+1, "=") && !next(toks, end+2, "=", ">"):
-				return true // a destructuring pattern
 			}
-			c = o
+		case t.kind != tokIdent || property(toks, k):
+		case bindingWords[t.text]:
+			return true
+		case t.text != name:
+		case !next(toks, k-1, "(", ",") || !next(toks, k+1, ")", ","):
+			return true
+		default:
+			if o := enclosingOpen(toks, k); o <= open || !isPunct(toks[o], "(") || !callParen(toks, o) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-// forHeadBinds reports whether toks[k] sits before the `of` or `in` of the `for (` header whose
-// parentheses are toks[open] and toks[end]: the loop binds or assigns it on every iteration,
-// whatever declaration or destructuring pattern surrounds it.
-func forHeadBinds(toks []token, open, end, k int) bool {
-	depth := 0
-	for j := open + 1; j < end; j++ {
-		switch {
-		case next(toks, j, "(", "[", "{"):
-			depth++
-		case next(toks, j, ")", "]", "}"):
-			depth--
-		case depth == 0 && (word(toks, j, "of") || word(toks, j, "in")):
-			return k < j
-		}
+// bindingWords start a loop header or a declaration that may bind a name inside a loop body.
+var bindingWords = map[string]bool{"for": true, "const": true, "let": true, "var": true,
+	"function": true, "class": true, "catch": true}
+
+// mentions reports whether the source s names the identifier name other than as a member.
+func mentions(s, name string) bool {
+	identByte := func(c byte) bool {
+		return c == '_' || c == '$' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80
 	}
-	return false
+	for i := 0; ; {
+		j := strings.Index(s[i:], name)
+		if j < 0 {
+			return false
+		}
+		j += i
+		end := j + len(name)
+		if (j == 0 || !identByte(s[j-1]) && s[j-1] != '.') && (end == len(s) || !identByte(s[end])) {
+			return true
+		}
+		i = j + 1
+	}
 }
 
 // controlWords open a parenthesised condition, never a parameter list.
