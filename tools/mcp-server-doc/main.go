@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -75,14 +76,15 @@ func Check(path string, want []byte) error {
 }
 
 // MissingParityTests names each row whose ParityTest function is not defined
-// by a _test.go file in its package directory under root (MTT-V1-009).
+// by a _test.go file in its binary's cmd/ directory under root (MTT-V1-009).
 func MissingParityTests(root string, rows []capcatalog.MCPTool) []string {
 	var missing []string
 	for _, row := range rows {
 		if row.ParityTest == "" {
 			continue
 		}
-		directory, test, _ := strings.Cut(row.ParityTest, " ")
+		binary, test, _ := strings.Cut(row.ParityTest, " ")
+		directory := path.Join("cmd", binary)
 		files, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(directory), "*_test.go"))
 		found := false
 		for _, file := range files {

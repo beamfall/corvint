@@ -75,6 +75,12 @@ Tasks 3.1 (PROD-DOCS-001 plan row) and 3.2 (ticket completion) are the orchestra
   CLI only by its trailing newline, so the tests compare records. `corvint.status` has no CLI
   equivalent (`corvint status` does not exist), and the retiring `corvint.test_validity` row
   claims none.
+- A path literal in non-test Go code is a read edge for the affected planner, so a table row that
+  spelled `cmd/corvint` made `internal/capcatalog`, and everything importing it, reach the unbounded
+  `cmd/corvint` unit. The parity column therefore names a binary (`corvint TestName`), which the
+  doc tool resolves under `cmd/`, and the stale-binary hint names no source path.
+  `internal/mcp/docsserver` declares an empty read scope, as `internal/mcp/toolgroup` does, since it
+  imports the bridge whose `appflows` dependency locates the root at run time.
 - `test_evidence` is labelled preview by a `Preview:` prefix on its tool description and the
   table's `preview` availability.
 

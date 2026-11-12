@@ -93,8 +93,8 @@ func TestMTTV1009MissingParityTestIsNamed(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows := []capcatalog.MCPTool{
-		{Name: "corvint.present_tool", ParityTest: "cmd/tool TestPresent"},
-		{Name: "corvint.absent_tool", ParityTest: "cmd/tool TestAbsent"},
+		{Name: "corvint.present_tool", ParityTest: "tool TestPresent"},
+		{Name: "corvint.absent_tool", ParityTest: "tool TestAbsent"},
 		{Name: "corvint.other_tool"},
 	}
 	missing := MissingParityTests(root, rows)

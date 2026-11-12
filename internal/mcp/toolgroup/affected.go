@@ -38,7 +38,7 @@ const AffectedStaleCode = "self-binary-stale"
 // affectedStaleHint is the one-line recovery a stale-binary answer carries:
 // the server keeps the binary it started with, so a rebuild alone changes
 // nothing.
-const affectedStaleHint = "rebuild corvint from this checkout (go install ./cmd/corvint) and restart corvint mcp; the running server keeps the binary it started with"
+const affectedStaleHint = "rebuild corvint from this checkout and restart corvint mcp; the running server keeps the binary it started with"
 
 // AffectedOversizedCode is the tool error for a verdict whose result cannot
 // fit one MCP message; it names the CLI as the way to read it (MMR-V0-1118).

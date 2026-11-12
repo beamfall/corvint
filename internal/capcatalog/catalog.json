@@ -1926,7 +1926,7 @@
         "verdict-oversized"
       ],
       "cliEquivalent": "corvint affected --summary [--base REV]",
-      "parityTest": "cmd/corvint TestV15254MCPAffectedMatchesCLI",
+      "parityTest": "corvint TestV15254MCPAffectedMatchesCLI",
       "note": "a planner refusal carries the CLI's own error code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)"
     },
     {
@@ -1998,7 +1998,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus claims --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_concept",
@@ -2041,7 +2041,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus concept --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_consume",
@@ -2080,7 +2080,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs consume --source PATH --package DIR --task TEXT < DRAFT",
-      "parityTest": "cmd/corvint-docs TestMTTV1009DocsConsumeToolMatchesCLI"
+      "parityTest": "corvint-docs TestMTTV1009DocsConsumeToolMatchesCLI"
     },
     {
       "name": "corvint.docs_coverage",
@@ -2119,7 +2119,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus coverage --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_dependencies",
@@ -2162,7 +2162,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus dependencies --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_draft",
@@ -2201,7 +2201,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs draft --source PATH --package DIR",
-      "parityTest": "cmd/corvint-docs TestDocsToolVerbAnswersInOneEnvelope"
+      "parityTest": "corvint-docs TestDocsToolVerbAnswersInOneEnvelope"
     },
     {
       "name": "corvint.docs_find_related",
@@ -2244,7 +2244,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus related --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_flow",
@@ -2295,7 +2295,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus flow --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_gaps",
@@ -2342,7 +2342,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus gaps --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_get",
@@ -2385,7 +2385,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus get --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_get_journey",
@@ -2428,7 +2428,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus journey --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_get_stability",
@@ -2471,7 +2471,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus stability --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_how",
@@ -2523,7 +2523,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus info --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_intent",
@@ -2566,7 +2566,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus intent --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_inventory",
@@ -2605,7 +2605,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus inventory --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_locate",
@@ -2664,7 +2664,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus locate --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_navigation",
@@ -2711,7 +2711,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus navigation --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_recommend_tests",
@@ -2762,7 +2762,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus recommend-tests --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_search",
@@ -2817,7 +2817,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus search --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_trace",
@@ -2864,7 +2864,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus trace --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_validate",
@@ -2903,7 +2903,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus validate --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.docs_vocabulary",
@@ -2946,7 +2946,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs docs corpus vocabulary --artifact PATH",
-      "parityTest": "cmd/corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
       "name": "corvint.flows_coverage",
@@ -2983,7 +2983,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs flows coverage",
-      "parityTest": "cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
       "replaces": [
         "corvint.flows.coverage"
       ]
@@ -3023,7 +3023,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs flows gaps",
-      "parityTest": "cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
       "replaces": [
         "corvint.flows.gaps"
       ]
@@ -3055,7 +3055,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs flows impact",
-      "parityTest": "cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
       "replaces": [
         "corvint.flows.impact"
       ]
@@ -3099,7 +3099,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs flows map",
-      "parityTest": "cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
       "replaces": [
         "corvint.flows.map"
       ]
@@ -3147,7 +3147,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs flows navigate",
-      "parityTest": "cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
       "replaces": [
         "corvint.flows.navigate"
       ]
@@ -3183,7 +3183,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint-docs flows status",
-      "parityTest": "cmd/corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
       "replaces": [
         "corvint.flows.status"
       ]
@@ -3214,7 +3214,7 @@
         "internal-error"
       ],
       "cliEquivalent": "corvint help guide | corvint help --json COMMAND | corvint help --json",
-      "parityTest": "cmd/corvint TestMTTV1009HelpToolMatchesCLI"
+      "parityTest": "corvint TestMTTV1009HelpToolMatchesCLI"
     },
     {
       "name": "corvint.impact",
@@ -3249,7 +3249,7 @@
         "corvint-envelope-terminator-collision"
       ],
       "cliEquivalent": "corvint impact --language-profile non-go-syntax-v0 --limit N PATH...",
-      "parityTest": "cmd/corvint TestMTTV1009ImpactToolMatchesCLI"
+      "parityTest": "corvint TestMTTV1009ImpactToolMatchesCLI"
     },
     {
       "name": "corvint.status",
@@ -3312,7 +3312,7 @@
         "invalid-root"
       ],
       "cliEquivalent": "corvint test-evidence",
-      "parityTest": "cmd/corvint TestMTTV1009TestEvidenceToolMatchesCLI"
+      "parityTest": "corvint TestMTTV1009TestEvidenceToolMatchesCLI"
     },
     {
       "name": "corvint.test_validity",
