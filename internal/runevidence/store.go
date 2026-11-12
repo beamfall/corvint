@@ -34,6 +34,14 @@ const (
 	MaxRecordBytes = 8 << 20
 	// maxLogBytes bounds log.jsonl as a reader reads it.
 	maxLogBytes = 64 << 20
+	// MaxReadRecords bounds how many log entries, or record files when the log is unreadable, one
+	// read takes; a store the writer keeps holds far fewer, so more means a damaged store.
+	MaxReadRecords = 4096
+	// DefaultLockWait bounds how long an append waits for the store lock before it fails as
+	// run-evidence-write-failed (RVD-V1-010).
+	DefaultLockWait = 5 * time.Second
+	// lockRetry is the pause between two attempts to take the store lock.
+	lockRetry = 25 * time.Millisecond
 
 	// ReasonCorrupt names a skipped record or an unreadable log (RVD-V1-010).
 	ReasonCorrupt = "run-evidence-corrupt"
@@ -46,6 +54,13 @@ const (
 )
 
 var recordName = regexp.MustCompile(`^[0-9a-f]{64}\.json$`)
+
+// readSlack is what a read allows past the cap: the newest record, which the writer keeps even
+// when it alone exceeds the cap. A variable so a test can bound a read without 64 MiB of records.
+var readSlack int64 = MaxRecordBytes
+
+// ErrLockBusy is an append that could not take the store lock within its wait (RVD-V1-010).
+var ErrLockBusy = errors.New("the run evidence store lock is held by another writer")
 
 // Locate is the store directory of a repository whose absolute Git directory is gitDir:
 // <git-dir>/corvint/evidence, never inside the worktree (RVD-V1-001).
@@ -83,6 +98,44 @@ type Store struct {
 	Keep int
 	// Now is the write clock; nil is time.Now.
 	Now func() time.Time
+	// LockWait bounds the wait for the store lock; zero is DefaultLockWait.
+	LockWait time.Duration
+}
+
+func (s Store) lockWait() time.Duration {
+	if s.LockWait > 0 {
+		return s.LockWait
+	}
+	return DefaultLockWait
+}
+
+// lockFile takes the store's exclusive lock, retrying without blocking until wait has passed, and
+// returns the release. A lock still held at the deadline is ErrLockBusy, so a stuck writer never
+// stalls the run that appends (RVD-V1-010).
+func lockFile(name string, wait time.Duration) (func(), error) {
+	file, err := openLock(name)
+	if err != nil {
+		return nil, err
+	}
+	deadline := time.Now().Add(wait)
+	for {
+		held, err := tryLock(file)
+		if err != nil {
+			_ = file.Close()
+			return nil, err
+		}
+		if held {
+			return func() {
+				unlockFile(file)
+				_ = file.Close()
+			}, nil
+		}
+		if !time.Now().Before(deadline) {
+			_ = file.Close()
+			return nil, fmt.Errorf("%w after %s", ErrLockBusy, wait)
+		}
+		time.Sleep(lockRetry)
+	}
 }
 
 func (s Store) clock() time.Time {
@@ -120,7 +173,7 @@ func (s Store) Append(data []byte) (string, error) {
 	if err := makeStoreDirs(filepath.Dir(s.Dir), s.Dir, records); err != nil {
 		return "", err
 	}
-	unlock, err := lockFile(filepath.Join(s.Dir, lockName))
+	unlock, err := lockFile(filepath.Join(s.Dir, lockName), s.lockWait())
 	if err != nil {
 		return "", err
 	}
@@ -132,14 +185,16 @@ func (s Store) Append(data []byte) (string, error) {
 		ID: id, Profile: parsed.Profile, Tree: parsed.Tree, Commit: parsed.Commit, Instances: parsed.Instances,
 		Tests: parsed.Tests(), Bytes: int64(len(data)), WrittenAt: s.clock().UTC().Format(time.RFC3339Nano),
 	}
-	entries, intact := s.loadLog()
+	entries, intact, torn := s.loadLog()
 	if !intact {
 		// RVD-V1-010: the writer rebuilds an unreadable log from records/.
 		entries = s.rebuild(id)
 	}
 	entries = append(entries, entry)
 	kept := s.retain(entries)
-	if intact && len(kept) == len(entries) {
+	// A torn tail (a writer died mid-line) would join the new line to the partial one, so the
+	// log is rewritten whole instead of appended to.
+	if intact && !torn && len(kept) == len(entries) {
 		line, err := json.Marshal(entry)
 		if err != nil {
 			return "", err
@@ -210,13 +265,16 @@ func replace(name string, data []byte) error {
 	return nil
 }
 
+// appendLine appends one line to the log, never through a final symlink, and syncs it before the
+// append reports success.
 func appendLine(name string, line []byte) error {
-	file, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
+	file, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND|os.O_CREATE|noFollow, 0o600)
 	if err != nil {
 		return err
 	}
 	_, writeErr := file.Write(append(line, '\n'))
-	return errors.Join(writeErr, file.Close())
+	syncErr := file.Sync()
+	return errors.Join(writeErr, syncErr, file.Close())
 }
 
 func (s Store) writeLog(entries []Entry) error {
@@ -234,18 +292,19 @@ func (s Store) writeLog(entries []Entry) error {
 
 // loadLog reads log.jsonl. intact is false when the log exists but cannot be read whole: a line
 // that does not parse or names a malformed ID. A missing log with no records is an empty, intact
-// store; a missing log beside records is not intact.
-func (s Store) loadLog() ([]Entry, bool) {
+// store; a missing log beside records is not intact. torn is set when a non-empty log does not
+// end in a newline: under the lock that is a line a dead writer left unfinished.
+func (s Store) loadLog() (entries []Entry, intact, torn bool) {
 	raw, err := readBounded(filepath.Join(s.Dir, logName), maxLogBytes)
 	if errors.Is(err, fs.ErrNotExist) {
 		names, _ := listRecords(filepath.Join(s.Dir, recordsDir))
-		return nil, len(names) <= 1
+		return nil, len(names) <= 1, false
 	}
 	if err != nil {
-		return nil, false
+		return nil, false, false
 	}
-	entries, ok := decodeLog(raw)
-	return entries, ok
+	entries, intact = decodeLog(raw)
+	return entries, intact, len(raw) != 0 && raw[len(raw)-1] != '\n'
 }
 
 // decodeLog parses whole lines. A final line without a newline is an append in progress and is
@@ -301,8 +360,9 @@ func (s Store) rebuild(appending string) []Entry {
 }
 
 // listRecords returns the record file names in records/ ordered by modification time, then name.
+// It reads at most maxListEntries directory entries, so a flooded directory cannot exhaust memory.
 func listRecords(dir string) ([]string, error) {
-	items, err := os.ReadDir(dir)
+	items, err := readDirBounded(dir, maxListEntries)
 	if err != nil {
 		return nil, err
 	}
@@ -332,6 +392,22 @@ func listRecords(dir string) ([]string, error) {
 		names = append(names, item.name)
 	}
 	return names, nil
+}
+
+// maxListEntries bounds the directory entries listRecords reads.
+const maxListEntries = 4 * MaxReadRecords
+
+func readDirBounded(dir string, limit int) ([]fs.DirEntry, error) {
+	file, err := os.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	items, err := file.ReadDir(limit)
+	if errors.Is(err, io.EOF) {
+		err = nil
+	}
+	return items, err
 }
 
 // retain applies RVD-V1-009 to entries in write order and returns those kept, in write order.
@@ -437,6 +513,10 @@ func (s Snapshot) CorruptTests() []string {
 // changed or removed (RVD-V1-012, product invariant 4). A missing store is an empty snapshot. A
 // record that does not hash to its name or does not parse is skipped and named; a record the log
 // names that is missing was pruned by a concurrent writer and is passed over.
+//
+// A read is bounded: at most MaxReadRecords entries and, counting each record once, at most the
+// writer's cap plus one record of bytes. The writer never keeps more, so a store past either bound
+// is damaged: the newest records within the bounds are read and run-evidence-corrupt is reported.
 func (s Store) Read() (Snapshot, error) {
 	snapshot := Snapshot{}
 	if _, err := os.Lstat(s.Dir); errors.Is(err, fs.ErrNotExist) {
@@ -456,19 +536,51 @@ func (s Store) Read() (Snapshot, error) {
 	default:
 		entries, intact = decodeLog(raw)
 	}
+	corrupt := func() {
+		if !slices.Contains(snapshot.Reasons, ReasonCorrupt) {
+			snapshot.Reasons = append(snapshot.Reasons, ReasonCorrupt)
+		}
+	}
 	if !intact {
 		snapshot.LogUnreadable = true
-		snapshot.Reasons = append(snapshot.Reasons, ReasonCorrupt)
+		corrupt()
 		names, _ := listRecords(dir)
 		entries = entries[:0]
 		for _, name := range names {
 			entries = append(entries, Entry{ID: strings.TrimSuffix(name, ".json"), Tests: []string{}})
 		}
 	}
-	for _, entry := range entries {
-		data, err := readBounded(filepath.Join(dir, entry.ID+".json"), MaxRecordBytes)
-		if errors.Is(err, fs.ErrNotExist) {
-			continue
+	if len(entries) > MaxReadRecords {
+		entries = entries[len(entries)-MaxReadRecords:]
+		corrupt()
+	}
+	// Newest first, so the bounds keep the newest records; the result is put back in write order.
+	budget := s.capBytes() + readSlack
+	read := map[string][]byte{}
+	var records []Record
+	var skipped []Corrupt
+	for index := len(entries) - 1; index >= 0; index-- {
+		entry := entries[index]
+		data, seen := read[entry.ID]
+		var err error
+		if !seen {
+			name := filepath.Join(dir, entry.ID+".json")
+			info, statErr := os.Lstat(name)
+			if errors.Is(statErr, fs.ErrNotExist) {
+				continue
+			}
+			if statErr == nil && info.Size() > budget && info.Size() <= MaxRecordBytes {
+				corrupt()
+				break
+			}
+			data, err = readBounded(name, min(MaxRecordBytes, budget))
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			if err == nil {
+				budget -= int64(len(data))
+				read[entry.ID] = data
+			}
 		}
 		var parsed Parsed
 		if err == nil && ID(data) == entry.ID {
@@ -477,18 +589,19 @@ func (s Store) Read() (Snapshot, error) {
 			err = errors.New("record bytes do not hash to the record's name")
 		}
 		if err != nil {
-			snapshot.Corrupt = append(snapshot.Corrupt, Corrupt{ID: entry.ID, Tests: nonNil(entry.Tests)})
-			if !slices.Contains(snapshot.Reasons, ReasonCorrupt) {
-				snapshot.Reasons = append(snapshot.Reasons, ReasonCorrupt)
-			}
+			skipped = append(skipped, Corrupt{ID: entry.ID, Tests: nonNil(entry.Tests)})
+			corrupt()
 			continue
 		}
 		if snapshot.LogUnreadable {
 			entry = Entry{ID: entry.ID, Profile: parsed.Profile, Tree: parsed.Tree, Commit: parsed.Commit,
 				Instances: parsed.Instances, Tests: parsed.Tests(), Bytes: int64(len(data))}
 		}
-		snapshot.Records = append(snapshot.Records, Record{Entry: entry, Data: data, Rows: parsed.Rows})
+		records = append(records, Record{Entry: entry, Data: data, Rows: parsed.Rows})
 	}
+	slices.Reverse(records)
+	slices.Reverse(skipped)
+	snapshot.Records, snapshot.Corrupt = records, skipped
 	return snapshot, nil
 }
 
