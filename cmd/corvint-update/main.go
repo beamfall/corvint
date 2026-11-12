@@ -21,8 +21,9 @@ const usage = `usage: corvint-update check|apply|rollback --component core|tasks
                       [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]... [--restart-service PROGRAM]
                       [--post-switch CMD]... [--hook-timeout D] [--hook-attempts N] [--drain-timeout D] [--start-timeout D]
 check reports whether a newer official release of the component exists; apply installs it with an atomic
-switch and keeps the previous binaries for rollback; rollback restores them. No request leaves the host
-without --allow-network.
+switch and keeps the previous binaries for rollback; rollback restores them. The core component is the
+whole core set: corvint with corvint-docs, corvint-docs-mcp and corvint-mcp from the same release, on
+platforms the release ships them for. No request leaves the host without --allow-network.
 Example: corvint-update check --component core --allow-network`
 
 func main() {
