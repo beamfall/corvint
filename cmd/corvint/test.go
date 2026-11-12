@@ -1089,17 +1089,23 @@ func testGitDir(ctx context.Context, gitExecutable, root string) (string, error)
 	return strings.TrimSpace(string(gitDir)), nil
 }
 
-// testAppendRunEvidence appends the receipt bytes just written as one record of the run evidence
-// store at <git-dir>/corvint/evidence (RVD-V1-004). A failed append is printed as
-// run-evidence-write-failed with its cause and never changes the run's exit code (RVD-V1-010).
-func testAppendRunEvidence(ctx context.Context, gitExecutable, root string, encoded []byte, stderr io.Writer) {
+// appendRunEvidence appends a corvint-test-run/0 receipt's bytes as one record of the run evidence
+// store at <git-dir>/corvint/evidence: the one writer of `corvint test` and `corvint watch`
+// (RVD-V1-004). A failed append is printed as "PREFIX: run-evidence-write-failed CAUSE" and never
+// changes the run's exit code (RVD-V1-010).
+func appendRunEvidence(ctx context.Context, gitExecutable, root string, encoded []byte, stderr io.Writer, prefix string) {
 	gitDir, err := testGitDir(ctx, gitExecutable, root)
 	if err == nil {
 		_, err = (runevidence.Store{Dir: runevidence.Locate(gitDir)}).Append(encoded)
 	}
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "corvint-test: %s %s\n", runevidence.ReasonWriteFailed, singleLine(err.Error()))
+		writeFailed(stderr, prefix, err.Error())
 	}
+}
+
+// writeFailed prints one run-evidence-write-failed line with its cause (RVD-V1-010).
+func writeFailed(stderr io.Writer, prefix, cause string) {
+	_, _ = fmt.Fprintf(stderr, "%s: %s %s\n", prefix, runevidence.ReasonWriteFailed, singleLine(cause))
 }
 
 // singleLine is text as one line: each run of whitespace becomes one space.
@@ -1117,7 +1123,7 @@ func testWriteReceipt(ctx context.Context, gitExecutable, root string, options t
 		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "the receipt cannot be written: " + err.Error()})
 		return testCommandExit[sessiontest.ResultIncomplete]
 	}
-	testAppendRunEvidence(ctx, gitExecutable, root, encoded, stderr)
+	appendRunEvidence(ctx, gitExecutable, root, encoded, stderr, "corvint-test")
 	for _, reason := range receipt.Incomplete {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: INCOMPLETE %s\n", reason)
 	}
