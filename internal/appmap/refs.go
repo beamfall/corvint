@@ -100,15 +100,28 @@ func scanRefs(text string, testIDAttrs ...string) []testRef {
 				add(refSelector, v)
 			}
 		case t.text == "goto" || t.text == "waitForURL" || t.text == "toHaveURL":
-			// A string's `*` is a URL glob; a regular expression's escaped `*` is a literal and keeps
-			// its label (AMAP-V0-092/095).
-			if g := strings.IndexByte(arg.value, '*'); arg.reason == "" && arg.class != classRegex && g >= 0 {
-				arg = prefixValue(arg.value[:g]) // a URL glob is a prefix of its literal start
-				if arg.reason != "" {
-					arg.reason = "glob-without-literal"
+			args := []refValue{arg}
+			// A loop variable or a template of it names one route per loop value, read through the
+			// resolver the map's builder uses (AMAP-V0-972).
+			if i+3 < len(toks) && next(toks, i+3, ")", ",") {
+				if urls, ok := loopURLs(toks, i+2); ok {
+					args = args[:0]
+					for _, u := range urls {
+						args = append(args, refURL(u))
+					}
 				}
 			}
-			route(arg)
+			for _, arg := range args {
+				// A string's `*` is a URL glob; a regular expression's escaped `*` is a literal and
+				// keeps its label (AMAP-V0-092/095).
+				if g := strings.IndexByte(arg.value, '*'); arg.reason == "" && arg.class != classRegex && g >= 0 {
+					arg = prefixValue(arg.value[:g]) // a URL glob is a prefix of its literal start
+					if arg.reason != "" {
+						arg.reason = "glob-without-literal"
+					}
+				}
+				route(arg)
+			}
 		case t.text == "route":
 			for _, v := range endpointSegments(arg) {
 				add(refEndpoint, v)
@@ -272,6 +285,18 @@ func refArg(toks []token, j int) refValue {
 		v = refValue{reason: "value-too-long"}
 	}
 	return v
+}
+
+// refURL is the exact reference value of one resolved goto URL, screened as refArg screens a
+// literal.
+func refURL(u string) refValue {
+	switch {
+	case secretscreen.MatchString(u):
+		return refValue{reason: "secret-shaped"}
+	case len(u) > maxRefValue:
+		return refValue{reason: "value-too-long"}
+	}
+	return refValue{value: u, mode: matchExact}
 }
 
 func prefixValue(p string) refValue {

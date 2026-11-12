@@ -173,8 +173,8 @@ B8a and B8b. The "Proposed amendment: solo falsifiability" section (line 279) is
   `specs-verdicts.md`; `test-attack-v0.md` waits for the fault-injection proposal. The `init`,
   `adopt` and self-observation ledger rows are low confidence: what `main.go` still writes was
   not traced.
-- A kept workflow whose spec is archived: `greptile-gate-v0.md` stays active while
-  `greptile-gate.yml` is kept (decided 2026-11-09 under R42, D11; RMV-V1-035).
+- A kept workflow whose spec is archived: none remain. `greptile-gate-v0.md` was retired with
+  `greptile-gate.yml` on 2026-11-12 (decision 0598, superseding D11).
 - A new spec appears after the table was written: it needs a `Health:` line (OSC-V1-008); the table
   is a one-time input and the header line is the lasting record.
 

@@ -10,10 +10,14 @@
 package docsenvelope
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/versionline"
 )
 
 const (
@@ -71,9 +75,74 @@ type ToolResult struct {
 }
 
 // NotInstalledMessage is the gap message a shim emits for a missing executable.
+// It names the command that installs the core set (CMS-V0-930); a missing
+// corvint itself gets only the manual install, because the updater replaces an
+// installed corvint and cannot place a first one.
 func NotInstalledMessage(binary, forwarded string) string {
-	return forwarded + " is served by the " + binary + " executable, which is NOT_INSTALLED: install " +
-		binary + " beside this executable or on PATH"
+	next := InstallHint()
+	if binary == CoreBinary {
+		next = manualInstall
+	}
+	return forwarded + " is served by the " + binary + " executable, which is NOT_INSTALLED: " + next +
+		", or put " + binary + " beside this executable or on PATH"
+}
+
+const manualInstall = "install the core set from its release archives as docs/INSTALL.md describes"
+
+// InstallHint is the CMS-V0-930 next step of the not-installed and
+// version-mismatch refusals: the updater command that installs the whole core
+// set at one version into the running executable's directory, or the manual
+// install where that command would refuse.
+func InstallHint() string {
+	dir := ""
+	if self, err := os.Executable(); err == nil {
+		if resolved, err := filepath.EvalSymlinks(self); err == nil {
+			self = resolved
+		}
+		dir = filepath.Dir(self)
+	}
+	return installHint(dir, ProbeVersion)
+}
+
+// installHint is InstallHint for the executables in dir. The updater replaces
+// a corvint it can order against releases, so it names the manual install
+// when dir holds no corvint or holds an unnumbered one (build 0 or none, a
+// local build the updater refuses to replace, UPD-V0-010). An unknown dir
+// keeps the command without --bin-dir.
+func installHint(dir string, probe func(context.Context, string) (versionline.Line, error)) string {
+	command := "install the core set with: " + InstallCommand(dir) +
+		" (or the manual core-set archive install in docs/INSTALL.md)"
+	if dir == "" {
+		return command
+	}
+	core := filepath.Join(dir, CoreBinary)
+	if info, err := os.Stat(core); err != nil || !info.Mode().IsRegular() {
+		return manualInstall + " (the updater replaces an installed corvint, and none is beside this executable)"
+	}
+	if line, err := probe(context.Background(), core); err != nil || line.Build == "" || line.Build == "0" {
+		return manualInstall + " (the updater does not replace the unnumbered corvint beside this executable)"
+	}
+	return command
+}
+
+// InstallCommand is the updater command that installs the core set into dir,
+// without --bin-dir when dir is empty. A dir that needs shell quoting is
+// single-quoted.
+func InstallCommand(dir string) string {
+	command := "corvint-update apply --allow-network --component core"
+	if dir == "" {
+		return command
+	}
+	return command + " --bin-dir " + shellWord(dir)
+}
+
+func shellWord(s string) string {
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("/._-", r)) {
+			return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+		}
+	}
+	return s
 }
 
 // Locate finds the named sibling executable: first beside the running

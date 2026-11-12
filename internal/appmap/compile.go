@@ -3,6 +3,7 @@ package appmap
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -77,7 +78,11 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 	}
 	me, raw, err := mr.readOne(mrev, manifestPath, maxManifestBytes)
 	if err != nil {
-		return nil, invalidManifest("manifest: %v", err)
+		hint := ""
+		if roots.ManifestRepo == "" && errors.Is(err, errAbsentAtRevision) {
+			hint = worktreeHint(mr, manifestPath)
+		}
+		return nil, invalidManifest("manifest: %v%s", err, hint)
 	}
 	m, err := decodeManifest(raw)
 	if err != nil {
@@ -753,6 +758,16 @@ func (b *builder) join() {
 		for _, g := range tf.Gotos {
 			if _, seen := screens[g.Screen]; g.Screen != "" && !seen {
 				screens[g.Screen] = Attribution{File: p, Basis: "goto", Via: []string{refAt(p, g.Line)}}
+			}
+		}
+		// A literal argument to a one-hop navigation helper places the screen the call reaches
+		// (AMAP-V0-973); a call whose URL places no screen attributes nothing.
+		if hg, _ := b.helperGotos(tf); len(hg) > 0 {
+			tf.HelperGotos = hg
+			for _, g := range hg {
+				if _, seen := screens[g.Screen]; g.Screen != "" && !seen {
+					screens[g.Screen] = Attribution{File: p, Basis: "helper-goto", Via: []string{refAt(p, g.Line)}}
+				}
 			}
 		}
 		for _, id := range sortedKeys(screens) {

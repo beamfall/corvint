@@ -67,7 +67,9 @@ var nestedHelpTopics = [][2]string{
 // parseHelpInvocation recognises every help form corvint recognised for its docs group, with
 // this binary's root and docs-tool topics: `--help`, `-h` or `help` alone; `help --json` and
 // `help --tree`; `help docs [corpus [OPERATION]|flows|maintain]`; `help flows`, `help how` and
-// `help docs-tool`; and a `--help` after a docs, flows or how verb. An unknown help topic is an error; anything else is not help.
+// `help docs-tool`; `help flows appmap SUB` and a `--help` or `-h` anywhere before `--` after a
+// `flows appmap SUB` command (AMAP-V0-975); and a `--help` after a docs, flows or how verb. An
+// unknown help topic is an error; anything else is not help.
 func parseHelpInvocation(arguments []string) (string, bool, error) {
 	index := 0
 	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
@@ -93,7 +95,13 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 		if topic := helpWordsTopic(words); topic != "" {
 			return topic, true, nil
 		}
+		if topic := appmapNodeTopic(words); topic != "" && topic == "node:"+strings.Join(words, " ") {
+			return topic, true, nil
+		}
 		return "", true, unknownHelpTopic(rest[1:])
+	}
+	if topic := appmapNodeTopic(rest); topic != "" && helpTokenBeforeEnd(rest) {
+		return topic, true, nil
 	}
 	topic := commandHelpTopic(rest)
 	if topic == "" || !helpFlagRequested(rest[1:]) {
@@ -153,6 +161,32 @@ func commandHelpTopic(rest []string) string {
 	return "docs"
 }
 
+// appmapNodeTopic names the help topic `node:flows appmap SUB` when the leading words of rest are
+// exactly a `flows appmap SUB` command of this binary's tree, or "" (AMAP-V0-975).
+func appmapNodeTopic(rest []string) string {
+	words := clitree.LeadingWords(rest, nil)
+	if len(words) < 3 || words[0] != "flows" || words[1] != "appmap" {
+		return ""
+	}
+	if node, ok := commandTree().Find(words); !ok || len(node.Path) != len(words) {
+		return ""
+	}
+	return "node:" + strings.Join(words, " ")
+}
+
+// helpTokenBeforeEnd reports whether `--help` or `-h` appears anywhere before `--` (AMAP-V0-975).
+func helpTokenBeforeEnd(tokens []string) bool {
+	for _, token := range tokens {
+		switch token {
+		case "--":
+			return false
+		case "--help", "-h":
+			return true
+		}
+	}
+	return false
+}
+
 func helpFlagRequested(tokens []string) bool {
 	for index := 0; index < len(tokens); index++ {
 		token := tokens[index]
@@ -184,6 +218,10 @@ func unknownHelpTopic(topic []string) error {
 func helpText(topic string) string {
 	if topic == "tree-json" {
 		return commandTreeJSON()
+	}
+	if words, ok := strings.CutPrefix(topic, "node:"); ok {
+		node, _ := commandTree().Find(strings.Fields(words))
+		return clitree.Render(commandTree(), node)
 	}
 	return topicText(topic)
 }

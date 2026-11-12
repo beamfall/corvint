@@ -30,7 +30,7 @@
 - Base on a force-push: an unfetchable `before` is an unresolvable base and runs every test; a
   fetchable one narrows normally (decided 2026-11-09 under R42, D1; GHA-V1-003).
 - Cut-over and required statuses: `go-product` is the one context the action's result job
-  replaces; `doc-gates`, `ci-control-plane` and `greptile-gate` stay; `ci-control-plane.yml` is
+  replaces; `doc-gates` and `ci-control-plane` stay (`greptile-gate` was retired by decision 0598); `ci-control-plane.yml` is
   trimmed, not deleted (decided 2026-11-09 under R42, D15; GHA-V1-031). The live ruleset is
   NOT_VERIFIED.
 
