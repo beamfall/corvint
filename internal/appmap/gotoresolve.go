@@ -300,7 +300,8 @@ func loopValues(toks []token, at int, name string) ([]string, bool) {
 
 // rebinds reports whether toks(open, close) may bind name again: a declaration (`const`, `let`,
 // `var`, `function`, `class`), an assignment, a single arrow parameter, a function, arrow or catch
-// parameter list or destructuring pattern holding name, or a token the reader doubts.
+// parameter list or destructuring pattern holding name, a `for (... of|in ...)` header that names
+// it before its `of` or `in` (destructured or not), or a token the reader doubts (AMAP-V0-972).
 func rebinds(toks []token, open, close int, name string) bool {
 	for k := open + 1; k < close; k++ {
 		t := toks[k]
@@ -334,10 +335,31 @@ func rebinds(toks []token, open, close int, name string) bool {
 				if next(toks, end+1, "{", ":") && !(o > 0 && toks[o-1].kind == tokIdent && controlWords[toks[o-1].text]) {
 					return true // a function or method parameter list
 				}
+				if word(toks, o-1, "for") && forHeadBinds(toks, o, end, k) {
+					return true // `for (name of ...)`, `for (const [k, name] in ...)` and the like
+				}
 			case next(toks, end+1, "=") && !next(toks, end+2, "=", ">"):
 				return true // a destructuring pattern
 			}
 			c = o
+		}
+	}
+	return false
+}
+
+// forHeadBinds reports whether toks[k] sits before the `of` or `in` of the `for (` header whose
+// parentheses are toks[open] and toks[end]: the loop binds or assigns it on every iteration,
+// whatever declaration or destructuring pattern surrounds it.
+func forHeadBinds(toks []token, open, end, k int) bool {
+	depth := 0
+	for j := open + 1; j < end; j++ {
+		switch {
+		case next(toks, j, "(", "[", "{"):
+			depth++
+		case next(toks, j, ")", "]", "}"):
+			depth--
+		case depth == 0 && (word(toks, j, "of") || word(toks, j, "in")):
+			return k < j
 		}
 	}
 	return false
@@ -420,6 +442,24 @@ func gotoTargets(toks []token, a int, whole bool, line int) []rawGoto {
 	if a >= len(toks) || !whole {
 		return []rawGoto{{line: line, reason: "non-literal-url"}}
 	}
+	if urls, ok := loopURLs(toks, a); ok {
+		out := make([]rawGoto, 0, len(urls))
+		for _, url := range urls {
+			out = append(out, one(url))
+		}
+		return out
+	}
+	t := toks[a]
+	if (t.kind == tokString || t.kind == tokTemplate) && !t.inexact {
+		return []rawGoto{one(t.text)}
+	}
+	return []rawGoto{{line: line, reason: "non-literal-url"}}
+}
+
+// loopURLs returns one URL per loop value when the whole goto argument toks[a] is the variable of
+// an enclosing literal for-of loop, or a template whose every substitution is that variable
+// (AMAP-V0-972). gotoTargets and the reference check (scanRefs) both read loop gotos through it.
+func loopURLs(toks []token, a int) ([]string, bool) {
 	t := toks[a]
 	name := ""
 	switch {
@@ -428,21 +468,20 @@ func gotoTargets(toks []token, a int, whole bool, line int) []rawGoto {
 	case t.kind == tokTemplate:
 		name = soleSubst(t)
 	}
-	if name != "" {
-		if values, ok := loopValues(toks, a, name); ok {
-			out := make([]rawGoto, 0, len(values))
-			for _, v := range values {
-				url := v
-				if t.kind == tokTemplate {
-					url, _ = fillTemplate(t, func(string) (string, bool) { return v, true })
-				}
-				out = append(out, one(url))
-			}
-			return out
+	if name == "" {
+		return nil, false
+	}
+	values, ok := loopValues(toks, a, name)
+	if !ok {
+		return nil, false
+	}
+	urls := make([]string, 0, len(values))
+	for _, v := range values {
+		url := v
+		if t.kind == tokTemplate {
+			url, _ = fillTemplate(t, func(string) (string, bool) { return v, true })
 		}
+		urls = append(urls, url)
 	}
-	if (t.kind == tokString || t.kind == tokTemplate) && !t.inexact {
-		return []rawGoto{one(t.text)}
-	}
-	return []rawGoto{{line: line, reason: "non-literal-url"}}
+	return urls, true
 }

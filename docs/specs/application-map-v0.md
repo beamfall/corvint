@@ -2387,14 +2387,17 @@ but does not read it; only non-Go syntax impact does.
   `for (const X of ITER)` loop, or a template whose every substitution is X, MUST resolve to one
   goto per value when ITER is an inline array of exact strings, or a same-file array bound under
   the AMAP-V0-971 rules whose elements are exact strings, and no other binding of X (a
-  declaration, a function or arrow parameter, a `catch` binding) lies between the loop and the
-  use. `flows appmap build` records one goto per value on the goto's line. `flows appmap infer`
+  declaration, an assignment, a function or arrow parameter, a `catch` binding, a destructuring
+  pattern, or a nested `for (... of|in ...)` header naming X before its `of` or `in`, destructured
+  or not, as in `for (const [k, X] of ...)`) lies between the loop and the use. The reference
+  check (AMAP-V0-091) reads such a goto through the same resolver, as one exact route per value. `flows appmap build` records one goto per value on the goto's line. `flows appmap infer`
   reads a `test(...)` call inside such a loop as one test per value, with X bound to the value and
   its title filled, when the filled titles are distinct; otherwise it keeps one dynamic test. Any
   other argument keeps `non-literal-url`.
   - Non-goals: `forEach`, `for (let ...)`, index loops, destructured loop variables, and loops
     without a braced body.
-  - Falsifier: `TestAMAPV0972LoopGotos` in `gotoresolve_test.go`.
+  - Falsifier: `TestAMAPV0972LoopGotos` in `gotoresolve_test.go`; also
+    `TestAMAPV0972LoopRebindsAndMutation` in `gotoresolve_test.go`.
   - Rollback: delete `gotoresolve.go` and its callers in `tests.go` and `site_knowledge_ts.go`.
 - `AMAP-V0-973`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5468)
   Extending `AMAP-V0-342` to specs: a spec or workflow file's call to an AMAP-V0-342 navigation helper (same
