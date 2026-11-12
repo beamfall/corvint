@@ -7,7 +7,8 @@
   "admittedTuples": [
     "go1.27.1",
     "go1.27.2",
-    "go1.27.3"
+    "go1.27.3",
+    "go1.27.4"
   ],
   "cases": {
     "observationsSha256": "55792eadc0fbda5917f9c7142e314dff21d3b2626e666b5ea1552f63d08a9a41",
@@ -23,7 +24,8 @@
       "go1.27.0": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
       "go1.27.1": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
       "go1.27.2": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
-      "go1.27.3": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7"
+      "go1.27.3": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
+      "go1.27.4": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7"
     },
     "comparison": {
       "go1.24.13": {
@@ -40,7 +42,8 @@
         "go1.27.1": "official golang.org/toolchain v0.0.1-go1.27.1.darwin-arm64",
         "go1.27.2": "official golang.org/toolchain v0.0.1-go1.27.2.darwin-arm64",
         "go1.27.3": "Homebrew go 1.27.3 (go version go1.27.3 darwin/arm64)",
-        "go1.24.13": "official golang.org/toolchain v0.0.1-go1.24.13.darwin-arm64"
+        "go1.24.13": "official golang.org/toolchain v0.0.1-go1.24.13.darwin-arm64",
+        "go1.27.4": "official golang.org/toolchain v0.0.1-go1.27.4.darwin-arm64"
       },
       "portable": {
         "go1.27.1": {
@@ -58,6 +61,10 @@
         "go1.24.13": {
           "repo": "f8e866b9eee51f3e5f01b29d33b554510ff61d75bb553440dda1170173c5b773",
           "cases": "afe35c56da4a51e8bc2a8d2d87850388e6a82ecbbf78f3946989ce98c0ad718c"
+        },
+        "go1.27.4": {
+          "repo": "beb9a5b2f45d46e697c7426fccfc8b781a4840a3c2e4a102fb82e4db257eda39",
+          "cases": "55792eadc0fbda5917f9c7142e314dff21d3b2626e666b5ea1552f63d08a9a41"
         }
       },
       "native": {
@@ -74,6 +81,18 @@
           }
         },
         "go1.27.2": {
+          "repo": {
+            "files": 4836,
+            "pairs": 19190,
+            "verdictsEqualPortableGo1.27.1": true
+          },
+          "cases": {
+            "files": 26,
+            "pairs": 85,
+            "verdictsEqualPortableGo1.27.1": true
+          }
+        },
+        "go1.27.4": {
           "repo": {
             "files": 4836,
             "pairs": 19190,
@@ -170,7 +189,7 @@
       "files": 26,
       "perturbationPairs": 85
     },
-    "portableIdentity": "go1.27.1, go1.27.2 and go1.27.3 produce byte-identical repository and case observations on darwin/arm64, go1.27.1 produces the same bytes on linux/arm64, and go1.27.3 produces the same bytes natively on linux/amd64 (2026-11-02)",
+    "portableIdentity": "go1.27.1, go1.27.2, go1.27.3 and go1.27.4 produce byte-identical repository and case observations on darwin/arm64, go1.27.1 produces the same bytes on linux/arm64, and go1.27.3 produces the same bytes natively on linux/amd64 (2026-11-02)",
     "go1.24.13": "only the parse digest differs from go1.27.1 (19 of 26 cases, 4772 of 4836 repository files): go/ast.BasicLit gained the ValueEnd field, which the AST dump records. Every scanner, printer and formatter digest and every predicate verdict is identical.",
     "rejectedRenames": "7 of 3571 derived rename pairs are rejected by the rename predicate; each from-name shares its spelling with a selector, field or composite-literal key, so the rejection is the documented conservative behaviour"
   },
@@ -186,6 +205,12 @@
       "ticket": "V1-0591",
       "lane": "cfx-u36",
       "change": "added the linux/amd64 host entry from a native run, moved linux/amd64 out of notRun and named the toolchains not run there; no case, observation, tuple or closure value changed"
+    },
+    {
+      "date": "2026-11-12",
+      "ticket": "V1-5408",
+      "decision": "0599",
+      "change": "admitted go1.27.4: added it to admittedTuples and parserClosure.tuples (closure digest unchanged) and added its darwin/arm64 toolchain, portable observation (byte-identical to go1.27.1) and native parity entries from local runs; no case, observation or closure value changed; go1.27.4 was not run on linux or windows hosts"
     }
   ]
 }

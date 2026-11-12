@@ -95,7 +95,7 @@
         "path": "extensions/vscode/test/installed/run.mjs",
         "test_key": "extensions/vscode/test/installed/run.mjs"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "b5aaaa36bde33ac93f615198a55c6db485c9274d"
     }
   ]
 }
