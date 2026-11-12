@@ -1629,6 +1629,7 @@
     ],
     "internal/mcp/corpusbridge": [],
     "internal/mcp/docsbridge": [],
+    "internal/mcp/docsserver": [],
     "internal/mcp/testvaliditybridge": [
       "internal/testvaliditydoc/"
     ],
