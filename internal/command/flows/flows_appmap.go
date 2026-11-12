@@ -20,6 +20,7 @@ Application map usage (experimental, AMAP-V0):
   corvint-docs [--root PATH] flows appmap build --manifest FILE [--revision REV]
       [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...
       [--workspace FILE | --no-workspace] [--from MAP [--verify]]
+  corvint-docs [--root PATH] flows appmap build --manifest FILE --worktree [--no-workspace]
   corvint-docs [--root PATH] flows appmap screen --map FILE --screen ID|STATE|TEMPLATE|URL [--budget N | --full] [--revision REV]
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint-docs [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
@@ -284,18 +285,40 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out, diag i
 		manifest := f.String("manifest", "", "tracked manifest path inside the root")
 		from := f.String("from", "", "a previous application-map/0 of the same manifest")
 		verify := f.Bool("verify", false, "also build in full and refuse unless the digests agree")
+		worktree := f.Bool("worktree", false, "build unpinned from the working tree of --root")
 		roots := appmap.BindRootFlags(f)
-		usage := "flows appmap build requires --manifest FILE, optional --revision REV, --repo ALIAS=ABSOLUTE_ROOT (repeatable), --manifest-repo ALIAS and --repo-revision ALIAS=REV (repeatable) or --workspace FILE, --no-workspace, and --from MAP [--verify]"
+		usage := "flows appmap build requires --manifest FILE, optional --revision REV, --repo ALIAS=ABSOLUTE_ROOT (repeatable), --manifest-repo ALIAS and --repo-revision ALIAS=REV (repeatable) or --workspace FILE, --no-workspace, and --from MAP [--verify], or --worktree"
 		if f.Parse(args) != nil || *manifest == "" || f.NArg() != 0 || roots.Check() != nil || (*verify && *from == "") {
 			return errors.New(usage)
+		}
+		// --worktree reads one unpinned root (AMAP-V0-976, AMAP-V0-977).
+		const worktreeAlone = "flows appmap build --worktree does not combine with --revision, --repo, --manifest-repo, --repo-revision, --workspace, --from, --verify or a workspace file"
+		pinned := false
+		f.Visit(func(set *flag.Flag) {
+			switch set.Name {
+			case "revision", "repo", "manifest-repo", "repo-revision", "workspace", "from", "verify":
+				pinned = true
+			}
+		})
+		if *worktree && pinned {
+			return errors.New(worktreeAlone)
 		}
 		if err := roots.Resolve(root); err != nil {
 			return err
 		}
-		if *revision == "" {
-			*revision = "HEAD"
+		var m *appmap.Map
+		var err error
+		switch {
+		case *worktree && roots.Workspace != "":
+			return errors.New(worktreeAlone)
+		case *worktree:
+			m, err = appmap.BuildWorktree(ctx, root, *manifest)
+		default:
+			if *revision == "" {
+				*revision = "HEAD"
+			}
+			m, err = buildAppmap(ctx, root, *manifest, *revision, *roots, *from, *verify, diag)
 		}
-		m, err := buildAppmap(ctx, root, *manifest, *revision, *roots, *from, *verify, diag)
 		if err != nil {
 			return err
 		}

@@ -150,6 +150,9 @@ func (failure *gitSourceFailure) Unwrap() error { return failure.cause }
 // (AMAP-V0-8780).
 var errRevisionNotCommit = errors.New("evaluated revision is not a commit")
 
+// errAbsentAtRevision is readOne's refusal of a path the revision does not hold.
+var errAbsentAtRevision = errors.New("is absent at the evaluated revision")
+
 // sourceUnavailable is a revision lookup whose Git process failed. It carries its own code and the
 // process error chain, and orProcessFailure passes it through every caller (AMAP-V0-8780).
 type sourceUnavailable struct {
@@ -351,7 +354,7 @@ func (r repo) readOne(rev, p string, limit int) (blobEntry, []byte, error) {
 			return e, data[e.oid], nil
 		}
 	}
-	return blobEntry{}, nil, fmt.Errorf("%s is absent at the evaluated revision", p)
+	return blobEntry{}, nil, fmt.Errorf("%s %w", p, errAbsentAtRevision)
 }
 
 func digest(b []byte) string {
