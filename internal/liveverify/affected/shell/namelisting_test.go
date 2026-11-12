@@ -129,9 +129,15 @@ func TestNameListingForms_AFPV09961(t *testing.T) {
 		"printf_count_split": "printf %\"n\" PATH\nls script | wc -l\n",
 		"printf_count_octal": "printf '\\045n' PATH\nls script | wc -l\n",
 		"printf_count_hex":   "printf '\\x25n' PATH\nls script | wc -l\n",
-		"default_env":        ": \"${CLICOLOR_FORCE:=1}\"\nls script\n",
-		"input_var":          "ls script | wc -l\nwhile read -r l; do echo \"$l\"; done < \"$list\"\n",
-		"subshell_fn":        "count() { ls script | wc -l; }\ntest \"$(count)\" -eq 1\n",
+		// printf prints `\%` as a backslash and still reads `%n`; the shell
+		// drops an unquoted backslash; bash accepts length modifiers.
+		"printf_count_escaped": "printf '\\%n' PATH\nls script | wc -l\n",
+		"printf_count_unquote": "printf \\%n PATH\nls script | wc -l\n",
+		"printf_count_long":    "printf '%ln' PATH\nls script | wc -l\n",
+		"printf_count_hh":      "printf '%5hhn' PATH\nls script | wc -l\n",
+		"default_env":          ": \"${CLICOLOR_FORCE:=1}\"\nls script\n",
+		"input_var":            "ls script | wc -l\nwhile read -r l; do echo \"$l\"; done < \"$list\"\n",
+		"subshell_fn":          "count() { ls script | wc -l; }\ntest \"$(count)\" -eq 1\n",
 		// The base's plain_rest row, admitted before the closed grammar: its
 		// `set -eu` and `while read` loop are refused constructs now
 		// (AFP-V0-9961). The admitted row above keeps the rest.
