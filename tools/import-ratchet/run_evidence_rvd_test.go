@@ -54,11 +54,10 @@ var rvdCorvintAllowed = []string{
 	"test_evidence.go runTestEvidence testevidencedoc",
 }
 
-// TestRVDV1011StoredResultsDoNotChangePlan pins RVD-V1-011 in the import graph: no package that
-// selects tests imports the store or the test-evidence reader, or calls an appflows store reader;
-// inside appflows only runstore.go reaches the store; and in cmd/corvint only the corvint test
-// writer and the named readers reference it. A stored result therefore cannot reach a plan.
-func TestRVDV1011StoredResultsDoNotChangePlan(t *testing.T) {
+// TestRVDV1011NoSelectionPackageReadsTheStore pins RVD-V1-011 in the import graph: no package
+// that selects tests imports the store or the test-evidence reader, or calls an appflows store
+// reader. A spy planner shows the scan sees such a call.
+func TestRVDV1011NoSelectionPackageReadsTheStore(t *testing.T) {
 	m, _ := loadEmbedded(t)
 	root := filepath.Join("..", "..")
 	graph, err := scanModule(root, m.Module)
@@ -87,9 +86,34 @@ func TestRVDV1011StoredResultsDoNotChangePlan(t *testing.T) {
 	if selection < len(rvdSelectionPrefixes) {
 		t.Fatalf("only %d selection packages found; a prefix no longer names a package", selection)
 	}
+
+	spy := t.TempDir()
+	planner := filepath.Join(spy, "internal", "testplan")
+	if err := os.MkdirAll(planner, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	source := "package testplan\n\nimport flows \"" + m.Module + "/" + rvdAppflows + "\"\n\nfunc Plan() { _, _, _ = flows.RunEvidenceFor(nil, \"\", nil, false) }\n"
+	if err := os.WriteFile(filepath.Join(planner, "plan.go"), []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := rvdStoreReferences(spy, "internal/testplan", m.Module); err != nil || !slices.Equal(got, []string{"plan.go Plan appflows.RunEvidenceFor"}) {
+		t.Errorf("SPY_INEFFECTIVE a planner calling the store reader: got %q %v", got, err)
+	}
+}
+
+// TestRVDV1011StoredResultsDoNotChangePlan pins RVD-V1-011 where the store is reachable: inside
+// appflows only runstore.go reaches it, and in cmd/corvint, which holds the corvint test and
+// corvint affected planning, only the one writer and the named test-evidence readers reference the
+// store or a store reader. A stored result therefore cannot reach a plan.
+func TestRVDV1011StoredResultsDoNotChangePlan(t *testing.T) {
+	m, _ := loadEmbedded(t)
+	root := filepath.Join("..", "..")
 	refs, err := rvdStoreReferences(root, rvdAppflows, m.Module)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(refs) == 0 {
+		t.Fatalf("no appflows function reaches the store; the scan no longer sees %s", rvdStoreReaders)
 	}
 	for _, ref := range refs {
 		if !strings.HasPrefix(ref, rvdStoreReaders+" ") {
@@ -102,20 +126,6 @@ func TestRVDV1011StoredResultsDoNotChangePlan(t *testing.T) {
 	}
 	if !slices.Equal(refs, rvdCorvintAllowed) {
 		t.Errorf("RUN_EVIDENCE_CORVINT_READ cmd/corvint store references\n got %q\nwant %q", refs, rvdCorvintAllowed)
-	}
-
-	// The scan sees a planner that reads the store.
-	spy := t.TempDir()
-	planner := filepath.Join(spy, "internal", "testplan")
-	if err := os.MkdirAll(planner, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	source := "package testplan\n\nimport flows \"" + m.Module + "/" + rvdAppflows + "\"\n\nfunc Plan() { _, _, _ = flows.RunEvidenceFor(nil, \"\", nil, false) }\n"
-	if err := os.WriteFile(filepath.Join(planner, "plan.go"), []byte(source), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := rvdStoreReferences(spy, "internal/testplan", m.Module); err != nil || !slices.Equal(got, []string{"plan.go Plan appflows.RunEvidenceFor"}) {
-		t.Errorf("SPY_INEFFECTIVE a planner calling the store reader: got %q %v", got, err)
 	}
 }
 
