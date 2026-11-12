@@ -17,6 +17,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 	"path"
@@ -91,14 +94,30 @@ func MissingParityTests(root string, rows []capcatalog.MCPTool) []string {
 			if err != nil || found {
 				break
 			}
-			source, readErr := os.ReadFile(file)
-			found = readErr == nil && bytes.Contains(source, []byte("\nfunc "+test+"(t *testing.T) {"))
+			found = definesTest(file, test)
 		}
 		if !found {
 			missing = append(missing, fmt.Sprintf("%s: parity test %s is not defined in %s; fix the row's ParityTest", row.Name, test, directory))
 		}
 	}
 	return missing
+}
+
+// definesTest reports whether the Go file at path declares a top-level
+// function named test, whatever its parameter is named or how it is laid out;
+// a method, a comment or a string holding the name does not count, and a file
+// that does not parse defines nothing.
+func definesTest(path, test string) bool {
+	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
+	if err != nil {
+		return false
+	}
+	for _, declaration := range file.Decls {
+		if function, ok := declaration.(*ast.FuncDecl); ok && function.Recv == nil && function.Name.Name == test {
+			return true
+		}
+	}
+	return false
 }
 
 // Render is the generated document for rows.

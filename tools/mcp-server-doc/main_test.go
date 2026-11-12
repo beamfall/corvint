@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -89,16 +90,37 @@ func TestMTTV1009MissingParityTestIsNamed(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "cmd", "tool"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "cmd", "tool", "x_test.go"), []byte("package main\n\nfunc TestPresent(t *testing.T) {\n}\n"), 0o644); err != nil {
+	// TestRenamedParam is declared in a shape a literal
+	// `func Name(t *testing.T) {` match misses; TestMethod, TestInComment and
+	// TestInString match that literal at a line start but declare no test.
+	source := "package main\n\nimport \"testing\"\n\nfunc TestPresent(t *testing.T) {\n}\n\n" +
+		"func TestRenamedParam(\n\ttt *testing.T,\n) {\n}\n\n" +
+		"type suite struct{}\n\nfunc (suite) TestMethod(t *testing.T) {}\n\n" +
+		"/*\nfunc TestInComment(t *testing.T) {\n}\n*/\n\nvar text = `\nfunc TestInString(t *testing.T) {\n}\n`\n"
+	if err := os.WriteFile(filepath.Join(root, "cmd", "tool", "x_test.go"), []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cmd", "tool", "broken_test.go"), []byte("package main\n\nfunc TestBroken(t *testing.T) {\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	rows := []capcatalog.MCPTool{
 		{Name: "corvint.present_tool", ParityTest: "tool TestPresent"},
+		{Name: "corvint.renamed_param_tool", ParityTest: "tool TestRenamedParam"},
 		{Name: "corvint.absent_tool", ParityTest: "tool TestAbsent"},
+		{Name: "corvint.method_tool", ParityTest: "tool TestMethod"},
+		{Name: "corvint.comment_tool", ParityTest: "tool TestInComment"},
+		{Name: "corvint.string_tool", ParityTest: "tool TestInString"},
+		{Name: "corvint.broken_tool", ParityTest: "tool TestBroken"},
 		{Name: "corvint.other_tool"},
 	}
 	missing := MissingParityTests(root, rows)
-	if len(missing) != 1 || !strings.HasPrefix(missing[0], "corvint.absent_tool: parity test TestAbsent is not defined in cmd/tool") {
+	var named []string
+	for _, line := range missing {
+		name, _, _ := strings.Cut(line, ":")
+		named = append(named, name)
+	}
+	want := []string{"corvint.absent_tool", "corvint.method_tool", "corvint.comment_tool", "corvint.string_tool", "corvint.broken_tool"}
+	if !slices.Equal(named, want) || !strings.HasPrefix(missing[0], "corvint.absent_tool: parity test TestAbsent is not defined in cmd/tool") {
 		t.Fatalf("missing=%q", missing)
 	}
 }
