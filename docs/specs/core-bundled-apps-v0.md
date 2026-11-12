@@ -121,7 +121,7 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
   `tools/import-ratchet/baseline.json` only shrinks: the edge `cmd/corvint ->
   internal/command/flows` is gone and MUST NOT return, and no baselined edge may start at
   `cmd/corvint` or end at `internal/command/flows` or `cmd/corvint-docs`.
-- `CMS-V0-930`: (proposed 2026-11-12; delivery not-started; V1-5466) The `not-installed` refusal
+- `CMS-V0-930`: (proposed 2026-11-12; delivery experimental; V1-5466) The `not-installed` refusal
   of `corvint docs`, `corvint flows`, `corvint how`, the `corvint-docs --corpus` core read and the
   MCP docs bridge MUST name the exact install command
   `corvint-update apply --allow-network --component core --bin-dir DIR`, with `DIR` the running
@@ -166,7 +166,7 @@ assumed to pass.
 | Requirement | Implementation | Evidence |
 | --- | --- | --- |
 | `CMS-V0-001` | import and write ratchet (V1-4800) | ratchet test with a seeded cross-unit edge and a seeded `.corvint/` write |
-| `CMS-V0-002` | release manifest and `corvint-update`; the beside-version refusal in `internal/docsenvelope` (`CheckBeside`), `cmd/corvint/docs_shim.go` and `cmd/corvint-docs/corpus_integration.go`, and the one-version install probe in `internal/releasecandidate` (`ARTIFACT-BIN-V0-510..512`, V1-5237) | manifest refusal test (`release-binary`, `ARTIFACT-BIN-V0-004`); `TestDocsShimRefusesSiblingAtAnotherVersion`, `TestCoreReadRefusesSiblingCoreAtAnotherVersion`, `TestARTIFACTBINV0511InstallPlacesAppsBesideCorvintAtOneVersion`; the `corvint-update` whole-set install and its interrupted-install test are still open |
+| `CMS-V0-002` | release manifest and `corvint-update`; the beside-version refusal in `internal/docsenvelope` (`CheckBeside`), `cmd/corvint/docs_shim.go` and `cmd/corvint-docs/corpus_integration.go`, and the one-version install probe in `internal/releasecandidate` (`ARTIFACT-BIN-V0-510..512`, V1-5237) | manifest refusal test (`release-binary`, `ARTIFACT-BIN-V0-004`); `TestDocsShimRefusesSiblingAtAnotherVersion`, `TestCoreReadRefusesSiblingCoreAtAnotherVersion`, `TestARTIFACTBINV0511InstallPlacesAppsBesideCorvintAtOneVersion`; the `corvint-update` whole-set install, rollback and interrupted-install restore in `internal/update` (`UPD-V0-920` to `UPD-V0-922`, V1-5466): `TestUPDV0920ApplyInstallsTheWholeCoreSet`, `TestUPDV0921RollbackAndInterruptedSetRestore`, `TestUPDV0922MissingAppRefusesAndEqualBuildCompletesTheSet`; a published release carrying the app archives is NOT_RUN until the release workflow publishes them |
 | `CMS-V0-003` | Core verb dispatcher | no-app PATH test over every Core verb |
 | `CMS-V0-004` | each extraction PR | CLI/wire golden diff; frozen eval parity; benchmarks |
 | `CMS-V0-005` | `affected` module mapping | replay before and after, recorded in the build log |
@@ -179,6 +179,7 @@ assumed to pass.
 | `CMS-V0-913` | `cmd/corvint/flows_shim.go` (`runFlowsShim`), `forwardToDocs` in `cmd/corvint/docs_shim.go` | `TestCMSV0913FlowsShimForwardsToCorvintDocs` (a stand-in `corvint-docs` must receive the exact argument vector, so a native implementation in `corvint` fails it); `TestCMSV0913FlowsShimHelpIsNativeAndNamesCorvintDocs`; `TestCMSV0913FlowsShimReportsNotInstalled`; `TestCMSV0913FlowsShimRefusesRequireClean` |
 | `CMS-V0-914` | `cmd/corvint/flows_test_evidence.go` (`runFlowsTestEvidence`); `refuseFlowsTestEvidence` in `internal/command/flows` | `TestRSPV0051FlowProjection`; `TestCMSV0914TestEvidenceRefusesWithThePointerToCorvint`; `TestCMSV0914TestEvidenceRefusalIsReachable` |
 | `CMS-V0-915` | `tools/import-ratchet/areas.json` (`shared` prefixes `internal/appflows`, `internal/appmap`, `internal/flowcoverage`) | `TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs` (area keys; no tests-layer production import of `internal/command/flows`; `cmd/corvint`, `internal/testplan` and `internal/testsource` import a shared flow reader); `TestImportRatchet` (`IRT-V0-004`) for every other tests -> docs edge |
+| `CMS-V0-930` | `internal/docsenvelope/envelope.go` (`NotInstalledMessage`, `InstallHint`, `InstallCommand`), `version.go` (`CheckBeside`), `internal/mcp/toolgroup/errordetail.go` | `TestCMSV0930NotInstalledNamesTheInstallCommand` (the command with the test executable's directory, the manual install, a missing `corvint` naming only the manual install, quoting); `TestDocsShimReportsNotInstalled` asserts the command on `corvint docs`, `flows` and `how`; `TestDocsShimRefusesSiblingAtAnotherVersion` asserts it on `version-mismatch` |
 | `CMS-V0-916` | `tools/import-ratchet/baseline.json` (18 -> 17 edges) | `TestImportRatchet` (`IRT-V0-003`, `IRT-V0-004`, `IRT-V0-005`); the baseline scan and the seeded `cmd/corvint -> internal/command/flows` control in `TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs` |
 
 ## Compatibility and rollback

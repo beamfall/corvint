@@ -17,6 +17,6 @@ Each task names its requirement IDs and the proof that closes it.
 - [x] 5 The `not-installed` and `version-mismatch` refusals name the install command.
    Requirements: CMS-V0-930. Proof: `TestCMSV0930NotInstalledNamesTheInstallCommand` and the
    `cmd/corvint` docs shim test.
-- [ ] 6 Update `docs/INSTALL.md`, the acceptance tables of both specs, the CMS-V0-002 traceability
+- [x] 6 Update `docs/INSTALL.md`, the acceptance tables of both specs, the CMS-V0-002 traceability
    row and the release spec's non-goal line; run the focused tests and the documentation gates.
    Requirements: all. Proof: the commands and exit codes in the handback.
