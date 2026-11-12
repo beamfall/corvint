@@ -504,7 +504,7 @@ The first PR, the `.github`-only cut-over (decided 2026-11-09 under R42, D15), S
 2. trim `ci-control-plane.yml`, not delete it: the `control-plane` and `merge-group` jobs stay,
    the `main-miss` and `forward-rows` jobs are deleted, and the `ci-control-plane` status stays
    required;
-3. leave `greptile-gate.yml` untouched (D14) and leave the other paths RMV-V1-035 keeps.
+3. leave the paths RMV-V1-035 keeps (`greptile-gate.yml` was already deleted by decision 0598).
 
 No file `main-miss.yml` exists; `main-miss` is a job of `ci-control-plane.yml`. The cut-over
 therefore touches five workflow files and removes two jobs. The required statuses follow
@@ -633,24 +633,23 @@ SLF-V1-007 and is not part of batches B0 to B11.
 
 - `RMV-V1-035`: (proposed 2026-11-10) Four CI paths are kept for 1.0 (decided 2026-11-09 under R42, D11)
 
-No batch from B0 to B11 SHALL remove the four paths below. Each stays until its condition ends,
+No batch from B0 to B11 SHALL remove the three paths below. Each stays until its condition ends,
 and the owner re-decides it then.
 
 | Path | Kept until |
 | --- | --- |
 | `.github/testconfine/` | the action proves the same read-scope confinement |
-| `.github/workflows/greptile-gate.yml` | the owner removes the required `greptile-gate` status |
 | `.github/workflows/merge-queue-cleanup.yml` | the merge queue is no longer used |
 | `.github/workflows/cache-prune.yml` | CodeQL stops sharing the cache quota |
 
-`cache-prune.yml` SHALL keep its recorded least-privilege exception. `greptile-gate-v0.md` SHALL
-stay an active spec while its workflow is kept. B11 SHALL leave `greptile-gate.yml` untouched
-(D14).
+`cache-prune.yml` SHALL keep its recorded least-privilege exception. The owner removed the
+required `greptile-gate` status on 2026-11-12; its workflow is deleted and `greptile-gate-v0.md`
+is retired (decision 0598, superseding D14).
 
 **Scenario: a batch deletes a kept workflow**
-- GIVEN a batch whose diff deletes `.github/workflows/greptile-gate.yml`
+- GIVEN a batch whose diff deletes `.github/workflows/merge-queue-cleanup.yml`
 - WHEN the batch is reviewed
-- THEN it is refused, because the `main` ruleset still requires the `greptile-gate` status
+- THEN it is refused while the merge queue is still used
 
 **Scenario: a condition ends**
 - GIVEN the merge queue is no longer used
@@ -781,9 +780,8 @@ build-log entry SHALL confirm the exact requirement IDs it retires.
 Not in this list: specs whose code is already gone and workflow documents (spec-set-cleanup batch
 C1), MERGE folds (C2), Tasks specs moved to `beamfall/corvint-tasks` (B10), `SKH-V0` (owned by the
 change that rewrites `corvint how`), and rows whose verdict is still `undetermined` in
-specs-verdicts.md. `greptile-gate-v0.md` (GRG-V0) is also not in this list: its workflow is kept
-for 1.0 (RMV-V1-035), so the spec stays active and B8b does not archive it (decided 2026-11-09
-under R42, D11).
+specs-verdicts.md. `greptile-gate-v0.md` (GRG-V0) is also not in this list: it was retired with its
+workflow on 2026-11-12 (decision 0598, superseding D11).
 
 | Batch | Spec file under `docs/specs/` | Prefix |
 | --- | --- | --- |

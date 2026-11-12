@@ -291,10 +291,8 @@ The nightly `release-gates.yml` run MUST contain exactly the REL-V1-012 gates, a
 tag MUST NOT be pushed unless that run passed on the tagged commit's main ancestor within the
 previous 24 hours. (final round, M5)
 
-`greptile-gate` is a merge check on main and is not a release gate. It stays a required status
-on main through stable 1.0, with its waiver. A waiver used more than three times between M5a and
-stable MUST be recorded in the release record as a known limit. The live ruleset is
-NOT_VERIFIED. (decided 2026-11-09 under R42, D14)
+`greptile-gate` is retired and is neither a merge check nor a release gate; Codex CLI reviews
+replace it. (retired 2026-11-12, decision 0598)
 
 #### Scenario: A CEM gate in the release object
 
@@ -322,12 +320,6 @@ NOT_VERIFIED. (decided 2026-11-09 under R42, D14)
   24 hours
 - **WHEN** a candidate tag is proposed on it
 - **THEN** the tag is not pushed and the record names the missing run
-
-#### Scenario: A greptile waiver during the release
-
-- **GIVEN** a `greptile-gate` waiver on a main merge between M5a and stable
-- **WHEN** the release gates are evaluated
-- **THEN** the waiver does not fail a release gate and is counted for the known-limit rule
 
 ### Requirement: REL-V1-013 Signed release record before publish
 
