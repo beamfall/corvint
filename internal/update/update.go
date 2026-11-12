@@ -19,14 +19,17 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/archivepath"
+	"github.com/Beamfall/corvint/internal/docsenvelope"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/versionline"
 )
 
 // CoreExecutables names every executable the Core release archive may carry. A host plugin may
@@ -110,6 +113,9 @@ type Result struct {
 	// post-switch hook's outcome (UPD-V0-011 to UPD-V0-014).
 	Service *ServiceOutcome `json:"service,omitempty"`
 	Hooks   []HookOutcome   `json:"hooks,omitempty"`
+	// Set is each core-set executable's outcome when the apply or rollback
+	// handled the whole set (UPD-V0-920, UPD-V0-921).
+	Set []SetMember `json:"set,omitempty"`
 }
 
 // IndexRefresh is one checkout's snapshot refresh: State is built, fresh,
@@ -131,7 +137,44 @@ type release struct {
 	Published  time.Time `json:"published_at"`
 	Assets     []asset   `json:"assets"`
 }
-type receipt struct{ Component, Destination, PreviousDigest, CandidateDigest string }
+
+// receipt is a prepared transaction's recovery description. Members are the
+// core-set apps the apply handled beside corvint; a receipt without them,
+// such as one written before UPD-V0-920, means corvint alone.
+type receipt struct {
+	Component, Destination, PreviousDigest, CandidateDigest string
+	Members                                                 []member `json:",omitempty"`
+}
+
+// member is one core-set app of a receipt; PreviousDigest is empty when the
+// app was absent before the apply (UPD-V0-920, UPD-V0-921).
+type member struct{ Name, Destination, PreviousDigest, CandidateDigest string }
+
+// SetMember is one core-set executable's outcome in an apply or rollback that
+// handled the whole set: installed, replaced, unchanged, restored or removed.
+type SetMember struct {
+	Name   string `json:"name"`
+	Action string `json:"action"`
+}
+
+// coreSetApps and appPlatforms copy releasecandidate.CoreSetApps and
+// releasecandidate.AppPlatforms, which the release-binary tests hold equal to
+// the release catalog; an updater test holds these equal to them. The copy
+// keeps the candidate assembly code out of the updater (UPD-V0-920).
+var (
+	coreSetApps  = []string{"corvint-docs", "corvint-docs-mcp", "corvint-mcp"}
+	appPlatforms = []string{"darwin_arm64", "linux_amd64", "linux_arm64"}
+)
+
+// setApps is the core-set apps a core apply installs beside corvint on
+// platform: all of them where the release ships app archives, none elsewhere.
+func setApps(platform string) []string {
+	if slices.Contains(appPlatforms, platform) {
+		return coreSetApps
+	}
+	return nil
+}
+
 type engine struct {
 	config Config
 	client *http.Client
@@ -151,6 +194,9 @@ type engine struct {
 	// beforeRollback, when set, runs just before the automatic rollback's stop
 	// after a failed start; tests use it to interrupt the rollback (UPD-V0-013).
 	beforeRollback func()
+	// beforeMember, when set, runs just before each core-set member switch;
+	// tests use it to cancel a run between two members (UPD-V0-921).
+	beforeMember func(name string)
 }
 
 func Run(ctx context.Context, command string, c Config) (Result, error) {
@@ -387,7 +433,7 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		r.Removed, r.Left = sweepIncomplete(c.StateDir, time.Now())
 	}
 	if command == "rollback" {
-		r.Receipt, err = e.rollback(ctx, destination)
+		r.Receipt, r.Set, err = e.rollback(ctx, destination)
 		if err == nil {
 			e.switched(&r)
 		}
@@ -538,10 +584,32 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	if build < r.InstalledBuild {
 		return r, errors.New("refusing downgrade")
 	}
-	if build == r.InstalledBuild {
-		if candidateDigest != oldDigest {
-			return r, errors.New("equal-build digest divergence")
+	if build == r.InstalledBuild && candidateDigest != oldDigest {
+		return r, errors.New("equal-build digest divergence")
+	}
+	// The core component is the core version set: every app the release ships
+	// for this platform is verified before any destination changes (UPD-V0-920).
+	var apps []appCandidate
+	if c.Component == "core" {
+		if setApps(e.platform) == nil {
+			r.Qualification += "; core-set apps: the release ships none for " + e.platform + ", so corvint is installed alone"
+		} else {
+			coreLine, lineErr := docsenvelope.ParseVersionLine(candidateVersion)
+			if lineErr != nil {
+				return r, fmt.Errorf("candidate corvint version line: %w", lineErr)
+			}
+			if apps, err = e.prepareApps(ctx, selected, entries, stage, filepath.Dir(candidate), home, coreLine, inspect); err != nil {
+				return r, err
+			}
 		}
+	}
+	appsPending := false
+	for _, a := range apps {
+		appsPending = appsPending || a.PreviousDigest != a.CandidateDigest
+	}
+	// An equal corvint with an absent or differing app completes the set
+	// instead of answering unchanged (UPD-V0-922).
+	if build == r.InstalledBuild && !appsPending {
 		current, digestErr := digest(destination)
 		if digestErr != nil {
 			return r, digestErr
@@ -558,10 +626,13 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		}
 		r.Action = "unchanged"
 		r.Freshness = "CURRENT"
+		r.Set = applySet(apps, false)
 		return r, nil
 	}
 	var svc *service
-	if c.ServiceProgram != "" {
+	// The service runs corvint, so a run that leaves corvint unrewritten and
+	// only completes the set does not restart it.
+	if c.ServiceProgram != "" && candidateDigest != oldDigest {
 		svc = &service{program: c.ServiceProgram, component: c.Component, binary: destination, poll: e.poll()}
 		var installedFormats, candidateFormats []string
 		if c.Component == "tasks" {
@@ -594,7 +665,15 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	if err = os.WriteFile(filepath.Join(stage, "previous"), previous, 0700); err != nil {
 		return r, err
 	}
-	rec := receipt{c.Component, destination, oldDigest, candidateDigest}
+	rec := receipt{Component: c.Component, Destination: destination, PreviousDigest: oldDigest, CandidateDigest: candidateDigest}
+	for _, a := range apps {
+		if a.PreviousDigest != "" {
+			if err = keepPrevious(stage, a.member); err != nil {
+				return r, err
+			}
+		}
+		rec.Members = append(rec.Members, a.member)
+	}
 	encoded, _ := json.MarshalIndent(rec, "", "  ")
 	// The durable recovery description precedes the only destination switch. A
 	// prepared receipt is intentionally usable even if no completion write runs.
@@ -611,14 +690,38 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	if e.beforeActivate != nil {
 		e.beforeActivate()
 	}
-	err = activate(ctx, candidate, destination, oldDigest)
+	// The apps switch first and corvint, the receipt's rollback anchor, last;
+	// a failure or cancellation in between restores what switched (UPD-V0-921).
+	var switchedApps []member
+	for _, a := range apps {
+		if a.PreviousDigest == a.CandidateDigest {
+			continue
+		}
+		if e.beforeMember != nil {
+			e.beforeMember(a.Name)
+		}
+		if err = activate(ctx, a.path, a.Destination, a.PreviousDigest); err != nil {
+			break
+		}
+		switchedApps = append(switchedApps, a.member)
+	}
+	if err == nil && candidateDigest != oldDigest {
+		if e.beforeMember != nil {
+			e.beforeMember(name)
+		}
+		err = activate(ctx, candidate, destination, oldDigest)
+	}
 	if err != nil {
+		if restoreErr := restoreSwitched(ctx, stage, switchedApps); restoreErr != nil {
+			return r, fmt.Errorf("%w; restoring the switched core-set apps failed: %v", err, restoreErr)
+		}
 		return r, err
 	}
 	r.Action = "applied"
 	r.InstalledVersion = candidateVersion
 	r.InstalledBuild = build
 	r.Freshness = "CURRENT"
+	r.Set = applySet(apps, candidateDigest != oldDigest)
 	removed, left := retainCommitted(c.StateDir, stage, candidate, rec)
 	r.Removed, r.Left = append(r.Removed, removed...), append(r.Left, left...)
 	if svc != nil {
@@ -639,7 +742,11 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 			}
 			r.Action, r.InstalledVersion, r.InstalledBuild = "rolled-back", installedVersion, installedBuild
 			r.Service.State = "ROLLED_BACK"
-			if _, rollbackErr := e.rollback(cleanup, destination); rollbackErr != nil {
+			_, set, rollbackErr := e.rollback(cleanup, destination)
+			if set != nil {
+				r.Set = set
+			}
+			if rollbackErr != nil {
 				r.Service.State, r.Service.Reason = "FAILED", r.Service.Reason+"; rollback: "+rollbackErr.Error()
 				r.Action, r.InstalledVersion, r.InstalledBuild = "applied", candidateVersion, build
 				r.Switched = true
@@ -721,13 +828,13 @@ func sweepIncomplete(state string, now time.Time) (removed, left []string) {
 }
 
 // retainCommitted enforces the retention bound after a successful activation:
-// the committed transaction drops its download, smoke home and candidate copy
-// (now the installed bytes), keeping its receipt, previous executable and
-// release evidence; every other transaction bound to the same component and
+// the committed transaction drops its download, smoke home, core-set app
+// downloads and candidate copies (now the installed bytes), keeping its
+// receipt, previous executables and release evidence; every other transaction bound to the same component and
 // destination is superseded and removed. A transaction whose receipt cannot be
 // read is left and named, never guessed (proposed UPD-V0-007).
 func retainCommitted(state, stage, candidate string, committed receipt) (removed, left []string) {
-	for _, p := range []string{filepath.Join(stage, "archive.tar.gz"), filepath.Join(stage, "smoke-home"), candidate} {
+	for _, p := range []string{filepath.Join(stage, "archive.tar.gz"), filepath.Join(stage, "smoke-home"), filepath.Join(stage, "apps"), candidate} {
 		if _, err := os.Lstat(p); err != nil {
 			continue
 		}
@@ -1232,6 +1339,14 @@ func activate(ctx context.Context, source, destination, old string) error {
 	if err = ctx.Err(); err != nil {
 		return err
 	}
+	if old == "" {
+		// An empty old digest means the destination must be absent: a hard link
+		// never replaces a file that appeared meanwhile (UPD-V0-920).
+		if _, err = os.Lstat(destination); !errors.Is(err, os.ErrNotExist) {
+			return errors.New("destination appeared before activation")
+		}
+		return os.Link(temp, destination)
+	}
 	current, err := digest(destination)
 	if err != nil {
 		return err
@@ -1244,16 +1359,158 @@ func activate(ctx context.Context, source, destination, old string) error {
 	}
 	return os.Rename(temp, destination)
 }
-func (e engine) rollback(ctx context.Context, destination string) (string, error) {
+
+// presentDigest is p's digest, or "" when nothing is at p.
+func presentDigest(p string) (string, error) {
+	if _, err := os.Lstat(p); errors.Is(err, os.ErrNotExist) {
+		return "", nil
+	}
+	return digest(p)
+}
+
+// keepPrevious copies a present app's installed bytes into the transaction as
+// previous-<app>, refusing when they changed since preparation.
+func keepPrevious(stage string, m member) error {
+	b, err := readRegular(m.Destination, archiveLimit)
+	if err != nil {
+		return fmt.Errorf("installed %s: %w", m.Name, err)
+	}
+	if hash(b) != m.PreviousDigest {
+		return fmt.Errorf("installed %s changed during preparation", m.Name)
+	}
+	return os.WriteFile(filepath.Join(stage, "previous-"+m.Name), b, 0700)
+}
+
+// restoreMember puts back one app's state before the apply from transaction
+// txn: its previous bytes, or no file when it was absent. The destination must
+// still hold the candidate.
+func restoreMember(ctx context.Context, txn string, m member) error {
+	if m.PreviousDigest != "" {
+		return activate(ctx, filepath.Join(txn, "previous-"+m.Name), m.Destination, m.CandidateDigest)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	current, err := digest(m.Destination)
+	if err != nil {
+		return err
+	}
+	if current != m.CandidateDigest {
+		return errors.New("destination digest conflict before removal")
+	}
+	return os.Remove(m.Destination)
+}
+
+// restoreSwitched restores, newest first, every app a failed or cancelled run
+// already switched, under a bounded cleanup context so a cancelled run still
+// restores them (UPD-V0-921).
+func restoreSwitched(ctx context.Context, txn string, switched []member) error {
+	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+	defer cancel()
+	var failed []string
+	for i := len(switched) - 1; i >= 0; i-- {
+		if err := restoreMember(cleanup, txn, switched[i]); err != nil {
+			failed = append(failed, switched[i].Name+": "+err.Error())
+		}
+	}
+	if len(failed) > 0 {
+		return errors.New(strings.Join(failed, "; "))
+	}
+	return nil
+}
+
+// applySet is the set outcome of a core apply that handled the apps; nil when
+// it handled corvint alone.
+func applySet(apps []appCandidate, corvintChanged bool) []SetMember {
+	if len(apps) == 0 {
+		return nil
+	}
+	set := make([]SetMember, 0, len(apps)+1)
+	for _, a := range apps {
+		action := "replaced"
+		switch {
+		case a.PreviousDigest == a.CandidateDigest:
+			action = "unchanged"
+		case a.PreviousDigest == "":
+			action = "installed"
+		}
+		set = append(set, SetMember{a.Name, action})
+	}
+	action := "unchanged"
+	if corvintChanged {
+		action = "replaced"
+	}
+	return append(set, SetMember{"corvint", action})
+}
+
+// rollback restores the transaction whose receipt matches the installed
+// corvint. A receipt with members restores the whole set: every member is
+// checked first, then the apps are restored and corvint last (UPD-V0-921).
+func (e engine) rollback(ctx context.Context, destination string) (string, []SetMember, error) {
+	p, rec, err := e.rollbackReceipt(destination)
+	if err != nil {
+		return "", nil, err
+	}
+	txn := filepath.Dir(p)
+	pending := make([]bool, len(rec.Members))
+	for i, m := range rec.Members {
+		if !slices.Contains(coreSetApps, m.Name) || m.Destination != filepath.Join(e.config.BinDir, m.Name) {
+			return "", nil, fmt.Errorf("rollback receipt names an unknown core-set member %s", m.Name)
+		}
+		current, err := presentDigest(m.Destination)
+		if err != nil {
+			return "", nil, fmt.Errorf("rollback member %s: %w", m.Name, err)
+		}
+		switch {
+		case current == m.PreviousDigest:
+			// Already at its previous state: an interrupted rollback reruns.
+		case current == m.CandidateDigest:
+			pending[i] = true
+		default:
+			return "", nil, fmt.Errorf("rollback member %s is neither the applied nor the previous build", m.Name)
+		}
+		if m.PreviousDigest != "" {
+			if d, err := digest(filepath.Join(txn, "previous-"+m.Name)); err != nil || d != m.PreviousDigest {
+				return "", nil, fmt.Errorf("rollback previous digest conflict for %s", m.Name)
+			}
+		}
+	}
+	var set []SetMember
+	for i, m := range rec.Members {
+		action := "unchanged"
+		if pending[i] {
+			if err := restoreMember(ctx, txn, m); err != nil {
+				return p, set, fmt.Errorf("rollback member %s: %w", m.Name, err)
+			}
+			action = "restored"
+			if m.PreviousDigest == "" {
+				action = "removed"
+			}
+		}
+		set = append(set, SetMember{m.Name, action})
+	}
+	if err = activate(ctx, filepath.Join(txn, "previous"), destination, rec.CandidateDigest); err != nil {
+		return p, set, err
+	}
+	if len(rec.Members) > 0 {
+		set = append(set, SetMember{"corvint", "restored"})
+	}
+	return p, set, nil
+}
+
+// rollbackReceipt finds the one receipt whose corvint candidate is installed
+// at destination and whose previous copy is intact.
+func (e engine) rollbackReceipt(destination string) (string, receipt, error) {
 	current, err := digest(destination)
 	if err != nil {
-		return "", err
+		return "", receipt{}, err
 	}
 	entries, err := os.ReadDir(e.config.StateDir)
 	if err != nil {
-		return "", err
+		return "", receipt{}, err
 	}
 	var matches []string
+	var matched receipt
 	previousDigest := ""
 	for _, entry := range entries {
 		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "transaction-") {
@@ -1265,30 +1522,32 @@ func (e engine) rollback(ctx context.Context, destination string) (string, error
 			continue
 		}
 		if err != nil {
-			return "", err
+			return "", receipt{}, err
 		}
 		var r receipt
 		if err = json.Unmarshal(b, &r); err != nil {
-			return "", err
+			return "", receipt{}, err
 		}
 		if r.Component == e.config.Component && r.Destination == destination && r.CandidateDigest == current {
 			prev := filepath.Join(filepath.Dir(p), "previous")
 			d, err := digest(prev)
 			if err != nil || d != r.PreviousDigest {
-				return "", errors.New("rollback previous digest conflict")
+				return "", receipt{}, errors.New("rollback previous digest conflict")
 			}
-			if previousDigest != "" && previousDigest != r.PreviousDigest {
-				return "", errors.New("ambiguous rollback history: different prior digests")
+			if previousDigest != "" && (previousDigest != r.PreviousDigest || !slices.Equal(matched.Members, r.Members)) {
+				return "", receipt{}, errors.New("ambiguous rollback history: different prior digests")
 			}
 			previousDigest = r.PreviousDigest
+			if len(matches) == 0 {
+				matched = r
+			}
 			matches = append(matches, p)
 		}
 	}
 	if len(matches) == 0 {
-		return "", fmt.Errorf("rollback requires a matching receipt, found %d", len(matches))
+		return "", receipt{}, fmt.Errorf("rollback requires a matching receipt, found %d", len(matches))
 	}
-	p := matches[0]
-	return p, activate(ctx, filepath.Join(filepath.Dir(p), "previous"), destination, current)
+	return matches[0], matched, nil
 }
 func parseSums(b []byte) (map[string]string, error) {
 	m := map[string]string{}
@@ -1491,6 +1750,142 @@ func verify(root, component, platform string) (string, int, error) {
 		return "", 0, errors.New("Tasks manifest binary size mismatch")
 	}
 	return binary, build, nil
+}
+
+// appCandidate is one verified core-set app ready to switch: its receipt
+// member and the candidate executable in the transaction.
+type appCandidate struct {
+	member
+	path string
+}
+
+// appNotices are the notice files an app archive may carry; each must equal
+// the corvint archive's copy (ARTIFACT-BIN-V0-511).
+var appNotices = []string{"LICENSE", "LICENSE-APACHE-2.0", "LICENSING.md", "PROVENANCE.md"}
+
+// prepareApps downloads, binds and verifies every core-set app of the release
+// for e.platform before any destination changes: the archive digest equals its
+// release SHA256SUMS row, the layout and notices match the corvint archive in
+// coreBase, the executable passes the platform inspection, and its --version
+// names the app at the corvint candidate's release (UPD-V0-920, UPD-V0-922).
+func (e engine) prepareApps(ctx context.Context, rel release, sums map[string]string, stage, coreBase, home string, core versionline.Line, inspect func(string, string) error) ([]appCandidate, error) {
+	var apps []appCandidate
+	for _, app := range setApps(e.platform) {
+		a, err := e.prepareApp(ctx, rel, sums, stage, coreBase, home, core, inspect, app)
+		if err != nil {
+			return nil, fmt.Errorf("core-set app %s: %w", app, err)
+		}
+		apps = append(apps, a)
+	}
+	return apps, nil
+}
+func (e engine) prepareApp(ctx context.Context, rel release, sums map[string]string, stage, coreBase, home string, core versionline.Line, inspect func(string, string) error, app string) (appCandidate, error) {
+	name := app + "_" + e.platform + ".tar.gz"
+	b, err := e.asset(ctx, rel, name, archiveLimit)
+	if err != nil {
+		return appCandidate{}, err
+	}
+	want, ok := sums[name]
+	if !ok {
+		return appCandidate{}, errors.New("release SHA256SUMS has no row for " + name)
+	}
+	if hash(b) != want {
+		return appCandidate{}, errors.New("archive checksum mismatch for " + name)
+	}
+	dir := filepath.Join(stage, "apps", app)
+	if err = os.MkdirAll(dir, 0700); err != nil {
+		return appCandidate{}, err
+	}
+	archivePath := dir + ".tar.gz"
+	if err = os.WriteFile(archivePath, b, 0600); err != nil {
+		return appCandidate{}, err
+	}
+	if err = extract(archivePath, dir); err != nil {
+		return appCandidate{}, err
+	}
+	candidate, err := verifyApp(dir, app, e.platform, coreBase)
+	if err != nil {
+		return appCandidate{}, err
+	}
+	if err = inspect(candidate, e.platform); err != nil {
+		return appCandidate{}, err
+	}
+	if err = os.Chmod(candidate, 0700); err != nil {
+		return appCandidate{}, err
+	}
+	o := runProcess(ctx, candidate, home, "--version")
+	if o.Err != nil || o.ExitStatus != 0 || !o.OwnedProcessGroupCleanup {
+		return appCandidate{}, fmt.Errorf("version smoke failed: %v", o.Err)
+	}
+	line, err := docsenvelope.ParseVersionLine(string(o.Stdout))
+	if err != nil {
+		return appCandidate{}, err
+	}
+	if line.Name != app {
+		return appCandidate{}, fmt.Errorf("--version names %s", line.Name)
+	}
+	if reason := docsenvelope.Mismatch(core, line); reason != "" {
+		return appCandidate{}, errors.New(reason)
+	}
+	candidateDigest, err := digest(candidate)
+	if err != nil {
+		return appCandidate{}, err
+	}
+	destination := filepath.Join(e.config.BinDir, app)
+	previousDigest, err := presentDigest(destination)
+	if err != nil {
+		return appCandidate{}, fmt.Errorf("installed %s: %w", app, err)
+	}
+	return appCandidate{member{app, destination, previousDigest, candidateDigest}, candidate}, nil
+}
+
+// verifyApp checks an extracted app archive: one root <app>_<platform>/ with
+// the executable, a SHA256SUMS that is exactly its row, and only notices
+// byte-equal to the corvint archive's in coreBase. It returns the executable.
+func verifyApp(root, app, platform, coreBase string) (string, error) {
+	base := filepath.Join(root, app+"_"+platform)
+	binary := filepath.Join(base, app)
+	allowed := map[string]bool{app: true, "SHA256SUMS": true}
+	for _, n := range appNotices {
+		allowed[n] = true
+	}
+	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if p == root || p == base {
+				return nil
+			}
+			return errors.New("unexpected app archive directory")
+		}
+		if filepath.Dir(p) != base || !allowed[filepath.Base(p)] {
+			return errors.New("unexpected app archive file")
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	executable, err := readRegular(binary, archiveLimit)
+	if err != nil {
+		return "", fmt.Errorf("app archive lacks its executable: %w", err)
+	}
+	sums, err := readRegular(filepath.Join(base, "SHA256SUMS"), metadataLimit)
+	if err != nil || string(sums) != hash(executable)+"  "+app+"\n" {
+		return "", errors.New("app archive internal checksum disagrees")
+	}
+	for _, n := range appNotices {
+		notice, err := readRegular(filepath.Join(base, n), archiveLimit)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		installed, coreErr := readRegular(filepath.Join(coreBase, n), archiveLimit)
+		if err != nil || coreErr != nil || !bytesEqual(notice, installed) {
+			return "", fmt.Errorf("app archive notice %s disagrees with the corvint archive", n)
+		}
+	}
+	return binary, nil
 }
 
 func inspectPlatform(binary, platform string) error {

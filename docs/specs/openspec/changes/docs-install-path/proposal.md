@@ -53,7 +53,9 @@ still open.
 - The `not-installed` refusal of `corvint docs|flows|how`, of `corvint-docs --corpus` and of the
   MCP docs bridge names the exact command,
   `corvint-update apply --allow-network --component core --bin-dir DIR`, with `DIR` the running
-  executable's directory; the `version-mismatch` refusal names the same command (CMS-V0-930).
+  executable's directory; a missing `corvint` (the `--corpus` read) names the manual install, since
+  the updater needs an installed `corvint`; the `version-mismatch` refusal names the same command
+  (CMS-V0-930).
 - `docs/INSTALL.md`, the two owning specs, the CMS-V0-002 traceability row and the release spec's
   non-goal line are updated.
 

@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -71,9 +72,51 @@ type ToolResult struct {
 }
 
 // NotInstalledMessage is the gap message a shim emits for a missing executable.
+// It names the command that installs the core set (CMS-V0-930); a missing
+// corvint itself gets only the manual install, because the updater replaces an
+// installed corvint and cannot place a first one.
 func NotInstalledMessage(binary, forwarded string) string {
-	return forwarded + " is served by the " + binary + " executable, which is NOT_INSTALLED: install " +
-		binary + " beside this executable or on PATH"
+	next := InstallHint()
+	if binary == CoreBinary {
+		next = "install the core set from its release archives as docs/INSTALL.md describes"
+	}
+	return forwarded + " is served by the " + binary + " executable, which is NOT_INSTALLED: " + next +
+		", or put " + binary + " beside this executable or on PATH"
+}
+
+// InstallHint is the CMS-V0-930 next step of the not-installed and
+// version-mismatch refusals: the updater command that installs the whole core
+// set at one version into the running executable's directory.
+func InstallHint() string {
+	dir := ""
+	if self, err := os.Executable(); err == nil {
+		if resolved, err := filepath.EvalSymlinks(self); err == nil {
+			self = resolved
+		}
+		dir = filepath.Dir(self)
+	}
+	return "install the core set with: " + InstallCommand(dir) +
+		" (or the manual core-set archive install in docs/INSTALL.md)"
+}
+
+// InstallCommand is the updater command that installs the core set into dir,
+// without --bin-dir when dir is empty. A dir that needs shell quoting is
+// single-quoted.
+func InstallCommand(dir string) string {
+	command := "corvint-update apply --allow-network --component core"
+	if dir == "" {
+		return command
+	}
+	return command + " --bin-dir " + shellWord(dir)
+}
+
+func shellWord(s string) string {
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("/._-", r)) {
+			return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+		}
+	}
+	return s
 }
 
 // Locate finds the named sibling executable: first beside the running
