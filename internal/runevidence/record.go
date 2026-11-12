@@ -81,7 +81,7 @@ func (p Parsed) Tests() []string {
 
 // receiptDocument is the part of a corvint-test-run/0 receipt a row needs. It is read leniently:
 // a receipt from a newer Corvint with more members still normalises (D25 add-only rule), and
-// testId and the duration members are optional (CTI-V1-012, PTD-V1-001).
+// testId and the duration members are optional (change canonical-test-id, PTD-V1-001).
 type receiptDocument struct {
 	Profile string `json:"profile"`
 	Source  struct {
@@ -198,8 +198,8 @@ func parseReceipt(data []byte) (Parsed, error) {
 }
 
 // receiptInstance names the runner instance a receipt row ran under. Until the test inventory's
-// instance IDs exist on this tree (TIV-V1-003) it is the adapter and the runner it launched: "go",
-// "declared:<command>" or "provider:<runner>".
+// instance IDs exist on this tree (change test-inventory) it is the adapter and the runner it
+// launched: "go", "declared:<command>" or "provider:<runner>".
 func receiptInstance(adapter, unit string) string {
 	switch adapter {
 	case "declared":

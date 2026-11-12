@@ -14,12 +14,14 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 3 Add retention, the size cap and corruption handling.
    Requirements: RVD-V1-009, RVD-V1-010. Proof: unit tests at 21 runs, at the cap, with a bad record
    and an unreadable log.
-- [ ] 4 Append from `corvint test` and `corvint watch`; print `run-evidence-write-failed` on
+- [x] 4 Append from `corvint test` and `corvint watch`; print `run-evidence-write-failed` on
    failure. Requirements: RVD-V1-004, RVD-V1-010. Proof: CLI test that a run adds exactly one
    record, and a test with a read-only store directory.
-   Open: the `corvint test` half and its proof are delivered (V1-5448). `corvint watch` runs
-   `go test` itself and writes no receipt on this tree, so it has no run document to append; its
-   append is not yet built, and this task stays unticked until it is.
+   Done (V1-5448): `corvint test` appends each shard receipt; `corvint watch` reads each save's
+   `go test -json` streams with the Go adapter's parser and appends one `corvint-test-run/0`
+   receipt (tool `corvint watch`) through the same writer (`TestRVDV1004WatchAppendsOneRecordPerSave`
+   injects the save on `--events-stdin`). The RVD-V1-008 "removed verb" scenario is gated on change
+   `source-removal`; its test skips with that reason.
 - [x] 5 Add `flows ingest --record`.
    Requirements: RVD-V1-005. Proof: CLI test that ingest with `--record` adds one record and without
    it prints as before.

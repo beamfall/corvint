@@ -1441,6 +1441,7 @@
         "--packages"
       ],
       "schemaIds": [
+        "corvint-test-run/0",
         "linecov-index/4"
       ],
       "inputs": null,
@@ -1451,7 +1452,9 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Writes: nothing under the repository; tests write what they write."
+        "Writes: each save's test run appends one corvint-test-run/0 record to the run evidence store under the Git directory (RVD-V1-004), never the worktree; a failed append prints run-evidence-write-failed on stderr and changes no exit status.",
+        "--dry-run writes nothing.",
+        "Tests write what they write."
       ],
       "unknowns": [
         {
