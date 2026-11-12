@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // namedByFixture reports whether the fixture lister names file: it holds a
@@ -631,7 +633,7 @@ func TestTIVV1005UnprovenRecordHoldsOnlyListedFiles(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(bin, []byte("stub\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(bin, []byte("stub\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

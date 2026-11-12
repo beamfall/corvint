@@ -12,6 +12,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // stub writes an executable shell script at root/name that refuses any
@@ -23,7 +25,7 @@ func stub(t *testing.T, root, name, want, body string) {
 		t.Fatal(err)
 	}
 	script := "#!/bin/sh\n[ \"$*\" = '" + want + "' ] || { echo \"unexpected argv: $*\" >&2; exit 9; }\n" + body + "\n"
-	if err := os.WriteFile(full, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(full, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 }
