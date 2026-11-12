@@ -2412,22 +2412,42 @@ but does not read it; only non-Go syntax impact does.
   As an explicit exception to the committed-objects rule of `AMAP-V0-001`, `flows appmap build
   --worktree` MUST
   build from the working tree of `--root`: tracked files with their uncommitted edits and
-  deletions, and untracked files the repository's ignore rules do not exclude. It MUST write
-  nothing to the repository: the snapshot is a commit in a temporary repository that borrows the
-  real object store read-only and is removed afterwards. The map MUST carry the optional member
+  deletions, and untracked files the repository's ignore rules do not exclude. `--root` MUST be
+  the top of its worktree, proven by an empty prefix as for a declared root (AFP-V0-156); a
+  subdirectory refuses `appmap-root-unavailable` rather than widen the working-tree read above
+  `--root` (a pinned build reads committed objects from the top whichever directory `--root`
+  names). A sparse checkout (`core.sparseCheckout` true) MUST refuse `appmap-root-unavailable`,
+  since its excluded paths would read as deleted. The snapshot is a commit in a temporary
+  repository that borrows the repository's object store through alternates and MUST carry the
+  repository settings that decide what `git add` stores or skips: `core.autocrlf`, `core.eol`,
+  `core.safecrlf`, `core.filemode`, `core.symlinks`, `core.ignorecase`,
+  `core.precomposeunicode` and `core.excludesFile` (unset when the repository leaves them unset),
+  and its `info/exclude` and `info/attributes` files. The build MUST write no file, ref or index of
+  the repository; Git may refresh the modification time of an object of the shared store that the
+  snapshot also needs, and writes an object it cannot refresh there (a read-only store) to the
+  temporary repository instead. The temporary repository MUST be removed when the build returns,
+  including when a termination signal cancels the command context. The map MUST carry the optional member
   `working_tree` `{"base_revision": <HEAD or "">, "evidence": "unpinned"}`, and `revision` names
   the snapshot commit, which the same working tree reproduces. Readers decode the member
   (AMAP-V0-960).
   - Non-goals: aliased roots, `--from` builds of an unpinned map, and verbs that re-read source at
     the map revision (they refuse the snapshot commit as an unknown revision).
   - Failure modes: untracked files that only the user's global excludes file ignores enter the
-    snapshot, since the Git environment carries no global configuration.
-  - Falsifier: `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go`.
+    snapshot, and global or system settings do not apply, since the Git environment carries no
+    global or system configuration. Clean filters (`filter.<driver>.clean` or `.process`, for
+    example Git LFS) are not run, so a filtered path is stored as its working-tree bytes, and
+    `working-tree-encoding` conversion follows the same carried configuration only. An index entry
+    marked skip-worktree or assume-unchanged outside a sparse checkout is read from the working
+    tree, so a skip-worktree file absent from disk reads as deleted. A process killed outright
+    (SIGKILL) leaves the temporary repository in the system temporary directory.
+  - Falsifier: `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go`; also
+    `TestAMAPV0976WorktreeRootAndConfig` in `internal/appmap/worktree_test.go`.
   - Rollback: delete `worktree.go`, the `WorkingTree` member and the flag.
 - `AMAP-V0-977`: (experimental under the standing auto-accept (2026-11-12), G14 of decision 0596; V1-5472) Without
   `--worktree`, a build MUST keep refusing a manifest absent at the revision as
-  `appmap-invalid-manifest`; when that manifest exists as a working-tree file of `--root`, the
-  message MUST name `--worktree`. `--worktree` MUST refuse with `--revision`, `--repo`,
+  `appmap-invalid-manifest`; when that manifest exists as a working-tree file of `--root` and
+  `--root` is the top of its worktree (so `--worktree` could build it), the message MUST name
+  `--worktree`. `--worktree` MUST refuse with `--revision`, `--repo`,
   `--manifest-repo`, `--repo-revision`, `--workspace`, `--from`, `--verify` or an implicit
   workspace file.
   - Falsifier: `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go`.
@@ -2783,7 +2803,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-973 | `TestAMAPV0973SpecHelperAttribution` in `gotoresolve_test.go` (a same-file helper call with a literal attributes `helper-goto`; a non-literal argument attributes nothing) |
 | AMAP-V0-974 | `TestAMAPV0974CoverageAndInferAgree` in `gotoresolve_test.go` (coverage reached equals infer start screens on the literal, loop and helper fixture; a dynamic array reaches nothing) |
 | AMAP-V0-975 | `TestAMAPV0975SubcommandHelp` in `cmd/corvint-docs/help_appmap_test.go` (trailing, interior and `-h` requests, the `--root` preamble, boolean flags and `help flows appmap SUB`; an unknown SUB and `--` keep the old behavior) |
-| AMAP-V0-976 | `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go` (an untracked manifest builds, the map carries `working_tree`, two builds are identical, and the repository's status and object count are unchanged) |
+| AMAP-V0-976 | `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go` (an untracked manifest builds, the map carries `working_tree`, two builds are identical, and the repository's status and object count are unchanged); `TestAMAPV0976WorktreeRootAndConfig` in `internal/appmap/worktree_test.go` (a subdirectory `--root` and a sparse checkout refuse; `core.autocrlf`, `info/attributes` and `core.excludesFile` apply to the snapshot; no temporary directory survives success or failure) |
 | AMAP-V0-977 | `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go` (the default refusal names `--worktree`; each pinned flag refuses) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
