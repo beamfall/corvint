@@ -66,6 +66,18 @@ Verified on `b55635262788687c3eea9a08a94378e4ab8856a4` (origin/main, 2026-11-11)
    out; a base gate the candidate no longer defines is a visible reason (CIN-V0-8726).
 4. An extract-and-run fault-injection test proves both without a hosted run (CIN-V0-8727).
 
+## Impact
+
+- Files: `.github/workflows/ci.yml` (the `shell-test-selected` and `doc-gates` steps) and a new
+  extract-and-run test under `.github/forward-rows/`, landed as one `.github`-only pull request;
+  `docs/specs/ci-narrowing-v0.md` (CIN-V0-8724 to CIN-V0-8727, CIN-V0-2320 amended) and
+  `docs/specs/affected-plan-selection-v0.md` (AFP-V0-2401 amended) in a separate code pull request.
+- Behaviour: a pull request can no longer narrow its own shell steps or doc gates by editing the
+  selector, the `shell-test:` list or `DOC_GATE_TARGETS`; a removed step forces FULL with a reason
+  and a removed gate is named.
+- Cost: one extra base build of `corvint` and `shell-test-select` per shell-test job, and one extra
+  `make` call in `doc-gates` only when the lists differ.
+
 ## Non-goals
 
 - Running the base revision's gate or test *implementations*. A gate or shell test checks the

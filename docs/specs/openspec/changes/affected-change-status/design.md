@@ -1,5 +1,40 @@
 # Design: affected-change-status
 
+## Decisions
+
+- D1: change status is a plan input computed from the base tree, never cached, and an absent
+  status is `unknown` (Status input).
+- D2: a name-listing read is a separate field, recorded only for a closed list of command forms
+  and only under a closed grammar for the rest of the unit (Name-listing reads; Gate redesign).
+- D3: only `modified` cannot change a listing; every other status selects, at any depth
+  (Selection; Implementation notes).
+- D4: the cache version changes, so an older cache is rebuilt rather than read as having no
+  name-listing reads (Cache).
+
+## Failure modes
+
+- No base or an unreadable tree: every path is `unknown` and selects.
+- A command, flag, operand or construct outside the closed grammar: the unit keeps its content
+  read and selects on every dirty path, as before this change.
+- A cache from an older binary: refused by version and rebuilt.
+- The runner's environment and tracked symbolic link operands are outside the gate (What the gate
+  does not model); they are stated limits of AFP-V0-9961, not silent narrowing.
+
+## Acceptance evidence
+
+- `TestNameListingForms_AFPV09961` and the status, selection, walker and cache tests named in
+  `tasks.md`, each asserting selection and non-selection.
+- Mutation evidence for each refused class and for `listingCanChange` in
+  `docs/build-log/2026-11-11-affstatus.md`.
+- `selection-baseline` with misses 0 and the narrow count not below the floor; the pr-39 replay is
+  still open (task 8).
+
+## Rollback
+
+Revert the change's commits. Without the name-listing field the shell plugin emits content reads
+again, which selects more and never less; the cache version change makes an old binary rebuild
+its cache.
+
 ## Status input
 
 `corvint affected --base SHA` already knows the base. The command computes one status per dirty

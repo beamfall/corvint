@@ -1,6 +1,8 @@
 # Tasks: test-inventory
 
 Build in this order. Each task names its requirement IDs and the proof that closes it.
+Task 8 records the trace and delivery state of the tasks built so far, so it is listed before the
+open task 7 (OSC-V1-005); task 7 updates the delivery state when it lands.
 
 - [x] 1 Create `docs/specs/test-inventory-v1.md` with TIV-V1-001 to TIV-V1-012 from the spec delta
    as proposed, and regenerate `docs/specs/REQUIREMENTS.tsv`. Requirements: TIV-V1-001 to
@@ -21,7 +23,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    inventory and print its reasons.
    Requirements: TIV-V1-002, TIV-V1-006 to TIV-V1-009. Proof: a read-only test showing no repository
    file changes, and a plan for each reason.
-- [ ] 7 Add the refresh step to the GitHub Action before planning (with change `github-action`).
-   Requirements: TIV-V1-002. Proof: the Action's fixture workflow shows refresh before the plan.
 - [x] 8 Record the trace and the delivery state in the spec.
    Requirements: all. Proof: the trace check maps every TIV-V1 ID to a test.
+- [ ] 7 Add the refresh step to the GitHub Action before planning (with change `github-action`).
+   Requirements: TIV-V1-002. Proof: the Action's fixture workflow shows refresh before the plan.

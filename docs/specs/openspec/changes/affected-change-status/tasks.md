@@ -21,10 +21,12 @@ Each task names its requirement IDs and its proof.
    an edit; a unit with both is selected on an edit.
 - [x] 6 Cache field and version. Requirements: AFP-V0-9964. Proof: a round-trip test, and a test
    that an older-version cache is rebuilt.
-- [x] 7 Mutation evidence for `listingCanChange` and for the closed list. Proof: each named
+- [x] 7 Mutation evidence for `listingCanChange` and for the closed list. Requirements:
+   AFP-V0-9961, AFP-V0-9962. Proof: each named
    mutant killed by a named test, listed in the build log.
 - [ ] 8 Measurements: `selection-baseline` (misses 0, narrow count not below the floor) and the
-   pr-39 replay (no `FALLBACK`). Proof: the table in a build-log entry, with the commands.
+   pr-39 replay (no `FALLBACK`). Requirements: AFP-V0-9962, AFP-V0-9963. Proof: the table in a
+   build-log entry, with the commands.
    Run 2026-11-11 (`docs/build-log/2026-11-11-affstatus.md`): the baseline passes (36/43, misses
    0); the pr-39 replay is still `FALLBACK` before and after, so the proof is not met and the task
    stays open.
