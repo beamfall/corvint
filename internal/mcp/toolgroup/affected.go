@@ -220,7 +220,7 @@ func killSwitchDetail(kill selectionswitch.Switch) string {
 	case kill.All:
 		return selectionswitch.Variable + "=full forces every runner to a full run; every test is selected"
 	}
-	return fmt.Sprintf("%s=%q forces runners %s to a full run; this tool widens that to every test until the planner serves a per-runner full plan (NMS-V1-008)", selectionswitch.Variable, kill.Value, strings.Join(kill.Runners, ", "))
+	return fmt.Sprintf("%s=%q forces runners %s to a full run; this tool widens that to every test until the planner serves a per-runner full plan (change narrowing-measurement)", selectionswitch.Variable, kill.Value, strings.Join(kill.Runners, ", "))
 }
 
 // killSwitchHint is the one-line recovery for a kill-switch answer.

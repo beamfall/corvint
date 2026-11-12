@@ -2484,7 +2484,7 @@
         "server-busy"
       ],
       "cliEquivalent": "corvint-docs how --json",
-      "note": "lands with change how-rewrite (HOW-V1-011); no server registers it yet"
+      "note": "lands with change how-rewrite; no server registers it yet"
     },
     {
       "name": "corvint.docs_info",

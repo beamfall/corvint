@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package selectionswitch reads the CORVINT_SELECTION kill switch (owner
-// decision R13, PROD-TEST-013). Its grammar is owned by NMS-V1-008 (change
-// narrowing-measurement): exactly `full`, which forces every runner to a full
-// run, or `full:<runner>[,<runner>]`, which forces each named runner. Any
+// decision R13, PROD-TEST-013). Its grammar is owned by the kill-switch
+// requirement of change narrowing-measurement: exactly `full`, which forces
+// every runner to a full run, or `full:<runner>[,<runner>]`, which forces
+// each named runner. Any
 // other non-empty value is unknown. The CLI surfaces exit 2 on an unknown
 // value; agent hooks and MCP select every test instead (MTT-V1-008), so a
 // caller that cannot return an exit code never narrows on a typo.

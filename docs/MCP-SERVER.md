@@ -478,7 +478,7 @@ Answer a how-to question from the application map.
 
 - Output profile: `site-knowledge-how/0`
 - Tool errors: `cancelled`, `server-busy`
-- Note: lands with change how-rewrite (HOW-V1-011); no server registers it yet
+- Note: lands with change how-rewrite; no server registers it yet
 
 ### `corvint.docs_info`
 

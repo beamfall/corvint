@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// MTT-V1-008 with NMS-V1-008: exactly full and full:<runner>[,<runner>] are
+// MTT-V1-008 with change narrowing-measurement: exactly full and full:<runner>[,<runner>] are
 // in the grammar; every other non-empty value is unknown.
 func TestMTTV1008Grammar(t *testing.T) {
 	for value, want := range map[string]Switch{
