@@ -48,7 +48,7 @@ func TestCMSV0930NotInstalledNamesTheInstallCommand(t *testing.T) {
 	if got := installHint(dir, probe("7", nil)); !strings.Contains(got, "none is beside") {
 		t.Fatalf("no corvint: %q", got)
 	}
-	if err := os.WriteFile(filepath.Join(dir, CoreBinary), []byte("x"), 0o700); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, CoreBinary), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := installHint(dir, probe("7", nil)), "install the core set with: "+InstallCommand(dir)+" (or the manual core-set archive install in docs/INSTALL.md)"; got != want {
