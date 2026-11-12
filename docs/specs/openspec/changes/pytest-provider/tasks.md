@@ -25,8 +25,14 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
    result; `internal/sessiontest`), `TestPYRV1006PytestJUnitRefusals`, `TestPYRV1006XdistMergedReport`,
    `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`). Fixtures are hand-written from
    pytest's and xdist's source; no live pytest ran (NOT_RUN).
-- [ ] 6 Kind labels; environment record; advisory parity test. Requirements: PYR-V1-005, 007, 008.
-   Proof: fixture tests.
+- [x] 6 Kind labels; environment record; advisory parity test. Requirements: PYR-V1-005, 007, 008.
+   Proof: fixture tests. `TestPYRV1005KindLabels` (`internal/testinventory`; lister `pytest-collect`
+   version 2 labels each test from its own source: pytest-playwright fixtures, the `integration`
+   marker); `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun`
+   (`internal/sessiontest`, environment record, delivered with task 4);
+   `TestPYRV1007AdvisoryCommandNamesTheRunTests` (`cmd/corvint`). The owner's kind declaration of
+   change `test-inventory` does not exist in this tree, so only the `integration` marker is read
+   (NOT_PRODUCED).
 - [x] 7 Kill switch. Requirements: PYR-V1-009. Proof: per-runner switch test:
    `TestPYRV1009KillSwitch`, `TestPYRV1009FallbacksNameTheirReason` (`internal/sessiontest`),
    `TestPYRV1009SelectionGrammar` (`internal/selectionswitch`), `TestPYRV1009CLIKillSwitch`

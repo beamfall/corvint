@@ -132,7 +132,9 @@ func TestTIVV1004PlaywrightLister(t *testing.T) {
 
 // TIV-V1-004, TIV-V1-005: `pytest --collect-only -q` runs through the
 // project's virtualenv with the instance root as rootdir, and each node ID
-// becomes one test with its parameter part kept (CTI-V1-006).
+// becomes one test with its parameter part kept (CTI-V1-006). Each test
+// carries its kind (PYR-V1-005): TestK is not in the file, so its kind is
+// UNKNOWN.
 func TestTIVV1004PytestLister(t *testing.T) {
 	root, git := gitRepo(t, map[string]string{
 		".gitignore":          ".venv/\n",
@@ -146,8 +148,8 @@ func TestTIVV1004PytestLister(t *testing.T) {
 	inventory := refreshTwice(t, git, nil)
 	pytest := instanceByKey(t, inventory, "pytest@svc")
 	want := []Test{
-		{ID: "pytest:svc/tests/test_a.py::TestK::test_two[a%3A%3Ab]", File: "svc/tests/test_a.py"},
-		{ID: "pytest:svc/tests/test_a.py::test_one", File: "svc/tests/test_a.py"},
+		{ID: "pytest:svc/tests/test_a.py::TestK::test_two[a%3A%3Ab]", File: "svc/tests/test_a.py", Kind: KindUnknown, KindSource: KindSourceUnresolved},
+		{ID: "pytest:svc/tests/test_a.py::test_one", File: "svc/tests/test_a.py", Kind: KindUnit, KindSource: KindSourceDefault},
 	}
 	if got := testsOf(pytest); !reflect.DeepEqual(got, want) {
 		t.Fatalf("pytest tests %+v", got)
