@@ -39,6 +39,10 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
    (`cmd/corvint`). No `CORVINT_SELECTION` parser existed in this tree; `internal/selectionswitch`
    implements exactly the NMS-V1-008 grammar, which owns it, for change `narrowing-measurement` to
    reuse. Built with task 4, since the switch decides which units task 4 plans.
-- [ ] 8 Harness adapter for FIH-V1. Requirements: PYR-V1-010. Proof: harness call test.
+- [x] 8 Harness adapter for FIH-V1. Requirements: PYR-V1-010. Proof: harness call test:
+   `TestPYRV1010PytestHarnessAdapter`, `TestPYRV1010PytestHarnessFailedMeasurements`,
+   `TestAdapterContract_FIH_V1_008` (`tools/fault-harness`). Its dependent units are every collected
+   test file (a conservative superset); mapping the plan's `python:` units to pytest entries in the
+   harness is NOT_PRODUCED.
 - [ ] 9 Tests under "Acceptance evidence"; build-log entry; complete through the Tasks gate. Proof:
    retained receipts, `receipt audit`.
