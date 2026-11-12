@@ -311,6 +311,44 @@ The baseline is manual archive verification and copying binaries, with external 
   token without read access to the repository yields an unreadable inventory reported as UNKNOWN.
   Falsifier: a request to any host other than `api.github.com` carrying the token, or a token
   value in output. Rollback of this requirement: remove the option; requests stay anonymous.
+- `UPD-V0-920`: (proposed 2026-11-12; delivery not-started; V1-5466) `apply --component core`
+  MUST install `corvint` and, on a platform the release catalog ships app archives for
+  (darwin/arm64, linux/amd64, linux/arm64), every core-set app (`corvint-docs`, `corvint-docs-mcp`,
+  `corvint-mcp`) from the same release into the same directory (`CMS-V0-002`). Each app MUST come
+  from the release asset `<app>_<goos>_<goarch>.tar.gz` whose digest equals its row in the release
+  `SHA256SUMS`; its root `<app>_<goos>_<goarch>/` MUST hold the executable, a `SHA256SUMS` that is
+  exactly the executable's row, and only notice files byte-equal to the `corvint` archive's. Each
+  app MUST pass the platform inspection, and its `--version` MUST name the app and agree with the
+  `corvint` candidate's line (one version, one commit when both are stamped) before any destination
+  changes. The receipt MUST record every member with its previous digest (empty when absent) and
+  candidate digest, and the apps MUST switch before `corvint`. On a supported Core platform outside
+  that list the apply MUST install `corvint` alone and say so in the qualification line. The set is
+  the `core` component's executables, so `UPD-V0-004`'s one component per apply still holds.
+  Failure modes: a release published without app archives refuses (`UPD-V0-922`); darwin/amd64
+  keeps `corvint` alone. Falsifier: an apply that leaves any app at another digest than the
+  release's, or installs an app whose version disagrees. Rollback of this requirement: drop the
+  app step; the core apply installs `corvint` alone again.
+- `UPD-V0-921`: (proposed 2026-11-12; delivery not-started; V1-5466) `rollback` of a receipt with
+  members MUST restore every member: put back its previous bytes, or remove it when it was absent
+  before, with `corvint` last. It MUST first check that every member is at its candidate digest or
+  already at its previous state, and refuse with the member named otherwise, before changing
+  anything, so an interrupted rollback can run again. When an apply fails or is cancelled after
+  some members switched, it MUST restore those members under a bounded cleanup context before
+  returning the error. A receipt without members MUST roll back `corvint` alone. Failure modes: a
+  process kill between two renames leaves a mixed set that every member refuses with
+  `version-mismatch` (`CMS-V0-002`) and that a rerun apply completes. Falsifier: a rollback that
+  leaves an app installed that was absent before, or a cancelled apply that returns with a member
+  switched. Rollback of this requirement: receipts lose `Members`; rollback restores `corvint`.
+- `UPD-V0-922`: (proposed 2026-11-12; delivery not-started; V1-5466) On a platform in the app
+  list, a release that lacks an app archive, or whose `SHA256SUMS` lacks its row, MUST refuse the
+  apply with the app named and every destination unchanged. When the candidate `corvint` is the
+  installed build with equal bytes, the apply MUST install every app that is absent or differs from
+  its candidate, leave `corvint` unrewritten, and answer `unchanged` only when every member equals
+  its candidate. Failure modes: until the release workflow publishes app archives every apply on
+  those platforms refuses and the manual archive install in `docs/INSTALL.md` is the path.
+  Falsifier: an `unchanged` result while an app is absent, or an apply that changes a destination
+  and then refuses for a missing archive. Rollback of this requirement: the equal build answers
+  `unchanged` again.
 
 ## Non-goals
 

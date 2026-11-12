@@ -2523,6 +2523,7 @@ CMS-V0-913	docs/specs/core-bundled-apps-v0.md	`corvint flows ...` and `corvint h
 CMS-V0-914	docs/specs/core-bundled-apps-v0.md	`flows test-evidence` MUST stay native in `corvint`, because it joins flow links	unrecorded	-
 CMS-V0-915	docs/specs/core-bundled-apps-v0.md	The tests layer MUST read flows in process, through packages the import manifest	unrecorded	-
 CMS-V0-916	docs/specs/core-bundled-apps-v0.md	Moving the commands MUST add no cross-layer import edge. The baseline	unrecorded	-
+CMS-V0-930	docs/specs/core-bundled-apps-v0.md	(proposed 2026-11-12; delivery not-started; V1-5466) The `not-installed` refusal	unrecorded	-
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context	unrecorded	-
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout	unrecorded	-
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised	unrecorded	-
@@ -6985,6 +6986,9 @@ UPD-V0-016	docs/specs/operator-update-v0.md	(accepted under the owner's standing
 UPD-V0-017	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3014) A Tasks	standing	2026-10-11; V1-3014
 UPD-V0-367	docs/specs/operator-update-v0.md	(proposed (V1-3184); amended by decision 0594) Core and Tasks are each checked f	unrecorded	-
 UPD-V0-368	docs/specs/operator-update-v0.md	(proposed (V1-3184)) `--github-token-env NAME` MAY authenticate release reads wi	unrecorded	-
+UPD-V0-920	docs/specs/operator-update-v0.md	(proposed 2026-11-12; delivery not-started; V1-5466) `apply --component core`	unrecorded	-
+UPD-V0-921	docs/specs/operator-update-v0.md	(proposed 2026-11-12; delivery not-started; V1-5466) `rollback` of a receipt wit	unrecorded	-
+UPD-V0-922	docs/specs/operator-update-v0.md	(proposed 2026-11-12; delivery not-started; V1-5466) On a platform in the app	unrecorded	-
 OACS-V0-001	docs/specs/optional-artifact-check-scripts-v0.md	The offline-build entrypoint MUST require a nonempty first argument naming a	unrecorded	-
 OACS-V0-002	docs/specs/optional-artifact-check-scripts-v0.md	The offline-build entrypoint MUST refuse an exact dependency-list line equal to	unrecorded	-
 OACS-V0-003	docs/specs/optional-artifact-check-scripts-v0.md	After all three temporary allocations succeed, the offline-build entrypoint	unrecorded	-

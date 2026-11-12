@@ -121,6 +121,14 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
   `tools/import-ratchet/baseline.json` only shrinks: the edge `cmd/corvint ->
   internal/command/flows` is gone and MUST NOT return, and no baselined edge may start at
   `cmd/corvint` or end at `internal/command/flows` or `cmd/corvint-docs`.
+- `CMS-V0-930`: (proposed 2026-11-12; delivery not-started; V1-5466) The `not-installed` refusal
+  of `corvint docs`, `corvint flows`, `corvint how`, the `corvint-docs --corpus` core read and the
+  MCP docs bridge MUST name the exact install command
+  `corvint-update apply --allow-network --component core --bin-dir DIR`, with `DIR` the running
+  executable's directory after symlink resolution, single-quoted when it needs shell quoting, and
+  without `--bin-dir` when that directory cannot be read (`UPD-V0-920`). It MUST also point at the
+  manual core-set archive install in `docs/INSTALL.md`. The `version-mismatch` refusal MUST name
+  the same command. The code and exit status of both refusals are unchanged.
 
 ## Non-goals, trust boundary and failure modes
 
