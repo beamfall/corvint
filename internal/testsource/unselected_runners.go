@@ -347,28 +347,28 @@ func readConfigValues(runner, config string, files map[string]string) (map[strin
 // key outside one `test` object or a Playwright selection key inside `projects` makes it uncertain.
 func readModuleConfig(runner, text string) (map[string]configValue, string, int) {
 	s := parseSource("config", text)
-	if s.uncertain {
-		return nil, "runner-config-unparsed", s.uncertainLine
+	if s.Uncertain {
+		return nil, "runner-config-unparsed", s.UncertainLine
 	}
-	nested := s.projectNested(runner)
-	for i := range s.tokens {
-		if s.punct(i, ".") && s.punct(i+1, ".") && s.punct(i+2, ".") && !nested(i) {
-			return nil, "runner-config-spread", s.tokens[i].Line
+	nested := projectNested(s, runner)
+	for i := range s.Tokens {
+		if s.Punct(i, ".") && s.Punct(i+1, ".") && s.Punct(i+2, ".") && !nested(i) {
+			return nil, "runner-config-spread", s.Tokens[i].Line
 		}
-		if s.ident(i, "mergeConfig") || s.ident(i, "defineWorkspace") {
-			return nil, "runner-config-merged", s.tokens[i].Line
+		if s.Ident(i, "mergeConfig") || s.Ident(i, "defineWorkspace") {
+			return nil, "runner-config-merged", s.Tokens[i].Line
 		}
 	}
-	if ok, line := s.literalExport(); !ok {
+	if ok, line := literalExport(s); !ok {
 		return nil, "runner-config-export-dynamic", line
 	}
 	keys := selectionKeys[runner]
 	for _, k := range keys[1] {
 		if at, found := configKeysIn(s, k); found {
-			return nil, "runner-config-key-unsupported", s.tokens[at[0]].Line
+			return nil, "runner-config-key-unsupported", s.Tokens[at[0]].Line
 		}
 	}
-	if line, dynamic := s.selectionKeyDynamic(runner); dynamic {
+	if line, dynamic := selectionKeyDynamic(s, runner); dynamic {
 		return nil, "runner-config-key-dynamic", line
 	}
 	var testObject [2]int
@@ -377,21 +377,21 @@ func readModuleConfig(runner, text string) (map[string]configValue, string, int)
 		if !found {
 			return map[string]configValue{}, "", 0
 		}
-		if len(at) != 1 || !s.punct(at[0]+2, "{") || s.match[at[0]+2] < 0 {
-			return nil, "runner-config-value-dynamic", s.tokens[at[0]].Line
+		if len(at) != 1 || !s.Punct(at[0]+2, "{") || s.Match[at[0]+2] < 0 {
+			return nil, "runner-config-value-dynamic", s.Tokens[at[0]].Line
 		}
-		testObject = [2]int{at[0] + 2, s.match[at[0]+2]}
+		testObject = [2]int{at[0] + 2, s.Match[at[0]+2]}
 	}
 	var projects [2]int
 	var entries [][2]int
 	if runner == RunnerPlaywright {
 		if at, found := configKeysIn(s, "projects"); found {
-			if len(at) != 1 || !s.punct(at[0]+2, "[") || s.match[at[0]+2] < 0 {
-				return nil, "runner-config-value-dynamic", s.tokens[at[0]].Line
+			if len(at) != 1 || !s.Punct(at[0]+2, "[") || s.Match[at[0]+2] < 0 {
+				return nil, "runner-config-value-dynamic", s.Tokens[at[0]].Line
 			}
-			projects = [2]int{at[0] + 2, s.match[at[0]+2]}
+			projects = [2]int{at[0] + 2, s.Match[at[0]+2]}
 			var line int
-			if entries, line = s.projectEntries(projects); entries == nil {
+			if entries, line = projectEntries(s, projects); entries == nil {
 				return nil, "runner-config-project-selection", line
 			}
 		}
@@ -405,28 +405,28 @@ func readModuleConfig(runner, text string) (map[string]configValue, string, int)
 			kept := []int{}
 			for _, i := range at {
 				switch {
-				case runner == RunnerVitest && !s.directMember(i, testObject):
+				case runner == RunnerVitest && !directMember(s, i, testObject):
 					continue // include/exclude of another block, such as coverage
-				case object[1] >= 0 && !s.directMember(i, object):
+				case object[1] >= 0 && !directMember(s, i, object):
 					continue
 				case object[1] < 0 && runner == RunnerPlaywright && within(i, projects):
-					if !slices.ContainsFunc(entries, func(entry [2]int) bool { return s.directMember(i, entry) }) {
+					if !slices.ContainsFunc(entries, func(entry [2]int) bool { return directMember(s, i, entry) }) {
 						// A selection key nested inside a project entry, not one of its own keys.
-						return nil, "runner-config-project-selection", s.tokens[i].Line
+						return nil, "runner-config-project-selection", s.Tokens[i].Line
 					}
 					continue
 				}
 				kept = append(kept, i)
 			}
 			if len(kept) > 1 {
-				return nil, "runner-config-key-repeated", s.tokens[kept[1]].Line
+				return nil, "runner-config-key-repeated", s.Tokens[kept[1]].Line
 			}
 			if len(kept) == 1 {
-				value, ok := s.literalValue(kept[0] + 2)
+				value, ok := sourceLiteralValue(s, kept[0]+2)
 				if !ok {
-					return nil, "runner-config-value-dynamic", s.tokens[kept[0]].Line
+					return nil, "runner-config-value-dynamic", s.Tokens[kept[0]].Line
 				}
-				value.line = s.tokens[kept[0]].Line
+				value.line = s.Tokens[kept[0]].Line
 				values[k] = value
 			}
 		}
@@ -436,7 +436,7 @@ func readModuleConfig(runner, text string) (map[string]configValue, string, int)
 	if reason != "" || len(entries) == 0 {
 		return values, reason, line
 	}
-	all := configValue{line: s.tokens[projects[0]].Line}
+	all := configValue{line: s.Tokens[projects[0]].Line}
 	for _, entry := range entries {
 		project, reason, line := read(entry)
 		if reason != "" {
@@ -451,18 +451,18 @@ func readModuleConfig(runner, text string) (map[string]configValue, string, int)
 // projectNested reports a token nested inside a value of a Playwright project entry, such as the
 // `...devices['Desktop Chrome']` spread of its `use` object, which cannot add a selection key to
 // the entry (TSA-V0-653). A spread directly in an entry or anywhere else still abstains.
-func (s *source) projectNested(runner string) func(int) bool {
+func projectNested(s *source, runner string) func(int) bool {
 	if runner != RunnerPlaywright {
 		return func(int) bool { return false }
 	}
 	at, found := configKeysIn(s, "projects")
-	if !found || len(at) != 1 || !s.punct(at[0]+2, "[") || s.match[at[0]+2] < 0 {
+	if !found || len(at) != 1 || !s.Punct(at[0]+2, "[") || s.Match[at[0]+2] < 0 {
 		return func(int) bool { return false }
 	}
-	entries, _ := s.projectEntries([2]int{at[0] + 2, s.match[at[0]+2]})
+	entries, _ := projectEntries(s, [2]int{at[0] + 2, s.Match[at[0]+2]})
 	return func(i int) bool {
 		return slices.ContainsFunc(entries, func(entry [2]int) bool {
-			return i > entry[0] && i < entry[1] && !s.directMember(i, entry)
+			return i > entry[0] && i < entry[1] && !directMember(s, i, entry)
 		})
 	}
 }
@@ -470,20 +470,20 @@ func (s *source) projectNested(runner string) func(int) bool {
 // projectEntries returns the object literals of a Playwright projects array spanning projects
 // (TSA-V0-653). An empty array or an entry that is not an object literal, such as a variable, a
 // call or a conditional, returns nil and the line to name.
-func (s *source) projectEntries(projects [2]int) ([][2]int, int) {
+func projectEntries(s *source, projects [2]int) ([][2]int, int) {
 	entries := [][2]int{}
 	for j := projects[0] + 1; j < projects[1]; j++ {
-		if !s.punct(j, "{") || s.match[j] <= j || s.match[j] >= projects[1] {
-			return nil, s.tokens[j].Line
+		if !s.Punct(j, "{") || s.Match[j] <= j || s.Match[j] >= projects[1] {
+			return nil, s.Tokens[j].Line
 		}
-		entries = append(entries, [2]int{j, s.match[j]})
-		j = s.match[j] + 1
-		if j < projects[1] && !s.punct(j, ",") {
-			return nil, s.tokens[j].Line
+		entries = append(entries, [2]int{j, s.Match[j]})
+		j = s.Match[j] + 1
+		if j < projects[1] && !s.Punct(j, ",") {
+			return nil, s.Tokens[j].Line
 		}
 	}
 	if len(entries) == 0 {
-		return nil, s.tokens[projects[0]].Line
+		return nil, s.Tokens[projects[0]].Line
 	}
 	return entries, 0
 }
@@ -493,21 +493,21 @@ func (s *source) projectEntries(projects [2]int) ([][2]int, int) {
 // declares as one. Any other export, such as `require('./base')`, a factory call or a function,
 // is not runner defaults, and a module with no whole export is not read either (TSA-V0-645). The
 // line is the first export that is not literal (TSA-V0-655), or 0 when there is no export.
-func (s *source) literalExport() (bool, int) {
+func literalExport(s *source) (bool, int) {
 	found := false
-	for i := range s.tokens {
+	for i := range s.Tokens {
 		value := -1
 		switch {
-		case s.ident(i, "module") && !s.memberAccess(i) && s.punct(i+1, ".") && s.ident(i+2, "exports") && s.punct(i+3, "=") && !s.punct(i+4, "=") && !s.punct(i+4, ">"):
+		case s.Ident(i, "module") && !s.MemberAccess(i) && s.Punct(i+1, ".") && s.Ident(i+2, "exports") && s.Punct(i+3, "=") && !s.Punct(i+4, "=") && !s.Punct(i+4, ">"):
 			value = i + 4
-		case s.ident(i, "export") && s.ident(i+1, "default"):
+		case s.Ident(i, "export") && s.Ident(i+1, "default"):
 			value = i + 2
 		default:
 			continue
 		}
 		found = true
-		if !s.literalConfigValue(value, true) {
-			return false, s.tokens[i].Line
+		if !literalConfigValue(s, value, true) {
+			return false, s.Tokens[i].Line
 		}
 	}
 	return found, 0
@@ -515,27 +515,27 @@ func (s *source) literalExport() (bool, int) {
 
 // literalConfigValue reports an object literal or a `defineConfig({…})` call at token i, or, when
 // named is true, a bare name the module declares with one (`const config: Config = {…}`).
-func (s *source) literalConfigValue(i int, named bool) bool {
+func literalConfigValue(s *source, i int, named bool) bool {
 	switch {
-	case s.punct(i, "{"):
+	case s.Punct(i, "{"):
 		return true
-	case s.ident(i, "defineConfig") && s.punct(i+1, "(") && s.punct(i+2, "{"):
+	case s.Ident(i, "defineConfig") && s.Punct(i+1, "(") && s.Punct(i+2, "{"):
 		return true
-	case !named || !s.ident(i, "") || s.punct(i+1, "(") || s.punct(i+1, "."):
+	case !named || !s.Ident(i, "") || s.Punct(i+1, "(") || s.Punct(i+1, "."):
 		return false
 	}
-	name := s.tokens[i].Text
-	for j := range s.tokens {
-		if !(s.ident(j, "const") || s.ident(j, "let") || s.ident(j, "var")) || !s.ident(j+1, name) {
+	name := s.Tokens[i].Text
+	for j := range s.Tokens {
+		if !(s.Ident(j, "const") || s.Ident(j, "let") || s.Ident(j, "var")) || !s.Ident(j+1, name) {
 			continue
 		}
 		// Skip a type annotation up to the declaration's `=`.
-		for k := j + 2; k < len(s.tokens) && k < j+64; k++ {
-			if s.punct(k, ";") {
+		for k := j + 2; k < len(s.Tokens) && k < j+64; k++ {
+			if s.Punct(k, ";") {
 				break
 			}
-			if s.punct(k, "=") && !s.punct(k+1, "=") && !s.punct(k+1, ">") && !s.punct(k-1, "=") {
-				return s.literalConfigValue(k+1, false)
+			if s.Punct(k, "=") && !s.Punct(k+1, "=") && !s.Punct(k+1, ">") && !s.Punct(k-1, "=") {
+				return literalConfigValue(s, k+1, false)
 			}
 		}
 	}
@@ -550,11 +550,11 @@ func configKeys(text, key string) ([]int, bool) {
 // configKeysIn returns the token indexes of every `key:` or `"key":` object property in s.
 func configKeysIn(s *source, key string) ([]int, bool) {
 	out := []int{}
-	for i, t := range s.tokens {
-		if t.Text != key || !(t.Kind == appmap.JSIdent || t.Kind == appmap.JSString && t.Literal) || s.memberAccess(i) || !s.punct(i+1, ":") {
+	for i, t := range s.Tokens {
+		if t.Text != key || !(t.Kind == appmap.JSIdent || t.Kind == appmap.JSString && t.Literal) || s.MemberAccess(i) || !s.Punct(i+1, ":") {
 			continue
 		}
-		if s.punct(i-1, "{") || s.punct(i-1, ",") {
+		if s.Punct(i-1, "{") || s.Punct(i-1, ",") {
 			out = append(out, i)
 		}
 	}
@@ -565,7 +565,7 @@ func configKeysIn(s *source, key string) ([]int, bool) {
 // property, or a selection key name (or Vitest `test`, Playwright `projects`) that is not a
 // `key:` property, such as a shorthand `{ testMatch }`, `module.exports.testMatch = …` or a
 // variable (TSA-V0-142), and the line of the first such token (TSA-V0-655).
-func (s *source) selectionKeyDynamic(runner string) (int, bool) {
+func selectionKeyDynamic(s *source, runner string) (int, bool) {
 	keys := selectionKeys[runner]
 	watched := append(append([]string{}, keys[0]...), keys[1]...)
 	switch runner {
@@ -574,14 +574,14 @@ func (s *source) selectionKeyDynamic(runner string) (int, bool) {
 	case RunnerPlaywright:
 		watched = append(watched, "projects")
 	}
-	for i, t := range s.tokens {
-		if s.punct(i, "]") && s.punct(i+1, ":") && s.match[i] >= 0 && (s.punct(s.match[i]-1, "{") || s.punct(s.match[i]-1, ",")) {
-			return s.tokens[s.match[i]].Line, true
+	for i, t := range s.Tokens {
+		if s.Punct(i, "]") && s.Punct(i+1, ":") && s.Match[i] >= 0 && (s.Punct(s.Match[i]-1, "{") || s.Punct(s.Match[i]-1, ",")) {
+			return s.Tokens[s.Match[i]].Line, true
 		}
 		if !slices.Contains(watched, t.Text) || !(t.Kind == appmap.JSIdent || t.Kind == appmap.JSString && t.Literal) {
 			continue
 		}
-		property := (s.punct(i-1, "{") || s.punct(i-1, ",")) && s.punct(i+1, ":") && !s.memberAccess(i)
+		property := (s.Punct(i-1, "{") || s.Punct(i-1, ",")) && s.Punct(i+1, ":") && !s.MemberAccess(i)
 		if !property {
 			return t.Line, true
 		}
@@ -590,16 +590,16 @@ func (s *source) selectionKeyDynamic(runner string) (int, bool) {
 }
 
 // directMember reports a property token directly inside the object literal spanning object.
-func (s *source) directMember(i int, object [2]int) bool {
+func directMember(s *source, i int, object [2]int) bool {
 	if !(i > object[0] && i < object[1]) {
 		return false
 	}
 	for j := object[0] + 1; j < i; j++ {
-		if s.match[j] > j {
-			if s.match[j] > i {
+		if s.Match[j] > j {
+			if s.Match[j] > i {
 				return false
 			}
-			j = s.match[j]
+			j = s.Match[j]
 		}
 	}
 	return true
@@ -607,47 +607,47 @@ func (s *source) directMember(i int, object [2]int) bool {
 
 // literalValue reads the value starting at token i: a literal string, an array of literal
 // strings, or true/false, ending at a `,` or the closing `}`.
-func (s *source) literalValue(i int) (configValue, bool) {
+func sourceLiteralValue(s *source, i int) (configValue, bool) {
 	end := i + 1
 	value := configValue{}
 	switch {
-	case s.literalText(i):
-		value.strings, value.regex = []string{s.tokens[i].Text}, []bool{false}
-	case s.regexLiteral(i):
-		value.strings, value.regex = []string{s.tokens[i].Source}, []bool{true}
-	case s.ident(i, "true") || s.ident(i, "false"):
-		flag := s.tokens[i].Text == "true"
+	case literalText(s, i):
+		value.strings, value.regex = []string{s.Tokens[i].Text}, []bool{false}
+	case regexLiteral(s, i):
+		value.strings, value.regex = []string{s.Tokens[i].Source}, []bool{true}
+	case s.Ident(i, "true") || s.Ident(i, "false"):
+		flag := s.Tokens[i].Text == "true"
 		value.boolean = &flag
-	case s.punct(i, "[") && s.match[i] > i:
+	case s.Punct(i, "[") && s.Match[i] > i:
 		value.strings, value.regex = []string{}, []bool{}
-		for j := i + 1; j < s.match[i]; j++ {
+		for j := i + 1; j < s.Match[i]; j++ {
 			switch {
-			case s.literalText(j):
-				value.strings, value.regex = append(value.strings, s.tokens[j].Text), append(value.regex, false)
-			case s.regexLiteral(j):
-				value.strings, value.regex = append(value.strings, s.tokens[j].Source), append(value.regex, true)
+			case literalText(s, j):
+				value.strings, value.regex = append(value.strings, s.Tokens[j].Text), append(value.regex, false)
+			case regexLiteral(s, j):
+				value.strings, value.regex = append(value.strings, s.Tokens[j].Source), append(value.regex, true)
 			default:
 				return configValue{}, false
 			}
-			if j+1 < s.match[i] && !s.punct(j+1, ",") {
+			if j+1 < s.Match[i] && !s.Punct(j+1, ",") {
 				return configValue{}, false
 			}
 			j++
 		}
-		end = s.match[i] + 1
+		end = s.Match[i] + 1
 	default:
 		return configValue{}, false
 	}
-	return value, s.punct(end, ",") || s.punct(end, "}")
+	return value, s.Punct(end, ",") || s.Punct(end, "}")
 }
 
 // regexLiteral reports a regular-expression literal token, whose Source keeps its slashes and flags.
-func (s *source) regexLiteral(i int) bool {
-	return i >= 0 && i < len(s.tokens) && s.tokens[i].Kind == appmap.JSString && !s.tokens[i].Literal && strings.HasPrefix(s.tokens[i].Source, "/")
+func regexLiteral(s *source, i int) bool {
+	return i >= 0 && i < len(s.Tokens) && s.Tokens[i].Kind == appmap.JSString && !s.Tokens[i].Literal && strings.HasPrefix(s.Tokens[i].Source, "/")
 }
 
-func (s *source) literalText(i int) bool {
-	return i >= 0 && i < len(s.tokens) && (s.tokens[i].Kind == appmap.JSString || s.tokens[i].Kind == appmap.JSTemplate) && s.tokens[i].Literal
+func literalText(s *source, i int) bool {
+	return i >= 0 && i < len(s.Tokens) && (s.Tokens[i].Kind == appmap.JSString || s.Tokens[i].Kind == appmap.JSTemplate) && s.Tokens[i].Literal
 }
 
 // apply sets the runner's patterns from its literal configuration values.

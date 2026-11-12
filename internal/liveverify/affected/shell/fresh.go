@@ -272,7 +272,9 @@ func trapAllowed(args []string) bool {
 	if len(args) < 2 || strings.HasPrefix(unquote(args[0]), "-") {
 		return false
 	}
-	handler := strings.Fields(unquote(args[0]))
+	// Split at shell blanks only: strings.Fields would also split at a
+	// carriage return, reading `exit\r` as `exit` (AFP-V0-9970).
+	handler := strings.FieldsFunc(unquote(args[0]), func(c rune) bool { return c == ' ' || c == '\t' || c == '\n' })
 	exits := len(handler) == 1 && handler[0] == "exit" || len(handler) == 2 && handler[0] == "exit" && strings.Trim(handler[1], "0123456789") == ""
 	for _, raw := range args[1:] {
 		switch signal := strings.TrimPrefix(unquote(raw), "SIG"); signal {

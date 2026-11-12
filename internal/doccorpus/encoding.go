@@ -19,8 +19,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/pinnedread"
 	"github.com/Beamfall/corvint/internal/projectpath"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
 func Digest(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
@@ -296,7 +296,7 @@ func StatCorpusFile(root, path string) (fs.FileInfo, error) {
 		return nil, fail("input root unavailable")
 	}
 	defer dir.Close()
-	info, err := testvaliditydoc.StatFile(dir, path)
+	info, err := pinnedread.StatFile(dir, path)
 	if err != nil {
 		return nil, &Error{Code: "corpus-input-unavailable", Message: "input missing, unsafe or over bound"}
 	}
@@ -319,7 +319,7 @@ func streamCorpusFile(root, path string, read func(io.Reader) error) error {
 	}
 	defer dir.Close()
 	var refused error
-	err = testvaliditydoc.StreamFileBounded(dir, path, MaxCorpusBytes, func(r io.Reader) error {
+	err = pinnedread.StreamFileBounded(dir, path, MaxCorpusBytes, func(r io.Reader) error {
 		reader := &failingReader{r: r}
 		refused = read(reader)
 		return reader.err
@@ -349,8 +349,8 @@ func (f *failingReader) Read(p []byte) (int, error) {
 // platform other than darwin and linux (PRS-V1-022, decision 0559).
 const PlatformUnsupportedCode = "corpus-platform-unsupported"
 
-// receiptPlatformRefusal is testvaliditydoc.PlatformRefusal; tests force it.
-var receiptPlatformRefusal = testvaliditydoc.PlatformRefusal
+// receiptPlatformRefusal is pinnedread.PlatformRefusal; tests force it.
+var receiptPlatformRefusal = pinnedread.PlatformRefusal
 
 // platformRefusal refuses before any input is opened, so an unsupported
 // platform never reports a missing or unsafe input in place of its real cause.
@@ -373,7 +373,7 @@ func readFileBounded(root, path string, limit int64) ([]byte, error) {
 		return nil, fail("input root unavailable")
 	}
 	defer dir.Close()
-	data, err := testvaliditydoc.ReadFileBounded(dir, path, limit)
+	data, err := pinnedread.ReadFileBounded(dir, path, limit)
 	if err != nil {
 		return nil, &Error{Code: "corpus-input-unavailable", Message: "input missing, unsafe or over bound"}
 	}

@@ -10,15 +10,6 @@ import (
 	"syscall"
 )
 
-func readCleanFile(repositoryRoot, relative string) ([]byte, bool) {
-	opener, opened := newCleanFileOpener(repositoryRoot)
-	if !opened {
-		return nil, false
-	}
-	defer opener.close()
-	return readCleanFileUsing(opener, relative)
-}
-
 // readCleanFileUsing is readCleanFile against an opener the caller keeps open.
 // Resolving a parent directory costs an open per component, and a whole-tree
 // pass arrives in tree order, so holding the chain across a run of files under

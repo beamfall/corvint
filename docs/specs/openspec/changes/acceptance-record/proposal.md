@@ -11,7 +11,7 @@ changed)
 Owner answers this change implements: answer 18, G10, G14, owner decision R1 (2026-11-09), owner
 decision R9 (2026-11-09), owner decisions H4 and H5 (2026-11-10); owner decision R35 (2026-11-09)
 is a precondition
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-5272), logged `auto` in `../../acceptance-log.tsv` (written 2026-11-09 as proposed)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
 

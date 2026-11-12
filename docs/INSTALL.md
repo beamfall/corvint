@@ -33,15 +33,16 @@ for building from source. Choose the archives matching the operating system and 
 | System | `corvint` archive | Core-set app archives |
 |---|---|---|
 | macOS, Apple silicon | `corvint_darwin_arm64.tar.gz` | `<app>_darwin_arm64.tar.gz` |
-| macOS, Intel | `corvint_darwin_amd64.tar.gz` | `<app>_darwin_amd64.tar.gz` |
+| macOS, Intel | `corvint_darwin_amd64.tar.gz` | none: not a 1.0 platform (`PROD-INT-006`); the core-set install refuses |
 | Linux, x86-64 | `corvint_linux_amd64.tar.gz` | `<app>_linux_amd64.tar.gz` |
 | Linux, ARM64 | `corvint_linux_arm64.tar.gz` | `<app>_linux_arm64.tar.gz` |
 
 The `corvint` archive holds the one `corvint` executable. `corvint docs` is an exec shim onto the
 `corvint-docs` executable, and the MCP servers are their own executables, so a release is the
-`corvint` archive plus one archive per core-set app: `corvint-docs`, `corvint-mcp`,
-`corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-test-runner`, `corvint-web-flows` and
-`corvint-cli` (the catalog's `core` version set, decision 0594 item 8; `ARTIFACT-BIN-V0-509`).
+`corvint` archive plus one archive per core-set app: `corvint-docs`, `corvint-mcp` and
+`corvint-docs-mcp` (the catalog's `core` version set, decision 0594 item 8; `ARTIFACT-BIN-V0-509`,
+`ARTIFACT-BIN-V0-522`). The other executables under `cmd/` are not released in 1.0
+(`ARTIFACT-BIN-V0-520`).
 Install the set together, in one directory: `corvint` looks for its apps beside its own
 executable first, and a `corvint` installed alone answers every `corvint docs` verb with
 `not-installed`. All members of one release carry one version; `corvint` refuses, with
@@ -66,7 +67,7 @@ checksum inside the archive, then place every verified executable in one install
 
 ```sh
 mkdir -p corvint-<version>/bin &&
-  for archive in corvint corvint-docs corvint-mcp corvint-docs-mcp corvint-test-validity-mcp corvint-test-runner corvint-web-flows corvint-cli; do
+  for archive in corvint corvint-docs corvint-mcp corvint-docs-mcp; do
     tar -xzf "${archive}_darwin_arm64.tar.gz" -C corvint-<version> &&
     ( cd "corvint-<version>/${archive}_darwin_arm64" && shasum -a 256 -c SHA256SUMS ) &&
     cp "corvint-<version>/${archive}_darwin_arm64/${archive}" corvint-<version>/bin/

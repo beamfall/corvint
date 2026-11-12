@@ -16,7 +16,7 @@ import (
 const rootHelp = `usage: corvint-docs [--root PATH] docs SUBCOMMAND [OPTIONS]
        corvint-docs [--root PATH] flows [SUBCOMMAND] [OPTIONS]
        corvint-docs [--root PATH] how [OPTIONS] GOAL
-       corvint-docs help docs | docs corpus | docs corpus OPERATION | docs flows | docs maintain | flows | how | docs-tool
+       corvint-docs help docs | docs check | docs corpus | docs corpus OPERATION | docs flows | docs maintain | flows | how | docs-tool
        corvint-docs help --json
 Corvint's documentation app (decision 0594): drafting pinned documentation, the documentation
 corpus, generated-block maintenance and flow documentation, and the application-flow group
@@ -24,7 +24,7 @@ corpus, generated-block maintenance and flow documentation, and the application-
 ` + "`corvint docs ...`, `corvint flows ...`, `corvint how ...` and `corvint --corpus=FILE ...` forward to\n" +
 	"this executable unchanged, so the two spellings print the same bytes; only\n" +
 	"`flows test-evidence` stays in corvint.\n" +
-	`With --corpus=FILE [--corpus-depth=N] before a core read (impact, affected, context or
+	`With --corpus=FILE [--corpus-depth=N] before a core read (impact, affected or
 test-validity), corvint-docs runs that read in the corvint executable beside it or on PATH and
 joins the corpus receipt onto its output.
 Required: a Git repository at --root (default .) for every verb but the corpus operations that
@@ -59,6 +59,7 @@ var helpBooleanFlags = map[string]bool{"--apply": true, "--check": true, "--dry-
 // nestedHelpTopics are the `help docs X` topics with authored text of their own.
 var nestedHelpTopics = [][2]string{
 	{"docs corpus", "docs-corpus"},
+	{"docs check", "docs-check"},
 	{"docs flows", "docs-flows"},
 	{"docs maintain", "docs-maintain"},
 }
@@ -198,6 +199,8 @@ func topicText(topic string) string {
 		return docsHelp + "\n" + docsMaintainHelp + "\n" + docsFlowsHelp
 	case "docs-corpus":
 		return docsCorpusHelp()
+	case "docs-check":
+		return docsCheckHelp
 	case "docs-flows":
 		return docsFlowsHelp
 	case "docs-maintain":
@@ -214,7 +217,7 @@ func topicText(topic string) string {
 
 // helpTopics lists every authored topic that documents a command path, in a stable order.
 func helpTopics() []string {
-	topics := []string{"docs", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool", "flows", "how"}
+	topics := []string{"docs", "docs-check", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool", "flows", "how"}
 	for _, operation := range corpusOperations {
 		topics = append(topics, "docs-corpus-"+operation.name)
 	}
@@ -229,6 +232,8 @@ func helpTopicPath(topic string) []string {
 	switch topic {
 	case "docs-corpus":
 		return []string{"docs", "corpus"}
+	case "docs-check":
+		return []string{"docs", "check"}
 	case "docs-flows":
 		return []string{"docs", "flows"}
 	case "docs-maintain":
@@ -259,10 +264,8 @@ var commandTreeInternal = []clitree.Internal{
 	{Word: "audit", Reason: "spaced spelling of docs corpus audit-sample and audit-report"},
 	{Word: "sample", Reason: "spaced spelling of docs corpus audit-sample"},
 	{Word: "report", Reason: "spaced spelling of docs corpus audit-report"},
-	{Word: "--worktree-overlay", Reason: "core context option the --corpus=FILE join skips while finding the positional task"},
 	{Word: "impact", Reason: "core read the --corpus=FILE join runs in corvint"},
 	{Word: "affected", Reason: "core read the --corpus=FILE join runs in corvint"},
-	{Word: "context", Reason: "core read the --corpus=FILE join runs in corvint"},
 	{Word: "test-validity", Reason: "core read the --corpus=FILE join runs in corvint"},
 }
 

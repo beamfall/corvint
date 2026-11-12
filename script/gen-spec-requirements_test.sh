@@ -6,7 +6,7 @@ set -eu
 # SRG-V0-042/044/046 (case 11), SRG-V0-547/548 (case 12), SRG-V0-980/950/750 (case 13), SRG-V0-951
 # (case 14), SRG-V0-952/953 (case 15), SRG-V0-954 (case 16), SRG-V0-085 (case 20), SRG-V0-082
 # (case 21), SRG-V0-083 (case 22), SRG-V0-084 (case 23), SRG-V0-086 (case 24), SRG-V0-087
-# (case 25) and SRG-V0-751 (case 26).
+# (case 25), SRG-V0-751 (case 26) and OSC-V1-008 (inside case 7).
 # SRG-V0-001: the generated index must be the one a fresh clone reproduces, so the enumeration is
 # the Git index and nothing the worktree alone says can change the output. The three cases are the drift directions reproduced in
 # `docs/specs/spec-requirement-index-generator-v0.md`: an untracked spec, a tracked spec
@@ -302,6 +302,38 @@ range_err=$(gen --readme 2>&1 > /dev/null) && fail "a range with an undefined pr
 case $range_err in *"docs/specs/one.md: its README row shows a NONE-V0- range but the spec defines no NONE-V0- id"*) ;; *) fail "the range refusal printed: $range_err" ;; esac
 cp "$test_root/got-readme" "$project/docs/specs/README.md"
 git -C "$project" add -- docs/specs/README.md
+# OSC-V1-008: a `Health:` line before the first `## ` heading becomes the optional INDEX.json
+# `health` key and a `; health CLASS` suffix of the README Contract cell; a changed class replaces
+# the suffix, a `Health:` line in the body is no header, and removing the line restores both files.
+cp "$project/docs/specs/one.md" "$test_root/one-saved"
+health_spec() {
+  awk -v class="$1" '{ print } /^Delivery status: implemented$/ && class != "" { print "Health: " class }
+    /^## Agent digest$/ { print "Health: MERGE" }' "$test_root/one-saved" > "$project/docs/specs/one.md"
+  git -C "$project" add -- docs/specs/one.md
+}
+health_spec KEEP
+gen --index > "$test_root/health-index" || fail "--index failed with a Health line"
+test "$(grep -c '"health": ' "$test_root/health-index")" = 1 || fail "--index did not add exactly one health key"
+grep -A1 '"implementation": \[\],$' "$test_root/health-index" | grep -q '^    "health": "KEEP"$' ||
+  fail "--index did not project Health: KEEP after implementation"
+gen --readme > "$test_root/health-readme" || fail "--readme failed with a Health line"
+grep -qF '| [`one.md`](one.md) ONE-V0-001; health KEEP |' "$test_root/health-readme" ||
+  fail "--readme did not add the health suffix"
+grep -qF '| [`two.md`](two.md) TWO-V0-001..002 |' "$test_root/health-readme" || fail "--readme gave two.md a suffix"
+cp "$test_root/health-index" "$project/docs/specs/INDEX.json"
+cp "$test_root/health-readme" "$project/docs/specs/README.md"
+git -C "$project" add -- docs/specs
+gen --index | cmp - "$project/docs/specs/INDEX.json" || fail "--index with health is not a fixed point"
+gen --readme | cmp - "$project/docs/specs/README.md" || fail "--readme with health is not a fixed point"
+health_spec RETIRE
+gen --readme | grep -qF '| [`one.md`](one.md) ONE-V0-001; health RETIRE |' || fail "--readme did not replace the class"
+gen --index | grep -q '"health": "RETIRE"' || fail "--index did not replace the class"
+health_spec ''
+gen --index | cmp - "$test_root/got-index" || fail "removing the Health line did not restore INDEX.json"
+gen --readme | cmp - "$test_root/got-readme" || fail "removing the Health line did not restore README.md"
+cp "$test_root/one-saved" "$project/docs/specs/one.md"
+cp "$test_root/got-index" "$project/docs/specs/INDEX.json"
+git -C "$project" add -- docs/specs
 
 # 8. SRG-V0-010: the audit lists standing requirements by spec, names a standing marker that is
 # not leading as UNPARSED_STANDING (but not a clause that only mentions a standing approval), and

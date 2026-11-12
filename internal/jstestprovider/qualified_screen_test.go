@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -24,7 +25,7 @@ func credentialNamedFixture(t *testing.T) Receipt {
 	// The projection anchor `<path>/password-recovery.spec.ts:12` is itself a credential-name
 	// `:` assignment to the writer screen, whatever directory the path starts with.
 	r.Tests[0].Anchor = &Anchor{File: "/wt/tests/e2e/admin/auth/password-recovery.spec.ts", Line: 12}
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	return r
 }
 
@@ -65,7 +66,7 @@ func TestPWPV3011SecretValuesStillRefused(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := credentialNamedFixture(t)
 			tc.mutate(&r)
-			r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+			r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 			_, err := EncodeQualified(r)
 			if err == nil {
 				t.Fatal("secret-shaped value retained")
@@ -98,9 +99,9 @@ func TestPWPV3011NameValueInIdentifierRefuses(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := credentialNamedFixture(t)
 			r.Tests[0].Name = title
-			r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+			r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 			_, err := EncodeQualified(r)
-			if err == nil || err.Error() != qualifiedSecretShaped {
+			if err == nil || err.Error() != jstestreceipt.QualifiedSecretShaped {
 				t.Fatalf("credential assignment in a title accepted: %v", err)
 			}
 			if strings.Contains(refusalPointer(err), "hunter2") {
@@ -116,7 +117,7 @@ func TestPWPV3012PointerWithholdsDynamicKeys(t *testing.T) {
 	r := credentialNamedFixture(t)
 	r.Identity.Environment = map[string]string{"hunter2": "password=hunter2"}
 	_, err := EncodeQualified(r)
-	if err == nil || err.Error() != qualifiedSecretShaped {
+	if err == nil || err.Error() != jstestreceipt.QualifiedSecretShaped {
 		t.Fatalf("credential value in the environment accepted: %v", err)
 	}
 	if pointer := refusalPointer(err); pointer != "/receipt/identity/environment" {
@@ -130,7 +131,7 @@ func TestPWPV3011KeepReportersCredentialNamedInputs(t *testing.T) {
 	control, keep := keepQualificationPair(t)
 	for _, r := range []*Receipt{&control, &keep} {
 		r.Identity.ConfigInputDigests[hostAbs("/repo/password-policy.cjs")] = strings.Repeat("d", 64)
-		r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+		r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	}
 	q := QualifyKeepReporters(control, nil, keep, nil)
 	if q.Verdict != KeepReportersQualified {
@@ -165,7 +166,7 @@ func TestPWPV3012PointerNeverEchoesText(t *testing.T) {
 		{[]string{"receipt", "identity", "environment", "123456"}, make([]bool, 4), "/receipt/identity/environment"},
 		{nil, nil, ""},
 	} {
-		if got := safePointer(documentMember{path: tc.path, index: tc.index}, schema); got != tc.want {
+		if got := jstestreceipt.SafePointer(jstestreceipt.DocumentMember{Path: tc.path, Index: tc.index}, schema); got != tc.want {
 			t.Fatalf("safePointer(%q) = %q, want %q", tc.path, got, tc.want)
 		}
 	}

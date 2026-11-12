@@ -32,7 +32,11 @@ that commit with the same analyzers and fallbacks as a committed range
 coverage a changed block reaches, compiles only, or is excluded. The plan,
 each run's result and a terminal error stream as one JSON object per line on
 stdout; every event is user-scoped (Scope "user", GateEligible false) and
-never closes a CI gate (LPCV-V0-960, LPCV-V0-1085).
+never closes a CI gate (LPCV-V0-960, LPCV-V0-1085). Each plan event carries
+Inventory, the committed test inventory (.corvint/test-inventory.json)
+judged against the working tree with its reasons (inventory-absent,
+inventory-stale, unassigned, inventory-invalid); watch never refreshes it
+(TIV-V1-002).
 
 Save events are native and foreground: inotify on Linux, kqueue on macOS
 (LPCV-V0-1086); no daemon, no polling. --events-stdin reads one notification
@@ -145,7 +149,10 @@ func runWatch(ctx context.Context, root string, args []string, stdin io.Reader, 
 		static = strings.Split(*packages, ",")
 	}
 	failed := false
-	o := watch.Options{Root: resolved, Index: ix, Static: static, Saves: source.C, Stopped: source.Err, Out: out}
+	o := watch.Options{Root: resolved, Index: ix, Static: static, Saves: source.C, Stopped: source.Err, Out: out,
+		// Each save reads the committed test inventory against the working
+		// tree and reports its reasons; watch never refreshes it (TIV-V1-002).
+		Inventory: func(ctx context.Context) any { return readInventoryVerdict(ctx, resolved, true) }}
 	if !*dryRun {
 		o.Run = func(ctx context.Context, p watch.Plan) error {
 			err := runWatchPlan(ctx, resolved, ix, p, *wrapper, diagnostic)

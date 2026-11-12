@@ -140,7 +140,7 @@ func hostTrapAllowed(parsed script, args []string) bool {
 		return false
 	}
 	handler := parse(action)
-	if len(handler.definitions) != 0 {
+	if len(handler.definitions) != 0 || handler.incomplete {
 		return false
 	}
 	for _, cmd := range handler.commands {

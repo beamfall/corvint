@@ -174,14 +174,6 @@ func (s *Session) readAbsoluteMap(mapPath string, allowWorktree bool) ([]byte, s
 	return raw, filepath.Join(root.Path(), name), nil
 }
 
-// ReadExternalMap is readExternalMap for a consumer outside the Core read
-// over an out-of-tree map (CEM-V1-641): the same
-// containment, symlink and size refusals apply.
-func (s *Session) ReadExternalMap(mapPath string) ([]byte, error) {
-	raw, _, err := s.readExternalMap(mapPath)
-	return raw, err
-}
-
 // externalReportOutput admits an absolute report path whose existing parent directory lies
 // outside the worktree and the Git directories. A location inside them must be named
 // repository-relative, so the metadata and map-aliasing checks apply to it. The caller

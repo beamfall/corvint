@@ -53,11 +53,19 @@ for direct AGENTS.md support, with further session qualifications; the compatibi
 
 ## Requirements
 
-- `IID-V0-001`: The optional diagnostic MUST require explicit host, version, cwd, default
-  assumption profile and tracked subject. Cwd MUST be normalized, repository-relative and an
-  ancestor of the subject. Traversal, absolute paths, repeat flags, mixed views and depth over
-  64 directories MUST refuse. All evidence MUST bind to the captured tree and source blob;
-  no home/config/session discovery, instruction execution or remote retrieval occurs.
+- `IID-V0-001`: `corvint instructions --subject PATH --host HOST --host-version VERSION --cwd DIR
+  --profile default` MUST print the `instruction_load_set` object for the tracked subject, with no
+  task text. The diagnostic MUST require explicit host, version, cwd, default assumption profile
+  and tracked subject. Cwd MUST be normalized, repository-relative and an ancestor of the subject.
+  Traversal, absolute paths, repeat flags and depth over 64 directories MUST refuse. All evidence
+  MUST bind to the captured tree and source blob; no home, config or session discovery,
+  instruction execution or remote retrieval occurs. For one release `corvint context --subject
+  PATH --instruction-host HOST --instruction-host-version VERSION --instruction-cwd DIR
+  --instruction-profile default` MUST print the same object and one deprecation line on stderr
+  that names `corvint instructions`; it MUST NOT require `--task`, and it MUST accept and ignore
+  `--task`, `--limit` and `--worktree-overlay` (the removed task packet's flags, which existing
+  callers pass) with one further stderr warning line, while `corvint instructions` and task text
+  without instruction flags refuse. (amended 2026-11-11, decision 0597)
 - `IID-V0-002`: Only exact compiled, source-bound host/version profiles MAY predict loading.
   Unconfirmed versions/hosts MUST report UNKNOWN with no guessed rule source or load rows.
   The manifest MUST retain source URL, content SHA256, rule line selectors and assumptions.
@@ -120,7 +128,7 @@ may lack invalid-text raw bytes: abstention is safer than substituting a differe
 
 | Requirements | Witness |
 |---|---|
-| IID-V0-001,002,005,006 | `TestInstructionDoctorFlagsAndDefaultWire`, `TestInstructionLoadSetUnknownsAndSafeScope`, `TestInstructionProfileManifestBinding` |
+| IID-V0-001,002,005,006 | `TestInstructionDoctorFlagsAndDefaultWire`, `TestContextAliasIgnoresTheRemovedPacketFlags`, `TestInstructionLoadSetUnknownsAndSafeScope`, `TestInstructionProfileManifestBinding` |
 | IID-V0-003 | `TestInstructionLoadSetDefaultSelection`, `TestInstructionLoadSetPrefixBudgetAndLossyBytes` |
 | IID-V0-004,006 | `TestInstructionLoadSetWarningsAndBounds` |
 | IID-V0-007 | focused unit receipts and compiled CLI comparison against controlled host marker fixtures retained in the owner build log |

@@ -2,13 +2,18 @@ package flowdocs
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/docworktree"
 	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
@@ -43,7 +48,16 @@ type Check struct {
 	Added             []string             `json:"added"`
 	Retired           []string             `json:"retired"`
 	OutputDifferences []string             `json:"output_differences"`
-	Clean             bool                 `json:"clean"`
+	// Output is CHECKED when the rendered pages were compared with a directory, else NOT_CHECKED
+	// with OutputReason, and the check is then never clean (DMF-V1-007). OutputDir names the
+	// compared directory: the --output-dir given, or the one the manifest records.
+	Output       string `json:"output"`
+	OutputReason string `json:"output_reason,omitempty"`
+	OutputDir    string `json:"output_dir,omitempty"`
+	Clean        bool   `json:"clean"`
+	// Worktree says whether the worktree differs from HEAD under the scope and the compared output
+	// directory (DMF-V1-005); bindings stay answers about the named revisions.
+	Worktree *docworktree.Status `json:"worktree,omitempty"`
 }
 type checkItem struct {
 	anchors  []doccorpus.Anchor
@@ -216,16 +230,50 @@ func CheckRevision(ctx context.Context, root string, previous []byte, revision, 
 	if len(result.Added) > 0 {
 		result.Clean = false
 	}
-	if output != "" {
-		result.OutputDifferences, err = CompareOutput(output, old.Files)
-		if err != nil {
-			return result, err
-		}
-		if len(result.OutputDifferences) > 0 {
-			result.Clean = false
-		}
+	if err = compareRecordedOutput(root, output, old.Manifest.OutputDir, old.Files, &result); err != nil {
+		return result, err
 	}
 	return result, nil
+}
+
+// Output comparison states and reasons (DMF-V1-007).
+const (
+	OutputChecked    = "CHECKED"
+	OutputNotChecked = "NOT_CHECKED"
+	OutputNoDir      = "no-output-dir"
+	OutputMissingDir = "missing-dir"
+)
+
+// compareRecordedOutput compares the rendered pages with --output-dir, or else with the directory
+// the manifest records under root. With neither, or a directory that does not exist, the output is
+// NOT_CHECKED with a reason and the check is not clean: it never reports clean without comparing
+// (DMF-V1-007).
+func compareRecordedOutput(root, output, recorded string, files map[string][]byte, result *Check) error {
+	dir, shown := output, output
+	if dir == "" && recorded != "" {
+		dir, shown = filepath.Join(root, filepath.FromSlash(recorded)), recorded
+	}
+	result.OutputDir = shown
+	if dir == "" {
+		result.Output, result.OutputReason, result.Clean = OutputNotChecked, OutputNoDir, false
+		return nil
+	}
+	if st, err := os.Lstat(dir); err != nil || !st.IsDir() {
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("output directory %s unreadable: %w", shown, err)
+		}
+		result.Output, result.OutputReason, result.Clean = OutputNotChecked, OutputMissingDir, false
+		return nil
+	}
+	differences, err := CompareOutput(dir, files)
+	if err != nil {
+		return err
+	}
+	result.Output, result.OutputDifferences = OutputChecked, differences
+	if len(differences) > 0 {
+		result.Clean = false
+	}
+	return nil
 }
 
 // revalidateImported relocates an imported anchor by its exact span and, when

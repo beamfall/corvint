@@ -88,7 +88,7 @@ func RoleLocators(repo Repo, options RoleLocatorOptions) (RoleLocatorReport, err
 	if err != nil {
 		return RoleLocatorReport{}, err
 	}
-	texts, _, err := repo.readFiles(commit, func(name string) bool { return webExtensions[path.Ext(name)] })
+	texts, _, err := readFiles(repo, commit, func(name string) bool { return webExtensions[path.Ext(name)] })
 	if err != nil {
 		return RoleLocatorReport{}, err
 	}
@@ -211,9 +211,9 @@ func opensElement(text, element string) bool {
 // testScopes are the line spans of a file's tests (TSA-V0-362).
 func testScopes(name, text string) [][2]int {
 	out := [][2]int{}
-	for _, d := range parseSource(name, text).decls {
-		if d.kind == "test" && d.endLine >= d.line {
-			out = append(out, [2]int{d.line, d.endLine})
+	for _, d := range parseSource(name, text).Decls {
+		if d.Kind == "test" && d.EndLine >= d.Line {
+			out = append(out, [2]int{d.Line, d.EndLine})
 		}
 	}
 	return out

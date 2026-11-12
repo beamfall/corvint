@@ -40,7 +40,6 @@ func TestDCPV1091TestKnowledgeAcrossCorpusBridge(t *testing.T) {
 		{"corvint.docs_flow", `{"id":"adapter:flow"}`, doccorpus.Request{Operation: "flow", ID: "adapter:flow", Limit: 20}},
 		{"corvint.docs_claims", `{"path":"src/value.go"}`, doccorpus.Request{Operation: "claims", Path: "src/value.go", Limit: 20}},
 		{"corvint.docs_locate", `{"path":"src/value_test.go"}`, doccorpus.Request{Operation: "locate", Path: "src/value_test.go", Limit: 20}},
-		{"corvint.docs_recommend_tests", `{"path":"src/value.go"}`, doccorpus.Request{Operation: "recommend-tests", Path: "src/value.go", Limit: 20}},
 	} {
 		want, err := doccorpus.ReadQuery(ctx, root, data, c.query)
 		if err != nil {

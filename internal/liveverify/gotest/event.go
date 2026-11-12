@@ -173,12 +173,6 @@ func Observe(r io.Reader, config Config) (Observation, error) {
 	return observe(r, config, true, nil, v0Bounds)
 }
 
-// Stream emits bounded provisional facts without retaining the event stream.
-// Canonical IDs are assigned by the post-WEI layer, not by this decoder.
-func Stream(r io.Reader, config Config, sink func(Event) error) (Observation, error) {
-	return observe(r, config, false, sink, v0Bounds)
-}
-
 type bounds struct {
 	lineBytes, eventBytes, outputBytes, packages, tests, events uint64
 }

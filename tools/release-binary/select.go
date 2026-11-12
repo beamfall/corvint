@@ -15,7 +15,7 @@ type Selection struct {
 }
 
 // selectTag maps `vX.Y.Z` to every product binary, `SET/vX.Y.Z` to one version set and
-// `NAME/vX.Y.Z` to one product binary. Support binaries and unknown names refuse.
+// `NAME/vX.Y.Z` to one product binary. Support and withheld binaries and unknown names refuse.
 func selectTag(catalog Catalog, tag string) (Selection, error) {
 	scope, versionTag, scoped := strings.Cut(tag, "/")
 	if !scoped {
@@ -39,7 +39,7 @@ func selectTag(catalog Catalog, tag string) (Selection, error) {
 			return Selection{}, fmt.Errorf("unknown-binary: %q names no product binary or version set in the catalog", scope)
 		}
 		if binary.Role != "product" {
-			return Selection{}, fmt.Errorf("support-binary: %q is release tooling and is never released", scope)
+			return Selection{}, refuseUnreleased(binary)
 		}
 		selection.Scope = "binary"
 		selection.Binaries = []string{binary.Name}

@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/rubytestreceipt"
 )
 
 const userSpec = "spec/models/user_spec.rb"
@@ -19,26 +21,26 @@ func TestLPCVV0131SelectorsValidatedAndRecorded(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses POSIX project-relative selector paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
 	}
-	for value, want := range map[string]selector{
-		userSpec:                   {kind: SelectorPath, path: userSpec},
-		"spec":                     {kind: SelectorPath, path: "spec"},
-		"./" + userSpec + ":4":     {kind: SelectorLine, path: userSpec, lines: []int{4}},
-		userSpec + ":2:6":          {kind: SelectorLine, path: userSpec, lines: []int{2, 6}},
-		userSpec + "[1:2]":         {kind: SelectorID, path: userSpec, ids: []string{"1:2"}},
-		userSpec + "[1:2,1:3]":     {kind: SelectorID, path: userSpec, ids: []string{"1:2", "1:3"}},
-		"spec/odd[name]_spec.rb":   {kind: SelectorPath, path: "spec/odd[name]_spec.rb"},
-		"spec/odd[x]":              {kind: SelectorPath, path: "spec/odd[x]"},
-		userSpec + ":0":            {kind: SelectorPath, path: userSpec + ":0"},
-		userSpec + ":100000000":    {kind: SelectorPath, path: userSpec + ":100000000"},
-		"spec/models/../user.rb:3": {kind: SelectorLine, path: "spec/user.rb", lines: []int{3}},
+	for value, want := range map[string]rubytestreceipt.Selector{
+		userSpec:                   {Kind: SelectorPath, Path: userSpec},
+		"spec":                     {Kind: SelectorPath, Path: "spec"},
+		"./" + userSpec + ":4":     {Kind: SelectorLine, Path: userSpec, Lines: []int{4}},
+		userSpec + ":2:6":          {Kind: SelectorLine, Path: userSpec, Lines: []int{2, 6}},
+		userSpec + "[1:2]":         {Kind: SelectorID, Path: userSpec, Ids: []string{"1:2"}},
+		userSpec + "[1:2,1:3]":     {Kind: SelectorID, Path: userSpec, Ids: []string{"1:2", "1:3"}},
+		"spec/odd[name]_spec.rb":   {Kind: SelectorPath, Path: "spec/odd[name]_spec.rb"},
+		"spec/odd[x]":              {Kind: SelectorPath, Path: "spec/odd[x]"},
+		userSpec + ":0":            {Kind: SelectorPath, Path: userSpec + ":0"},
+		userSpec + ":100000000":    {Kind: SelectorPath, Path: userSpec + ":100000000"},
+		"spec/models/../user.rb:3": {Kind: SelectorLine, Path: "spec/user.rb", Lines: []int{3}},
 	} {
-		got, err := parseSelector(value)
-		if err != nil || got.kind != want.kind || got.path != want.path || !slices.Equal(got.lines, want.lines) || !slices.Equal(got.ids, want.ids) {
+		got, err := rubytestreceipt.ParseSelector(value)
+		if err != nil || got.Kind != want.Kind || got.Path != want.Path || !slices.Equal(got.Lines, want.Lines) || !slices.Equal(got.Ids, want.Ids) {
 			t.Fatalf("parseSelector(%q) = %+v, %v; want %+v", value, got, err, want)
 		}
 	}
-	for _, value := range []string{"", "../" + userSpec + ":2", "/abs/" + userSpec, ":4", ".:4", ".[1]", "spec/../../x_spec.rb[1]", strings.Repeat("a", maxSelectorBytes+1), "spec/a\x00b"} {
-		if got, err := parseSelector(value); err == nil {
+	for _, value := range []string{"", "../" + userSpec + ":2", "/abs/" + userSpec, ":4", ".:4", ".[1]", "spec/../../x_spec.rb[1]", strings.Repeat("a", rubytestreceipt.MaxSelectorBytes+1), "spec/a\x00b"} {
+		if got, err := rubytestreceipt.ParseSelector(value); err == nil {
 			t.Fatalf("parseSelector(%q) accepted as %+v", value, got)
 		}
 	}
@@ -171,21 +173,21 @@ func TestLPCVV0133RuntimeObservedInsidePrefix(t *testing.T) {
 		write(t, path, "#!/bin/sh\nif [ \"$1\" = ruby ]; then\n:\n"+probe+"\nfi\nexec \"$@\"\n", 0o755)
 		return []string{path}
 	}
-	notInside := RuntimeFact{Unknown: runtimeNotInsidePfx}
+	notInside := RuntimeFact{Unknown: rubytestreceipt.RuntimeNotInsidePfx}
 	for name, test := range map[string]struct {
 		probe string
 		want  Runtime
 	}{
 		"reported": {"echo noise; echo 'corvint-runtime-identity ruby=3.3.5 bundler=2.5.16 container=" + container + "'; exit 0",
-			Runtime{RuntimeBasis, RuntimeFact{Value: "3.3.5"}, RuntimeFact{Value: "2.5.16"}, RuntimeFact{Value: container}, notInside, nil}},
+			Runtime{Basis: RuntimeBasis, Ruby: RuntimeFact{Value: "3.3.5"}, Bundler: RuntimeFact{Value: "2.5.16"}, ProbeContainer: RuntimeFact{Value: container}, Image: notInside, RunContainer: nil}},
 		"partial": {"echo 'corvint-runtime-identity ruby=3.3.5 bundler=2/5 container=ABC ruby=3.3.5'; exit 0",
-			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeNotReported}, RuntimeFact{Unknown: runtimeNotReported}, RuntimeFact{Unknown: runtimeNotReported}, notInside, nil}},
+			Runtime{Basis: RuntimeBasis, Ruby: RuntimeFact{Unknown: rubytestreceipt.RuntimeNotReported}, Bundler: RuntimeFact{Unknown: rubytestreceipt.RuntimeNotReported}, ProbeContainer: RuntimeFact{Unknown: rubytestreceipt.RuntimeNotReported}, Image: notInside, RunContainer: nil}},
 		"failed": {"echo 'corvint-runtime-identity ruby=3.3.5'; exit 1",
-			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside, nil}},
+			Runtime{Basis: RuntimeBasis, Ruby: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, Bundler: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, ProbeContainer: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, Image: notInside, RunContainer: nil}},
 		"two lines": {"echo 'corvint-runtime-identity ruby=3.3.5'; echo 'corvint-runtime-identity ruby=3.2.0'; exit 0",
-			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside, nil}},
+			Runtime{Basis: RuntimeBasis, Ruby: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, Bundler: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, ProbeContainer: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, Image: notInside, RunContainer: nil}},
 		"stderr overflow": {"head -c 70000 /dev/zero | tr '\\0' x >&2; echo 'corvint-runtime-identity ruby=3.3.5 bundler=2.5.16'; exit 0",
-			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside, nil}},
+			Runtime{Basis: RuntimeBasis, Ruby: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, Bundler: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, ProbeContainer: RuntimeFact{Unknown: rubytestreceipt.RuntimeProbeFailed}, Image: notInside, RunContainer: nil}},
 	} {
 		document := run(t, Config{Dir: root, ExecPrefix: prefix(test.probe), RSpec: rspec})
 		if document.Runtime == nil || *document.Runtime != test.want {
@@ -202,13 +204,13 @@ func TestLPCVV0133RuntimeObservedInsidePrefix(t *testing.T) {
 		t.Fatalf("a host run records a runtime identity: %+v", document.Runtime)
 	}
 
-	reported := Runtime{RuntimeBasis, RuntimeFact{Value: "3.3.5"}, RuntimeFact{Value: "2.5.16"}, RuntimeFact{Value: container}, notInside, nil}
-	if err := validateRuntime(&reported); err != nil {
+	reported := Runtime{Basis: RuntimeBasis, Ruby: RuntimeFact{Value: "3.3.5"}, Bundler: RuntimeFact{Value: "2.5.16"}, ProbeContainer: RuntimeFact{Value: container}, Image: notInside, RunContainer: nil}
+	if err := rubytestreceipt.ValidateRuntime(&reported); err != nil {
 		t.Fatal(err)
 	}
 	for name, mutate := range map[string]func(*Runtime){
 		"basis":         func(r *Runtime) { r.Basis = "host" },
-		"both":          func(r *Runtime) { r.Ruby.Unknown = runtimeNotReported },
+		"both":          func(r *Runtime) { r.Ruby.Unknown = rubytestreceipt.RuntimeNotReported },
 		"neither":       func(r *Runtime) { r.Bundler = RuntimeFact{} },
 		"open reason":   func(r *Runtime) { r.ProbeContainer = RuntimeFact{Unknown: "host"} },
 		"bad version":   func(r *Runtime) { r.Ruby.Value = "3.3 5" },
@@ -218,7 +220,7 @@ func TestLPCVV0133RuntimeObservedInsidePrefix(t *testing.T) {
 	} {
 		mutated := reported
 		mutate(&mutated)
-		if validateRuntime(&mutated) == nil {
+		if rubytestreceipt.ValidateRuntime(&mutated) == nil {
 			t.Fatalf("%s accepted", name)
 		}
 	}
@@ -255,8 +257,8 @@ func TestLPCVV0134SharedExampleOrigin(t *testing.T) {
 	if shared == nil || shared.Origin != userSpec+":2" || !slices.Equal(shared.IncludedAt, []string{userSpec + ":9", "spec/support/models.rb:3"}) || document.Examples[0].SharedExampleAbsent != "" {
 		t.Fatalf("shared example=%+v", document.Examples[0])
 	}
-	if document.Examples[1].SharedExample != nil || document.Examples[1].SharedExampleAbsent != sharedNotShared ||
-		document.Examples[2].SharedExample != nil || document.Examples[2].SharedExampleAbsent != sharedNotReported {
+	if document.Examples[1].SharedExample != nil || document.Examples[1].SharedExampleAbsent != rubytestreceipt.SharedNotShared ||
+		document.Examples[2].SharedExample != nil || document.Examples[2].SharedExampleAbsent != rubytestreceipt.SharedNotReported {
 		t.Fatalf("absences=%+v %+v", document.Examples[1], document.Examples[2])
 	}
 	if err := Validate(document); err != nil {
@@ -273,12 +275,12 @@ func TestLPCVV0134SharedExampleOrigin(t *testing.T) {
 		"traversal":      `[` + frame(`"../x_spec.rb:1"`) + `]`,
 		"absolute":       `[` + frame(`"/gems/x.rb:1"`) + `]`,
 		"secret-shaped":  `[` + frame(`"./spec/ghp_`+strings.Repeat("A", 36)+`.rb:1"`) + `]`,
-		"over bound":     `[` + frame(`"./spec/`+strings.Repeat("a", maxInclusionLocation)+`.rb:1"`) + `]`,
-		"too many":       `[` + strings.Repeat(frame(`"./spec/x_spec.rb:1"`)+",", maxInclusions) + frame(`"./spec/x_spec.rb:1"`) + `]`,
+		"over bound":     `[` + frame(`"./spec/`+strings.Repeat("a", rubytestreceipt.MaxInclusionLocation)+`.rb:1"`) + `]`,
+		"too many":       `[` + strings.Repeat(frame(`"./spec/x_spec.rb:1"`)+",", rubytestreceipt.MaxInclusions) + frame(`"./spec/x_spec.rb:1"`) + `]`,
 		"bare dot frame": `[` + frame(`"./:1"`) + `]`,
 		"NUL in path":    `[` + frame(`"./spec/a\u0000.rb:7"`) + `]`,
 	} {
-		if shared, absent := observeShared(json.RawMessage(backtrace), ".", userSpec+":2"); shared != nil || absent != sharedInclusionUnbnd {
+		if shared, absent := observeShared(json.RawMessage(backtrace), ".", userSpec+":2"); shared != nil || absent != rubytestreceipt.SharedInclusionUnbnd {
 			t.Fatalf("%s: %+v %q", name, shared, absent)
 		}
 	}
@@ -288,15 +290,15 @@ func TestLPCVV0134SharedExampleOrigin(t *testing.T) {
 
 	legacy := document.Examples[2]
 	legacy.SharedExampleAbsent = ""
-	if validateShared(legacy) != nil {
+	if rubytestreceipt.ValidateShared(legacy) != nil {
 		t.Fatal("an example without either member is refused")
 	}
 	for name, mutate := range map[string]func(*Example){
-		"both":         func(e *Example) { e.SharedExampleAbsent = sharedNotReported },
+		"both":         func(e *Example) { e.SharedExampleAbsent = rubytestreceipt.SharedNotReported },
 		"other origin": func(e *Example) { e.SharedExample.Origin = userSpec + ":3" },
 		"no inclusion": func(e *Example) { e.SharedExample.IncludedAt = []string{} },
 		"too many": func(e *Example) {
-			e.SharedExample.IncludedAt = slices.Repeat([]string{userSpec + ":9"}, maxInclusions+1)
+			e.SharedExample.IncludedAt = slices.Repeat([]string{userSpec + ":9"}, rubytestreceipt.MaxInclusions+1)
 		},
 		"bad inclusion": func(e *Example) { e.SharedExample.IncludedAt = []string{"../x.rb:1"} },
 		"NUL inclusion": func(e *Example) { e.SharedExample.IncludedAt = []string{"spec/a\x00.rb:7"} },
@@ -306,7 +308,7 @@ func TestLPCVV0134SharedExampleOrigin(t *testing.T) {
 		copied := *mutated.SharedExample
 		mutated.SharedExample = &copied
 		mutate(&mutated)
-		if validateShared(mutated) == nil {
+		if rubytestreceipt.ValidateShared(mutated) == nil {
 			t.Fatalf("%s accepted", name)
 		}
 	}

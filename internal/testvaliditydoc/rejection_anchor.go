@@ -1,268 +1,77 @@
 package testvaliditydoc
 
 import (
-	"sort"
-
-	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
-// Rejection-anchor states (LPCV-V0-081, LPCV-V0-082).
-const (
-	AnchorAnchored      = "ANCHORED"
-	AnchorUnanchored    = "UNANCHORED"
-	AnchorFailed        = "ANCHOR-FAILED"
-	AnchorUnknown       = "UNKNOWN"
-	AnchorNotApplicable = "NOT_APPLICABLE"
-	AnchorNotProduced   = "NOT_PRODUCED"
-)
+// AnchorAnchored is testvaliditymodel.AnchorAnchored, kept under its old name.
+const AnchorAnchored = testvaliditymodel.AnchorAnchored
 
-// Rejection-anchor reasons (LPCV-V0-081, LPCV-V0-082).
-const (
-	AnchorRecordAbsent           = "request-outcome-record-absent"
-	AnchorRecordInvalid          = "request-outcome-record-invalid"
-	AnchorNotRejectionOnly       = "not-rejection-only"
-	AnchorTestNotPassed          = "test-not-passed"
-	AnchorRouteEvidenceMissing   = "anchor-route-evidence-missing"
-	AnchorActorEvidenceMissing   = "anchor-actor-evidence-missing"
-	AnchorDeclaredSiblingFailed  = "declared-positive-sibling-failed"
-	AnchorObservedSiblingFailed  = "positive-sibling-failed"
-	AnchorDeclaredSiblingPassed  = "declared-positive-sibling-passed"
-	AnchorSuccessOnRoute         = "success-on-route"
-	AnchorNoSuccessOnRoute       = "no-success-on-route"
-	AnchorDeclaredSiblingMissing = "declared-positive-sibling-not-completed"
+// AnchorUnanchored is testvaliditymodel.AnchorUnanchored, kept under its old name.
+const AnchorUnanchored = testvaliditymodel.AnchorUnanchored
 
-	AnchorActorScreened                = "anchor-actor-screened"
-	AnchorRouteScreened                = "anchor-route-screened"
-	AnchorDeclaredSiblingAmbiguous     = "declared-positive-sibling-ambiguous"
-	AnchorDeclaredSiblingNoEvidence    = "declared-positive-sibling-evidence-missing"
-	AnchorDeclaredSiblingRejectionOnly = "declared-positive-sibling-rejection-only"
-)
+// AnchorFailed is testvaliditymodel.AnchorFailed, kept under its old name.
+const AnchorFailed = testvaliditymodel.AnchorFailed
 
-// RejectionAnchor states whether a rejection-only test's rejection is anchored by evidence, in the
-// same run, that the same method and route template can succeed for the same actor (LPCV-V0-081).
-// It is not an axis: it never rewrites the five-axis projection. BlocksCredit marks an
-// ANCHOR-FAILED test that no consumer may credit as a witness (LPCV-V0-083). Siblings names, by
-// full title, the tests whose evidence decided the state.
-type RejectionAnchor struct {
-	State        string   `json:"state"`
-	Reason       string   `json:"reason"`
-	BlocksCredit bool     `json:"blocksCredit,omitempty"`
-	Siblings     []string `json:"siblings,omitempty"`
-}
+// AnchorUnknown is testvaliditymodel.AnchorUnknown, kept under its old name.
+const AnchorUnknown = testvaliditymodel.AnchorUnknown
 
-type anchorRoute struct {
-	method string
-	route  string
-}
+// AnchorNotApplicable is testvaliditymodel.AnchorNotApplicable, kept under its old name.
+const AnchorNotApplicable = testvaliditymodel.AnchorNotApplicable
 
-// anchorTest is one receipt test's last-attempt record, or nil when the last attempt carries none.
-type anchorTest struct {
-	outcome jstestprovider.TestOutcome
-	record  *jstestprovider.RequestOutcomeRecord
-	valid   bool
-}
+// AnchorNotProduced is testvaliditymodel.AnchorNotProduced, kept under its old name.
+const AnchorNotProduced = testvaliditymodel.AnchorNotProduced
 
-// rejectionAnchorEvidence returns each test's rejection anchor. It returns nil when no attempt of
-// the receipt carries a request-outcome record, or the receipt is profiled, so such a document
-// keeps every byte (LPCV-V0-081).
-func rejectionAnchorEvidence(receipt jstestprovider.Receipt) []*RejectionAnchor {
-	if receipt.Profile != "" || !anyRequestOutcomeRecord(receipt) {
-		return nil
-	}
-	tests := make([]anchorTest, len(receipt.Tests))
-	for i, outcome := range receipt.Tests {
-		tests[i] = anchorTest{outcome: outcome}
-		if len(outcome.AttemptDetails) == 0 {
-			continue
-		}
-		record := outcome.AttemptDetails[len(outcome.AttemptDetails)-1].RequestOutcomes
-		if record != nil {
-			tests[i].record = record
-			tests[i].valid = jstestprovider.ValidRequestOutcomeRecord(*record)
-		}
-	}
-	evidence := make([]*RejectionAnchor, len(tests))
-	for i := range tests {
-		evidence[i] = rejectionAnchor(tests, i)
-	}
-	return evidence
-}
+// AnchorRecordAbsent is testvaliditymodel.AnchorRecordAbsent, kept under its old name.
+const AnchorRecordAbsent = testvaliditymodel.AnchorRecordAbsent
 
-func anyRequestOutcomeRecord(receipt jstestprovider.Receipt) bool {
-	for _, outcome := range receipt.Tests {
-		for _, detail := range outcome.AttemptDetails {
-			if detail.RequestOutcomes != nil {
-				return true
-			}
-		}
-	}
-	return false
-}
+// AnchorRecordInvalid is testvaliditymodel.AnchorRecordInvalid, kept under its old name.
+const AnchorRecordInvalid = testvaliditymodel.AnchorRecordInvalid
 
-func testPassed(state jstestprovider.ExecutionState) bool {
-	return state == jstestprovider.StatePassed || state == jstestprovider.StateFlaky
-}
+// AnchorNotRejectionOnly is testvaliditymodel.AnchorNotRejectionOnly, kept under its old name.
+const AnchorNotRejectionOnly = testvaliditymodel.AnchorNotRejectionOnly
 
-func testFailed(state jstestprovider.ExecutionState) bool {
-	return state == jstestprovider.StateFailed || state == jstestprovider.StateTimedOut
-}
+// AnchorTestNotPassed is testvaliditymodel.AnchorTestNotPassed, kept under its old name.
+const AnchorTestNotPassed = testvaliditymodel.AnchorTestNotPassed
 
-func testTitle(outcome jstestprovider.TestOutcome) string {
-	if outcome.FullName != "" {
-		return outcome.FullName
-	}
-	return outcome.Name
-}
+// AnchorRouteEvidenceMissing is testvaliditymodel.AnchorRouteEvidenceMissing, kept under its old name.
+const AnchorRouteEvidenceMissing = testvaliditymodel.AnchorRouteEvidenceMissing
 
-// rejectionAnchor classifies one test from its last attempt (LPCV-V0-081, LPCV-V0-082). Evidence
-// that is missing never anchors: a rejection-only record without a route or actor is UNKNOWN, and a
-// sibling record without the same actor is not a candidate. An actor or route the secret screen
-// changed never joins, because distinct secrets share one placeholder.
-func rejectionAnchor(tests []anchorTest, self int) *RejectionAnchor {
-	test := tests[self]
-	switch {
-	case test.record == nil:
-		return &RejectionAnchor{State: AnchorNotProduced, Reason: AnchorRecordAbsent}
-	case !test.valid:
-		return &RejectionAnchor{State: AnchorNotProduced, Reason: AnchorRecordInvalid}
-	case test.record.Assertion != jstestprovider.AssertionRejectionOnly:
-		return &RejectionAnchor{State: AnchorNotApplicable, Reason: AnchorNotRejectionOnly}
-	case !testPassed(test.outcome.State):
-		return &RejectionAnchor{State: AnchorNotApplicable, Reason: AnchorTestNotPassed}
-	case len(test.record.Requests) == 0:
-		return &RejectionAnchor{State: AnchorUnknown, Reason: AnchorRouteEvidenceMissing}
-	case test.record.Actor == "":
-		return &RejectionAnchor{State: AnchorUnknown, Reason: AnchorActorEvidenceMissing}
-	case jstestprovider.ScreenedRequestOutcomeText(test.record.Actor):
-		return &RejectionAnchor{State: AnchorUnknown, Reason: AnchorActorScreened}
-	}
-	routes := map[anchorRoute]bool{}
-	for _, request := range test.record.Requests {
-		if jstestprovider.ScreenedRequestOutcomeText(request.Route) {
-			return &RejectionAnchor{State: AnchorUnknown, Reason: AnchorRouteScreened}
-		}
-		routes[anchorRoute{request.Method, request.Route}] = true
-	}
-	failed := map[string]bool{}
-	succeeded := map[anchorRoute][]string{}
-	for i, other := range tests {
-		if i == self || other.record == nil || !other.valid || other.record.Actor != test.record.Actor {
-			continue
-		}
-		for _, request := range other.record.Requests {
-			key := anchorRoute{request.Method, request.Route}
-			if !routes[key] {
-				continue
-			}
-			if other.record.Assertion == jstestprovider.AssertionPositive && testFailed(other.outcome.State) {
-				failed[testTitle(other.outcome)] = true
-			}
-			if jstestprovider.IsSuccessStatus(request.Status) && testPassed(other.outcome.State) {
-				succeeded[key] = append(succeeded[key], testTitle(other.outcome))
-			}
-		}
-	}
-	sibling := declaredSibling(tests, self, routes)
-	if sibling.state == AnchorFailed || len(failed) != 0 {
-		reason := AnchorObservedSiblingFailed
-		if sibling.state == AnchorFailed {
-			reason = AnchorDeclaredSiblingFailed
-			for _, title := range sibling.titles {
-				failed[title] = true
-			}
-		}
-		return &RejectionAnchor{State: AnchorFailed, Reason: reason, BlocksCredit: true, Siblings: sortedTitles(failed)}
-	}
-	if sibling.state == AnchorAnchored {
-		return &RejectionAnchor{State: AnchorAnchored, Reason: AnchorDeclaredSiblingPassed, Siblings: sibling.titles}
-	}
-	anchors := map[string]bool{}
-	for key := range routes {
-		if len(succeeded[key]) == 0 {
-			if sibling.state != "" {
-				return &RejectionAnchor{State: sibling.state, Reason: sibling.reason}
-			}
-			return &RejectionAnchor{State: AnchorUnanchored, Reason: AnchorNoSuccessOnRoute}
-		}
-		for _, title := range succeeded[key] {
-			anchors[title] = true
-		}
-	}
-	return &RejectionAnchor{State: AnchorAnchored, Reason: AnchorSuccessOnRoute, Siblings: sortedTitles(anchors)}
-}
+// AnchorActorEvidenceMissing is testvaliditymodel.AnchorActorEvidenceMissing, kept under its old name.
+const AnchorActorEvidenceMissing = testvaliditymodel.AnchorActorEvidenceMissing
 
-// siblingVerdict is the declared positive sibling's contribution; an empty state means none was
-// declared.
-type siblingVerdict struct {
-	state  string
-	reason string
-	titles []string
-}
+// AnchorDeclaredSiblingFailed is testvaliditymodel.AnchorDeclaredSiblingFailed, kept under its old name.
+const AnchorDeclaredSiblingFailed = testvaliditymodel.AnchorDeclaredSiblingFailed
 
-// declaredSibling resolves the record's positiveSibling against the other tests of the run, by full
-// title or name and, when the test has a project, within that project (LPCV-V0-082). More than one
-// match, or a screened title, is ambiguous and never picked. A single failed match is
-// ANCHOR-FAILED. A single passed match anchors only through its own valid positive or mixed record
-// with a 2xx for the same actor on every rejected (method, route); a rejection-only record leaves
-// the test UNANCHORED and any other record, or none, leaves it UNKNOWN.
-func declaredSibling(tests []anchorTest, self int, routes map[anchorRoute]bool) siblingVerdict {
-	test := tests[self]
-	name := test.record.PositiveSibling
-	if name == "" {
-		return siblingVerdict{}
-	}
-	if jstestprovider.ScreenedRequestOutcomeText(name) {
-		return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingAmbiguous}
-	}
-	match := -1
-	for i, other := range tests {
-		if i == self || (other.outcome.FullName != name && other.outcome.Name != name) {
-			continue
-		}
-		if test.outcome.Project != nil && (other.outcome.Project == nil || other.outcome.Project.Name != test.outcome.Project.Name) {
-			continue
-		}
-		if match >= 0 {
-			return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingAmbiguous}
-		}
-		match = i
-	}
-	if match < 0 {
-		return siblingVerdict{state: AnchorUnanchored, reason: AnchorDeclaredSiblingMissing}
-	}
-	sibling := tests[match]
-	titles := []string{testTitle(sibling.outcome)}
-	switch {
-	case testFailed(sibling.outcome.State):
-		return siblingVerdict{state: AnchorFailed, reason: AnchorDeclaredSiblingFailed, titles: titles}
-	case !testPassed(sibling.outcome.State):
-		return siblingVerdict{state: AnchorUnanchored, reason: AnchorDeclaredSiblingMissing}
-	case sibling.record == nil || !sibling.valid:
-		return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingNoEvidence}
-	case sibling.record.Assertion == jstestprovider.AssertionRejectionOnly:
-		return siblingVerdict{state: AnchorUnanchored, reason: AnchorDeclaredSiblingRejectionOnly}
-	case sibling.record.Actor != test.record.Actor:
-		return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingNoEvidence}
-	}
-	succeeded := map[anchorRoute]bool{}
-	for _, request := range sibling.record.Requests {
-		if jstestprovider.IsSuccessStatus(request.Status) {
-			succeeded[anchorRoute{request.Method, request.Route}] = true
-		}
-	}
-	for key := range routes {
-		if !succeeded[key] {
-			return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingNoEvidence}
-		}
-	}
-	return siblingVerdict{state: AnchorAnchored, reason: AnchorDeclaredSiblingPassed, titles: titles}
-}
+// AnchorObservedSiblingFailed is testvaliditymodel.AnchorObservedSiblingFailed, kept under its old name.
+const AnchorObservedSiblingFailed = testvaliditymodel.AnchorObservedSiblingFailed
 
-func sortedTitles(set map[string]bool) []string {
-	titles := make([]string, 0, len(set))
-	for title := range set {
-		titles = append(titles, title)
-	}
-	sort.Strings(titles)
-	return titles
-}
+// AnchorDeclaredSiblingPassed is testvaliditymodel.AnchorDeclaredSiblingPassed, kept under its old name.
+const AnchorDeclaredSiblingPassed = testvaliditymodel.AnchorDeclaredSiblingPassed
+
+// AnchorSuccessOnRoute is testvaliditymodel.AnchorSuccessOnRoute, kept under its old name.
+const AnchorSuccessOnRoute = testvaliditymodel.AnchorSuccessOnRoute
+
+// AnchorNoSuccessOnRoute is testvaliditymodel.AnchorNoSuccessOnRoute, kept under its old name.
+const AnchorNoSuccessOnRoute = testvaliditymodel.AnchorNoSuccessOnRoute
+
+// AnchorDeclaredSiblingMissing is testvaliditymodel.AnchorDeclaredSiblingMissing, kept under its old name.
+const AnchorDeclaredSiblingMissing = testvaliditymodel.AnchorDeclaredSiblingMissing
+
+// AnchorActorScreened is testvaliditymodel.AnchorActorScreened, kept under its old name.
+const AnchorActorScreened = testvaliditymodel.AnchorActorScreened
+
+// AnchorRouteScreened is testvaliditymodel.AnchorRouteScreened, kept under its old name.
+const AnchorRouteScreened = testvaliditymodel.AnchorRouteScreened
+
+// AnchorDeclaredSiblingAmbiguous is testvaliditymodel.AnchorDeclaredSiblingAmbiguous, kept under its old name.
+const AnchorDeclaredSiblingAmbiguous = testvaliditymodel.AnchorDeclaredSiblingAmbiguous
+
+// AnchorDeclaredSiblingNoEvidence is testvaliditymodel.AnchorDeclaredSiblingNoEvidence, kept under its old name.
+const AnchorDeclaredSiblingNoEvidence = testvaliditymodel.AnchorDeclaredSiblingNoEvidence
+
+// AnchorDeclaredSiblingRejectionOnly is testvaliditymodel.AnchorDeclaredSiblingRejectionOnly, kept under its old name.
+const AnchorDeclaredSiblingRejectionOnly = testvaliditymodel.AnchorDeclaredSiblingRejectionOnly
+
+// RejectionAnchor is testvaliditymodel.RejectionAnchor, kept under its old name.
+type RejectionAnchor = testvaliditymodel.RejectionAnchor

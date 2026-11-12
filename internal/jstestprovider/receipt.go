@@ -8,346 +8,113 @@
 package jstestprovider
 
 import (
-	"encoding/json"
-	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
-// ExecutionState is the per-test outcome vocabulary this provider maps every
-// reporter's own status field onto. It intentionally does not reuse
-// testvalidity.Execution* verbatim: those are the shared LPCV/GLTP axis
-// states, while this is the finer-grained JS/TS runner vocabulary the
-// roadmap acceptance criteria name explicitly (flaky/retried, timedOut,
-// interrupted, infrastructure) that a caller then folds into the shared axis
-// via ToExecutionFacts.
-type ExecutionState string
+// ExecutionState is jstestreceipt.ExecutionState, kept under its old name.
+type ExecutionState = jstestreceipt.ExecutionState
 
-const (
-	StatePassed         ExecutionState = "passed"
-	StateFailed         ExecutionState = "failed"
-	StateSkipped        ExecutionState = "skipped"
-	StateFlaky          ExecutionState = "flaky"
-	StateTimedOut       ExecutionState = "timedOut"
-	StateInterrupted    ExecutionState = "interrupted"
-	StateInfrastructure ExecutionState = "infrastructure"
-)
+// StatePassed is jstestreceipt.StatePassed, kept under its old name.
+const StatePassed = jstestreceipt.StatePassed
 
-// Anchor is one file:line source anchor taken from a reporter's own location
-// field (Playwright) or parsed from its failure stack trace (Vitest, which
-// does not emit a structured location field as of 5.0.0 - see
-// evidence/ipr-08-runner-selection.md section 4/5 and vitest_test.go).
-type Anchor struct {
-	File string `json:"file"`
-	Line int    `json:"line"`
-}
+// StateFailed is jstestreceipt.StateFailed, kept under its old name.
+const StateFailed = jstestreceipt.StateFailed
 
-// FailureArtifact is a bounded pointer to a failure artifact (trace,
-// screenshot, error-context) - the path the reporter recorded, never the
-// artifact's own content, which stays wherever the runner wrote it.
-type FailureArtifact struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
-}
+// StateSkipped is jstestreceipt.StateSkipped, kept under its old name.
+const StateSkipped = jstestreceipt.StateSkipped
 
-// TestOutcome is one reporter test/assertion result, normalized to this
-// package's ExecutionState vocabulary.
-type TestOutcome struct {
-	ImportedFiles  map[string]string `json:"importedFiles,omitempty"`
-	ID             string            `json:"id,omitempty"`
-	Project        *ProjectIdentity  `json:"project,omitempty"`
-	Attempts       []Attempt         `json:"attempts,omitempty"`
-	Name           string            `json:"name"`
-	FullName       string            `json:"fullName"`
-	State          ExecutionState    `json:"state"`
-	Retries        int               `json:"retries"`
-	DurationMS     float64           `json:"durationMs"`
-	Anchor         *Anchor           `json:"anchor,omitempty"`
-	FailureMessage string            `json:"failureMessage,omitempty"`
-	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
-	// AttemptDetails keeps every Playwright attempt in run order (AFU-V1-012), additive on the
-	// unprofiled receipt and explicit /3 profile. Earlier external profiles refuse it.
-	AttemptDetails []AttemptDetail `json:"attemptDetails,omitempty"`
-}
+// StateFlaky is jstestreceipt.StateFlaky, kept under its old name.
+const StateFlaky = jstestreceipt.StateFlaky
 
-// AttemptDetail is one attempt's outcome, duration, failure, anchor and attachments.
-type AttemptDetail struct {
-	State          ExecutionState    `json:"state"`
-	Retry          int               `json:"retry"`
-	DurationMS     float64           `json:"durationMs"`
-	FailureMessage string            `json:"failureMessage,omitempty"`
-	Anchor         *Anchor           `json:"anchor,omitempty"`
-	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
-	// FailureLocation is the failing error's own file and line in a `/3` attempt (PWP-V3-008),
-	// distinct from Anchor, which there names the test declaration. Absent means Playwright
-	// reported no error location, never a location at the anchor.
-	FailureLocation *Anchor `json:"failureLocation,omitempty"`
-	// RouteStubs is the attempt's request-stub record (LPCV-V0-072), unprofiled receipts only.
-	// Absent means not produced, never zero hits.
-	RouteStubs *RouteStubRecord `json:"routeStubs,omitempty"`
-	// RequestOutcomes is the attempt's declared request-outcome record (LPCV-V0-080), unprofiled
-	// receipts only. Absent means not produced, never a classification.
-	RequestOutcomes *RequestOutcomeRecord `json:"requestOutcomes,omitempty"`
-	// AssertionOperands is the attempt's declared assertion-operand record (LPCV-V0-120),
-	// unprofiled receipts only. Absent means not produced, never empty operands.
-	AssertionOperands *AssertionOperandRecord `json:"assertionOperands,omitempty"`
-	// OutboundCalls is the attempt's declared server-log outbound-call record (LPCV-V0-123),
-	// unprofiled receipts only. Absent means not produced, never a stubbed environment.
-	OutboundCalls *OutboundCallRecord `json:"outboundCalls,omitempty"`
-}
+// StateTimedOut is jstestreceipt.StateTimedOut, kept under its old name.
+const StateTimedOut = jstestreceipt.StateTimedOut
 
-// BrowserStep is the bounded action trace retained by the redaction-capable
-// external profile. Values entered by input actions never cross this boundary.
-type BrowserStep struct {
-	Title       string            `json:"title"`
-	Category    string            `json:"category,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-	Error       string            `json:"error,omitempty"`
-	Attachments []FailureArtifact `json:"attachments,omitempty"`
-	Steps       []BrowserStep     `json:"steps,omitempty"`
-	Redacted    bool              `json:"redacted,omitempty"`
-}
+// StateInterrupted is jstestreceipt.StateInterrupted, kept under its old name.
+const StateInterrupted = jstestreceipt.StateInterrupted
 
-// SensitiveInputPolicy carries provider additions. Defaults are always
-// applied and cannot be disabled or replaced by these declarations.
-type SensitiveInputPolicy struct {
-	AdditionalActionPatterns  []string `json:"additionalActionPatterns,omitempty"`
-	AdditionalSensitiveFields []string `json:"additionalSensitiveFields,omitempty"`
-}
+// StateInfrastructure is jstestreceipt.StateInfrastructure, kept under its old name.
+const StateInfrastructure = jstestreceipt.StateInfrastructure
 
-// InfrastructureFailure records a run-level failure that never produced a
-// per-test result: a bad command/config, a missing browser, a run the
-// reporter itself reports as having found no tests. It is distinct from a
-// per-test "failed" outcome (a real assertion or workflow failure) and from
-// StateInfrastructure applied to an individual outcome whose message pattern
-// still matches a known infrastructure cause (e.g. a missing browser
-// executable surfacing inside an otherwise well-formed per-test result).
-type InfrastructureFailure struct {
-	Reason string `json:"reason"`
-	Detail string `json:"detail"`
-	// Location is the reported file and line of a `/3` run-level error (PWP-V3-009); absent
-	// everywhere else.
-	Location *Anchor `json:"location,omitempty"`
-	// Phase is "preflight" for a failure observed before any test ran, naming the failing
-	// declared Probe and its Artefact (PWP-V0-092); absent everywhere else.
-	Phase    string `json:"phase,omitempty"`
-	Probe    string `json:"probe,omitempty"`
-	Artefact string `json:"artefact,omitempty"`
-}
+// Anchor is jstestreceipt.Anchor, kept under its old name.
+type Anchor = jstestreceipt.Anchor
 
-// Identity is every binding fact a receipt commits to before evidence
-// emits, per AGENTS.md invariant 1 and the roadmap acceptance line "bind
-// test/configuration/application build and environment identities."
-type Identity struct {
-	ConfigInputDigests map[string]string `json:"configInputDigests,omitempty"`
-	TestFileDigests    map[string]string `json:"testFileDigests"`
-	ConfigFile         string            `json:"configFile"`
-	ConfigDigest       string            `json:"configDigest"`
-	PackageDigest      string            `json:"packageDigest"`
-	NodeVersion        string            `json:"nodeVersion"`
-	RunnerName         string            `json:"runnerName"`
-	RunnerVersion      string            `json:"runnerVersion"`
-	// Environment holds only the declared keys a caller asked to bind, never
-	// the full process environment (AGENTS.md invariant 4 spirit: bounded,
-	// explicit inputs, not incidental host state).
-	Environment map[string]string `json:"environment"`
-	Argv        []string          `json:"argv"`
-}
+// FailureArtifact is jstestreceipt.FailureArtifact, kept under its old name.
+type FailureArtifact = jstestreceipt.FailureArtifact
 
-// AppBuildIdentity is the served app's content identity: a digest of the
-// configured build output directory, or "unknown" when no build directory
-// was configured (Vitest unit runs, or an E2E run with no app dir bound).
-type AppBuildIdentity struct {
-	Digest  string `json:"digest"`
-	Unknown bool   `json:"unknown"`
-	Reason  string `json:"reason,omitempty"`
-}
+// TestOutcome is jstestreceipt.TestOutcome, kept under its old name.
+type TestOutcome = jstestreceipt.TestOutcome
 
-// Receipt is the one JS/TS provider output shape: identity, app-build
-// freshness, per-test outcomes, and an optional run-level infrastructure
-// failure. It carries no boolean "valid" summary; ToInput below projects it
-// through the shared testvalidity axes instead.
-type Receipt struct {
-	Freshness               *FreshnessBinding                `json:"freshness,omitempty"`
-	DescendantObservation   *procgroup.DescendantObservation `json:"descendantObservation,omitempty"`
-	RunnerResources         *procgroup.ResourceUsage         `json:"runnerResources,omitempty"`
-	Schedule                *ExecutionSchedule               `json:"schedule,omitempty"`
-	Profile                 string                           `json:"profile,omitempty"`
-	SensitiveInputPolicy    *SensitiveInputPolicy            `json:"sensitiveInputPolicy,omitempty"`
-	External                *ExternalLifecycle               `json:"external,omitempty"`
-	ApplicationAttestation  *ApplicationAttestationReceipt   `json:"applicationAttestation,omitempty"`
-	TestRepositoryAtStart   *ApplicationRepositoryIdentity   `json:"testRepositoryAtStart,omitempty"`
-	TestRepositoryAtPublish *ApplicationRepositoryIdentity   `json:"testRepositoryAtPublish,omitempty"`
-	Kind                    string                           `json:"kind"` // "unit" | "e2e"
-	Identity                Identity                         `json:"identity"`
-	AppBuildAtStart         AppBuildIdentity                 `json:"appBuildAtStart"`
-	AppBuildAtPublish       AppBuildIdentity                 `json:"appBuildAtPublish"`
-	StaleAppBuild           bool                             `json:"staleAppBuild"`
-	Tests                   []TestOutcome                    `json:"tests"`
-	Infrastructure          *InfrastructureFailure           `json:"infrastructure,omitempty"`
-	Cancelled               bool                             `json:"cancelled"`
-	ServerDescendantsGone   *bool                            `json:"serverDescendantsGone,omitempty"`
-	// Bun is the bun runner profile member (LPCV-V0-256); absent for every other runner.
-	Bun *BunRun `json:"bun,omitempty"`
-	// Preflight is the declared external preflight record (PWP-V0-091); absent without
-	// --preflight, so earlier receipt bytes are unchanged.
-	Preflight *PreflightReceipt `json:"preflight,omitempty"`
-}
+// AttemptDetail is jstestreceipt.AttemptDetail, kept under its old name.
+type AttemptDetail = jstestreceipt.AttemptDetail
 
-// ExecutionSchedule records reporter-observed starts, not the requested order.
-type ExecutionSchedule struct {
-	Workers int              `json:"workers"`
-	Starts  []ExecutionStart `json:"starts"`
-}
+// BrowserStep is jstestreceipt.BrowserStep, kept under its old name.
+type BrowserStep = jstestreceipt.BrowserStep
 
-type ExecutionStart struct {
-	FullName      string `json:"fullName"`
-	File          string `json:"file"`
-	Line          int    `json:"line"`
-	Project       string `json:"project"`
-	Retry         int    `json:"retry"`
-	Retries       int    `json:"retries"`
-	Worker        int    `json:"worker"`
-	FullyParallel bool   `json:"fullyParallel"`
-}
+// SensitiveInputPolicy is jstestreceipt.SensitiveInputPolicy, kept under its old name.
+type SensitiveInputPolicy = jstestreceipt.SensitiveInputPolicy
 
-// ProjectIdentity binds the resolved runtime configuration, not a device label
-// inferred from the project name. Empty device labels remain explicit unknowns.
-type ProjectIdentity struct {
-	Name         string          `json:"name"`
-	Browser      string          `json:"browser"`
-	Device       string          `json:"device"`
-	Use          json.RawMessage `json:"use"`
-	ConfigDigest string          `json:"configDigest"`
-}
+// InfrastructureFailure is jstestreceipt.InfrastructureFailure, kept under its old name.
+type InfrastructureFailure = jstestreceipt.InfrastructureFailure
 
-type Attempt struct {
-	State       ExecutionState `json:"state"`
-	Retry       int            `json:"retry"`
-	FailureKind string         `json:"failureKind"`
-	Steps       []BrowserStep  `json:"steps,omitempty"`
-}
+// Identity is jstestreceipt.Identity, kept under its old name.
+type Identity = jstestreceipt.Identity
 
-type ExternalLifecycle struct {
-	ReadyURL              string `json:"readyUrl"`
-	DeclaredAppIdentity   string `json:"declaredAppIdentity"`
-	Ownership             string `json:"ownership"`
-	CleanupResponsibility string `json:"cleanupResponsibility"`
-	ServerDescendants     string `json:"serverDescendants"`
-	ReadyAtStart          bool   `json:"readyAtStart"`
-	ReadyAtPublish        bool   `json:"readyAtPublish"`
-	RunnerDescendantsGone bool   `json:"runnerDescendantsGone"`
-	InputsUnchanged       bool   `json:"inputsUnchanged"`
-	ConfigOverride        string `json:"configOverride"`
-	// ProjectReporters is present only for an explicit keep-reporters run
-	// (PWP-V0-010); the default replace-only receipt bytes are unchanged.
-	ProjectReporters *ProjectReporters `json:"projectReporters,omitempty"`
-	// Runner is the external runner's diagnostic process record
-	// (PWP-V0-029). Receipts written before it carry none.
-	Runner *RunnerProcess `json:"runner,omitempty"`
-}
+// AppBuildIdentity is jstestreceipt.AppBuildIdentity, kept under its old name.
+type AppBuildIdentity = jstestreceipt.AppBuildIdentity
 
-// RunnerProcess records how the `playwright test` runner ended. ExitStatus is
-// -1 unless the provider reaped an exit code; Signal is the wait-status
-// signal; StopSignal is the last of SIGINT, SIGTERM or SIGKILL the provider
-// sent before the exit was observed, empty when the runner ended on its own.
-// It never decides a test state or the infrastructure reason.
-type RunnerProcess struct {
-	ExitObserved    bool   `json:"exitObserved"`
-	ExitStatus      int    `json:"exitStatus"`
-	Signal          string `json:"signal"`
-	StopSignal      string `json:"stopSignal"`
-	OutputTruncated bool   `json:"outputTruncated"`
-}
+// Receipt is jstestreceipt.Receipt, kept under its old name.
+type Receipt = jstestreceipt.Receipt
 
-// ProjectReporters binds the project-owned reporter entries that ran beside the
-// provider reporter. Their writes, output and in-process effects are never
-// observed, so Effects is always "unknown" (PWP-V0-011).
-type ProjectReporters struct {
-	Entries []ProjectReporter `json:"entries"`
-	Effects string            `json:"effects"`
-	// Qualification is the caller-supplied keep-reporters qualification
-	// record (PWP-V0-016). It is present only when the run was given one, and
-	// the projection recomputes whether it matches this receipt.
-	Qualification *KeepReportersQualification `json:"qualification,omitempty"`
-}
+// ExecutionSchedule is jstestreceipt.ExecutionSchedule, kept under its old name.
+type ExecutionSchedule = jstestreceipt.ExecutionSchedule
 
-// ProjectReporter is one kept entry as Playwright received it. Module is
-// "builtin", "bound" (its source digest is a bound config input) or "unknown";
-// Options is "absent", "bound" (canonical JSON digest) or "unknown".
-type ProjectReporter struct {
-	Name          string `json:"name"`
-	Module        string `json:"module"`
-	ModuleDigest  string `json:"moduleDigest,omitempty"`
-	Options       string `json:"options"`
-	OptionsDigest string `json:"optionsDigest,omitempty"`
-}
+// ExecutionStart is jstestreceipt.ExecutionStart, kept under its old name.
+type ExecutionStart = jstestreceipt.ExecutionStart
 
-type ApplicationAttestationReceipt struct {
-	Provider    ApplicationAttestationProviderIdentity `json:"provider"`
-	Expectation ApplicationAttestationExpectation      `json:"expectation"`
-	Before      *ApplicationAttestationObservation     `json:"before,omitempty"`
-	After       *ApplicationAttestationObservation     `json:"after,omitempty"`
-	Failures    []string                               `json:"failures"`
-}
+// ProjectIdentity is jstestreceipt.ProjectIdentity, kept under its old name.
+type ProjectIdentity = jstestreceipt.ProjectIdentity
 
-type ApplicationAttestationProviderIdentity struct {
-	Profile          string            `json:"profile"`
-	Argv             []string          `json:"argv"`
-	ExecutablePath   string            `json:"executablePath"`
-	ExecutableDigest string            `json:"executableDigest"`
-	ConfigPath       string            `json:"configPath"`
-	ConfigDigest     string            `json:"configDigest"`
-	Environment      map[string]string `json:"environment"`
-}
+// Attempt is jstestreceipt.Attempt, kept under its old name.
+type Attempt = jstestreceipt.Attempt
 
-type ApplicationAttestationExpectation struct {
-	Repository    ApplicationRepositoryExpectation `json:"repository"`
-	Build         ApplicationArtifactIdentity      `json:"build"`
-	Configuration ApplicationArtifactIdentity      `json:"configuration"`
-	InstanceKind  string                           `json:"instanceKind"`
-}
+// ExternalLifecycle is jstestreceipt.ExternalLifecycle, kept under its old name.
+type ExternalLifecycle = jstestreceipt.ExternalLifecycle
 
-type ApplicationRepositoryExpectation struct {
-	RootCommit  string `json:"rootCommit"`
-	Revision    string `json:"revision"`
-	Tree        string `json:"tree"`
-	DirtyPolicy string `json:"dirtyPolicy"`
-	DirtyDigest string `json:"dirtyDigest,omitempty"`
-}
+// RunnerProcess is jstestreceipt.RunnerProcess, kept under its old name.
+type RunnerProcess = jstestreceipt.RunnerProcess
 
-type ApplicationAttestationObservation struct {
-	OutputDigest string                 `json:"outputDigest"`
-	Attestation  ApplicationAttestation `json:"attestation"`
-}
+// ProjectReporters is jstestreceipt.ProjectReporters, kept under its old name.
+type ProjectReporters = jstestreceipt.ProjectReporters
 
-type ApplicationAttestation struct {
-	Profile       string                        `json:"profile"`
-	Repository    ApplicationRepositoryIdentity `json:"repository"`
-	Build         ApplicationArtifactIdentity   `json:"build"`
-	Configuration ApplicationArtifactIdentity   `json:"configuration"`
-	Instance      ApplicationInstanceIdentity   `json:"instance"`
-	Health        ApplicationHealth             `json:"health"`
-}
+// ProjectReporter is jstestreceipt.ProjectReporter, kept under its old name.
+type ProjectReporter = jstestreceipt.ProjectReporter
 
-type ApplicationRepositoryIdentity struct {
-	RootCommit  string `json:"rootCommit"`
-	Revision    string `json:"revision"`
-	Tree        string `json:"tree"`
-	DirtyState  string `json:"dirtyState"`
-	DirtyDigest string `json:"dirtyDigest,omitempty"`
-}
+// ApplicationAttestationReceipt is jstestreceipt.ApplicationAttestationReceipt, kept under its old name.
+type ApplicationAttestationReceipt = jstestreceipt.ApplicationAttestationReceipt
 
-type ApplicationArtifactIdentity struct {
-	Kind   string `json:"kind"`
-	Digest string `json:"digest"`
-}
+// ApplicationAttestationProviderIdentity is jstestreceipt.ApplicationAttestationProviderIdentity, kept under its old name.
+type ApplicationAttestationProviderIdentity = jstestreceipt.ApplicationAttestationProviderIdentity
 
-type ApplicationInstanceIdentity struct {
-	Kind            string `json:"kind"`
-	ID              string `json:"id"`
-	StartGeneration string `json:"startGeneration"`
-}
+// ApplicationAttestationExpectation is jstestreceipt.ApplicationAttestationExpectation, kept under its old name.
+type ApplicationAttestationExpectation = jstestreceipt.ApplicationAttestationExpectation
 
-type ApplicationHealth struct {
-	State  string `json:"state"`
-	Detail string `json:"detail,omitempty"`
-}
+// ApplicationRepositoryExpectation is jstestreceipt.ApplicationRepositoryExpectation, kept under its old name.
+type ApplicationRepositoryExpectation = jstestreceipt.ApplicationRepositoryExpectation
+
+// ApplicationAttestationObservation is jstestreceipt.ApplicationAttestationObservation, kept under its old name.
+type ApplicationAttestationObservation = jstestreceipt.ApplicationAttestationObservation
+
+// ApplicationAttestation is jstestreceipt.ApplicationAttestation, kept under its old name.
+type ApplicationAttestation = jstestreceipt.ApplicationAttestation
+
+// ApplicationRepositoryIdentity is jstestreceipt.ApplicationRepositoryIdentity, kept under its old name.
+type ApplicationRepositoryIdentity = jstestreceipt.ApplicationRepositoryIdentity
+
+// ApplicationArtifactIdentity is jstestreceipt.ApplicationArtifactIdentity, kept under its old name.
+type ApplicationArtifactIdentity = jstestreceipt.ApplicationArtifactIdentity
+
+// ApplicationInstanceIdentity is jstestreceipt.ApplicationInstanceIdentity, kept under its old name.
+type ApplicationInstanceIdentity = jstestreceipt.ApplicationInstanceIdentity
+
+// ApplicationHealth is jstestreceipt.ApplicationHealth, kept under its old name.
+type ApplicationHealth = jstestreceipt.ApplicationHealth

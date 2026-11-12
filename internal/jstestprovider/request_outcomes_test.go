@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 func requestOutcomeAnnotation(description string) playwrightAnnotation {
@@ -48,7 +50,7 @@ func TestLPCVV0080AnnotationIsClosed(t *testing.T) {
 		"duplicate status":        {requestOutcomeAnnotation(`{"assertion":"positive","requests":[{"method":"GET","route":"/a","status":403,"status":200}]}`)},
 		"case variant member":     {requestOutcomeAnnotation(`{"assertion":"positive","requests":[{"method":"GET","route":"/a","status":null,"Status":200}]}`)},
 		"too many requests":       {requestOutcomeAnnotation(`{"assertion":"positive","requests":[` + strings.Join(many, ",") + `]}`)},
-		"oversized":               {requestOutcomeAnnotation(`{"assertion":"positive","requests":[]}` + strings.Repeat(" ", maxRequestOutcomeDescription))},
+		"oversized":               {requestOutcomeAnnotation(`{"assertion":"positive","requests":[]}` + strings.Repeat(" ", jstestreceipt.MaxRequestOutcomeDescription))},
 		"non-string":              {{Type: RequestOutcomesAnnotation, Description: valid, malformed: true}},
 	} {
 		if got := requestOutcomeRecord(annotations); got != nil {
@@ -87,7 +89,7 @@ func TestLPCVV0080ProfiledReceiptsRefuseRequestOutcomes(t *testing.T) {
 	o := attemptTestOutcome()
 	o.AttemptDetails[1].RequestOutcomes = &RequestOutcomeRecord{Assertion: AssertionPositive, Requests: []RequestOutcome{}}
 	for _, profile := range []string{ExternalProfile, AttestedExternalProfile, SensitiveExternalProfile, AttemptExternalProfile} {
-		if err := qualifiedProfileShapeError(Receipt{Profile: profile, Tests: []TestOutcome{o}}); err == nil {
+		if err := jstestreceipt.QualifiedProfileShapeError(Receipt{Profile: profile, Tests: []TestOutcome{o}}); err == nil {
 			t.Fatalf("%s accepted request outcomes", profile)
 		}
 	}

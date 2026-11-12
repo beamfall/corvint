@@ -26,6 +26,14 @@
       "reason": "versioned controlled-edit corpus (AZU-V0-002, AEO-V0-001), read by tools/affected-edit-oracle main and TestCorpus; no build executes it; enclosing-package, literal, declared and unbounded readers remain selected"
     },
     {
+      "path": "tools/fault-harness/revert-rule.json",
+      "reason": "committed reverted-fix rule (FIH-V1-002, A17), read by fault-harness select-reverts and seal and by TestRevertRule and TestSeal; no build executes it; enclosing-package, literal, declared and unbounded readers remain selected"
+    },
+    {
+      "path": "tools/fault-harness/revert-rule.json.sha256",
+      "reason": "committed SHA-256 of the reverted-fix rule (FIH-V1-001, FIH-V1-002), read by the fault-harness tests; no build executes it; enclosing-package, literal, declared and unbounded readers remain selected"
+    },
+    {
       "path": "tools/linecov/command-tree.json",
       "reason": "generated help snapshot (AZU-V0-002), read by tools/linecov TestCommandTreeSnapshot; enclosing-package, literal, declared and unbounded readers remain selected"
     },

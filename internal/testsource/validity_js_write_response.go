@@ -44,14 +44,14 @@ type writeStepFacts struct {
 }
 
 // writeResponseFindings returns the TSA-V0-230..233 findings of example e.
-func (r *jsReader) writeResponseFindings(e jsDecl, finding func(rule, severity, location, cause, message string) testvalidity.SourceFinding) []testvalidity.SourceFinding {
+func writeResponseFindings(r *jsReader, e jsDecl, finding func(rule, severity, location, cause, message string) testvalidity.SourceFinding) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
-	if !e.hasBody {
+	if !e.HasBody {
 		return out
 	}
 	exemplar := ""
-	for _, step := range r.writeSteps(e.body) {
-		facts := r.writeStepFacts(step)
+	for _, step := range writeSteps(r, e.Body) {
+		facts := jsReaderWriteStepFacts(r, step)
 		if facts.action < 0 {
 			continue
 		}
@@ -61,18 +61,18 @@ func (r *jsReader) writeResponseFindings(e jsDecl, finding func(rule, severity, 
 			}
 			switch {
 			case w.unresolved != "":
-				out = append(out, finding(testvalidity.RuleWriteResponseUnresolved, testvalidity.SeverityAdvisory, r.at(facts.actionLine), r.at(w.line),
+				out = append(out, finding(testvalidity.RuleWriteResponseUnresolved, testvalidity.SeverityAdvisory, jsReaderAt(r, facts.actionLine), jsReaderAt(r, w.line),
 					"abstained: the request the step's user action triggers cannot be resolved ("+w.unresolved+"), so whether an unasserted write response is left is unknown"))
 			case w.method != "":
 				if exemplar == "" {
-					exemplar = r.writeExemplar()
+					exemplar = writeExemplar(r)
 				}
-				message := "the step's user action triggers a first-party " + w.method + " request awaited at " + r.at(w.line) +
+				message := "the step's user action triggers a first-party " + w.method + " request awaited at " + jsReaderAt(r, w.line) +
 					" but no assertion in the step binds its response (status or body), so a failed or misrouted write still passes"
 				if exemplar != "-" {
 					message += "; start the response wait before the action and assert its status after it, as " + exemplar + " does"
 				}
-				out = append(out, finding(testvalidity.RuleWriteResponseUnasserted, testvalidity.SeverityAdvisory, r.at(facts.actionLine), r.at(w.line), message))
+				out = append(out, finding(testvalidity.RuleWriteResponseUnasserted, testvalidity.SeverityAdvisory, jsReaderAt(r, facts.actionLine), jsReaderAt(r, w.line), message))
 			}
 		}
 	}
@@ -81,19 +81,19 @@ func (r *jsReader) writeResponseFindings(e jsDecl, finding func(rule, severity, 
 
 // writeExemplar returns `path:line` of the first in-file wait that starts before its step's
 // action, resolves to a write and is asserted (TSA-V0-232), or "-" when there is none.
-func (r *jsReader) writeExemplar() string {
-	for _, d := range r.decls {
-		if d.kind != "test" || !d.hasBody {
+func writeExemplar(r *jsReader) string {
+	for _, d := range r.Decls {
+		if d.Kind != "test" || !d.HasBody {
 			continue
 		}
-		for _, step := range r.writeSteps(d.body) {
-			facts := r.writeStepFacts(step)
+		for _, step := range writeSteps(r, d.Body) {
+			facts := jsReaderWriteStepFacts(r, step)
 			if facts.action < 0 {
 				continue
 			}
 			for _, w := range facts.waits {
 				if w.method != "" && w.asserted && w.early {
-					return r.at(w.line)
+					return jsReaderAt(r, w.line)
 				}
 			}
 		}
@@ -102,17 +102,17 @@ func (r *jsReader) writeExemplar() string {
 }
 
 // writeSteps splits an example body into its `X.step(title, fn)` bodies and the rest.
-func (r *jsReader) writeSteps(body [2]int) []writeStep {
-	s := r.s
+func writeSteps(r *jsReader, body [2]int) []writeStep {
+	s := r.S
 	rest := writeStep{span: body}
 	steps := []writeStep{}
 	for k := body[0]; k < body[1]; k++ {
-		if !s.ident(k, "step") || !s.memberAccess(k) || !s.punct(k+1, "(") || s.match[k+1] < 0 {
+		if !s.Ident(k, "step") || !s.MemberAccess(k) || !s.Punct(k+1, "(") || s.Match[k+1] < 0 {
 			continue
 		}
-		args := s.splitArgs(k+1, s.match[k+1])
+		args := s.SplitArgs(k+1, s.Match[k+1])
 		for a := 1; a < len(args); a++ {
-			if inner, _, ok := s.functionBody(args[a][0]); ok && inner[1] <= args[a][1] {
+			if inner, _, ok := s.FunctionBody(args[a][0]); ok && inner[1] <= args[a][1] {
 				steps = append(steps, writeStep{span: inner})
 				rest.skip = append(rest.skip, inner)
 				k = inner[1]
@@ -134,32 +134,20 @@ func (st writeStep) next(k int) int {
 	return k
 }
 
-func (st writeStep) has(k int) bool {
-	if !within(k, st.span) {
-		return false
-	}
-	for _, sk := range st.skip {
-		if within(k, sk) {
-			return false
-		}
-	}
-	return true
-}
-
 // writeStepFacts reads one step's first user action and its waits.
-func (r *jsReader) writeStepFacts(st writeStep) writeStepFacts {
-	s := r.s
+func jsReaderWriteStepFacts(r *jsReader, st writeStep) writeStepFacts {
+	s := r.S
 	facts := writeStepFacts{action: -1}
 	for k := st.span[0]; k < st.span[1]; k = st.next(k) {
-		if !s.ident(k, "") || !s.memberAccess(k) || !s.punct(k+1, "(") || s.match[k+1] < 0 {
+		if !s.Ident(k, "") || !s.MemberAccess(k) || !s.Punct(k+1, "(") || s.Match[k+1] < 0 {
 			continue
 		}
-		name := s.tokens[k].Text
+		name := s.Tokens[k].Text
 		if writeActions[name] && facts.action < 0 {
-			facts.action, facts.actionLine = k, s.tokens[k].Line
+			facts.action, facts.actionLine = k, s.Tokens[k].Line
 		}
 		if writeWaits[name] {
-			facts.waits = append(facts.waits, r.readWait(st, k))
+			facts.waits = append(facts.waits, readWait(r, st, k))
 		}
 	}
 	for i := range facts.waits {
@@ -170,39 +158,39 @@ func (r *jsReader) writeStepFacts(st writeStep) writeStepFacts {
 }
 
 // readWait resolves the wait call whose member name is at token k (TSA-V0-230, TSA-V0-231).
-func (r *jsReader) readWait(st writeStep, k int) writeWait {
-	s := r.s
-	w := writeWait{at: k, line: s.tokens[k].Line}
+func readWait(r *jsReader, st writeStep, k int) writeWait {
+	s := r.S
+	w := writeWait{at: k, line: s.Tokens[k].Line}
 	open := k + 1
-	args := s.splitArgs(open, s.match[open])
+	args := s.SplitArgs(open, s.Match[open])
 	if len(args) == 0 {
 		w.unresolved = "the wait names no request"
 	} else {
-		w.method, w.unresolved = r.waitMethod(args[0])
+		w.method, w.unresolved = waitMethod(r, args[0])
 	}
 	if w.unresolved == "" && w.method != "" && !writeMethods[w.method] {
 		w.method = ""
 	}
-	names, early, thenArgs := r.waitBinding(k)
+	names, early, thenArgs := waitBinding(r, k)
 	w.early = early
 	if thenArgs[1] > thenArgs[0] {
 		// The callback's response parameter must be read after an assertion starts.
 		param := thenArgs[0]
-		if s.ident(param, "async") {
+		if s.Ident(param, "async") {
 			param++
 		}
-		if s.punct(param, "(") {
+		if s.Punct(param, "(") {
 			param++
 		}
 		asserting := false
-		for j := param + 1; s.ident(param, "") && j < thenArgs[1]; j++ {
-			asserting = asserting || s.jsAssertion(j)
-			if asserting && s.ident(j, s.tokens[param].Text) && !s.memberAccess(j) {
+		for j := param + 1; s.Ident(param, "") && j < thenArgs[1]; j++ {
+			asserting = asserting || s.JSAssertion(j)
+			if asserting && s.Ident(j, s.Tokens[param].Text) && !s.MemberAccess(j) {
 				w.asserted = true
 			}
 		}
 	}
-	if len(names) > 0 && r.assertsAny(st, k, names) {
+	if len(names) > 0 && assertsAny(r, st, k, names) {
 		w.asserted = true
 	}
 	return w
@@ -211,12 +199,12 @@ func (r *jsReader) readWait(st writeStep, k int) writeWait {
 // waitMethod resolves the method a wait's first argument matches. A URL string or glob names no
 // method, a predicate must compare `.method()` with literal methods and hold no negation, and an
 // absolute URL is not known to be first party.
-func (r *jsReader) waitMethod(arg [2]int) (string, string) {
-	s := r.s
+func waitMethod(r *jsReader, arg [2]int) (string, string) {
+	s := r.S
 	methods := map[string]bool{}
 	method, negated := false, false
 	for j := arg[0]; j < arg[1]; j++ {
-		t := s.tokens[j]
+		t := s.Tokens[j]
 		switch t.Kind {
 		case appmap.JSString, appmap.JSTemplate:
 			lower := strings.ToLower(t.Text)
@@ -227,7 +215,7 @@ func (r *jsReader) waitMethod(arg [2]int) (string, string) {
 				methods[strings.ToUpper(t.Text)] = true
 			}
 		case appmap.JSIdent:
-			if t.Text == "method" && s.memberAccess(j) && s.punct(j+1, "(") {
+			if t.Text == "method" && s.MemberAccess(j) && s.Punct(j+1, "(") {
 				method = true
 			}
 		case appmap.JSPunct:
@@ -264,57 +252,57 @@ func (r *jsReader) waitMethod(arg [2]int) (string, string) {
 
 // waitBinding returns the names the wait's result is bound to, whether the wait starts unawaited
 // (a promise variable or a `Promise.all` element), and the argument range of a `.then(...)` on it.
-func (r *jsReader) waitBinding(k int) ([]string, bool, [2]int) {
-	s := r.s
-	close := s.match[k+1]
+func waitBinding(r *jsReader, k int) ([]string, bool, [2]int) {
+	s := r.S
+	close := s.Match[k+1]
 	thenArgs := [2]int{}
-	if s.punct(close+1, ".") && s.ident(close+2, "then") && s.punct(close+3, "(") && s.match[close+3] > 0 {
-		thenArgs = [2]int{close + 4, s.match[close+3]}
+	if s.Punct(close+1, ".") && s.Ident(close+2, "then") && s.Punct(close+3, "(") && s.Match[close+3] > 0 {
+		thenArgs = [2]int{close + 4, s.Match[close+3]}
 	}
 	root := k
-	for s.memberAccess(root) && s.ident(root-2, "") {
+	for s.MemberAccess(root) && s.Ident(root-2, "") {
 		root -= 2
 	}
 	before := root - 1
-	awaited := s.ident(before, "await")
+	awaited := s.Ident(before, "await")
 	if awaited {
 		before--
 	}
-	if name, ok := r.assignedName(before); ok {
+	if name, ok := assignedName(r, before); ok {
 		return []string{name}, !awaited, thenArgs
 	}
 	// A `Promise.all([..., wait, ...])` element: bound through array destructuring.
 	for j := root - 1; j >= 0; j-- {
-		if s.punct(j, "[") && s.match[j] > k {
+		if s.Punct(j, "[") && s.Match[j] > k {
 			slot := 0
 			for q := j + 1; q < root; q++ {
-				if s.match[q] > q {
-					q = s.match[q]
+				if s.Match[q] > q {
+					q = s.Match[q]
 					continue
 				}
-				if s.punct(q, ",") {
+				if s.Punct(q, ",") {
 					slot++
 				}
 			}
 			p := j - 1
-			if !s.punct(p, "(") || !s.ident(p-1, "all") || !s.punct(p-2, ".") || !s.ident(p-3, "Promise") {
+			if !s.Punct(p, "(") || !s.Ident(p-1, "all") || !s.Punct(p-2, ".") || !s.Ident(p-3, "Promise") {
 				return nil, false, thenArgs
 			}
 			q := p - 4
-			if s.ident(q, "await") {
+			if s.Ident(q, "await") {
 				q--
 			}
-			if !s.punct(q, "=") || !s.punct(q-1, "]") || s.match[q-1] < 0 {
+			if !s.Punct(q, "=") || !s.Punct(q-1, "]") || s.Match[q-1] < 0 {
 				return nil, true, thenArgs
 			}
-			open := s.match[q-1]
-			elems := s.splitArgs(open, q-1)
-			if slot < len(elems) && elems[slot][1]-elems[slot][0] == 1 && s.ident(elems[slot][0], "") {
-				return []string{s.tokens[elems[slot][0]].Text}, true, thenArgs
+			open := s.Match[q-1]
+			elems := s.SplitArgs(open, q-1)
+			if slot < len(elems) && elems[slot][1]-elems[slot][0] == 1 && s.Ident(elems[slot][0], "") {
+				return []string{s.Tokens[elems[slot][0]].Text}, true, thenArgs
 			}
 			return nil, true, thenArgs
 		}
-		if s.punct(j, ";") || s.punct(j, "{") || s.punct(j, "}") {
+		if s.Punct(j, ";") || s.Punct(j, "{") || s.Punct(j, "}") {
 			break
 		}
 	}
@@ -322,39 +310,39 @@ func (r *jsReader) waitBinding(k int) ([]string, bool, [2]int) {
 }
 
 // assignedName returns X when token i is the `=` of `X =` (not `==`, `=>` or a compound).
-func (r *jsReader) assignedName(i int) (string, bool) {
-	s := r.s
-	if !s.punct(i, "=") || s.punct(i-1, "=") || s.punct(i-1, "!") || s.punct(i+1, "=") || s.punct(i+1, ">") {
+func assignedName(r *jsReader, i int) (string, bool) {
+	s := r.S
+	if !s.Punct(i, "=") || s.Punct(i-1, "=") || s.Punct(i-1, "!") || s.Punct(i+1, "=") || s.Punct(i+1, ">") {
 		return "", false
 	}
-	if s.ident(i-1, "") && !s.memberAccess(i-1) {
-		return s.tokens[i-1].Text, true
+	if s.Ident(i-1, "") && !s.MemberAccess(i-1) {
+		return s.Tokens[i-1].Text, true
 	}
 	return "", false
 }
 
 // assertsAny reports an assertion in step st, after token from, that reads one of names or a
 // local assigned from an expression reading one (TSA-V0-231).
-func (r *jsReader) assertsAny(st writeStep, from int, names []string) bool {
-	s := r.s
+func assertsAny(r *jsReader, st writeStep, from int, names []string) bool {
+	s := r.S
 	bound := map[string]bool{}
 	for _, n := range names {
 		bound[n] = true
 	}
 	reads := func(a, b int) bool {
 		for q := a; q < b; q++ {
-			if s.ident(q, "") && !s.memberAccess(q) && bound[s.tokens[q].Text] {
+			if s.Ident(q, "") && !s.MemberAccess(q) && bound[s.Tokens[q].Text] {
 				return true
 			}
 		}
 		return false
 	}
 	for k := from; k < st.span[1]; k = st.next(k) {
-		if name, ok := r.assignedName(k); ok && !bound[name] {
+		if name, ok := assignedName(r, k); ok && !bound[name] {
 			end := k + 1
-			for end < st.span[1] && !s.punct(end, ";") && s.tokens[end].Line == s.tokens[k].Line {
-				if s.match[end] > end {
-					end = s.match[end]
+			for end < st.span[1] && !s.Punct(end, ";") && s.Tokens[end].Line == s.Tokens[k].Line {
+				if s.Match[end] > end {
+					end = s.Match[end]
 				}
 				end++
 			}
@@ -363,18 +351,18 @@ func (r *jsReader) assertsAny(st writeStep, from int, names []string) bool {
 			}
 			continue
 		}
-		if !s.jsAssertion(k) {
+		if !s.JSAssertion(k) {
 			continue
 		}
 		end := k + 1
-		if c, ok := s.readExpect(k); ok {
-			end = c.end + 1
+		if c, ok := s.ReadExpect(k); ok {
+			end = c.End + 1
 		} else {
-			for end < st.span[1] && !s.punct(end, "(") {
+			for end < st.span[1] && !s.Punct(end, "(") {
 				end++
 			}
-			if s.match[end] > end {
-				end = s.match[end] + 1
+			if s.Match[end] > end {
+				end = s.Match[end] + 1
 			}
 		}
 		if reads(k, end) {

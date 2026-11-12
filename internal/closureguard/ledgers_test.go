@@ -23,7 +23,7 @@ func TestLTAV0009LiveContextPathCannotReachTheLedgers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go list: %v\n%s", err, output)
 	}
-	for _, forbidden := range []string{"/internal/unplannedread", "/internal/observations", "/internal/slotlearn"} {
+	for _, forbidden := range []string{"/internal/observations", "/internal/slotlearn"} {
 		if strings.Contains(string(output), forbidden+"\n") {
 			t.Fatalf("contextindex depends on %s", forbidden)
 		}

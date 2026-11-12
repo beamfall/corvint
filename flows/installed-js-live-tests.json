@@ -57,7 +57,7 @@
         "type": "source",
         "path": "internal/jstestprovider/application_attestation.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4b6fe35011fadbe4a182468858b3bcf4d54677e3"
     },
     {
       "from": "js-session",
@@ -75,7 +75,7 @@
         "type": "source",
         "path": "internal/testvalidity/projection.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "c60a0d2bdd2aafc90d09ca09e78e6ffa03af7270"
     },
     {
       "from": "installed-js-live-tests.default",

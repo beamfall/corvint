@@ -3,13 +3,9 @@
 package appflows
 
 import (
-	"bytes"
 	"context"
-	json "encoding/json/v2"
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -28,8 +24,7 @@ import (
 // naming the flow, variation and changed path that selected it. Missing or
 // stale evidence widens the answer or marks it UNKNOWN; it never drops a test.
 const (
-	FlowsDeclarationPath    = ".corvint/flows.json"
-	FlowsDeclarationProfile = "corvint-flows/0"
+	FlowsDeclarationPath = ".corvint/flows.json"
 
 	maxFlowsDeclarationBytes = 64 << 10
 	maxFlowsKindRules        = 256
@@ -58,6 +53,8 @@ type flowsPlaywrightMember struct {
 
 // FlowsDeclaration is the validated `.corvint/flows.json`.
 type FlowsDeclaration struct {
+	// Version is the schema version the profile names (FSV-V1-001).
+	Version int
 	// Dir is the intent directory.
 	Dir string
 	// Kinds are the path-prefix rules, in file order; the longest matching
@@ -76,49 +73,24 @@ type KindRule struct {
 	Kind string
 }
 
-// ReadFlowsDeclaration reads the declaration under root: nil with none, an
-// error for one that is unreadable, not a regular file, oversized or invalid
-// in any member.
-func ReadFlowsDeclaration(root string) (*FlowsDeclaration, error) {
-	name := filepath.Join(root, filepath.FromSlash(FlowsDeclarationPath))
-	info, err := os.Lstat(name)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", FlowsDeclarationPath, err)
-	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("%s: not a regular file", FlowsDeclarationPath)
-	}
-	if info.Size() > maxFlowsDeclarationBytes {
-		return nil, fmt.Errorf("%s: larger than %d bytes", FlowsDeclarationPath, maxFlowsDeclarationBytes)
-	}
-	body, err := os.ReadFile(name)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", FlowsDeclarationPath, err)
-	}
-	var declared flowsDeclarationFile
-	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
-		return nil, fmt.Errorf("%s: %w", FlowsDeclarationPath, err)
-	}
-	if declared.Profile != FlowsDeclarationProfile {
-		return nil, fmt.Errorf("%s: profile must be %s", FlowsDeclarationPath, FlowsDeclarationProfile)
-	}
+// validateFlowsV0 checks the members of a version 0 declaration
+// (APK-V0-001, AFU-V1-140); ReadFlowsDeclaration has already checked the
+// profile and refused unknown members.
+func validateFlowsV0(declared *flowsDeclarationFile) (*FlowsDeclaration, error) {
 	if !safePath(declared.Flows) || declared.Flows == "." {
-		return nil, fmt.Errorf("%s: flows must name a directory inside the repository root", FlowsDeclarationPath)
+		return nil, errors.New("flows must name a directory inside the repository root")
 	}
 	if len(declared.Kinds) > maxFlowsKindRules {
-		return nil, fmt.Errorf("%s: at most %d kinds rules", FlowsDeclarationPath, maxFlowsKindRules)
+		return nil, fmt.Errorf("at most %d kinds rules", maxFlowsKindRules)
 	}
 	out := &FlowsDeclaration{Dir: declared.Flows}
 	seen := map[string]bool{}
 	for _, rule := range declared.Kinds {
 		if (rule.Path != "." && !affected.ValidRelativePath(rule.Path)) || seen[rule.Path] {
-			return nil, fmt.Errorf("%s: kinds rule path %q", FlowsDeclarationPath, rule.Path)
+			return nil, fmt.Errorf("kinds rule path %q", rule.Path)
 		}
 		if rule.Kind != affected.TestKindUnit && rule.Kind != affected.TestKindIntegration {
-			return nil, fmt.Errorf("%s: kinds rule %q must be unit or integration", FlowsDeclarationPath, rule.Path)
+			return nil, fmt.Errorf("kinds rule %q must be unit or integration", rule.Path)
 		}
 		seen[rule.Path] = true
 		out.Kinds = append(out.Kinds, KindRule{Path: rule.Path, Kind: rule.Kind})
@@ -126,10 +98,10 @@ func ReadFlowsDeclaration(root string) (*FlowsDeclaration, error) {
 	if declared.Playwright != nil {
 		config, discovery := declared.Playwright.Config, declared.Playwright.Discovery
 		if !affected.ValidRelativePath(config) || !playwrightConfigName(config) {
-			return nil, fmt.Errorf("%s: playwright.config must be a repository-relative JavaScript or TypeScript source", FlowsDeclarationPath)
+			return nil, errors.New("playwright.config must be a repository-relative JavaScript or TypeScript source")
 		}
 		if !affected.ValidRelativePath(discovery) {
-			return nil, fmt.Errorf("%s: playwright.discovery must be a repository-relative path", FlowsDeclarationPath)
+			return nil, errors.New("playwright.discovery must be a repository-relative path")
 		}
 		out.PlaywrightConfig, out.PlaywrightDiscovery = config, discovery
 	}
@@ -190,6 +162,9 @@ func JoinFlowPlan(ctx context.Context, root string, graph *affected.Graph, plan 
 		return plan
 	}
 	plan.Selected = slices.Clone(plan.Selected)
+	if refusal := AsFlowsRefusal(err); refusal != nil && refusal.Unsupported() {
+		return flowsSchemaUnsupported(plan, refusal)
+	}
 	if err != nil {
 		return flowsDeclarationInvalid(plan, "", err.Error())
 	}
@@ -225,6 +200,19 @@ func flowsDeclarationInvalid(plan affected.Plan, dir, detail string) affected.Pl
 		Selected: []affected.E2ESelection{},
 		Unknown: []affected.Unknown{{Reason: affected.UnknownFlowsDeclarationInvalid, Detail: FlowsDeclarationPath,
 			Hint: detail + "; no E2E test is narrowed until the declaration is repaired (APK-V0-004)"}}}
+	return plan
+}
+
+// flowsSchemaUnsupported is the E2E member of a declaration whose schema
+// version this build does not read (FSV-V1-004): FULL, since every E2E test
+// must run and no member of a newer file is trusted to narrow or even list
+// them, with the FLOWS_SCHEMA_UNSUPPORTED unknown naming the found and
+// supported versions. The unit and integration selections are unchanged.
+func flowsSchemaUnsupported(plan affected.Plan, refusal *FlowsRefusal) affected.Plan {
+	plan.E2E = &affected.E2EPlan{Scope: affected.E2EScopeFull, Inventory: affected.E2EInventory{Source: affected.E2EInventoryFlows, State: "n/a"},
+		Selected: []affected.E2ESelection{},
+		Unknown: []affected.Unknown{{Reason: affected.UnknownFlowsSchemaUnsupported, Detail: refusal.Detail(),
+			Hint: refusal.Error() + "; every E2E test is selected and none is narrowed or listed from the file until a build that reads its version plans it"}}}
 	return plan
 }
 

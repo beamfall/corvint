@@ -1,8 +1,6 @@
 package testvaliditydoc
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"io"
 	"io/fs"
@@ -12,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/jstestprovider"
-	"github.com/Beamfall/corvint/internal/rubytestprovider"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
+	"github.com/Beamfall/corvint/internal/rubytestreceipt"
 	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testvalidity"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 const (
@@ -30,47 +29,17 @@ const (
 	evidenceAnchorPrefix = "retained-evidence:"
 )
 
-// emptyPackageDigest is what the JavaScript provider binds when neither a
-// package.json nor a lockfile was named: sha256("=\n=\n").
-var emptyPackageDigest = digestHex([]byte("=\n=\n"))
+// ReceiptAge is testvaliditymodel.ReceiptAge, kept under its old name.
+type ReceiptAge = testvaliditymodel.ReceiptAge
 
-// ReceiptAge provides a stable age origin rather than a clock-dependent duration.
-// The local retained file's mtime is not an authenticated execution timestamp.
-type ReceiptAge struct {
-	Basis string `json:"basis"`
-	Since string `json:"since,omitempty"`
-}
+// Discovery is testvaliditymodel.Discovery, kept under its old name.
+type Discovery = testvaliditymodel.Discovery
 
-// Discovery records which retained document was selected and whether its
-// bound identity still matches the worktree. It is emitted only by discovery.
-type Discovery struct {
-	ReceiptAge ReceiptAge         `json:"receiptAge"`
-	Location   string             `json:"location"`
-	Evidence   string             `json:"evidence,omitempty"`
-	Freshness  *testvalidity.Axis `json:"freshness,omitempty"`
-	Skipped    int                `json:"skipped"`
-	Abstention *Abstention        `json:"abstention,omitempty"`
-}
+// Abstention is testvaliditymodel.Abstention, kept under its old name.
+type Abstention = testvaliditymodel.Abstention
 
-// Abstention explains why discovery yields no evidence that could project a
-// passing test (LPCV-V0-056). Reason and Requires are closed; an unattributable
-// cause is UNKNOWN, never a guess. Rediscovery alone cannot change any reason:
-// Requires names the change that can.
-type Abstention struct {
-	Reason               string           `json:"reason"`
-	Requires             string           `json:"requires"`
-	Observed             *ObservedRuntime `json:"observed,omitempty"`
-	Producers            []ProducerHint   `json:"producers,omitempty"`
-	ExpectedEvidencePath string           `json:"expectedEvidencePath,omitempty"`
-	ReceiptRevision      string           `json:"receiptRevision,omitempty"`
-}
-
-// ProducerHint is an inert template, not an instruction to execute a provider.
-// Qualification is unknown on this host; retained runtime tuples cannot prove it.
-type ProducerHint struct {
-	Command       string `json:"command"`
-	Qualification string `json:"qualification"`
-}
+// ProducerHint is testvaliditymodel.ProducerHint, kept under its old name.
+type ProducerHint = testvaliditymodel.ProducerHint
 
 // producerAbstention names the opt-in retention entry points without probing
 // executables, inspecting arbitrary host paths or guessing a repository language.
@@ -87,12 +56,8 @@ func producerAbstention(reason string) *Abstention {
 	}
 }
 
-// ObservedRuntime is the retained receipt's own runtime tuple. Platform and
-// architecture are not retained by an unqualified receipt, so they are absent.
-type ObservedRuntime struct {
-	RunnerVersion string `json:"runnerVersion"`
-	NodeVersion   string `json:"nodeVersion"`
-}
+// ObservedRuntime is testvaliditymodel.ObservedRuntime, kept under its old name.
+type ObservedRuntime = testvaliditymodel.ObservedRuntime
 
 // Closed abstention vocabulary (LPCV-V0-056).
 const (
@@ -172,14 +137,14 @@ func DiscoverWithReaders(root string, sources ExampleSourceReader, ruby RubyRead
 		binding := bindFreshness(input, func(path, digest string) string {
 			return compareBound(worktree, root, path, digest)
 		})
-		if input.ruby != nil {
-			binding = rubytestprovider.Freshness(*input.ruby, func(name string) ([]byte, error) {
+		if input.Ruby != nil {
+			binding = rubytestreceipt.Freshness(*input.Ruby, func(name string) ([]byte, error) {
 				if namesGit(name) {
 					return nil, errors.New("retained bound path names .git")
 				}
 				return ReadFile(worktree, filepath.FromSlash(name))
 			}, func(projectDirectory string) ([]string, error) {
-				return rubytestprovider.CurrentHelpers(worktree, projectDirectory)
+				return rubytestreceipt.CurrentHelpers(worktree, projectDirectory)
 			})
 		}
 		binding.Anchors = []string{evidenceAnchorPrefix + discovery.Evidence}
@@ -187,11 +152,11 @@ func DiscoverWithReaders(root string, sources ExampleSourceReader, ruby RubyRead
 		discovery.ReceiptAge = ReceiptAge{Basis: "retained-file-mtime", Since: item.info.ModTime().UTC().Format(time.RFC3339Nano)}
 		discovery.Abstention = runtimeAbstention(input)
 		document := Locate(JoinStepNegation(applyFreshness(Project(input), binding), input, root), input, root)
-		if input.ruby != nil && sources != nil {
-			applyRubySources(document.Tests, *input.ruby, worktree, sources, ruby)
+		if input.Ruby != nil && sources != nil {
+			applyRubySources(document.Tests, *input.Ruby, worktree, sources, ruby)
 		}
-		if input.js != nil && sources != nil {
-			applyJSSources(document.Tests, *input.js, worktree, root, sources)
+		if input.JS != nil && sources != nil {
+			applyJSSources(document.Tests, *input.JS, worktree, root, sources)
 		}
 		revision := receiptRevision(input)
 		if document.Run.Freshness.State == testvalidity.FreshnessStale || revisionDiffersFromHead(worktree, revision) {
@@ -302,16 +267,16 @@ func isObjectID(value string) bool {
 // The application may belong to another repository. Missing or malformed object
 // IDs are unknown; arbitrary receipt strings must not become revision guidance.
 func receiptRevision(input Input) string {
-	if input.ruby != nil {
-		if revision := rubytestprovider.Revision(*input.ruby); revision != "" {
+	if input.Ruby != nil {
+		if revision := rubytestreceipt.Revision(*input.Ruby); revision != "" {
 			return revision
 		}
 		return AbstentionUnknown
 	}
-	if input.js == nil || input.js.TestRepositoryAtStart == nil {
+	if input.JS == nil || input.JS.TestRepositoryAtStart == nil {
 		return AbstentionUnknown
 	}
-	revision := input.js.TestRepositoryAtStart.Revision
+	revision := input.JS.TestRepositoryAtStart.Revision
 	if len(revision) != 40 && len(revision) != 64 {
 		return AbstentionUnknown
 	}
@@ -327,17 +292,17 @@ func receiptRevision(input Input) string {
 // selected Playwright receipt. A qualified-candidate or non-Playwright input
 // carries no abstention: its projections already explain themselves.
 func runtimeAbstention(input Input) *Abstention {
-	if input.js == nil {
+	if input.JS == nil {
 		return nil
 	}
 	var observed *ObservedRuntime
-	if identity := input.js.Identity; observableVersion(identity.RunnerVersion) && observableVersion(identity.NodeVersion) {
+	if identity := input.JS.Identity; observableVersion(identity.RunnerVersion) && observableVersion(identity.NodeVersion) {
 		observed = &ObservedRuntime{RunnerVersion: identity.RunnerVersion, NodeVersion: identity.NodeVersion}
 	}
-	switch jstestprovider.ReceiptRuntimeTuple(*input.js) {
-	case jstestprovider.RuntimeTupleUnqualified:
+	switch jstestreceipt.ReceiptRuntimeTuple(*input.JS) {
+	case jstestreceipt.RuntimeTupleUnqualified:
 		return &Abstention{Reason: AbstentionRuntimeTupleUnqualified, Requires: RequiresQualifiedRuntimeTuple, Observed: observed}
-	case jstestprovider.RuntimeTupleUnobserved:
+	case jstestreceipt.RuntimeTupleUnobserved:
 		return &Abstention{Reason: AbstentionUnknown, Requires: AbstentionUnknown, Observed: observed}
 	}
 	return nil
@@ -452,10 +417,10 @@ func BoundPaths(input Input) []string {
 
 func boundDigests(input Input) map[string]string {
 	bound := map[string]string{}
-	if input.js == nil {
+	if input.JS == nil {
 		return bound
 	}
-	identity := input.js.Identity
+	identity := input.JS.Identity
 	for path, digest := range identity.ConfigInputDigests {
 		bound[path] = digest
 	}
@@ -472,18 +437,18 @@ func boundDigests(input Input) map[string]string {
 // compare. A definite mismatch is STALE; an identity that cannot be
 // recomputed is UNKNOWN; only fully matched bound digests are CURRENT.
 func bindFreshness(input Input, compare func(path, digest string) string) testvalidity.Axis {
-	if input.goSession != nil {
-		if input.goSession.State == "stale" {
+	if input.GoSession != nil {
+		if input.GoSession.State == "stale" {
 			return testvalidity.Axis{State: testvalidity.FreshnessStale, Reason: "workspace-execution-identity-mismatch"}
 		}
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-session-identity-unverifiable"}
 	}
-	if input.ruby != nil {
+	if input.Ruby != nil {
 		// Ruby binds Git blob IDs, not the sha256 digests compare checks;
 		// Discover binds it against the worktree through Freshness instead.
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-blob-identity-not-compared"}
 	}
-	identity := input.js.Identity
+	identity := input.JS.Identity
 	bound := boundDigests(input)
 	if len(bound) == 0 {
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-identity-unbound"}
@@ -498,13 +463,13 @@ func bindFreshness(input Input, compare func(path, digest string) string) testva
 			unknown = reason
 		}
 	}
-	if unknown == "" && identity.PackageDigest != "" && identity.PackageDigest != emptyPackageDigest {
+	if unknown == "" && identity.PackageDigest != "" && identity.PackageDigest != testvaliditymodel.EmptyPackageDigest {
 		unknown = "retained-package-identity-unverifiable"
 	}
-	if unknown == "" && input.js.AppBuildAtPublish.Digest != "" {
+	if unknown == "" && input.JS.AppBuildAtPublish.Digest != "" {
 		unknown = "retained-app-build-identity-unverifiable"
 	}
-	if unknown == "" && (input.js.Profile == jstestprovider.ExternalProfile || input.js.Profile == jstestprovider.AttestedExternalProfile || input.js.Profile == jstestprovider.SensitiveExternalProfile || input.js.Profile == jstestprovider.AttemptExternalProfile) {
+	if unknown == "" && (input.JS.Profile == jstestreceipt.ExternalProfile || input.JS.Profile == jstestreceipt.AttestedExternalProfile || input.JS.Profile == jstestreceipt.SensitiveExternalProfile || input.JS.Profile == jstestreceipt.AttemptExternalProfile) {
 		unknown = "retained-external-app-lifecycle-unverifiable"
 	}
 	if unknown != "" {
@@ -530,7 +495,7 @@ func compareBound(worktree *os.Root, root, path, digest string) string {
 	if err != nil {
 		return "retained-bound-source-unreadable"
 	}
-	if digestHex(data) != digest {
+	if testvaliditymodel.DigestHex(data) != digest {
 		return "retained-digest-mismatch"
 	}
 	return ""
@@ -569,9 +534,4 @@ func withDiscovery(document Document, discovery *Discovery) Document {
 
 func locationError(message string) error {
 	return &DiscoveryError{Code: "invalid-test-evidence-location", Message: message}
-}
-
-func digestHex(data []byte) string {
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
 }

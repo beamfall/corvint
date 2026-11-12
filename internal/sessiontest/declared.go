@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -14,6 +16,9 @@ import (
 
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+
+	"github.com/Beamfall/corvint/internal/testid"
+	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
 // The project-owned full-suite declaration (STR-V0-003, STR-V0-006): one
@@ -27,6 +32,19 @@ const (
 	DeclarationPath    = ".github/cishards/test-commands.json"
 	DeclarationProfile = "corvint-test-commands/0"
 )
+
+// CommandsPath is the adopter-owned full-command declaration
+// (RNC-V1-013): the same profile, keyed by runner name with instance
+// entries, and with the go member optional. `corvint test` reads it first.
+// DeclarationPath, Corvint's internal CI file, is read only in Corvint's
+// own repository, only while CommandsPath is absent, and for one release;
+// in every other repository a runner with no entry runs its built-in
+// default full command.
+const CommandsPath = ".corvint/test-commands.json"
+
+// corvintModule is the module path that marks Corvint's own repository,
+// the only one whose DeclarationPath `corvint test` still reads.
+const corvintModule = "github.com/Beamfall/corvint"
 
 // LanguageCommand is one declared language: either Argv, the full command
 // run from the repository root, or None, the reason the project asserts
@@ -68,12 +86,35 @@ type ProviderCommand struct {
 // sorted by runner. Providers is absent when none is declared, so such a
 // declaration keeps its digest. A declaration that cannot be read carries the
 // reason in Unreadable and nothing else.
+//
+// Runners and Instances are the RNC-V1-013 full commands keyed by runner
+// name and by runner instance (`<runner>@<root>`), sorted by key; GoDefault
+// marks a declaration with no go member (or no declaration at all), whose Go
+// full suite is the built-in `go test` with no declared environment or flags
+// and runs only when the tree declares a Go instance. All three are absent
+// from a declaration that does not use them, which keeps its digest. Source
+// names the file read ("" for the built-in defaults) and Invalid marks an
+// unreadable CommandsPath, which `corvint test` refuses with exit 2; neither
+// is digested.
 type Declared struct {
 	GoEnv      []string          `json:"goEnv"`
 	GoFlags    []string          `json:"goFlags"`
+	GoDefault  bool              `json:"goDefault,omitempty"`
+	Instances  []RunnerCommand   `json:"instances,omitempty"`
 	Languages  []LanguageCommand `json:"languages"`
 	Providers  []ProviderCommand `json:"providers,omitempty"`
+	Runners    []RunnerCommand   `json:"runners,omitempty"`
 	Unreadable string            `json:"unreadable"`
+	Source     string            `json:"-"`
+	Invalid    bool              `json:"-"`
+}
+
+// RunnerCommand is one declared full command (RNC-V1-013): Key is a runner
+// name in Runners and a `<runner>@<root>` instance key in Instances, and
+// Argv runs from the instance root.
+type RunnerCommand struct {
+	Argv []string `json:"argv"`
+	Key  string   `json:"key"`
 }
 
 // Provider returns the declared provider argv for runner, if any.
@@ -166,6 +207,8 @@ type declarationFile struct {
 	Go        *declarationGo            `json:"go"`
 	Languages map[string]jsontext.Value `json:"languages"`
 	Providers map[string][]string       `json:"providers"`
+	Runners   map[string][]string       `json:"runners"`
+	Instances map[string][]string       `json:"instances"`
 }
 
 type declarationGo struct {
@@ -173,11 +216,53 @@ type declarationGo struct {
 	Flags []string          `json:"flags"`
 }
 
-// ReadDeclared reads root's declaration. Any problem (absence, size, an
-// unknown or duplicate member, a malformed entry) is returned as Unreadable
-// rather than as a partial declaration.
+// ReadDeclared reads root's full-command declaration (RNC-V1-013):
+// CommandsPath when it exists, where any problem (size, an unknown or
+// duplicate member, a malformed entry, an unknown profile) is Unreadable
+// and Invalid, never a silent default; otherwise, in Corvint's own
+// repository only, DeclarationPath, whose problems are Unreadable as
+// before (STR-V0-003); otherwise the built-in defaults.
 func ReadDeclared(root string) Declared {
-	return ReadDeclaredFile(filepath.Join(root, filepath.FromSlash(DeclarationPath)))
+	name := filepath.Join(root, filepath.FromSlash(CommandsPath))
+	if _, err := os.Lstat(name); !errors.Is(err, fs.ErrNotExist) {
+		raw, err := readRegular(name, MaxDocumentBytes)
+		declared := Declared{}
+		if err == nil {
+			declared, err = parseDeclaration(raw, false)
+		}
+		if err != nil {
+			return Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}, Unreadable: CommandsPath + ": " + err.Error(), Source: CommandsPath, Invalid: true}
+		}
+		declared.Source = CommandsPath
+		return declared
+	}
+	if corvintRepository(root) {
+		declared := ReadDeclaredFile(filepath.Join(root, filepath.FromSlash(DeclarationPath)))
+		declared.Source = DeclarationPath
+		return declared
+	}
+	return BuiltInDeclared()
+}
+
+// BuiltInDeclared is the declaration of a repository with none: every
+// runner's built-in default full command (RNC-V1-013).
+func BuiltInDeclared() Declared {
+	return Declared{GoEnv: []string{}, GoFlags: []string{}, GoDefault: true, Languages: []LanguageCommand{}}
+}
+
+// corvintRepository reports whether root's go.mod declares Corvint's own
+// module.
+func corvintRepository(root string) bool {
+	raw, err := readRegular(filepath.Join(root, "go.mod"), MaxDocumentBytes)
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if fields := strings.Fields(line); len(fields) >= 2 && fields[0] == "module" {
+			return strings.Trim(fields[1], `"`) == corvintModule
+		}
+	}
+	return false
 }
 
 // ReadDeclaredFile reads one declaration file by path (the repository gate
@@ -193,10 +278,22 @@ func ReadDeclaredFile(name string) Declared {
 // ParseDeclared parses declaration bytes the caller has already read under its own file rules
 // (adopt --setup, ADS-V0-802), with the same refusals as ReadDeclared.
 func ParseDeclared(raw []byte) Declared {
-	declared, err := parseDeclaration(raw)
+	declared, err := parseDeclaration(raw, true)
 	if err != nil {
 		return Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}, Unreadable: DeclarationPath + ": " + err.Error()}
 	}
+	return declared
+}
+
+// ParseCommands parses CommandsPath bytes the caller has already read under
+// its own file rules (adopt --setup, ADS-V0-802 as amended by RNC-V1-013),
+// with ReadDeclared's refusals for that file.
+func ParseCommands(raw []byte) Declared {
+	declared, err := parseDeclaration(raw, false)
+	if err != nil {
+		return Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}, Unreadable: CommandsPath + ": " + err.Error(), Source: CommandsPath, Invalid: true}
+	}
+	declared.Source = CommandsPath
 	return declared
 }
 
@@ -205,10 +302,12 @@ func readDeclaration(name string) (Declared, error) {
 	if err != nil {
 		return Declared{}, err
 	}
-	return parseDeclaration(raw)
+	return parseDeclaration(raw, true)
 }
 
-func parseDeclaration(raw []byte) (Declared, error) {
+// parseDeclaration reads one declaration; requireGo is DeclarationPath's
+// rule that the go member is present (CommandsPath may omit it).
+func parseDeclaration(raw []byte, requireGo bool) (Declared, error) {
 	if len(raw) > MaxDocumentBytes {
 		return Declared{}, fmt.Errorf("exceeds %d bytes", MaxDocumentBytes)
 	}
@@ -219,10 +318,13 @@ func parseDeclaration(raw []byte) (Declared, error) {
 	if parsed.Profile != DeclarationProfile {
 		return Declared{}, fmt.Errorf("profile is %q, want %q", parsed.Profile, DeclarationProfile)
 	}
-	if parsed.Go == nil {
+	if parsed.Go == nil && requireGo {
 		return Declared{}, errors.New("go is required")
 	}
 	declared := Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}}
+	if parsed.Go == nil {
+		declared.GoDefault, parsed.Go = true, &declarationGo{}
+	}
 	for name, value := range parsed.Go.Env {
 		if !EnvName(name) || !plain(value) {
 			return Declared{}, fmt.Errorf("go.env has an invalid variable %q", name)
@@ -257,7 +359,73 @@ func parseDeclaration(raw []byte) (Declared, error) {
 		declared.Providers = append(declared.Providers, ProviderCommand{Argv: argv, Runner: runner})
 	}
 	sort.Slice(declared.Providers, func(i, j int) bool { return declared.Providers[i].Runner < declared.Providers[j].Runner })
+	for runner, argv := range parsed.Runners {
+		if err := runnerCommand("runners", runner, argv); err != nil {
+			return Declared{}, err
+		}
+		declared.Runners = append(declared.Runners, RunnerCommand{Argv: argv, Key: runner})
+	}
+	sort.Slice(declared.Runners, func(i, j int) bool { return declared.Runners[i].Key < declared.Runners[j].Key })
+	for key, argv := range parsed.Instances {
+		runner, root, ok := strings.Cut(key, "@")
+		if !ok || !testid.CleanFile(root) {
+			return Declared{}, fmt.Errorf("instances has an invalid key %q: want <runner>@<repository-relative root>", key)
+		}
+		if err := runnerCommand("instances", runner, argv); err != nil {
+			return Declared{}, err
+		}
+		declared.Instances = append(declared.Instances, RunnerCommand{Argv: argv, Key: key})
+	}
+	sort.Slice(declared.Instances, func(i, j int) bool { return declared.Instances[i].Key < declared.Instances[j].Key })
 	return declared, nil
+}
+
+// runnerCommand admits one runners or instances entry (RNC-V1-013): a
+// blocking runner other than go, whose full command is the typed go member,
+// and a non-empty argv of plain words.
+func runnerCommand(field, runner string, argv []string) error {
+	if !testid.KnownRunner(runner) || runner == testid.Go {
+		return fmt.Errorf("%s names %q: want one of vitest, jest, playwright, pytest, rspec or minitest (declare go through the go member)", field, runner)
+	}
+	if len(argv) == 0 {
+		return fmt.Errorf("%s.%s: argv is empty", field, runner)
+	}
+	return words(field+"."+runner, argv)
+}
+
+// The source of one runner instance's full command (RNC-V1-013).
+const (
+	CommandInstance = "instance entry"
+	CommandRunner   = "runner entry"
+	CommandDefault  = "built-in default"
+)
+
+// InstanceCommand is the full command of the runner instance key
+// (`<runner>@<root>`): its instance entry, else its runner's entry, else the
+// runner's built-in default, run from the instance root (RNC-V1-013,
+// RNC-V1-014). root is the repository root the default probes (Minitest's
+// bin/rails). It returns no argv for a key that names no runner.
+func (d Declared) InstanceCommand(key, root string) (argv []string, dir, source string) {
+	runner, dir, ok := strings.Cut(key, "@")
+	implementation, known := contract.For(runner)
+	if !ok || !known || !testid.CleanFile(dir) {
+		return nil, "", ""
+	}
+	for _, entry := range d.Instances {
+		if entry.Key == key {
+			return append([]string{}, entry.Argv...), dir, CommandInstance
+		}
+	}
+	for _, entry := range d.Runners {
+		if entry.Key == runner {
+			return append([]string{}, entry.Argv...), dir, CommandRunner
+		}
+	}
+	exists := func(rel string) bool {
+		_, err := os.Stat(filepath.Join(root, filepath.FromSlash(dir), filepath.FromSlash(rel)))
+		return err == nil
+	}
+	return implementation.Default(contract.Instance{Runner: runner, Root: dir}, exists), dir, CommandDefault
 }
 
 // providerCommand admits one providers entry (STR-V0-8701): a runner of the

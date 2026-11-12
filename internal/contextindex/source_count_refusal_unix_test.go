@@ -5,13 +5,14 @@ package contextindex
 import (
 	"context"
 	"fmt"
-	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // gitShim puts a `git` on PATH that logs every call to the returned log file,

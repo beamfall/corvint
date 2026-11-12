@@ -5,6 +5,10 @@
       "cmd/": "conformance/cli-errors-v0/contract_test.go builds every catalog binary package (contracts[name].pkg), a list derived from the capability catalog rather than a literal (AFP-V0-3011 (3))",
       "internal/": "conformance/cli-errors-v0/contract_test.go builds every catalog binary package (contracts[name].pkg), a list derived from the capability catalog rather than a literal, so the import closures below internal/ are not modelled (AFP-V0-3011 (3))"
     },
+    "internal/appflows/flowsreaderscan": {
+      "cmd/": "internal/appflows/flowsreaderscan/scan_test.go secondFlowsReaders walks cmd/ and reads every non-test .go file outside testdata, so no package but internal/appflows names .corvint/flows.json (FSV-V1-003)",
+      "internal/": "internal/appflows/flowsreaderscan/scan_test.go secondFlowsReaders walks internal/ and reads every non-test .go file outside testdata, so no package but internal/appflows names .corvint/flows.json (FSV-V1-003)"
+    },
     "internal/diagnostic": {
       "cmd/": "internal/diagnostic/gate_test.go treeSources walks cmd/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))",
       "internal/": "internal/diagnostic/gate_test.go treeSources walks internal/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))"
@@ -72,31 +76,46 @@
     },
     "tools/flow-guide-check": {
       "cmd/": {
-        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk cmd/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk cmd/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate, which matches only refuse calls and the guide recovery table codes the check reads (AFP-V0-3300 to AFP-V0-3302, AFP-V0-9980)",
+        "contentPredicate": "[rR]efuse\\w*\\s*\\(|local-reason-missing|whole-reason-missing|unsupported-object-alternates|unpinned-review|RESOURCE_COLLISION|OUT_OF_SCOPE",
         "samples": [
-          "return refuse(\"work-not-found\")",
+          "Kind: \"OUT_OF_SCOPE\"",
+          "Kind: \"RESOURCE_COLLISION\"",
+          "code: \"unsupported-object-alternates\"",
+          "refuse \"local-reason-missing run on the offload host\"",
+          "refuse \"whole-reason-missing set HEAVY_WHOLE_REASON\"",
+          "return \"unpinned-review\"",
           "return RefusePending()",
-          "UNKNOWN_GATE"
+          "return refuse(\"work-not-found\")"
         ]
       },
       "internal/": {
-        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk internal/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk internal/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate, which matches only refuse calls and the guide recovery table codes the check reads (AFP-V0-3300 to AFP-V0-3302, AFP-V0-9980)",
+        "contentPredicate": "[rR]efuse\\w*\\s*\\(|local-reason-missing|whole-reason-missing|unsupported-object-alternates|unpinned-review|RESOURCE_COLLISION|OUT_OF_SCOPE",
         "samples": [
-          "return refuse(\"work-not-found\")",
+          "Kind: \"OUT_OF_SCOPE\"",
+          "Kind: \"RESOURCE_COLLISION\"",
+          "code: \"unsupported-object-alternates\"",
+          "refuse \"local-reason-missing run on the offload host\"",
+          "refuse \"whole-reason-missing set HEAVY_WHOLE_REASON\"",
+          "return \"unpinned-review\"",
           "return RefusePending()",
-          "UNKNOWN_GATE"
+          "return refuse(\"work-not-found\")"
         ]
       },
       "script/": "tools/flow-guide-check/main.go globs script/*.sh, walks script/ (sourceText) and stats each script/ span of the guide (AFP-V0-3011 (1), (2))",
       "tools/": {
-        "reason": "tools/flow-guide-check/main.go sourceText walks tools/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "reason": "tools/flow-guide-check/main.go sourceText walks tools/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate, which matches only refuse calls and the guide recovery table codes the check reads (AFP-V0-3300 to AFP-V0-3302, AFP-V0-9980)",
+        "contentPredicate": "[rR]efuse\\w*\\s*\\(|local-reason-missing|whole-reason-missing|unsupported-object-alternates|unpinned-review|RESOURCE_COLLISION|OUT_OF_SCOPE",
         "samples": [
-          "return refuse(\"work-not-found\")",
+          "Kind: \"OUT_OF_SCOPE\"",
+          "Kind: \"RESOURCE_COLLISION\"",
+          "code: \"unsupported-object-alternates\"",
+          "refuse \"local-reason-missing run on the offload host\"",
+          "refuse \"whole-reason-missing set HEAVY_WHOLE_REASON\"",
+          "return \"unpinned-review\"",
           "return RefusePending()",
-          "UNKNOWN_GATE"
+          "return refuse(\"work-not-found\")"
         ]
       }
     },

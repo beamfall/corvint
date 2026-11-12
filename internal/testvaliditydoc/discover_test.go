@@ -322,7 +322,7 @@ func TestDiscoverRetainedRevision(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			receipt := *input.js
+			receipt := *input.JS
 			receipt.Profile = jstestprovider.AttestedExternalProfile
 			receipt.Identity.RunnerVersion = "1.63.0"
 			receipt.Identity.NodeVersion = "v24.11.0"
@@ -361,7 +361,7 @@ func headFixture(t *testing.T, retained string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt := *input.js
+	receipt := *input.JS
 	receipt.Profile = jstestprovider.AttestedExternalProfile
 	receipt.Identity.RunnerVersion = "1.63.0"
 	receipt.Identity.NodeVersion = "v24.11.0"

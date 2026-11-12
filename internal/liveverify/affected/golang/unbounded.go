@@ -37,6 +37,14 @@ type unboundedReads struct {
 	locatesRoot bool
 }
 
+// sourceRead is a location-source reason waiting for the end of its unit's
+// files, and the reads it is marked on (AFP-V0-3663).
+type sourceRead struct {
+	target *unboundedReads
+	reason string
+	test   bool
+}
+
 func (reads *unboundedReads) mark(reason string, test bool) {
 	if reads.reason == "" || (!test && !reads.locatesRoot) {
 		reads.reason = reason

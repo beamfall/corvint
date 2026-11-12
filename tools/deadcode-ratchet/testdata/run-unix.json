@@ -1,0 +1,17 @@
+[
+	{
+		"Name": "a",
+		"Path": "example.com/m/a",
+		"Funcs": [
+			{"Name": "Unused", "Position": {"File": "a/a.go", "Line": 10, "Col": 6}, "Generated": false, "Marker": false},
+			{"Name": "T.Method", "Position": {"File": "a/a.go", "Line": 20, "Col": 13}, "Generated": false, "Marker": false}
+		]
+	},
+	{
+		"Name": "b",
+		"Path": "example.com/m/b",
+		"Funcs": [
+			{"Name": "helper", "Position": {"File": "b/b.go", "Line": 5, "Col": 6}, "Generated": false, "Marker": false}
+		]
+	}
+]

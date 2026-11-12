@@ -2,15 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-10-08
-Intent status: proposed
-Delivery status: not-started
+Intent status: retired 2026-11-11 (decision 0597)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0597 (context proven only) retired this never-started journal, which served only the retired trials (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `confidently-wrong-trial-v0.md` (CWT-V0-004), `cem-reviewer-trial-v0.md`
 (CRT-V0-010 and its rollback rule), `gate-ledger-v0.md` (the deterministic-step boundary), `AGENTS.md`
 invariants 1, 2 and 4, and `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-trial-replay-journal-surface.md`
 
 ## Agent digest
 - Claim: Both agent trial dispatchers replay a settled invocation only when a full pinned key matches and record where each replayed observation came from.
-- Status: proposed / not-started; no code exists and no owner has accepted the intent.
+- Status: retired 2026-11-11 (decision 0597) / retired
 - Exists: per-tool `--resume` and `--reuse` in `tools/cw-trial` and `tools/cem-trial` (`checkpointer`, `loadReuse`, `reuseSource.apply`), governed by CWT-V0-004 and CRT-V0-010.
 - Blocked on: owner acceptance of the intent, then the unresolved legacy-report decision below.
 - Read next: Verified current state; Requirements; Unresolved decisions.

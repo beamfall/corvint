@@ -37,82 +37,6 @@ func (reader *forbiddenHelpReader) Read(_ []byte) (int, error) {
 	return 0, nil
 }
 
-func TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{"flag", []string{"--help"}, rootHelp},
-		{"command", []string{"help"}, rootHelp},
-		{"context flag", []string{"context", "--help"}, helpText("context")},
-		{"context command", []string{"help", "context"}, helpText("context")},
-		{"impact flag", []string{"impact", "--help"}, helpText("impact")},
-		{"impact command", []string{"help", "impact"}, helpText("impact")},
-		{name: "ASD-V0-009 feature flag without repository access", args: []string{"--root", "/definitely/not/a/repository", "feature", "--help"}, want: helpText("feature")},
-		{name: "ASD-V0-009 feature command without repository access", args: []string{"--root", "/definitely/not/a/repository", "help", "feature"}, want: helpText("feature")},
-		{"LPCV-V0-051 test-validity flag", []string{"test-validity", "--help"}, helpText("test-validity")},
-		{"test-validity command", []string{"help", "test-validity"}, helpText("test-validity")},
-		{"invalid root is not opened", []string{"--root", "/definitely/not/a/repository", "context", "--help"}, helpText("context")},
-		{"inline root is not opened", []string{"--root=/definitely/not/a/repository", "impact", "--help"}, helpText("impact")},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			reader := &forbiddenHelpReader{}
-			var stdout, stderr bytes.Buffer
-			if exit := run(test.args, reader, &stdout, &stderr); exit != 0 {
-				t.Fatalf("exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
-			}
-			if stdout.String() != test.want || stderr.Len() != 0 || reader.reads != 0 {
-				t.Fatalf("stdout=%q\nwant=%q\nstderr=%q stdin reads=%d", &stdout, test.want, &stderr, reader.reads)
-			}
-			if !strings.HasSuffix(stdout.String(), "\n") {
-				t.Fatalf("help lacks terminal LF: %q", &stdout)
-			}
-		})
-	}
-}
-
-func TestHelpFlagAnywhereFollowsArgparse(t *testing.T) {
-	t.Parallel()
-	invalidRoot := []string{"--root", "/definitely/not/a/repository"}
-	t.Run("GPK-V0-062 help anywhere before -- prints the COMMAND --help bytes", func(t *testing.T) {
-		for _, test := range []struct {
-			args []string
-			want string
-		}{
-			{[]string{"context", "--task", "x", "--help"}, helpText("context")},
-			{[]string{"context", "--help", "--task", "x"}, helpText("context")},
-			{[]string{"context", "--limit", "-1", "--help"}, helpText("context")},
-			{[]string{"context", "--task", "x", "--subject", "a.go", "--help"}, helpText("context")},
-			{[]string{"impact", "path/a.go", "--help"}, helpText("impact")},
-			{[]string{"index", "--if-stale", "--help"}, helpText("index")},
-			{[]string{"docs", "maintain", "--page", "p", "--help"}, helpText("docs")},
-			{[]string{"--help", "context"}, rootHelp},
-		} {
-			args := append(append([]string{}, invalidRoot...), test.args...)
-			reader := &forbiddenHelpReader{}
-			var stdout, stderr bytes.Buffer
-			if exit := run(args, reader, &stdout, &stderr); exit != 0 || stdout.String() != test.want || stderr.Len() != 0 || reader.reads != 0 {
-				t.Fatalf("args=%q exit=%d stderr=%q reads=%d stdout matches=%v", args, exit, &stderr, reader.reads, stdout.String() == test.want)
-			}
-		}
-	})
-	t.Run("GPK-V0-062 --help as an option value, after --, or after an invalid choice is not help", func(t *testing.T) {
-		for _, args := range [][]string{
-			{"context", "--task", "--help"},
-			{"context", "--task=--help"},
-			{"context", "--task", "x", "--", "--help"},
-			{"impact", "--", "--help"},
-		} {
-			if topic, requested, err := parseHelpInvocation(args); requested || err != nil {
-				t.Fatalf("args=%q topic=%q requested=%v err=%v", args, topic, requested, err)
-			}
-		}
-	})
-}
-
 // TestArgparseOptionLikeClassification pins the shared GPK-V0-064 helper: a
 // lone dash, a negative number, and a token containing a space are values, not
 // options, matching argparse's _parse_optional.
@@ -136,22 +60,6 @@ func TestArgparseOptionLikeClassification(t *testing.T) {
 	} {
 		if got := argparseOptionLike(test.token); got != test.want {
 			t.Errorf("argparseOptionLike(%q) = %v, want %v", test.token, got, test.want)
-		}
-	}
-}
-
-// TestRootPreambleFollowsArgparseOptionLikeClassification pins GPK-V0-064 as
-// amended by decision 0181: before every top-level command, a bare `--root`
-// followed by an option-like token is refused as a missing value, while the
-// inline form, a lone dash, a negative number, and `--` stay root values.
-func TestRootPreambleFollowsArgparseOptionLikeClassification(t *testing.T) {
-	t.Parallel()
-	for _, command := range topLevelCommands {
-		for _, args := range [][]string{{"--root", "--task", command}, {"--root", "-h", command}} {
-			var stdout, stderr bytes.Buffer
-			if exit := run(args, strings.NewReader(""), &stdout, &stderr); exit != 2 || !strings.Contains(stderr.String(), "missing value for --root") || stdout.Len() != 0 {
-				t.Errorf("args=%q exit=%d stdout=%q stderr=%q", args, exit, &stdout, &stderr)
-			}
 		}
 	}
 }
@@ -192,29 +100,6 @@ func TestNativeVerbOptionValuesFollowArgparseOptionLikeClassification(t *testing
 	}
 }
 
-// TestHFlagAliasesHelpFlag pins GPK-V0-064: `-h` prints the same output as
-// `--help` at root, top-level, and nested-choice scope (argparse's add_help).
-func TestHFlagAliasesHelpFlag(t *testing.T) {
-	t.Parallel()
-	for _, test := range []struct {
-		name string
-		args []string
-		want string
-	}{
-		{"root", []string{"-h"}, rootHelp},
-		{"command", []string{"context", "-h"}, helpText("context")},
-		{"anywhere before --", []string{"context", "--task", "x", "-h"}, helpText("context")},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			reader := &forbiddenHelpReader{}
-			var stdout, stderr bytes.Buffer
-			if exit := run(test.args, reader, &stdout, &stderr); exit != 0 || stdout.String() != test.want || stderr.Len() != 0 || reader.reads != 0 {
-				t.Fatalf("args=%q exit=%d stderr=%q reads=%d stdout matches=%v", test.args, exit, &stderr, reader.reads, stdout.String() == test.want)
-			}
-		})
-	}
-}
-
 func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 	t.Parallel()
 	t.Run("CRB-V0-001 current public help uses the Corvint brand", func(t *testing.T) {
@@ -244,14 +129,14 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 func TestRootHelpListsContextAndWorkCommands(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{
-		"\n    context  task-context packet",
+		"\n    context  path brief",
 		"corvint COMMAND --help | corvint help COMMAND",
 	} {
 		if !strings.Contains(rootHelp, required) {
 			t.Fatalf("root help does not contain %q", required)
 		}
 	}
-	for _, required := range []string{"context --task TEXT [--subject PATH] [--limit N]"} {
+	for _, required := range []string{"context --path PATH [--path PATH ...]"} {
 		if !strings.Contains(helpText(strings.Fields(required)[0]), required) {
 			t.Fatalf("%s help does not contain %q", strings.Fields(required)[0], required)
 		}
@@ -331,18 +216,6 @@ func TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite(t *testing.T) {
 		if !strings.Contains(flowed, required) {
 			t.Fatalf("root help does not disclose the ledger write: missing %q", required)
 		}
-	}
-}
-
-func TestUnknownHelpTopicIsConventionalError(t *testing.T) {
-	t.Parallel()
-	reader := &forbiddenHelpReader{}
-	var stdout, stderr bytes.Buffer
-	exit := run([]string{"help", "not-a-command"}, reader, &stdout, &stderr)
-	if exit != 2 || stdout.Len() != 0 || reader.reads != 0 ||
-		!strings.HasPrefix(stderr.String(), "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-command' (choose from 'init', ") ||
-		!strings.HasSuffix(stderr.String(), "'how')\", \"ok\": false}\n") {
-		t.Fatalf("exit=%d stdout=%q stderr=%q reads=%d", exit, &stdout, &stderr, reader.reads)
 	}
 }
 

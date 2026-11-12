@@ -37,18 +37,6 @@ func runCaptured(ctx context.Context, dir string, env []string, timeout time.Dur
 	return observation.Stdout, observation.Stderr, nil
 }
 
-func runExpectedExit(ctx context.Context, dir string, env []string, timeout time.Duration, expected int, argv ...string) (stdout, stderr []byte, err error) {
-	observation := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: env, Timeout: timeout,
-		ShutdownTimeout: 5 * time.Second, OutputLimit: 32 << 20})
-	if observation.Err != nil {
-		return observation.Stdout, observation.Stderr, observation.Err
-	}
-	if !observation.ExitObserved || observation.ExitStatus != expected {
-		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: %s, want exit=%d", argv, describeExit(observation), expected)
-	}
-	return observation.Stdout, observation.Stderr, nil
-}
-
 // runCapturedStdin is runCaptured plus stdin, for `git cat-file --batch`.
 func runCapturedStdin(ctx context.Context, dir string, env []string, timeout time.Duration, stdin []byte, argv ...string) (stdout, stderr []byte, err error) {
 	if err := ensureGoTmp(env); err != nil {

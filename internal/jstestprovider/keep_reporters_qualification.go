@@ -8,6 +8,8 @@ import (
 	"errors"
 	"path/filepath"
 	"sort"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 // Keep-reporters qualification (PWP-V0-014..018, proposed; V1-1028, GitHub
@@ -18,55 +20,23 @@ import (
 // loads requires a new qualification) and the runtime it was qualified on. It
 // never admits a runtime tuple and never observes what a kept reporter does.
 
-const (
-	// KeepReportersQualificationProfile identifies the closed record.
-	KeepReportersQualificationProfile = "corvint-playwright-keep-reporters-qualification/0"
+// KeepReportersQualificationProfile is jstestreceipt.KeepReportersQualificationProfile, kept under its old name.
+const KeepReportersQualificationProfile = jstestreceipt.KeepReportersQualificationProfile
 
-	KeepReportersQualified    = "qualified"
-	KeepReportersNotQualified = "not-qualified"
-	KeepReportersNotRun       = "not-run"
+// KeepReportersQualified is jstestreceipt.KeepReportersQualified, kept under its old name.
+const KeepReportersQualified = jstestreceipt.KeepReportersQualified
 
-	keepReportersQualificationInvalid = "keep-reporters-qualification-invalid"
-	// MaxKeepReportersQualificationSize bounds the canonical record bytes.
-	MaxKeepReportersQualificationSize = 256 << 10
-	// keepReportersMaxConfigInputs keeps the record's own 256-input bound
-	// (PWP-V0-017), which fits MaxKeepReportersQualificationSize; it does not
-	// follow the receipt's raised externalMaxConfigInputs (PWP-V0-021).
-	keepReportersMaxConfigInputs = 256
-)
+// KeepReportersNotQualified is jstestreceipt.KeepReportersNotQualified, kept under its old name.
+const KeepReportersNotQualified = jstestreceipt.KeepReportersNotQualified
 
-// keepReportersQualificationReasons is the closed reason set and the verdict
-// each reason forces. A not-run reason outranks every not-qualified reason.
-var keepReportersQualificationReasons = map[string]string{
-	"keep-reporters-control-run-incomplete": KeepReportersNotRun,
-	"keep-reporters-keep-run-incomplete":    KeepReportersNotRun,
-	"keep-reporters-control-unqualified":    KeepReportersNotQualified,
-	"keep-reporters-keep-unqualified":       KeepReportersNotQualified,
-	"keep-reporters-order-unsupported":      KeepReportersNotQualified,
-	"keep-reporters-entries-unknown":        KeepReportersNotQualified,
-	"keep-reporters-inputs-differ":          KeepReportersNotQualified,
-	"keep-reporters-observation-differs":    KeepReportersNotQualified,
-	"keep-reporters-no-tests":               KeepReportersNotQualified,
-}
+// KeepReportersNotRun is jstestreceipt.KeepReportersNotRun, kept under its old name.
+const KeepReportersNotRun = jstestreceipt.KeepReportersNotRun
 
-// KeepReportersQualification is the closed canonical qualification record.
-// Reasons is empty exactly when Verdict is qualified. Entries is null when the
-// keep run never reported them. ConfigInputs are every reporter-observed
-// config input of the keep run, including the kept reporter modules and
-// everything they loaded, whether or not the control run loaded it too.
-type KeepReportersQualification struct {
-	Profile              string            `json:"profile"`
-	Verdict              string            `json:"verdict"`
-	Reasons              []string          `json:"reasons"`
-	ReceiptProfile       string            `json:"receiptProfile"`
-	RunnerVersion        string            `json:"runnerVersion"`
-	NodeVersion          string            `json:"nodeVersion"`
-	Entries              []ProjectReporter `json:"entries"`
-	ConfigInputs         map[string]string `json:"configInputs"`
-	Tests                int               `json:"tests"`
-	ControlReceiptSHA256 string            `json:"controlReceiptSha256"`
-	KeepReceiptSHA256    string            `json:"keepReceiptSha256"`
-}
+// MaxKeepReportersQualificationSize is jstestreceipt.MaxKeepReportersQualificationSize, kept under its old name.
+const MaxKeepReportersQualificationSize = jstestreceipt.MaxKeepReportersQualificationSize
+
+// KeepReportersQualification is jstestreceipt.KeepReportersQualification, kept under its old name.
+type KeepReportersQualification = jstestreceipt.KeepReportersQualification
 
 // QualifyKeepReporters derives the record from a replace-only control run and
 // a keep-reporters run of the same configuration (PWP-V0-015). A run that
@@ -98,7 +68,7 @@ func QualifyKeepReporters(control Receipt, controlErr error, keep Receipt, keepE
 		q.Reasons = append(q.Reasons, reason)
 	}
 	sort.Strings(q.Reasons)
-	q.Verdict = keepReportersVerdict(q.Reasons)
+	q.Verdict = jstestreceipt.KeepReportersVerdict(q.Reasons)
 	return q
 }
 
@@ -106,11 +76,11 @@ func QualifyKeepReporters(control Receipt, controlErr error, keep Receipt, keepE
 // complete run, and whether the run is complete. A run whose config inputs
 // the record could not bind is incomplete.
 func completeRunDigest(r Receipt, err error, keep bool) (string, bool) {
-	if err != nil || r.External == nil || r.Infrastructure != nil || r.Cancelled || (r.External.ProjectReporters != nil) != keep || len(r.Identity.ConfigInputDigests) > keepReportersMaxConfigInputs {
+	if err != nil || r.External == nil || r.Infrastructure != nil || r.Cancelled || (r.External.ProjectReporters != nil) != keep || len(r.Identity.ConfigInputDigests) > jstestreceipt.KeepReportersMaxConfigInputs {
 		return "", false
 	}
 	for path, digest := range r.Identity.ConfigInputDigests {
-		if !filepath.IsAbs(path) || len(path) > 4096 || !reporterDigestPattern.MatchString(digest) {
+		if !filepath.IsAbs(path) || len(path) > 4096 || !jstestreceipt.ReporterDigestPattern.MatchString(digest) {
 			return "", false
 		}
 	}
@@ -123,7 +93,7 @@ func completeRunDigest(r Receipt, err error, keep bool) (string, bool) {
 }
 
 func compareKeepReportersRuns(q *KeepReportersQualification, control, keep Receipt, reasons map[string]bool) {
-	if !providerFirstConfig(keep.External.ConfigOverride) {
+	if !jstestreceipt.ProviderFirstConfig(keep.External.ConfigOverride) {
 		reasons["keep-reporters-order-unsupported"] = true
 	}
 	for _, entry := range q.Entries {
@@ -135,7 +105,7 @@ func compareKeepReportersRuns(q *KeepReportersQualification, control, keep Recei
 		reasons["keep-reporters-entries-unknown"] = true
 	}
 	c, k := control.Identity, keep.Identity
-	if control.Profile != keep.Profile || c.RunnerVersion != k.RunnerVersion || c.NodeVersion != k.NodeVersion || c.ConfigFile != k.ConfigFile || c.ConfigDigest != k.ConfigDigest || c.PackageDigest != k.PackageDigest || !sameStrings(c.TestFileDigests, k.TestFileDigests) || !sameStrings(c.Environment, k.Environment) {
+	if control.Profile != keep.Profile || c.RunnerVersion != k.RunnerVersion || c.NodeVersion != k.NodeVersion || c.ConfigFile != k.ConfigFile || c.ConfigDigest != k.ConfigDigest || c.PackageDigest != k.PackageDigest || !jstestreceipt.SameStrings(c.TestFileDigests, k.TestFileDigests) || !jstestreceipt.SameStrings(c.Environment, k.Environment) {
 		reasons["keep-reporters-inputs-differ"] = true
 	}
 	for path, digest := range c.ConfigInputDigests {
@@ -147,12 +117,12 @@ func compareKeepReportersRuns(q *KeepReportersQualification, control, keep Recei
 		q.ConfigInputs[path] = digest
 	}
 	for _, t := range control.Tests {
-		if qualifiedUnknown(control, t) {
+		if jstestreceipt.QualifiedUnknown(control, t) {
 			reasons["keep-reporters-control-unqualified"] = true
 		}
 	}
 	for _, t := range keep.Tests {
-		if qualifiedPrerequisitesUnknown(keep, t) {
+		if jstestreceipt.QualifiedPrerequisitesUnknown(keep, t) {
 			reasons["keep-reporters-keep-unqualified"] = true
 		}
 	}
@@ -163,18 +133,6 @@ func compareKeepReportersRuns(q *KeepReportersQualification, control, keep Recei
 		reasons["keep-reporters-observation-differs"] = true
 	}
 	q.Tests = len(control.Tests)
-}
-
-func sameStrings(a, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for key, value := range a {
-		if other, ok := b[key]; !ok || other != value {
-			return false
-		}
-	}
-	return true
 }
 
 // observationKey identifies one outcome without the test ID, which binds the
@@ -222,68 +180,9 @@ func sameObservations(control, keep []TestOutcome) bool {
 	return len(observed) == 0
 }
 
-func keepReportersVerdict(reasons []string) string {
-	verdict := KeepReportersQualified
-	for _, reason := range reasons {
-		switch keepReportersQualificationReasons[reason] {
-		case KeepReportersNotRun:
-			return KeepReportersNotRun
-		case KeepReportersNotQualified:
-			verdict = KeepReportersNotQualified
-		}
-	}
-	return verdict
-}
-
-// keepReportersQualificationError validates the closed record (PWP-V0-017).
-func keepReportersQualificationError(q KeepReportersQualification) error {
-	invalid := errors.New(keepReportersQualificationInvalid)
-	if q.Profile != KeepReportersQualificationProfile || q.Reasons == nil || q.ConfigInputs == nil || q.Tests < 0 || len(q.Entries) > maxProjectReporters || len(q.ConfigInputs) > keepReportersMaxConfigInputs {
-		return invalid
-	}
-	if !sort.StringsAreSorted(q.Reasons) || keepReportersVerdict(q.Reasons) != q.Verdict {
-		return invalid
-	}
-	for i, reason := range q.Reasons {
-		if keepReportersQualificationReasons[reason] == "" || (i > 0 && q.Reasons[i-1] == reason) {
-			return invalid
-		}
-	}
-	if len(q.ReceiptProfile) > 128 || len(q.RunnerVersion) > 128 || len(q.NodeVersion) > 128 {
-		return invalid
-	}
-	for _, digest := range []string{q.ControlReceiptSHA256, q.KeepReceiptSHA256} {
-		if digest != "" && !reporterDigestPattern.MatchString(digest) {
-			return invalid
-		}
-	}
-	for path, digest := range q.ConfigInputs {
-		if !filepath.IsAbs(path) || len(path) > 4096 || !reporterDigestPattern.MatchString(digest) {
-			return invalid
-		}
-	}
-	for _, entry := range q.Entries {
-		if !validProjectReporter(entry) {
-			return invalid
-		}
-	}
-	if q.Verdict != KeepReportersQualified {
-		return nil
-	}
-	if !isExternalProfile(q.ReceiptProfile) || q.RunnerVersion == "" || q.NodeVersion == "" || q.Entries == nil || q.Tests < 1 || q.ControlReceiptSHA256 == "" || q.KeepReceiptSHA256 == "" {
-		return invalid
-	}
-	for _, entry := range q.Entries {
-		if entry.Module == "unknown" || entry.Options == "unknown" || (entry.Module == "bound" && q.ConfigInputs[entry.Name] != entry.ModuleDigest) {
-			return invalid
-		}
-	}
-	return nil
-}
-
 // EncodeKeepReportersQualification emits the canonical record bytes.
 func EncodeKeepReportersQualification(q KeepReportersQualification) ([]byte, error) {
-	if err := keepReportersQualificationError(q); err != nil {
+	if err := jstestreceipt.KeepReportersQualificationError(q); err != nil {
 		return nil, err
 	}
 	data, err := json.Marshal(q)
@@ -291,9 +190,9 @@ func EncodeKeepReportersQualification(q KeepReportersQualification) ([]byte, err
 		return nil, err
 	}
 	if len(data) >= MaxKeepReportersQualificationSize {
-		return nil, errors.New(keepReportersQualificationInvalid)
+		return nil, errors.New(jstestreceipt.KeepReportersQualificationInvalid)
 	}
-	if err := screenQualifiedDocument(data, keepReportersIdentifiers); err != nil {
+	if err := jstestreceipt.ScreenQualifiedDocument(data, keepReportersIdentifiers); err != nil {
 		return nil, err
 	}
 	return append(data, '\n'), nil
@@ -303,7 +202,7 @@ func EncodeKeepReportersQualification(q KeepReportersQualification) ([]byte, err
 // a closed record. Every refusal is the value-free
 // keep-reporters-qualification-invalid.
 func DecodeKeepReportersQualification(data []byte) (KeepReportersQualification, error) {
-	invalid := errors.New(keepReportersQualificationInvalid)
+	invalid := errors.New(jstestreceipt.KeepReportersQualificationInvalid)
 	if len(data) > MaxKeepReportersQualificationSize {
 		return KeepReportersQualification{}, invalid
 	}
@@ -318,25 +217,4 @@ func DecodeKeepReportersQualification(data []byte) (KeepReportersQualification, 
 		return KeepReportersQualification{}, invalid
 	}
 	return q, nil
-}
-
-// keepReportersQualified reports a keep-reporters receipt whose carried
-// qualification matches it exactly (PWP-V0-016): provider-first order, every
-// entry known, the same profile, runner and Node versions, entries, and exactly
-// the qualified config inputs: no input changed, added or removed.
-func keepReportersQualified(r Receipt) bool {
-	p := r.External.ProjectReporters
-	q := p.Qualification
-	if q == nil || q.Verdict != KeepReportersQualified || keepReportersQualificationError(*q) != nil || !providerFirstConfig(r.External.ConfigOverride) {
-		return false
-	}
-	if p.Entries == nil || len(p.Entries) != len(q.Entries) || q.ReceiptProfile != r.Profile || q.RunnerVersion != r.Identity.RunnerVersion || q.NodeVersion != r.Identity.NodeVersion {
-		return false
-	}
-	for i, entry := range p.Entries {
-		if entry != q.Entries[i] {
-			return false
-		}
-	}
-	return sameStrings(r.Identity.ConfigInputDigests, q.ConfigInputs)
 }

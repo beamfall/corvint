@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"go/ast"
 	"go/constant"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -43,78 +41,6 @@ func pathFindings(name string, content []byte, evidence Evidence) []Finding {
 		return []Finding{wholeFinding("python-packaging", "Python packaging metadata is present in artifact inventory", evidence, content)}
 	}
 	return nil
-}
-
-func goRuntimeMatches(content []byte) []runtimeMatch {
-	files := token.NewFileSet()
-	file, err := parser.ParseFile(files, "release-tree.go", content, parser.AllErrors)
-	if err != nil {
-		return []runtimeMatch{{"go-analysis-unknown", "Go source parse ambiguity prevents safe execution analysis", 0, len(content)}}
-	}
-	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}}
-	conf := types.Config{Importer: releaseGateImporter{}, Error: func(error) {}}
-	_, _ = conf.Check("releasegate/scan", files, []*ast.File{file}, info)
-	var matches []runtimeMatch
-	ast.Inspect(file, func(node ast.Node) bool {
-		call, ok := node.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		kind, shell, known := commandCall(info, call.Fun)
-		if !known && maybeExecSelector(file, call.Fun) {
-			matches = append(matches, runtimeMatch{"go-analysis-unknown", "import-bound execution call could not be resolved exactly", files.Position(call.Pos()).Offset, files.Position(call.End()).Offset})
-			return true
-		}
-		if !known {
-			return true
-		}
-		start := files.Position(call.Pos()).Offset
-		end := files.Position(call.End()).Offset
-		argStart := 0
-		if kind == "exec-command-context" {
-			argStart = 1
-		}
-		if len(call.Args) <= argStart {
-			return true
-		}
-		command, exact := constantString(info, call.Args[argStart])
-		if !exact {
-			matches = append(matches, runtimeMatch{"go-analysis-unknown", "dynamic command executable prevents safe release analysis", start, end})
-			return true
-		}
-		if pythonInterpreter(command) {
-			matches = append(matches, runtimeMatch{"python-execution", "Python interpreter execution command", start, end})
-			return true
-		}
-		if environmentInterpreter(command) {
-			for _, argument := range call.Args[argStart+1:] {
-				value, exact := constantString(info, argument)
-				if !exact {
-					matches = append(matches, runtimeMatch{"go-analysis-unknown", "dynamic environment interpreter arguments prevent safe release analysis", start, end})
-					return true
-				}
-				if pythonInterpreter(value) {
-					matches = append(matches, runtimeMatch{"python-execution", "environment launcher executes Python", start, end})
-					return true
-				}
-			}
-		}
-		if shellInterpreter(command) {
-			payload, exact := shellPayload(info, call.Args[argStart+1:])
-			if !exact {
-				matches = append(matches, runtimeMatch{"go-analysis-unknown", "dynamic shell payload prevents safe release analysis", start, end})
-				return true
-			}
-			if hasPythonCommand(payload) {
-				matches = append(matches, runtimeMatch{"python-shell-execution", "shell payload executes Python", start, end})
-			} else {
-				matches = append(matches, runtimeMatch{"shell-execution", "shell execution is forbidden in a native release", start, end})
-			}
-		}
-		_ = shell
-		return true
-	})
-	return matches
 }
 
 func commandCall(info *types.Info, expression ast.Expr) (string, bool, bool) {
@@ -165,30 +91,6 @@ func pathBase(value string) string {
 		_, base, _ = strings.Cut(base, "/")
 	}
 	return base
-}
-func maybeExecSelector(file *ast.File, expression ast.Expr) bool {
-	selector, ok := expression.(*ast.SelectorExpr)
-	if !ok || (selector.Sel.Name != "Command" && selector.Sel.Name != "CommandContext") {
-		return false
-	}
-	owner, ok := selector.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	for _, imp := range file.Imports {
-		pathValue, err := strconv.Unquote(imp.Path.Value)
-		if err != nil || pathValue != "os/exec" {
-			continue
-		}
-		name := "exec"
-		if imp.Name != nil {
-			name = imp.Name.Name
-		}
-		if name == owner.Name {
-			return true
-		}
-	}
-	return false
 }
 
 func constantString(info *types.Info, expression ast.Expr) (string, bool) {

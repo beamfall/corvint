@@ -104,6 +104,7 @@ GATE_STEPS = \
   mkfifo-build-tags-check \
   mkfifo-build-tags-test \
   no-python-runtime-dependency-test \
+  openspec-validate-test \
   pre-push-windows-vet-test \
   register-shell-test-test \
   release-binaries-check \
@@ -212,6 +213,22 @@ cross-vet:
 		GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=$$goos GOARCH=amd64 CGO_ENABLED=0 go vet ./...; \
 		(cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=$$goos GOARCH=amd64 CGO_ENABLED=0 go vet ./...); \
 	done
+
+# deadcode installs golang.org/x/tools/cmd/deadcode at DEADCODE_VERSION for the host into a scratch
+# directory, runs it with -test for linux, darwin and windows on amd64 and arm64 one after another,
+# and fails unless the functions all six runs report equal tools/deadcode-ratchet/baseline.json,
+# which only shrinks (DCR-V0-001 to DCR-V0-005, docs/specs/deadcode-ratchet-v0.md). Each run's
+# JSON stays under the git dir, never in the tracked tree. deadcode-baseline rewrites the baseline
+# from the report; the count asserted in tools/deadcode-ratchet/baseline_test.go must change with it.
+# Neither is a GATE_STEPS step: six whole-program loads take about a minute.
+DEADCODE_VERSION := v0.52.0
+DEADCODE_RUN = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/deadcode-ratchet -version $(DEADCODE_VERSION) -out "$$(git rev-parse --absolute-git-dir)/deadcode"
+.PHONY: deadcode
+deadcode: ## Fail on an unreachable function the shrink-only dead-code baseline lacks, or a stale entry
+	@$(DEADCODE_RUN)
+.PHONY: deadcode-baseline
+deadcode-baseline: ## Rewrite tools/deadcode-ratchet/baseline.json from the six-configuration report
+	@$(DEADCODE_RUN) -write-baseline
 
 .PHONY: go-archive-gate
 go-archive-gate:
@@ -551,6 +568,19 @@ ci-least-privilege-check:
 ci-least-privilege-test:
 	@script/check-ci-least-privilege_test.sh
 
+# compatibility-table regenerates docs/COMPATIBILITY.md, the 1.x compatibility promise, from
+# tools/compatibility-table/surfaces.json. compatibility-check fails, naming the row, when the page
+# differs from the generated one, a stable row names a contract test that does not exist, a row's
+# stability does not follow from its class and tests, or the list holds a surface CMP-V1-003 and
+# CMP-V1-005 do not name or misses one they do (docs/specs/compatibility-promise-v1.md).
+.PHONY: compatibility-table
+compatibility-table: ## Regenerate docs/COMPATIBILITY.md from tools/compatibility-table/surfaces.json
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/compatibility-table --write
+
+.PHONY: compatibility-check
+compatibility-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/compatibility-table >/dev/null
+
 # spec-toolchain-conformance installs the OpenSpec and Spec Kit releases pinned in
 # interop/spec-toolchains/versions.json with checksum verification, runs their validators, and
 # asserts that Corvint's derived obligations equal upstream's own view (STA-V0-011,
@@ -755,8 +785,8 @@ release-checklist-test:
 	@script/release-checklist_test.sh
 
 # release-binaries-check validates tools/release-binary/binaries.json, the per-binary release
-# catalog (ARTIFACT-BIN-V0-001, V1-5236): every cmd/ executable classified once as product or
-# support, each entry citing its decision, version sets declared. It builds nothing.
+# catalog (ARTIFACT-BIN-V0-001, -520, V1-5236): every cmd/ executable classified once as product,
+# support or withheld, each entry citing its decision, version sets declared. It builds nothing.
 .PHONY: release-binaries-check
 release-binaries-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary check
@@ -778,6 +808,16 @@ release-binary: go-version
 release-manifest: go-version
 	@test -n "$(RELEASE_OUT)" || { echo "release-manifest: pass RELEASE_OUT=<dir> [RELEASE_BASE=<release-manifest.json>] [RELEASE_DECLARE_SKEW=SET=REASON]" >&2; exit 2; }
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary manifest --output "$(RELEASE_OUT)" $(if $(RELEASE_BASE),--base "$(RELEASE_BASE)") $(if $(RELEASE_DECLARE_SKEW),--declare-skew "$(RELEASE_DECLARE_SKEW)")
+
+# release-tag runs one release tag end to end into the absent or empty RELEASE_OUT: it selects
+# the tag's binaries (vX.Y.Z, SET/vX.Y.Z or NAME/vX.Y.Z), builds each of them and no other, merges
+# the release manifest over RELEASE_BASE (optional) and rechecks the output (ARTIFACT-BIN-V0-523,
+# -524). It never tags, publishes or opens a network connection. Example:
+#   make release-tag RELEASE_TAG=corvint-docs/v1.0.1 RELEASE_OUT=/tmp/rel-docs RELEASE_BASE=prev/release-manifest.json
+.PHONY: release-tag
+release-tag: go-version
+	@test -n "$(RELEASE_TAG)" && test -n "$(RELEASE_OUT)" || { echo "release-tag: pass RELEASE_TAG=<tag> RELEASE_OUT=<dir> [RELEASE_BASE=<release-manifest.json>] [RELEASE_DECLARE_SKEW=SET=REASON]" >&2; exit 2; }
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary release --tag "$(RELEASE_TAG)" --output "$(RELEASE_OUT)" $(if $(RELEASE_BASE),--base "$(RELEASE_BASE)") $(if $(RELEASE_DECLARE_SKEW),--declare-skew "$(RELEASE_DECLARE_SKEW)")
 
 # no-python-runtime-dependency-test is the GOC-V0-008 falsifying assertion: no build, test, hook or
 # packaging path names a Python interpreter.
@@ -843,6 +883,32 @@ py-signal-lint:
 .PHONY: flow-guide-check
 flow-guide-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/flow-guide-check
+
+# OSC-V1-011 (V1-5399): the Go check of the OpenSpec change folders, their propose, apply and archive
+# stages, the one OpenSpec root and the spec Health: lines (docs/specs/openspec-check-v1.md). It needs
+# full history: a shallow clone refuses with history-unavailable. OPENSPEC_BASE=<rev> also checks the
+# commits of <rev>..HEAD that opt in to a change (OSC-V1-003, OSC-V1-004), which otherwise report
+# NOT_RUN; a finding listed in tools/openspec-check/baseline.txt is reported only, and that file
+# only shrinks.
+.PHONY: openspec-check
+openspec-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/openspec-check $(if $(OPENSPEC_BASE),--base "$(OPENSPEC_BASE)")
+
+# OSC-V1-012 (V1-5399): openspec validate --all from docs/specs at the one pinned version of
+# @fission-ai/openspec, telemetry off. A folder that fails validation fails the target; --strict
+# warnings are printed and fail nothing. Without the command, or at another version, it prints
+# NOT_RUN and exits 0 locally and fails in CI (CI=true). The pin moves only in a commit that shows
+# openspec validate --all passing at the new version. No product binary calls the command.
+OPENSPEC_VERSION := 1.17.0
+.PHONY: openspec-validate
+openspec-validate: ## Run openspec validate --all at the pinned OpenSpec version (NOT_RUN locally without it)
+	@script/openspec-validate.sh "$(OPENSPEC_VERSION)"
+
+# OSC-V1-011: the focused-docs release gate's checks (.github/workflows/release-gates.yml and the
+# Tasks gate of the same name) plus openspec-check, for that gate to call as one target.
+.PHONY: focused-docs
+focused-docs: ## Run the focused-docs gate checks, including openspec-check
+	@$(MAKE) --no-print-directory spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check openspec-check
 
 .PHONY: error-code-ownership-check
 error-code-ownership-check:
@@ -1157,6 +1223,7 @@ DOC_GATE_TARGETS := \
   binary-blobs-check \
   capabilities-check \
   ci-least-privilege-check \
+  compatibility-check \
   conflict-markers-check \
   decision-numbers-check \
   declaration-compat-check \
@@ -1172,6 +1239,7 @@ DOC_GATE_TARGETS := \
   long-lines-check \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
+  openspec-check \
   py-signal-lint \
   requirement-definitions-check \
   selection-baseline-check \
@@ -1400,6 +1468,7 @@ shell-test: \
   merge-drivers-test \
   mkfifo-build-tags-test \
   no-python-runtime-dependency-test \
+  openspec-validate-test \
   pre-push-windows-vet-test \
   register-shell-test-test \
   release-checklist-test \
@@ -1527,3 +1596,7 @@ ticket-gate-test:
 .PHONY: cutover-payloads-test
 cutover-payloads-test:
 	@script/cutover-payloads_test.sh
+
+.PHONY: openspec-validate-test
+openspec-validate-test:
+	@script/openspec-validate_test.sh

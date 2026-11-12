@@ -149,6 +149,11 @@ type affectedInvocation struct {
 	// Format is the --format value: "" or json writes the JSON document,
 	// text the affected-plan/1 projection as lines (AFP-V0-928).
 	Format string
+	// JSON is --json, the same as --format json (AFP-V0-9988).
+	JSON bool
+	// Head is --head: the plan is the --base plan of a clean checkout of
+	// this commit, materialized from Git objects alone (AFP-V0-9989).
+	Head string
 	// CacheStatus is set only by `affected cache`, which reports the default
 	// cache's location and size; CacheStatusFormat is json or doctor-plugin
 	// (AFP-V0-439).
@@ -187,6 +192,9 @@ type affectedInvocation struct {
 	// JobsDeclaration is set only by `affected jobs`: the CI job input
 	// declaration evaluated over the range (AFP-V0-2341).
 	JobsDeclaration string
+	// ProposeDataMap is set only by `affected --propose-data-map`: the
+	// recorded-reads file the proposal is written from (NCM-V1-003).
+	ProposeDataMap string
 }
 
 type playwrightAffectedReceipt struct {
@@ -264,7 +272,7 @@ const (
 	adviceMaxMandatoryChecks = 16
 	adviceNote               = "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says"
 	adviceFocusedCommand     = "corvint test --base %s --dry-run"
-	adviceFocusedUndeclared  = "FOCUSED_TEST_COMMAND_UNDECLARED: " + sessiontest.DeclarationPath + " is absent, so corvint test --dry-run would fall back to a FULL scope with no units; run the declared mandatory checks instead"
+	adviceFocusedUndeclared  = "FOCUSED_TEST_COMMAND_UNDECLARED: " + sessiontest.CommandsPath + " is absent, so corvint test --dry-run would plan with each runner's built-in default full command (RNC-V1-013); declare the commands there, or run the declared mandatory checks instead"
 	adviceNoGateUnknown      = "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
 	adviceUnreadableUnknown  = "MANDATORY_DECLARATION_UNREADABLE: %s exists but is not a readable regular file"
 	adviceMakefileReason     = "the repository Makefile declares a gate target, so the full gate stays mandatory at the project terminal boundary, not as the default next step"
@@ -341,6 +349,11 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 	if err := resolveAffectedAbbrevBase(&invocation); err != nil {
 		return affectedInvocation{}, true, err
 	}
+	if invocation.Head != "" {
+		if invocation.Head, err = resolveCommitArgument(invocation.Root, "--head", invocation.Head); err != nil {
+			return affectedInvocation{}, true, err
+		}
+	}
 	if err := resolveAffectedBatchAndCache(&invocation); err != nil {
 		return affectedInvocation{}, true, err
 	}
@@ -352,7 +365,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--playwright-env": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true, "--line-index": true, "--line-test-timeout": true, "--line-exec": true}
+var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--playwright-env": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true, "--line-index": true, "--line-test-timeout": true, "--line-exec": true, "--head": true}
 
 // affectedFormatValues are the --format values `affected` accepts
 // (AFP-V0-928, amending AFP-V0-201).
@@ -367,7 +380,7 @@ func affectedFormatRefusal(value string) error {
 // affectedFormatRefusalFor is affectedFormatRefusal with the fault stated by
 // the caller, such as a second --format (AFP-V0-928).
 func affectedFormatRefusalFor(fault string) error {
-	names := []string{"--accept-stale-binary", "--fail-fast-order", "--format", "--full", "--no-cache", "--require-clean", "--worktree"}
+	names := []string{"--accept-stale-binary", "--fail-fast-order", "--format", "--full", "--json", "--no-cache", "--require-clean", "--worktree"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
@@ -395,6 +408,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(rest) != 0 && rest[0] == "jobs" {
 		return parseAffectedJobsOptions(rest[1:])
+	}
+	if len(rest) != 0 && (rest[0] == "--propose-data-map" || strings.HasPrefix(rest[0], "--propose-data-map=")) {
+		return parseAffectedProposeDataMapOptions(rest)
 	}
 	invocation := affectedInvocation{}
 	baseSet := false
@@ -461,6 +477,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			index++
 			continue
 		}
+		if rest[index] == "--json" || strings.HasPrefix(rest[index], "--json=") {
+			if invocation.JSON || rest[index] != "--json" {
+				return affectedInvocation{}, argumentError("argument --json: does not accept a value or repetition")
+			}
+			invocation.JSON = true
+			index++
+			continue
+		}
 		name, value, inline := strings.Cut(rest[index], "=")
 		if name == "--format" {
 			if !inline {
@@ -522,6 +546,12 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			}
 		case "--base":
 			err = setAffectedBase(&invocation, &baseSet, value)
+		case "--head":
+			if invocation.Head != "" || !validBaseArgument(value) {
+				err = argumentError("--head requires exactly one commit: a full commit id, an unambiguous lowercase-hex prefix of at least 7 digits or a revision such as HEAD~1, got " + value)
+			} else {
+				invocation.Head = value
+			}
 		case "--appmap-impact":
 			err = addAffectedAppmapImpact(&invocation, value)
 		case "--provider", "--provider-command":
@@ -546,6 +576,17 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		if err != nil {
 			return affectedInvocation{}, err
 		}
+	}
+	// AFP-V0-9988: the default output is already JSON, so --json is
+	// --format json and only --format text conflicts with it.
+	if invocation.JSON {
+		if invocation.Format == "text" {
+			return affectedInvocation{}, argumentError("--json cannot be combined with --format text: affected writes JSON by default and --json only restates that; drop one of them")
+		}
+		invocation.Format = "json"
+	}
+	if err := affectedHeadOptionRefusal(invocation); err != nil {
+		return affectedInvocation{}, err
 	}
 	if invocation.Format == "text" && (invocation.Full || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--format text writes the affected-plan/1 plan and cannot be combined with --full or --playwright-config")
@@ -882,6 +923,20 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	if invocation.JobsDeclaration != "" {
 		return runAffectedJobs(ctx, invocation, stdout, stderr)
 	}
+	if invocation.ProposeDataMap != "" {
+		return runAffectedProposeDataMap(invocation, stdout, stderr)
+	}
+	if invocation.Head != "" {
+		// AFP-V0-9989: plan a clean checkout of --head, written from Git
+		// objects into private scratch; the root's checkout is never read.
+		checkout, cleanup, err := materializeAffectedHead(ctx, invocation.Root, invocation.Head)
+		if err != nil {
+			emitError(stderr, err)
+			return 2
+		}
+		defer cleanup()
+		invocation.Root = checkout
+	}
 	invocation.sharedVia = !invocation.Full
 	if invocation.ByPath {
 		return runAffectedByPath(ctx, invocation, stdout, stderr)
@@ -909,7 +964,7 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		return 2
 	}
 	if invocation.Summary {
-		return writeAffectedVerdict(receipt, invocation.Format, stdout, stderr)
+		return writeAffectedVerdict(receipt, invocation.Root, invocation.Format, readInventoryVerdict(ctx, invocation.Root, invocation.Worktree || invocation.Base == ""), stdout, stderr)
 	}
 	if invocation.Format == "text" {
 		compact, ok := receipt.(affectedCompactReceipt)
@@ -1567,7 +1622,18 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 		graph = graph.WithGatedLocatorChanges(golang.GatedLocatorChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 		graph = affectedReadScopeChanges(ctx, in, graph, changed)
 		graph = affectedOwnershipInputs(ctx, in, graph, changed)
+		// AFP-V0-9960: with --base, each changed path's status against the
+		// base commit narrows name-listing reads (AFP-V0-9962, AFP-V0-9963).
+		// Without a base, or for a path no status is established for, the
+		// status is unknown and selects as before.
+		if in.base != "" {
+			graph = graph.WithChangeStatus(affected.ChangeStatuses(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
+		}
 	}
+	// AFP-V0-9965: a shell unit names a path it reads through a symbolic
+	// link by the link's path, so a dirty path at or below a link's target
+	// is UNKNOWN.
+	graph = graph.WithSymlinks(affected.TreeSymlinks(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 	plan := affectedSelect(graph, changed, in.shared)
 	// AFU-V1-1651: a declared consumer bound to flows is kept, left out or
 	// widened against the flow intents committed at HEAD. A materialized
@@ -1873,12 +1939,18 @@ func compileAffectedAdvice(root string, graph *affected.Graph, plan affected.Pla
 // default next step is the narrowed run, and the declared exhaustive commands
 // stay the terminal-boundary checks a project policy may require. A root
 // without the test-command declaration gets an unknown entry instead, since
-// that command would select nothing there (ACX-V0-853).
+// that command would plan with undeclared built-in defaults there
+// (ACX-V0-853, RNC-V1-013).
 func withFocusedNextStep(advice affectedAdvice, root, base string, plan affected.Plan) affectedAdvice {
 	if base == "" || len(plan.Dirty) == 0 {
 		return advice
 	}
-	if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))); err != nil || !info.Mode().IsRegular() {
+	// The adopter declaration (RNC-V1-013) or Corvint's own old path.
+	declared := func(name string) bool {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(name)))
+		return err == nil && info.Mode().IsRegular()
+	}
+	if !declared(sessiontest.CommandsPath) && !declared(sessiontest.DeclarationPath) {
 		advice.Unknown = sortedUniqueStrings(append(advice.Unknown, adviceFocusedUndeclared))
 		return advice
 	}
@@ -2374,6 +2446,10 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		// TSP-V0-608: the snapshot's base is the measured commit for a gated
 		// root-locator declaration edit, as for the import-set comparison.
 		graph = graph.WithGatedLocatorChanges(golang.GatedLocatorChangesAt(ctx, invocation.Root, root, snapshot.Base, snapshot.Paths))
+		// AFP-V0-9965: the links unchanged since the base are read from the
+		// materialized tree.
+		gitExecutable, _ := exec.LookPath("git")
+		graph = graph.WithSymlinks(affected.TreeSymlinks(ctx, gitExecutable, invocation.Root, root, snapshot.Base, snapshot.Paths))
 		plan := affectedSelect(graph, snapshot.Paths, invocation.sharedVia)
 		provider := providerGoProjection(graph, plan)
 		receipt = affectedReceipt{TestCounts: affectedTestCounts(root, plan), Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}

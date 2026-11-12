@@ -862,7 +862,6 @@ func descendingFacts(count int) []fact {
 	}
 	return facts
 }
-func quadraticComparisonCount(count int) int { return count * (count - 1) / 2 }
 func rawRequest(t *testing.T, r request) []byte {
 	t.Helper()
 	data, err := json.Marshal(r)

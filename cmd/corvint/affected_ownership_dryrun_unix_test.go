@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -17,10 +18,12 @@ import (
 
 // AZU-V0-9900: exercise the public dry-run through manifest projection and argv,
 // rather than relying only on the affected selection's package membership.
+// Since NCM-V1-001 (V1-5424) the addition, which no Go rule attributes (no
+// package encloses or names data/), makes the run FULL as unowned-path.
 func TestOwnershipNamedDryRun_AZU_V0_9900(t *testing.T) {
 	root, _ := ratchetSelectionRepo(t)
 	affectedGit(t, root, "rm", "web/test.ts")
-	cemWrite(t, root, sessiontest.DeclarationPath, sessionDeclaration(""))
+	cemWrite(t, root, sessiontest.CommandsPath, sessionDeclaration(""))
 	affectedGit(t, root, "add", ".")
 	affectedGit(t, root, "commit", "-qm", "Go-only dry-run fixture")
 	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
@@ -53,7 +56,12 @@ func TestOwnershipNamedDryRun_AZU_V0_9900(t *testing.T) {
 			if unit.Unit != "go:example.test/m/internal/liveverify/affected" {
 				continue
 			}
-			if unit.Slice != sessiontest.SliceSelected || unit.Pattern != "^("+affected.OwnershipAuditTest+")$" || !strings.Contains(unit.Reason, "AZU-V0-9900") || !strings.Contains(strings.Join(inv.Argv, " "), affected.OwnershipAuditTest) {
+			// The addition is a path no runner owns, so the plan runs every
+			// test (RNC-V1-004, owner decision R32; NCM-V1-001, V1-5424: an
+			// UNOWNED_DIRTY_PATH no runner attributes); FULL keeps the named
+			// obligation on the whole package (AZU-V0-9900), with its name and
+			// triggering path explained.
+			if unit.Slice != sessiontest.SliceWhole || !strings.Contains(unit.Reason, "FULL") || !strings.Contains(unit.Reason, "required "+affected.OwnershipAuditTest+" via data/new.txt (AZU-V0-9900)") || !slices.Contains(inv.Argv, "example.test/m/internal/liveverify/affected") {
 				t.Fatalf("gate unit=%+v argv=%q", unit, inv.Argv)
 			}
 			return
@@ -71,7 +79,7 @@ func TestOwnershipFullDryRun_AZU_V0_9900(t *testing.T) {
 	// Keep the directory present: an entirely removed directory can be
 	// attributed to its importers without a FULL fallback (AFP-V0-821).
 	cemWrite(t, root, "gone/keep.txt", "package notes\n")
-	cemWrite(t, root, sessiontest.DeclarationPath, sessionDeclaration(""))
+	cemWrite(t, root, sessiontest.CommandsPath, sessionDeclaration(""))
 	affectedGit(t, root, "add", ".")
 	affectedGit(t, root, "commit", "-qm", "Go-only FULL fixture")
 	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))

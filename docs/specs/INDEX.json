@@ -564,8 +564,8 @@
     "path": "docs/specs/confidently-wrong-trial-v0.md",
     "title": "Confidently-Wrong Trial V0",
     "reqPrefix": "CWT-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "`tools/cw-trial` runs one agent over a frozen task set under `none`, `grep`, and `corvint` arms and scores confidently-wrong claims per task with intervals.",
     "dependsOn": [
       "docs/specs/falsifiable-packet-v0.md"
@@ -581,8 +581,8 @@
     "path": "docs/specs/context-evolution-program-v0.md",
     "title": "Context Evolution Program V0",
     "reqPrefix": "CEP-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "Five independent context-evolution hypotheses require frozen held-out evidence before promotion.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md",
@@ -895,7 +895,9 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "internal/docviews"
+    ]
   },
   {
     "path": "docs/specs/cross-repository-breakage-map-v0.md",
@@ -1577,8 +1579,8 @@
     "path": "docs/specs/heading-navigation-experiment-v0.md",
     "title": "Heading navigation experiment V0",
     "reqPrefix": "HNE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "An offline harness compares native lexical document ranking with deterministic heading-aware expansion under equal serialized context-byte budgets.",
     "dependsOn": [
       "docs/specs/documentation-corpus-v1.md",
@@ -1712,8 +1714,8 @@
     "path": "docs/specs/learned-trace-admission-v0.md",
     "title": "Learned Trace Admission V0",
     "reqPrefix": "LTA-V0",
-    "intent": "accepted (decision 0058)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "Learned-path mechanism changes require a pinned two-arm gate, while `record` reclaims unchanged trace-store caps by deterministic whole-file eviction.",
     "dependsOn": [
       "docs/specs/go-production-kernel-migration-v0.md",
@@ -1723,6 +1725,7 @@
     "closableToday": false,
     "implementation": [
       "internal/trace",
+      "internal/tracerecordrepo",
       "internal/secretscreen",
       "internal/contextindex",
       "cmd/corvint"
@@ -1789,9 +1792,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/contextindex/local_completion_context.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/local-observability-dashboard-v0.md",
@@ -2479,7 +2480,7 @@
     "reqPrefix": "RGV-V0",
     "intent": "accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995); RGV-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-2053)",
     "delivery": "experimental",
-    "claim": "Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints.",
+    "claim": "One advisory command, `review`, gives affected advice and local branch overlap hints for an immutable range (`features` and `overview` cut, decision 0597).",
     "dependsOn": [
       "docs/specs/affected-plan-v0.md"
     ],
@@ -2510,8 +2511,8 @@
     "path": "docs/specs/retrieval-bench-diagnostics-v0.md",
     "title": "Retrieval benchmark diagnostics V0",
     "reqPrefix": "RBD-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "The development retrieval benchmark optionally retains exact bounded context output for failure diagnosis without changing ranking or scoring.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
@@ -2929,8 +2930,8 @@
     "path": "docs/specs/task-context-packet-v0.md",
     "title": "Task-Context Packet V0",
     "reqPrefix": "TCP-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "`corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.",
     "dependsOn": [
       "docs/specs/go-production-kernel-migration-v0.md",
@@ -3200,8 +3201,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/tracerecordrepo",
-      "internal/gitrun",
+      "internal/cem/gitrun",
       "internal/contextindex",
       "internal/groupreap",
       "cmd/corvint"
@@ -3308,8 +3308,8 @@
     "path": "docs/specs/trial-replay-journal-v0.md",
     "title": "Trial Replay Journal V0",
     "reqPrefix": "TRJ-V0",
-    "intent": "proposed",
-    "delivery": "not-started",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "Both agent trial dispatchers replay a settled invocation only when a full pinned key matches and record where each replayed observation came from.",
     "dependsOn": [
       "docs/specs/confidently-wrong-trial-v0.md",
@@ -3411,7 +3411,7 @@
     "title": "Test Source Analysis V0",
     "reqPrefix": "TSA-V0",
     "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114, V1-2124, V1-1908, V1-1925, V1-1478); V1-2842 and V1-2843 experimental under the standing lane auto-accept (2026-10-27)",
-    "delivery": "experimental",
+    "delivery": "experimental; actor authorization retired V1-4822",
     "claim": "Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.",
     "dependsOn": [],
     "supersededBy": null,
@@ -3998,8 +3998,8 @@
     "path": "docs/specs/context-ranking-v0.md",
     "title": "Context ranking V0",
     "reqPrefix": "CRK-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "Opt-in RRF, additive and acronym orderings, span hit ranges, fallbacks and merging, and allocation-free term matching, each measured on the frozen bench.",
     "dependsOn": [],
     "supersededBy": null,
@@ -4460,5 +4460,177 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/openspec-check-v1.md",
+    "title": "OpenSpec Check V1 — change folders, stages, boundaries and health classes",
+    "reqPrefix": "OSC-V1",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-5399)",
+    "delivery": "experimental",
+    "claim": "A Go check enforces the OpenSpec change-folder layout, the propose, apply and archive stages, one OpenSpec root and spec health classes.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/compatibility-promise-v1.md",
+    "title": "Compatibility Promise V1",
+    "reqPrefix": "CMP-V1",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5434)",
+    "delivery": "experimental",
+    "claim": "One generated table in docs/COMPATIBILITY.md marks each 1.x surface stable, preview or not-promised, and only a surface a named contract test covers is stable.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/fault-injection-harness-v1.md",
+    "title": "Fault Injection Harness V1",
+    "reqPrefix": "FIH-V1",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5405)",
+    "delivery": "experimental; partially delivered",
+    "claim": "Pre-registered, hashed fault sets per runner prove that a selected run executes every test that kills a fault on a changed line, with a fixed miss verdict.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/flow-schema-version-v1.md",
+    "title": "Flow Schema Version V1",
+    "reqPrefix": "FSV-V1",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5410)",
+    "delivery": "experimental",
+    "claim": "The flow file carries its schema version; one shared reader refuses unknown versions, so plans run every E2E test and flow reports print nothing partial.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/selection-hardening-v1.md",
+    "title": "Selection Hardening V1",
+    "reqPrefix": "SLF-V1",
+    "intent": "accepted (decision 0596, G14; V1-5401)",
+    "delivery": "experimental; partially delivered",
+    "claim": "Python and JavaScript selection raises a named frontier where it drops an edge today; new narrowing rules ship tested but held off until fault injection.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/canonical-test-id-v1.md",
+    "title": "Canonical test ID V1",
+    "reqPrefix": "CTI-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "One canonical ID names every test of the seven blocking runners, so plan, receipt and watch output join on the same string.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/test-inventory-v1.md",
+    "title": "Test inventory V1",
+    "reqPrefix": "TIV-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "One committed inventory lists every test of the seven blocking runners by canonical ID; a missing or doubtful list runs everything.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/runner-contract-v1.md",
+    "title": "Runner contract V1",
+    "reqPrefix": "RNC-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "One compiled-in contract drives every blocking runner by canonical test ID and runner instance; every fallback runs a full command with a reason.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/non-code-map-v1.md",
+    "title": "Non-code map V1",
+    "reqPrefix": "NCM-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "A changed non-code file runs every test unless a proven, accepted map entry narrows it; some paths always run everything.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/docs-mcp-hardening-v1.md",
+    "title": "Docs MCP Hardening V1",
+    "reqPrefix": "DMF-V1",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5409)",
+    "delivery": "implemented",
+    "claim": "One docs check reports staleness honestly; docs MCP tools get distinct descriptions, one actionable error shape and a corpus reload without restart.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/plugin-envelope-v0.md",
+    "title": "Plugin Envelope V0 (`corvint-plugin/1`)",
+    "reqPrefix": "CPE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "One stdio envelope, `corvint-plugin/1`, for every out-of-process plugin; any plugin failure yields UNKNOWN or abstention, never a narrower answer.",
+    "dependsOn": [
+      "docs/specs/core-bundled-apps-v0.md",
+      "docs/specs/runner-selection-plugins-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/secret-screen-writer-v0.md",
+    "title": "Secret Screen Writer V0",
+    "reqPrefix": "LTA-V0",
+    "intent": "accepted (decision 0058; moved from the learned-trace spec by decision 0597)",
+    "delivery": "experimental",
+    "claim": "`internal/secretscreen.Pattern` and its prefilter redact credential-shaped text, with a prefilter that returns exactly the complete pattern's matches.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/deadcode-ratchet-v0.md",
+    "title": "Dead-Function Ratchet V0",
+    "reqPrefix": "DCR-V0",
+    "intent": "proposed",
+    "delivery": "experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)",
+    "claim": "`make deadcode` runs a pinned dead-code analyzer for six GOOS/GOARCH configurations and fails unless the functions all six report equal a shrink-only baseline.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
   }
 ]

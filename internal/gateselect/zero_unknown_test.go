@@ -30,9 +30,13 @@ func TestAZUV0005HiddenPackageSelection(t *testing.T) {
 	if got := sortedKeys(index.packages); !slices.Equal(got, []string{".github/hidden", "_private", "client"}) {
 		t.Fatalf("indexed packages = %v", got)
 	}
+	if got := index.importers[".github/hidden"]; !slices.Equal(got, []string{"client"}) {
+		t.Fatalf("importers of .github/hidden = %v, want [client]", got)
+	}
+	// NCM-V1-005 (V1-5424): a path under .github/ runs everything.
 	for _, tc := range []struct{ dirty, want string }{
-		{".github/hidden/hidden.go", "run example.com/fixture/.github/hidden example.com/fixture/client"},
-		{".github/hidden/hidden_test.go", "run example.com/fixture/.github/hidden"},
+		{".github/hidden/hidden.go", "FALLBACK never-narrowed-path .github/hidden/hidden.go"},
+		{".github/hidden/hidden_test.go", "FALLBACK never-narrowed-path .github/hidden/hidden_test.go"},
 		{"_private/private.go", "run example.com/fixture/_private"},
 		{"docs/guide.md", "run example.com/fixture/.github/hidden"},
 	} {

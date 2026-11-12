@@ -389,6 +389,11 @@ func (graph *Graph) observersOf(files []string, site Witness, reached map[string
 	for existing, witness := range reached {
 		readers[existing] = witness
 	}
+	// A content-predicate reader observes the site file's bytes, so the
+	// predicate decides this edge as it does a dirty path's (AFP-V0-9982).
+	for _, file := range files {
+		graph.observeSiteFile(file)
+	}
 	graph.readers(readers, files)
 	for reader, witness := range readers {
 		if _, hit := reached[reader]; hit {

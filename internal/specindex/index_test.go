@@ -31,6 +31,12 @@ var requiredFields = []string{
 	"intent", "path", "reqPrefix", "supersededBy", "title",
 }
 
+// withHealth is requiredFields with the optional health key, sorted.
+var withHealth = []string{
+	"claim", "closableToday", "delivery", "dependsOn", "health", "implementation",
+	"intent", "path", "reqPrefix", "supersededBy", "title",
+}
+
 // TestIndexCoversSpecsAndHeaders is the index/digest/README contract check over the repository:
 // INDEX.json, every spec's headers and Agent digest, and the docs/specs/README.md table must agree.
 // The requirements-only generator check does not replace it (SRG-V0-045).
@@ -57,8 +63,9 @@ func checkIndex(root string, report func(format string, args ...any)) {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-		if !reflect.DeepEqual(keys, requiredFields) {
-			report("INDEX entry %d fields %v, want exactly %v", i, keys, requiredFields)
+		// OSC-V1-008: `health` is optional; make spec-requirements projects it from a `Health:` line.
+		if !reflect.DeepEqual(keys, requiredFields) && !reflect.DeepEqual(keys, withHealth) {
+			report("INDEX entry %d fields %v, want exactly %v and an optional health", i, keys, requiredFields)
 		}
 	}
 

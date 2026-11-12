@@ -26,8 +26,8 @@ const validManifest = `{
     {"path": "LICENSE-APACHE-2.0", "sha256": "cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893"},
     {"path": "LICENSING.md", "sha256": "cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893"},
     {"path": "PROVENANCE.md", "sha256": "cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893"}],
-  "smoke": {"versionArgument": "--version", "expectedVersion": "Corvint 0.5.0a3", "queryTask": "orient",
-    "queryLimit": "1", "expectedIntent": "project-operations", "fixtureInstructions": "# Agents\n",
+  "smoke": {"versionArgument": "--version", "expectedVersion": "Corvint 0.5.0a3", "queryPath": "AGENTS.md",
+    "expectedInstructionsState": "OBSERVED", "fixtureInstructions": "# Agents\n",
     "crossCompileNotRunReason": "cross-compilation is not execution evidence"},
   "pendingEvidence": ["W10-performance-GPK-V0-016-017"]
 }`
@@ -157,20 +157,20 @@ func TestDivergenceLocatesFirstDifferingByte(t *testing.T) {
 }
 
 func TestQueryMustResolveExpectedIntentAndLeaveRepositoryUnchanged(t *testing.T) {
-	body := `{"ok":true,"results":[{"kind":"project-operations"}]}`
-	passed := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, body, "project-operations")
+	body := `{"profile":"corvint-path-brief/1","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`
+	passed := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, body, "OBSERVED")
 	if passed.Status != statusPass || !passed.QueryOK {
 		t.Fatalf("clean query failed: %+v", passed)
 	}
-	mutated := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: false}, body, "project-operations")
+	mutated := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: false}, body, "OBSERVED")
 	if mutated.Status != statusFail || !strings.Contains(mutated.Reason, "mutated") {
 		t.Fatalf("mutation not caught: %+v", mutated)
 	}
-	wrong := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, `{"ok":true,"results":[{"kind":"other"}]}`, "project-operations")
+	wrong := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, `{"profile":"corvint-path-brief/1","paths":[{"sections":[{"name":"instructions","state":"NOT_OBSERVED"}]}]}`, "OBSERVED")
 	if wrong.Status != statusFail {
 		t.Fatalf("wrong intent accepted: %+v", wrong)
 	}
-	broken := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, "not json", "project-operations")
+	broken := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, "not json", "OBSERVED")
 	if broken.Status != statusFail {
 		t.Fatalf("non-JSON accepted: %+v", broken)
 	}

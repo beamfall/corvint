@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"io"
 
@@ -17,7 +16,7 @@ func runTestPlanPageState(arguments []string, stdout, stderr io.Writer) int {
 	baseline := f.String("baseline", "", "earlier test-page-state-groups/0 report to check drift against")
 	check := f.Bool("check", false, "exit 1 when the groups drift from --baseline")
 	if f.Parse(arguments) != nil || f.NArg() != 0 || *input == "" || *check != (*baseline != "") {
-		emitError(stderr, errors.New("test-plan page-state requires --input FILE; --check and --baseline FILE go together"))
+		emitError(stderr, testPlanArgumentError("test-plan page-state requires --input FILE; --check and --baseline FILE go together"))
 		return 2
 	}
 	var old *testplan.PageStateReport

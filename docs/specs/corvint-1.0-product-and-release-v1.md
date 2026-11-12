@@ -99,8 +99,13 @@ platforms. It is exactly:
    (`CEM-V1-008`).
 3. The dogfood loop: `dogfood` (and the internal `dogfood-record` and `dogfood-ocm` verbs it runs)
    producing a retained, explicit local outcome bound to a CEM.
-4. The three Core jobs accepted by decision 0332: `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`
-   and `UC-EVIDENCE-CARRYING-COMPLETION`. Every other headline job stays literally `UNPROVEN`.
+4. The Core jobs accepted by decision 0332: `UC-CHANGE-CONSEQUENCE` and
+   `UC-EVIDENCE-CARRYING-COMPLETION`. `UC-TASK-ORIENTATION` leaves the Core-jobs table under
+   decision 0597 (delegated 1.0 choice, orchestrator, 2026-11-11, not an owner acceptance): its
+   treatment was `context --task`, which decision 0597 cut, and no kept surface takes task text
+   and names files (`context --path` takes a path, `impact` and `affected` take a diff). It is
+   literally `UNPROVEN` with no replacement treatment. Every other headline job stays literally
+   `UNPROVEN`.
 5. The native release artifact, its reproducibility report, `SHA256SUMS`, and the install,
    upgrade, uninstall and recovery lifecycle of `stable-operations-v0.md`.
 
@@ -161,7 +166,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint init`, `adopt` | Core | First-run inventory and receipt; loop entry (V1-0008). |
 | `corvint index` | Core | Deterministic immutable snapshot every Core read depends on. |
 | `corvint query` | Core | Cited retrieval over the pinned snapshot. |
-| `corvint context` | Core | Task context packet; `UC-TASK-ORIENTATION`. |
+| `corvint context`, `instructions` | Core | `context --path` path brief (`corvint-path-brief/1`: instructions, tests, requirements) and the instruction load set (`instructions`; `context --instruction-*` is a deprecated alias for one release). No use-case claim: the task packet and `UC-TASK-ORIENTATION` were removed by decision 0597. |
 | `corvint impact`, `affected` | Core | Change consequence and verification selection; `UC-CHANGE-CONSEQUENCE`. The `affected --selection-profile e2e-safe` value is Core too (decision 0385, `AFU-V1-019..024`). |
 | `corvint prove` | Core | Proof over pinned evidence; `UC-EVIDENCE-CARRYING-COMPLETION`. |
 | `corvint cem`, `ocm`, `frontier` | Core | The proof wire to be frozen by V1-0013. |
@@ -230,10 +235,12 @@ accepted by decision 0373 and the amendment it requires are stated.
   them. No third party is needed.
 - Amendment required: add to `public-release-v0.md` (0.6 local-workflow scope, extended to 1.0)
   one sentence: "The 1.0 Core candidate additionally requires the three Core jobs on one
-  owner-selected untouched public repository with cases frozen before execution." The ticket
+  owner-selected untouched public repository with cases frozen before execution." (Three Core jobs: two since decision 0597.) The ticket
   type of V1-0019 changes from EXTERNAL to MANUAL.
-- Frozen cases: one harness, `benchmarks/untouched-repository-v1/harness.py`, runs the three Core
-  jobs on each PRS-V1-008 repository from its own preregistration. It computes the
+- Frozen cases: one harness, `benchmarks/untouched-repository-v1/harness.py`, runs the Core
+  jobs (historical since decision 0594, whose removals include `dogfood`, and decision 0597, which removed the
+  orientation treatment `context --task`; the harness and each preregistration's sealed `harnessSha256` are not
+  edited, and a new run needs a new preregistered revision, see its README) on each PRS-V1-008 repository from its own preregistration. It computes the
   preregistration digest from the file and refuses to run when it differs from the sealed
   `preregistration.sha256` or from `--prereg-sha256`.
   - go-chi/chi (decision 0422), held out for run-001: pinned at
@@ -312,7 +319,7 @@ accepted by decision 0373 and the amendment it requires are stated.
   Go foreground, test-validity MCP, docs, Tasks roadmap, named-browser console) Core installed
   qualification.
 - Proposed disposition: move to companion. Core installed qualification becomes the native archive
-  lifecycle of `stable-operations-v0.md` plus the three Core jobs run on the exact installed bytes.
+  lifecycle of `stable-operations-v0.md` plus the three Core jobs (two since decision 0597) run on the exact installed bytes.
 - Amendment required: `PUB-V0-004`, `-005`, `-006`, `-009`, `-010` and `-020`, `PUB-V0-022`'s
   companion input, and the 2026-09-16 clause "missing core installed ... evidence blocks release"
   bind only the companion profile for 1.0. The existing combined manifest reader and installer do
@@ -322,7 +329,7 @@ accepted by decision 0373 and the amendment it requires are stated.
 ## Requirements
 
 - `PRS-V1-001`: Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the local
-  change-evidence loop, the CEM/OCM/frontier proof wire, the dogfood loop, the three Core jobs of
+  change-evidence loop, the CEM/OCM/frontier proof wire, the dogfood loop, the three Core jobs (two since decision 0597) of
   decision 0332, and the native release artifact and its lifecycle.
 - `PRS-V1-002`: Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 readers
   or deterministic migrations). Companion, experimental, deferred, rejected and post-1.0 surfaces
@@ -350,10 +357,10 @@ accepted by decision 0373 and the amendment it requires are stated.
   any host MUST NOT block Core.
 - `PRS-V1-007`: Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
   passes with at least one non-Corvint producer and two independent consumers.
-- `PRS-V1-008`: The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and one
+- `PRS-V1-008`: The 1.0 Core candidate MUST pass the three Core jobs (two since decision 0597) on Corvint, Beamfall and one
   owner-selected untouched public repository, with cases frozen before execution.
 - `PRS-V1-009`: Core installed qualification MUST be the native archive lifecycle of
-  `stable-operations-v0.md` plus the three Core jobs on the exact installed bytes. It MUST NOT
+  `stable-operations-v0.md` plus the three Core jobs (two since decision 0597) on the exact installed bytes. It MUST NOT
   depend on the companion bundle `/2`.
 - `PRS-V1-010`: Any new shipped verb, binary or integration tree MUST be added to the
   classification table with one label and a one-line reason in the same change that ships it.
@@ -384,18 +391,16 @@ accepted by decision 0373 and the amendment it requires are stated.
   honest delivery labels before stable promotion. Existing Core job, platform, compatibility and
   release gates remain required. Product-scope acceptance MUST NOT imply acceptance of an
   experimental technical contract, runtime qualification, authentication or broader renderer claims.
-- `PRS-V1-018`: Stable 1.0 MUST ship five spec-driven development improvements (owner instruction
-  2026-10-13; tickets V1-1344..V1-1348 at milestone v1-0, on which the release gate V1-0020 depends):
-  (a) a `record` citation class for evidence-record changes, reported by the citation baseline tool
-  apart from `change` (V1-1344); (b) a dogfood-check OCM coverage line that, when present, counts
-  only the requirement IDs the bound change cites or traces (V1-1345); (c) spec header rows
-  (the Agent digest status and the `INDEX.json` and `README.md` rows) generated by
-  `make spec-requirements`, with intent-status history kept outside the header (V1-1346); (d) a
-  recorded acceptance mode per requirement (standing approval or owner read-back) carried by
-  `REQUIREMENTS.tsv`, with one audit command listing the requirements the owner never read back
-  (V1-1347); (e) one `dogfood finish-lane` command that takes a committed branch plus a citation
-  plan from BASE to a sealed, checked tree (V1-1348). Delivery of each clause stays NOT_QUALIFIED
-  until its ticket retains the clause's acceptance evidence and completes natively.
+- `PRS-V1-018`: (accepted under the owner's standing auto-accept (2026-10-11); amended per owner
+  decision R37 (2026-11-09) of decision 0596; V1-5399) Stable 1.0 MUST ship two spec-driven
+  development improvements: (c) spec header rows (the Agent digest status and the `INDEX.json` and
+  `README.md` rows) generated by `make spec-requirements`, with intent-status history kept outside
+  the header (delivered by SRG-V0-012; V1-1346); and (d) a recorded acceptance mode per requirement
+  (standing approval or owner read-back) carried by `REQUIREMENTS.tsv`, with one audit command
+  listing the requirements the owner never read back (delivered by SRG-V0-009 and SRG-V0-010;
+  V1-1347). Clauses (a) record citation class (V1-1344), (b) dogfood-check OCM coverage line
+  (V1-1345) and (e) `dogfood finish-lane` (V1-1348) are dropped (owner decision R37 and G8); their
+  tickets close as superseded. OSC-V1-010 carries (c) and (d) over.
 - `PRS-V1-019`: The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO
   disabled) for GOOS=freebsd, openbsd, netbsd and solaris on amd64, and `make cross-vet` MUST run
   those checks. A package whose platform code is implemented only for qualified platforms carries a
@@ -546,14 +551,14 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 | `PRS-V1-001..012` | Decision 0373 | PRODUCED (2026-09-23) |
 | `PRS-V1-013`, `PRS-V1-015`, `PRS-V1-017` | Decision 0426; V1-0461..0463, V1-0465 and V1-0249/V1-0252..0255; docs and flow-doc run on this repository (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-v1-0461-docs-flows-e2e.md`) | Owner scope recorded; local end-to-end run retained for docs maintain and flow docs; exact-candidate qualification pending |
 | `PRS-V1-014`, `PRS-V1-016` | V1-0464; decision 0544; beamfall/core-history#45; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-22-bf-1022q-beamfall-takeover.md` | Restored to 1.0 (2026-10-22); activation recorded, consumer rewire in review; production completion and owner switch NOT_PRODUCED |
-| `PRS-V1-018` | Owner instruction 2026-10-13; V1-1344..V1-1348 at milestone v1-0 (V1-0020 dependencies) | Owner scope recorded; each clause NOT_QUALIFIED until its ticket retains acceptance evidence and completes natively |
+| `PRS-V1-018` | Owner decision R37 (2026-11-09) in decision 0596; V1-5399; (c) SRG-V0-012 and (d) SRG-V0-009, SRG-V0-010 via OSC-V1-010 | (c) and (d) delivered: `script/gen-spec-requirements_test.sh` cases 6, 7 and 8, `make spec-requirements-check`, `make spec-acceptance-audit`; (a), (b), (e) dropped |
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
 | `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
 | `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler and its `TestEmptyRootsRefuseBeforeExecution` (removed) were retired by decision 0594 | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN`; linux/arm64 `NOT_RUN` |
 | `PRS-V1-006` | Host lifecycle qualification, nine cases per tuple (`host-lifecycle-qualification-v1.md`, V1-0016) | PASS for plain CLI, Codex CLI 0.153.2 and Claude Code 2.1.267 on darwin/arm64 with 0.8.0, all FALLBACK; linux `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
-| `PRS-V1-019` | `make cross-vet` freebsd/openbsd/netbsd/solaris amd64 lines; `TestReadTargetOnceOtherRefusesRegularFile` (removed) (compiled by the cross vet); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-portwire-1021x-xplat-wire.md` (V1-0393) | PASS (cross vet, 2026-10-21); native BSD/Solaris execution `NOT_RUN` |
+| `PRS-V1-019` | `make cross-vet` freebsd/openbsd/netbsd/solaris amd64 lines; `TestReadTargetOnceOtherRefusesRegularFile` (removed) (compiled by the cross vet); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-portwire-1021x-xplat-wire.md` (V1-0393) | PASS (cross vet, 2026-10-21); native BSD/Solaris execution `NOT_RUN` (untested: the decision 0594 cut of PR #176 removed its last citing test; whether its implementation remains is NOT_VERIFIED; no test cites it now, V1-5333) |
 | `PRS-V1-020` | `TestPRSV1020VersionJSONNamesVerbsAndHosts` (V1-0300) | PASS (unit); no plugin tree reads it yet |
 | `PRS-V1-021` | Decision 0559; `TestPlatformRefusalsMatchTheirSources`, `TestDocsCorpusAndReceiptRefusalsSkipOnlyOnWindows` (V1-2485) | Owner scope recorded; V1-2492 remains an open rule-2 defect (V1-2487 by `PRS-V1-840`) |
 | `PRS-V1-840` | `TestGitPlatformRefusalIsNotReportedAsARevisionDefect` in `internal/appmap`, `internal/appflows` and `internal/testsource`; `TestProcessErrorMatchesPlatformSentinelOnlyForPlatformRefusal`, `TestRunPlatformRefusalIsTheSentinel` (Windows) (V1-2487) | PASS (unit, linux/WSL2); native Windows execution `NOT_RUN` |

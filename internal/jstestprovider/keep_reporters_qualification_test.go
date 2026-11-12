@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -26,7 +27,7 @@ func hexInputs(r *Receipt) {
 	r.Identity.ConfigInputDigests = map[string]string{r.Identity.ConfigFile: digest, keepHelperInput: strings.Repeat("d", 64)}
 	for i := range r.Tests {
 		r.Tests[i].Project.ConfigDigest = digest
-		r.Tests[i].ID = qualifiedTestID(r.Identity, r.Tests[i])
+		r.Tests[i].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[i])
 	}
 }
 
@@ -39,9 +40,9 @@ func keepQualificationPair(t *testing.T) (Receipt, Receipt) {
 	keep := qualifiedFixture(t)
 	hexInputs(&control)
 	hexInputs(&keep)
-	keep.External.ConfigOverride = "controlled-fixture-config" + keptConfigSuffix
+	keep.External.ConfigOverride = "controlled-fixture-config" + jstestreceipt.KeptConfigSuffix
 	keep.Identity.ConfigInputDigests[keepReporterModule] = strings.Repeat("b", 64)
-	keep.Tests[0].ID = qualifiedTestID(keep.Identity, keep.Tests[0])
+	keep.Tests[0].ID = jstestreceipt.QualifiedTestID(keep.Identity, keep.Tests[0])
 	if err := bindProjectReporters(&keep, []reportedProjectReporter{
 		{Name: "list", Options: "absent"},
 		{Name: keepReporterModule, Options: "bound", OptionsDigest: strings.Repeat("c", 64)},
@@ -70,7 +71,7 @@ func TestQualifyKeepReportersQualified(t *testing.T) {
 		shared.Identity.ConfigInputDigests[path] = digest
 	}
 	shared.Tests = []TestOutcome{control.Tests[0]}
-	shared.Tests[0].ID = qualifiedTestID(shared.Identity, shared.Tests[0])
+	shared.Tests[0].ID = jstestreceipt.QualifiedTestID(shared.Identity, shared.Tests[0])
 	if sharedRecord := QualifyKeepReporters(shared, nil, keep, nil); sharedRecord.Verdict != KeepReportersQualified {
 		t.Fatalf("config-imported reporter not qualified: %v", sharedRecord.Reasons)
 	} else if _, err := EncodeKeepReportersQualification(sharedRecord); err != nil {
@@ -108,14 +109,16 @@ func TestQualifyKeepReportersReasons(t *testing.T) {
 		"control-error": {func(c, k *run) { c.err = errors.New("external-server-required") }, KeepReportersNotRun, "keep-reporters-control-run-incomplete"},
 		"reporter-refused": {func(c, k *run) {
 			k.r.External.ProjectReporters.Entries = nil
-			k.r.Infrastructure = &InfrastructureFailure{Reason: projectReportersInvalid}
+			k.r.Infrastructure = &InfrastructureFailure{Reason: jstestreceipt.ProjectReportersInvalid}
 		}, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-partial":      {func(c, k *run) { k.r.Cancelled = true }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-error":        {func(c, k *run) { k.err = errors.New("keep-reporters-unsupported-mode") }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"unbindable-input":  {func(c, k *run) { k.r.Identity.ConfigInputDigests[keepHelperInput] = "short" }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-without-mode": {func(c, k *run) { k.r = c.r }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"control-with-mode": {func(c, k *run) { c.r = k.r }, KeepReportersNotRun, "keep-reporters-control-run-incomplete"},
-		"legacy-order":      {func(c, k *run) { k.r.External.ConfigOverride = "controlled-fixture-config" + legacyKeptConfigSuffix }, KeepReportersNotQualified, "keep-reporters-order-unsupported"},
+		"legacy-order": {func(c, k *run) {
+			k.r.External.ConfigOverride = "controlled-fixture-config" + jstestreceipt.LegacyKeptConfigSuffix
+		}, KeepReportersNotQualified, "keep-reporters-order-unsupported"},
 		"unknown-entry": {func(c, k *run) {
 			k.r.External.ProjectReporters.Entries[1] = ProjectReporter{Name: "/outside/reporter.mjs", Module: "unknown", Options: "unknown"}
 		}, KeepReportersNotQualified, "keep-reporters-entries-unknown"},
@@ -182,7 +185,7 @@ func TestKeepReportersQualificationRecordClosed(t *testing.T) {
 		"trailing-value":  string(encoded) + "{}\n",
 		"oversized":       strings.Repeat(" ", MaxKeepReportersQualificationSize+1),
 	} {
-		if _, err := DecodeKeepReportersQualification([]byte(data)); err == nil || err.Error() != keepReportersQualificationInvalid {
+		if _, err := DecodeKeepReportersQualification([]byte(data)); err == nil || err.Error() != jstestreceipt.KeepReportersQualificationInvalid {
 			t.Fatalf("%s decoded: %v", name, err)
 		}
 	}
@@ -286,14 +289,16 @@ func TestKeepReportersQualifiedProjection(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := carried(t)
 			mutate(&r)
-			r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+			r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 			if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 				t.Fatal("mismatched qualification projected passing")
 			}
 		})
 	}
 	for name, mutate := range map[string]func(*Receipt){
-		"legacy-order":        func(r *Receipt) { r.External.ConfigOverride = "controlled-fixture-config" + legacyKeptConfigSuffix },
+		"legacy-order": func(r *Receipt) {
+			r.External.ConfigOverride = "controlled-fixture-config" + jstestreceipt.LegacyKeptConfigSuffix
+		},
 		"not-qualified":       func(r *Receipt) { r.External.ProjectReporters.Qualification.Verdict = KeepReportersNotQualified },
 		"invalid-record":      func(r *Receipt) { r.External.ProjectReporters.Qualification.Profile = "other/0" },
 		"qualification-alone": func(r *Receipt) { r.External.ProjectReporters.Qualification.Reasons = nil },
@@ -304,7 +309,7 @@ func TestKeepReportersQualifiedProjection(t *testing.T) {
 			if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 				t.Fatal("invalid qualification projected passing")
 			}
-			if _, err := EncodeQualified(r); err == nil || !strings.Contains(err.Error(), projectReportersInvalid) {
+			if _, err := EncodeQualified(r); err == nil || !strings.Contains(err.Error(), jstestreceipt.ProjectReportersInvalid) {
 				t.Fatalf("invalid qualification encoded: %v", err)
 			}
 		})
@@ -321,7 +326,7 @@ func TestKeepReportersQualificationRunGuards(t *testing.T) {
 	}
 	bad := q
 	bad.Verdict, bad.Reasons = KeepReportersNotQualified, []string{"keep-reporters-no-tests"}
-	if _, err := RunE2E(context.Background(), E2EConfig{ExternalServer: true, KeepReporters: true, KeepReportersQualification: &bad}); err == nil || err.Error() != keepReportersQualificationInvalid {
+	if _, err := RunE2E(context.Background(), E2EConfig{ExternalServer: true, KeepReporters: true, KeepReportersQualification: &bad}); err == nil || err.Error() != jstestreceipt.KeepReportersQualificationInvalid {
 		t.Fatalf("not-qualified record accepted: %v", err)
 	}
 }

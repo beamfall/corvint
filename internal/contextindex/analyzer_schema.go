@@ -16,9 +16,6 @@ import (
 // executable rebuild must keep using the same pack.
 const analyzerSchemaID = "corvint-analyzer/150"
 
-// AnalyzerSchemaID is shared by experimental immutable stores of analyzer facts.
-func AnalyzerSchemaID() string { return analyzerSchemaID }
-
 func analyzerEngine() string {
 	// The Go standard-library parsers participate in extraction. A toolchain
 	// change conservatively invalidates facts even when the schema is unchanged.

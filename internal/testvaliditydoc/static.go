@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/testvalidity"
+	"github.com/Beamfall/corvint/internal/testvaliditymodel"
 )
 
 // The static mode's vocabulary (LPCV-V0-150, LPCV-V0-151).
@@ -30,11 +31,8 @@ type StaticFile struct {
 	Reason   string
 }
 
-// Static identifies the committed content a static document read (LPCV-V0-150).
-type Static struct {
-	Revision string   `json:"revision"`
-	Files    []string `json:"files"`
-}
+// Static is testvaliditymodel.Static, kept under its old name.
+type Static = testvaliditymodel.Static
 
 // staticBase is the projection a static reading starts from (LPCV-V0-151): association and run
 // hygiene are UNSUPPORTED, and freshness, execution and strength are NOT_OBSERVED, because no run
@@ -60,10 +58,10 @@ func ProjectStatic(revision string, files []StaticFile) Document {
 		if file.Reason != "" {
 			projection := staticBase()
 			projection.Hygiene = testvalidity.Axis{State: testvalidity.HygieneAbstained, Reason: file.Reason, Anchors: []string{file.Path}}
-			location := newLocation()
-			location.setFile(file.Path)
-			location.Absent[locationLine] = LocationSourceUnplaced
-			location.Absent[locationTitlePath] = LocationSourceUnplaced
+			location := testvaliditymodel.NewLocation()
+			location.SetFile(file.Path)
+			location.Absent[testvaliditymodel.LocationLine] = LocationSourceUnplaced
+			location.Absent[testvaliditymodel.LocationTitlePath] = LocationSourceUnplaced
 			tests = append(tests, Test{ID: file.Path, Name: file.Path, State: StaticState, Projection: projection, Location: location})
 			continue
 		}
@@ -81,8 +79,8 @@ func ProjectStatic(revision string, files []StaticFile) Document {
 			} else {
 				projection = testvalidity.ApplyJSExampleSource(projection, source, anchor)
 			}
-			location := newLocation()
-			location.placeSource(file.Path, line, source)
+			location := testvaliditymodel.NewLocation()
+			location.PlaceSource(file.Path, line, source)
 			name := anchor
 			if len(source.TitlePath) > 0 {
 				name = source.TitlePath[len(source.TitlePath)-1]

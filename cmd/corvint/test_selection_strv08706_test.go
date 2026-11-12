@@ -73,6 +73,11 @@ func TestSTRV08706PlanE2EUnits(t *testing.T) {
 			Selected: []affected.E2ESelection{{Path: "e2e/login.spec.ts"}}},
 			[]string{"typescript:playwright:e2e/login.spec.ts"},
 			"plan.e2e inventory is underivable (discovery:MISSING): only flow-linked E2E files are selected, so an E2E test no flow links is not run"},
+		// FSV-V1-004 (V1-5410): an unsupported flows schema version selects
+		// every E2E test and lists none, so the run is INCOMPLETE for them.
+		"unsupported flows schema": {&affected.E2EPlan{Scope: affected.E2EScopeFull, Selected: []affected.E2ESelection{},
+			Unknown: []affected.Unknown{{Reason: affected.UnknownFlowsSchemaUnsupported, Detail: ".corvint/flows.json version 7; supported 0"}}}, nil,
+			"plan.e2e is FULL and lists nothing (FLOWS_SCHEMA_UNSUPPORTED .corvint/flows.json version 7; supported 0): every E2E test must run and this build cannot name them"},
 		"unknown without a reason": {&affected.E2EPlan{Scope: affected.E2EScopeUnknown}, nil,
 			"plan.e2e is UNKNOWN and selects nothing (its E2E tests cannot be selected)"},
 	} {

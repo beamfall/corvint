@@ -15,7 +15,3 @@ func configureProcess(command *exec.Cmd) {
 	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
 	command.WaitDelay = time.Minute
 }
-
-func descendantCleanupQualification() (bool, string) {
-	return false, "UNQUALIFIED: process-group cleanup does not contain setsid/session escapes"
-}

@@ -67,9 +67,8 @@ type LegalFile struct {
 type Smoke struct {
 	VersionArgument    string `json:"versionArgument"`
 	ExpectedVersion    string `json:"expectedVersion"`
-	QueryTask          string `json:"queryTask"`
-	QueryLimit         string `json:"queryLimit"`
-	ExpectedIntent     string `json:"expectedIntent"`
+	QueryPath          string `json:"queryPath"`
+	ExpectedState      string `json:"expectedInstructionsState"`
 	FixtureInstruction string `json:"fixtureInstructions"`
 	CrossCompileReason string `json:"crossCompileNotRunReason"`
 }
@@ -182,8 +181,8 @@ func (s Smoke) validate() error {
 	if s.VersionArgument == "" || s.ExpectedVersion == "" {
 		return fmt.Errorf("smoke.versionArgument and smoke.expectedVersion are required")
 	}
-	if s.QueryTask == "" || s.QueryLimit == "" || s.ExpectedIntent == "" {
-		return fmt.Errorf("smoke.queryTask, smoke.queryLimit, and smoke.expectedIntent are required")
+	if s.QueryPath == "" || s.ExpectedState == "" {
+		return fmt.Errorf("smoke.queryPath and smoke.expectedInstructionsState are required")
 	}
 	if s.CrossCompileReason == "" {
 		return fmt.Errorf("smoke.crossCompileNotRunReason is required; a cross-built target is NOT_RUN, never inferred")

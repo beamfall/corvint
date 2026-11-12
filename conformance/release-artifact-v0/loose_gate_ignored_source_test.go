@@ -27,7 +27,7 @@ func main() {
 	case len(os.Args) > 1 && os.Args[1] == "--version":
 		os.Stdout.WriteString("Fixture 1 (build " + build + ")\n")
 	case len(os.Args) > 3 && os.Args[3] == "context":
-		os.Stdout.WriteString("{\"ok\":true,\"results\":[{\"kind\":\"fixture\"}]}\n")
+		os.Stdout.WriteString("{\"profile\":\"corvint-path-brief/1\",\"paths\":[{\"sections\":[{\"name\":\"instructions\",\"state\":\"OBSERVED\"}]}]}\n")
 	default:
 		os.Stdout.WriteString("marks=" + marks + "\n")
 	}
@@ -66,7 +66,7 @@ func TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses(t *testing.T) 
 		Toolchain: Toolchain{GoVersion: selected, GoModDirective: "1.27.4"},
 		Profile: Profile{Package: "./cmd/fixture", ModulePath: "example.com/ignoredsource", BinaryName: "fixture", BuildFlags: []string{"-trimpath"},
 			Environment: map[string]string{"CGO_ENABLED": "0", "GOENV": "off", "GOFLAGS": "-mod=readonly", "GOPROXY": "off", "GOSUMDB": "off", "GOTOOLCHAIN": "local"}},
-		Smoke: Smoke{VersionArgument: "--version", ExpectedVersion: "Fixture 1", QueryTask: "task", QueryLimit: "1", ExpectedIntent: "fixture", FixtureInstruction: "# Agents\n"},
+		Smoke: Smoke{VersionArgument: "--version", ExpectedVersion: "Fixture 1", QueryPath: "AGENTS.md", ExpectedState: "OBSERVED", FixtureInstruction: "# Agents\n"},
 	}
 	target := Target{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, Suffix: testplatform.ExeSuffix()}
 	options := Options{Root: root, Output: filepath.Join(t.TempDir(), "loose")}

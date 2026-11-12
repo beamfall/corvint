@@ -1,79 +1,38 @@
 package jstestprovider
 
 import (
-	"errors"
-	"fmt"
-	"strings"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
-const (
-	SensitiveExternalProfile              = "corvint-playwright-external/2"
-	SensitiveInputRedactionMarker         = "[REDACTED]"
-	SensitiveInputUnredacted              = "sensitive-input-unredacted"
-	SensitiveInputDocumentInvalid         = "sensitive-input-document-invalid"
-	SensitiveInputActionSyntaxUnsupported = "sensitive-input-action-syntax-unsupported"
-	SensitiveInputDepthExceeded           = "sensitive-input-depth-exceeded"
-	SensitiveInputStepBoundExceeded       = "sensitive-input-step-bound-exceeded"
-	SensitiveInputStringBoundExceeded     = "sensitive-input-string-bound-exceeded"
-	SensitiveInputFindingBoundExceeded    = "sensitive-input-finding-bound-exceeded"
-	sensitiveInputMaxDepth                = 32
-	sensitiveInputMaxSteps                = 4096
-	sensitiveInputMaxStringBytes          = 64 << 10
-	sensitiveInputMaxFindings             = 64
-)
+// SensitiveExternalProfile is jstestreceipt.SensitiveExternalProfile, kept under its old name.
+const SensitiveExternalProfile = jstestreceipt.SensitiveExternalProfile
 
-var (
-	defaultSensitiveActionPatterns = []string{"fill", "type", "inserttext", "insert-text", "insert text", "presssequentially", "press sequentially"}
-	defaultSensitiveFields         = []string{"value", "text", "inputvalue", "input-value"}
-)
+// SensitiveInputRedactionMarker is jstestreceipt.SensitiveInputRedactionMarker, kept under its old name.
+const SensitiveInputRedactionMarker = jstestreceipt.SensitiveInputRedactionMarker
 
-// SensitiveInputFinding is a typed, value-free validation result. Path names
-// the structural location only; it never includes the rejected value.
-type SensitiveInputFinding struct {
-	Code string `json:"code"`
-	Path string `json:"path"`
-}
+// SensitiveInputUnredacted is jstestreceipt.SensitiveInputUnredacted, kept under its old name.
+const SensitiveInputUnredacted = jstestreceipt.SensitiveInputUnredacted
 
-type SensitiveInputValidationError struct {
-	Findings []SensitiveInputFinding
-}
+// SensitiveInputDocumentInvalid is jstestreceipt.SensitiveInputDocumentInvalid, kept under its old name.
+const SensitiveInputDocumentInvalid = jstestreceipt.SensitiveInputDocumentInvalid
 
-func (e *SensitiveInputValidationError) Error() string {
-	if len(e.Findings) == 0 {
-		return "sensitive input validation failed"
-	}
-	return fmt.Sprintf("%s: %d finding(s)", e.Findings[0].Code, len(e.Findings))
-}
+// SensitiveInputActionSyntaxUnsupported is jstestreceipt.SensitiveInputActionSyntaxUnsupported, kept under its old name.
+const SensitiveInputActionSyntaxUnsupported = jstestreceipt.SensitiveInputActionSyntaxUnsupported
 
-type normalizedSensitivePolicy struct {
-	actions []string
-	fields  map[string]bool
-}
+// SensitiveInputDepthExceeded is jstestreceipt.SensitiveInputDepthExceeded, kept under its old name.
+const SensitiveInputDepthExceeded = jstestreceipt.SensitiveInputDepthExceeded
 
-func sensitivePolicy(additions *SensitiveInputPolicy) (normalizedSensitivePolicy, error) {
-	p := normalizedSensitivePolicy{actions: append([]string{}, defaultSensitiveActionPatterns...), fields: map[string]bool{}}
-	for _, field := range defaultSensitiveFields {
-		p.fields[field] = true
-	}
-	if additions == nil {
-		return p, nil
-	}
-	if len(additions.AdditionalActionPatterns) > 16 || len(additions.AdditionalSensitiveFields) > 32 {
-		return p, errors.New("sensitive-input-policy-invalid")
-	}
-	for _, pattern := range additions.AdditionalActionPatterns {
-		pattern = strings.ToLower(strings.TrimSpace(pattern))
-		if boundaryWords(pattern) == "" || len(pattern) > 128 {
-			return p, errors.New("sensitive-input-policy-invalid")
-		}
-		p.actions = append(p.actions, pattern)
-	}
-	for _, field := range additions.AdditionalSensitiveFields {
-		field = strings.ToLower(strings.TrimSpace(field))
-		if field == "" || len(field) > 128 {
-			return p, errors.New("sensitive-input-policy-invalid")
-		}
-		p.fields[field] = true
-	}
-	return p, nil
-}
+// SensitiveInputStepBoundExceeded is jstestreceipt.SensitiveInputStepBoundExceeded, kept under its old name.
+const SensitiveInputStepBoundExceeded = jstestreceipt.SensitiveInputStepBoundExceeded
+
+// SensitiveInputStringBoundExceeded is jstestreceipt.SensitiveInputStringBoundExceeded, kept under its old name.
+const SensitiveInputStringBoundExceeded = jstestreceipt.SensitiveInputStringBoundExceeded
+
+// SensitiveInputFindingBoundExceeded is jstestreceipt.SensitiveInputFindingBoundExceeded, kept under its old name.
+const SensitiveInputFindingBoundExceeded = jstestreceipt.SensitiveInputFindingBoundExceeded
+
+// SensitiveInputFinding is jstestreceipt.SensitiveInputFinding, kept under its old name.
+type SensitiveInputFinding = jstestreceipt.SensitiveInputFinding
+
+// SensitiveInputValidationError is jstestreceipt.SensitiveInputValidationError, kept under its old name.
+type SensitiveInputValidationError = jstestreceipt.SensitiveInputValidationError

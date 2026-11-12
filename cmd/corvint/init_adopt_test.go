@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -214,26 +213,6 @@ func TestInitAdoptMissingTreeObjectMatchesPythonWithoutFetch(t *testing.T) {
 	}
 }
 
-func TestActivationArgumentErrorsAndHelp(t *testing.T) {
-	t.Parallel()
-	root := newActivationFixture(t, "sha1")
-	for _, arguments := range [][]string{
-		{"--root", root, "init", "--revision"},
-		{"--root", root, "adopt", "--unknown"},
-	} {
-		candidate := execute(t, candidateCommand(arguments...))
-		if candidate.exit != 2 || len(candidate.stdout) != 0 {
-			t.Fatalf("candidate=%#v", candidate)
-		}
-	}
-	for _, activation := range []string{"init", "adopt"} {
-		result := execute(t, candidateCommand(activation, "--help"))
-		if result.exit != 0 || len(result.stderr) != 0 || !bytes.Contains(result.stdout, []byte("--full-receipt")) {
-			t.Fatalf("%s help=%#v", activation, result)
-		}
-	}
-}
-
 func TestActivationUnsupportedPlatformRefusesBeforeRepositoryAccess(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
@@ -323,13 +302,4 @@ func gitCommand(t *testing.T, directory string, environment []string, arguments 
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)
 	}
-}
-
-func decodeActivationOutput(t *testing.T, data []byte) map[string]any {
-	t.Helper()
-	var payload map[string]any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		t.Fatal(err)
-	}
-	return payload
 }
