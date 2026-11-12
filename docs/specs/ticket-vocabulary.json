@@ -343,6 +343,7 @@
   },
   "changeFolders": {
     "acceptance-record": "specs",
+    "affected-change-status": "affected",
     "affected-plan-kinds": "affected",
     "agent-packages": "agents",
     "canonical-test-id": "inventory",
