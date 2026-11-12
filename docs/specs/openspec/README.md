@@ -83,6 +83,7 @@ the proposal header serves.
 | `affected-change-status` | Base change status as a plan input, so name-listing shell readers stop selecting on edits (V1-5193, V1-5194) | PROD-TEST-001 | waiting for owner |
 | `affected-plan-kinds` | Test kind and kind source in the `affected` plan, reporting only (G13) | PROD-TEST-003, 004 | waiting for owner |
 | `agent-packages` | Claude Code and Codex packages (blocking) and OpenCode and Pi packages (preview) in `beamfall/corvint-agents` | PROD-TEST-009, PROD-DOCS-001, PROD-TASK-007; PROD-INT-023 to 027 | waiting for owner |
+| `appmap-usable-ui-map` | A usable UI map for a react-router web app: mapped React routes, loop and helper gotos, subcommand help and a working-tree build (V1-5467, V1-5468, V1-5471, V1-5472) | PROD-DOCS-006 | auto-accepted |
 | `canonical-test-id` | One canonical test ID for every runner (RNC-V1-012, fresh IDs per R11) | PROD-TEST-006 | waiting for owner |
 | `change-report-impact` | Impact section of the change report | PROD-TEST-003, 010; PROD-INT-001, 002 | waiting for owner |
 | `compatibility-promise` | The 1.x compatibility promise: `docs/COMPATIBILITY.md` table of stable and preview surfaces (R42 D10, D10a) | plan gap (g); checklist O30, O64 | waiting for owner |
