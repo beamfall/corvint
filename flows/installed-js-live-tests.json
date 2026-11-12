@@ -57,7 +57,7 @@
         "type": "source",
         "path": "internal/jstestprovider/application_attestation.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "163442ed0323c9410f29df37907f7bd453e9ddd4"
     },
     {
       "from": "js-session",
