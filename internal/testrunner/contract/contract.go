@@ -81,6 +81,14 @@ type Request struct {
 	Files []string
 	// Report is the absolute path the runner writes its machine report to.
 	Report string
+	// Listed are the canonical test IDs the committed inventory lists for
+	// the instance. A name filter is exact only when no unselected listed
+	// test can match it; nil proves nothing.
+	Listed []string
+	// Jest is the Jest instance's setup (JST-V1-008), read by JestSetupFrom.
+	// A nil setup is one Corvint did not read, so a Jest selection runs the
+	// full command.
+	Jest *JestSetup
 }
 
 // Command is the argv one selection runs, from Dir (the instance root,
