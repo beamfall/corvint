@@ -54,6 +54,7 @@ var notPlanner = map[string]string{
 	".corvint/dogfood-report.json":    "the dogfood run report",
 	".corvint/record-readers.json":    "the AFP-V0-2745 ratchet record read by tools/unbounded-readers, not by the planner",
 	".corvint/requirement-links.json": "the path-to-requirement links read by `corvint context --path` (internal/pathbrief), never by the test planner or selector",
+	".corvint/test-commands.json":     "the full test commands read by `corvint test` (RNC-V1-013) and kept identical to the old path by tools/test-commands-check; `corvint affected` only tests that the file exists, never decodes it",
 	".corvint/work-queue-policy.json": "the Tasks work-queue policy",
 }
 
