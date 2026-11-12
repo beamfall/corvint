@@ -93,7 +93,7 @@ func command(ctx context.Context, root string, timeout time.Duration, argv ...st
 		return out.body, err
 	}
 	if out.overflow {
-		return nil, errors.New("command output exceeded 32 MiB")
+		return nil, errOutputOverflow
 	}
 	return out.body, result.WaitErr
 }
@@ -102,6 +102,11 @@ func command(ctx context.Context, root string, timeout time.Duration, argv ...st
 // released. Like a wall timeout it says nothing about a fault: it is a failed
 // measurement, never a dropped case (G3).
 var errCleanupUnproved = errors.New("process cleanup unproved")
+
+// errOutputOverflow marks a command whose output passed the capture bound.
+// Its truncated output says nothing about the tree, so it is a failed
+// measurement, never a dropped case (G3).
+var errOutputOverflow = errors.New("command output exceeded 32 MiB")
 
 // stopError classifies how a command ended before its output is read: an
 // unproved cleanup, a cancelled parent or the harness's wall bound. An
@@ -124,9 +129,10 @@ func stopError(parent, bounded context.Context, result groupreap.Result, name st
 
 // stopped reports whether err, or the context, says the harness stopped a
 // command rather than the command failing on its own: cancellation, the wall
-// bound or an unproved cleanup. Such an error is a failed measurement.
+// bound, an unproved cleanup or an output overflow. Such an error is a failed
+// measurement.
 func stopped(ctx context.Context, err error) bool {
-	return ctx.Err() != nil || errors.Is(err, errWallTimeout) || errors.Is(err, errCleanupUnproved)
+	return ctx.Err() != nil || errors.Is(err, errWallTimeout) || errors.Is(err, errCleanupUnproved) || errors.Is(err, errOutputOverflow)
 }
 
 func git(ctx context.Context, root string, args ...string) (string, error) {
