@@ -2377,7 +2377,9 @@ but does not read it; only non-Go syntax impact does.
   call's closing parenthesis) MUST hold no assignment or compound assignment (a JSX attribute's `=`
   excepted), no `++`, `--` or `delete`, no call, computed member or member call on the element
   name, no template substitution other than a plain member path, and no doubted token; an element
-  handed to a call as an argument keeps the proof only when every element is an exact string. The
+  handed to a call as an argument, or used bare anywhere but a whole JSX attribute value (returned,
+  or put in an array or object literal, where an alias could change it later), keeps the proof
+  only when every element is an exact string. The
   scan accepts these proven shapes rather than detecting writes: every `.length` use, `.forEach(`,
   a callback passed by name, a mutator call, an index assignment and any other token after ARR
   refuse. The same rules bind the arrays AMAP-V0-972 loops over.

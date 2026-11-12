@@ -149,6 +149,9 @@ func TestAMAPV0971ConservativeUses(t *testing.T) {
 		"member write in map":   `function A() { ` + decl + `sections.map(s => { s.path = 'x'; }); ` + routes + ` }`,
 		"call on map param":     `function A() { ` + decl + `sections.map(s => s.touch()); ` + routes + ` }`,
 		"element escapes":       `function A() { ` + decl + `sections.map(s => touch(s)); ` + routes + ` }`,
+		"element returned":      `function A() { ` + decl + `const aliases = sections.map(s => s); ` + routes + ` }`,
+		"element in object":     `function A() { ` + decl + `sections.map(s => ({s})); ` + routes + ` }`,
+		"element in array":      `function A() { ` + decl + `sections.map(s => [s]); ` + routes + ` }`,
 		"member write in loop":  `function A() { ` + decl + `for (const s of sections) { s.path = 'x'; } ` + routes + ` }`,
 	} {
 		got, reasons := reactTemplates(t, src)
