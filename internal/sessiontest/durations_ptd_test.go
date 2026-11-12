@@ -114,3 +114,37 @@ func TestPTDV1002GoPackageElapsed(t *testing.T) {
 }
 
 func ptr(measure testduration.Measure) *testduration.Measure { return &measure }
+
+// PTD-V1-003: a package whose build failed, or that has no tests, carries no measured time even
+// though go test -json reports an Elapsed for it. The stream is the shape `go test -json` prints
+// for a build failure since Go 1.24 (build-output/build-fail events, then a package fail event
+// with FailedBuild; cmd/test2json and cmd/go `go help test` -json) and for "[no test files]".
+func TestPTDV1003BuildFailedPackageNotMeasured(t *testing.T) {
+	stream := strings.Join([]string{
+		`{"ImportPath":"m/b","Action":"build-output","Output":"# m/b\n"}`,
+		`{"ImportPath":"m/b","Action":"build-output","Output":"b.go:3:1: syntax error\n"}`,
+		`{"ImportPath":"m/b","Action":"build-fail"}`,
+		`{"Time":"2026-11-11T10:00:00Z","Action":"start","Package":"m/b"}`,
+		`{"Time":"2026-11-11T10:00:00Z","Action":"output","Package":"m/b","Output":"FAIL\tm/b [build failed]\n"}`,
+		`{"Time":"2026-11-11T10:00:00Z","Action":"fail","Package":"m/b","Elapsed":0.25,"FailedBuild":"m/b"}`,
+		`{"Time":"2026-11-11T10:00:00Z","Action":"start","Package":"m/c"}`,
+		`{"Time":"2026-11-11T10:00:00Z","Action":"output","Package":"m/c","Output":"?   \tm/c\t[no test files]\n"}`,
+		`{"Time":"2026-11-11T10:00:00Z","Action":"skip","Package":"m/c","Elapsed":0.01}`,
+		`{"Time":"2026-11-11T10:00:01Z","Action":"start","Package":"m/a"}`,
+		`{"Time":"2026-11-11T10:00:01Z","Action":"pass","Package":"m/a","Elapsed":0.004}`,
+	}, "\n") + "\n"
+	var out bytes.Buffer
+	outcomes, elapsed := parseTestEventsTimed(strings.NewReader(stream), &out)
+	if outcomes["m/b"] != OutcomeBuildFailed || outcomes["m/c"] != OutcomeNoTests || outcomes["m/a"] != OutcomePass {
+		t.Fatalf("outcomes %v", outcomes)
+	}
+	if _, ok := elapsed["m/b"]; ok {
+		t.Fatalf("a build-failed package was measured: %v", elapsed)
+	}
+	if _, ok := elapsed["m/c"]; ok {
+		t.Fatalf("a package with no tests was measured: %v", elapsed)
+	}
+	if len(elapsed) != 1 || elapsed["m/a"] != 0.004 {
+		t.Fatalf("elapsed %v", elapsed)
+	}
+}

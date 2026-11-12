@@ -906,9 +906,6 @@ func parseTestEventsTimed(stream io.Reader, out io.Writer) (map[string]string, m
 					timedOut[event.Package] = true
 				}
 				if event.Test == "" && event.Package != "" {
-					if event.Elapsed != nil && (event.Action == "pass" || event.Action == "fail" || event.Action == "skip") {
-						elapsed[event.Package] = *event.Elapsed
-					}
 					switch event.Action {
 					case "pass":
 						outcomes[event.Package] = OutcomePass
@@ -923,6 +920,16 @@ func parseTestEventsTimed(stream io.Reader, out io.Writer) (map[string]string, m
 						default:
 							outcomes[event.Package] = OutcomeFail
 						}
+					}
+					// PTD-V1-003: only a package whose tests ran (PASS, FAIL, TIMED_OUT) has a
+					// measured time; a build failure or a package with no tests is NOT_MEASURED.
+					switch outcomes[event.Package] {
+					case OutcomePass, OutcomeFail, OutcomeTimedOut:
+						if event.Elapsed != nil && (event.Action == "pass" || event.Action == "fail") {
+							elapsed[event.Package] = *event.Elapsed
+						}
+					default:
+						delete(elapsed, event.Package)
 					}
 				}
 			}
