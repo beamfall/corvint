@@ -140,12 +140,26 @@ func ParseFlowInventory(raw []byte) (*FlowInventory, error) {
 		seen := map[InventoryMember]bool{}
 		for _, e := range f.EntryPoints {
 			if !members[e] || seen[e] {
-				return nil, fail("flow inventory entry point must name a distinct member of its flow")
+				// The flow id is validated above; the entry point is caller text, so it is
+				// quoted and clipped (AFU-V1-108).
+				problem := "is not a member of the flow"
+				if seen[e] {
+					problem = "repeats an earlier entry point"
+				}
+				return nil, fail(fmt.Sprintf("flow inventory entry point must name a distinct member of its flow: flow %q entry point path %q symbol %q %s", f.ID, clipText(e.Path), clipText(e.Symbol), problem))
 			}
 			seen[e] = true
 		}
 	}
 	return &inv, nil
+}
+
+// clipText bounds caller text a refusal quotes.
+func clipText(s string) string {
+	if len(s) > 256 {
+		return s[:256] + "..."
+	}
+	return s
 }
 
 // ReadInventoryFile reads a bounded regular inventory file.

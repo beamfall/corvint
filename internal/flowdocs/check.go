@@ -53,8 +53,10 @@ type Check struct {
 	// compared directory: the --output-dir given, or the one the manifest records.
 	Output       string `json:"output"`
 	OutputReason string `json:"output_reason,omitempty"`
-	OutputDir    string `json:"output_dir,omitempty"`
-	Clean        bool   `json:"clean"`
+	// OutputHint names the flag that makes a NOT_CHECKED output comparable (AFU-V1-110).
+	OutputHint string `json:"output_hint,omitempty"`
+	OutputDir  string `json:"output_dir,omitempty"`
+	Clean      bool   `json:"clean"`
 	// Worktree says whether the worktree differs from HEAD under the scope and the compared output
 	// directory (DMF-V1-005); bindings stay answers about the named revisions.
 	Worktree *docworktree.Status `json:"worktree,omitempty"`
@@ -242,6 +244,9 @@ const (
 	OutputNotChecked = "NOT_CHECKED"
 	OutputNoDir      = "no-output-dir"
 	OutputMissingDir = "missing-dir"
+	// OutputNoDirHint is the output_hint of a no-output-dir check: the usage that compares the
+	// pages, since an output directory outside --root is never recorded (AFU-V1-110).
+	OutputNoDirHint = "pass --output-dir DIR naming the generated directory; generation records only an output directory inside --root"
 )
 
 // compareRecordedOutput compares the rendered pages with --output-dir, or else with the directory
@@ -255,7 +260,7 @@ func compareRecordedOutput(root, output, recorded string, files map[string][]byt
 	}
 	result.OutputDir = shown
 	if dir == "" {
-		result.Output, result.OutputReason, result.Clean = OutputNotChecked, OutputNoDir, false
+		result.Output, result.OutputReason, result.OutputHint, result.Clean = OutputNotChecked, OutputNoDir, OutputNoDirHint, false
 		return nil
 	}
 	if st, err := os.Lstat(dir); err != nil || !st.IsDir() {

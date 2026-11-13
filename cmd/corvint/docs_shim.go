@@ -40,6 +40,47 @@ Example:
   corvint --root . docs corpus search --artifact corpus.json --query TERM
 `
 
+// docsSubcommandHelpPointer names the corvint-docs command that prints a docs subcommand's own
+// usage and flags when `corvint docs SUBCOMMAND... --help` is answered natively, so the reader
+// is pointed at the real flags rather than left with the group summary (AFU-V1-111). It
+// returns "" when no subcommand word precedes the first flag.
+func docsSubcommandHelpPointer(arguments []string) string {
+	index := 0
+	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
+		if arguments[index] == "--root" {
+			index++
+		}
+		index++
+	}
+	if index >= len(arguments) || arguments[index] != "docs" {
+		return ""
+	}
+	var words []string
+	for _, word := range arguments[index+1:] {
+		if len(words) == 3 || !docsSubcommandWord(word) {
+			break
+		}
+		words = append(words, word)
+	}
+	if len(words) == 0 {
+		return ""
+	}
+	return "\nSubcommand usage and flags: corvint-docs docs " + strings.Join(words, " ") + " --help\n"
+}
+
+// docsSubcommandWord reports a lower-case command word: a letter, then letters or hyphens.
+func docsSubcommandWord(word string) bool {
+	if word == "" || word[0] < 'a' || word[0] > 'z' {
+		return false
+	}
+	for _, r := range word {
+		if (r < 'a' || r > 'z') && r != '-' {
+			return false
+		}
+	}
+	return true
+}
+
 // docsForwardWaitDelay bounds how long an interrupted corvint-docs may hold the pipes.
 const docsForwardWaitDelay = 5 * time.Second
 
