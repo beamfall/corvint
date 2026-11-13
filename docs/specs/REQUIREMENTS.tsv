@@ -1345,6 +1345,9 @@ AMAP-V0-974	docs/specs/application-map-v0.md	(experimental under the standing au
 AMAP-V0-975	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-12), G14 of decision 0596;	standing	2026-11-12; decision 0596; V1-5471
 AMAP-V0-976	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-12), G14 of decision 0596;	standing	2026-11-12; decision 0596; V1-5472
 AMAP-V0-977	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-12), G14 of decision 0596;	standing	2026-11-12; decision 0596; V1-5472
+AMAP-V0-978	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-13), G14 of decision 0596;	standing	2026-11-13; decision 0596; V1-5509
+AMAP-V0-979	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-13), G14 of decision 0596;	standing	2026-11-13; decision 0596; V1-5507
+AMAP-V0-980	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-13), G14 of decision 0596;	standing	2026-11-13; decision 0596; V1-5508
 AMAP-V0-9501	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4660)	standing	2026-10-11; V1-4660
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-

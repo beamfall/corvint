@@ -56,6 +56,12 @@ The build reads the manifest, routers, flows and tests from Git objects at `--re
 `application-map/0` output, check its routes, screens, flows and page objects, and fix the
 manifest until no unknown is unexpected. Do not commit this output.
 
+`--worktree` builds from the working tree of `--root` instead, uncommitted and untracked files
+included, and marks the map unpinned (AMAP-V0-976). It combines with `--no-workspace` only.
+
+`corvint flows appmap stats --map /tmp/appmap-map.json` prints the map's counts of screens
+(resolved and unknown), edges by basis and unknowns grouped by reason (AMAP-V0-978).
+
 `--from MAP` carries a previous map forward when no input changed since its revision
 (AMAP-V0-211), and `--verify` also builds in full and refuses unless the two agree.
 

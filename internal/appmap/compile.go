@@ -201,6 +201,19 @@ func (b *builder) testUnknown(u Unknown) {
 	b.unknown(u)
 }
 
+// webMountResolver resolves a router file's import specifiers through the revision's context
+// index (relative specifiers and tsconfig paths, AMAP-V0-979); nil without an index.
+func webMountResolver(ix *contextindex.Index) mountResolver {
+	if ix == nil {
+		return nil
+	}
+	wr := contextindex.NewWebImportResolver(ix)
+	return func(importer, specifier string) (string, contextindex.WebImportState) {
+		res := wr.Resolve(importer, specifier)
+		return res.Target, res.State
+	}
+}
+
 func (b *builder) routers(r repo, ix *contextindex.Index) error {
 	paths := []string{}
 	for _, rf := range b.m.Routers {
@@ -242,6 +255,8 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 			states, unknowns, err = readRailsRouter(r, b.rev, e, data[e.oid], &remainingRouters)
 		case DialectReact:
 			states, unknowns, err = readReactRouter(r, b.rev, e, data[e.oid], &remainingRouters)
+		case DialectStatic:
+			states, unknowns = parseStaticRoutes(e, data[e.oid], b.m.Routers[i].Export)
 		default:
 			states, unknowns = parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
 		}
@@ -262,9 +277,16 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		return err
 	}
 	b.out.Unknowns = append(b.out.Unknowns, consts.diag...)
-	if err := mountRouters(b.m.Routers, raws, spans); err != nil {
+	sources := make([][]byte, len(ordered))
+	for i, e := range ordered {
+		sources[i] = data[e.oid]
+	}
+	mounted, unknowns := inferMounts(b.m.Routers, raws, spans, sources, webMountResolver(ix))
+	b.out.Unknowns = append(b.out.Unknowns, unknowns...)
+	if err := mountRouters(mounted, raws, spans); err != nil {
 		return err
 	}
+	raws, spans = dropShadowedStatic(b.m.Routers, raws, spans)
 	screens, unknowns := resolveScreens(b.m.App, raws)
 	markDialects(b.m.App, b.m.Routers, raws, spans, screens)
 	b.out.Screens = screens
