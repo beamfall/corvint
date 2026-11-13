@@ -804,7 +804,7 @@ func TestFlowDocsPredecessorGeneratorManifestIsTypedStale(t *testing.T) {
 		t.Fatal(e)
 	}
 	current := r.Files["generation.json"]
-	for _, version := range []string{"1", "2", "3", "4"} {
+	for _, version := range []string{"1", "2", "3", "4", "5"} {
 		predecessor := bytes.Replace(current, []byte(`"version":"`+Version+`"`), []byte(`"version":"`+version+`"`), 1)
 		if bytes.Equal(predecessor, current) {
 			t.Fatal("fixture did not carry the generator version")

@@ -1101,6 +1101,7 @@ AFU-V1-103	docs/specs/application-flow-understanding-v1.md	A member that does no
 AFU-V1-104	docs/specs/application-flow-understanding-v1.md	In-scope unambiguous declarations that belong to no declared flow are listed in	unrecorded	-
 AFU-V1-105	docs/specs/application-flow-understanding-v1.md	The manifest retains the declared inventory, so `Open`, `finalize`,	unrecorded	-
 AFU-V1-106	docs/specs/application-flow-understanding-v1.md	The inventory file is a bounded regular file of at most 4 MiB with 1 to 256 flow	unrecorded	-
+AFU-V1-107	docs/specs/application-flow-understanding-v1.md	(V1-5502) With an inventory, a web member (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`	unrecorded	-
 AFU-V1-108	docs/specs/application-flow-understanding-v1.md	(V1-5505) The inventory entry-point refusal names the flow id, the entry point's	unrecorded	-
 AFU-V1-109	docs/specs/application-flow-understanding-v1.md	(V1-5503) A directory that `docs flows` opens (`--output-dir`'s parent, `--flows	unrecorded	-
 AFU-V1-110	docs/specs/application-flow-understanding-v1.md	(V1-5504) `docs flows check` with neither `--output-dir` nor a recorded output	unrecorded	-
