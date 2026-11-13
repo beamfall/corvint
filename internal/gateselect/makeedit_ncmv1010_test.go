@@ -79,19 +79,22 @@ func TestNCMV1010SelectorNarrowsMakeEdit(t *testing.T) {
 		name, head, targets string
 		want                []string
 		audit               []string
+		// made is the first make-added package, which the plan does not
+		// select, so SelectQualified runs everything.
+		made string
 	}{
 		{"recipe", strings.Replace(makeEditMakefile, "go run ./gen", "go run ./gen -v", 1), "gen",
-			[]string{"gen", "mkread"}, []string{"make " + fixtureModule + "/gen <- Makefile"}},
+			[]string{"gen", "mkread"}, []string{"make " + fixtureModule + "/gen <- Makefile"}, "gen"},
 		{"recipe of a CI target", strings.Replace(makeEditMakefile, "./tool\ngen:", "-count=1 ./tool\ngen:", 1), "check",
-			[]string{"ciread", "mkread", "tool"}, []string{"make-ci " + fixtureModule + "/ciread <- .github/workflows/ci.yml", "make " + fixtureModule + "/tool <- Makefile"}}, //corvint:fixture-path
+			[]string{"ciread", "mkread", "tool"}, []string{"make-ci " + fixtureModule + "/ciread <- .github/workflows/ci.yml", "make " + fixtureModule + "/tool <- Makefile"}, "ciread"}, //corvint:fixture-path
 		{"variable", strings.Replace(makeEditMakefile, "FLAGS = -v", "FLAGS = -race", 1), "check",
-			[]string{"ciread", "mkread", "tool"}, nil},
+			[]string{"ciread", "mkread", "tool"}, nil, "ciread"},
 		{"prerequisite reach", strings.Replace(makeEditMakefile, "all: check", "all: check gen", 1), "all",
-			[]string{"gen", "mkread", "tool"}, nil},
+			[]string{"gen", "mkread", "tool"}, nil, "gen"},
 		{"target running nothing", strings.Replace(makeEditMakefile, "echo docs", "echo more docs", 1), "docs",
-			[]string{"mkread"}, nil},
+			[]string{"mkread"}, nil, ""},
 		{"comment only", "# The fixture's make file.\n" + makeEditMakefile, "",
-			[]string{"mkread"}, nil},
+			[]string{"mkread"}, nil, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			writeMakefile(t, root, tc.head)
@@ -102,11 +105,23 @@ func TestNCMV1010SelectorNarrowsMakeEdit(t *testing.T) {
 			}
 			requireVerdict(t, makeEditPlan(base, "Makefile"), root, "run "+modules(tc.want...), append([]string{noncode}, tc.audit...)...)
 			// The executed set: qualification re-observes only Go, which
-			// holds no make edge, so it must keep what the make edit added
-			// (NCM-V1-013).
+			// holds no make edge. A make-added package the plan does not
+			// select runs everything (AFP-V0-2403), and one it selects
+			// survives the Go graph's exclusion (NCM-V1-010).
+			want := "run " + modules(tc.want...)
+			if tc.made != "" {
+				want = "FALLBACK a changed make target runs " + fixtureModule + "/" + tc.made + ", which the plan does not select (NCM-V1-010)"
+			}
 			qualified := SelectQualified(makeEditPlan(base, "Makefile"), fixtureModule, root)
-			if !slices.Contains(qualified, noncode) || qualified[len(qualified)-1] != "run "+modules(tc.want...) {
-				t.Fatalf("SelectQualified did not narrow to %v with %q:\n%s", tc.want, noncode, strings.Join(qualified, "\n"))
+			if qualified[len(qualified)-1] != want || tc.made == "" && !slices.Contains(qualified, noncode) {
+				t.Fatalf("SelectQualified ends with %q, want %q:\n%s", qualified[len(qualified)-1], want, strings.Join(qualified, "\n"))
+			}
+			if tc.made == "" {
+				return
+			}
+			qualified = SelectQualified(planSelecting(makeEditPlan(base, "Makefile"), tc.want...), fixtureModule, root)
+			if qualified[len(qualified)-1] != "run "+modules(tc.want...) {
+				t.Fatalf("with the plan selecting %v, SelectQualified ends with %q:\n%s", tc.want, qualified[len(qualified)-1], strings.Join(qualified, "\n"))
 			}
 		})
 	}

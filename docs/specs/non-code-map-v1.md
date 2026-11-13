@@ -212,10 +212,14 @@ depth) MUST NOT select everything when the selector attributes every changed lin
 (NCM-V1-011, NCM-V1-012) and bounds what those rules can run (NCM-V1-013, NCM-V1-014). It then
 prints `noncode make-targets <path> -> <targets>` naming the changed targets, keeps the make file's
 own Go readers (rule (c), declared and unresolved readers, as for any other path), and adds the
-packages of NCM-V1-013 and NCM-V1-014. Qualification (`SelectQualified`) MUST keep each package
-NCM-V1-013 and NCM-V1-014 add: its Go-only graph holds no make edge, so its exclusion certificate
-cannot remove one (amended 2026-11-13 after the independent review, V1-5465). An edit no target
-reads (a comment or blank line) names no target and adds only those readers. Any edit the selector cannot attribute or bound MUST select
+packages of NCM-V1-013 and NCM-V1-014. Qualification (`SelectQualified`, which `corvint test` and
+the CI selector run) MUST keep each test-bearing package NCM-V1-013 and NCM-V1-014 add, because its
+Go-only graph holds no make edge and so its exclusion certificate cannot remove one; and because
+`corvint test` must run nothing the plan does not select (AFP-V0-2403), it MUST select everything,
+with `a changed make target runs <pkg>, which the plan does not select (NCM-V1-010)`, when the
+plan's receipt (its selected `go:` units and Go provider packages) does not select one (amended
+2026-11-13 after the independent review, V1-5465). An edit no target reads (a comment or blank line)
+names no target and adds only those readers. Any edit the selector cannot attribute or bound MUST select
 everything with reason `never-narrowed-path`, the path and `: make edit: <why>`. An included `*.mk`
 file stays never narrowed (NCM-V1-005). (owner decision on V1-5465, delegated, 2026-11-13: widen
 NCM-V1-005 for Makefile edits, fail-closed, with misses kept at 0 on the selection-baseline replay)
@@ -224,7 +228,8 @@ NCM-V1-005 for Makefile edits, fail-closed, with misses kept at 0 on the selecti
 - GIVEN a change to the recipe of target `check`, which runs `go test ./tool`, and a known plan base
 - WHEN the selector decides the plan
 - THEN it prints `noncode make-targets Makefile -> check` and `make <module>/tool <- Makefile`, and
-  does not run everything
+  does not run everything; qualification keeps `<module>/tool` when the plan selects it and runs
+  everything when the plan does not
 
 - `NCM-V1-011`: (accepted under owner delegation 2026-11-13; V1-5465) What a changed make file line is attributed to
 
@@ -573,7 +578,8 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 - `internal/gateselect`: `selectPackagesFrom` applies `Decide` to every plan, with
   `repositoryIndex.attributed` and the plan's declared-reader witnesses as Go attribution;
   `AllowedUnknown` keeps admitting `UNOWNED_DIRTY_PATH`; `SelectQualified` keeps a named NCM full
-  run's reason and, through `selectPackagesObliged`, every package a make edit adds (NCM-V1-010).
+  run's reason and, through `selectPackagesObliged`, every package a make edit adds, or runs
+  everything when the plan does not select one (NCM-V1-010).
 - `corvint affected --propose-data-map RECORDED`.
 
 ## Delivery state

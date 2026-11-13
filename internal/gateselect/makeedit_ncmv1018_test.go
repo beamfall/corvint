@@ -12,6 +12,25 @@ func makeFixtureTest(name, body string) string {
 	return "package " + name + "\n\nimport \"testing\"\n\n" + body + "func TestX(t *testing.T) {}\n"
 }
 
+// planSelecting is plan with the fixture packages named added to the
+// planner's selections, as `corvint affected` would select them.
+func planSelecting(plan Receipt, names ...string) Receipt {
+	for _, name := range names {
+		unit := "go:" + fixtureModule
+		if name != "" {
+			unit += "/" + name
+		}
+		plan.Plan.Selected = append(plan.Plan.Selected, struct {
+			UnitID  string `json:"unitId"`
+			Witness struct {
+				Kind      string `json:"kind"`
+				DirtyPath string `json:"dirtyPath"`
+			} `json:"witness"`
+		}{UnitID: unit})
+	}
+	return plan
+}
+
 // requireQualified fails unless SelectQualified ends with want.
 func requireQualified(t *testing.T, plan Receipt, root, want string) {
 	t.Helper()
@@ -29,8 +48,9 @@ here:
 
 // TestNCMV1013SelectorRootPatterns pins the driver's root encodings in the
 // selector (NCM-V1-013): a recipe running `go test ./...` or `go test .` at
-// the root selects every package, the root package among them, through the
-// final qualified set as well; runPackages maps each driver encoding.
+// the root selects every package, the root package among them, and so does
+// the final qualified set when the plan selects them (it runs everything
+// when it does not, NCM-V1-010); runPackages maps each driver encoding.
 func TestNCMV1013SelectorRootPatterns(t *testing.T) {
 	root, base := baseRepository(t, map[string]string{
 		"go.mod":                "module " + fixtureModule + "\n\ngo 1.27\n",
@@ -52,7 +72,8 @@ func TestNCMV1013SelectorRootPatterns(t *testing.T) {
 			writeMakefile(t, root, strings.Replace(makeRootMakefile, tc.from, tc.to, 1))
 			defer writeMakefile(t, root, makeRootMakefile)
 			requireVerdict(t, makeEditPlan(base, "Makefile"), root, tc.want, "noncode make-targets Makefile -> "+tc.targets)
-			requireQualified(t, makeEditPlan(base, "Makefile"), root, tc.want)
+			requireQualified(t, makeEditPlan(base, "Makefile"), root, "FALLBACK a changed make target runs "+fixtureModule+", which the plan does not select (NCM-V1-010)")
+			requireQualified(t, planSelecting(makeEditPlan(base, "Makefile"), "", "mkread", "tool"), root, tc.want)
 		})
 	}
 	index := &repositoryIndex{packages: map[string]*goPackage{"": {}, "tool": {}, "tool/sub": {}}}

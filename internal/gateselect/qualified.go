@@ -173,14 +173,29 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 			selected[pkg] = true
 		}
 	}
-	// NCM-V1-013, NCM-V1-014: a package a changed make target runs is an
-	// obligation of the make edges this Go-only graph does not hold, so no
-	// exclusion it certifies removes one; only a package with no tests,
-	// which runs nothing, is left out as it is above.
-	for _, pkg := range made {
-		if unit, known := graph.Unit("go:" + pkg); !(known && len(unit.Tests) == 0) {
-			selected[pkg] = true
+	// NCM-V1-010, NCM-V1-013, NCM-V1-014: a package a changed make target
+	// runs is an obligation of the make edges this Go-only graph does not
+	// hold, so no exclusion it certifies removes one. Neither may the run
+	// add one the plan's receipt does not select, because `corvint test` and
+	// the plan must agree (AFP-V0-2403): such an edit runs everything. A
+	// package with no tests runs nothing and is left out as it is above.
+	inPlan := map[string]bool{}
+	for _, pkg := range plan.Provider.Go.Packages {
+		inPlan[pkg] = true
+	}
+	for _, selection := range plan.Plan.Selected {
+		if pkg, ok := strings.CutPrefix(selection.UnitID, "go:"); ok {
+			inPlan[pkg] = true
 		}
+	}
+	for _, pkg := range made {
+		if unit, known := graph.Unit("go:" + pkg); known && len(unit.Tests) == 0 {
+			continue
+		}
+		if !inPlan[pkg] {
+			return fallback(fmt.Sprintf("a changed make target runs %s, which the plan does not select (NCM-V1-010)", pkg))
+		}
+		selected[pkg] = true
 	}
 	for pkg := range selected {
 		if unit, known := graph.Unit("go:" + pkg); known && golang.DependentModuleUnit(unit) {
