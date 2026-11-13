@@ -992,7 +992,7 @@ registration. Requirement IDs are unchanged; tests that exercise root dispatch o
 | AFU-V1-150..154 | experimental (V1-5255): `internal/appflows/unlinked.go` (`ReadInventoryProvider`, `unlinkedTests`), `query.go` (`FlowGaps` inventory members), `internal/command/flows/flows.go` (`flows gaps --provider`), `internal/mcp/bridge/flows.go` (`provider` input) |
 | AFU-V1-160..165 | experimental (V1-5257): `internal/appflows/status.go` (`FlowStatus`, `StatusSchema`), `internal/command/flows/flows_status.go` (`flows status`), `internal/mcp/bridge/flows.go` (`corvint.flows.status`) |
 | AFU-V1-107 | implemented (V1-5502): `internal/flowdocs/extract.go` (`extractMembers`, `webTopLevel`, `lowestRank`), `flowinventory.go` (web unresolved reason), `generate.go` (version 6); `TestAFUV1107TopLevelWebDeclarationsResolveAsMembers`, `TestFlowDocsPredecessorGeneratorManifestIsTypedStale` |
-| AFU-V1-108..111 | implemented (V1-5503..V1-5506): `internal/flowdocs/flowinventory.go` (`clipText`, the entry-point refusal), `files.go` (`symlinkComponent`), `check.go` (`OutputHint`, `OutputNoDirHint`), `cmd/corvint-docs/docs_check.go`, `cmd/corvint/docs_shim.go` (`docsSubcommandHelpPointer`), `main.go`; `TestAFUV1108EntryPointRefusalNamesFlowAndMember`, `TestAFUV1109SymlinkedParentRefusalNamesComponentAndTarget`, `TestDMFV1007RecordedOutputDirectory`, `TestDMFV1007DocsFlowsCheckRecordedOutput`, `TestAFUV1111DocsSubcommandHelpPointsAtRealFlags` |
+| AFU-V1-108..111 | implemented (V1-5503..V1-5506): `internal/flowdocs/flowinventory.go` (`clipText`, the entry-point refusal), `files.go` (`symlinkComponent`), `check.go` (`OutputHint`, `OutputNoDirHint`), `cmd/corvint-docs/docs_check.go`, `cmd/corvint/docs_shim.go` (`docsHelp`); `TestAFUV1108EntryPointRefusalNamesFlowAndMember`, `TestAFUV1109SymlinkedParentRefusalNamesComponentAndTarget`, `TestDMFV1007RecordedOutputDirectory`, `TestDMFV1007DocsFlowsCheckRecordedOutput`, `TestAFUV1111DocsSubcommandHelpPointsAtRealFlags` |
 | AFU-V1-125 | implemented (V1-2414): `internal/flowdocs/generate.go` (`FlowLimitCode`, the whole-scope `candidates` count), `cmd/corvint-docs/docs_flows.go` (wire-code lift); `TestAFUV1125FlowLimitIsTyped`, `TestAFUV1125FlowLimitCLICode` |
 | AFU-V1-126..127 | experimental under the standing lane auto-accept (V1-2788, GitHub #1888): `internal/appflows/input.go` (`decode`, `maskFlowTierKeys`, the distinct Decode refusals), `internal/appflows/selection.go` (`Refusal`, `selectionInputError`, `selectionRefusalSubject`); `TestAFUV1126FlowTierIdentifierKeyIsNotSecret`, `TestAFUV1126E2ESafeFlowTierPasswordKey`, `TestAFUV1127ProviderUnavailableNamesRefusal`, `TestAFUV1024E2ESafeRefusesMalformedInput` |
 | AFU-V1-128..130 | experimental under the standing lane auto-accept (V1-2871, GitHub #1915): `internal/appflows/import.go` (`importPlaywrightList`, `playwrightListDir`, `listSpecs`, `disambiguate`, `dropCollisions`, `ImportSkipped`), `internal/command/flows/flows.go` (`runFlowsImport`, `flowsIntentHelp`); `TestAFUV1128PlaywrightListResolvesDescribeKeys`, `TestAFUV1128FlowsCLIPlaywrightListLinksResolve`, `TestAFUV1ImportOpenAPIAndPlaywright`, `TestAFUV1130FlowsHelpSaysTestLinksOnly` |
@@ -1580,21 +1580,21 @@ is unchanged. Accepted under the owner's standing auto-accept (2026-10-11).
   `NOT_CHECKED` detail. A recorded directory that is missing carries no hint
   (`TestDMFV1007RecordedOutputDirectory`, `TestDMFV1007DocsFlowsCheckRecordedOutput`).
 - **AFU-V1-111**: (V1-5506) `corvint docs SUBCOMMAND... --help` is still answered natively with the
-  docs group help (CMS-V0-913, decision 0594). When subcommand words (lower-case, up to three)
-  precede the first flag, the help ends with `Subcommand usage and flags: corvint-docs docs
-  SUBCOMMAND... --help`, the command that lists the real flags; `corvint docs --help` and
-  `corvint help docs` print the group help unchanged (`TestAFUV1111DocsSubcommandHelpPointsAtRealFlags`,
-  `TestDocsShimDoesNotForwardHelpOrNativeFlags`).
+  one docs group help (CMS-V0-913, decision 0594), byte-identical in every help form as the CLI kit
+  requires (CAP-V0-055). That help names `corvint-docs docs SUBCOMMAND... --help`, with
+  `corvint-docs docs flows generate --help` as the example, which prints the subcommand's usage and
+  real flags (`TestAFUV1111DocsSubcommandHelpPointsAtRealFlags`,
+  `TestDocsShimDoesNotForwardHelpOrNativeFlags`, `TestCLIKit`).
 
 Failure modes: a symlink that disappears between the open and the diagnosis keeps the generic
 component refusal; a component whose target cannot be resolved is named with target `unresolved`.
-The help pointer is lexical, so a misspelt subcommand word is echoed into the pointer and
-corvint-docs then refuses it with its own unknown-command message.
+The help pointer is static, so it names the corvint-docs form rather than the reader's exact
+subcommand.
 
 Rollback: revert `clipText` and the entry-point message in `internal/flowdocs/flowinventory.go`,
 `symlinkComponent` in `files.go`, `OutputHint` and `OutputNoDirHint` in `check.go` and the detail
-suffix in `cmd/corvint-docs/docs_check.go`, and `docsSubcommandHelpPointer` in
-`cmd/corvint/docs_shim.go` with its call in `main.go`; each restores the previous message with no
+suffix in `cmd/corvint-docs/docs_check.go`, and the pointer sentence in `docsHelp` in
+`cmd/corvint/docs_shim.go`; each restores the previous message with no
 data migration, and a reader that ignores `output_hint` is unaffected.
 
 ## Per-test coverage ingest (GitHub #1587)
