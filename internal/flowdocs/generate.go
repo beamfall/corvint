@@ -34,7 +34,8 @@ const Schema = "corvint-flow-documentation/1"
 // container, keeps a '<' after any operand and a generic arrow's type
 // parameters as code, accepts type arguments on a registration, and resolves
 // declared inventory members against top-level classes, enums, namespaces,
-// consts, lets, vars, interfaces and type aliases, so a version 5 manifest can
+// consts, lets, vars, interfaces and type aliases, and the web mask blanks
+// JavaScript regex literals (V1-5501, GPK-V0-395), so a version 5 manifest can
 // no longer be rederived byte for byte.
 const Version = "6"
 
