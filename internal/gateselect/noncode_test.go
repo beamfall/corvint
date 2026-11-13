@@ -149,9 +149,12 @@ func TestNCMV1SelectorNeverNarrowed(t *testing.T) {
 	})
 	requireVerdict(t, ncmPlan([]string{"package-lock.json"}, planUnknown{"UNOWNED_DIRTY_PATH", "package-lock.json"}), root,
 		"FALLBACK never-narrowed-path package-lock.json", "noncode never-narrowed-path package-lock.json")
-	for _, p := range []string{".github/workflows/ci.yml", "Makefile", "app/testdata/out.golden", ".env.local"} { //corvint:fixture-path
+	for _, p := range []string{".github/workflows/ci.yml", "app/testdata/out.golden", ".env.local", "rules.mk"} { //corvint:fixture-path
 		requireVerdict(t, ncmPlan([]string{p}), root, "FALLBACK never-narrowed-path "+p)
 	}
+	// NCM-V1-010 (V1-5465): a Makefile edit still runs everything when the
+	// plan names no base to attribute it against, and says so.
+	requireVerdict(t, ncmPlan([]string{"Makefile"}), root, "FALLBACK never-narrowed-path Makefile: make edit: the plan's base commit is unknown")
 }
 
 // Review P2-1 under the orchestrator ruling of 2026-11-11: a non-Go file

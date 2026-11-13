@@ -41,11 +41,12 @@ const maxTestSourceBytes = 4 << 20
 // the repository's map (a missing map is empty; an invalid one is returned as
 // the error, never read as empty) and decides each dirty path from the plan's
 // UNOWNED_DIRTY_PATH entries, its DECLARED_DOCUMENTATION group, its flow join
-// and this index. It writes nothing (NCM-V1-009).
-func nonCodeDecision(plan Receipt, index *repositoryIndex, root string) (noncodemap.Decision, error) {
+// and this index. It writes nothing (NCM-V1-009). For each make file edit it
+// attributes (NCM-V1-010), it also returns the packages to add.
+func nonCodeDecision(plan Receipt, index *repositoryIndex, root string) (noncodemap.Decision, map[string][]makeSelection, error) {
 	read, err := noncodemap.Read(root)
 	if err != nil {
-		return noncodemap.Decision{}, err
+		return noncodemap.Decision{}, nil, err
 	}
 	scopes, err := index.readScopes(root)
 	scopesValid := err == nil
@@ -69,6 +70,14 @@ func nonCodeDecision(plan Receipt, index *repositoryIndex, root string) (noncode
 			IsAncestor: func(commit string) (bool, error) { return ancestorOfHead(root, commit) },
 		},
 		ReadScopeAttributable: func(p string) bool { return readScopeAttributable(plan, root, scopesValid, p) },
+	}
+	makes := map[string][]makeSelection{}
+	input.MakeEdit = func(p string) ([]string, string) {
+		targets, selections, reason := makeEditAttribution(plan, index, root, p)
+		if reason == "" {
+			makes[p] = selections
+		}
+		return targets, reason
 	}
 	for _, entry := range plan.Plan.Unknown {
 		switch entry.Reason {
@@ -104,7 +113,7 @@ func nonCodeDecision(plan Receipt, index *repositoryIndex, root string) (noncode
 			input.Deleted = append(input.Deleted, p)
 		}
 	}
-	return noncodemap.Decide(input), nil
+	return noncodemap.Decide(input), makes, nil
 }
 
 // readScopeLiteralsPath is the read-scope declaration's literal exemptions,

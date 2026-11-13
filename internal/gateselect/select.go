@@ -289,6 +289,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 // packageBounds (tools/gate-ledger) still applies.
 func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error), nonCode bool) []string {
 	var lines []string
+	var madeBy map[string][]makeSelection
 	fallback := func(reason string) []string { return append(lines, "FALLBACK "+reason) }
 	state := plan.Provider.Go.State
 	if state != "RUNNABLE" && state != "EMPTY_SELECTION" {
@@ -323,14 +324,15 @@ func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build
 	// Corvint configuration and a never-narrowed path run everything, each
 	// printed with its reason; an invalid map is refused, never read as empty.
 	if nonCode {
-		decision, err := nonCodeDecision(plan, index, root)
+		decision, makes, err := nonCodeDecision(plan, index, root)
 		if err != nil {
 			return fallback(err.Error())
 		}
 		lines = append(lines, decision.Audit()...)
 		if line, full := decision.FullRun(); full {
-			return fallback(line.Reason + " " + line.Path)
+			return fallback(line.Verdict())
 		}
+		madeBy = makes
 	}
 	if withUnresolved {
 		reason, suites := unknownNarrowing(plan, index, root)
@@ -401,6 +403,17 @@ func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build
 				attributed[dirty] = true
 			}
 			add(rule.directories, rule.kind, " <- "+dirty)
+		}
+	}
+	// NCM-V1-013, NCM-V1-014: the Go packages an attributed make edit's
+	// changed targets can run, and the readers of a workflow that invokes
+	// one of them directly.
+	for _, dirty := range sortedKeys(madeBy) {
+		for _, selection := range madeBy[dirty] {
+			if len(selection.directories) != 0 {
+				attributed[dirty] = true
+			}
+			add(selection.directories, selection.kind, " <- "+selection.cause)
 		}
 	}
 	if withUnresolved {
