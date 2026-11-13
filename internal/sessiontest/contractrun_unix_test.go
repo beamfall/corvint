@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
@@ -22,7 +23,7 @@ import (
 // --outputFile path, one test "works" per file, as FAKE_MODE says: pass,
 // fail (a failing test, exit 1), noreport, partial (only the first file),
 // runfail (success false with every test passing) or exit1 (every test
-// passes, exit 1).
+// passes, exit 1); fifo leaves a FIFO at the report path and exits 0.
 const fakeJest = `#!/bin/sh
 [ "$1" = --version ] && { echo 29.7.0; exit 0; }
 echo "$@" >> "$FAKE_DIR/jest-argv"
@@ -37,6 +38,7 @@ for a in "$@"; do
   esac
 done
 [ "$FAKE_MODE" = noreport ] && exit 0
+[ "$FAKE_MODE" = fifo ] && { mkfifo "$out"; exit 0; }
 status=passed success=true code=0
 case "$FAKE_MODE" in
 fail) status=failed success=false code=1 ;;
@@ -237,5 +239,82 @@ func TestRNCV1019PlaywrightReportPathReachesTheRunner(t *testing.T) {
 	}
 	if !slices.Equal(run.Tests, []contract.Result{{ID: "playwright:e2e/a.spec.ts::chromium::works", Outcome: contract.OutcomePass, DurationMillis: 5, Granularity: "test"}}) {
 		t.Fatalf("tests %+v", run.Tests)
+	}
+}
+
+// fakePytest stands in for pytest with pytest-json-report: it answers
+// --version and writes, to the --json-report-file path, a report in which
+// only test_add of tests/test_calc.py ran and passed, as when a plugin, -k
+// or a collection skip deselects its sibling test_sub.
+const fakePytest = `#!/bin/sh
+[ "$1" = --version ] && { echo "pytest 8.3.3"; exit 0; }
+out=""
+for a in "$@"; do
+  case "$a" in --json-report-file=*) out="${a#--json-report-file=}" ;; esac
+done
+printf '{"exitcode":0,"tests":[{"nodeid":"tests/test_calc.py::test_add","outcome":"passed","call":{"duration":0.004}}]}\n' > "$out"
+`
+
+// RNC-V1-006: a test the inventory lists in a selected file that the
+// runner omits is NOT_RUN, so a passing sibling in the same file cannot
+// make the run PASS: the file is NOT_RUN and the run INCOMPLETE.
+func TestRNCV1006OmittedInventoriedTestIsNotRun(t *testing.T) {
+	runner, m, _, dir := contractFixture(t, "pass")
+	if err := execfile.WriteFile(filepath.Join(dir, "fakepytest"), []byte(fakePytest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runner.Declared.Runners = []RunnerCommand{{Key: "pytest", Argv: []string{"fakepytest"}}}
+	m.Units = []Unit{{Adapter: AdapterContract, Shard: 0, Slice: "pytest@.", Unit: "pytest:tests/test_calc.py"}}
+	m.Listed = []ListedTests{{Slice: "pytest@.", Unit: "pytest:tests/test_calc.py", Tests: []string{"pytest:tests/test_calc.py::test_add", "pytest:tests/test_calc.py::test_sub"}}}
+	digest, err := Digest(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result == ResultPass || receipt.Result != ResultIncomplete || len(receipt.Invocations) != 1 {
+		t.Fatalf("receipt %s incomplete %q invocations %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+	run := receipt.Invocations[0]
+	if len(run.Outcomes) != 1 || run.Outcomes[0].Outcome != OutcomeNotRun {
+		t.Fatalf("outcomes %+v", run.Outcomes)
+	}
+	want := []contract.Result{
+		{ID: "pytest:tests/test_calc.py::test_add", Outcome: contract.OutcomePass, DurationMillis: 4, Granularity: "test"},
+		{ID: "pytest:tests/test_calc.py::test_sub", Outcome: contract.OutcomeNotRun, Granularity: "test"},
+	}
+	if !slices.Equal(run.Tests, want) {
+		t.Fatalf("tests %+v", run.Tests)
+	}
+	if !slices.Contains(receipt.Incomplete, "contract pytest@.: 1 selected tests have no result in the report, so they are NOT_RUN: [pytest:tests/test_calc.py::test_sub]") {
+		t.Fatalf("incomplete %q", receipt.Incomplete)
+	}
+	if result, _ := Verify(m, digest, []Receipt{receipt}, nil); result == ResultPass {
+		t.Fatalf("verify %s", result)
+	}
+}
+
+// RNC-V1-019: a FIFO the runner leaves at the report path is refused
+// without blocking: the receipt is produced within the bound, every
+// selected file is NOT_RUN and the run INCOMPLETE.
+func TestRNCV1019FIFOReportIsIncomplete(t *testing.T) {
+	runner, m, digest, _ := contractFixture(t, "fifo")
+	done := make(chan Receipt, 1)
+	go func() { done <- runner.Execute(context.Background(), m, digest, 0) }()
+	var receipt Receipt
+	select {
+	case receipt = <-done:
+	case <-time.After(60 * time.Second):
+		t.Fatal("the contract run blocked on a FIFO report")
+	}
+	if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 1 ||
+		!slices.ContainsFunc(receipt.Incomplete, func(reason string) bool {
+			return strings.HasPrefix(reason, "contract jest@.: the machine report cannot be read (") && strings.Contains(reason, "not a regular file")
+		}) {
+		t.Fatalf("receipt %s incomplete %q invocations %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+	for _, outcome := range receipt.Invocations[0].Outcomes {
+		if outcome.Outcome != OutcomeNotRun {
+			t.Fatalf("outcomes %+v", receipt.Invocations[0].Outcomes)
+		}
 	}
 }

@@ -15,9 +15,17 @@ import (
 // the working tree when worktree is set. It runs no lister and writes
 // nothing; a tree it cannot read judges the inventory invalid, never fresh.
 func readInventoryVerdict(ctx context.Context, root string, worktree bool) testinventory.Verdict {
-	invalid := func(err error) testinventory.Verdict {
+	verdict, _ := readInventoryListed(ctx, root, worktree)
+	return verdict
+}
+
+// readInventoryListed is readInventoryVerdict that also returns the tests
+// the inventory lists per unchanged test file (testinventory.Listed), which
+// a narrowed contract run must answer (RNC-V1-006).
+func readInventoryListed(ctx context.Context, root string, worktree bool) (testinventory.Verdict, map[string]map[string][]string) {
+	invalid := func(err error) (testinventory.Verdict, map[string]map[string][]string) {
 		return testinventory.Verdict{Profile: testinventory.VerdictProfile, Path: testinventory.Path, State: testinventory.StateInvalid,
-			Reason: testinventory.ReasonInvalid, Detail: "cannot read the planned tree: " + err.Error(), Instances: []testinventory.InstanceVerdict{}}
+			Reason: testinventory.ReasonInvalid, Detail: "cannot read the planned tree: " + err.Error(), Instances: []testinventory.InstanceVerdict{}}, nil
 	}
 	executable, err := exec.LookPath("git")
 	if err != nil {
@@ -36,7 +44,7 @@ func readInventoryVerdict(ctx context.Context, root string, worktree bool) testi
 	if err != nil {
 		return invalid(err)
 	}
-	return testinventory.Judge(tree)
+	return testinventory.JudgeListed(tree)
 }
 
 // inventoryVerdictLine is the verdict in one bounded line: the file state,

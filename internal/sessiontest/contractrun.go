@@ -144,6 +144,28 @@ func (m *Manifest) placeContract(input Input, tests []contractTest) {
 		return units[i].Unit < units[j].Unit
 	})
 	m.Units = append(m.Units, units...)
+	for _, unit := range units {
+		if tests := listedTests(input.ListedTests[unit.Slice], unit.Unit); len(tests) != 0 {
+			m.Listed = append(m.Listed, ListedTests{Slice: unit.Slice, Unit: unit.Unit, Tests: tests})
+		}
+	}
+}
+
+// listedTests returns the canonical test IDs files lists for the test file
+// whose file-level ID is file, sorted; nil when it lists none (RNC-V1-006).
+func listedTests(files map[string][]string, file string) []string {
+	parsed, err := testid.Parse(file)
+	if err != nil {
+		return nil
+	}
+	var tests []string
+	for _, id := range files[parsed.File] {
+		if id != file && testid.Matches(file, id) && !slices.Contains(tests, id) {
+			tests = append(tests, id)
+		}
+	}
+	sort.Strings(tests)
+	return tests
 }
 
 // contractPlan is what a contract invocation's launch needs to derive the
@@ -152,6 +174,9 @@ type contractPlan struct {
 	implementation contract.Runner
 	request        contract.Request
 	command        contract.Command
+	// expected is what the report must answer: each selected file and
+	// every test the inventory lists in it (RNC-V1-006).
+	expected []string
 	// refusal is why no command could be derived; the units are NOT_RUN.
 	refusal string
 }
@@ -163,6 +188,10 @@ type contractPlan struct {
 // root, with ContractReportPlaceholder for the report path. A selection the
 // contract refuses has no argv; Execute records its units NOT_RUN.
 func contractInvocations(m Manifest, declared Declared, shard int, root string) []Planned {
+	listed := map[string][]string{}
+	for _, entry := range m.Listed {
+		listed[entry.Unit+" "+entry.Slice] = entry.Tests
+	}
 	var planned []Planned
 	index := map[string]int{}
 	for _, unit := range m.Units {
@@ -191,6 +220,8 @@ func contractInvocations(m Manifest, declared Declared, shard int, root string) 
 		tests := make([]string, 0, len(planned[at].Units))
 		for _, unit := range planned[at].Units {
 			tests = append(tests, unit.Unit)
+			plan.expected = append(plan.expected, unit.Unit)
+			plan.expected = append(plan.expected, listed[unit.Key()]...)
 		}
 		plan.implementation = implementation
 		plan.request = contract.Request{
@@ -258,9 +289,11 @@ func contractLaunch(plan *contractPlan) (contract.Command, string, func(), error
 }
 
 // readContractReport reads the machine report the runner wrote, refusing a
-// missing, non-regular or oversized one (testid.MaxReportBytes).
+// missing, non-regular or oversized one (testid.MaxReportBytes). The open
+// neither follows a final symlink nor blocks on a FIFO the runner left at
+// the path (openInput); the opened descriptor is checked.
 func readContractReport(name string) ([]byte, error) {
-	file, err := os.Open(name)
+	file, err := openInput(name)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, errors.New("the runner wrote no machine report")
@@ -310,7 +343,10 @@ func contractOutcomes(planned Planned, root, report string, readErr error, out i
 			results, parseErr = parseContractReport(plan, root, data)
 		}
 	}
-	run := contract.ReconcileParsed(tests, results, parseErr)
+	// Every test the inventory lists in a selected file must be answered,
+	// so one the runner omits (deselected, filtered or not collected) is
+	// NOT_RUN even when a sibling in its file passed (RNC-V1-006).
+	run := contract.ReconcileParsed(plan.expected, results, parseErr)
 	var reasons []string
 	var partial *contract.ReportError
 	switch {
