@@ -199,24 +199,19 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | hostile-repository | `internal/contextindex` | `internal/contextindex/history_test.go:62@671cf1e3` |
 | paths | `internal/releasegate` | `internal/releasegate/releasegate_test.go:143@e18871cf` |
 | paths | `internal/corerelease` | `internal/corerelease/export_test.go:25@d4b6a1eb` |
-| paths | `internal/trace` | `internal/trace/migration_test.go` (line 80 at b55635262; the file was removed by change context-proven-only) |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
-| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go` (line 237 at b55635262; the test was removed with the cut reader by change context-proven-only), `internal/contextindex/index_test.go:328@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:557@22f1c7f2`, `internal/contextindex/snapshot_test.go:607@ee7924d9` |
-| symlinks | `internal/trace` | `internal/trace/store_test.go` (line 223 at b55635262; the file was removed by change context-proven-only), `internal/trace/store_test.go` (line 938 at b55635262; the file was removed by change context-proven-only) |
+| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:328@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:557@22f1c7f2`, `internal/contextindex/snapshot_test.go:607@ee7924d9` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:120@141529a4` |
 | case-folds | `internal/corerelease` | `internal/corerelease/export_test.go:174@4d21a51f`, `internal/corerelease/export_test.go:405@97879ced` |
 | case-folds | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:120@141529a4` (`case-alias` subcase) |
 | bounded-output | `internal/procgroup` | `internal/procgroup/process_overflow_test.go:13@8b1b8267`, `internal/procgroup/process_overflow_test.go:93@e6067a5b` |
 | bounded-output | `internal/contextindex` | `internal/contextindex/git_execution_unix_test.go:156@b46f5300`, `internal/contextindex/extractionnote_test.go:63@d2c61a7e` |
-| bounded-output | `internal/trace` | `internal/trace/record_test.go` (line 391 at b55635262; the file was removed by change context-proven-only) |
 | bounded-output | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:204@0595c93c` |
 | time | `internal/procgroup` | `internal/procgroup/process_test.go:52@028e61d3`, `internal/procgroup/process_test.go:62@704c3abb` |
 | interruption-cleanup | `internal/procgroup` | `internal/procgroup/process_test.go:460@9aa96910`, `internal/procgroup/process_test.go:95@0a8f0be2`, `internal/procgroup/process_hook_test.go:13@f0458815` |
 | interruption-cleanup | `internal/releasecandidate` | `internal/releasecandidate/operations_posix_test.go:18@d8182271`, `internal/releasecandidate/operations_test.go:253@eab69ef3` |
 | interruption-cleanup | `internal/contextindex` | `internal/contextindex/fifo_unix_test.go:20@5098dd43` |
-| interruption-cleanup | `internal/trace` | `internal/trace/store_test.go` (line 498 at b55635262; the file was removed by change context-proven-only) |
 | secret-screening | `internal/secretscreen` | `internal/secretscreen/secretscreen_test.go:35@ac274de5`, `internal/secretscreen/secretscreen_test.go:200@c325b643` |
-| secret-screening | `internal/trace` | `internal/trace/record_test.go` (line 283 at b55635262; the file was removed by change context-proven-only) |
 | corrupted-derived-state | `internal/contextindex` | `internal/contextindex/pack_test.go:175@b2b8420d`, `internal/contextindex/blob_shards_test.go:84@b82cb217`, `internal/contextindex/termtable_test.go:98@263288af`, `internal/contextindex/analyzer_schema_test.go:274@f88f0dea` |
 | memory | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:15@e9500863` |
 | case-folds-context-index | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:43@4e6c4427` (skips, so NOT_RUN, on a case-sensitive filesystem) |
