@@ -50,6 +50,18 @@ function descendants(pid) {
   return processes.filter(p => p.pid!==pid && ids.has(p.pid));
 }
 
+// A descendant counts as gone when its pid is absent, is an unreaped zombie (an orphan waits for a
+// slow-reaping init on CI runners), or now names a different process. Signal 0 alone succeeds for
+// zombies, so it cannot tell a dead browser from a surviving one.
+function alive(p) {
+  let line='';
+  try { line=execFileSync('ps',['-o','stat=,comm=','-p',String(p.pid)],{encoding:'utf8'}).trim(); }
+  catch { return false; }
+  const m=/^(\S+)\s+(.+)$/.exec(line);
+  if(!m || m[1].startsWith('Z')) return false;
+  return m[2]===p.name;
+}
+
 async function interruption(root, signal) {
   const child=spawn(observer,['--experimental','--trusted-local','--observe','--root',root,'--manifest','flows.json','--assets',assets],{cwd:root,stdio:'ignore'});
   children.add(child);
@@ -68,9 +80,9 @@ async function interruption(root, signal) {
     assert.notEqual(code,0);
     for(const p of owned) {
       let present=true;
-      for(let i=0;i<50;i++) {
-        try {process.kill(p.pid,0);} catch {present=false;break;}
-        await sleep(20);
+      for(let i=0;i<100&&present;i++) {
+        present=alive(p);
+        if(present) await sleep(50);
       }
       assert.equal(present,false,`descendant ${p.pid} survived ${signal}`);
     }
