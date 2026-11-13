@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# CIN-V0-8720: package<TAB>exact test identity<TAB>open ticket<TAB>expiry (UTC, exclusive).
+# Only unresolved V1-4549 failures from 2026-11-04-cx-affected-final-review-fixes.md.
+# V1-4549 is OPEN in the 2026-11-04T17:49:52Z queue snapshot; no current journal is available.
+# Seed window: [2026-11-08, 2026-11-15) UTC, seven days from the charter date (CIN-V0-8720).
+# Recheck the owning ticket before renewal. No wildcards or inherited subtest exceptions.
+github.com/Beamfall/corvint/internal/tasks/cli	TestATRV0059_ClaimCarriesDrainNotice	V1-4549	2026-11-15
+github.com/Beamfall/corvint/internal/tasks/cli	TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck	V1-4549	2026-11-15
