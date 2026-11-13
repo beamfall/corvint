@@ -262,3 +262,32 @@ func judgedInstance(t *testing.T, verdict Verdict, key string) InstanceVerdict {
 	t.Fatalf("no instance %s in %+v", key, verdict)
 	return InstanceVerdict{}
 }
+
+// RNC-V1-006: JudgeListed returns, per instance planned from its record,
+// the tests the record lists in each file the tree holds unchanged; a
+// changed (unassigned) file and a Full instance have no entry, and no
+// inventory lists nothing.
+func TestRNCV1006ListedTestsOfUnchangedFiles(t *testing.T) {
+	base := ruleTree()
+	tree := ruleTree()
+	tree[Path] = encodedInventory(t, base, func(inv *Inventory) {
+		for index := range inv.Instances {
+			if inv.Instances[index].Key == "rspec@." {
+				inv.Instances[index].Tests = append(inv.Instances[index].Tests, Test{ID: "rspec:spec/order_spec.rb::order::ships", File: "spec/order_spec.rb"})
+			}
+		}
+	})
+	tree["spec/user_spec.rb"] += "describe 'more' do\nend\n"
+	tree["web/vitest.config.ts"] = "export default { test: {} }\n"
+	verdict, listed := JudgeListed(tree)
+	if judgedInstance(t, verdict, "vitest@web").Reason != ReasonStale {
+		t.Fatalf("verdict %+v", verdict)
+	}
+	want := map[string]map[string][]string{"rspec@.": {"spec/order_spec.rb": {"rspec:spec/order_spec.rb", "rspec:spec/order_spec.rb::order::ships"}}}
+	if !reflect.DeepEqual(listed, want) {
+		t.Fatalf("listed %v, want %v", listed, want)
+	}
+	if _, listed := JudgeListed(ruleTree()); listed != nil {
+		t.Fatalf("no inventory listed %v", listed)
+	}
+}

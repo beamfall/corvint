@@ -146,7 +146,9 @@ run incomplete, and also marks the run incomplete when a package or file did not
 package that panicked, timed out, ended with a started test or never ended) or the report was read
 only in part; it keeps the most severe of duplicate results and marks the run not exact. The
 `corvint test` contract adapter records its `NOT_RUN` results and makes the run `INCOMPLETE`
-(RNC-V1-019).
+(RNC-V1-019); it reconciles each selected file and every test the committed inventory lists in it
+while the file is unchanged (the manifest's `listed`), so a test the runner omits is `NOT_RUN` even
+when a sibling in its file passed.
 
 **Scenario: Test filtered away**
 - WHEN a selected RSpec example does not appear in the JSON report
@@ -176,7 +178,7 @@ grammar of its own. The rule applies on five surfaces, `corvint affected`, `corv
 and MCP.
 Delivery: partial. `internal/testrunner/killswitch` reads the NMS-V1-008 grammar (an empty value is
 off). `corvint test` applies it: `full` plans FULL with reason `kill-switch`, `full:<runner>` runs
-every instance of each named runner (Go: its whole universe) in full and keeps the others narrowed,
+every instance of each named runner (Go: its whole universe and each nested module) in full and keeps the others narrowed,
 the manifest and receipt record `killSwitch`, and stderr prints `corvint-test: KILL-SWITCH`. An
 unknown value exits 2 with `kill-switch-value-unknown` and runs nothing on `corvint test`,
 `corvint affected` and `corvint watch`. `corvint affected` names an active switch on stderr without
@@ -486,9 +488,9 @@ Delivered by ticket V1-5443 (build-log `docs/build-log/2026-11-13-runner-contrac
 | RNC-V1-003 | `TestRNCV1003GoSelection`, `TestRNCV1003VitestDirectoryRunIsNotExact`, `TestRNCV1003PlaywrightSelection`, `TestRNCV1003FileFilterIsNeverAFlag`, `TestRNCV1003GoFlagValuesSurvive`, `TestRNCV1003JestSelection`, `TestRNCV1003PytestSelection` (`internal/testrunner/contract`); `TestRNCV1019ContractRunRecordsPerTestResults` (`internal/sessiontest`) |
 | RNC-V1-004 | `TestRNCV1004UnimplementedRunnerRunsFull` (`internal/testrunner/contract`); `TestRNCV1004RemovedRunners`, `TestSTRV0003BuildVerdicts` rows `allowlisted unknowns stay narrowed`, `an unattributed unowned path runs every test` and `a removed runner runs every test`, `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest`); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` (`internal/gateselect`); `TestQualifiedUnownedPathIsThePlannersVerdict_RNCV1004` (`internal/gateselect`); `TestUnownedPathRunsAllOnlyWhenNoRuleAttributesIt_RNCV1004`, `TestUnownedPathWithoutGoUniverseRunsAll_RNCV1004`, `TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004` (`internal/liveverify/affected`); `TestRNCV1004RemovedRunnerAndUnownedPathRunEverything` (`cmd/corvint`) |
 | RNC-V1-005 | `TestRNCV1005GoReport`, `TestRNCV1005VitestReport`, `TestRNCV1005PlaywrightReport`, `TestRNCV1005GoTruncatedLineIsReported`, `TestRNCV1005FileLevelFailuresFailTheRun`, `TestRNCV1005JestReport`, `TestRNCV1005PytestReport`, `TestRNCV1005RSpecSelectionAndReport` (`internal/testrunner/contract`); `TestRNCV1019ContractRunRecordsPerTestResults` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
-| RNC-V1-006 | `TestRNCV1006MissingResultsAreNotRun`, `TestRNCV1006GoPackageThatEndsAbnormallyIsIncomplete`, `TestRNCV1006DuplicateResultsKeepTheMostSevere`, `TestRNCV1006RunRecordsFailureIncompletenessAndDuplicates` (`internal/testrunner/contract`); `TestRNCV1019ContractRunFailsClosed` (`internal/sessiontest`) |
+| RNC-V1-006 | `TestRNCV1006MissingResultsAreNotRun`, `TestRNCV1006GoPackageThatEndsAbnormallyIsIncomplete`, `TestRNCV1006DuplicateResultsKeepTheMostSevere`, `TestRNCV1006RunRecordsFailureIncompletenessAndDuplicates` (`internal/testrunner/contract`); `TestRNCV1019ContractRunFailsClosed`, `TestRNCV1006OmittedInventoriedTestIsNotRun`, `TestRNCV1006ContractUnitsCarryListedTests` (`internal/sessiontest`); `TestRNCV1006ListedTestsOfUnchangedFiles` (`internal/testinventory`) |
 | RNC-V1-007 | `TestRNCV1007RunnerKinds` (`internal/testrunner/contract`); `TestRNCV1019ContractUnitsPlanTheSelectedFiles` (`internal/sessiontest`); the frozen `affected` plan signal is NOT_PRODUCED |
-| RNC-V1-008 | `TestRNCV1008KillSwitchGrammar`, `TestRNCV1008KillSwitchScope` (`internal/testrunner/killswitch`); `TestRNCV1008KillSwitchPlans` (`internal/sessiontest`); `TestRNCV1008KillSwitchOnCorvintTest`, `TestRNCV1008KillSwitchOnAffectedAndWatch` (`cmd/corvint`); hooks, MCP and the Action NOT_PRODUCED |
+| RNC-V1-008 | `TestRNCV1008KillSwitchGrammar`, `TestRNCV1008KillSwitchScope` (`internal/testrunner/killswitch`); `TestRNCV1008KillSwitchPlans`, `TestRNCV1008GoKillSwitchRunsNestedModules` (`internal/sessiontest`); `TestRNCV1008KillSwitchOnCorvintTest`, `TestRNCV1008KillSwitchOnAffectedAndWatch` (`cmd/corvint`); hooks, MCP and the Action NOT_PRODUCED |
 | RNC-V1-009 | NOT_PRODUCED (task 10) |
 | RNC-V1-010 | `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
 | RNC-V1-011 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles` (the printed tier and exact flag come from the planned selection); the release manifest is NOT_PRODUCED (task 12) |
@@ -496,7 +498,7 @@ Delivered by ticket V1-5443 (build-log `docs/build-log/2026-11-13-runner-contrac
 | RNC-V1-013 | `TestRNCV1013BuiltInDefaults` (`internal/testrunner/contract`); `TestRNCV1013DeclarationMirror` (`tools/test-commands-check`); `TestRNCV1013ReadDeclaredResolution`, `TestRNCV1013InstanceCommand`, `TestRNCV1013FullRunsInstanceDefaults` (`internal/sessiontest`); `TestRNCV1013CLIFullCommandScenarios`, `TestRNCV1013CLIMalformedCommandsRefused` (`cmd/corvint`) |
 | RNC-V1-014 | `TestRNCV1014InstanceOwnsItsTests`, `TestRNCV1003GoSelection` (nested instance) (`internal/testrunner/contract`); `TestRNCV1013InstanceCommand`, `TestRNCV1019WhatTheContractDoesNotNarrow` (two instances own one file) (`internal/sessiontest`) |
 | RNC-V1-015 to RNC-V1-018 | NOT_PRODUCED (tasks 8, 11 and 12) |
-| RNC-V1-019 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles`, `TestRNCV1019WhatTheContractDoesNotNarrow`, `TestRNCV1019ContractRunRecordsPerTestResults`, `TestRNCV1019ContractRunFailsClosed`, `TestRNCV1019ContractRunnerUnavailable`, `TestRNCV1019PlaywrightReportPathReachesTheRunner`, `TestSTRV0004AdapterCapabilityManifest` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
+| RNC-V1-019 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles`, `TestRNCV1019WhatTheContractDoesNotNarrow`, `TestRNCV1019ContractRunRecordsPerTestResults`, `TestRNCV1019ContractRunFailsClosed`, `TestRNCV1019ContractRunnerUnavailable`, `TestRNCV1019PlaywrightReportPathReachesTheRunner`, `TestRNCV1019InventoryFallbackRunsUnselectedInstances`, `TestRNCV1019FIFOReportIsIncomplete`, `TestSTRV0004AdapterCapabilityManifest` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
 
 ## Non-goals
 

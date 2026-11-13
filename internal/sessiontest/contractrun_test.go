@@ -235,3 +235,98 @@ func TestRNCV1008KillSwitchPlans(t *testing.T) {
 		}
 	})
 }
+
+// RNC-V1-006: the manifest carries, per contract unit, the tests the
+// inventory lists in its file, and only those: not the file-level ID, not
+// another file's tests; the invocation must answer each one.
+func TestRNCV1006ContractUnitsCarryListedTests(t *testing.T) {
+	input := contractInput()
+	input.ListedTests = map[string]map[string][]string{"pytest@services/a": {
+		"services/a/tests/test_calc.py":  {"pytest:services/a/tests/test_calc.py::test_sub", "pytest:services/a/tests/test_calc.py", "pytest:services/a/tests/test_calc.py::test_add"},
+		"services/a/tests/test_other.py": {"pytest:services/a/tests/test_other.py::test_x"},
+	}}
+	m, err := Build(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Listed) != 1 || m.Listed[0].Slice != "pytest@services/a" || m.Listed[0].Unit != "pytest:services/a/tests/test_calc.py" ||
+		!slices.Equal(m.Listed[0].Tests, []string{"pytest:services/a/tests/test_calc.py::test_add", "pytest:services/a/tests/test_calc.py::test_sub"}) {
+		t.Fatalf("listed %+v", m.Listed)
+	}
+	planned := Invocations(m, input.Declared, 0, t.TempDir(), "")
+	for _, invocation := range planned {
+		if invocation.Units[0].Slice != "pytest@services/a" {
+			continue
+		}
+		if !slices.Equal(invocation.Argv[len(invocation.Argv)-1:], []string{"tests/test_calc.py"}) ||
+			!slices.Equal(invocation.contract.expected, []string{"pytest:services/a/tests/test_calc.py", "pytest:services/a/tests/test_calc.py::test_add", "pytest:services/a/tests/test_calc.py::test_sub"}) {
+			t.Fatalf("argv %q expected %q", invocation.Argv, invocation.contract.expected)
+		}
+		return
+	}
+	t.Fatalf("no pytest invocation in %+v", planned)
+}
+
+// RNC-V1-019, TIV-V1-006, TIV-V1-007: an instance whose inventory record is
+// absent or stale runs its full command with that reason even when the
+// change selects no file of it; the instance whose files are selected
+// stays narrowed, and a plan selecting nothing else is not NOTHING.
+func TestRNCV1019InventoryFallbackRunsUnselectedInstances(t *testing.T) {
+	input := contractInput()
+	input.Selected = []string{"typescript:jest:packages/a/x.test.js"}
+	input.Instances = []contract.Instance{
+		{Runner: "jest", Root: "packages/a", Config: "packages/a/jest.config.js"},
+		{Runner: "jest", Root: "packages/b", Config: "packages/b/jest.config.js"},
+	}
+	input.FullInstances = map[string]string{"jest@packages/b": "inventory-absent: the inventory has no record for this instance"}
+	m, err := Build(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"contract jest:packages/a/x.test.js [jest@packages/a]", "declared declared:jest@packages/b [whole]"}
+	if m.Scope != ScopeNarrowed || !slices.Equal(contractUnitKeys(m), want) {
+		t.Fatalf("scope %s units %q", m.Scope, contractUnitKeys(m))
+	}
+	if m.Units[1].Reason != "inventory-absent: the inventory has no record for this instance" {
+		t.Fatalf("reason %q", m.Units[1].Reason)
+	}
+	input.Selected = nil
+	if m, err = Build(input); err != nil || m.Scope != ScopeNarrowed || !slices.Equal(contractUnitKeys(m), want[1:]) {
+		t.Fatalf("nothing selected: %v scope %s units %q", err, m.Scope, contractUnitKeys(m))
+	}
+	input.RunnerProfile = ProfileCI
+	if m, err = Build(input); err != nil || m.Scope != ScopeNothing || len(m.Units) != 0 {
+		t.Fatalf("ci profile: %v scope %s units %q", err, m.Scope, contractUnitKeys(m))
+	}
+}
+
+// RNC-V1-008: the Go kill switch runs every Go instance, so an unchanged
+// nested go.mod module runs its own go test ./... beside the root universe
+// under `full:go` and under `full`; the ci profile names it as a check.
+func TestRNCV1008GoKillSwitchRunsNestedModules(t *testing.T) {
+	for _, value := range []string{"full:go", "full"} {
+		t.Run(value, func(t *testing.T) {
+			parsed, err := killswitch.Parse(value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			input := Input{
+				Declared: BuiltInDeclared(), ShardCount: 1, GoSelection: "run m/a", Universe: []string{"m/a", "m/b"}, KillSwitch: parsed,
+				Instances: []contract.Instance{{Runner: "go", Root: ".", Config: "go.mod"}, {Runner: "go", Root: "tools/x", Config: "tools/x/go.mod"}},
+			}
+			m, err := Build(input)
+			want := []string{"go go:m/a [whole]", "go go:m/b [whole]", "go go-module:tools/x [whole]"}
+			if err != nil || !slices.Equal(contractUnitKeys(m), want) {
+				t.Fatalf("%v units %q", err, contractUnitKeys(m))
+			}
+			if unit := m.Units[2]; unit.Dir != "tools/x" {
+				t.Fatalf("module unit %+v", unit)
+			}
+			input.RunnerProfile = ProfileCI
+			m, err = Build(input)
+			if err != nil || slices.Contains(contractUnitKeys(m), "go go-module:tools/x [whole]") || !slices.Contains(m.Checks, ModuleCheck("tools/x")) {
+				t.Fatalf("ci: %v units %q checks %q", err, contractUnitKeys(m), m.Checks)
+			}
+		})
+	}
+}

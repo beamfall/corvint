@@ -119,6 +119,15 @@ type Unit struct {
 	KindSource string `json:"kindSource,omitempty"`
 }
 
+// ListedTests are the canonical test IDs the committed inventory lists in
+// the unchanged test file of one contract unit (Unit, Slice): its run must
+// answer each one or record it NOT_RUN (RNC-V1-006).
+type ListedTests struct {
+	Slice string   `json:"slice"`
+	Unit  string   `json:"unit"`
+	Tests []string `json:"tests"`
+}
+
 // Key is the canonical (unit, slice) pair.
 func (u Unit) Key() string { return u.Unit + " " + u.Slice }
 
@@ -163,6 +172,10 @@ type Manifest struct {
 	// value (RNC-V1-008); absent when it is off, so such a manifest keeps
 	// its bytes.
 	KillSwitch string `json:"killSwitch,omitempty"`
+	// Listed holds, in unit order, the inventory's tests for each contract
+	// unit whose file lists any (RNC-V1-006); absent when none does, so
+	// such a manifest keeps its bytes.
+	Listed []ListedTests `json:"listed,omitempty"`
 }
 
 // Digest is "sha256:<hex>" of v's canonical JSON.

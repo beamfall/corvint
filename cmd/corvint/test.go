@@ -498,11 +498,12 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	// narrows the plan (TIV-V1-002, TIV-V1-006 to TIV-V1-009); the runner
 	// instances it judges are the ones whose full commands a language with
 	// no declared command runs (RNC-V1-013, RNC-V1-014).
-	inventory := readInventoryVerdict(ctx, root, false)
+	inventory, listed := readInventoryListed(ctx, root, false)
 	for _, runner := range selectionSwitch.Runners {
 		inventory.ForceFull(runner) // TIV-V1-003, RNC-V1-008
 	}
 	input.KillSwitch = selectionSwitch
+	input.ListedTests = listed
 	input.FullInstances = map[string]string{}
 	for _, instance := range inventory.Instances {
 		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})

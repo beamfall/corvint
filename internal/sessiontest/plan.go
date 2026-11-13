@@ -149,6 +149,12 @@ type Input struct {
 	// that is not current (RNC-V1-002, TIV-V1-006 to TIV-V1-009) or the kill
 	// switch (RNC-V1-008).
 	FullInstances map[string]string
+	// ListedTests maps a runner instance key to the canonical test IDs the
+	// committed inventory lists per unchanged test file, keyed by its
+	// repository-relative path (testinventory.Listed). A contract unit of
+	// such a file carries them, so a test the runner omits is NOT_RUN
+	// (RNC-V1-006).
+	ListedTests map[string]map[string][]string
 	// KillSwitch is the parsed CORVINT_SELECTION value (RNC-V1-008, the
 	// narrowing-measurement grammar); the zero value is off.
 	KillSwitch killswitch.Switch
@@ -475,13 +481,42 @@ func Build(input Input) (Manifest, error) {
 	}
 	var killed []string
 	for _, instance := range input.Instances {
-		if instance.Runner == testid.Go || !input.KillSwitch.Full(instance.Runner) {
+		if instance.Runner == testid.Go {
+			// RNC-V1-008: the root universe is one Go instance; each nested
+			// module's own go test ./... is another, run from its directory.
+			if input.KillSwitch.Full(testid.Go) && instance.Root != "." {
+				if input.RunnerProfile != ProfileCI {
+					modules[instance.Root] = true
+				} else if check := ModuleCheck(instance.Root); !slices.Contains(manifest.Checks, check) {
+					manifest.Checks = append(manifest.Checks, check)
+				}
+			}
+			continue
+		}
+		if !input.KillSwitch.Full(instance.Runner) {
 			continue
 		}
 		if _, declared := input.Declared.Command(runnerLanguages[instance.Runner]); declared {
 			languages[runnerLanguages[instance.Runner]] = true
 		} else if !slices.Contains(killed, instance.Key()) {
 			killed = append(killed, instance.Key())
+		}
+	}
+	// RNC-V1-019, TIV-V1-006, TIV-V1-007: an instance the contract would
+	// narrow whose inventory record is absent, stale or unreadable runs its
+	// full command with that reason whether or not a file of it is
+	// selected; placeContract keeps its selected files out.
+	var fallback []string
+	if input.RunnerProfile != ProfileCI {
+		for _, instance := range input.Instances {
+			key := instance.Key()
+			if input.FullInstances[key] == "" || !contractRunners[instance.Runner] || slices.Contains(killed, key) || slices.Contains(fallback, key) {
+				continue
+			}
+			if _, declared := input.Declared.Command(runnerLanguages[instance.Runner]); declared {
+				continue
+			}
+			fallback = append(fallback, key)
 		}
 	}
 	if fullReason != "" {
@@ -511,7 +546,7 @@ func Build(input Input) (Manifest, error) {
 				languages[language] = true
 			}
 		}
-	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 && len(provided) == 0 && len(contracted) == 0 && len(killed) == 0 && !goKilled {
+	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 && len(provided) == 0 && len(contracted) == 0 && len(killed) == 0 && len(fallback) == 0 && !goKilled {
 		manifest.Scope, manifest.Reason = ScopeNothing, strings.TrimPrefix(input.GoSelection, "NOTHING ")
 	}
 	if len(goRun) != 0 {
@@ -521,7 +556,8 @@ func Build(input Input) (Manifest, error) {
 	}
 	for _, directory := range sortedKeys(modules) {
 		// FULL runs the root universe, never a nested module, so a module
-		// with a dirty path keeps its unit in either scope (STR-V0-064).
+		// with a dirty path keeps its unit in either scope (STR-V0-064);
+		// the Go kill switch adds every nested module (RNC-V1-008).
 		manifest.Units = append(manifest.Units, Unit{
 			Adapter: AdapterGo, Dir: directory, Reason: moduleReason, ReasonCode: ReasonNestedModule, Shard: 0, Slice: SliceWhole, Unit: ModuleUnitPrefix + directory,
 		})
@@ -546,6 +582,11 @@ func Build(input Input) (Manifest, error) {
 			}
 			if !slices.ContainsFunc(manifest.Units, func(unit Unit) bool { return unit.Unit == "declared:"+key }) {
 				manifest.Units = append(manifest.Units, Unit{Adapter: AdapterDeclared, Reason: input.KillSwitch.Describe(), Shard: 0, Slice: SliceWhole, Unit: "declared:" + key})
+			}
+		}
+		for _, key := range fallback {
+			if !slices.ContainsFunc(manifest.Units, func(unit Unit) bool { return unit.Unit == "declared:"+key }) {
+				manifest.Units = append(manifest.Units, Unit{Adapter: AdapterDeclared, Reason: input.FullInstances[key], Shard: 0, Slice: SliceWhole, Unit: "declared:" + key})
 			}
 		}
 		// In FULL every instance already runs its full command, so the
@@ -755,11 +796,11 @@ func (m Manifest) bounded() Manifest {
 	})
 	if len(m.Units) > MaxUnits {
 		m.Incomplete = append(m.Incomplete, fmt.Sprintf("%d execution units exceed the %d bound", len(m.Units), MaxUnits))
-		m.Units = []Unit{}
+		m.Units, m.Listed = []Unit{}, nil
 	}
 	if _, err := Encode(m); err != nil {
 		m.Incomplete = append(m.Incomplete, fmt.Sprintf("the manifest exceeds %d bytes", MaxDocumentBytes))
-		m.Units = []Unit{}
+		m.Units, m.Listed = []Unit{}, nil
 	}
 	return m
 }
