@@ -905,6 +905,30 @@ func TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments(t *testing.T) {
 	}
 }
 
+// TestFlowDocsTypeArgumentsOutsideCallsStayCode: a '<' straight after a
+// non-keyword name is a type-argument list or a comparison, never JSX, also
+// when no call follows it (a return type `): Promise<T> {`, an annotation
+// `: Map<K, V> =`, or `i<n;`), so the declarations after it are not blanked.
+func TestFlowDocsTypeArgumentsOutsideCallsStayCode(t *testing.T) {
+	text := "async function load(signal: AbortSignal): Promise<Item | null> {\n  return fetchItem(signal);\n}\n" +
+		"function count(n: number) {\n  for (let i = 0; i<n; i++) {\n    tick(i);\n  }\n}\n" +
+		"const cache: Map<string, Item> = new Map();\n" +
+		"function Panel({ id }: { id: string }) {\n  save(id);\n  return <p>Hi<b>there</b> persist(text)</p>;\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/panel.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		calls := []string{}
+		for _, o := range d.observations {
+			calls = append(calls, o.key)
+		}
+		got = append(got, d.name+"="+strings.Join(calls, "+"))
+	}
+	want := []string{"Panel=side_effect:save", "count=", "load="}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("declarations=%v want=%v", got, want)
+	}
+}
+
 // DMF-V1-007: generation records a repository-relative output directory and check compares it by
 // default; with no recorded directory and no --output-dir, or a recorded directory that is gone,
 // output is NOT_CHECKED with a reason and the check is never clean.
