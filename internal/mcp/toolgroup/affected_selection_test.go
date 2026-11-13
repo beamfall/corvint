@@ -154,8 +154,9 @@ func TestMTTV1008RunnerSwitchWidensAndEchoesItsRunners(t *testing.T) {
 }
 
 // MTT-V1-008: a 10 KB value is echoed in at most 256 bytes, cut with the
-// truncation marker, in selection.value and in detail; a long runner list
-// echoes only the runners inside the kept bytes.
+// truncation marker, in selection.value and in detail. A long runner list
+// names runners outside the seven, so it is an unknown value (NMS-V1-008)
+// and echoes no runners.
 func TestMTTV1008EchoedValueIsBounded(t *testing.T) {
 	long := "fastest" + strings.Repeat("é", 5*1024)
 	var names []string
@@ -181,11 +182,30 @@ func TestMTTV1008EchoedValueIsBounded(t *testing.T) {
 			t.Fatalf("detail of %d bytes is not bounded: %.300q", len(detail), detail)
 		}
 		runners, _ := selection["runners"].([]any)
-		if value == runnerList && (len(runners) == 0 || len(runners) > 256/len("runner0,") || !strings.HasPrefix(echoed, "full:"+strings.Join(names[:len(runners)], ","))) {
-			t.Fatalf("runners of a truncated list: %d %q", len(runners), runners)
+		if len(runners) != 0 || structured["reason"] != selectionswitch.ReasonUnknownValue {
+			t.Fatalf("unknown value echoed runners %q with reason %v", runners, structured["reason"])
 		}
 		if text := result["content"].([]any)[0].(map[string]any)["text"].(string); strings.Contains(text, value[:1024]) {
 			t.Fatal("the text block echoes the raw value")
+		}
+	}
+}
+
+// MTT-V1-008 with NMS-V1-008: a runner list naming a runner outside the
+// seven is an unknown value: every test is selected with the unknown-value
+// reason naming the value and the known runners, no runner is echoed, and the
+// planner never runs.
+func TestMTTV1008UnknownRunnerNameIsAnUnknownValue(t *testing.T) {
+	for _, value := range []string{"full:this-runner-does-not-exist", "full:go,cargo", "full:node-test"} {
+		group, runs := selectionGroup(t, value)
+		result, failure := group.Call(context.Background(), AffectedTool, map[string]any{})
+		structured, _ := result["structuredContent"].(map[string]any)
+		selection, _ := structured["selection"].(map[string]any)
+		detail, _ := structured["detail"].(string)
+		if failure != nil || result["isError"] != false || structured["selectAll"] != true || structured["scope"] != "FULL" ||
+			structured["reason"] != selectionswitch.ReasonUnknownValue || *runs != 0 || selection["value"] != value ||
+			!reflect.DeepEqual(selection["runners"], []any{}) || !strings.Contains(detail, fmt.Sprintf("%q", value)) || !strings.Contains(detail, "minitest") {
+			t.Fatalf("%q: %#v %#v", value, structured, failure)
 		}
 	}
 }

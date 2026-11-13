@@ -2,10 +2,11 @@
 
 // Package selectionswitch reads the CORVINT_SELECTION kill switch (owner
 // decision R13, PROD-TEST-013). Its grammar is owned by the kill-switch
-// requirement of change narrowing-measurement: exactly `full`, which forces
-// every runner to a full run, or `full:<runner>[,<runner>]`, which forces
-// each named runner. Any
-// other non-empty value is unknown. Parse is the grammar's one parser: the
+// requirement of change narrowing-measurement (NMS-V1-008): exactly `full`,
+// which forces every runner to a full run, or `full:<runner>[,<runner>]`,
+// which forces each named runner, every name one of the seven runner tokens
+// (testid.Runners). Any other non-empty value, an unknown runner name among
+// them, is unknown. Parse is the grammar's one parser: the
 // MCP affected tool is its only caller today, selecting every test on any
 // value (MTT-V1-008), and no command line reads the variable yet; the
 // change's CLI reader, which exits 2 on an unknown value, must call Parse
@@ -13,9 +14,10 @@
 package selectionswitch
 
 import (
-	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/testid"
 )
 
 const (
@@ -28,10 +30,6 @@ const (
 	ReasonUnknownValue = "kill-switch-value-unknown"
 )
 
-// runnerName is one runner token of `full:<runner>`. Which runners exist is
-// the planner's knowledge; the grammar only fixes the token's shape.
-var runnerName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
-
 // Switch is one parsed CORVINT_SELECTION value.
 type Switch struct {
 	// Value is the raw value; empty means the switch is off.
@@ -40,7 +38,8 @@ type Switch struct {
 	All bool
 	// Runners lists the runners `full:<runner>[,<runner>]` names, in order.
 	Runners []string
-	// Unknown is true for a non-empty value outside the grammar.
+	// Unknown is true for a non-empty value outside the grammar, including a
+	// runner list naming a runner that is not one of the seven.
 	Unknown bool
 }
 
@@ -59,7 +58,9 @@ func Parse(value string) Switch {
 	}
 	runners := strings.Split(list, ",")
 	for index, runner := range runners {
-		if !runnerName.MatchString(runner) || slices.Contains(runners[:index], runner) {
+		// NMS-V1-008: an unknown runner name is an unknown value, exactly
+		// as a misspelled form is.
+		if !testid.KnownRunner(runner) || slices.Contains(runners[:index], runner) {
 			return Switch{Value: value, Unknown: true}
 		}
 	}
