@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package killswitch reads the CORVINT_SELECTION kill switch. Its grammar is
-// the one NMS-V1-008 (change `narrowing-measurement`) owns: exactly `full`,
+// the one change `narrowing-measurement` owns for the kill switch: exactly `full`,
 // which makes every runner run its full command, or
 // `full:<runner>[,<runner>]`, which makes each named runner run its full
 // command on every instance. Every surface reads the parsed value from this

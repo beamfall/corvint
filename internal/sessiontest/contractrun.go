@@ -51,7 +51,7 @@ type contractTest struct {
 // contract narrows; or when no declared instance of that runner owns a
 // file. A `typescript:<runner>:<path>` or `ruby:rspec:<stem>` unit names its
 // file (CTI-V1-012); a `python:<module>` unit names a module, so its test
-// files are the plan's own list for it (PYR-V1-010), and a module with no
+// files are the plan's own list for it, and a module with no
 // listed test file is not narrowed. A file two instances own runs in both.
 func contractTests(input Input, id string) ([]contractTest, bool) {
 	language, _, _ := strings.Cut(id, ":")

@@ -142,7 +142,7 @@ type Input struct {
 	// SelectedTests maps a selected unit id to the test files the plan
 	// lists for it (affected Selection.Tests). The contract adapter reads it
 	// for a `python:<module>` unit, which names a module, not a file
-	// (PYR-V1-010, RNC-V1-019).
+	// (RNC-V1-019).
 	SelectedTests map[string][]string
 	// FullInstances maps a runner instance key to the reason it runs its
 	// full command rather than a contract selection: an inventory verdict
@@ -150,7 +150,7 @@ type Input struct {
 	// switch (RNC-V1-008).
 	FullInstances map[string]string
 	// KillSwitch is the parsed CORVINT_SELECTION value (RNC-V1-008, the
-	// NMS-V1-008 grammar); the zero value is off.
+	// narrowing-measurement grammar); the zero value is off.
 	KillSwitch killswitch.Switch
 }
 

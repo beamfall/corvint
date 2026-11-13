@@ -33,7 +33,7 @@ func contractInput() Input {
 	}
 }
 
-// RNC-V1-019, RNC-V1-004, RNC-V1-014, RNC-V1-007, PYR-V1-010: each
+// RNC-V1-019, RNC-V1-004, RNC-V1-014, RNC-V1-007: each
 // selected Vitest, Jest, Playwright, pytest or RSpec file becomes one
 // contract unit in its owning instance, a `python:<module>` unit through the
 // plan's own test files; the contract derives each instance's argv from its
