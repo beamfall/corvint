@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/linecov"
@@ -213,7 +214,10 @@ func runWatchPlan(ctx context.Context, root string, ix *linecov.Index, p watch.P
 			_, _ = io.Copy(io.Discard, events)
 			parsed <- read
 		}()
-		cmd.Stdout, cmd.Stderr = io.MultiWriter(diagnostic, pipe), diagnostic
+		// Stdout and stderr are different writers, so os/exec copies them on two
+		// goroutines; both reach diagnostic, which is serialized.
+		diag := &lockedWriter{w: diagnostic}
+		cmd.Stdout, cmd.Stderr = io.MultiWriter(diag, pipe), diag
 		cmd.Env = append(os.Environ(), "HEAVY_WHOLE_REASON=corvint watch working-tree plan selects whole package")
 		// A cancelled watch kills the wrapper, go test and the test binary
 		// together, and a child that keeps the output pipe cannot hold the
@@ -280,4 +284,17 @@ func watchGoRunner(ctx context.Context, root string) (string, string) {
 		return runner, ""
 	}
 	return runner, strings.TrimSpace(string(out))
+}
+
+// lockedWriter serializes writes to a writer shared by a child's stdout and
+// stderr copy goroutines.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
 }
