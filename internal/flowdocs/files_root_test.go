@@ -3,6 +3,7 @@ package flowdocs
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -67,8 +68,13 @@ func TestV14551_OpenDirectoryFollowsOnlyRootOwnedSystemAlias(t *testing.T) {
 	dir := t.TempDir()
 	volumeRoot := filepath.VolumeName(dir) + string(filepath.Separator)
 	first := strings.SplitN(dir[len(volumeRoot):], string(filepath.Separator), 2)[0]
+	link, linkErr := os.Lstat(volumeRoot + first)
+	rootInfo, rootErr := os.Lstat(volumeRoot)
+	if runtime.GOOS == "windows" || linkErr != nil || link.Mode()&os.ModeSymlink == 0 || rootErr != nil || rootInfo.Mode().Perm()&0o022 != 0 {
+		t.Skipf("%s does not start at a symlink in an owner-only filesystem root", dir)
+	}
 	if _, ok := systemAlias(volumeRoot, first); !ok {
-		t.Skipf("%s does not start at a root-owned system symlink", dir)
+		t.Fatalf("systemAlias(%q, %q) refused a root-owned system symlink", volumeRoot, first)
 	}
 	if err := os.Mkdir(filepath.Join(dir, "real"), 0o700); err != nil {
 		t.Fatal(err)

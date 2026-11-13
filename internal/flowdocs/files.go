@@ -86,11 +86,19 @@ func systemAlias(volumeRoot, first string) (string, bool) {
 	if err != nil || !root.IsDir() || root.Mode().Perm()&0o022 != 0 {
 		return "", false
 	}
-	resolved, err := filepath.EvalSymlinks(volumeRoot + first)
-	if err != nil || !filepath.IsAbs(resolved) || filepath.Clean(resolved) != resolved {
+	// One hop only: a symlink in the target chain must still meet the
+	// no-follow walk rather than be erased here.
+	target, err := os.Readlink(volumeRoot + first)
+	if err != nil || target == "" {
 		return "", false
 	}
-	return resolved, true
+	if !filepath.IsAbs(target) {
+		target = volumeRoot + target
+	}
+	if resolved := filepath.Clean(target); filepath.IsAbs(resolved) && resolved != volumeRoot && resolved != filepath.Clean(volumeRoot+first) {
+		return resolved, true
+	}
+	return "", false
 }
 
 func openComponent(parent *os.Root, name string) (*os.Root, error) {
