@@ -83,6 +83,3 @@ func ProjectRun(document Document) testvalidity.Projection {
 func Freshness(document Document, read func(name string) ([]byte, error), helpers func(projectDirectory string) ([]string, error)) testvalidity.Axis {
 	return rubytestreceipt.Freshness(document, read, helpers)
 }
-
-// Revision is rubytestreceipt.Revision, kept under its old name.
-func Revision(document Document) string { return rubytestreceipt.Revision(document) }

@@ -1,6 +1,4 @@
 {
   "profile": "corvint-import-ratchet-baseline/0",
-  "edges": [
-    "internal/sessiontest -> .github/cishards"
-  ]
+  "edges": []
 }

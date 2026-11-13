@@ -76,39 +76,5 @@ func TestImpactRanksSamePackageTestsByDeclarationReferences(t *testing.T) {
 
 // recipeFixtureTask names a path and a backticked identifier so every recipe R
 // mechanism (path field, definition term, documentation gate, anchor
-// inference) has something to act on in recipeFixtureIndex.
+// inference) has something to act on.
 const recipeFixtureTask = "Why does `zqframe` in pkg/parser/parser.go drop the needle signal?"
-
-func recipeFixtureIndex(t *testing.T) *Index {
-	t.Helper()
-	t.Setenv("GIT_AUTHOR_DATE", "2000-01-01T00:00:00Z")
-	t.Setenv("GIT_COMMITTER_DATE", "2000-01-01T00:00:00Z")
-	root := t.TempDir()
-	testGit(t, root, "init", "-q")
-	testGit(t, root, "config", "user.email", "corvint@example.test")
-	testGit(t, root, "config", "user.name", "Corvint Test")
-	long := strings.Repeat("\t// tokenised filler lines keep this body long for normalisation\n", 80)
-	for path, content := range map[string]string{
-		"go.mod":                      "module example.test/recipe\n\ngo 1.27.0\n",
-		"AGENTS.md":                   "# Corvint agent contract\n\nRead the parser before changing it.\n",
-		"pkg/parser/parser.go":        "package parser\n\nfunc Parse(value string) string { return Frobnicate(value) }\n",
-		"pkg/parser/parser_test.go":   "package parser\n\nfunc TestParse() { Parse(\"needle\") }\n",
-		"pkg/parser/helpers.go":       "package parser\n\nfunc trimSpace(value string) string { return value }\n",
-		"lib/frob/frob.go":            "package frob\n\nfunc Frobnicate(value string) string { return value }\n",
-		"lib/scan/def.go":             "package scan\n\nfunc zqframe(value string) string {\n" + long + "\treturn value\n}\n",
-		"cmd/needle/main.go":          "package main\n\nfunc main() { run(\"needle\") }\n",
-		"internal/other/short.go":     "package other\n\n// needle needle signal\n",
-		"internal/other/unrelated.go": "package other\n\nfunc unrelated() {}\n",
-		"docs/needle.md":              "# needle\n\nThe needle signal drop.\n",
-		"docs/guide.md":               "# guide\n\nsignal handling\n",
-	} {
-		writeTestFile(t, root, path, content)
-	}
-	testGit(t, root, "add", ".")
-	testGit(t, root, "commit", "-qm", "recipe fixture")
-	index, err := Build(context.Background(), root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return index
-}
