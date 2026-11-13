@@ -193,8 +193,9 @@ Delivered state (V1-5447, 2026-11-11):
   runners, because the planner serves no per-runner full plan. The result echoes the named runners
   in `selection.runners` and its `detail` says the answer was widened.
 - The echoed value is bounded: `selection.value` and the value quoted in `detail` carry at most 256
-  bytes of it; a longer value is cut at a UTF-8 boundary and ends with the marker
-  `...(truncated, N bytes)`, N being the full length, and `selection.runners` lists only the
+  bytes of it as the client decodes it, each invalid UTF-8 byte counted as the three-byte U+FFFD JSON
+  turns it into; a longer value is cut at a UTF-8 boundary and ends with the marker
+  `...(truncated, N bytes)`, N being the raw value's length, and `selection.runners` lists only the
   runners wholly inside the kept bytes.
 
 - `MTT-V1-009`: (accepted automatically under G14, decision 0596; V1-5447) Same answer as the command line
@@ -277,7 +278,7 @@ not reused and their text stays in their own specs as history.
 | MTT-V1-005 | 2.5 | `internal/mcp/cli/groups.go` (`removedGroups`), `main.go`, `unavailable.go`; `internal/mcp/toolgroup/test_evidence.go` (preview label) | `TestMTTV1005RemovedGroupsRefuseWithATypedReason`, `TestMTTV1005RemovedGroupMatchesOnlyFlagPosition`, `TestMTTV1005TestValidityIsAnUnknownTool`, `TestMTTV1003CoreServerRegistersExactlyTheTable` |
 | MTT-V1-006 | 2.1, 2.8 | the `corvint-tasks` no-MCP-tool row and the Tasks-name rule in `internal/capcatalog/mcp.go` | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow/tasks_tool_on_a_server`, `TestMTTV1006CoreServerServesNoTasksTool`, `TestMTTV1006DocsServerServesNoTasksTool` |
 | MTT-V1-007 | 2.5 | `internal/mcp/bridge/flows.go` (renamed constants), `internal/capcatalog/mcp.go` (`toolName`, `Replaces`), `internal/mcp/toolgroup/invalid_params.go` (`replacedBy`, the old-name rule) | `TestMTTV1007OneNamingConvention`, `TestMTTV1007OldFlowsNameNamesTheNewTool`, `TestMTTV1001TableRulesNameTheBrokenRow/two_dots` |
-| MTT-V1-008 | 2.6 | `internal/selectionswitch` (grammar), `internal/mcp/toolgroup/affected.go` (`selectAll`, `echoValue`, `affected-select-all/1`) | `TestMTTV1008Grammar`, `TestMTTV1008AffectedToolReadsTheKillSwitch`, `TestMTTV1008AffectedToolAgreesWithTheOneParser`, `TestMTTV1008RunnerSwitchWidensAndEchoesItsRunners`, `TestMTTV1008EchoedValueIsBounded`, `TestMTTV1008UnknownSelectionThroughTheServer`, `TestMTTV1008UnknownRunnerNameIsAnUnknownValue` |
+| MTT-V1-008 | 2.6 | `internal/selectionswitch` (grammar), `internal/mcp/toolgroup/affected.go` (`selectAll`, `echoValue`, `affected-select-all/1`) | `TestMTTV1008Grammar`, `TestMTTV1008AffectedToolReadsTheKillSwitch`, `TestMTTV1008AffectedToolAgreesWithTheOneParser`, `TestMTTV1008RunnerSwitchWidensAndEchoesItsRunners`, `TestMTTV1008EchoedValueIsBounded`, `TestMTTV1008UnknownSelectionThroughTheServer`, `TestMTTV1008UnknownRunnerNameIsAnUnknownValue`, `TestMTTV1008EchoBoundsInvalidUTF8` |
 | MTT-V1-009 | 2.7 | table column `ParityTest` (a binary name and a test name) and its rule in `internal/capcatalog/mcp.go`; `MissingParityTests` and `definesTest` (go/parser) in `tools/mcp-server-doc` (doc gate) | `TestMTTV1009HelpToolMatchesCLI`, `TestMTTV1009ImpactToolMatchesCLI`, `TestMTTV1009TestEvidenceToolMatchesCLI`, `TestV15254MCPAffectedMatchesCLI` (cmd/corvint); `TestMTTV1009FlowsToolsMatchCLI`, `TestMTTV1009DocsConsumeToolMatchesCLI`, `TestDocsToolVerbAnswersInOneEnvelope`, `TestCorpusTypedCLIMCPEndToEnd` (cmd/corvint-docs); `TestMTTV1009MissingParityTestIsNamed` |
 | MTT-V1-010 | 2.8 | not built here: `corvint-mcp` and `corvint-test-validity-mcp` leave `tools/release-binary/binaries.json` in their removal batch | NOT_PRODUCED until that batch |
 | MTT-V1-011 | 2.9 | `internal/mcp/toolgroup/affected.go` (`AffectedStaleCode`, select-all on the planner's refusal); `cmd/corvint/mcp.go` help | `TestMTTV1011AffectedToolOnAStaleBinarySelectsAll`; `TestV15254MCPAffectedStaleBinaryDegrades` (tool select-all and CLI exit 2 on one stale binary); `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` |

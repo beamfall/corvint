@@ -267,19 +267,49 @@ func (group Affected) selectAll(ctx context.Context, name, base, reason, detail,
 // the server environment's and has no length bound of its own.
 const echoLimit = 256
 
-// echoValue is value cut to echoLimit bytes at a UTF-8 boundary with the
-// marker `...(truncated, N bytes)`, and the count of value's bytes it keeps;
-// a value within the limit is returned whole.
+// echoValue is value as JSON will carry it, each invalid UTF-8 byte replaced
+// by U+FFFD as encoding/json replaces it, then cut to echoLimit bytes at a
+// UTF-8 boundary with the marker `...(truncated, N bytes)`, N being value's
+// raw length; it also returns how many bytes of that sanitised value it keeps.
+// The bound is on the sanitised bytes, which is what the client decodes: an
+// invalid byte grows to three (MTT-V1-008). A value that sanitises to within
+// the limit is returned whole. Runner tokens are ASCII, so for a value with
+// runners the sanitised and raw bytes are the same.
 func echoValue(value string) (string, int) {
 	if len(value) <= echoLimit {
-		return value, len(value)
+		if clean := sanitizeUTF8(value); len(clean) <= echoLimit {
+			return clean, len(clean)
+		}
 	}
+	// Sanitising never shrinks a value, so only a prefix of it can be kept;
+	// the extra UTFMax bytes let a rune cut at the prefix's end be dropped
+	// at the boundary below instead of read as invalid.
+	clean := sanitizeUTF8(value[:min(len(value), echoLimit+utf8.UTFMax)])
 	marker := fmt.Sprintf("...(truncated, %d bytes)", len(value))
 	kept := echoLimit - len(marker)
-	for kept > 0 && !utf8.RuneStart(value[kept]) {
+	for kept > 0 && !utf8.RuneStart(clean[kept]) {
 		kept--
 	}
-	return value[:kept] + marker, kept
+	return clean[:kept] + marker, kept
+}
+
+// sanitizeUTF8 replaces each invalid UTF-8 byte of value with U+FFFD, as
+// encoding/json does when it encodes a string.
+func sanitizeUTF8(value string) string {
+	if utf8.ValidString(value) {
+		return value
+	}
+	var builder strings.Builder
+	for index := 0; index < len(value); {
+		r, size := utf8.DecodeRuneInString(value[index:])
+		if r == utf8.RuneError && size == 1 {
+			builder.WriteRune(utf8.RuneError)
+		} else {
+			builder.WriteString(value[index : index+size])
+		}
+		index += size
+	}
+	return builder.String()
 }
 
 // killSwitchDetail says why every test is selected. Every arm quotes the
