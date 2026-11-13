@@ -49,8 +49,18 @@ func flowWebMask(text string) string {
 			continue
 		}
 		if c == '<' && i+1 < len(code) && (code[i+1] >= 'A' && code[i+1] <= 'Z' || code[i+1] >= 'a' && code[i+1] <= 'z' || code[i+1] == '/') {
-			end := i + 1
-			for end < len(code) && code[end] != '>' {
+			// An attribute expression can hold '>' (onChange={(e) => f(e)}),
+			// so the tag ends at the first '>' outside braces.
+			end, braces := i+1, 0
+			for end < len(code) && (code[end] != '>' || braces > 0) {
+				switch code[end] {
+				case '{':
+					braces++
+				case '}':
+					if braces > 0 {
+						braces--
+					}
+				}
 				end++
 			}
 			if end == len(code) {
