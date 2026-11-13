@@ -80,9 +80,9 @@ func TestReadScopeDeclarationNarrowingFaults_AFPV09712(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer os.WriteFile(name, []byte(files[readScopesPath]), 0o644)
-		plan := ncmPlan([]string{readScopesPath, ".corvint/runtime-readers.json"})
+		plan := ncmPlan([]string{readScopesPath, ".corvint/runtime-readers.json"}) //corvint:fixture-path
 		plan.Revision = base
-		requireVerdict(t, plan, root, "FALLBACK corvint-config .corvint/runtime-readers.json", "noncode read-scope-declaration "+readScopesPath)
+		requireVerdict(t, plan, root, "FALLBACK corvint-config .corvint/runtime-readers.json", "noncode read-scope-declaration "+readScopesPath) //corvint:fixture-path
 	})
 }
 
