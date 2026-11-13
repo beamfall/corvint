@@ -58,3 +58,31 @@ func TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot(t *testing.T) {
 		t.Fatalf("opening / itself = %q", opened)
 	}
 }
+
+// TestV14551_OpenDirectoryFollowsOnlyRootOwnedSystemAlias pins that a path
+// reached through a top-level system symlink (macOS /var -> private/var) opens,
+// while a symlink below it is still refused. It runs where t.TempDir starts at
+// such an alias, which hosted macOS does, and is skipped elsewhere.
+func TestV14551_OpenDirectoryFollowsOnlyRootOwnedSystemAlias(t *testing.T) {
+	dir := t.TempDir()
+	volumeRoot := filepath.VolumeName(dir) + string(filepath.Separator)
+	first := strings.SplitN(dir[len(volumeRoot):], string(filepath.Separator), 2)[0]
+	if _, ok := systemAlias(volumeRoot, first); !ok {
+		t.Skipf("%s does not start at a root-owned system symlink", dir)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "real"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	root, err := openDirectory(filepath.Join(dir, "real"))
+	if err != nil {
+		t.Fatalf("openDirectory through the system alias = %v", err)
+	}
+	root.Close()
+	if err := os.Symlink(filepath.Join(dir, "real"), filepath.Join(dir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	if root, err := openDirectory(filepath.Join(dir, "link")); err == nil {
+		root.Close()
+		t.Fatal("a symlink below the system alias was followed")
+	}
+}
