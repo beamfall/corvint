@@ -10,7 +10,7 @@ Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel rest
 ## Agent digest
 - Claim: A checked-in area manifest layers every module package, and a Go test fails on any wrong-way cross-area import that its shrinking baseline does not list.
 - Status: experimental; owner-directed lane implementation under the standing lane auto-accept, pending independent review; re-keyed to the five layers of decision 0594 on 2026-11-09 (V1-5233).
-- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (1 edge, `internal/sessiontest -> .github/cishards`, after V1-5248 and V1-5249 keyed the affected planner, `doccorpus`, `flowdocs` and `mcp/corpusbridge` shared and split the provider receipt models, the test-validity model and test discovery into shared packages, `docs/build-log/2026-11-11-layers-remaining-edges.md`; 17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`; `tools/import-ratchet/direct_git_allowlist.txt` with `direct_git_test.go` (IRT-V0-020, 59 scanned Git spawns listed in 57 functions of 48 files, none routed) and `affected_names_test.go` (IRT-V0-021).
+- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (no edge since V1-4809 and V1-5249 keyed the shard planner `.github/cishards` `tests`, `docs/build-log/2026-11-13-layers-last-edge.md`; 1 edge, `internal/sessiontest -> .github/cishards`, after V1-5248 and V1-5249 keyed the affected planner, `doccorpus`, `flowdocs` and `mcp/corpusbridge` shared and split the provider receipt models, the test-validity model and test discovery into shared packages, `docs/build-log/2026-11-11-layers-remaining-edges.md`; 17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`; `tools/import-ratchet/direct_git_allowlist.txt` with `direct_git_test.go` (IRT-V0-020, 59 scanned Git spawns listed in 57 functions of 48 files, none routed) and `affected_names_test.go` (IRT-V0-021).
 - Blocked on: independent review; the import-rule enforcement, `cmd/corvint` test split, CI sharding and per-binary release follow-ups of decision 0594 shrink the baseline.
 - Read next: Requirements, then Failure modes.
 
@@ -35,9 +35,12 @@ re-keyed the manifest from the panel's eleven areas to those five (`shared` laye
 imports the follow-ups must remove. A package is keyed by role; a leaf that two products need
 (the index's language dialects, `langplugin/decl`, `pythongrammar`) is `shared`; each `cmd`
 binary is keyed to its product; `.github`, `tools`, `script`, `conformance`, `benchmarks` and
-`examples` are `release`, which may import any layer and is not shipped. The re-key, the 44
-measured edges by layer pair and the per-layer test time are recorded in
-`docs/build-log/2026-11-09-layers-manifest.md`.
+`examples` are `release`, which may import any layer and is not shipped. A package under one of
+those directories that a shipped binary compiles in is keyed by its role instead: the shard
+planner `.github/cishards` imports only the standard library and `corvint test` and `affected`
+run it through `internal/sessiontest`, so it is `tests`, while its CI command
+`.github/cishards/cmd` stays `release`. The re-key, the 44 measured edges by layer pair and the
+per-layer test time are recorded in `docs/build-log/2026-11-09-layers-manifest.md`.
 
 ## Requirements
 
