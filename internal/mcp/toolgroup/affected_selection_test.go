@@ -3,6 +3,7 @@ package toolgroup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -207,5 +208,69 @@ func TestMTTV1008UnknownRunnerNameIsAnUnknownValue(t *testing.T) {
 			!reflect.DeepEqual(selection["runners"], []any{}) || !strings.Contains(detail, fmt.Sprintf("%q", value)) || !strings.Contains(detail, "minitest") {
 			t.Fatalf("%q: %#v %#v", value, structured, failure)
 		}
+	}
+}
+
+// MTT-V1-008: the 256-byte echo bound holds for the bytes a client decodes.
+// Unix allows invalid UTF-8 in an environment value, and JSON turns each
+// invalid byte into U+FFFD (three bytes), so 256 0xff bytes, a short invalid
+// value and a 10 KB mixed one are each bounded after serialisation. Any value
+// that grows past the bound carries the truncation marker.
+func TestMTTV1008EchoBoundsInvalidUTF8(t *testing.T) {
+	for name, value := range map[string]string{
+		"256 0xff":         strings.Repeat("\xff", 256),
+		"100 0xff":         strings.Repeat("\xff", 100),
+		"10 KB mixed":      strings.Repeat("ok\xfe\xff é", 1200),
+		"short invalid":    "fast\xffest",
+		"cut rune at 260+": strings.Repeat("a", 258) + "é" + strings.Repeat("\xff", 300),
+	} {
+		group, runs := selectionGroup(t, value)
+		result, failure := group.Call(context.Background(), AffectedTool, map[string]any{})
+		if failure != nil || *runs != 0 {
+			t.Fatalf("%s: failure %#v runs %d", name, failure, *runs)
+		}
+		raw, err := json.Marshal(result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded struct {
+			StructuredContent struct {
+				Detail    string `json:"detail"`
+				Reason    string `json:"reason"`
+				Selection struct {
+					Value string `json:"value"`
+				} `json:"selection"`
+			} `json:"structuredContent"`
+		}
+		if err := json.Unmarshal(raw, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		echoed := decoded.StructuredContent.Selection.Value
+		marker := fmt.Sprintf("...(truncated, %d bytes)", len(value))
+		// The value as a client decodes it if it were echoed whole.
+		whole, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decodedWhole string
+		if err := json.Unmarshal(whole, &decodedWhole); err != nil {
+			t.Fatal(err)
+		}
+		grows := len(decodedWhole) > 256
+		if len(echoed) > 256 || !utf8.ValidString(echoed) || decoded.StructuredContent.Reason != selectionswitch.ReasonUnknownValue {
+			t.Fatalf("%s: echoed %d bytes %q", name, len(echoed), echoed)
+		}
+		if grows != strings.HasSuffix(echoed, marker) {
+			t.Fatalf("%s: grows=%v but echoed %q", name, grows, echoed)
+		}
+		if !grows && echoed != decodedWhole {
+			t.Fatalf("%s: a value within the bound changed: %q", name, echoed)
+		}
+		if len(decoded.StructuredContent.Detail) > 4*256+256 || strings.Contains(decoded.StructuredContent.Detail, strings.Repeat("\uFFFD", 100)) {
+			t.Fatalf("%s: detail of %d bytes is not bounded", name, len(decoded.StructuredContent.Detail))
+		}
+	}
+	if echoed, _ := echoValue("fast\xffest"); echoed != "fast\uFFFDest" {
+		t.Fatalf("short invalid value echoed as %q", echoed)
 	}
 }
