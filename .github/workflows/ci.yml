@@ -840,6 +840,26 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Capture the known-flake authorizer before tested code runs (CIN-V0-8720)
+        # Later steps run the tested change's code (its .github scripts, then its tests), and code
+        # that can write the checkout's .git could install a replacement ref (git replace) or
+        # config that substitutes the authorizer. So it is read here, before any of that, from the
+        # event base, ignoring replace refs and system, global and hooks config; the Go tests step
+        # uses the copy only while its bytes match the digest this step outputs. A base without
+        # the authorizer outputs no digest, and then no failed shard is forgiven.
+        id: known-flakes
+        working-directory: source
+        env:
+          KNOWN_FLAKES_REVISION: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
+        run: |
+          authorizer="$RUNNER_TEMP/known-flakes-authorizer.py"
+          if GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1 \
+            git --no-replace-objects -c core.hooksPath=/dev/null show "$KNOWN_FLAKES_REVISION:.github/forward-rows/known-flakes.py" > "$authorizer" 2> /dev/null; then
+            echo "sha256=$(sha256sum < "$authorizer" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          else
+            rm -f -- "$authorizer"
+            echo "::notice::CIN-V0-8720: no known-flake authorizer at $KNOWN_FLAKES_REVISION; no failed shard is forgiven"
+          fi
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         id: go
         with:
@@ -1390,11 +1410,28 @@ jobs:
           # test-confine wrapper, as the index's runner names them (GLS-V0-009, GLS-V0-041): its
           # build settings, its test runtime and its exec wrapper. The index workflow collects
           # under the same wrapper and deadline, so the identities can match.
-          if ! GOFLAGS=-race CGO_ENABLED=1 "$RUNNER_TEMP/linecov-corvint" --root "$PWD" affected --base "$base" \
+          # CIN-V0-8722 (V1-5258): linecov-corvint is main's planner, not the tested tree's, so its
+          # stamped commit's Go source differs from HEAD whenever the change edits Go source, and
+          # AFP-V0-9730 refuses such a plan unless --accept-stale-binary keeps it as degraded.
+          if ! GOFLAGS=-race CGO_ENABLED=1 "$RUNNER_TEMP/linecov-corvint" --root "$PWD" affected --accept-stale-binary --base "$base" \
             --line-index "$RUNNER_TEMP/linecov-index/linecov.idx" --line-test-timeout 50m \
             --line-exec "$RUNNER_TEMP/test-confine" > "$d/affected.json" 2> "$d/affected.err"; then
             stop "corvint affected --line-index refused: $(tail -n 1 "$d/affected.err")"
           fi
+          # CIN-V0-8722: only the expected self-binary-stale degradation (the plan came from the
+          # trusted main commit, not the tested tree) may go on to the selection decision; it is
+          # named in the summary and kept in the proof. Any other degradation falls back.
+          degraded=$(jq -r 'if (.degradations // []) | type != "array" then "malformed"
+            else (.degradations // []) | map(tostring) | join(",") end' "$d/affected.json" 2> /dev/null) ||
+            stop "the receipt's degradations are unreadable"
+          case "$degraded" in
+            "") ;;
+            self-binary-stale)
+              printf '%s\n' "$degraded" > "$d/degraded"
+              echo "CIN-V0-8722 shard $SHARD: planned by the trusted selector of main commit $tools, not the tested tree; degraded self-binary-stale (AFP-V0-9730)" | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
+            *) stop "the plan is degraded beyond self-binary-stale: $degraded" ;;
+          esac
           jq -e '.lineSelection' "$d/affected.json" > "$d/selection.json" || stop "the receipt has no lineSelection"
           jq -r --arg shard "$SHARD" --arg run "$run" --arg commit "$commit" \
             '"GLS-V0-044 shard \($shard) (index run \($run) at \($commit)): \(.state)\(if .reason then " " + .reason else "" end); units \(.counts.units): whole \(.counts.unitsWhole), tests \(.counts.unitsTests), compile \(.counts.unitsCompile), excluded \(.counts.unitsExcluded); tests kept by coverage \(.counts.testsKeptByCoverage), by fallback \(.counts.testsKeptByFallback), left out \(.counts.testsExcluded); load \(.loadMillis) ms, select \(.selectMillis) ms"' \
@@ -1425,6 +1462,10 @@ jobs:
         working-directory: source
         env:
           TESTED_MERGE: ${{ github.sha }}
+          # CIN-V0-8720: the known-flake list and its authorizer come from the event base (the pull
+          # request's base, the queue base or the pushed commit), never from the tested tree.
+          KNOWN_FLAKES_REVISION: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
+          KNOWN_FLAKES_SHA256: ${{ steps.known-flakes.outputs.sha256 }}
           # AFP-V0-461 (V1-2707): outcomes.sh records the pull request head in every shard's
           # outcomes; without it each PR forward row is INCOMPLETE and trips the kill switch.
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -1637,8 +1678,8 @@ jobs:
           # failed slice once (at most 8, else SKIPPED_BOUND) and keep the rerun outcomes beside
           # the first. AFP-V0-441 (V1-2682): the rerun has its own hang detector, RERUN_MINUTES
           # for all its invocations together (exit 124 when it stops them, 137 when its kill
-          # does), and records its exit status in rerun-status; only flaky.sh below may turn a
-          # failed shard into a pass.
+          # does), and records its exit status in rerun-status; only flaky.sh below, with the
+          # CIN-V0-8720 known-flake authorization, may turn a failed shard into a pass.
           # The rerun runs in a child bash under timeout, so no exported function or variable
           # reaches a test's environment; it exits 1 when any rerun invocation failed.
           rerun_invocations() {
@@ -1662,6 +1703,16 @@ jobs:
             echo "$rerun_status" > "$outcomes_dir/rerun-status"
             sh .github/forward-rows/outcomes.sh rerun "$outcomes_dir" "$outcomes_dir/rerun.stream"
           }
+          # CIN-V0-8720: hold the captured authorizer in this shell before any test runs, and only
+          # while its bytes match the capture step's digest; tested code cannot change a variable
+          # of this shell, and none of this is exported.
+          known_flakes_src=""
+          if [ -n "$KNOWN_FLAKES_SHA256" ] && known_flakes_src=$(cat -- "$RUNNER_TEMP/known-flakes-authorizer.py" && echo x); then
+            known_flakes_src=${known_flakes_src%x}
+            [ "$(printf '%s' "$known_flakes_src" | sha256sum | cut -d' ' -f1)" = "$KNOWN_FLAKES_SHA256" ] || known_flakes_src=""
+          else
+            known_flakes_src=""
+          fi
           # AFP-V0-040: best-effort capture of the JSON stream for the advisory cost-drift
           # report. Only go test's own status decides this step: a capture file that cannot
           # be created runs the tests uncaptured, and tee's status is never consulted.
@@ -1680,11 +1731,20 @@ jobs:
               # the shard FLAKY in the job summary and an annotation and writes flaky.json), and
               # the flaky output that makes the next step retain flaky.json was written. A second
               # failure, a stopped or incomplete rerun, or a bounded (SKIPPED_BOUND) rerun keeps
-              # the first status.
+              # the first status. CIN-V0-8720: every failed test must also hold a live exception
+              # in known-flakes.tsv, judged by known-flakes.py, both read from the event base, the
+              # authorizer captured before tested code ran and run from this shell's copy, so the
+              # tested change can edit neither. The FLAKY record and its artifact stay even when
+              # the authorization refuses.
               if [ "$status" != 0 ] && [ -n "$outcomes_ok" ] && sh .github/forward-rows/flaky.sh "$outcomes_dir" "$capture" &&
                 echo "flaky=1" >> "$GITHUB_OUTPUT"; then
                 flaky=1
-                status=0
+                if [ -n "$known_flakes_src" ] &&
+                  python3 -I -B - "$capture" "$outcomes_dir/flaky-failed-packages" "$outcomes_dir/expected" < <(printf '%s' "$known_flakes_src"); then
+                  status=0
+                else
+                  echo "::warning::shard $SHARD: CIN-V0-8720: the rerun passed, but not every failed test has an unexpired exception in known-flakes.tsv at $KNOWN_FLAKES_REVISION; the shard keeps its failure"
+                fi
               fi
             fi
             # AFP-V0-531 (V1-2689): a shard that still fails names a typed reason per failed
@@ -2180,6 +2240,15 @@ jobs:
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+      - name: CI workflow helper tests (CIN-V0-8720 to CIN-V0-8723, GHA-V1-040, GHA-V1-041)
+        # Python extract-and-run tests of workflow steps and helpers under .github/forward-rows;
+        # they make no hosted request.
+        working-directory: source
+        run: |
+          python3 -B .github/forward-rows/known-flakes_test.py
+          python3 -B .github/forward-rows/go-product_test.py
+          python3 -B .github/forward-rows/linecov-stale_test.py
+          python3 -B .github/forward-rows/release-binaries_test.py
       - name: Windows vet including test files (AFP-V0-042)
         # go build skips _test.go files, so a test that breaks only for GOOS=windows reached main
         # (V1-1117). Skipped only on a pull request whose merge commit provably changes no .go,
@@ -2313,8 +2382,10 @@ jobs:
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
+    # CIN-V0-8721: artifact-integrity is required too; cadence-plan is needed only to verify its
+    # DEFER skip. always() runs this job even when a need is skipped by design.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, web-flows-plan, web-flows, go-live, shard-plan]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, web-flows-plan, web-flows, go-live, shard-plan, artifact-integrity, cadence-plan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -2329,6 +2400,10 @@ jobs:
           path: ${{ runner.temp }}/ci-coverage
       - name: Every go-product shard and the static job succeeded
         env:
+          INTEGRITY_RESULT: ${{ needs.artifact-integrity.result }}
+          STATIC_REUSE_RESULT: ${{ needs.static-reuse.result }}
+          CADENCE_RESULT: ${{ needs.cadence-plan.result }}
+          CADENCE: ${{ needs.cadence-plan.outputs.cadence }}
           LIVE_RESULT: ${{ needs.go-live.result }}
           WEB_PLAN_RESULT: ${{ needs.web-flows-plan.result }}
           WEB_REQUIRED: ${{ needs.web-flows-plan.outputs.required }}
@@ -2345,6 +2420,30 @@ jobs:
           # count (AFP-V0-2724), sixteen when it did not size.
           SHARDS: ${{ needs.shard-plan.outputs.count || '16' }}
         run: |
+          # CIN-V0-8721: archive integrity is required before every early return. A queue entry
+          # must pass the job (its AFP-V0-163 verified tree reuse concludes success). It may be
+          # skipped only where its own if: skips it: a main push with verified static reuse, a
+          # ci:batched pull request, or a pull request with a verified cadence DEFER.
+          case "$INTEGRITY_RESULT" in
+            success) ;;
+            skipped)
+              if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ] &&
+                [ "$STATIC_REUSE_RESULT" = success ] && [ "$STATIC_REUSE" = REUSE ]; then
+                echo 'artifact-integrity reused from the merge-queue run of this commit (AFP-V0-080).'
+              elif [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$BATCHED" = true ]; then
+                echo 'artifact-integrity deferred to the merge queue (AFP-V0-027).'
+              elif [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$CADENCE_RESULT" = success ] && [ "$CADENCE" = DEFER ]; then
+                echo 'artifact-integrity deferred to the merge queue (CIN-V0-4753).'
+              else
+                echo '::error::artifact-integrity skipped without verified REUSE or DEFER (CIN-V0-8721).'
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::artifact-integrity did not succeed: ${INTEGRITY_RESULT:-no result} (CIN-V0-8721)."
+              exit 1
+              ;;
+          esac
           # CIN-V0-2320: check before any DOCS, REUSE or batched early return. The shell job
           # intentionally skips pushes; every PR and merge-group run must actually pass it.
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$SHELL_RESULT" = skipped ]; then
@@ -2612,7 +2711,8 @@ jobs:
           GOOS=windows GOARCH=amd64 go build ./...
 
   artifact-integrity:
-    # Not a required check; skipped as go-interop is (AFP-V0-080, AFP-V0-081).
+    # Required through go-product (CIN-V0-8721), which admits a skip only for the three conditions
+    # of this job's if: verified static reuse on a main push, ci:batched, or a verified PR DEFER.
     # AFP-V0-163 (V1-2113): a merge-queue entry whose tree a successful pull-request run of its
     # second parent already verified skips the archive gate and still concludes success, so the
     # AFP-V0-080 push reuse keeps working. The tree holds ci.yml, the Makefile, go.mod and every
