@@ -2208,7 +2208,7 @@ jobs:
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
-      - name: CI workflow helper tests (CIN-V0-8720 to CIN-V0-8723)
+      - name: CI workflow helper tests (CIN-V0-8720 to CIN-V0-8723, GHA-V1-040, GHA-V1-041)
         # Python extract-and-run tests of workflow steps and helpers under .github/forward-rows;
         # they make no hosted request.
         working-directory: source
@@ -2216,6 +2216,7 @@ jobs:
           python3 -B .github/forward-rows/known-flakes_test.py
           python3 -B .github/forward-rows/go-product_test.py
           python3 -B .github/forward-rows/linecov-stale_test.py
+          python3 -B .github/forward-rows/release-binaries_test.py
       - name: Windows vet including test files (AFP-V0-042)
         # go build skips _test.go files, so a test that breaks only for GOOS=windows reached main
         # (V1-1117). Skipped only on a pull request whose merge commit provably changes no .go,
