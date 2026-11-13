@@ -900,7 +900,7 @@ which is the whole of what the row asserts.
   quoted-literal and comment masks are unchanged. `corvint impact` is out of scope: its web import
   graph reads the nested-aware web lexer (`readTemplate` in `webimports.go`), and an import spelled
   inside a nested template already binds nothing there. Non-goals: no regular-expression literal
-  reading, no change to `evalBlankCommentsAndStrings` (`GPK-V0-093`), and no wire change. Failure
+  reading (amended by `GPK-V0-395`), no change to `evalBlankCommentsAndStrings` (`GPK-V0-093`), and no wire change. Failure
   modes: the mask is lexical, so a `/` division that resembles a comment opener inside a
   substitution is still read as one. The oracle ended the template at the first backtick, which is
   `DR-0046`. Acceptance evidence: the `TestGPKV0095*` regressions, which leaked `leak`,
@@ -920,6 +920,27 @@ which is the whole of what the row asserts.
   `TestGPKV0295BlankCommentsAndStringsNestedTemplates`, which leaked `leak` and `Component`
   against the flat reading. Rollback: delete the web template case in
   `evalBlankCommentsAndStrings`.
+- `GPK-V0-395`: (accepted 2026-11-13, standing auto-accept; V1-5501) Amending the `GPK-V0-095`
+  non-goal: the web mask (`stripWebNonCode`) MUST blank a regular-expression literal whole, its
+  slashes and flags included, so a quote, backtick or `//` inside it (`/[^&\s"']+/`, `/["\\]/g`)
+  never opens a string or comment that masks the code after it. A `/` that is not `//` or `/*`
+  opens the literal only where an expression can begin: at the start of the text, after one of
+  `( , = : [ ! & | ? { ; + - * % ~ ^`, after the arrow of `=>`, or after one of the words
+  `return typeof case do else in of new delete void throw yield await instanceof`. After a name, a
+  number, `)`, `]`, `}`, `<`, a `>` other than `=>`'s, or a masked literal or template it stays a
+  division, so JSX `</div>`, `<br />` and `{a}/{b}` read as before. In the literal a backslash
+  escapes the next byte and a `/` inside a `[...]` class does not close it; a line break or the end
+  of the text before the closing `/` means the slash was no literal and it stays code. Offsets and
+  newlines are preserved; the template, quoted-literal and comment masks are unchanged; no wire
+  change. Failure mode closed: before, the quote in `/[^&\s"']+/` opened a string literal that
+  blanked every later declaration in the file, so flow inventories reported them missing and the
+  dependency-link stage and feature-marker code lost their calls. Failure modes kept: the reading is
+  lexical, so a regular expression after `)` (`if (x) /a/.test(y)`) or `}` stays code, and a
+  division after a keyword-named property (`x.in / 2`) is masked to its closing slash. Acceptance
+  evidence: `TestGPKV0395StripWebNonCodeBlanksRegexLiterals`, whose quote-in-class cases masked
+  the following declarations against the `GPK-V0-095` reading; `DR-0048`. Rollback: delete the
+  regular-expression case in `stripWebNonCode` and `webRegexMayStart`, `webRegexEnd`,
+  `webRegexOperatorBytes` and `webRegexKeywords`.
 - `GPK-V0-975`: (experimental 2026-10-31, standing lane auto-accept; V1-0179) `EvalQuery`'s
   document ranking (`evalRankDocuments`) MUST credit a non-instructions document 40 for each indexed
   path the task names that the document's own `references` field cites, and 40 more when it cites
@@ -2144,6 +2165,7 @@ negative result.
 | `GPK-V0-093` (accepted 2026-10-28, V1-2946) | `evalAdmitSiblings`, `evalRelations`, `evalScope`, `evalDiscriminatingWords`, `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go`; `evalConfidentSymbols`, `evalQuery` in `internal/contextindex/eval_query.go` | `TestEvalAdmitSiblingsRequiresDemonstratedRelation`, `TestEvalAdmitSiblingsPythonRelations`, `TestEvalBlankCommentsAndStrings`, `TestEvalQueryScopeRefusesRepositoryVocabulary`, `TestEvalQueryScopeAdmitsLedgerRecordOnCommonWords`, `TestEvalQueryScopeOneSourceWordDiscriminates`, `TestEvalQueryScopeAbsentWordDoesNotWithdrawNamedSymbol`, `TestEvalScopeNamesExactly`, `TestEvalQueryRelevanceFloor`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v2946-v2953-admission-and-candidate-kinds.md` |
 | `GPK-V0-095` (accepted 2026-10-29, V1-3140) | `stripWebNonCode`, `evalWebTemplateEnd`, `evalWebSubstitutionEnd`, `evalWebLineCommentEnd`, `evalWebQuotedEnd` in `internal/contextindex/eval_dependency.go` | `TestGPKV0095StripWebNonCodeBlanksNestedTemplates`, `TestGPKV0095DependencyLinksIgnoreCallsInsideNestedTemplates`, `TestGPKV0095ImpactReadsNoImportInsideNestedTemplates`; `DR-0046` |
 | `GPK-V0-295` (accepted 2026-10-30, V1-3150) | `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go` | `TestGPKV0295BlankCommentsAndStringsNestedTemplates`; `DR-0046` |
+| `GPK-V0-395` (accepted 2026-11-13, V1-5501) | `stripWebNonCode`, `webRegexMayStart`, `webRegexEnd` in `internal/contextindex/eval_dependency.go` | `TestGPKV0395StripWebNonCodeBlanksRegexLiterals`; `DR-0048` |
 | `GPK-V0-975` (experimental 2026-10-31, V1-0179) | `evalNamedPaths`, `evalCitedNamedPaths`, `evalRankDocuments` in `internal/contextindex/eval_query.go` | `TestEvalQueryRanksTheSpecCitingEveryNamedPathFirst_GPKV0975`, `TestEvalNamedPathsKeepsEveryCaseFoldedMatch_GPKV0975`; `DR-0047` |
 | `GPK-V0-976` (experimental 2026-10-31, V1-0179) | `impact` in `internal/contextindex/impact.go` | `TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976`; `DR-0047` |
 | `GPK-V0-336` (experimental 2026-10-31, V1-3377) | `Status`, `ambientScratchParents`, `scratchUnder` in `internal/gitstatus/status.go`; the standalone status read in `gitExpecting`, `internal/contextindex/git.go` | `TestGPKV0336StatusFallsBackFromUnwritableTMPDIROnReadOnlyCheckout`, `TestGPKV0336ScratchRefusalNamesEveryTriedLocation`, `TestGPKV0336ProbeReadsReadOnlyCheckoutUnderUnwritableTMPDIR`, `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR` |
