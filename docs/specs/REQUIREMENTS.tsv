@@ -6820,6 +6820,8 @@ NCM-V1-014	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-1
 NCM-V1-015	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) Literal word-list variable	owner	2026-11-13; V1-5465
 NCM-V1-016	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) A changed target a pattern	owner	2026-11-13; V1-5465
 NCM-V1-017	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) An environment assignment	owner	2026-11-13; V1-5465
+NCM-V1-018	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) Make file statements keep	owner	2026-11-13; V1-5465
+NCM-V1-019	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) Commands whose execution t	owner	2026-11-13; V1-5465
 NGI-V0-001	docs/specs/non-go-impact-v0.md	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,	unrecorded	-
 NGI-V0-002	docs/specs/non-go-impact-v0.md	Default and expanded committed ranges MUST bind Ruby/JS/TS path	unrecorded	-
 NGI-V0-003	docs/specs/non-go-impact-v0.md	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic	unrecorded	-
