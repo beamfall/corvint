@@ -70,12 +70,12 @@ func TestDocsShimDoesNotForwardHelpOrNativeFlags(t *testing.T) {
 		want string
 	}{
 		{[]string{"docs", "--help"}, docsHelp},
-		{[]string{"docs", "corpus", "search", "--help"}, helpText("docs") + "\nSubcommand usage and flags: corvint-docs docs corpus search --help\n"},
+		{[]string{"docs", "corpus", "search", "--help"}, docsHelp},
 		{[]string{"help", "docs"}, docsHelp},
 	} {
 		var stdout, stderr bytes.Buffer
-		if code := run(test.args, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || !strings.HasPrefix(stdout.String(), helpText("docs")) || !strings.HasPrefix(stdout.String(), test.want) {
-			t.Errorf("%q: exit %d stdout %q stderr %q", test.args, code, stdout.String(), &stderr)
+		if code := run(test.args, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.String() != helpText("docs") || !strings.HasPrefix(stdout.String(), test.want) {
+			t.Errorf("%q: exit %d stdout matches=%v stderr %q", test.args, code, stdout.String() == helpText("docs"), &stderr)
 		}
 	}
 	for _, args := range [][]string{{"impact", "--corpus", "x.json"}, {"mcp", "--corpus=x.json"}} {
@@ -262,22 +262,21 @@ func TestDocsShimForwardsToSiblingAtThisVersion(t *testing.T) {
 	}
 }
 
-// AFU-V1-111: `corvint docs SUBCOMMAND... --help` is still answered natively (CMS-V0-913) and
-// ends with the corvint-docs command that prints the subcommand's real usage and flags; the
-// group help alone carries no pointer.
+// AFU-V1-111: `corvint docs SUBCOMMAND... --help` is still answered natively with the one docs
+// group help (CMS-V0-913, CAP-V0-055), and that help names the corvint-docs command that prints a
+// subcommand's real usage and flags.
 func TestAFUV1111DocsSubcommandHelpPointsAtRealFlags(t *testing.T) {
-	for _, test := range []struct {
-		args    []string
-		pointer string
-	}{
-		{[]string{"docs", "flows", "generate", "--help"}, "\nSubcommand usage and flags: corvint-docs docs flows generate --help\n"},
-		{[]string{"--root", ".", "docs", "flows", "check", "-h"}, "\nSubcommand usage and flags: corvint-docs docs flows check --help\n"},
-		{[]string{"docs", "flows", "generate", "--revision", "x", "--help"}, "\nSubcommand usage and flags: corvint-docs docs flows generate --help\n"},
-		{[]string{"docs", "--help"}, ""},
+	for _, args := range [][]string{
+		{"docs", "flows", "generate", "--help"},
+		{"--root", ".", "docs", "flows", "check", "-h"},
+		{"docs", "--help"},
 	} {
 		var stdout, stderr bytes.Buffer
-		if code := run(test.args, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.String() != helpText("docs")+test.pointer {
-			t.Errorf("%q: exit %d stdout %q stderr %q", test.args, code, stdout.String(), &stderr)
+		if code := run(args, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.String() != helpText("docs") {
+			t.Errorf("%q: exit %d stdout %q stderr %q", args, code, stdout.String(), &stderr)
+		}
+		if !strings.Contains(stdout.String(), "corvint-docs docs SUBCOMMAND... --help prints one subcommand's\nusage and flags, for example corvint-docs docs flows generate --help") {
+			t.Errorf("%q: docs help does not point at the subcommand flags:\n%s", args, stdout.String())
 		}
 	}
 }
