@@ -6812,6 +6812,11 @@ NCM-V1-006	docs/specs/non-code-map-v1.md	(accepted under the owner's standing au
 NCM-V1-007	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Versione	standing	2026-10-11; V1-5424
 NCM-V1-008	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Stale en	standing	2026-10-11; V1-5424
 NCM-V1-009	docs/specs/non-code-map-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Determin	standing	2026-10-11; V1-5424
+NCM-V1-010	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) Make file edits narrow to	owner	2026-11-13; V1-5465
+NCM-V1-011	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) What a changed make file l	owner	2026-11-13; V1-5465
+NCM-V1-012	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) Make file edits that run e	owner	2026-11-13; V1-5465
+NCM-V1-013	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) What the changed targets c	owner	2026-11-13; V1-5465
+NCM-V1-014	docs/specs/non-code-map-v1.md	(accepted under owner delegation 2026-11-13; V1-5465) Make targets CI invokes di	owner	2026-11-13; V1-5465
 NGI-V0-001	docs/specs/non-go-impact-v0.md	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,	unrecorded	-
 NGI-V0-002	docs/specs/non-go-impact-v0.md	Default and expanded committed ranges MUST bind Ruby/JS/TS path	unrecorded	-
 NGI-V0-003	docs/specs/non-go-impact-v0.md	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic	unrecorded	-
