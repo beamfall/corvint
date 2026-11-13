@@ -35,7 +35,23 @@ const (
 	// ReasonProvenEntry is a non-code path a proven entry narrows to its
 	// tests (NCM-V1-004).
 	ReasonProvenEntry = "proven-entry"
+	// ReasonReadScopeDeclaration is an edit of a read-scope declaration
+	// (ReadScopeDeclaration) that the selector attributes entry by entry;
+	// it adds no full run (NCM-V1-006 as amended for V1-5465).
+	ReasonReadScopeDeclaration = "read-scope-declaration"
 )
+
+// readScopeDeclarations are the read-scope declaration and its literal
+// exemptions. An edit of either keeps the selector's own attribution when
+// Input.ReadScopeAttributable proves it can attribute that edit, and runs
+// everything otherwise (NCM-V1-006 as amended for V1-5465).
+var readScopeDeclarations = map[string]bool{
+	".corvint/test-read-scopes.json":         true,
+	".corvint/test-read-scope-literals.json": true,
+}
+
+// ReadScopeDeclaration reports one of the two read-scope declaration paths.
+func ReadScopeDeclaration(p string) bool { return readScopeDeclarations[p] }
 
 // corvintDirectory holds Corvint's configuration (NCM-V1-006).
 const corvintDirectory = ".corvint/"
@@ -91,6 +107,14 @@ type Input struct {
 	// Unavailable names each runner the plan reports unavailable, as
 	// "<runner>: <why>".
 	Unavailable []string
+	// ReadScopeAttributable reports a ReadScopeDeclaration path whose edit
+	// the selector attributes: for the declaration, the plan's base
+	// declaration and the current one are both readable, so only packages
+	// whose entries were added, changed or removed (and the declaration's
+	// own readers) are selected (AFP-V0-050); for the literal exemptions,
+	// the current file is absent or a valid declaration, so its readers are
+	// selected. nil attributes neither, which runs everything.
+	ReadScopeAttributable func(string) bool
 	// Map is the read map; Env the facts its entries' status needs.
 	Map Map
 	Env Env
@@ -122,7 +146,8 @@ type Decision struct {
 // Decide applies the delivered rules of docs/specs/non-code-map-v1.md to
 // each changed path, in byte order, first match wins: the private ledgers;
 // the flow file and its link records; declared documentation, sealed change
-// evidence (no line) and every other path under `.corvint/`; the never-narrow list (a deleted runner
+// evidence (no line), an attributable read-scope declaration edit and every
+// other path under `.corvint/`; the never-narrow list (a deleted runner
 // configuration reads as a removed runner); declared documentation; and each
 // UNOWNED_DIRTY_PATH, which a proven entry narrows, a Go rule's attribution
 // keeps owned, and otherwise selects everything. Any other path keeps the
@@ -164,6 +189,9 @@ func (in Input) decidePath(p string, unowned, documentation, deleted map[string]
 		}
 		if SealedEvidence(p) {
 			return Line{}, false
+		}
+		if readScopeDeclarations[p] && in.ReadScopeAttributable != nil && in.ReadScopeAttributable(p) {
+			return Line{Reason: ReasonReadScopeDeclaration, Path: p}, true
 		}
 		return Line{Reason: ReasonCorvintConfig, Path: p, Full: true}, true
 	}

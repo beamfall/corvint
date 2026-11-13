@@ -1,9 +1,7 @@
 package contextindex
 
 import (
-	"context"
 	"strings"
-	"testing"
 )
 
 // roleFixtures is one source per extraction rule, keyed by path.
@@ -35,22 +33,3 @@ var roleFixtures = map[string]string{
 // roleQuadraticInput is 64 KiB of `x */` lines each above a declaration,
 // under one opening `/*`.
 var roleQuadraticInput = "/*\n" + strings.Repeat("x */\nconst a\n", 5041)
-
-// roleFixtureIndex holds two sources whose bodies carry the task terms
-// once each; only ledger.go says so in its package doc comment, and
-// helpers.go's comment is attached to no declaration.
-func roleFixtureIndex(t *testing.T) *Index {
-	t.Helper()
-	root := impactRepositoryWithFiles(t, map[string]string{
-		"go.mod":             "module example.test/roles\n\ngo 1.27.0\n",
-		"AGENTS.md":          "# Standing instructions\n\nRead before editing.\n",
-		"store/ledger.go":    "// Package store appends ledger entries.\npackage store\n\nfunc write() {}\n",
-		"store/helpers.go":   "package store\n\n// store appends ledger entries here\n\nfunc helper() {}\n",
-		"store/unrelated.go": "package store\n\n// nothing\nfunc other() {}\n",
-	})
-	index, err := Build(context.Background(), root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return index
-}

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/gitprobe"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // V1-3588: gitObservationEnvironment pins GIT_GRAFT_FILE to the null device;
@@ -24,7 +25,7 @@ func TestGitObservationSuppressesGraftAdvice(t *testing.T) {
 	dir := t.TempDir()
 	for _, args := range [][]string{{"init", "-q"}, {"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "-q", "--allow-empty", "-m", "one"}} {
 		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+		cmd.Env = append(testsupport.WithoutGitIdentity(os.Environ()), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}

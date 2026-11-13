@@ -324,7 +324,8 @@ func loadEmbedded(t *testing.T) (*manifest, *baseline) {
 // exists outside the baseline, and every baseline entry still exists. It runs
 // inside go test ./... (IRT-V0-006) and proves its own controls (IRT-V0-005):
 // an added import from a layer-0 package into a package of the highest
-// non-entry layer, and the removal of the first baselined import.
+// non-entry layer, and the removal of the first baselined import (or, with an
+// empty baseline, a baselined control edge that the graph lacks).
 func TestImportRatchet(t *testing.T) {
 	m, b := loadEmbedded(t)
 	graph, err := scanModule(filepath.Join("..", ".."), m.Module)
@@ -341,9 +342,6 @@ func TestImportRatchet(t *testing.T) {
 		t.Logf("%d packages, %d baselined wrong-way edges", len(graph), len(b.Edges))
 	})
 	t.Run("IRT-V0-005 controls name an added and a removed real edge", func(t *testing.T) {
-		if len(b.Edges) == 0 {
-			t.Skip("no baselined edge to remove")
-		}
 		top := 0
 		for _, a := range m.Areas {
 			if !a.Entry && a.Layer > top {
@@ -370,11 +368,16 @@ func TestImportRatchet(t *testing.T) {
 		if got := check(m, added, b); len(got) != 1 || !strings.HasPrefix(got[0], want) {
 			t.Errorf("SPY_INEFFECTIVE added edge: got %q, want one problem starting %q", got, want)
 		}
-		removed := copyGraph(graph)
-		from, to, _ := strings.Cut(b.Edges[0], " -> ")
-		removed[from] = without(removed[from], to)
-		want = "STALE_BASELINE_EDGE " + b.Edges[0] + ":"
-		if got := check(m, removed, b); len(got) != 1 || !strings.HasPrefix(got[0], want) {
+		// With no baselined edge left to remove, the control baselines the
+		// added edge instead and checks the unchanged graph, which lacks it.
+		removed, stale := copyGraph(graph), &baseline{Profile: b.Profile, Edges: []string{edgeKey(low, high)}}
+		if len(b.Edges) > 0 {
+			from, to, _ := strings.Cut(b.Edges[0], " -> ")
+			removed[from] = without(removed[from], to)
+			stale = b
+		}
+		want = "STALE_BASELINE_EDGE " + stale.Edges[0] + ":"
+		if got := check(m, removed, stale); len(got) != 1 || !strings.HasPrefix(got[0], want) {
 			t.Errorf("SPY_INEFFECTIVE removed edge: got %q, want one problem starting %q", got, want)
 		}
 	})

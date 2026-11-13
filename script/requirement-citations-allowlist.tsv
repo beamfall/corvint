@@ -12,12 +12,10 @@ ABC-123	fixture requirement id that exists only inside test fixtures (interop/ce
 ABC-V0-001	fixture requirement id that exists only inside test fixtures (tools/test-commands-check/dogtools_test.go)
 ABC-V0-150	fixture requirement id that exists only inside test fixtures (tools/test-commands-check/dogtools_test.go)
 ABC-V1-001	fixture requirement id that exists only inside test fixtures (internal/pathbrief/export_test.go)
-ALP-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/authority_screen_test.go, internal/contextindex/spec_cited_test.go, internal/contextindex/taskcontext_widening_test.go)
 APP-100	external ticket id in a doccorpus adoption test record, not a requirement id
 ASD-V0-500	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
 ASD-V0-501	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
 ASD-V0-502	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
-BIL-V0-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_candidate_kind_test.go)
 BLOCKER-404	prefix of the app-map blocker code BLOCKER-404-NO-ROUTE, not a requirement id
 CACHE-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/analyzer_schema_test.go)
 CART-001	test-obligation name in a testsource fixture record, not a requirement id
@@ -33,7 +31,6 @@ FIX-V0-001	fixture requirement id that exists only inside test fixtures (tools/m
 FIX-V0-002	fixture requirement id that exists only inside test fixtures (tools/merge-drivers/main_test.go)
 LRF-001	fixture requirement id that exists only inside test fixtures (interop/cem01-go/citation_test.go)
 LRF-CLI-001	fixture requirement id that exists only inside test fixtures (cmd/corvint/core_freeze_test.go)
-NAV-007	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
 NET-V0-001	fixture requirement id that exists only inside test fixtures (internal/capcatalog/capcatalog_test.go)
 NOPE-V1-001	fixture requirement id that exists only inside test fixtures (tools/openspec-check/main_test.go)
 NOPE-V1-002	fixture requirement id that exists only inside test fixtures (tools/openspec-check/main_test.go)
@@ -41,14 +38,10 @@ OLD-V1-001	fixture requirement id that exists only inside test fixtures (tools/o
 OTH-V0-001	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
 R-001	fixture requirement id that exists only inside test fixtures (internal/pathbrief/brief_test.go)
 R-002	fixture requirement id that exists only inside test fixtures (internal/pathbrief/brief_test.go)
-RDM-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
 ROW-000	TUI row label expected by the pi-tui fixture (tools/pi-tui-fixture/main.go), not a requirement id
 ROW-021	TUI row label expected by the pi-tui fixture (tools/pi-tui-fixture/main.go), not a requirement id
 RUN-V0-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/spec_cited_test.go)
-RUN-V0-002	fixture requirement id that exists only inside test fixtures (internal/contextindex/spec_cited_test.go)
-RUN-V0-003	fixture requirement id that exists only inside test fixtures (internal/contextindex/spec_cited_test.go)
 SHA-256	hash algorithm name (SHA-256), not a requirement id
-SHR-002	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
 T-V0-001	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
 X-V0-001	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
 X-V0-002	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
