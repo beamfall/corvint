@@ -314,8 +314,8 @@ func mcpToolRows() []MCPTool {
 	return []MCPTool{
 		// corvint mcp: the testing and flow-report tools (MTT-V1-005).
 		{
-			Name: "corvint.help", Server: ServerCore, AlsoOn: []string{ServerDocs}, Availability: AvailabilityExperimental,
-			Summary:     "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers",
+			Name: "corvint.help", Server: ServerCore, AlsoOn: []string{ServerDocs, ServerTestValidity}, Availability: AvailabilityExperimental,
+			Summary:     "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server",
 			InputSchema: "internal/mcp/bridge/help.go",
 			Inputs: []MCPInput{
 				in("command", "Command name whose catalog entry to return, with topic command."),

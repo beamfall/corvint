@@ -108,7 +108,7 @@ at a time per root; a verdict too large for one message is the tool error `verdi
 | `corvint.flows_map` | experimental | `--tool-profile flows` | Flow intents at HEAD with their links and test evidence, or the flows one path or test key reaches | `corvint-docs flows map` |
 | `corvint.flows_navigate` | experimental | `--tool-profile flows` | The navigation map of the flow intents, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant | `corvint-docs flows navigate` |
 | `corvint.flows_status` | experimental | `--tool-profile flows` | Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches | `corvint-docs flows status` |
-| `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
+| `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
 | `corvint.impact` | experimental | default | Revision-bound impact evidence for Go, Ruby, JavaScript and TypeScript paths, without source bodies | `corvint impact --language-profile non-go-syntax-v0 --limit N PATH...` |
 | `corvint.status` | experimental | default | Exact commit, tree, worktree state and a privacy-preserving dirty-path digest of the served root | none |
 | `corvint.test_evidence` | preview | `--tool-profile test-evidence` | Retained test evidence for a path, a test, or a test's explanation against a base, read-only | `corvint test-evidence` |
@@ -210,12 +210,12 @@ Each flow at HEAD, its variations, attached tests and the last recorded result o
 
 ### `corvint.help`
 
-Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers.
+Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server.
 
 - Input schema: `internal/mcp/bridge/help.go`
 - Input `command`: Command name whose catalog entry to return, with topic command.
 - Input `topic`: guide (the default), command or catalog.
-- Also served by: `corvint-docs mcp`
+- Also served by: `corvint-docs mcp`, `corvint-test-validity-mcp`
 - Output profile: `corvint-mcp-help/0`
 - Tool errors: `cancelled`, `server-busy`, `internal-error`
 - Parity test: `corvint TestMTTV1009HelpToolMatchesCLI`
@@ -294,7 +294,7 @@ and consume tools run the `corvint-docs` executable's `docs-tool` verb. The depr
 | `corvint.docs_trace` | experimental | `--corpus-artifact PATH` | Relations walked from one subject to a depth | `corvint-docs docs corpus trace --artifact PATH` |
 | `corvint.docs_validate` | experimental | `--corpus-artifact PATH` | Validation of the corpus artifact itself | `corvint-docs docs corpus validate --artifact PATH` |
 | `corvint.docs_vocabulary` | experimental | `--corpus-artifact PATH` | Corpus vocabulary entries matching a term | `corvint-docs docs corpus vocabulary --artifact PATH` |
-| `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
+| `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
 
 ### `corvint.docs_claims`
 
@@ -619,6 +619,7 @@ its removal batch takes the `corvint-test-validity-mcp` binary off the release l
 
 | Tool | Availability | Opt-in | Description | Same answer on the command line |
 |---|---|---|---|---|
+| `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
 | `corvint.test_validity` | deprecated | default | Five-axis projection of retained test evidence | none |
 
 ### `corvint.test_validity`

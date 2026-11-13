@@ -3141,10 +3141,11 @@
       "name": "corvint.help",
       "server": "corvint mcp",
       "alsoOn": [
-        "corvint-docs mcp"
+        "corvint-docs mcp",
+        "corvint-test-validity-mcp"
       ],
       "availability": "experimental",
-      "summary": "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers",
+      "summary": "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server",
       "inputSchema": "internal/mcp/bridge/help.go",
       "inputs": [
         {
