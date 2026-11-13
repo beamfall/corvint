@@ -19,6 +19,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
 // Terminal outcomes of one execution unit (STR-V0-010).
@@ -92,6 +93,18 @@ type Invocation struct {
 	Outcomes            []Outcome `json:"outcomes"`
 	Runner              string    `json:"runner"`
 	Version             string    `json:"version"`
+	// Instance, Tier, Exact, ExactReason and Tests are set only on a
+	// contract invocation (RNC-V1-019): the runner instance key, the
+	// selection's tier, whether its argv runs exactly the selected tests and
+	// why not, and one outcome and duration per canonical test ID read from
+	// the runner's machine report, NOT_RUN for a selected test it does not
+	// answer (RNC-V1-005, RNC-V1-006). Every other invocation keeps its
+	// bytes.
+	Instance    string            `json:"instance,omitempty"`
+	Tier        string            `json:"tier,omitempty"`
+	Exact       *bool             `json:"exact,omitempty"`
+	ExactReason string            `json:"exactReason,omitempty"`
+	Tests       []contract.Result `json:"tests,omitempty"`
 }
 
 // Receipt is the STR-V0-010 corvint-test-run/0 document of one shard.
@@ -120,6 +133,8 @@ type Receipt struct {
 	SourceDigest    string         `json:"sourceDigest"`
 	Summary         string         `json:"summary"`
 	Tool            string         `json:"tool"`
+	// KillSwitch copies the manifest's (RNC-V1-008); absent when off.
+	KillSwitch string `json:"killSwitch,omitempty"`
 }
 
 // Planned is one adapter invocation derived from the manifest.
@@ -131,6 +146,8 @@ type Planned struct {
 	Dir   string
 	Env   []string
 	Units []Unit
+	// contract is set on a contract invocation (RNC-V1-019).
+	contract *contractPlan
 }
 
 // Invocations derives one shard's typed argv (STR-V0-005, STR-V0-006): one
@@ -206,7 +223,8 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 			planned = append(planned, Planned{Adapter: AdapterDeclared, Argv: argv, Dir: dir, Env: []string{}, Units: []Unit{unit}})
 		}
 	}
-	return append(planned, providerInvocations(m, declared, shard)...)
+	planned = append(planned, providerInvocations(m, declared, shard)...)
+	return append(planned, contractInvocations(m, declared, shard, root)...)
 }
 
 // GoExecutor returns the environment entries, appended to the runner's own
@@ -297,6 +315,20 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			planned = nil
 			break
 		}
+		if invocation.contract != nil && invocation.contract.refusal != "" {
+			// RNC-V1-019: a selection the contract refused runs nothing and
+			// leaves each of its tests NOT_RUN beside the reason.
+			receipt.Incomplete = append(receipt.Incomplete, "contract "+invocation.contract.refusal)
+			receipt.Invocations = append(receipt.Invocations, contractRecord(invocation, manifests))
+			kept := []Planned{}
+			for _, other := range planned {
+				if other.contract != invocation.contract {
+					kept = append(kept, other)
+				}
+			}
+			planned = kept
+			continue
+		}
 		if len(invocation.Argv) == 0 {
 			receipt.Incomplete = append(receipt.Incomplete, invocation.Units[0].Unit+": "+DeclarationPath+" names no command for it")
 			receipt.Invocations = append(receipt.Invocations, providerUnavailable(planned, key, manifests)...)
@@ -316,6 +348,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			// STR-V0-8705: a provider that cannot be discovered leaves each
 			// of its selected tests recorded NOT_RUN beside the reason.
 			receipt.Invocations = append(receipt.Invocations, providerUnavailable(planned, key, manifests)...)
+			receipt.Invocations = append(receipt.Invocations, contractUnavailable(planned, key, manifests)...)
 			planned = withoutRunner(planned, key)
 			continue
 		}
@@ -378,7 +411,7 @@ func NewReceipt(m Manifest, manifestDigest string, shard int, tool string) Recei
 		Invocations: []Invocation{}, ManifestDigest: manifestDigest, PartitionDigest: m.PartitionDigest,
 		Placement: m.Placement, PlanDigest: m.PlanDigest, Profile: ReceiptProfile, Reason: m.Reason,
 		Revision: m.Source.Head, RunnerProfile: m.RunnerProfile, Scope: m.Scope, ShardCount: m.ShardCount,
-		ShardIndex: shard, Source: m.Source, SourceDigest: m.SourceDigest, Tool: tool,
+		ShardIndex: shard, Source: m.Source, SourceDigest: m.SourceDigest, Tool: tool, KillSwitch: m.KillSwitch,
 	}
 }
 
@@ -438,6 +471,7 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 	if _, err := Encode(receipt); err != nil {
 		for index := range receipt.Invocations {
 			receipt.Invocations[index].Argv, receipt.Invocations[index].Outcomes = []string{}, []Outcome{}
+			receipt.Invocations[index].Tests = nil
 		}
 		receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("the receipt exceeded %d bytes; argv and outcomes dropped", MaxDocumentBytes))
 		receipt.Result = ResultIncomplete
@@ -451,7 +485,7 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 // depends on, or withdraws, another declared command that runs `go`
 // (AZU-V0-9923).
 func runnerKey(invocation Planned) string {
-	if invocation.Dir != "" && invocation.Adapter == AdapterDeclared && len(invocation.Argv) != 0 {
+	if invocation.Dir != "" && (invocation.Adapter == AdapterDeclared || invocation.Adapter == AdapterContract) && len(invocation.Argv) != 0 {
 		// A runner instance's command is looked up from its own root.
 		return invocation.Adapter + " ./" + invocation.Dir + " " + invocation.Argv[0]
 	}
@@ -727,7 +761,26 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 		Adapter: planned.Adapter, Argv: planned.Argv, Dir: planned.Dir, Env: nonNil(plannedEnv), EnvDigest: envDigest,
 		Exit: -1, Outcomes: []Outcome{}, Runner: identity[0], Version: identity[1],
 	}
-	cmd := exec.CommandContext(runCtx, identity[0], planned.Argv[1:]...)
+	argv := planned.Argv
+	report := ""
+	if planned.contract != nil {
+		// RNC-V1-019: the planned argv is derived again with a fresh
+		// private report file in place of ContractReportPlaceholder.
+		contractRecorded := contractRecord(planned, nil)
+		recorded.Instance, recorded.Tier, recorded.Exact, recorded.ExactReason = contractRecorded.Instance, contractRecorded.Tier, contractRecorded.Exact, contractRecorded.ExactReason
+		command, path, cleanup, err := contractLaunch(planned.contract)
+		defer cleanup()
+		if err != nil {
+			recorded.Outcomes = notRun(planned.Units)
+			return recorded, "", []string{"contract " + recorded.Instance + ": the machine report file cannot be prepared: " + err.Error() + "; its selected tests are NOT_RUN"}
+		}
+		argv, report = command.Argv, path
+		plannedEnv = append(plannedEnv, command.Env...)
+		env = append(env, command.Env...)
+		recorded.Argv, recorded.Env = argv, nonNil(plannedEnv)
+		recorded.EnvDigest, _ = Digest(env)
+	}
+	cmd := exec.CommandContext(runCtx, identity[0], argv[1:]...)
 	cmd.Dir, cmd.Env, cmd.Stderr, cmd.WaitDelay = r.workDir(planned.Dir), env, r.Errors, 10*time.Second
 	ownGroup(cmd)
 	stdout, err := cmd.StdoutPipe()
@@ -763,6 +816,20 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 		stop = "cancelled while an adapter ran; its process group was killed"
 	case runCtx.Err() != nil:
 		stop = fmt.Sprintf("the shard exceeded its %s total budget while an adapter ran; its process group was killed", budget)
+	}
+	if planned.contract != nil {
+		if stop != "" {
+			recorded.Outcomes = notRun(planned.Units)
+			return recorded, stop, nil
+		}
+		outcomes, run, unobserved := contractOutcomes(planned, r.Root, report, nil, r.Output)
+		recorded.Outcomes, recorded.Tests = outcomes, run.Results
+		if !run.Exact {
+			exact := false
+			recorded.Exact = &exact
+			recorded.ExactReason = strings.TrimPrefix(recorded.ExactReason+"; ", "; ") + "the report named a test more than once: " + firstOf(run.Duplicates)
+		}
+		return recorded, stop, unobserved
 	}
 	if planned.Adapter == AdapterProvider {
 		var unobserved []string

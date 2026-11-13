@@ -62,6 +62,11 @@ const (
 	// AdapterProvider runs selected Vitest and Playwright test files through
 	// a declared corvint-js-test-provider command (STR-V0-8701).
 	AdapterProvider = "provider"
+	// AdapterContract runs the tests a plan selected for one runner
+	// instance through the compiled-in runner contract and reads one
+	// result per test from the runner's machine report (RNC-V1-004,
+	// RNC-V1-005, RNC-V1-019).
+	AdapterContract = "contract"
 
 	ProfileLocal = "local"
 	ProfileCI    = "ci"
@@ -106,6 +111,12 @@ type Unit struct {
 	Shard      int    `json:"shard"`
 	Slice      string `json:"slice"`
 	Unit       string `json:"unit"`
+	// Kind and KindSource are the test kind the runner itself knows for a
+	// contract unit, with kindSource "runner" (RNC-V1-007); absent when the
+	// runner knows none, so every other unit keeps its bytes. Kind is
+	// reporting only.
+	Kind       string `json:"kind,omitempty"`
+	KindSource string `json:"kindSource,omitempty"`
 }
 
 // Key is the canonical (unit, slice) pair.
@@ -148,6 +159,10 @@ type Manifest struct {
 	Source        SourceIdentity `json:"source"`
 	SourceDigest  string         `json:"sourceDigest"`
 	Units         []Unit         `json:"units"`
+	// KillSwitch states an active CORVINT_SELECTION kill switch with its raw
+	// value (RNC-V1-008); absent when it is off, so such a manifest keeps
+	// its bytes.
+	KillSwitch string `json:"killSwitch,omitempty"`
 }
 
 // Digest is "sha256:<hex>" of v's canonical JSON.
