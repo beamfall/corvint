@@ -5,6 +5,7 @@ Date: 2026-11-11
 Requirement prefix: `MTT-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5447)
 Delivery status: experimental; partially delivered
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/mcp-tool-table/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/mcp-tool-table/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-DOCS-001, PROD-DOCS-010, PROD-TASK-007, PROD-TEST-009),
@@ -15,7 +16,7 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/mcp-tool-table/
 - Claim: One table fixes every MCP tool; MCP-SERVER.md is generated from it; corvint-docs mcp serves docs tools, corvint mcp testing and flow tools.
 - Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5447) / experimental; partially delivered
 - Exists: the table in `internal/capcatalog/mcp.go` with its rules, the generated `docs/MCP-SERVER.md` and its doc gate, the drift and parity tests, `corvint-docs mcp` (`internal/mcp/docsserver`), the narrowed `corvint mcp`, the renamed flow tools, and the `affected` select-all for `CORVINT_SELECTION` and a stale binary (tasks 2.1 to 2.7, 2.9).
-- Blocked on: the removal batch that takes `corvint-mcp` and `corvint-test-validity-mcp` off the release list (MTT-V1-010, task 2.8); the plan row of task 3.1.
+- Blocked on: the removal batch that takes `corvint-mcp` and `corvint-test-validity-mcp` off the release list (MTT-V1-010, task 2.9); the plan row of task 3.1.
 - Read next: Requirements; Superseded requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
@@ -276,12 +277,12 @@ not reused and their text stays in their own specs as history.
 | MTT-V1-003 | 2.3 | `internal/capcatalog/mcp_drift.go` (`MCPDrift`, input property names only), compared with each server's real `tools/list` response | `TestMTTV1003CoreServerRegistersExactlyTheTable`, `TestMTTV1003TestValidityServerRegistersExactlyTheTable` (cmd/corvint-test-validity-mcp), `TestMTTV1003DriftNamesTheTool` |
 | MTT-V1-004 | 2.4 | `internal/mcp/docsserver`, `corvint-docs mcp` (`cmd/corvint-docs/main.go`, `help.go`) | `TestMTTV1004DocsServerToolList`, `TestMTTV1004DocsServerAnswers`, `TestMTTV1004DocsServerRefusesArguments`, `TestMTTV1004CorvintDocsMCPAnswersOnAFixture`, `TestMTTV1004CorvintDocsMCPHelp` |
 | MTT-V1-005 | 2.5 | `internal/mcp/cli/groups.go` (`removedGroups`), `main.go`, `unavailable.go`; `internal/mcp/toolgroup/test_evidence.go` (preview label) | `TestMTTV1005RemovedGroupsRefuseWithATypedReason`, `TestMTTV1005RemovedGroupMatchesOnlyFlagPosition`, `TestMTTV1005TestValidityIsAnUnknownTool`, `TestMTTV1003CoreServerRegistersExactlyTheTable` |
-| MTT-V1-006 | 2.1, 2.8 | the `corvint-tasks` no-MCP-tool row and the Tasks-name rule in `internal/capcatalog/mcp.go` | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow/tasks_tool_on_a_server`, `TestMTTV1006CoreServerServesNoTasksTool`, `TestMTTV1006DocsServerServesNoTasksTool` |
+| MTT-V1-006 | 2.1, 2.9 | the `corvint-tasks` no-MCP-tool row and the Tasks-name rule in `internal/capcatalog/mcp.go` | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow/tasks_tool_on_a_server`, `TestMTTV1006CoreServerServesNoTasksTool`, `TestMTTV1006DocsServerServesNoTasksTool` |
 | MTT-V1-007 | 2.5 | `internal/mcp/bridge/flows.go` (renamed constants), `internal/capcatalog/mcp.go` (`toolName`, `Replaces`), `internal/mcp/toolgroup/invalid_params.go` (`replacedBy`, the old-name rule) | `TestMTTV1007OneNamingConvention`, `TestMTTV1007OldFlowsNameNamesTheNewTool`, `TestMTTV1001TableRulesNameTheBrokenRow/two_dots` |
 | MTT-V1-008 | 2.6 | `internal/selectionswitch` (grammar), `internal/mcp/toolgroup/affected.go` (`selectAll`, `echoValue`, `affected-select-all/1`) | `TestMTTV1008Grammar`, `TestMTTV1008AffectedToolReadsTheKillSwitch`, `TestMTTV1008AffectedToolAgreesWithTheOneParser`, `TestMTTV1008RunnerSwitchWidensAndEchoesItsRunners`, `TestMTTV1008EchoedValueIsBounded`, `TestMTTV1008UnknownSelectionThroughTheServer`, `TestMTTV1008UnknownRunnerNameIsAnUnknownValue`, `TestMTTV1008EchoBoundsInvalidUTF8` |
 | MTT-V1-009 | 2.7 | table column `ParityTest` (a binary name and a test name) and its rule in `internal/capcatalog/mcp.go`; `MissingParityTests` and `definesTest` (go/parser) in `tools/mcp-server-doc` (doc gate) | `TestMTTV1009HelpToolMatchesCLI`, `TestMTTV1009ImpactToolMatchesCLI`, `TestMTTV1009TestEvidenceToolMatchesCLI`, `TestV15254MCPAffectedMatchesCLI` (cmd/corvint); `TestMTTV1009FlowsToolsMatchCLI`, `TestMTTV1009DocsConsumeToolMatchesCLI`, `TestDocsToolVerbAnswersInOneEnvelope`, `TestCorpusTypedCLIMCPEndToEnd` (cmd/corvint-docs); `TestMTTV1009MissingParityTestIsNamed` |
-| MTT-V1-010 | 2.8 | not built here: `corvint-mcp` and `corvint-test-validity-mcp` leave `tools/release-binary/binaries.json` in their removal batch | NOT_PRODUCED until that batch |
-| MTT-V1-011 | 2.9 | `internal/mcp/toolgroup/affected.go` (`AffectedStaleCode`, select-all on the planner's refusal); `cmd/corvint/mcp.go` help | `TestMTTV1011AffectedToolOnAStaleBinarySelectsAll`; `TestV15254MCPAffectedStaleBinaryDegrades` (tool select-all and CLI exit 2 on one stale binary); `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` |
+| MTT-V1-010 | 2.9 | not built here: `corvint-mcp` and `corvint-test-validity-mcp` leave `tools/release-binary/binaries.json` in their removal batch | NOT_PRODUCED until that batch |
+| MTT-V1-011 | 2.8 | `internal/mcp/toolgroup/affected.go` (`AffectedStaleCode`, select-all on the planner's refusal); `cmd/corvint/mcp.go` help | `TestMTTV1011AffectedToolOnAStaleBinarySelectsAll`; `TestV15254MCPAffectedStaleBinaryDegrades` (tool select-all and CLI exit 2 on one stale binary); `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` |
 
 ## Rollback
 
