@@ -1120,7 +1120,8 @@ accepted variation, or a replacement for independent application/browser qualifi
   AFU-V1-043 generic-call mask fix (V1-2415) to version 4, and the AFU-V1-043 web mask and
   generic declaration fix (V1-5491) to version 5, and the AFU-V1-043 nested-markup, operand and
   type-parameter mask fix (V1-5495..V1-5499) together with the AFU-V1-107 top-level web inventory
-  member fix (V1-5502) to version 6: a version 1, 2, 3, 4 or 5 manifest cannot be
+  member fix (V1-5502) and the GPK-V0-395 regex literal mask (V1-5501) to version 6: a version 1,
+  2, 3, 4 or 5 manifest cannot be
   rederived byte for byte, so check, finalize and `generate --previous`
   refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
   once with the current binary
