@@ -61,7 +61,8 @@ packages with 0 baselined edges.
    `internal/appflows`, `internal/appmap`, `internal/doccorpus`, `cmd/corvint-docs`, and the
    corpus serving paths `internal/mcp/cli`, `internal/mcp/corpusbridge` and
    `cmd/corvint-docs-mcp`; `cmd/corvint` with `-run '^(TestCoreVerbsEmitTheFrozenProfiles|TestCLIKit)$'`.
-   The whole `cmd/corvint` package was not run (lane rule: `-run` only).
+   The whole `cmd/corvint` package was not run (lane rule: `-run` only). The re-key changes no Go
+   file, so no CLI or MCP output can change.
 3. The 2026-11-11 entry lists the sixteen edges it removed; this entry records the last one.
 
 ## V1-4807: what is met and what is not
@@ -76,7 +77,7 @@ packages with 0 baselined edges.
   down from the panel's 79 through deletions; none routed, because each listed site's result
   would change under `gitrun`, as IRT-V0-020 states).
 - Criterion 3: `internal/gitrun`, `internal/cemcode` and `internal/cem/gitauth` tests pass at this
-  head. `go vet ./...` was not run (lane rule: vet of changed packages only).
+  head, and `go vet ./...` exits 0 (Commands).
 - Not done: moving `internal/cem/gitauth`. `49a7d03df` kept it because it imports `cem/wire`
   and `cem/patch` (25 uses of `wire.IsGitOid`, plus `ValidatePath`, `ExcludedCEMPath` and
   `patch.MaxPatchBytes`), so a move would not take it out of CEM's dependencies, and six of its
@@ -101,6 +102,9 @@ packages with 0 baselined edges.
   is `tools/import-ratchet`, `cmd/corvint` and `liverepo`.
 - `make -s spec-requirements-check requirement-definitions-check traceability-tests-check
   line-citations-check test-read-scopes-check`: exit 0.
+- `GOTOOLCHAIN=local go vet ./...` (once, at the lane head `f0783e4c4`, under `script/heavy.sh`):
+  exit 0, which meets the `go vet ./...` criterion of V1-4807 and V1-4809. `make windows-vet`:
+  exit 0. `make changed-checks BASE=366408098…`: ok.
 
 ## Rollback
 
