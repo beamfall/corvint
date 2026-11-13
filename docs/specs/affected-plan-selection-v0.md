@@ -3267,6 +3267,32 @@ in build-log entry `docs/build-log/2026-11-11-shellwalk.md`.
   assigns `PATH`, every operand of those commands SHALL stay a read word. A `>` or `>|` target is
   still dropped, since the shell truncates it before the command runs.
 
+### Command-running environment names and interpreter preload options (lane selwalk1113, 2026-11-13; V1-5217)
+
+Lane selwalk1113 closes the two remaining V1-5217 forms. Both rules only add a hold.
+
+- **AFP-V0-9710:** (proposed 2026-11-13; delivery experimental; V1-5217)
+  A shell file SHALL be an unbounded reader with the reason `shell:dynamic-source` when any of
+  its commands assigns, exports or default-assigns a command-running name: `PAGER`, `GIT_PAGER`,
+  `MANPAGER`, `EDITOR`, `VISUAL`, `GIT_EDITOR`, `GIT_SEQUENCE_EDITOR`, `GIT_SSH`,
+  `GIT_SSH_COMMAND`, `GIT_ASKPASS`, `SSH_ASKPASS`, `GIT_EXTERNAL_DIFF`, `GIT_PROXY_COMMAND`,
+  `LESSOPEN` or `LESSCLOSE`, in every AFP-V0-9976 position (a prefix, a standalone assignment, an
+  assignment after `env` or any other wrapper such as `command env PAGER=...` or
+  `nohup env GIT_SSH_COMMAND=...`, a bare name given to a naming command, a `${NAME:=...}`
+  expansion). The program runs that value as a command line, which no operand of the file names.
+  A value that is empty, a `:`-separated list of absolute literal paths, or one bare command word
+  with no `/`, blank, expansion, quote-removed operator or glob character (`GIT_EDITOR=true`,
+  `PAGER=cat`) names no repository file and is not counted. `GIT_EXEC_PATH` and
+  `GIT_TEMPLATE_DIR`, whose directories git runs commands and hooks from, are AFP-V0-9976
+  startup names.
+- **AFP-V0-9711:** (proposed 2026-11-13; delivery experimental; V1-5217)
+  An interpreter run whose first operand is an option, joined (`--import=./x.mjs`,
+  `--require=x.cjs`, `--loader=./x.mjs`, `--preload=./x.ts`) or separate (`--import ./x.mjs`,
+  `-r x`), SHALL NOT read that option's value as the program operand: a helper's run of `node`,
+  `bun` or another AFP-V0-9990 interpreter so spelled is opaque (`interpreter`, or `toolchain`
+  for a toolchain), and a test that runs `node` stays a `shell:runs-toolchain` unbounded reader
+  (NSA-V0-011), so the preload file is never judged unread.
+
 ### Flat selection, one witness shape, `--json` and `--head` replay (lane affux, 2026-11-11; V1-4399)
 
 Fail-closed rule for AFP-V0-9987 to AFP-V0-9989: the classes known to need tests the plan cannot
@@ -3877,6 +3903,10 @@ the base. The startup-name list (AFP-V0-9976) is closed and does not include `PA
 assignment that makes a repository program run under a bare name stays unmodelled, as on the
 base. AFP-V0-9977 does not model a utility's dependence on its written operand's prior existence
 (`mkdir` of an existing path fails), as NSA-V0-016 does not.
+The command-running list (AFP-V0-9710) is closed: a program that runs a command from another
+environment name, or from a configuration file such as `GIT_CONFIG_GLOBAL` (left out because the
+repository's tests point it at temporary roots), stays unmodelled, as on the base. A bare command
+word is assumed to resolve on `PATH`; a `PATH` holding `.` would run a repository file of that name.
 
 For AFP-V0-9987 to AFP-V0-9989 (lane affux): a consumer that reads `selectedFlat` or
 `summary.unresolvedPackages` as a selection decision would still see exactly `plan.selected`; the
@@ -4006,7 +4036,14 @@ and `TestAwkProgramFiles_AFPV09974`. AFP-V0-9975 to AFP-V0-9977 (V1-5226):
 `nohup`, `time`, `exec` or `command`, directly or through `env`),
 `TestMoreInterpreterStartupNames_AFPV09976` and
 `TestRedefinedUtilitiesKeepOperands_AFPV09977`, each in `internal/liveverify/affected/shell`
-with bounded controls. `TestHeavyShEditKeepsShellReaders_V14170` now admits a docs edit selecting
+with bounded controls. AFP-V0-9710 and AFP-V0-9711 (V1-5217, lane selwalk1113):
+`TestCommandRunningNamesBehindWrappers_AFPV09710` (pager, ssh, editor, askpass and external diff
+commands behind `command env`, `nohup env`, `timeout 5 env` and `sudo -E`, exported and
+default-assigned, held; `GIT_EDITOR=true`, `PAGER=cat`, empty and absolute values not) and
+`TestInterpreterPreloadOptions_AFPV09711` (node `--import`, `-r`, `--require`, `--loader` and bun
+`--preload`, joined and separate). Fault injection: with the AFP-V0-9710 code reverted every held
+row of the first test failed; with the option check of `programOperand` removed, the joined bun
+row failed; with `node` removed from `Toolchains`, every test row of the second failed. `TestHeavyShEditKeepsShellReaders_V14170` now admits a docs edit selecting
 `script/analyzer-schema_test.sh` only by its own `shell:tree-walk` read and checks its and
 `script/codex-review_test.sh`'s import chains to `script/heavy.sh` directly. `TestShellUnitDifferential_AFPV09970` is the reproducible base-versus-head check over every
 repository shell file (procedure in its doc comment, output in the lane's build-log entry). The
@@ -4393,3 +4430,8 @@ to the lexer's blanks and the delimiter trim, `strings.Fields` in `trapAllowed` 
 reading of `walkerPaths`, the calls in `observe`, the `utilities` parameter of `pathTokens` and
 `readWords` and `rootsWith`; then remove the units AFP-V0-9973 recorded from
 `.corvint/unbounded-readers.json`. The plugin then misses the reads these rules hold.
+
+For AFP-V0-9710, delete `commandNames`, `commandOutsideValue` and their uses in
+`setsStartupName`, and the `GIT_EXEC_PATH` and `GIT_TEMPLATE_DIR` startup names; AFP-V0-9711
+pins existing behaviour and needs no code rollback. No repository shell file changes its
+selection under either rule.
