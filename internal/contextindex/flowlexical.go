@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"bytes"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/langplugin/dialect"
@@ -32,7 +33,10 @@ func flowWebMask(text string) string {
 	markupDepth, expressionDepth := 0, 0
 	for i := 0; i < len(code); i++ {
 		c := code[i]
-		if c == '<' && i > 0 && webIdentifierByte(code[i-1]) && !flowExpressionKeywords[flowWordBefore(code, i)] {
+		// '</' always closes a tag: text of markup nested in an expression
+		// container is not blanked, so `{u ? <a>Get data</a> : null}` puts a
+		// name straight before it.
+		if c == '<' && i > 0 && i+1 < len(code) && code[i+1] != '/' && webIdentifierByte(code[i-1]) && !flowExpressionKeywords[flowWordBefore(code, i)] {
 			// A type-argument list right after a name and before a call
 			// (useMemo<T>(, useState<Map<K, V>>() is not markup: only the list
 			// is passed over, so the call and what follows stay code (V1-2415).
@@ -42,11 +46,45 @@ func flowWebMask(text string) string {
 				i = end
 				continue
 			}
+			// Markup never opens straight after a name, so any other such '<'
+			// (a return type `): Promise<T> {`, an annotation `: Map<K, V> =`,
+			// a comparison `i<n`) stays code rather than blanking the rest of
+			// the file up to a closing tag.
+			continue
 		}
 		if c == '<' && i+1 < len(code) && (code[i+1] >= 'A' && code[i+1] <= 'Z' || code[i+1] >= 'a' && code[i+1] <= 'z' || code[i+1] == '/') {
-			end := i + 1
-			for end < len(code) && code[end] != '>' {
+			// An attribute expression can hold '>' (onChange={(e) => f(e)}),
+			// so the tag ends at the first '>' outside braces. A ';', '(' or ')'
+			// outside braces never occurs in a tag, so a '<' that reaches one
+			// first is a comparison (i <n;) and stays code.
+			end, braces, comparison := i+1, 0, false
+			for end < len(code) && (code[end] != '>' || braces > 0) {
+				switch code[end] {
+				case '{':
+					braces++
+				case '}':
+					if braces > 0 {
+						braces--
+					}
+				case ';', '(', ')':
+					comparison = braces == 0
+				}
+				if comparison {
+					break
+				}
 				end++
+			}
+			if comparison {
+				continue
+			}
+			if end == len(code) && braces > 0 {
+				// Unbalanced braces (a brace inside a regex literal) fall back
+				// to the first '>' rather than running the tag to the end.
+				end = bytes.IndexByte(code[i+1:], '>')
+				if end < 0 {
+					break
+				}
+				end += i + 1
 			}
 			if end == len(code) {
 				break

@@ -1075,7 +1075,16 @@ accepted variation, or a replacement for independent application/browser qualifi
   `delete`, `throw`, `new`) is no callee: `return<div>(x) save(t)</div>` is JSX whose text stays
   masked, so `save` is no observation. A list holding `(`, `)`, `;`,
   `=` or a line break (`useCallback<(x: T) => void>(`) is not recognized and stays conservatively
-  masked as before.
+  masked as before. Any other `<` directly after such a name (a return type `): Promise<T> {`, an
+  annotation `: Map<K, V> =`, a comparison `i<n`) stays code too, since markup never opens straight
+  after a name. A `</` still closes a tag even after a name, which the unmasked text of
+  markup nested in an expression container can leave (`{u ? <a>Get data</a> : null}`). A tag ends at the first `>` outside attribute braces
+  (`onChange={(e) => f(e)} />`), falling back to the first `>` when the braces never balance, and a
+  `<` that reaches `;`, `(` or `)` outside braces first (`i <n;`) is a comparison, not a tag. A
+  function declaration may carry type parameters (`function pick<T>(`) (since V1-5491,
+  `TestFlowDocsTypeArgumentsOutsideCallsStayCode`, `TestFlowDocsArrowAttributeDoesNotEndTag`,
+  `TestFlowDocsSpacedComparisonIsNotATag`, `TestFlowDocsClosingTagAfterNestedMarkupText`,
+  `TestFlowDocsGenericFunctionDeclarations`).
 - **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
   path, declaration identity and claim kind/callee, never line, revision or output ordering. Repeated
   logical declarations/claim identities remain unresolved. Removal is retirement, never inferred
@@ -1092,7 +1101,8 @@ accepted variation, or a replacement for independent application/browser qualifi
   are never listed as bare calls; a member call that spells one (`promise.catch(h)`,
   `iterator.return(v)`) is a call (`TestFlowDocsMemberKeywordCallsAreDrift`). This changed the
   generator to version 2, the AFU-V1-043 member-call declaration fix to version 3, and the
-  AFU-V1-043 generic-call mask fix (V1-2415) to version 4: a version 1, 2 or 3 manifest cannot be
+  AFU-V1-043 generic-call mask fix (V1-2415) to version 4, and the AFU-V1-043 web mask and
+  generic declaration fix (V1-5491) to version 5: a version 1, 2, 3 or 4 manifest cannot be
   rederived byte for byte, so check, finalize and `generate --previous`
   refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
   once with the current binary
@@ -1150,7 +1160,10 @@ Rollback removes the `docs flows` dispatch and generated producer; existing acce
 corpus adoption artifacts and their original trust/evidence contracts remain unchanged. The V1-2415
 generic-call mask rolls back by removing the `typeArgumentsEnd` branch of `flowWebMask` in
 `internal/contextindex/flowlexical.go` and the hook type-argument group of `webArrow`, with the
-generator version returned to 3 (a version 4 manifest then needs regeneration).
+generator version returned to 3 (a version 4 manifest then needs regeneration). The V1-5491 web
+mask and generic declaration fix rolls back by restoring the V1-2415 `flowWebMask` tag scan and
+name-`<` branch and the `webDef` pattern without type parameters, with the generator version
+returned to 4 (a version 5 manifest then needs regeneration).
 
 ## Complete variation coverage (issue340)
 

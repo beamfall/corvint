@@ -804,7 +804,7 @@ func TestFlowDocsPredecessorGeneratorManifestIsTypedStale(t *testing.T) {
 		t.Fatal(e)
 	}
 	current := r.Files["generation.json"]
-	for _, version := range []string{"1", "2", "3"} {
+	for _, version := range []string{"1", "2", "3", "4"} {
 		predecessor := bytes.Replace(current, []byte(`"version":"`+Version+`"`), []byte(`"version":"`+version+`"`), 1)
 		if bytes.Equal(predecessor, current) {
 			t.Fatal("fixture did not carry the generator version")
@@ -902,6 +902,101 @@ func TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments(t *testing.T) {
 	want := []string{"Render=", "View=", "onSave=side_effect:save", "value=side_effect:persist"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("declarations=%v want=%v", got, want)
+	}
+}
+
+// TestFlowDocsArrowAttributeDoesNotEndTag: a '>' inside an attribute
+// expression (an arrow handler) does not end the tag, so a self-closing
+// element with one closes and the declarations after it are still extracted.
+func TestFlowDocsArrowAttributeDoesNotEndTag(t *testing.T) {
+	text := "function Form() {\n  return (\n    <div>\n      <input onChange={(e) => update(e)} disabled={busy} />\n" +
+		"      <Prompt\n        onCancel={() => {\n          reset()\n        }}\n      />\n    </div>\n  )\n}\n" +
+		"function after() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/form.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		got = append(got, d.name)
+	}
+	if want := "Form,after"; strings.Join(got, ",") != want {
+		t.Fatalf("declarations=%v want=%s", got, want)
+	}
+}
+
+// TestFlowDocsTypeArgumentsOutsideCallsStayCode: a '<' straight after a
+// non-keyword name is a type-argument list or a comparison, never JSX, also
+// when no call follows it (a return type `): Promise<T> {`, an annotation
+// `: Map<K, V> =`, or `i<n;`), so the declarations after it are not blanked.
+// Markup text is blanked as it is scanned, so `Save</b>` still closes its tag
+// and the declaration after the element is still extracted.
+func TestFlowDocsTypeArgumentsOutsideCallsStayCode(t *testing.T) {
+	text := "async function load(signal: AbortSignal): Promise<Item | null> {\n  return fetchItem(signal);\n}\n" +
+		"function count(n: number) {\n  for (let i = 0; i<n; i++) {\n    tick(i);\n  }\n}\n" +
+		"const cache: Map<string, Item> = new Map();\n" +
+		"function Panel({ id }: { id: string }) {\n  save(id);\n  return <p>Hi <b>Save</b> persist(text)</p>;\n}\n" +
+		"function after() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/panel.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		calls := []string{}
+		for _, o := range d.observations {
+			calls = append(calls, o.key)
+		}
+		got = append(got, d.name+"="+strings.Join(calls, "+"))
+	}
+	want := []string{"Panel=side_effect:save", "after=side_effect:save", "count=", "load="}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("declarations=%v want=%v", got, want)
+	}
+}
+
+// TestFlowDocsSpacedComparisonIsNotATag: `i <n;` matches the tag pattern, but
+// a ';', '(' or ')' before any '>' outside braces never occurs in a tag, so it
+// stays code and the JSX text of a later element is still masked.
+func TestFlowDocsSpacedComparisonIsNotATag(t *testing.T) {
+	text := "function f(n) {\n  for (let i = 0; i <n; i++) { a() }\n}\n" +
+		"function C() {\n  return <p>text save(id)</p>\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/c.tsx", Data: []byte(text)})
+	for _, d := range ds {
+		for _, o := range d.observations {
+			if strings.Contains(o.key, "save") {
+				t.Fatalf("JSX text leaked as %s in %s", o.key, d.name)
+			}
+		}
+	}
+	if len(ds) != 2 {
+		t.Fatalf("declarations=%d want 2", len(ds))
+	}
+}
+
+// TestFlowDocsClosingTagAfterNestedMarkupText: markup nested in an expression
+// container keeps its text, so a name can sit straight before '</'; that '<'
+// still closes the tag and the declaration after the element is extracted.
+func TestFlowDocsClosingTagAfterNestedMarkupText(t *testing.T) {
+	text := "function Export({ url }) {\n  return (\n    <section>\n      {url ? <a href={url}>Download data</a> : null}\n    </section>\n  )\n}\n" +
+		"export function After() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/e.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		got = append(got, d.name)
+	}
+	if want := "After,Export"; strings.Join(got, ",") != want {
+		t.Fatalf("declarations=%v want=%s", got, want)
+	}
+}
+
+// TestFlowDocsGenericFunctionDeclarations: a function declaration with type
+// parameters (`function pick<T>(`, `function set<K extends keyof S>(`) is a
+// declaration like any other.
+func TestFlowDocsGenericFunctionDeclarations(t *testing.T) {
+	text := "export function pick<T>(items: readonly T[]): T[] {\n  return items;\n}\n" +
+		"function Shell() {\n  function set<K extends keyof S>(key: K, value: S[K]) {\n    save(key);\n  }\n  return null;\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/s.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		got = append(got, d.name)
+	}
+	if want := "Shell,pick,set"; strings.Join(got, ",") != want {
+		t.Fatalf("declarations=%v want=%s", got, want)
 	}
 }
 
