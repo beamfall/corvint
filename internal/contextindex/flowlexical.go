@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"bytes"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/langplugin/dialect"
@@ -50,8 +51,10 @@ func flowWebMask(text string) string {
 		}
 		if c == '<' && i+1 < len(code) && (code[i+1] >= 'A' && code[i+1] <= 'Z' || code[i+1] >= 'a' && code[i+1] <= 'z' || code[i+1] == '/') {
 			// An attribute expression can hold '>' (onChange={(e) => f(e)}),
-			// so the tag ends at the first '>' outside braces.
-			end, braces := i+1, 0
+			// so the tag ends at the first '>' outside braces. A ';', '(' or ')'
+			// outside braces never occurs in a tag, so a '<' that reaches one
+			// first is a comparison (i <n;) and stays code.
+			end, braces, comparison := i+1, 0, false
 			for end < len(code) && (code[end] != '>' || braces > 0) {
 				switch code[end] {
 				case '{':
@@ -60,8 +63,25 @@ func flowWebMask(text string) string {
 					if braces > 0 {
 						braces--
 					}
+				case ';', '(', ')':
+					comparison = braces == 0
+				}
+				if comparison {
+					break
 				}
 				end++
+			}
+			if comparison {
+				continue
+			}
+			if end == len(code) && braces > 0 {
+				// Unbalanced braces (a brace inside a regex literal) fall back
+				// to the first '>' rather than running the tag to the end.
+				end = bytes.IndexByte(code[i+1:], '>')
+				if end < 0 {
+					break
+				}
+				end += i + 1
 			}
 			if end == len(code) {
 				break
