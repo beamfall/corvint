@@ -38,7 +38,7 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 		}
 	}
 	var index *repositoryIndex
-	lines := selectPackagesFrom(plan, module, root, true, func() (*repositoryIndex, error) {
+	lines, made := selectPackagesObliged(plan, module, root, true, func() (*repositoryIndex, error) {
 		var err error
 		index, err = build()
 		return index, err
@@ -170,6 +170,15 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	for _, pkg := range strings.Fields(strings.TrimPrefix(verdict, "run ")) {
 		unit, known := graph.Unit("go:" + pkg)
 		if !excluded["go:"+pkg] && !(known && len(unit.Tests) == 0) {
+			selected[pkg] = true
+		}
+	}
+	// NCM-V1-013, NCM-V1-014: a package a changed make target runs is an
+	// obligation of the make edges this Go-only graph does not hold, so no
+	// exclusion it certifies removes one; only a package with no tests,
+	// which runs nothing, is left out as it is above.
+	for _, pkg := range made {
+		if unit, known := graph.Unit("go:" + pkg); !(known && len(unit.Tests) == 0) {
 			selected[pkg] = true
 		}
 	}

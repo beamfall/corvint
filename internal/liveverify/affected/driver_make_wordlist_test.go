@@ -193,7 +193,7 @@ func TestDriverEnvPrefix_NCMV1017(t *testing.T) {
 		command string
 		open    bool
 	}{
-		{"HEAVY_WHOLE_REASON='make x of y' script/wrap.sh go test ./tool", false},
+		{"HEAVY_WHOLE_REASON='make x of y' script/wrap.sh go test ./tool", true}, // NCM-V1-019: a script is not followed.
 		{`A=1 B="two words" go test ./tool`, false},
 		{"A= go test ./tool", false},
 		{"A=$(date) go test ./tool", true},

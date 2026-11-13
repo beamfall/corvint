@@ -317,9 +317,12 @@ func (b *driverUnitBuilder) readPaths(paths []string) {
 
 // merge folds a shell scan into the unit, its make calls resolved.
 func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
+	// A run set the scan leaves open stays open even when the text is no
+	// computed site: it runs a command whose own execution the scan does not
+	// follow (NCM-V1-019).
+	b.runOpen = b.runOpen || scan.runOpen
 	if scan.computed {
 		b.computed = true
-		b.runOpen = b.runOpen || scan.runOpen
 		driverMergeReasons(&b.reasons, scan.reasons)
 	}
 	if scan.uncertified {

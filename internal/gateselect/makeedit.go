@@ -138,11 +138,26 @@ func baseMakeFile(root, commit, p string) ([]byte, string) {
 
 // runPackages are the indexed package directories that the given paths name:
 // a package's directory itself, a file directly in it, or the directory
-// before a `/...` pattern and every package below it.
+// before a `/...` pattern and every package below it. The driver names the
+// repository root's whole tree "..." and the root itself "." or "", so those
+// select every package and the root package; a root-level file selects the
+// root package (NCM-V1-013).
 func (index *repositoryIndex) runPackages(paths []string) []string {
 	directories := map[string]bool{}
 	for _, value := range paths {
 		value = strings.TrimPrefix(value, "./")
+		switch {
+		case value == "...":
+			for directory := range index.packages {
+				directories[directory] = true
+			}
+			continue
+		case value == "." || value == "":
+			if index.packages[""] != nil {
+				directories[""] = true
+			}
+			continue
+		}
 		if prefix, pattern := strings.CutSuffix(value, "/..."); pattern {
 			for directory := range index.packages {
 				if directory != "" && validRelativePath(prefix) && (directory == prefix || strings.HasPrefix(directory, prefix+"/")) {
@@ -154,9 +169,13 @@ func (index *repositoryIndex) runPackages(paths []string) []string {
 		if !validRelativePath(value) {
 			continue
 		}
+		parent := path.Dir(value)
+		if parent == "." {
+			parent = ""
+		}
 		if index.packages[value] != nil {
 			directories[value] = true
-		} else if parent := path.Dir(value); parent != "." && index.packages[parent] != nil {
+		} else if index.packages[parent] != nil {
 			directories[parent] = true
 		}
 	}

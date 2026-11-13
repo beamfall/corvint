@@ -46,11 +46,18 @@ type driverMakeFile struct {
 	// edit is attributed variable by variable through them (NCM-V1-011);
 	// every other remainder line is compared as text.
 	plain []driverMakePlain
+	// headers holds, for each explicit rule line, its index in remainder
+	// (the number of remainder lines before it) and its targets. A make
+	// edit compares the file's ordered statements through them, since make
+	// expands immediate values and prerequisites where it reads them
+	// (NCM-V1-018).
+	headers []driverMakePlain
 	// depth is the conditional nesting where the parser stands.
 	depth int
 }
 
-// driverMakePlain is one plain assignment line of remainder.
+// driverMakePlain is one plain assignment line of remainder, or one
+// explicit rule line placed among them.
 type driverMakePlain struct {
 	at   int
 	name string
@@ -889,6 +896,7 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 		}
 		return true
 	}
+	parsed.headers = append(parsed.headers, driverMakePlain{at: len(parsed.remainder), name: strings.Join(targets, " ")})
 	rules := make([]*driverMakeRule, 0, len(targets))
 	for _, target := range targets {
 		rule, present := parsed.rules[target]
