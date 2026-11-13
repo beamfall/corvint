@@ -132,7 +132,69 @@ func TestNCMV1019SelectorUnfollowedScript(t *testing.T) {
 		"Makefile":              before,
 	}, nil)
 	writeMakefile(t, root, "check:\n\tscript/check.sh --race\n")
-	want := `FALLBACK never-narrowed-path Makefile: make edit: make target "check" runs a command or make goal that does not resolve`
+	want := `FALLBACK never-narrowed-path Makefile: make edit: make target "check" runs a command or make goal that does not resolve: shell:unfollowed-command:script/check.sh`
 	requireVerdict(t, makeEditPlan(base, "Makefile"), root, want)
 	requireQualified(t, makeEditPlan(base, "Makefile"), root, want)
+}
+
+// makeClosedMakefile has one target per round 4 review case and one per
+// command NCM-V1-019's closed rule follows.
+const makeClosedMakefile = `gen:
+	go -C . generate ./gen
+sorted:
+	sort -S 1 --compress-program=script/check.sh data/lines.txt
+plain:
+	go test ./a
+nested:
+	$(MAKE) plain
+say:
+	echo hi
+sub:
+	cd dir && go test ./b
+`
+
+// TestNCMV1019SelectorClosedRule pins the round 4 review's cases in the
+// selector: a go global flag in front of generate, and sort's
+// --compress-program running a script, each of which runs
+// `go test ./tool`, run everything from Select and SelectQualified with a
+// reason naming the command. A followed command still narrows: go test,
+// $(MAKE), echo, and cd before go test.
+func TestNCMV1019SelectorClosedRule(t *testing.T) {
+	root, base := baseRepository(t, map[string]string{
+		"go.mod":                "module " + fixtureModule + "\n\ngo 1.27\n",
+		"tool/tool.go":          "package tool\n",
+		"tool/tool_test.go":     makeFixtureTest("tool", ""),
+		"gen/gen.go":            "package gen\n\n//go:generate go test ./tool\n",
+		"a/a.go":                "package a\n",
+		"a/a_test.go":           makeFixtureTest("a", ""),
+		"dir/b/b.go":            "package b\n",
+		"dir/b/b_test.go":       makeFixtureTest("b", ""),
+		"script/check.sh":       "#!/bin/sh\ngo test ./tool\n",
+		"data/lines.txt":        "x\n",
+		"mkread/mkread_test.go": makeFixtureTest("mkread", "var makefile = \"../Makefile\"\n\n"),
+		"Makefile":              makeClosedMakefile,
+	}, nil)
+	defer writeMakefile(t, root, makeClosedMakefile)
+	for _, tc := range []struct{ old, new, target, command string }{
+		{"./gen\n", "-x ./gen\n", "gen", "shell:unfollowed-command:go -C"},
+		{"data/lines.txt", "-u data/lines.txt", "sorted", "shell:unfollowed-command:sort"},
+	} {
+		writeMakefile(t, root, strings.Replace(makeClosedMakefile, tc.old, tc.new, 1))
+		want := `FALLBACK never-narrowed-path Makefile: make edit: make target "` + tc.target + `" runs a command or make goal that does not resolve: ` + tc.command
+		requireVerdict(t, makeEditPlan(base, "Makefile"), root, want)
+		requireQualified(t, makeEditPlan(base, "Makefile"), root, want)
+	}
+	for _, tc := range []struct {
+		old, new, target string
+		want             []string
+	}{
+		{"./a\n", "-v ./a\n", "plain", []string{"a", "mkread"}},
+		{"plain\nsay", "plain \nsay", "nested", []string{"a", "mkread"}},
+		{"echo hi", "echo hello", "say", []string{"mkread"}},
+		{"./b\n", "-v ./b\n", "sub", []string{"dir/b", "mkread"}},
+	} {
+		writeMakefile(t, root, strings.Replace(makeClosedMakefile, tc.old, tc.new, 1))
+		requireVerdict(t, makeEditPlan(base, "Makefile"), root, "run "+modules(tc.want...), "noncode make-targets Makefile -> "+tc.target)
+		requireQualified(t, planSelecting(makeEditPlan(base, "Makefile"), tc.want...), root, "run "+modules(tc.want...))
+	}
 }

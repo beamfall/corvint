@@ -280,9 +280,10 @@ package. The reach MUST select everything when a reached unit runs a command or 
 not resolve, runs a command whose own execution the scan does not follow (NCM-V1-019), sits in a
 file outside the parsed subset, or imports a unit the driver units do not hold. A reached unit whose
 commands resolve and are followed but read what the graph does not bound (an evaluated, uncertified
-computed site, or a whole-tree read) still runs only what it names, so it stays bounded. NCM-V1-016,
-NCM-V1-017 and NCM-V1-019 refine which targets and commands resolve. (root encodings and NCM-V1-019
-amended 2026-11-13 after the independent review, V1-5465)
+computed site) still runs only what it names, so it stays bounded; a whole-tree reader such as `find`
+is not followed (NCM-V1-019). NCM-V1-016, NCM-V1-017 and NCM-V1-019 refine which targets and
+commands resolve. (root encodings and NCM-V1-019 amended 2026-11-13 after the independent review,
+and the whole-tree read after the round 4 review, V1-5465)
 
 **Scenario: A prerequisite's package**
 - GIVEN a changed target `all: check` and `check`, which runs `go test ./tool`
@@ -344,9 +345,10 @@ a pattern with no slash would match a target in a directory. The instance exists
 reach: the planner's units are unchanged.
 
 **Scenario: A ledger step**
-- GIVEN `ledger/%:` runs `go run ./ledger $* -- $(MAKE) $*`, and `ledger/gen` changed (NCM-V1-015)
+- GIVEN `ledger/%:` runs `go vet ./ledger` and `$(MAKE) $*`, and `ledger/gen` changed (NCM-V1-015)
 - WHEN the reach follows `ledger/gen`
-- THEN it adds `ledger`'s package and what target `gen` runs, not what every target of the file runs
+- THEN it adds `ledger`'s package and what target `gen` runs, not what every target of the file runs;
+  the repository's own `ledger/%`, which runs `go run ./ledger`, selects everything (NCM-V1-019)
 
 - `NCM-V1-017`: (accepted under owner delegation 2026-11-13; V1-5465) An environment assignment in front of a command
 
@@ -391,22 +393,46 @@ attribute or refuse. A moved first target changes the default goal (NCM-V1-012).
 - `NCM-V1-019`: (accepted under owner delegation 2026-11-13; V1-5465) Commands whose execution the reach does not follow
 
 In the reach of NCM-V1-013, a command MUST count as unresolved unless the scan follows its whole
-execution: a pure or bounded command of the driver's scanner (`echo`, `mkdir`, `cat` and the like),
-which runs no other program; `make`, whose goals are the unit's edges; a `go` command other than
-`go generate` or `go tool`, with no `-exec`, `-toolexec` or `-vettool` program, which runs only the
-packages it names; `sh -c` and the like, whose inline script is scanned as its own commands; and
-`find` with no `-exec`, `-execdir`, `-ok`, `-okdir` or `-delete`. A command word that is a path (a
-repository script or binary), an interpreter given a file, a sourced file, a `trap`, `xargs`, and
-every other program MUST leave the target's reach unbounded, so the edit selects everything: such a
-command may run tests it does not name. The mark exists only in the reach: the planner's units and
-computed sites are unchanged.
+execution. The rule is closed: the reach follows only
+
+1. `make`, `gmake` or `$(MAKE)` invocations of a make file the driver models, whose goals are the
+   unit's edges;
+2. `go` whose first argument is `test`, `vet`, `build` or `list`, with no word beginning `-exec`,
+   `-toolexec` or `-vettool` (with one or two dashes), which runs only the packages it names. Any
+   global flag before the subcommand (`-C` or any other word beginning `-`) and every other
+   subcommand (`generate`, `tool`, `run` and the rest) is not followed;
+3. the shell builtins `echo`, `printf`, `true`, `false`, `:`, `test`, `[`, `cd` and `exit`, which
+   cannot execute anything, and `set` whose arguments are only `-e`, `-u`, `-x` (alone or combined,
+   with `-` or `+`) and `-o pipefail`; and
+4. shell syntax that is no command (`if`, `then`, `fi`, `while`, `do`, `done`, `!` and the like).
+
+Every other command MUST leave the target's reach unbounded, so the edit selects everything: a
+command word that is a path (a repository script or binary), an interpreter (`sh -c` included), a
+wrapper (`env`, `nice`, `timeout`, `xargs`, `exec`, `time`, `command` and the like), `find`, a
+sourced file, a `trap`, `export` and every program the driver's scanner calls pure or bounded for
+its reads (`sort`, `grep`, `sed`, `awk`, `cat`, `cp`, `mkdir`, `rm` and the rest), whatever its
+options: such a command may run tests it does not name, as `sort --compress-program=script/x.sh`
+does. A word holding a command substitution (`$(` or a backtick) leaves it unbounded too, even in a
+followed command. The selector MUST print, after the NCM-V1-013 reason, each reason the target's
+run set is open, naming the command (`shell:unfollowed-command:<command>`,
+`shell:command-substitution:<command>`, `make:unmodelled-file:<file>` or the computed site's own
+reason). The mark exists only in the reach: the planner's units and computed sites are unchanged.
+(closed rule amended 2026-11-13 after the round 4 review, V1-5465)
 
 **Scenario: A script that runs go test**
 - GIVEN target `check` runs `script/check.sh`, which runs `go test ./tool`, and a change makes it
   `script/check.sh --race`
 - WHEN the selector decides the plan
 - THEN every test is selected with
-  `never-narrowed-path Makefile: make edit: make target "check" runs a command or make goal that does not resolve`
+  `never-narrowed-path Makefile: make edit: make target "check" runs a command or make goal that does not resolve: shell:unfollowed-command:script/check.sh`
+
+**Scenario: A bounded program's option runs a script**
+- GIVEN target `sorted` runs `sort -S 1 --compress-program=script/check.sh data/lines.txt`, and a
+  change edits its arguments
+- WHEN the selector decides the plan
+- THEN every test is selected with
+  `never-narrowed-path Makefile: make edit: make target "sorted" runs a command or make goal that does not resolve: shell:unfollowed-command:sort`;
+  `go -C . generate ./gen` gives `shell:unfollowed-command:go -C` the same way
 
 ## Delivered rules
 
@@ -613,4 +639,4 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 | NCM-V1-016 | `TestReachMakeEditInstance_NCMV1016` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-017 | `TestDriverEnvPrefix_NCMV1017` (`internal/liveverify/affected`) |
 | NCM-V1-018 | `TestAttributeMakeEditOrder_NCMV1018` (`internal/liveverify/affected`); `TestNCMV1018SelectorOrderMove` (`internal/gateselect`) |
-| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript` (`internal/gateselect`) |
+| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript`, `TestNCMV1019SelectorClosedRule` (`internal/gateselect`) |

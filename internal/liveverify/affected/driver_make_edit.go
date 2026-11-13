@@ -812,7 +812,7 @@ func ReachMakeEdit(ctx context.Context, root, file string, edit MakeEdit) MakeRe
 // reachMakeTargets is ReachMakeTargets over source, with touched counted
 // for direct invocations only.
 func reachMakeTargets(source *Source, file string, targets, touched []string) MakeReach {
-	unresolved := map[string]bool{}
+	unresolved := map[string][]string{}
 	result, err := driverUnitsObserved(source, nil, unresolved, map[string][]string{file: targets})
 	if err != nil {
 		return MakeReach{Reason: "the driver units cannot be read: " + makeQuote(err.Error())}
@@ -841,14 +841,15 @@ func reachMakeTargets(source *Source, file string, targets, touched []string) Ma
 		}
 		reached[id] = true
 		unit, present := units[id]
+		openBy, open := unresolved[id]
 		_, target, _ := strings.Cut(id, "#")
 		switch {
 		case !present:
 			return MakeReach{Reason: "make unit " + makeQuote(id) + " is not in the driver units"}
 		case slices.Contains(unit.Frontier, FrontierDriverUnparsableFile):
 			return MakeReach{Reason: "make unit " + makeQuote(id) + " is in a file outside the parsed subset"}
-		case unresolved[id]:
-			return MakeReach{Reason: "make target " + makeQuote(target) + " runs a command or make goal that does not resolve"}
+		case open:
+			return MakeReach{Reason: "make target " + makeQuote(target) + " runs a command or make goal that does not resolve: " + strings.Join(openBy, ", ")}
 		}
 		for _, value := range slices.Concat(unit.PathImports, unit.BuildPathImports) {
 			paths[value] = true
