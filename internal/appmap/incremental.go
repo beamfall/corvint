@@ -649,14 +649,15 @@ func rederiveFlows(r repo, rev string, man Manifest, prev *Map, pins []RootPin) 
 	return b.finish()
 }
 
-// routersNeedIndex reports whether the routers stage reads the context index: di_constants, or a
-// router of the default dialect, whose constant tables resolve through it.
+// routersNeedIndex reports whether the routers stage reads the context index: di_constants, a
+// router of the default dialect, whose constant tables resolve through it, or two unmounted React
+// routers, whose mount inference resolves imports through it (AMAP-V0-979).
 func routersNeedIndex(m Manifest) bool {
-	if len(m.DIConstants) > 0 {
+	if len(m.DIConstants) > 0 || inferringMounts(m.Routers) {
 		return true
 	}
 	for _, rf := range m.Routers {
-		if rf.Dialect != DialectRails && rf.Dialect != DialectReact {
+		if rf.Dialect != DialectRails && rf.Dialect != DialectReact && rf.Dialect != DialectStatic {
 			return true
 		}
 	}

@@ -13,6 +13,9 @@ import (
 
 var appPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 
+// jsIdentifier is an ASCII JavaScript identifier, the name a static-routes/0 export binds.
+var jsIdentifier = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]{0,127}$`)
+
 // basePathPattern is a literal router basename: one or more unreserved path segments (AMAP-V0-191).
 var basePathPattern = regexp.MustCompile(`^(/[A-Za-z0-9._~-]+)+$`)
 
@@ -84,8 +87,12 @@ func decodeManifest(raw []byte) (Manifest, error) {
 			return m, invalidManifest("router path %q is not a unique repository-relative path", r.Path)
 		}
 		seen[r.Path] = true
-		if r.Dialect != DialectUIRouter && r.Dialect != DialectRails && r.Dialect != DialectReact {
+		if r.Dialect != DialectUIRouter && r.Dialect != DialectRails && r.Dialect != DialectReact && r.Dialect != DialectStatic {
 			return m, invalidManifest("router %s: unsupported dialect %s", r.Path, r.Dialect)
+		}
+		// export names the static-routes/0 array and nothing else (AMAP-V0-980).
+		if (r.Dialect == DialectStatic) != (r.Export != "") || r.Export != "" && !jsIdentifier.MatchString(r.Export) {
+			return m, invalidManifest("router %s: export is required for, and only for, %s, and must be a JavaScript identifier", r.Path, DialectStatic)
 		}
 	}
 	if err := validateMounts(m.Routers); err != nil {
