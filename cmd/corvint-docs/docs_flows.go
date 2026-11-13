@@ -189,11 +189,28 @@ func repositoryRelative(root, path string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	rel, err := filepath.Rel(root, abs)
+	rel, err := filepath.Rel(root, resolveExistingPrefix(abs))
 	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
 		return "", false
 	}
 	return filepath.ToSlash(rel), true
+}
+
+// resolveExistingPrefix resolves symlinks in the longest existing ancestor of abs and keeps the
+// not-yet-created remainder, so a fresh --output-dir under a symlinked root alias (macOS
+// /var -> /private/var) compares with the resolved --root (V1-4551).
+func resolveExistingPrefix(abs string) string {
+	rest := ""
+	for dir := abs; ; dir = filepath.Dir(dir) {
+		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+			return filepath.Join(resolved, rest)
+		}
+		if parent := filepath.Dir(dir); parent == dir {
+			return abs
+		} else {
+			rest = filepath.Join(filepath.Base(dir), rest)
+		}
+	}
 }
 
 const docsFlowsHelp = `Generate bounded source-derived flow documentation (generated trust).
