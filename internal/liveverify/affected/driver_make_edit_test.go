@@ -234,7 +234,7 @@ func TestReachMakeTargetsCI_NCMV1014(t *testing.T) {
 	}
 	action := "runs:\n  using: composite\n  steps:\n    - run: make check\n      shell: bash\n"
 	acted := memorySource(t, map[string]string{"go.mod": "module example.com/m\n\ngo 1.27\n", "Makefile": makeReachFile, ".github/actions/setup/action.yml": action})
-	if reach := reachMakeTargets(acted, "Makefile", []string{"check"}); !strings.Contains(reach.Reason, "local action") {
+	if reach := reachMakeTargets(acted, "Makefile", []string{"check"}, nil); !strings.Contains(reach.Reason, "local action") {
 		t.Fatalf("a local action invoking check: reason %q", reach.Reason)
 	}
 }

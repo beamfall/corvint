@@ -27,8 +27,11 @@ const (
 // (BuildPathImports, AFP-V0-2951), the make invocations, whether a command word
 // is computed, and whether its reads are outside the graph (uncertified).
 type driverScan struct {
-	source      *Source
-	computed    bool
+	source   *Source
+	computed bool
+	// runOpen marks text whose run set did not resolve: every computed
+	// reason but envPrefix's sets it (NCM-V1-017).
+	runOpen     bool
 	uncertified bool
 	// uncertifiedBy names why uncertified was set (AZU-V0-611): the
 	// command, operand or form the scan could not bound. Diagnostic only.
@@ -68,6 +71,16 @@ type driverScan struct {
 
 // markComputed marks the scanned text a computed invocation for reason.
 func (scan *driverScan) markComputed(reason string) {
+	scan.runOpen = true
+	scan.envPrefix(reason)
+}
+
+// envPrefix marks the scanned text a computed invocation for reason without
+// leaving its run set open: the reason is a literal environment assignment
+// in front of a command word the scan resolves (NCM-V1-017). The planner
+// still reads the text as a computed site (AFP-V0-3128); only a make edit's
+// reach, which bounds what a target runs, tells the two apart.
+func (scan *driverScan) envPrefix(reason string) {
 	scan.computed = true
 	if scan.reasons == nil {
 		scan.reasons = map[string]bool{}
@@ -843,7 +856,9 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 	if s.scan.strict {
 		s.strictWords(words)
 	}
-	assignment := func(word string) {
+	// prefixed marks an assignment in front of the command word itself,
+	// with no wrapper between them (NCM-V1-017).
+	assignment := func(word string, prefixed bool) {
 		name, value, _ := strings.Cut(word, "=")
 		s.scan.local(strings.TrimSuffix(name, "+"))
 		// AFP-V0-3128: only the cache location, empty Go flags and the local
@@ -872,7 +887,11 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 				return
 			}
 		}
-		s.scan.markComputed("shell:assignment")
+		if prefixed && driverInertPrefix(strings.TrimSuffix(name, "+"), value) {
+			s.scan.envPrefix("shell:assignment")
+		} else {
+			s.scan.markComputed("shell:assignment")
+		}
 		s.scan.uncertify("shell:assignment:" + name)
 	}
 	// pending holds the leading assignments until the scan knows whether a
@@ -882,10 +901,10 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 	// command's environment.
 	var pending []driverWord
 	wrapped := false
-	settle := func(standalone bool) {
+	settle := func(standalone, prefixed bool) {
 		for _, word := range pending {
 			if !standalone || !s.localAssignment(word.text) {
-				assignment(word.text)
+				assignment(word.text, prefixed)
 			}
 		}
 		pending = nil
@@ -898,33 +917,33 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 		switch {
 		case !words[0].quoted && driverAssignment(head):
 			if wrapped {
-				assignment(head)
+				assignment(head, false)
 			} else {
 				pending = append(pending, words[0])
 			}
 			words = words[1:]
 		case !words[0].quoted && head == "command" && len(words) > 1 && (words[1].text == "-v" || words[1].text == "-V"):
 			// A lookup: it names a command and runs none.
-			settle(false)
+			settle(false, false)
 			return cwd
 		case !words[0].quoted && driverPrefixKeywords[head]:
 			// Control flow and wrappers retain their existing path scan, but
 			// its permissive token stripping is not a complete grammar proof.
 			s.scan.revoke("shell:unsupported-syntax")
 			if len(pending) != 0 || !driverReservedWords[head] {
-				settle(false)
+				settle(false, false)
 				wrapped = true
 			}
 			words = words[1:]
 		case head == "env":
 			s.scan.revoke("shell:unsupported-wrapper")
-			settle(false)
+			settle(false, false)
 			wrapped = true
 			words = words[1:]
 			for len(words) != 0 && (strings.HasPrefix(words[0].text, "-") || driverAssignment(words[0].text)) {
 				option := words[0].text
 				if driverAssignment(option) {
-					assignment(option)
+					assignment(option, false)
 				}
 				// AZU-V0-9851: env changes only the wrapped command's cwd.
 				// Until that scoped directory is modelled, keep the site computed.
@@ -945,7 +964,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			}
 		case head == "xargs":
 			s.scan.revoke("shell:unsupported-wrapper")
-			settle(false)
+			settle(false, false)
 			wrapped = true
 			s.scan.uncertify("shell:xargs-operands") // Operands come from its input (AFP-V0-3128).
 			// The command xargs runs takes arguments read from standard
@@ -964,7 +983,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			words = rest
 		case head == "nice" || head == "timeout" || head == "ionice" || head == "taskset":
 			s.scan.revoke("shell:unsupported-wrapper")
-			settle(false)
+			settle(false, false)
 			wrapped = true
 			words = words[1:]
 			for len(words) != 0 && strings.HasPrefix(words[0].text, "-") {
@@ -986,13 +1005,13 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 		default:
 			// `IFS= read -r name...` sets IFS for read alone (AFP-V0-9624).
 			if !(len(pending) == 1 && pending[0].text == "IFS=" && s.localRead(words) != nil) {
-				settle(false)
+				settle(false, true)
 			}
 			pending = nil
 			return s.simple(words, cwd)
 		}
 	}
-	settle(true)
+	settle(true, false)
 	return cwd
 }
 
@@ -1212,6 +1231,48 @@ func driverXargs(words []driverWord) (rest []driverWord, replace string, ok bool
 		}
 	}
 	return words, replace, true
+}
+
+// driverRunNames are the environment names that change which program a
+// command word runs or load code into it beside that program: the command
+// search path, a shell's startup file or options, the home and
+// configuration directories tools read their hooks from, the dynamic loader,
+// an interpreter's or make's own options and include paths, and the
+// toolchain controls of Go and Git. driverRunPrefixes are the families of them.
+var driverRunNames = map[string]bool{
+	"PATH": true, "ENV": true, "BASH_ENV": true, "SHELLOPTS": true, "BASHOPTS": true, "IFS": true,
+	"CDPATH": true, "PS4": true, "SHELL": true, "GLOBIGNORE": true, "HOME": true,
+	"MAKEFILES": true, "MAKEFLAGS": true, "MFLAGS": true, "GNUMAKEFLAGS": true, "MAKELEVEL": true,
+	"JAVA_TOOL_OPTIONS": true, "_JAVA_OPTIONS": true, "JDK_JAVA_OPTIONS": true, "CLASSPATH": true,
+	"PERL5OPT": true, "PERL5LIB": true, "PERLLIB": true, "RUBYOPT": true, "RUBYLIB": true,
+	"GEM_HOME": true, "GEM_PATH": true, "CC": true, "CXX": true, "LUA_INIT": true, "LUA_PATH": true,
+}
+
+var driverRunPrefixes = []string{
+	"LD_", "DYLD_", "GO", "CGO_", "GIT_", "NODE_", "NPM_", "PYTHON", "BASH_FUNC_", "XDG_",
+}
+
+// driverInertPrefix reports an environment assignment in front of a command
+// word that leaves what the command runs as the scan resolves it
+// (NCM-V1-017): a literal value, with no command substitution, parameter
+// expansion or make value the graph does not know (a `$(shell ...)` result
+// among them), of a name outside driverRunNames and driverRunPrefixes,
+// compared without case. Such a value still reaches what the command reads,
+// so the site stays uncertified and computed for the planner.
+func driverInertPrefix(name, value string) bool {
+	if name == "" || driverDynamic(value) || driverSubstitutes(value) {
+		return false
+	}
+	upper := strings.ToUpper(name)
+	if driverRunNames[upper] {
+		return false
+	}
+	for _, prefix := range driverRunPrefixes {
+		if strings.HasPrefix(upper, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 func driverAssignment(word string) bool {

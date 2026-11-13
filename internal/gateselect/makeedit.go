@@ -34,12 +34,12 @@ type makeSelection struct {
 }
 
 // makeEditAttribution decides an edit of the make file p (NCM-V1-010 to
-// NCM-V1-014, the owner-delegated amendment of NCM-V1-005 for V1-5465). It
+// NCM-V1-017, the owner-delegated amendment of NCM-V1-005 for V1-5465). It
 // returns the changed explicit targets and the packages they add, or why the
 // edit runs everything: an unknown base (no full commit id, or a --snapshot
 // plan), a file deleted, renamed, new or not a regular file on either side,
 // an edit AttributeMakeEdit does not attribute, or targets whose reach
-// ReachMakeTargets cannot bound. The make file's own readers keep this
+// ReachMakeEdit cannot bound. The make file's own readers keep this
 // index's rule (c) attribution beside what it returns.
 //
 // This file is the selector's only entry into the affected engine besides
@@ -77,7 +77,7 @@ func makeEditAttribution(plan Receipt, index *repositoryIndex, root, p string) (
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), makeReachDeadline)
 	defer cancel()
-	reach := affected.ReachMakeTargets(ctx, absolute, p, edit.Targets)
+	reach := affected.ReachMakeEdit(ctx, absolute, p, edit)
 	if reach.Reason != "" {
 		return nil, nil, reach.Reason
 	}
