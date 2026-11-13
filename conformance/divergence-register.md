@@ -3135,6 +3135,27 @@ requirements (umask 022), so no committed `conformance/` expectation names a tas
 cites or an impact tie between a referencing spec and decision; no expectation is rewritten. The
 external `zod`/`execa` evaluation repositories were not checked (NOT_RUN).
 
+### DR-0048 — `query`: a regular-expression literal is masked whole
+
+- **Status:** ADJUDICATED 2026-11-13 — `python-defect` / known-divergent under `GPK-V0-395`
+  (`docs/specs/go-production-kernel-migration-v0.md`, ticket V1-5501). The focused Go regression is
+  present; a `cli-parity-v0` discriminating row is **NOT_YET_AUTHORED**, so this latent divergence
+  cannot contribute to promotion (`GPK-V0-034`). No oracle was reconstructed (`GOC-V0-002`); `src/`
+  is absent and unrepaired.
+- **Command:** `query`, `eval`, and `harness event --event user-prompt`, through the `GPK-V0-047`
+  dependency-link stage of their shared `EvalQuery` ranking, and the flow code lines that
+  `corvint docs flows` reads. **Discovered:** 2026-11-13 (V1-5501, generating Beamfall flow docs).
+
+**Divergence.** The oracle's web mask had no regular-expression reading, so a quote inside a
+literal such as `/[^&\s"']+/` opened a string that ran to the next matching quote, unmasking
+string data and masking the code between. Under `GPK-V0-395` the candidate blanks the literal whole,
+so the calls after it stay code and add the dependency links the oracle dropped.
+
+**Adjudication: python-defect (known-divergent, no repair).** The oracle masked executable code as
+string data, contradicting product invariant 2; the candidate satisfies it. No committed
+`conformance/` fixture holds a web regular-expression literal with a quote, so no expectation is
+rewritten; the external evaluation repositories were not checked (NOT_RUN).
+
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 
 `LTPM-V0-013`/`LTPM-V0-014` add repeatable `record --verify-argv-json` and a closed schema-2

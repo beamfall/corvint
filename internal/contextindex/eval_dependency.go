@@ -186,6 +186,10 @@ func stripWebNonCode(text string) string {
 		literal
 	)
 	state, quote := code, byte(0)
+	// previous is the last code byte that is not white space, or 0 at the
+	// start; a masked literal counts as an operand ('a'), so a slash after
+	// one divides. It decides whether a slash opens a regular expression.
+	previous := byte(0)
 	for index := 0; index < len(text); {
 		character := text[index]
 		following := byte(0)
@@ -243,17 +247,108 @@ func stripWebNonCode(text string) string {
 				for _, blanked := range []byte(text[index:end]) {
 					output.WriteByte(blankOrNewline(blanked))
 				}
-				index = end
+				index, previous = end, 'a'
 			case character == '\'' || character == '"':
 				output.WriteByte(' ')
-				quote, state, index = character, literal, index+1
+				quote, state, index, previous = character, literal, index+1, 'a'
+			case character == '/' && webRegexMayStart(text, index, previous):
+				// A regular-expression literal is blanked whole, slashes and
+				// flags included, so a quote in it (/["']/) never opens a string
+				// that swallows the rest of the file (GPK-V0-395).
+				end := webRegexEnd(text, index)
+				if end < 0 {
+					output.WriteByte(character)
+					index, previous = index+1, character
+					continue
+				}
+				for _, blanked := range []byte(text[index:end]) {
+					output.WriteByte(blankOrNewline(blanked))
+				}
+				index, previous = end, 'a'
 			default:
 				output.WriteByte(character)
+				if character != ' ' && character != '\t' && character != '\n' && character != '\r' {
+					previous = character
+				}
 				index++
 			}
 		}
 	}
 	return output.String()
+}
+
+// webRegexOperatorBytes are the code bytes after which an expression, and
+// so a regular-expression literal, can begin. '<', '>' and '}' are absent on
+// purpose: a slash after them is JSX (</div>, <br />, {a}/{b}) or division.
+const webRegexOperatorBytes = "(,=:[!&|?{;+-*%~^"
+
+// webRegexKeywords are the words a regular-expression literal can follow.
+var webRegexKeywords = map[string]bool{
+	"return": true, "typeof": true, "case": true, "do": true, "else": true,
+	"in": true, "of": true, "new": true, "delete": true, "void": true,
+	"throw": true, "yield": true, "await": true, "instanceof": true,
+}
+
+// webRegexMayStart reports whether the slash at text[index] can open a
+// regular-expression literal, judged by previous, the last significant code
+// byte before it. A slash after an operand (a name, a number, ')' or ']') is
+// division.
+func webRegexMayStart(text string, index int, previous byte) bool {
+	if index+1 < len(text) && (text[index+1] == '/' || text[index+1] == '*') {
+		return false
+	}
+	switch {
+	case previous == 0:
+		return true
+	case strings.IndexByte(webRegexOperatorBytes, previous) >= 0:
+		return true
+	case previous == '>':
+		// Only the arrow of `=>` is followed by an expression.
+		end := index
+		for end > 0 && strings.IndexByte(" \t\r\n", text[end-1]) >= 0 {
+			end--
+		}
+		return end >= 2 && text[end-2] == '='
+	case webIdentifierByte(previous):
+		end := index
+		for end > 0 && strings.IndexByte(" \t\r\n", text[end-1]) >= 0 {
+			end--
+		}
+		start := end
+		for start > 0 && webIdentifierByte(text[start-1]) {
+			start--
+		}
+		return webRegexKeywords[text[start:end]]
+	}
+	return false
+}
+
+// webRegexEnd returns the offset just past the regular-expression literal
+// opening at text[start] and its flags, or -1 when a line break or the end of
+// the text comes before its closing slash, so the slash is not a literal. A
+// backslash escapes the next byte, and a slash inside a [...] class does not
+// close the literal.
+func webRegexEnd(text string, start int) int {
+	inClass := false
+	for index := start + 1; index < len(text); index++ {
+		switch character := text[index]; {
+		case character == '\n' || character == '\r':
+			return -1
+		case character == '\\':
+			index++
+		case character == '[':
+			inClass = true
+		case character == ']':
+			inClass = false
+		case character == '/' && !inClass:
+			index++
+			for index < len(text) && webIdentifierByte(text[index]) {
+				index++
+			}
+			return index
+		}
+	}
+	return -1
 }
 
 // evalWebTemplateEnd returns the offset just past the template literal that
