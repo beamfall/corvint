@@ -185,10 +185,12 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 		}
 	}
 	// The audit must describe the executed set, not the discarded conservative
-	// candidates. Keep non-package decisions (data and language suites).
+	// candidates. Keep non-package decisions (data, language suites, and the
+	// non-code decision's lines, so a narrowed make file edit still names its
+	// targets, NCM-V1-010).
 	audit := []string{}
 	for _, line := range lines[:len(lines)-1] {
-		if strings.HasPrefix(line, "data ") || strings.HasPrefix(line, "suite ") {
+		if strings.HasPrefix(line, "data ") || strings.HasPrefix(line, "suite ") || strings.HasPrefix(line, "noncode ") {
 			audit = append(audit, line)
 		}
 	}

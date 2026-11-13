@@ -130,6 +130,11 @@ type driverRegistry struct {
 	// reasons, when non-nil, receives each computed site's sorted reasons
 	// (AFP-V0-9620). Diagnostics only; units never carry it.
 	reasons map[string][]string
+	// unresolved, when non-nil, receives each unit whose commands or make
+	// goals did not resolve (the builder's computed), as opposed to a unit
+	// whose evaluated commands resolved but read what the graph does not
+	// bound. A make edit's reach reads it (NCM-V1-013).
+	unresolved map[string]bool
 }
 
 // UnitsSource observes the driver files through source.
@@ -140,6 +145,12 @@ func (Driver) UnitsSource(source *Source) (Result, error) {
 // driverUnitsSource is UnitsSource that also records, in reasons when it is
 // non-nil, why each computed site is one (AFP-V0-9620).
 func driverUnitsSource(source *Source, reasons map[string][]string) (Result, error) {
+	return driverUnitsObserved(source, reasons, nil)
+}
+
+// driverUnitsObserved is driverUnitsSource that also records, in unresolved
+// when it is non-nil, each unit whose invocations did not resolve.
+func driverUnitsObserved(source *Source, reasons map[string][]string, unresolved map[string]bool) (Result, error) {
 	makeFiles, err := source.Files(ByName(driverMakeName))
 	if err != nil {
 		return Result{}, err
@@ -157,12 +168,13 @@ func driverUnitsSource(source *Source, reasons map[string][]string) (Result, err
 		return Result{}, err
 	}
 	registry := &driverRegistry{
-		source:    source,
-		makes:     map[string]*driverMakeFile{},
-		workflows: map[string]*driverWorkflow{},
-		actions:   map[string]string{},
-		fileUnits: map[string][]string{},
-		reasons:   reasons,
+		source:     source,
+		makes:      map[string]*driverMakeFile{},
+		workflows:  map[string]*driverWorkflow{},
+		actions:    map[string]string{},
+		fileUnits:  map[string][]string{},
+		reasons:    reasons,
+		unresolved: unresolved,
 	}
 	if body, readErr := source.Read("go.mod"); readErr == nil {
 		registry.module = driverModulePath(body)
@@ -353,6 +365,9 @@ func (b *driverUnitBuilder) unit() Unit {
 
 // unit builds the builder's unit and records why it is a computed site.
 func (registry *driverRegistry) unit(b *driverUnitBuilder) Unit {
+	if registry.unresolved != nil && b.computed {
+		registry.unresolved[b.id] = true
+	}
 	unit := b.unit()
 	if registry.reasons != nil && slices.Contains(unit.Frontier, FrontierDriverComputedInvocation) {
 		reasons := driverSorted(b.reasons)

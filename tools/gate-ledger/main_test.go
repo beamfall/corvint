@@ -566,8 +566,11 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 		// recordadditions.go re-observes record-entry additions with the same
 		// engine; the fixture's changes add no record entry, where it allows
 		// every reader, so an allow-all stub keeps that behavior (AFP-V0-3423).
+		// makeedit.go attributes a make file edit with the engine's make model
+		// (NCM-V1-010); the fixture's stub attributes none, so a make file
+		// edit keeps its full run there.
 		base := filepath.Base(source)
-		if !strings.HasSuffix(source, "_test.go") && base != "qualified.go" && base != "recordadditions.go" {
+		if !strings.HasSuffix(source, "_test.go") && base != "qualified.go" && base != "recordadditions.go" && base != "makeedit.go" {
 			names = append(names, "gateselect/"+base)
 		}
 	}
@@ -587,6 +590,10 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 	}
 	if _, err := os.Stat(filepath.Join(internal, "gateselect", "recordadditions.go")); err == nil {
 		files["internal/gateselect/recordadditions.go"] = "package gateselect\n\nfunc recordAdditionAllows(Receipt, string, string) func(string, string) bool {\n\treturn func(string, string) bool { return true }\n}\n"
+	}
+	if _, err := os.Stat(filepath.Join(internal, "gateselect", "makeedit.go")); err == nil {
+		files["internal/gateselect/makeedit.go"] = "package gateselect\n\ntype makeSelection struct {\n\tkind        string\n\tdirectories []string\n\tcause       string\n}\n\n" +
+			"func makeEditAttribution(Receipt, *repositoryIndex, string, string) ([]string, []makeSelection, string) {\n\treturn nil, nil, \"the frozen selector fixture attributes no make edit\"\n}\n"
 	}
 	return files, nil
 }
