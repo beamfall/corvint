@@ -9,6 +9,13 @@
 # the findings of the 30 change folders that failed then, and the missing `Health:` line of every
 # spec (spec-set-cleanup writes them, OSC-V1-008). The same day it moved from one line per subject
 # to one line per finding, keeping exactly the findings the subject lines covered.
+# 2026-11-13 (V1-5399, toward task 3.1): the check was run on the repository; the ten tick-order findings
+# of change openspec-check went with its task 1.1 and every remaining entry still fails. Each block
+# below says why its entries remain and what deletes them; the `Health:` lines are still unwritten.
+# OSC-V1-001, task lines: a task written before the check (mostly ticket filing, first commit,
+# docs, build log, review or closeout) with no requirement ID (or `Requirements: all`) or no
+# `Proof:`. Each goes when that change's own ticket rewrites the line; another change's tasks.md
+# is not edited from the openspec-check ticket.
 OSC-V1-001 change affected-plan-kinds: tasks.md: task 12 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change agent-packages: tasks.md: task 11 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change change-report-impact: tasks.md: task 2 names no requirement ID (or `Requirements: all`)
@@ -25,8 +32,6 @@ OSC-V1-001 change flows-unlinked-tests-report: tasks.md: task 2 names no require
 OSC-V1-001 change flows-unlinked-tests-report: tasks.md: task 7 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change github-action: tasks.md: task 2 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change how-rewrite: tasks.md: task 7 names no requirement ID (or `Requirements: all`)
-OSC-V1-001 change hub-read-scopes: design.md has no `## Acceptance evidence` heading
-OSC-V1-001 change hub-read-scopes: design.md has no `## Failure modes` heading
 OSC-V1-001 change narrowing-measurement: tasks.md: task 1 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change narrowing-measurement: tasks.md: task 9 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change non-code-map: tasks.md: task 2 names no requirement ID (or `Requirements: all`)
@@ -42,20 +47,28 @@ OSC-V1-001 change ruby-providers: tasks.md: task 9 names no requirement ID (or `
 OSC-V1-001 change selection-hardening: tasks.md: task 1 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change selection-hardening: tasks.md: task 10 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change selection-hardening: tasks.md: task 6a names no requirement ID (or `Requirements: all`)
-OSC-V1-001 change source-removal: design.md has no `## Acceptance evidence` heading
-OSC-V1-001 change source-removal: design.md has no `## Decisions` heading
-OSC-V1-001 change source-removal: specs/source-removal/spec.md: "### Requirement: Spec families whose only code a removal batch deletes" names no requirement ID; write `### Requirement: <ID> <title>`
 OSC-V1-001 change tasks-hardening: tasks.md: task 10 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change tasks-hardening: tasks.md: task 11 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change tasks-integration: tasks.md: task 10 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change tasks-integration: tasks.md: task 2 names no requirement ID (or `Requirements: all`)
-OSC-V1-001 change tasks-store-cutover: design.md has no `## Acceptance evidence` heading
-OSC-V1-001 change tasks-store-cutover: design.md has no `## Decisions` heading
 OSC-V1-001 change ticket-brief-context: tasks.md: task 12 names no `Proof:`
 OSC-V1-001 change ticket-brief-context: tasks.md: task 12 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change ticket-brief-context: tasks.md: task 7 names no requirement ID (or `Requirements: all`)
 OSC-V1-001 change ticket-brief-context: tasks.md: task 8 names no `Proof:`
 OSC-V1-001 change watch-flows-hardening: tasks.md: task 10 names no requirement ID (or `Requirements: all`)
+# OSC-V1-001, folder layout: hub-read-scopes, source-removal and tasks-store-cutover predate the
+# required design.md headings, and source-removal has one requirement heading with no ID. They go
+# when those changes' tickets add the headings and the ID.
+OSC-V1-001 change hub-read-scopes: design.md has no `## Acceptance evidence` heading
+OSC-V1-001 change hub-read-scopes: design.md has no `## Failure modes` heading
+OSC-V1-001 change source-removal: design.md has no `## Acceptance evidence` heading
+OSC-V1-001 change source-removal: design.md has no `## Decisions` heading
+OSC-V1-001 change source-removal: specs/source-removal/spec.md: "### Requirement: Spec families whose only code a removal batch deletes" names no requirement ID; write `### Requirement: <ID> <title>`
+OSC-V1-001 change tasks-store-cutover: design.md has no `## Acceptance evidence` heading
+OSC-V1-001 change tasks-store-cutover: design.md has no `## Decisions` heading
+# OSC-V1-005: tasks ticked as they were delivered while an earlier task (mostly ticket filing,
+# 1.1 or 1) stays open, and one ticked task for the beamfall/corvint-tasks spec that cites no commit
+# there. Each goes when that change ticks its open task or cites the commit.
 OSC-V1-005 change acceptance-record: tasks.md: task 2.2 is ticked after unticked task 2.1; tick tasks in order
 OSC-V1-005 change acceptance-record: tasks.md: task 2.3 is ticked after unticked task 2.1; tick tasks in order
 OSC-V1-005 change acceptance-record: tasks.md: task 2.4 is ticked after unticked task 2.1; tick tasks in order
@@ -64,16 +77,6 @@ OSC-V1-005 change acceptance-record: tasks.md: task 2.6 is ticked after unticked
 OSC-V1-005 change acceptance-record: tasks.md: task 3.0 is ticked after unticked task 2.1; tick tasks in order
 OSC-V1-005 change acceptance-record: tasks.md: task 3.2 is ticked after unticked task 2.1; tick tasks in order
 OSC-V1-005 change hub-read-scopes: tasks.md: task 6 is ticked after unticked task 1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 1.2 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.1 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.2 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.3 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.4 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.5 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.6 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.7 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.8 is ticked after unticked task 1.1; tick tasks in order
-OSC-V1-005 change openspec-check: tasks.md: task 2.9 is ticked after unticked task 1.1; tick tasks in order
 OSC-V1-005 change release-process: tasks.md: task 1.2 is ticked after unticked task 1.1; tick tasks in order
 OSC-V1-005 change source-removal: tasks.md: task 2 is ticked after unticked task 1; tick tasks in order
 OSC-V1-005 change tasks-policy-v15: tasks.md: task 1.2 is ticked after unticked task 1.1; tick tasks in order
@@ -84,6 +87,8 @@ OSC-V1-005 change ticket-brief-context: tasks.md: task 2 is ticked after unticke
 OSC-V1-005 change ticket-brief-context: tasks.md: task 9 is ticked after unticked task 1; tick tasks in order
 OSC-V1-005 change ticket-taxonomy: tasks.md: task 1.3 is ticked after unticked task 1.1; tick tasks in order
 OSC-V1-005 change ticket-taxonomy: tasks.md: task 1.3 is ticked for a spec in beamfall/corvint-tasks but names no commit there that defines TTX-V1-016, TTX-V1-017
+# OSC-V1-008: specs with no `Health:` line. Change spec-set-cleanup writes them (its task 2.4,
+# not started); each entry goes when its spec gains the line.
 OSC-V1-008 spec docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md: its header has no `Health:` line (KEEP, MERGE, RETIRE or OUT-OF-1.0) before the first `## ` heading
 OSC-V1-008 spec docs/specs/PRODUCT-PLAN-1.0.md: its header has no `Health:` line (KEEP, MERGE, RETIRE or OUT-OF-1.0) before the first `## ` heading
 OSC-V1-008 spec docs/specs/SPEC-HEALTH-2026-11-09.md: its header has no `Health:` line (KEEP, MERGE, RETIRE or OUT-OF-1.0) before the first `## ` heading
