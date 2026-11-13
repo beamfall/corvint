@@ -14,7 +14,7 @@ owner decisions R31 and R32).
 ## Agent digest
 - Claim: A changed non-code file runs every test unless a proven, accepted map entry narrows it; some paths always run everything.
 - Status: accepted / partial. Change `non-code-map` auto-accepted under G14 (decision 0596); the FIH-V1 proof link waits for V1-5405.
-- Exists: `internal/noncodemap` (strict `corvint-data-map/0` reader, entry status, never-narrow list, per-path decision, proposal from recorded reads); the AFP-V0-012 selector prints the decision and falls back to a full run for a path no runner attributes (`unowned-path`); a Go-attributed path stays owned and narrows (orchestrator ruling 2026-11-11); a `Makefile` edit narrows to its changed targets when every changed line is attributable, fail-closed otherwise (NCM-V1-010 to NCM-V1-014).
+- Exists: `internal/noncodemap` (strict `corvint-data-map/0` reader, entry status, never-narrow list, per-path decision, proposal from recorded reads); the AFP-V0-012 selector prints the decision and falls back to a full run for a path no runner attributes (`unowned-path`); a Go-attributed path stays owned and narrows (orchestrator ruling 2026-11-11); a `Makefile` edit narrows to its changed targets when every changed line is attributable, fail-closed otherwise (NCM-V1-010 to NCM-V1-017).
 - Blocked on: V1-5405 (fault-injection harness) for the proof link; until it lands no entry can be `proven`, so no entry narrows.
 - Read next: Delivered rules; Traceability.
 
@@ -27,7 +27,7 @@ entry stayed on the narrowing allowlist (AFP-V0-982), so a path no plugin claims
 no proof that its readers were all selected.
 
 This spec is the canonical home of requirements NCM-V1-001 to NCM-V1-009, copied from the change's
-`specs/non-code-map/spec.md`, and of NCM-V1-010 to NCM-V1-014, the owner-delegated amendment of
+`specs/non-code-map/spec.md`, and of NCM-V1-010 to NCM-V1-017, the owner-delegated amendment of
 NCM-V1-005 for make file edits (2026-11-13, V1-5465). Design decisions, failure modes and rollback stay in the change's
 `design.md`, which owns them; this file adds the delivered rules, the orchestrator decision on the
 design's first open question, and the delivery record (Surfaces, Traceability).
@@ -110,7 +110,7 @@ The following MUST always select everything, whatever the map says: `go.mod`, `g
 other lockfile; the toolchain pin; `.github/**`; `Makefile`; runner configuration; release
 configuration; generator inputs; build-tag inputs; snapshot update paths; the map file itself;
 `.corvint/test-read-scopes.json`; secret and environment configuration. No map entry narrows a
-`Makefile`, `makefile` or `GNUmakefile`; NCM-V1-010 to NCM-V1-014 alone decide an edit of one, and
+`Makefile`, `makefile` or `GNUmakefile`; NCM-V1-010 to NCM-V1-017 alone decide an edit of one, and
 narrow it to its changed targets only when every changed line is attributable, while an included
 `*.mk` file stays on this list (owner-delegated amendment 2026-11-13, V1-5465). A `go:embed` input is owned
 by its embedding package (NCM-V1-001) and selects that package and its dependents. (G15b;
@@ -252,7 +252,7 @@ a removed rule; a changed pattern rule, double-colon rule or rule any line of wh
 conditional; a changed variable that is a global setting (any name starting with `.` or `MAKE`,
 `SHELL`, `VPATH`, `GPATH`, `SUFFIXES`, `CURDIR`, `GNUMAKEFLAGS`, `MFLAGS`), is read by make's
 built-in rules, is exported, sits in a file that exports what the driver does not certify, is used
-outside every explicit rule, or is used by no rule; a changed assignment that runs a shell (`!=`) or
+outside every explicit rule (unless NCM-V1-015 evaluates every use), or is used by no rule; a changed assignment that runs a shell (`!=`) or
 calls `$(shell)`, `$(error)`, `$(warning)`, `$(info)`, `$(file)`, `$(eval)`, `$(call)`, `$(guile)`
 or `$(value)`; and any changed variable in a file that names a variable by a computed reference.
 
@@ -269,7 +269,8 @@ directory a reached unit runs or reads, or holds a file it does. The reach MUST 
 when a reached unit runs a command or make goal that does not resolve, sits in a file outside the
 parsed subset, or imports a unit the driver units do not hold. A reached unit whose commands resolve
 but read what the graph does not bound (an evaluated, uncertified computed site, or a whole-tree
-read) still runs only what it names, so it stays bounded.
+read) still runs only what it names, so it stays bounded. NCM-V1-016 and NCM-V1-017 refine which
+targets and commands resolve.
 
 **Scenario: A prerequisite's package**
 - GIVEN a changed target `all: check` and `check`, which runs `go test ./tool`
@@ -289,6 +290,69 @@ everything.
   the workflow file
 - WHEN the selector decides the plan
 - THEN `<module>/ciread` is selected
+
+- `NCM-V1-015`: (accepted under owner delegation 2026-11-13; V1-5465) Literal word-list variables
+
+A changed plain variable MUST be attributed to the words it adds or removes, instead of to every rule
+that uses it, when all of these hold at the base and at the head: its one assignment, the only one
+of the name (no target-specific, conditional, define or appended value), is a plain `=`, `:=` or
+`::=` with a literal value (no `$` or backslash); the word sets differ; the file enables no
+secondary expansion; and every use of the name is read after that assignment and is one of:
+
+1. a reference in the prerequisite list of an explicit rule, outside its recipe, inline recipe and
+   target-specific assignments, where the rule is no pattern, `::` or conditional rule and no line
+   of it reads an automatic variable of its prerequisites (`$^`, `$+`, `$<`, `$?`, `$|`);
+2. a reference in the target list of a computed rule line outside every explicit rule, whose
+   prerequisites are literal words and which has no recipe.
+
+Each such reference MUST be `$(name)`, `${name}`, or the last argument of `addprefix`, `addsuffix`
+or `patsubst` whose other arguments are literal, evaluated on the changed words alone. The changed
+targets are the evaluated changed words, plus the literal prerequisites of each computed line that
+evaluates to any. A word in both lists is not selected. The rules of item 1 are touched: what they
+run changed only by what the changed words run, so the reach (NCM-V1-013) does not follow them,
+but a workflow job or local action that invokes one invokes a changed target (NCM-V1-014). Any
+other use, a reordering that changes no word, a non-literal value, `$(shell)` or another function
+leaves the variable to NCM-V1-011 and NCM-V1-012. (the repository's `GATE_STEPS`, used as
+`gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))` and
+`$(GATE_STEPS) $(addprefix ledger/,$(GATE_STEPS)): | gate-receipt-clear`)
+
+**Scenario: A step added to the gate**
+- GIVEN `STEPS = check` becomes `STEPS = check gen`, used only as `gate: clear $(addprefix ledger/,$(STEPS))`
+  and `$(STEPS) $(addprefix ledger/,$(STEPS)): | clear`
+- WHEN the selector decides the plan
+- THEN it prints `noncode make-targets Makefile -> clear gen ledger/gen`, and `check` is not a target
+
+- `NCM-V1-016`: (accepted under owner delegation 2026-11-13; V1-5465) A changed target a pattern rule builds
+
+A changed target no explicit rule names MUST be followed, in the reach of NCM-V1-013, through the one
+pattern rule that matches it, with its recipe expanded for that target and stem (`$@`, `$*` and
+their `D` and `F` forms). There is no such unit, so the reach selects everything, when no pattern
+rule or more than one matches the target, the pattern rule has prerequisites or is a `::` rule, or
+a pattern with no slash would match a target in a directory. The instance exists only in the
+reach: the planner's units are unchanged.
+
+**Scenario: A ledger step**
+- GIVEN `ledger/%:` runs `go run ./ledger $* -- $(MAKE) $*`, and `ledger/gen` changed (NCM-V1-015)
+- WHEN the reach follows `ledger/gen`
+- THEN it adds `ledger`'s package and what target `gen` runs, not what every target of the file runs
+
+- `NCM-V1-017`: (accepted under owner delegation 2026-11-13; V1-5465) An environment assignment in front of a command
+
+In the reach of NCM-V1-013, a POSIX `NAME=value` assignment directly in front of the command word,
+with no wrapper (`env`, `nice`, `xargs` and the like) between them, MUST NOT by itself make the
+command unresolved when its value, quoted or not, is literal (no command substitution, backticks,
+parameter expansion or make value the graph does not know, a `$(shell)` result among them) and its
+name, compared without case, neither chooses nor loads the program: not `PATH`, `ENV`, `BASH_ENV`,
+`SHELLOPTS`, `BASHOPTS`, `IFS`, `CDPATH`, `PS4`, `SHELL`, `GLOBIGNORE`, `HOME`, a make, Java, Perl,
+Ruby or Lua option or path name, `CC`, `CXX`, `CLASSPATH`, or a name starting with `LD_`, `DYLD_`,
+`GO`, `CGO_`, `GIT_`, `NODE_`, `NPM_`, `PYTHON`, `BASH_FUNC_` or `XDG_`. The command word is then
+resolved as before. Such a site stays computed and uncertified for the planner (AFP-V0-3128); only
+the make edit's reach reads it as resolved.
+
+**Scenario: A reason for the heavy-run wrapper**
+- GIVEN a changed target whose recipe is `HEAVY_WHOLE_REASON='x' script/heavy.sh go test ./tool`
+- WHEN the reach follows it
+- THEN `<module>/tool` is selected and the reach stays bounded
 
 ## Delivered rules
 
@@ -453,10 +517,10 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 ## Surfaces
 
 - `internal/noncodemap`: `Parse`, `Read`, `Evaluate`, `NeverNarrowed`, `Decide`, `Propose`.
-- `internal/liveverify/affected`: `AttributeMakeEdit` and `ReachMakeTargets` (NCM-V1-011 to
-  NCM-V1-014), on the driver's make parse and units.
+- `internal/liveverify/affected`: `AttributeMakeEdit`, `ReachMakeTargets` and `ReachMakeEdit`
+  (NCM-V1-011 to NCM-V1-017), on the driver's make parse, units and shell scanner.
 - `internal/gateselect`: `makeEditAttribution` (`makeedit.go`) reads the base make file and wires
-  NCM-V1-010 to NCM-V1-014 into `Decide` as `Input.MakeEdit`.
+  NCM-V1-010 to NCM-V1-017 into `Decide` as `Input.MakeEdit`.
 - `internal/gateselect`: `selectPackagesFrom` applies `Decide` to every plan, with
   `repositoryIndex.attributed` and the plan's declared-reader witnesses as Go attribution;
   `AllowedUnknown` keeps admitting `UNOWNED_DIRTY_PATH`; `SelectQualified` keeps a named NCM full
@@ -467,7 +531,7 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 
 - Delivered under V1-5424: NCM-V1-001, 002, 003, 005, 006, 007, 008 and 009; the refusal side of
   NCM-V1-004 (no entry narrows without a confirmed fault case).
-- Delivered under V1-5465: NCM-V1-010 to NCM-V1-014 (`docs/build-log/2026-11-13-mknarrow1113.md`).
+- Delivered under V1-5465: NCM-V1-010 to NCM-V1-017 (`docs/build-log/2026-11-13-mknarrow1113.md`).
 - Waiting: NCM-V1-004's proof link to FIH-V1 non-code fault cases, after V1-5405 lands (change task 6).
 - Acceptance fixtures (change task 7): see the build-log entry
   `docs/build-log/2026-11-11-non-code-map.md` for the fixtures delivered and missing.
@@ -489,4 +553,7 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 | NCM-V1-011 | `TestAttributeMakeEditTargets_NCMV1011` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
 | NCM-V1-012 | `TestAttributeMakeEditFailsClosed_NCMV1012` (`internal/liveverify/affected`); `TestNCMV1012SelectorMakeEditFailsClosed` (`internal/gateselect`) |
 | NCM-V1-013 | `TestReachMakeTargets_NCMV1013` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
-| NCM-V1-014 | `TestReachMakeTargetsCI_NCMV1014` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
+| NCM-V1-014 | `TestReachMakeTargetsCI_NCMV1014`, `TestReachMakeEditInstance_NCMV1016` (touched rule) (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit`, `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
+| NCM-V1-015 | `TestAttributeMakeEditWordList_NCMV1015`, `TestAttributeMakeEditWordListFailsClosed_NCMV1015` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
+| NCM-V1-016 | `TestReachMakeEditInstance_NCMV1016` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
+| NCM-V1-017 | `TestDriverEnvPrefix_NCMV1017` (`internal/liveverify/affected`) |

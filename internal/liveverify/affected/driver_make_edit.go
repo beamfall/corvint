@@ -17,6 +17,12 @@ import (
 // Reason names the first change that is not, and Targets is nil.
 type MakeEdit struct {
 	Targets []string
+	// Touched are the rules whose prerequisite list changed only by the
+	// words of a literal word-list variable (NCM-V1-015). What they run
+	// changed by what those words run, which Targets already holds, so the
+	// reach does not follow them; a workflow or local action that invokes
+	// one still counts as invoking a changed target (NCM-V1-014).
+	Touched []string
 	Reason  string
 }
 
@@ -47,7 +53,7 @@ func AttributeMakeEdit(file string, base, head []byte) MakeEdit {
 	if line, changed := makeFirstDifference(before.residual(), after.residual()); changed {
 		return makeRefusal(makeLineKind(line) + " changed: " + makeQuote(line))
 	}
-	targets := map[string]bool{}
+	targets, roots, touched := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, name := range makeRuleNames(before, after) {
 		old, inBase := before.rules[name]
 		updated, inHead := after.rules[name]
@@ -58,7 +64,7 @@ func AttributeMakeEdit(file string, base, head []byte) MakeEdit {
 			targets[name] = true
 		}
 	}
-	if reason := attributeMakeVariables(before, after, targets); reason != "" {
+	if reason := attributeMakeVariables(before, after, targets, roots, touched); reason != "" {
 		return makeRefusal(reason)
 	}
 	names := make([]string, 0, len(targets))
@@ -77,8 +83,17 @@ func AttributeMakeEdit(file string, base, head []byte) MakeEdit {
 		}
 		names = append(names, name)
 	}
+	for name := range roots {
+		if !targets[name] {
+			names = append(names, name)
+		}
+	}
 	sort.Strings(names)
-	return MakeEdit{Targets: names}
+	edit := MakeEdit{Targets: names}
+	if len(touched) != 0 {
+		edit.Touched = driverSorted(touched)
+	}
+	return edit
 }
 
 func makeRefusal(reason string) MakeEdit { return MakeEdit{Reason: reason} }
@@ -161,8 +176,11 @@ var makeEffectFunctions = []string{"shell", "error", "warning", "info", "file", 
 
 // attributeMakeVariables adds to targets each rule a changed plain variable
 // reaches, through other plain variables, and returns why a change cannot be
-// attributed, if one cannot (NCM-V1-011, NCM-V1-012).
-func attributeMakeVariables(before, after *driverMakeFile, targets map[string]bool) string {
+// attributed, if one cannot (NCM-V1-011, NCM-V1-012). A changed literal word
+// list every use of which is a target or prerequisite list adds its changed
+// words to roots and the rules whose prerequisites hold it to touched
+// instead (NCM-V1-015).
+func attributeMakeVariables(before, after *driverMakeFile, targets, roots, touched map[string]bool) string {
 	old, updated := before.assignments(), after.assignments()
 	var pending []string
 	for name := range old {
@@ -196,6 +214,25 @@ func attributeMakeVariables(before, after *driverMakeFile, targets map[string]bo
 		}
 	}
 	visited := map[string]bool{}
+	direct := pending
+	pending = nil
+	for _, name := range direct {
+		if reason := makeVariableScope(before, after, name); reason != "" {
+			return reason
+		}
+		words, wordTouched, listed := makeWordListUse(before, after, name)
+		if !listed {
+			pending = append(pending, name)
+			continue
+		}
+		visited[name] = true
+		for _, word := range words {
+			roots[word] = true
+		}
+		for _, rule := range wordTouched {
+			touched[rule] = true
+		}
+	}
 	for len(pending) != 0 {
 		name := pending[0]
 		pending = pending[1:]
@@ -203,17 +240,11 @@ func attributeMakeVariables(before, after *driverMakeFile, targets map[string]bo
 			continue
 		}
 		visited[name] = true
-		switch {
-		case strings.HasPrefix(name, ".") || strings.HasPrefix(name, "MAKE") || makeGlobalNames[name]:
-			return "variable " + makeQuote(name) + " is a global make setting"
-		case makeBuiltinRuleNames[name]:
-			return "variable " + makeQuote(name) + " is read by make's built-in rules"
+		if reason := makeVariableScope(before, after, name); reason != "" {
+			return reason
 		}
 		uses := 0
 		for _, parsed := range []*driverMakeFile{before, after} {
-			if slices.Contains(parsed.exportedNames, name) {
-				return "variable " + makeQuote(name) + " is exported to every recipe"
-			}
 			for _, rule := range parsed.rules {
 				if slices.ContainsFunc(rule.block, func(line string) bool { return makeReferences(line, name) }) {
 					targets[rule.name] = true
@@ -237,6 +268,311 @@ func attributeMakeVariables(before, after *driverMakeFile, targets map[string]bo
 		}
 	}
 	return ""
+}
+
+// makeVariableScope names why a change of the variable name reaches more
+// than the rules that use it: make itself, its built-in rules or every
+// recipe's environment reads it (NCM-V1-012).
+func makeVariableScope(before, after *driverMakeFile, name string) string {
+	switch {
+	case strings.HasPrefix(name, ".") || strings.HasPrefix(name, "MAKE") || makeGlobalNames[name]:
+		return "variable " + makeQuote(name) + " is a global make setting"
+	case makeBuiltinRuleNames[name]:
+		return "variable " + makeQuote(name) + " is read by make's built-in rules"
+	case slices.Contains(before.exportedNames, name) || slices.Contains(after.exportedNames, name):
+		return "variable " + makeQuote(name) + " is exported to every recipe"
+	}
+	return ""
+}
+
+// makeWordListUse attributes a change of the plain variable name by the
+// words it adds or removes (NCM-V1-015). It applies only when the variable
+// is a literal word list on both sides (one plain `=`, `:=` or `::=`
+// assignment, the only one of name, with no `$` in its value), the word
+// sets differ, the file enables no secondary expansion, and every use of
+// name is one make evaluates on those words alone:
+//   - a reference in an explicit rule's prerequisite list, outside every
+//     recipe and target-specific assignment, of a rule that is no pattern,
+//     `::` or conditional rule and whose recipe reads no automatic variable
+//     of its prerequisites; or
+//   - a reference in the target list of a computed rule line in the
+//     remainder, whose prerequisites are literal words and which has no
+//     recipe.
+//
+// Each use must read the variable after its assignment, as `$(name)`,
+// `${name}`, or the last argument of an addprefix, addsuffix or patsubst
+// whose other arguments are literal. It returns the changed words as each
+// use evaluates them, the computed lines' literal prerequisites, which the
+// changed words now run, and the rules whose prerequisite lists hold name.
+// When it does not apply, the change is NCM-V1-011's.
+func makeWordListUse(before, after *driverMakeFile, name string) ([]string, []string, bool) {
+	baseWords, baseOK := before.literalWords(name)
+	headWords, headOK := after.literalWords(name)
+	if !baseOK || !headOK {
+		return nil, nil, false
+	}
+	delta := makeWordDelta(baseWords, headWords)
+	if len(delta) == 0 {
+		return nil, nil, false
+	}
+	words, touched := map[string]bool{}, map[string]bool{}
+	for _, parsed := range []*driverMakeFile{before, after} {
+		if !parsed.wordListUses(name, delta, words, touched) {
+			return nil, nil, false
+		}
+	}
+	return driverSorted(words), driverSorted(touched), true
+}
+
+// literalWords returns the words of name's value when its one assignment is
+// a plain `=`, `:=` or `::=` with a literal value (NCM-V1-015).
+func (parsed *driverMakeFile) literalWords(name string) ([]string, bool) {
+	if len(parsed.vars[name]) != 1 {
+		return nil, false
+	}
+	var line string
+	count := 0
+	for _, plain := range parsed.plain {
+		if plain.name == name {
+			line = parsed.remainder[plain.at]
+			count++
+		}
+	}
+	if count != 1 {
+		return nil, false
+	}
+	operator := driverMakeOperator(line)
+	if operator < 0 {
+		return nil, false
+	}
+	assignment, assigned, value := driverMakeAssignment(line, operator)
+	event := driverMakeAssignmentEvent(line, operator, assigned, value, false)
+	if !assignment || assigned != name || event.op != "=" || strings.ContainsAny(value, "$\\") {
+		return nil, false
+	}
+	return strings.Fields(value), true
+}
+
+// makeWordDelta is the words in exactly one of base and head, sorted.
+func makeWordDelta(base, head []string) []string {
+	delta := map[string]bool{}
+	for _, word := range base {
+		if !slices.Contains(head, word) {
+			delta[word] = true
+		}
+	}
+	for _, word := range head {
+		if !slices.Contains(base, word) {
+			delta[word] = true
+		}
+	}
+	return driverSorted(delta)
+}
+
+// assignmentEvent is the index in events of name's one assignment.
+func (parsed *driverMakeFile) assignmentEvent(name string) int {
+	for index, event := range parsed.events {
+		if event.kind == driverEventAssign && !event.scoped && event.name == name {
+			return index
+		}
+	}
+	return -1
+}
+
+// wordListUses adds what each use of name evaluates delta to (NCM-V1-015),
+// or reports false when one is not a use makeWordListUse admits.
+func (parsed *driverMakeFile) wordListUses(name string, delta []string, words, touched map[string]bool) bool {
+	assignedAt, plainAt := parsed.assignmentEvent(name), -1
+	for _, plain := range parsed.plain {
+		if plain.name == name {
+			plainAt = plain.at
+		} else if makeReferences(parsed.remainder[plain.at], name) {
+			return false
+		}
+	}
+	if assignedAt < 0 || plainAt < 0 {
+		return false
+	}
+	skip := make(map[int]bool, len(parsed.plain))
+	for _, plain := range parsed.plain {
+		skip[plain.at] = true
+	}
+	for index, line := range parsed.remainder {
+		if skip[index] {
+			continue
+		}
+		if strings.Contains(line, ".SECONDEXPANSION") {
+			return false
+		}
+		if !makeReferences(line, name) {
+			continue
+		}
+		if index < plainAt || index+1 < len(parsed.remainder) && strings.HasPrefix(parsed.remainder[index+1], "\t") {
+			return false
+		}
+		targetWords, prerequisites, ok := makeComputedTargetUse(line, name, delta)
+		if !ok {
+			return false
+		}
+		for _, word := range slices.Concat(targetWords, prerequisites) {
+			words[word] = true
+		}
+	}
+	for _, ruleName := range parsed.order {
+		rule := parsed.rules[ruleName]
+		used := false
+		for _, line := range rule.block {
+			if !makeReferences(line, name) {
+				continue
+			}
+			if !makeRuleHeaderUse(line, name) {
+				return false
+			}
+			used = true
+		}
+		if !used {
+			continue
+		}
+		if rule.pattern || rule.doubleColon || rule.conditional || makeReadsPrerequisites(rule.block) {
+			return false
+		}
+		for index, line := range rule.prereqs {
+			if !makeReferences(line, name) {
+				continue
+			}
+			if rule.prereqAt[index] <= assignedAt {
+				return false
+			}
+			evaluated, ok := makeEvaluateWords(line, name, delta)
+			if !ok {
+				return false
+			}
+			for _, word := range evaluated {
+				words[word] = true
+			}
+		}
+		touched[ruleName] = true
+	}
+	return true
+}
+
+// makeRuleHeaderUse reports a rule block line that is a rule header holding
+// name only in its prerequisite list: no recipe line, no inline recipe, no
+// target-specific assignment or static pattern, and no `::`.
+func makeRuleHeaderUse(line, name string) bool {
+	if strings.HasPrefix(line, "\t") {
+		return false
+	}
+	statement := strings.TrimSpace(driverMakeStrip(line))
+	operator := driverMakeOperator(statement)
+	if operator < 0 || statement[operator] != ':' || makeReferences(statement[:operator], name) {
+		return false
+	}
+	rest := statement[operator+1:]
+	if strings.HasPrefix(rest, ":") {
+		return false
+	}
+	parts := driverMakeSplitTop(rest, ';', 2)
+	if len(parts) == 2 && makeReferences(parts[1], name) {
+		return false
+	}
+	return driverMakeOperator(parts[0]) < 0
+}
+
+// makeComputedTargetUse evaluates a computed rule line of the remainder whose
+// target list references name: the changed words its targets evaluate to and
+// its literal prerequisites, or false when it is not a rule line with an
+// evaluable target list, literal prerequisites and no recipe.
+func makeComputedTargetUse(line, name string, delta []string) ([]string, []string, bool) {
+	statement := strings.TrimSpace(driverMakeStrip(line))
+	operator := driverMakeOperator(statement)
+	if operator < 0 || statement[operator] != ':' {
+		return nil, nil, false
+	}
+	targetText, rest := statement[:operator], statement[operator+1:]
+	if strings.HasPrefix(rest, ":") || strings.ContainsAny(rest, "$;=:%") || strings.Contains(targetText, "%") {
+		return nil, nil, false
+	}
+	for _, word := range strings.Fields(targetText) {
+		if driverMakeSpecials[word] {
+			return nil, nil, false
+		}
+	}
+	targets, ok := makeEvaluateWords(targetText, name, delta)
+	if !ok {
+		return nil, nil, false
+	}
+	var prerequisites []string
+	if len(targets) != 0 {
+		for _, word := range strings.Fields(rest) {
+			if word != "|" {
+				prerequisites = append(prerequisites, word)
+			}
+		}
+	}
+	return targets, prerequisites, true
+}
+
+// makeEvaluateWords evaluates each word of a target or prerequisite list
+// that references name on delta alone: `$(name)` or `${name}` is delta, and
+// `$(addprefix P,$(name))`, `$(addsuffix S,$(name))` and
+// `$(patsubst A,B,$(name))` with literal P, S, A and B apply to each word of
+// it. A word that does not reference name adds nothing; any other word that
+// does is not evaluated, and the answer is false.
+func makeEvaluateWords(text, name string, delta []string) ([]string, bool) {
+	text = strings.ReplaceAll(text, "\t", " ")
+	var out []string
+	for _, word := range driverMakeSplitTop(text, ' ', 0) {
+		if word == "" || !makeReferences(word, name) {
+			continue
+		}
+		if word == "$("+name+")" || word == "${"+name+"}" {
+			out = append(out, delta...)
+			continue
+		}
+		inner, closed := strings.CutPrefix(word, "$(")
+		if !closed || !strings.HasSuffix(inner, ")") {
+			return nil, false
+		}
+		function, arguments, _ := strings.Cut(strings.TrimSuffix(inner, ")"), " ")
+		parts := driverMakeSplitTop(arguments, ',', 0)
+		if last := strings.TrimSpace(parts[len(parts)-1]); last != "$("+name+")" && last != "${"+name+"}" {
+			return nil, false
+		}
+		literal := parts[:len(parts)-1]
+		for _, part := range literal {
+			if part == "" && function != "addsuffix" && function != "addprefix" || strings.ContainsAny(part, "$ \t(){}") {
+				return nil, false
+			}
+		}
+		for _, value := range delta {
+			switch {
+			case function == "addprefix" && len(literal) == 1:
+				out = append(out, literal[0]+value)
+			case function == "addsuffix" && len(literal) == 1:
+				out = append(out, value+literal[0])
+			case function == "patsubst" && len(literal) == 2:
+				out = append(out, driverPatsubst(literal[0], literal[1], value))
+			default:
+				return nil, false
+			}
+		}
+	}
+	return out, true
+}
+
+// makeReadsPrerequisites reports a rule block line that reads an automatic
+// variable holding the rule's prerequisites, whose value the word list
+// changes in full rather than by its changed words.
+func makeReadsPrerequisites(block []string) bool {
+	for _, line := range block {
+		for _, auto := range []string{"$^", "$+", "$<", "$?", "$|", "$(^", "$(+", "$(<", "$(?", "$(|", "${^", "${+", "${<", "${?", "${|"} {
+			if strings.Contains(line, auto) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // makeAssignmentEffect names why a changed assignment line of name cannot be
@@ -405,13 +741,23 @@ type MakeReach struct {
 // (NCM-V1-013). A workflow job that invokes a changed target directly names
 // its workflow (NCM-V1-014).
 func ReachMakeTargets(ctx context.Context, root, file string, targets []string) MakeReach {
-	return reachMakeTargets(DiskSourceContext(ctx, root), file, targets)
+	return reachMakeTargets(DiskSourceContext(ctx, root), file, targets, nil)
 }
 
-// reachMakeTargets is ReachMakeTargets over source.
-func reachMakeTargets(source *Source, file string, targets []string) MakeReach {
+// ReachMakeEdit is ReachMakeTargets for an attributed edit: it follows the
+// edit's Targets, and counts a workflow or local action that invokes one of
+// its Touched rules as invoking a changed target (NCM-V1-015). A target no
+// explicit rule names is followed through the one pattern rule it
+// instantiates, with its stem (NCM-V1-016).
+func ReachMakeEdit(ctx context.Context, root, file string, edit MakeEdit) MakeReach {
+	return reachMakeTargets(DiskSourceContext(ctx, root), file, edit.Targets, edit.Touched)
+}
+
+// reachMakeTargets is ReachMakeTargets over source, with touched counted
+// for direct invocations only.
+func reachMakeTargets(source *Source, file string, targets, touched []string) MakeReach {
 	unresolved := map[string]bool{}
-	result, err := driverUnitsObserved(source, nil, unresolved)
+	result, err := driverUnitsObserved(source, nil, unresolved, map[string][]string{file: targets})
 	if err != nil {
 		return MakeReach{Reason: "the driver units cannot be read: " + makeQuote(err.Error())}
 	}
@@ -425,6 +771,9 @@ func reachMakeTargets(source *Source, file string, targets []string) MakeReach {
 		id := driverMakeUnitID(file, target)
 		changed[id] = true
 		pending = append(pending, id)
+	}
+	for _, target := range touched {
+		changed[driverMakeUnitID(file, target)] = true
 	}
 	reached := map[string]bool{}
 	paths := map[string]bool{}

@@ -136,7 +136,7 @@ type Input struct {
 	// MakeEdit attributes the edit of a MakeFile path to the explicit
 	// targets it changes: it returns them (possibly none, for an edit no
 	// target reads), or a non-empty reason why the edit runs everything
-	// (NCM-V1-010 to NCM-V1-014). nil attributes no make file edit.
+	// (NCM-V1-010 to NCM-V1-017). nil attributes no make file edit.
 	MakeEdit func(string) (targets []string, reason string)
 	// Map is the read map; Env the facts its entries' status needs.
 	Map Map

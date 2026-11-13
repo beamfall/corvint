@@ -171,3 +171,52 @@ func TestNCMV1012SelectorMakeEditFailsClosed(t *testing.T) {
 		requireVerdict(t, makeEditPlan(base, "rules.mk"), root, "FALLBACK never-narrowed-path rules.mk")
 	})
 }
+
+const makeWordListMakefile = `STEPS = check
+gate: clear $(addprefix ledger/,$(STEPS))
+	echo gate
+$(STEPS) $(addprefix ledger/,$(STEPS)): | clear
+ledger/%:
+	go run ./steptool $* -- $(MAKE) $*
+clear:
+	echo clear
+check:
+	go test ./tool
+gen:
+	go run ./gen
+`
+
+// TestNCMV1015SelectorNarrowsWordListEdit pins NCM-V1-015 and NCM-V1-016 in
+// the selector: adding gen to a literal step list selects what gen runs,
+// what ledger/gen runs through the ledger/% instance (steptool), the
+// workflow that invokes the touched gate, and the Makefile's reader, but not
+// check's tool, which both lists hold. A recipe use of the list, or a
+// `$(shell)` in its value, keeps the full run.
+func TestNCMV1015SelectorNarrowsWordListEdit(t *testing.T) {
+	test := func(name, body string) string {
+		return "package " + name + "\n\nimport \"testing\"\n\n" + body + "func TestX(t *testing.T) {}\n"
+	}
+	root, base := baseRepository(t, map[string]string{
+		"go.mod":                    "module " + fixtureModule + "\n\ngo 1.27\n",
+		"tool/tool.go":              "package tool\n",
+		"tool/tool_test.go":         test("tool", ""),
+		"gen/gen.go":                "package gen\n",
+		"gen/gen_test.go":           test("gen", ""),
+		"steptool/steptool.go":      "package steptool\n",
+		"steptool/steptool_test.go": test("steptool", ""),
+		"mkread/mkread_test.go":     test("mkread", "var makefile = \"../Makefile\"\n\n"),
+		"ciread/ciread_test.go":     test("ciread", "var workflow = \"../.github/workflows/ci.yml\"\n\n"),               //corvint:fixture-path
+		".github/workflows/ci.yml":  "jobs:\n  unit:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make gate\n", //corvint:fixture-path
+		"Makefile":                  makeWordListMakefile,
+	}, nil)
+	added := strings.Replace(makeWordListMakefile, "STEPS = check", "STEPS = check gen", 1)
+	writeMakefile(t, root, added)
+	requireVerdict(t, makeEditPlan(base, "Makefile"), root, "run "+modules("ciread", "gen", "mkread", "steptool"),
+		"noncode make-targets Makefile -> clear gen ledger/gen",
+		"make-ci "+fixtureModule+"/ciread <- .github/workflows/ci.yml") //corvint:fixture-path
+	full := func(why string) string { return "FALLBACK never-narrowed-path Makefile: make edit: " + why }
+	writeMakefile(t, root, added+"show:\n\techo $(STEPS)\n")
+	requireVerdict(t, makeEditPlan(base, "Makefile"), root, full(`variable "STEPS" is used outside every explicit rule: "$(STEPS) $(addprefix ledger/,$(STEPS)): | clear"`))
+	writeMakefile(t, root, strings.Replace(makeWordListMakefile, "STEPS = check", "STEPS = check $(shell echo gen)", 1))
+	requireVerdict(t, makeEditPlan(base, "Makefile"), root, full(`variable "STEPS" calls $(shell)`))
+}
