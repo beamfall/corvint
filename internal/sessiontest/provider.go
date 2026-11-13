@@ -188,9 +188,12 @@ type providerReportedTest struct {
 		DurationMs *float64 `json:"durationMs"`
 	} `json:"attemptDetails"`
 	DurationMs *float64 `json:"durationMs"`
-	FullName   string   `json:"fullName"`
-	Retries    int      `json:"retries"`
-	State      string   `json:"state"`
+	// DurationMissing is the receipt's mark that the runner gave no time, so DurationMs is
+	// the wire's zero (PTD-V1-003).
+	DurationMissing bool   `json:"durationMissing"`
+	FullName        string `json:"fullName"`
+	Retries         int    `json:"retries"`
+	State           string `json:"state"`
 }
 
 // providerSources names the duration source of each provider runner (PTD-V1-002).
@@ -198,8 +201,8 @@ var providerSources = map[string]string{ProviderRunnerPlaywright: testduration.S
 
 // providerTestMeasure is one provider test's reported time (PTD-V1-002, PTD-V1-006): the sum of
 // its attempts when the receipt keeps each attempt, else its durationMs when it ran once. A test
-// retried with only its last attempt's time, one with no time, and an infrastructure entry, which
-// is no test run, are NOT_MEASURED (PTD-V1-003); nothing is estimated.
+// retried with only its last attempt's time, one with no time or marked durationMissing, and an
+// infrastructure entry, which is no test run, are NOT_MEASURED (PTD-V1-003); nothing is estimated.
 func providerTestMeasure(runner string, test providerReportedTest) testduration.Measure {
 	source := providerSources[runner]
 	switch {
@@ -216,7 +219,7 @@ func providerTestMeasure(runner string, test providerReportedTest) testduration.
 		}
 		measure, _ := testduration.Attempts(attempts, source)
 		return measure
-	case test.DurationMs == nil || test.Retries != 0:
+	case test.DurationMs == nil || test.DurationMissing || test.Retries != 0:
 		return testduration.Missing()
 	}
 	return testduration.FromMilliseconds(*test.DurationMs, source)

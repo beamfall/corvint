@@ -3,8 +3,11 @@
 package sessiontest
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testduration"
 )
 
@@ -81,5 +84,39 @@ func TestPTDV1002ProviderReceiptDurations(t *testing.T) {
 	outcomes, _, _ = providerRun([]string{"typescript:vitest:src/math.test.ts"}, 0, older)
 	if got := outcomes[0]; got.DurationMs != nil || got.DurationSource != testduration.NotMeasured {
 		t.Fatalf("a document without times was measured: %+v", got)
+	}
+}
+
+// PTD-V1-003, PTD-V1-001: a native Vitest report whose assertion omits its duration, read by the
+// provider's own parser into the receipt document the provider prints, gives a receipt outcome
+// that is NOT_MEASURED with no durationMs, never a measured 0 ms; the same report with the
+// duration present stays measured.
+func TestPTDV1003VitestNativeReportWithoutDurationIsNotMeasured(t *testing.T) {
+	native := func(duration string) string {
+		return `{"numTotalTests":1,"success":true,"testResults":[{"name":"/r/src/math.test.ts","status":"passed","assertionResults":[
+			{"fullName":"math adds","title":"adds","status":"passed"` + duration + `,"failureMessages":[]}]}]}`
+	}
+	run := func(report string) Outcome {
+		t.Helper()
+		tests, infra, err := jstestprovider.ParseVitestJSON([]byte(report))
+		if err != nil || infra != nil {
+			t.Fatalf("parse: %v %+v", err, infra)
+		}
+		document, err := json.Marshal(map[string]any{"receipt": jstestreceipt.Receipt{Kind: "unit", Tests: tests}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		outcomes, reasons, _ := providerRun([]string{"typescript:vitest:src/math.test.ts"}, 0, string(document))
+		if len(reasons) != 0 || len(outcomes) != 1 {
+			t.Fatalf("outcomes %+v reasons %v", outcomes, reasons)
+		}
+		receipt := Finish(Receipt{ShardIndex: 0, Invocations: []Invocation{{Outcomes: outcomes}}}, Manifest{})
+		return receipt.Invocations[0].Outcomes[0]
+	}
+	if got := run(native("")); got.Outcome != OutcomePass || got.DurationMs != nil || got.DurationSource != testduration.NotMeasured {
+		t.Fatalf("omitted duration was measured: %+v", got)
+	}
+	if got := run(native(`,"duration":7`)); got.DurationMs == nil || *got.DurationMs != 7 || got.DurationSource != testduration.SourceVitest {
+		t.Fatalf("present duration: %+v", got)
 	}
 }
