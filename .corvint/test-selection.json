@@ -22,7 +22,10 @@
     {
       "paths": ".github/forward-rows/**",
       "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+        ".github/forward-rows/go-product_test.py",
+        ".github/forward-rows/known-flakes_test.py",
+        ".github/forward-rows/linecov-stale_test.py",
+        ".github/forward-rows/release-binaries_test.py"
       ]
     },
     {
