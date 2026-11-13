@@ -349,11 +349,13 @@ Flow status report (change `flows-status-report`, V1-5257, PROD-TEST-010; the pr
   pairs are) and the last recorded result of each. A variation with no attached test is shown with
   an empty test list and the code `no-test`.
 - `AFU-V1-161`: (proposed 2026-11-09; V1-5257; delivery experimental) The last result MUST come
-  from the `test-run-evidence/0` records that name the pair, preferring records bound to `HEAD`'s
-  commit and tree from a clean worktree and, among them, the last in `--evidence` order; with no
-  such record the last record of another tree is reported and marked `stale` with its commit; with
-  no record at all the result is `NOT_OBSERVED`. `STATIC` records never count (AFU-V1-014). The
-  result is the record's AFU-V1-013 classification.
+  from the newest `test-run-evidence/0` record that names the pair: the last in evidence order (the
+  run evidence store's records in append order, then the `--evidence` files), whatever its tree, so
+  an older passing record never hides a newer failing one (RVD-V1-007). The result is marked
+  `stale`, with its commit and tree, unless that record is bound to `HEAD`'s commit and tree from a
+  clean worktree; with no record at all the result is `NOT_OBSERVED`. `STATIC` records never count
+  (AFU-V1-014). The result is the record's AFU-V1-013 classification. (Reconciled 2026-11-13 with
+  RVD-V1-007: earlier text preferred an older clean `HEAD` record over a newer one of another tree.)
 - `AFU-V1-162`: (proposed 2026-11-09; V1-5257; delivery experimental) `corvint-mcp --tool-profile
   flows` MUST advertise the read-only `corvint.flows.status` tool (`flows`, `evidence`, optional
   `base`), which returns the same records as the command for the same inputs; it extends the

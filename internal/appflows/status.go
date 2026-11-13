@@ -52,9 +52,9 @@ type StatusVariation struct {
 	Tests       []StatusTest `json:"tests"`
 }
 
-// StatusTest is one attached test and project pair with its last recorded result (AFU-V1-161):
-// NOT_OBSERVED with no record, else the AFU-V1-013 classification of the chosen record, stale when
-// that record is bound to a tree other than the evaluated one.
+// StatusTest is one attached test and project pair with its last recorded result (AFU-V1-161,
+// RVD-V1-007): NOT_OBSERVED with no record, else the AFU-V1-013 classification of the newest
+// record, stale unless that record is bound to the evaluated commit and tree from a clean worktree.
 type StatusTest struct {
 	TestKey      string `json:"test_key"`
 	Project      string `json:"project"`
@@ -157,31 +157,26 @@ func FlowStatusFrom(ctx context.Context, root string, set IntentSet, evidence []
 	return doccorpus.Encode(report)
 }
 
-// lastResult picks the record that names the pair: the last record in evidence order bound to the
-// evaluated commit and tree from a clean worktree, else the last record of any other tree, marked
-// stale with its commit. STATIC records never count (AFU-V1-014); with no record the result is
-// NOT_OBSERVED (AFU-V1-161).
+// lastResult picks the newest record that names the pair, the last in evidence order (the store's
+// records in append order, then the --evidence files), whatever its tree (RVD-V1-007): a newer
+// failing run is never hidden behind an older passing one. Freshness is reported separately: the
+// result is stale, with its commit and tree, unless the record is bound to the evaluated commit and
+// tree from a clean worktree. STATIC records never count (AFU-V1-014); with no record the result
+// is NOT_OBSERVED (AFU-V1-161).
 func lastResult(evidence []TestRunEvidence, key, project string, at head) StatusTest {
 	t := StatusTest{TestKey: key, Project: project, Result: ResultNotObserved}
-	var current, other *TestRunEvidence
+	var pick *TestRunEvidence
 	for i := range evidence {
 		r := &evidence[i]
 		if r.Authority == AuthorityStatic || r.TestKey != key || (project != "" && r.Project != project) {
 			continue
 		}
-		if r.Source == (RunSource{Commit: at.commit, Tree: at.tree, Clean: true}) {
-			current = r
-		} else {
-			other = r
-		}
-	}
-	pick, stale := current, false
-	if pick == nil {
-		pick, stale = other, true
+		pick = r
 	}
 	if pick == nil {
 		return t
 	}
+	stale := pick.Source != (RunSource{Commit: at.commit, Tree: at.tree, Clean: true})
 	t.Result, t.Stale, t.SourceCommit, t.RunID, t.Authority = Classify(pick.Attempts), stale, pick.Source.Commit, pick.RunID, pick.Authority
 	t.SourceTree = pick.Source.Tree
 	return t
