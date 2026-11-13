@@ -31,6 +31,9 @@ type StatusReport struct {
 	Flows         []StatusFlow `json:"flows"`
 	Totals        StatusTotals `json:"totals"`
 	Truncated     bool         `json:"truncated"`
+	// RunEvidence is what the run evidence store gave the report; absent when the store was not read
+	// (--no-store) or held nothing (RVD-V1-007, RVD-V1-010).
+	RunEvidence *RunEvidenceRead `json:"run_evidence,omitempty"`
 }
 
 // StatusFlow is one flow in intent order; the report computes no complete/incomplete status, which
@@ -49,17 +52,23 @@ type StatusVariation struct {
 	Tests       []StatusTest `json:"tests"`
 }
 
-// StatusTest is one attached test and project pair with its last recorded result (AFU-V1-161):
-// NOT_OBSERVED with no record, else the AFU-V1-013 classification of the chosen record, stale when
-// that record is bound to a tree other than the evaluated one.
+// StatusTest is one attached test and project pair with its last recorded result (AFU-V1-161,
+// RVD-V1-007): NOT_OBSERVED with no record, else the AFU-V1-013 classification of the newest
+// record, stale unless that record is bound to the evaluated commit and tree from a clean worktree.
 type StatusTest struct {
 	TestKey      string `json:"test_key"`
 	Project      string `json:"project"`
 	Result       string `json:"result"`
 	Stale        bool   `json:"stale"`
 	SourceCommit string `json:"source_commit,omitempty"`
-	RunID        string `json:"run_id,omitempty"`
-	Authority    string `json:"authority,omitempty"`
+	// SourceTree is the chosen record's tree; Stale says whether it differs from the evaluated one
+	// (RVD-V1-007).
+	SourceTree string `json:"source_tree,omitempty"`
+	RunID      string `json:"run_id,omitempty"`
+	Authority  string `json:"authority,omitempty"`
+	// Reason is run-evidence-corrupt when the result is NOT_OBSERVED and a skipped store record held
+	// the test (RVD-V1-010).
+	Reason string `json:"reason,omitempty"`
 }
 
 // StatusTotals counts everything the report describes, dropped rows included.
@@ -73,7 +82,17 @@ type StatusTotals struct {
 // (AFU-V1-160). A non-empty base limits the flows to those FlowImpactAt names for it (AFU-V1-163).
 // Test rows past MaxStatusTests are dropped in report order with Truncated set (AFU-V1-164).
 func FlowStatus(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, base string) ([]byte, error) {
+	return FlowStatusFrom(ctx, root, set, evidence, base, nil)
+}
+
+// FlowStatusFrom is FlowStatus over evidence that includes the run evidence store's records, with
+// what the store read gave (RVD-V1-007): the report carries the read, and a test with no result
+// that a skipped record held names run-evidence-corrupt (RVD-V1-010).
+func FlowStatusFrom(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, base string, store *RunEvidenceRead) ([]byte, error) {
 	report := StatusReport{Schema: StatusSchema, Flows: []StatusFlow{}}
+	if store.present() {
+		report.RunEvidence = store
+	}
 	flows := set.Flows
 	if base != "" {
 		raw, err := FlowImpactAt(ctx, root, set, base)
@@ -113,7 +132,11 @@ func FlowStatus(ctx context.Context, root string, set IntentSet, evidence []Test
 						report.Truncated = true
 						continue
 					}
-					variation.Tests = append(variation.Tests, lastResult(evidence, key, project, at))
+					result := lastResult(evidence, key, project, at)
+					if result.Result == ResultNotObserved && store.corruptKey(key, project) {
+						result.Reason = "run-evidence-corrupt"
+					}
+					variation.Tests = append(variation.Tests, result)
 				}
 			}
 			if len(declaredTargets(own, "test", v.VariationID)) == 0 {
@@ -134,31 +157,27 @@ func FlowStatus(ctx context.Context, root string, set IntentSet, evidence []Test
 	return doccorpus.Encode(report)
 }
 
-// lastResult picks the record that names the pair: the last record in evidence order bound to the
-// evaluated commit and tree from a clean worktree, else the last record of any other tree, marked
-// stale with its commit. STATIC records never count (AFU-V1-014); with no record the result is
-// NOT_OBSERVED (AFU-V1-161).
+// lastResult picks the newest record that names the pair, the last in evidence order (the store's
+// records in append order, then the --evidence files), whatever its tree (RVD-V1-007): a newer
+// failing run is never hidden behind an older passing one. Freshness is reported separately: the
+// result is stale, with its commit and tree, unless the record is bound to the evaluated commit and
+// tree from a clean worktree. STATIC records never count (AFU-V1-014); with no record the result
+// is NOT_OBSERVED (AFU-V1-161).
 func lastResult(evidence []TestRunEvidence, key, project string, at head) StatusTest {
 	t := StatusTest{TestKey: key, Project: project, Result: ResultNotObserved}
-	var current, other *TestRunEvidence
+	var pick *TestRunEvidence
 	for i := range evidence {
 		r := &evidence[i]
 		if r.Authority == AuthorityStatic || r.TestKey != key || (project != "" && r.Project != project) {
 			continue
 		}
-		if r.Source == (RunSource{Commit: at.commit, Tree: at.tree, Clean: true}) {
-			current = r
-		} else {
-			other = r
-		}
-	}
-	pick, stale := current, false
-	if pick == nil {
-		pick, stale = other, true
+		pick = r
 	}
 	if pick == nil {
 		return t
 	}
+	stale := pick.Source != (RunSource{Commit: at.commit, Tree: at.tree, Clean: true})
 	t.Result, t.Stale, t.SourceCommit, t.RunID, t.Authority = Classify(pick.Attempts), stale, pick.Source.Commit, pick.RunID, pick.Authority
+	t.SourceTree = pick.Source.Tree
 	return t
 }

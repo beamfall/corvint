@@ -139,7 +139,7 @@ func TestMCPV0100HelpToolSkipsFollowRefBinding(t *testing.T) {
 func TestMCPV0953ToolsDeclareOutputSchema(t *testing.T) {
 	root := filepath.Clean(t.TempDir())
 	gitInit(t, root)
-	for _, profile := range []string{"", "flows", "test-validity,docs"} {
+	for _, profile := range []string{"", "flows", "test-evidence"} {
 		arguments := []string{"--root", root}
 		if profile != "" {
 			arguments = append(arguments, "--tool-profile", profile)
@@ -151,7 +151,7 @@ func TestMCPV0953ToolsDeclareOutputSchema(t *testing.T) {
 		for _, raw := range unavailableListed(t, responses[1]) {
 			tool := raw.(map[string]any)
 			name := tool["name"].(string)
-			if _, declared := tool["outputSchema"]; declared == strings.HasPrefix(name, "corvint.flows.") {
+			if _, declared := tool["outputSchema"]; declared == strings.HasPrefix(name, "corvint.flows_") {
 				t.Fatalf("%q %s outputSchema declared=%v", profile, name, declared)
 			}
 		}

@@ -2,26 +2,33 @@
 
 Build in this order. Each task names its requirement IDs and the proof that closes it.
 
-- [ ] 1 Create `docs/specs/run-evidence-v1.md` with RVD-V1-001 to RVD-V1-012 from the spec delta as
+- [x] 1 Create `docs/specs/run-evidence-v1.md` with RVD-V1-001 to RVD-V1-012 from the spec delta as
    proposed, and regenerate `docs/specs/REQUIREMENTS.tsv`.
    Requirements: RVD-V1-001 to RVD-V1-012. Proof: the spec toolchain check passes.
-- [ ] 2 Add the store package: hash-named records, locked append to `log.jsonl`, reader that
+   Done: V1-5448 filed; RVD-V1 reserved; `docs/specs/run-evidence-v1.md` created and accepted under G14
+   (acceptance-log row `run-evidence`).
+- [x] 2 Add the store package: hash-named records, locked append to `log.jsonl`, reader that
    normalises receipts and ingested documents to per-test rows. Requirements: RVD-V1-001,
    RVD-V1-002, RVD-V1-003, RVD-V1-006. Proof: unit tests for naming, concurrent append and
    normalisation of both profiles.
-- [ ] 3 Add retention, the size cap and corruption handling.
+- [x] 3 Add retention, the size cap and corruption handling.
    Requirements: RVD-V1-009, RVD-V1-010. Proof: unit tests at 21 runs, at the cap, with a bad record
    and an unreadable log.
-- [ ] 4 Append from `corvint test` and `corvint watch`; print `run-evidence-write-failed` on
+- [x] 4 Append from `corvint test` and `corvint watch`; print `run-evidence-write-failed` on
    failure. Requirements: RVD-V1-004, RVD-V1-010. Proof: CLI test that a run adds exactly one
    record, and a test with a read-only store directory.
-- [ ] 5 Add `flows ingest --record`.
+   Done (V1-5448): `corvint test` appends each shard receipt; `corvint watch` reads each save's
+   `go test -json` streams with the Go adapter's parser and appends one `corvint-test-run/0`
+   receipt (tool `corvint watch`) through the same writer (`TestRVDV1004WatchAppendsOneRecordPerSave`
+   injects the save on `--events-stdin`). The RVD-V1-008 "removed verb" scenario is gated on change
+   `source-removal`; its test skips with that reason.
+- [x] 5 Add `flows ingest --record`.
    Requirements: RVD-V1-005. Proof: CLI test that ingest with `--record` adds one record and without
    it prints as before.
-- [ ] 6 Make `flows status`, map, gaps, impact, `corvint test-evidence` and the MCP tools read the
+- [x] 6 Make `flows status`, map, gaps, impact, `corvint test-evidence` and the MCP tools read the
    store by default, with `--no-store`. Requirements: RVD-V1-007, RVD-V1-008, RVD-V1-012. Proof: the
    PROD-TEST-020 end-to-end test; a read-only test showing the store unchanged after each reader.
-- [ ] 7 Check that no selection path reads the store.
+- [x] 7 Check that no selection path reads the store.
    Requirements: RVD-V1-011. Proof: a test that a failing stored result does not change the plan.
-- [ ] 8 Record the trace and the delivery state in the spec.
+- [x] 8 Record the trace and the delivery state in the spec.
    Requirements: all. Proof: the trace check maps every RVD-V1 ID to a test.

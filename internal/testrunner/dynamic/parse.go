@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
 
@@ -182,10 +183,61 @@ func state(s string) string {
 }
 func add(o *tr.Observation, t tr.Test) { o.Tests = append(o.Tests, t) }
 
+// setDuration records a test's measured time and source, or NOT_MEASURED, and lists an invalid
+// reported time under the observation's durationInvalid (PTD-V1-002, PTD-V1-003, PTD-V1-007).
+func setDuration(o *tr.Observation, t *tr.Test, measure testduration.Measure, attempts []int64) {
+	t.DurationMs, t.DurationSource, t.AttemptDurationsMs = measure.Milliseconds, measure.Source, attempts
+	if measure.Invalid {
+		o.DurationInvalid = append(o.DurationInvalid, t.ID)
+	}
+}
+
+// reportedTime is one test's time field in a native report, decoded on its own so that a value
+// of the wrong type never fails the report and loses its outcomes (PTD-V1-007): an absent or null
+// field is a report without the time, NOT_MEASURED (PTD-V1-003); any other value that is not a
+// JSON number in float64 range is a reported but invalid time, NOT_MEASURED and listed under
+// durationInvalid.
+type reportedTime struct {
+	value            float64
+	present, invalid bool
+}
+
+func (r *reportedTime) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" {
+		return nil
+	}
+	r.present = true
+	r.invalid = json.Unmarshal(b, &r.value) != nil
+	return nil
+}
+
+// measure is the time as a Measure, a number read with from (testduration.FromMilliseconds or
+// FromSeconds).
+func (r reportedTime) measure(from func(float64, string) testduration.Measure, source string) testduration.Measure {
+	switch {
+	case !r.present:
+		return testduration.Missing()
+	case r.invalid:
+		return testduration.Measure{Source: testduration.NotMeasured, Invalid: true}
+	}
+	return from(r.value, source)
+}
+
+// durationSources names the report field each of the seven blocking runners' times are read
+// from (PTD-V1-002); a runner outside them records no duration.
+var durationSources = map[string]string{
+	"vitest": testduration.SourceVitest, "jest": testduration.SourceJest, "playwright": testduration.SourcePlaywright,
+	"pytest": testduration.SourcePytest, "rspec": testduration.SourceRSpec, "minitest": testduration.SourceMinitest,
+	"rails-test": testduration.SourceMinitest,
+}
+
 type jestAssertion struct {
 	Title, FullName, Status                      string
 	FailureMessages, RetryReasons, RetryMessages []string
 	Invocations                                  *int
+	// Duration is the assertion's milliseconds as Jest and Vitest report it; absent in a report
+	// without timing.
+	Duration reportedTime
 }
 
 // parseJest reads a native Jest/Vitest JSON report. For the legacy Storybook test-runner
@@ -266,6 +318,9 @@ func parseJest(b []byte, o *tr.Observation, storybookRunner bool) error {
 					problem(o, "retry-history-missing", t.ID)
 				}
 			}
+			if source, timed := durationSources[o.Runner]; timed {
+				setDuration(o, &t, a.Duration.measure(testduration.FromMilliseconds, source), nil)
+			}
 			add(o, t)
 		}
 		if f.Status == "failed" && !fileFailed {
@@ -330,6 +385,7 @@ func parseRSpec(b []byte, o *tr.Observation, corvint bool) error {
 			File                    string `json:"file_path"`
 			Exception               *struct{ Class, Message string }
 			Inclusions              json.RawMessage `json:"shared_group_inclusion_backtrace"`
+			RunTime                 reportedTime    `json:"run_time"`
 		}
 		Summary *struct {
 			Count    int `json:"example_count"`
@@ -369,6 +425,7 @@ func parseRSpec(b []byte, o *tr.Observation, corvint bool) error {
 		if e.Exception != nil && t.State == tr.Passed {
 			problem(o, "exception-conflict", e.ID)
 		}
+		setDuration(o, &t, e.RunTime.measure(testduration.FromSeconds, testduration.SourceRSpec), nil)
 		add(o, t)
 	}
 	if failed != r.Summary.Failures || pending != r.Summary.Pending {
@@ -398,13 +455,24 @@ func parseOwned(b []byte, o *tr.Observation) error {
 	if r.Count != len(r.Tests) {
 		problem(o, "count-mismatch", "profile reporter")
 	}
-	for _, t := range r.Tests {
+	for index, t := range r.Tests {
 		if o.Runner != "cypress" && o.Runner != "mocha" {
 			if len(t.Attempts) > 0 {
 				return fmt.Errorf("unexpected owned-reporter attempts")
 			}
 		} else {
 			validateAttempts(t, o)
+		}
+		// PTD-V1-002: only Corvint's Minitest reporter fills durationMs, from Minitest::Result#time;
+		// it is checked as any reported time is, and no other owned reporter supplies one.
+		reported := t.DurationMs
+		r.Tests[index].DurationMs, r.Tests[index].DurationSource, r.Tests[index].AttemptDurationsMs = nil, "", nil
+		if source := durationSources[o.Runner]; source == testduration.SourceMinitest {
+			measure := testduration.Missing()
+			if reported != nil {
+				measure = testduration.FromMilliseconds(float64(*reported), source)
+			}
+			setDuration(o, &r.Tests[index], measure, nil)
 		}
 	}
 	o.Tests = append(o.Tests, r.Tests...)
