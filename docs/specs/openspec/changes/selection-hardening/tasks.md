@@ -24,15 +24,15 @@ requirement IDs and its proof.
     the fixture test of the fix.
 - [x] 7 One effect and verdict function; affected, test and MCP print it; non-empty hints.
    Requirements: SLF-V1-007. Proof: three-surface parity test. Done (2026-11-13):
-   `sessiontest.SelectionVerdictOf`, which `Build` shares; `TestSelectionVerdictParityAcrossSurfaces_SLFV1007`
-   and the `effect_slfv1007_test.go` unit tests. Limit: an `UNOWNED_DIRTY_PATH` is `forces-full`
-   in affected and MCP, which build no Go index to attribute it.
+   `sessiontest.Input.SelectionVerdict` reports `decideScope`, the scope decision `Build` applies,
+   and every surface fills its input the same way; `TestSelectionVerdictParityAcrossSurfaces_SLFV1007`,
+   `TestSelectionVerdictUnownedPathParity_SLFV1007` and the `effect_slfv1007_test.go` unit tests.
 - [ ] 8 Fault-injection cases per narrowing rule; enable each rule only after its cases pass.
    Requirements: SLF-V1-006. Proof: FIH-V1 report per rule. Partly done (2026-11-13): six cases
    per rule, selection side only (`TestSLFV1006ImportRootFaultCases`, `TestSLFV1006GlobFaultCases`,
    `TestSLFV1006LiteralConfigFaultCases`); FIH-V1 reports NOT_PRODUCED (no pytest, Vitest or Jest
    adapter, FIH-V1-008; no sealed pre-registration on a pinned proof repository), so every gate
-   stays off.
+   stays off. The two `require.context` cases claim no killer: Vitest has no `require.context`.
 - [ ] 9 Split test and driver counts. Requirements: SLF-V1-008. Proof: summary and JSON golden
       tests. Done for the stderr headline (SLF-V1-008 as amended 2026-11-11 under owner
       delegation): `TestAffectedHeadlineCountsTestsAndDriversApart_SLFV1008` and
