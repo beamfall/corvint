@@ -110,7 +110,9 @@ other lockfile; the toolchain pin; `.github/**`; `Makefile`; runner configuratio
 configuration; generator inputs; build-tag inputs; snapshot update paths; the map file itself;
 `.corvint/test-read-scopes.json`; secret and environment configuration. A `go:embed` input is owned
 by its embedding package (NCM-V1-001) and selects that package and its dependents. (G15b;
-orchestrator ruling 2026-11-11)
+orchestrator ruling 2026-11-11) No map entry narrows `.corvint/test-read-scopes.json`; NCM-V1-006
+alone decides it, and keeps the selector's own entry-by-entry attribution only when that
+attribution is provable (owner-delegated amendment 2026-11-13, V1-5465).
 
 Earlier wording, superseded by the 2026-11-11 ruling, listed "`go:embed` and build-tag inputs"
 together.
@@ -130,8 +132,18 @@ private ledgers `self-observations.jsonl` and `unplanned-reads.jsonl`, whose cha
 test; and a sealed CEM directly under `.corvint/changes/` named by a 40- or 64-digit lowercase
 hexadecimal commit, which is change evidence, not configuration, and MUST keep the selector's
 ADN-V0-011 evidence attribution (its planned readers, else rule (c)). Any other name under
-`changes/` stays configuration. (G16, narrowed by owner decision R31 (2026-11-09); sealed CEMs
-added 2026-11-12, `docs/build-log/2026-11-12-ncm-sealed-cem-evidence.md`)
+`changes/` stays configuration. The read-scope declaration `.corvint/test-read-scopes.json` and its
+literal exemptions `.corvint/test-read-scope-literals.json` are configuration too, but a change the
+selector can attribute MUST keep the selector's attribution, printed `read-scope-declaration` with
+the path: for the declaration, when the current declaration is valid and the plan's base
+declaration is known, only the packages whose entries were added, changed or removed, those whose
+declared scope holds the declaration and the declaration's own readers (AFP-V0-050, AFP-V0-9712);
+for the literal exemptions, which only the declaration tools read, when the current file is absent
+or a valid record, its readers (AFP-V0-9713). A change it cannot attribute MUST select everything
+with reason `corvint-config`. (G16, narrowed by owner decision R31 (2026-11-09); sealed CEMs
+added 2026-11-12, `docs/build-log/2026-11-12-ncm-sealed-cem-evidence.md`; read-scope declarations
+added 2026-11-13 as an owner-delegated amendment under the owner's 2026-11-12 decision that filed
+V1-5465, `docs/build-log/2026-11-13-selwalk1113.md`)
 
 Earlier wording, superseded by R31: "A change to any `.corvint/` declaration or to the map file MUST
 select everything."
@@ -150,6 +162,13 @@ select everything."
 - GIVEN a change that only appends to `.corvint/self-observations.jsonl`
 - WHEN the plan is computed for that change
 - THEN no test is added for that path
+
+**Scenario: One read-scope entry changed**
+- GIVEN a change to one package's entries in `.corvint/test-read-scopes.json` and a known plan base
+- WHEN the plan is computed for that change
+- THEN that package and the declaration's own readers are selected, with the line
+  `noncode read-scope-declaration .corvint/test-read-scopes.json`, and with no base every test is
+  selected with reason `corvint-config`
 
 - `NCM-V1-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5424) Versioned and strict
 
@@ -204,9 +223,10 @@ These rules state how V1-5424 reads the requirements above. They add no requirem
       (`FLOWS_DECLARATION_INVALID` in `plan.e2e.unknown`, or `E2E_FLOWS_INVALID`), or names no flow
       join for a changed flow file (`.corvint/flows.json` or the deprecated `.corvint/e2e-flows.json`),
       the changed flows cannot be computed and the path selects everything (`flows-unreadable`);
-   3. a declared documentation path under `.corvint/` keeps `DECLARED_DOCUMENTATION`; every other
-      path under `.corvint/` selects everything (`corvint-config`), the map file and
-      `.corvint/test-read-scopes.json` included;
+   3. a declared documentation path under `.corvint/` keeps `DECLARED_DOCUMENTATION`; a read-scope
+      declaration edit the selector can attribute keeps its attribution (`read-scope-declaration`,
+      no full run); every other path under `.corvint/` selects everything (`corvint-config`), the
+      map file and an unattributable read-scope declaration edit included;
    4. a path on the never-narrow list (rule 4) selects everything (`never-narrowed-path`), or
       `runner-removed` when the path is runner configuration the change deleted;
    5. a declared documentation path adds nothing (`DECLARED_DOCUMENTATION`; the existing
@@ -314,7 +334,9 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 `packageBounds` (tools/gate-ledger) still applies it:
 
 - An edit of `.corvint/test-read-scopes.json` was narrowed against the plan's base by rule
-  AFP-V0-050; it now runs everything (`corvint-config`; NCM-V1-005 lists it).
+  AFP-V0-050; it ran everything (`corvint-config`) from V1-5424 until V1-5465, which restores the
+  narrowing when the base declaration is known (`read-scope-declaration`, AFP-V0-9712) and keeps
+  the full run otherwise.
 - A sealed CEM under `.corvint/changes/` and the retired sidecar `.corvint/change.cem.json` were
   narrowed to their resolving readers by rules AFP-V0-152, AFP-V0-2744, AFP-V0-2746, AFP-V0-3423
   and ADN-V0-011; both now run everything (`corvint-config`, the orchestrator's call above), and
@@ -357,7 +379,7 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 | NCM-V1-003 | `TestNCMV1003ProposalWritesStdoutOnly` (`internal/noncodemap`); `TestNCMV1003ProposeDataMapCommand` (`cmd/corvint`) |
 | NCM-V1-004 | `TestNCMV1004UnprovenEntryDoesNotNarrow` (`internal/noncodemap`) |
 | NCM-V1-005 | `TestNCMV1005NeverNarrowedPaths` (go:embed input not listed), `TestNCMV1005LockfileIgnoresEntry` (`internal/noncodemap`); `TestNCMV1SelectorNeverNarrowed`, `TestNCMV1SelectorEmbeddedInputNarrowsToItsPackage` (`internal/gateselect`) |
-| NCM-V1-006 | `TestNCMV1006CorvintConfigSelectsEverything`, `TestNCMV1006FlowFileAddsLinkedTestsOnly` (both flow files unjoined), `TestNCMV1006LedgerAppendAddsNothing` (`internal/noncodemap`); `TestNCMV1SelectorCorvintConfig`, `TestNCMV1SelectorLedgerAndFlow` (`internal/gateselect`) |
+| NCM-V1-006 | `TestNCMV1006CorvintConfigSelectsEverything`, `TestNCMV1006FlowFileAddsLinkedTestsOnly` (both flow files unjoined), `TestNCMV1006LedgerAppendAddsNothing`, `TestNCMV1006ReadScopeDeclarationNarrowsWhenAttributable_V15465` (`internal/noncodemap`); `TestNCMV1SelectorCorvintConfig`, `TestNCMV1SelectorLedgerAndFlow`, `TestSelectPackagesNarrowsDeclarationEditsAgainstTheBase_AFPV0050`, `TestReadScopeDeclarationNarrowingFaults_AFPV09712`, `TestReadScopeLiteralsNarrowToReaders_AFPV09713` (`internal/gateselect`); `TestSelectorNarrowsDeclarationEditAgainstThePlanBase_AFPV0050` (`tools/gate-affected-select`) |
 | NCM-V1-007 | `TestNCMV1007RefusesUnknownVersion`, `TestNCMV1007RefusesUnknownMember`, `TestNCMV1007RefusesMalformedOrOversized` (`internal/noncodemap`); `TestNCMV1SelectorInvalidMap` (`internal/gateselect`); `TestNCMV1003ProposeDataMapCommand` (`cmd/corvint`, exit 2) |
 | NCM-V1-008 | `TestNCMV1008StaleEntryDoesNotNarrow` (`internal/noncodemap`); `TestNCMV1SelectorInvalidMap`, `TestNCMV1SelectorConfirmsCitedTests` (`internal/gateselect`) |
 | NCM-V1-009 | `TestNCMV1009RepeatedReadIsByteIdentical`, `TestNCMV1009DecisionIsDeterministic` (`internal/noncodemap`) |
