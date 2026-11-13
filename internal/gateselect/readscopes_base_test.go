@@ -92,8 +92,9 @@ func declaration(packages string) string {
 
 // declaredLines returns the packages selectPackages selects on a `declared`
 // line, in order, and the verdict.
-// It reads the attribution without the NCM-V1 decision, which now runs
-// everything for an edit of the declaration (NCM-V1-005, V1-5424).
+// It reads the attribution without the NCM-V1 decision, which runs
+// everything for an edit of the declaration the selector cannot attribute
+// (NCM-V1-006 as amended for V1-5465).
 func declaredLines(plan Receipt, root string) ([]string, string) {
 	output := attributionLines(plan, root, true)
 	var declared []string
@@ -109,8 +110,9 @@ func declaredLines(plan Receipt, root string) ([]string, string) {
 // declaration selects only the packages whose key was added, changed or
 // removed, and a package whose declared scope holds the declaration; an
 // unknown base keeps the AFP-V0-023 rule and selects every declared package.
-// Both selectors now run everything for that edit (NCM-V1-005, V1-5424); the
-// cases keep covering the base comparison the attribution still makes.
+// With the base known both selectors keep that attribution, printed
+// read-scope-declaration (AFP-V0-9712, V1-5465); with it unknown the edit
+// is unattributable and both run everything (NCM-V1-006).
 func TestSelectPackagesNarrowsDeclarationEditsAgainstTheBase_AFPV0050(t *testing.T) {
 	files := map[string]string{}
 	for _, name := range []string{"alpha", "beta", "gamma", "delta", "keeper"} {
@@ -121,16 +123,16 @@ func TestSelectPackagesNarrowsDeclarationEditsAgainstTheBase_AFPV0050(t *testing
 	cases := []struct {
 		name, current, revision, base string
 		want                          []string
-		snapshot                      bool
+		snapshot, narrows             bool
 	}{
-		{"added key", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, base, "", []string{"gamma", "keeper"}, false},
-		{"changed entries", `"alpha":["docs/"],"beta":["spec/"],"delta":["docs/"],"keeper":[".corvint/"]`, base, "", []string{"beta", "keeper"}, false},
-		{"removed key", `"alpha":["docs/"],"beta":["docs/"],"keeper":[".corvint/"]`, base, "", []string{"delta", "keeper"}, false},
-		{"range base wins over revision", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, strings.Repeat("0", 40), base, []string{"gamma", "keeper"}, false},
-		{"no base", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, "", "", []string{"alpha", "beta", "delta", "gamma", "keeper"}, false},
-		{"missing commit", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, strings.Repeat("0", 40), "", []string{"alpha", "beta", "delta", "gamma", "keeper"}, false},
-		{"snapshot plan", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, base, base, []string{"alpha", "beta", "delta", "gamma", "keeper"}, true},
-		{"abbreviated commit", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, base[:12], "", []string{"alpha", "beta", "delta", "gamma", "keeper"}, false},
+		{"added key", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, base, "", []string{"gamma", "keeper"}, false, true},
+		{"changed entries", `"alpha":["docs/"],"beta":["spec/"],"delta":["docs/"],"keeper":[".corvint/"]`, base, "", []string{"beta", "keeper"}, false, true},
+		{"removed key", `"alpha":["docs/"],"beta":["docs/"],"keeper":[".corvint/"]`, base, "", []string{"delta", "keeper"}, false, true},
+		{"range base wins over revision", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, strings.Repeat("0", 40), base, []string{"gamma", "keeper"}, false, true},
+		{"no base", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, "", "", []string{"alpha", "beta", "delta", "gamma", "keeper"}, false, false},
+		{"missing commit", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, strings.Repeat("0", 40), "", []string{"alpha", "beta", "delta", "gamma", "keeper"}, false, false},
+		{"snapshot plan", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, base, base, []string{"alpha", "beta", "delta", "gamma", "keeper"}, true, false},
+		{"abbreviated commit", `"alpha":["docs/"],"beta":["docs/"],"delta":["docs/"],"gamma":["docs/"],"keeper":[".corvint/"]`, base[:12], "", []string{"alpha", "beta", "delta", "gamma", "keeper"}, false, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -144,7 +146,11 @@ func TestSelectPackagesNarrowsDeclarationEditsAgainstTheBase_AFPV0050(t *testing
 			if tc.snapshot {
 				plan.Snapshot = map[string]any{"id": "s"}
 			}
-			requireCorvintConfig(t, plan, root, readScopesPath)
+			if tc.narrows {
+				requireReadScopeNarrowing(t, plan, root, tc.want)
+			} else {
+				requireCorvintConfig(t, plan, root, readScopesPath)
+			}
 			declared, verdict := declaredLines(plan, root)
 			if !slices.Equal(declared, tc.want) {
 				t.Fatalf("declared %v, want %v (verdict %q)", declared, tc.want, verdict)
@@ -279,4 +285,16 @@ func TestSkippedDirectoriesMirrorTheObserverWalk(t *testing.T) {
 	if !maps.Equal(skippedDirectories, want) {
 		t.Fatalf("skippedDirectories = %v, want %v", skippedDirectories, want)
 	}
+}
+
+// requireReadScopeNarrowing checks that both selectors print the
+// read-scope-declaration line for the declaration edit and run exactly the
+// packages want names (AFP-V0-9712).
+func requireReadScopeNarrowing(t *testing.T, plan Receipt, root string, want []string) {
+	t.Helper()
+	var packages []string
+	for _, name := range want {
+		packages = append(packages, fixtureModule+"/"+name)
+	}
+	requireVerdict(t, plan, root, "run "+strings.Join(packages, " "), "noncode read-scope-declaration "+readScopesPath)
 }
