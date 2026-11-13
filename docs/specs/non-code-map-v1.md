@@ -14,7 +14,7 @@ owner decisions R31 and R32).
 ## Agent digest
 - Claim: A changed non-code file runs every test unless a proven, accepted map entry narrows it; some paths always run everything.
 - Status: accepted / partial. Change `non-code-map` auto-accepted under G14 (decision 0596); the FIH-V1 proof link waits for V1-5405.
-- Exists: `internal/noncodemap` (strict `corvint-data-map/0` reader, entry status, never-narrow list, per-path decision, proposal from recorded reads); the AFP-V0-012 selector prints the decision and falls back to a full run for a path no runner attributes (`unowned-path`); a Go-attributed path stays owned and narrows (orchestrator ruling 2026-11-11); a `Makefile` edit narrows to its changed targets when every changed line is attributable, fail-closed otherwise (NCM-V1-010 to NCM-V1-017).
+- Exists: `internal/noncodemap` (strict `corvint-data-map/0` reader, entry status, never-narrow list, per-path decision, proposal from recorded reads); the AFP-V0-012 selector prints the decision and falls back to a full run for a path no runner attributes (`unowned-path`); a Go-attributed path stays owned and narrows (orchestrator ruling 2026-11-11); a `Makefile` edit narrows to its changed targets when every changed line is attributable, fail-closed otherwise (NCM-V1-010 to NCM-V1-019).
 - Blocked on: V1-5405 (fault-injection harness) for the proof link; until it lands no entry can be `proven`, so no entry narrows.
 - Read next: Delivered rules; Traceability.
 
@@ -27,7 +27,7 @@ entry stayed on the narrowing allowlist (AFP-V0-982), so a path no plugin claims
 no proof that its readers were all selected.
 
 This spec is the canonical home of requirements NCM-V1-001 to NCM-V1-009, copied from the change's
-`specs/non-code-map/spec.md`, and of NCM-V1-010 to NCM-V1-017, the owner-delegated amendment of
+`specs/non-code-map/spec.md`, and of NCM-V1-010 to NCM-V1-019, the owner-delegated amendment of
 NCM-V1-005 for make file edits (2026-11-13, V1-5465). Design decisions, failure modes and rollback stay in the change's
 `design.md`, which owns them; this file adds the delivered rules, the orchestrator decision on the
 design's first open question, and the delivery record (Surfaces, Traceability).
@@ -110,7 +110,7 @@ The following MUST always select everything, whatever the map says: `go.mod`, `g
 other lockfile; the toolchain pin; `.github/**`; `Makefile`; runner configuration; release
 configuration; generator inputs; build-tag inputs; snapshot update paths; the map file itself;
 `.corvint/test-read-scopes.json`; secret and environment configuration. No map entry narrows a
-`Makefile`, `makefile` or `GNUmakefile`; NCM-V1-010 to NCM-V1-017 alone decide an edit of one, and
+`Makefile`, `makefile` or `GNUmakefile`; NCM-V1-010 to NCM-V1-019 alone decide an edit of one, and
 narrow it to its changed targets only when every changed line is attributable, while an included
 `*.mk` file stays on this list (owner-delegated amendment 2026-11-13, V1-5465). A `go:embed` input is owned
 by its embedding package (NCM-V1-001) and selects that package and its dependents. (G15b;
@@ -212,8 +212,10 @@ depth) MUST NOT select everything when the selector attributes every changed lin
 (NCM-V1-011, NCM-V1-012) and bounds what those rules can run (NCM-V1-013, NCM-V1-014). It then
 prints `noncode make-targets <path> -> <targets>` naming the changed targets, keeps the make file's
 own Go readers (rule (c), declared and unresolved readers, as for any other path), and adds the
-packages of NCM-V1-013 and NCM-V1-014. An edit no target reads (a comment or blank line) names no
-target and adds only those readers. Any edit the selector cannot attribute or bound MUST select
+packages of NCM-V1-013 and NCM-V1-014. Qualification (`SelectQualified`) MUST keep each package
+NCM-V1-013 and NCM-V1-014 add: its Go-only graph holds no make edge, so its exclusion certificate
+cannot remove one (amended 2026-11-13 after the independent review, V1-5465). An edit no target
+reads (a comment or blank line) names no target and adds only those readers. Any edit the selector cannot attribute or bound MUST select
 everything with reason `never-narrowed-path`, the path and `: make edit: <why>`. An included `*.mk`
 file stays never narrowed (NCM-V1-005). (owner decision on V1-5465, delegated, 2026-11-13: widen
 NCM-V1-005 for Makefile edits, fail-closed, with misses kept at 0 on the selection-baseline replay)
@@ -234,7 +236,8 @@ top-level assignment (no `export`, `override`, `private` or `unexport`, outside 
 and define block) of a variable whose every use site, at the base and at the head, is an explicit
 rule's text or another plain assignment, followed through each such assignment; the variable then
 selects every rule that uses it. A use site is any whole-token occurrence of the name, so an
-attribution can only widen. A new explicit rule is a changed rule.
+attribution can only widen. A new explicit rule is a changed rule. Lines are compared per rule and
+per variable only once the file's statements keep their relative order (NCM-V1-018).
 
 **Scenario: A variable used by two recipes**
 - GIVEN a change to `FLAGS = -v`, which only the recipes of `a` and `b` reference
@@ -265,12 +268,16 @@ or `$(value)`; and any changed variable in a file that names a variable by a com
 
 From each changed target the selector MUST follow the driver units through prerequisites and the
 make invocations of recipes, and add, printed `make <pkg> <- <path>`, every Go package whose
-directory a reached unit runs or reads, or holds a file it does. The reach MUST select everything
-when a reached unit runs a command or make goal that does not resolve, sits in a file outside the
-parsed subset, or imports a unit the driver units do not hold. A reached unit whose commands resolve
-but read what the graph does not bound (an evaluated, uncertified computed site, or a whole-tree
-read) still runs only what it names, so it stays bounded. NCM-V1-016 and NCM-V1-017 refine which
-targets and commands resolve.
+directory a reached unit runs or reads, or holds a file it does. The driver's whole-tree pattern
+(`./...`, `all`, the module path, or any pattern it cannot place, recorded as `...`) MUST add every
+package, the root package among them, and the root itself (`.`) and a root-level file the root
+package. The reach MUST select everything when a reached unit runs a command or make goal that does
+not resolve, runs a command whose own execution the scan does not follow (NCM-V1-019), sits in a
+file outside the parsed subset, or imports a unit the driver units do not hold. A reached unit whose
+commands resolve and are followed but read what the graph does not bound (an evaluated, uncertified
+computed site, or a whole-tree read) still runs only what it names, so it stays bounded. NCM-V1-016,
+NCM-V1-017 and NCM-V1-019 refine which targets and commands resolve. (root encodings and NCM-V1-019
+amended 2026-11-13 after the independent review, V1-5465)
 
 **Scenario: A prerequisite's package**
 - GIVEN a changed target `all: check` and `check`, which runs `go test ./tool`
@@ -349,10 +356,52 @@ Ruby or Lua option or path name, `CC`, `CXX`, `CLASSPATH`, or a name starting wi
 resolved as before. Such a site stays computed and uncertified for the planner (AFP-V0-3128); only
 the make edit's reach reads it as resolved.
 
-**Scenario: A reason for the heavy-run wrapper**
-- GIVEN a changed target whose recipe is `HEAVY_WHOLE_REASON='x' script/heavy.sh go test ./tool`
+**Scenario: A literal reason in front of go test**
+- GIVEN a changed target whose recipe is `HEAVY_WHOLE_REASON='x' go test ./tool`
 - WHEN the reach follows it
-- THEN `<module>/tool` is selected and the reach stays bounded
+- THEN `<module>/tool` is selected and the reach stays bounded; the same prefix in front of
+  `script/heavy.sh go test ./tool` still selects everything, because the script is not followed
+  (NCM-V1-019)
+
+- `NCM-V1-018`: (accepted under owner delegation 2026-11-13; V1-5465) Make file statements keep their order
+
+Make expands an immediate (`:=`, `::=`) assignment, a prerequisite list and an include against the
+values assigned before it, so moving a statement can change what a target runs while every
+per-variable assignment list and every rule's text stays the same. The selector MUST compare the
+file's top-level statements in order at the base and at the head, each by its identity (a plain
+assignment by its variable's name, an explicit rule line by its targets, any other line outside every
+rule by its text, recipes left out), restricted to the identities each side holds equally often,
+and MUST select everything, with `the order of make file statements changed at <statement>`, when
+the two orders differ. A statement added, removed or repeated a different number of times is a
+changed variable, a new or removed rule or a changed line, which NCM-V1-011 and NCM-V1-012
+attribute or refuse. A moved first target changes the default goal (NCM-V1-012).
+
+**Scenario: An immediate assignment moved**
+- GIVEN `PKG = ./a`, `RUN := go test $(PKG)`, `PKG = ./b` and target `t` running `$(RUN)`, and a
+  change that moves `RUN := go test $(PKG)` after both assignments of `PKG`
+- WHEN the selector decides the plan
+- THEN every test is selected with
+  `never-narrowed-path Makefile: make edit: the order of make file statements changed at "assign PKG"`
+
+- `NCM-V1-019`: (accepted under owner delegation 2026-11-13; V1-5465) Commands whose execution the reach does not follow
+
+In the reach of NCM-V1-013, a command MUST count as unresolved unless the scan follows its whole
+execution: a pure or bounded command of the driver's scanner (`echo`, `mkdir`, `cat` and the like),
+which runs no other program; `make`, whose goals are the unit's edges; a `go` command other than
+`go generate` or `go tool`, with no `-exec`, `-toolexec` or `-vettool` program, which runs only the
+packages it names; `sh -c` and the like, whose inline script is scanned as its own commands; and
+`find` with no `-exec`, `-execdir`, `-ok`, `-okdir` or `-delete`. A command word that is a path (a
+repository script or binary), an interpreter given a file, a sourced file, a `trap`, `xargs`, and
+every other program MUST leave the target's reach unbounded, so the edit selects everything: such a
+command may run tests it does not name. The mark exists only in the reach: the planner's units and
+computed sites are unchanged.
+
+**Scenario: A script that runs go test**
+- GIVEN target `check` runs `script/check.sh`, which runs `go test ./tool`, and a change makes it
+  `script/check.sh --race`
+- WHEN the selector decides the plan
+- THEN every test is selected with
+  `never-narrowed-path Makefile: make edit: make target "check" runs a command or make goal that does not resolve`
 
 ## Delivered rules
 
@@ -518,20 +567,20 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 
 - `internal/noncodemap`: `Parse`, `Read`, `Evaluate`, `NeverNarrowed`, `Decide`, `Propose`.
 - `internal/liveverify/affected`: `AttributeMakeEdit`, `ReachMakeTargets` and `ReachMakeEdit`
-  (NCM-V1-011 to NCM-V1-017), on the driver's make parse, units and shell scanner.
+  (NCM-V1-011 to NCM-V1-019), on the driver's make parse, units and shell scanner.
 - `internal/gateselect`: `makeEditAttribution` (`makeedit.go`) reads the base make file and wires
-  NCM-V1-010 to NCM-V1-017 into `Decide` as `Input.MakeEdit`.
+  NCM-V1-010 to NCM-V1-019 into `Decide` as `Input.MakeEdit`.
 - `internal/gateselect`: `selectPackagesFrom` applies `Decide` to every plan, with
   `repositoryIndex.attributed` and the plan's declared-reader witnesses as Go attribution;
   `AllowedUnknown` keeps admitting `UNOWNED_DIRTY_PATH`; `SelectQualified` keeps a named NCM full
-  run's reason.
+  run's reason and, through `selectPackagesObliged`, every package a make edit adds (NCM-V1-010).
 - `corvint affected --propose-data-map RECORDED`.
 
 ## Delivery state
 
 - Delivered under V1-5424: NCM-V1-001, 002, 003, 005, 006, 007, 008 and 009; the refusal side of
   NCM-V1-004 (no entry narrows without a confirmed fault case).
-- Delivered under V1-5465: NCM-V1-010 to NCM-V1-017 (`docs/build-log/2026-11-13-mknarrow1113.md`).
+- Delivered under V1-5465: NCM-V1-010 to NCM-V1-019 (`docs/build-log/2026-11-13-mknarrow1113.md`).
 - Waiting: NCM-V1-004's proof link to FIH-V1 non-code fault cases, after V1-5405 lands (change task 6).
 - Acceptance fixtures (change task 7): see the build-log entry
   `docs/build-log/2026-11-11-non-code-map.md` for the fixtures delivered and missing.
@@ -552,8 +601,10 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 | NCM-V1-010 | `TestNCMV1010MakeEditNarrowsWhenAttributable` (`internal/noncodemap`); `TestNCMV1010SelectorNarrowsMakeEdit`, `TestNCMV1SelectorNeverNarrowed` (no base) (`internal/gateselect`) |
 | NCM-V1-011 | `TestAttributeMakeEditTargets_NCMV1011` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
 | NCM-V1-012 | `TestAttributeMakeEditFailsClosed_NCMV1012` (`internal/liveverify/affected`); `TestNCMV1012SelectorMakeEditFailsClosed` (`internal/gateselect`) |
-| NCM-V1-013 | `TestReachMakeTargets_NCMV1013` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
+| NCM-V1-013 | `TestReachMakeTargets_NCMV1013` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (final qualified set), `TestNCMV1013SelectorRootPatterns` (`internal/gateselect`) |
 | NCM-V1-014 | `TestReachMakeTargetsCI_NCMV1014`, `TestReachMakeEditInstance_NCMV1016` (touched rule) (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit`, `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-015 | `TestAttributeMakeEditWordList_NCMV1015`, `TestAttributeMakeEditWordListFailsClosed_NCMV1015` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-016 | `TestReachMakeEditInstance_NCMV1016` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-017 | `TestDriverEnvPrefix_NCMV1017` (`internal/liveverify/affected`) |
+| NCM-V1-018 | `TestAttributeMakeEditOrder_NCMV1018` (`internal/liveverify/affected`); `TestNCMV1018SelectorOrderMove` (`internal/gateselect`) |
+| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript` (`internal/gateselect`) |
