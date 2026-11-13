@@ -42,6 +42,12 @@ func stampTestIDs(invocations []Invocation, goDir func(string) (string, bool)) {
 	for index := range invocations {
 		outcomes := invocations[index].Outcomes
 		for at := range outcomes {
+			if invocations[index].Adapter == AdapterContract {
+				// A contract unit is its own file-level canonical test ID
+				// (RNC-V1-012, RNC-V1-019).
+				outcomes[at].TestID = outcomes[at].Unit
+				continue
+			}
 			outcomes[at].TestID = UnitTestID(outcomes[at].Unit, goDir)
 		}
 	}
