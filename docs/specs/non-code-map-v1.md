@@ -14,7 +14,7 @@ owner decisions R31 and R32).
 ## Agent digest
 - Claim: A changed non-code file runs every test unless a proven, accepted map entry narrows it; some paths always run everything.
 - Status: accepted / partial. Change `non-code-map` auto-accepted under G14 (decision 0596); the FIH-V1 proof link waits for V1-5405.
-- Exists: `internal/noncodemap` (strict `corvint-data-map/0` reader, entry status, never-narrow list, per-path decision, proposal from recorded reads); the AFP-V0-012 selector prints the decision and falls back to a full run for a path no runner attributes (`unowned-path`); a Go-attributed path stays owned and narrows (orchestrator ruling 2026-11-11).
+- Exists: `internal/noncodemap` (strict `corvint-data-map/0` reader, entry status, never-narrow list, per-path decision, proposal from recorded reads); the AFP-V0-012 selector prints the decision and falls back to a full run for a path no runner attributes (`unowned-path`); a Go-attributed path stays owned and narrows (orchestrator ruling 2026-11-11); a `Makefile` edit narrows to its changed targets when every changed line is attributable, fail-closed otherwise (NCM-V1-010 to NCM-V1-014).
 - Blocked on: V1-5405 (fault-injection harness) for the proof link; until it lands no entry can be `proven`, so no entry narrows.
 - Read next: Delivered rules; Traceability.
 
@@ -27,7 +27,8 @@ entry stayed on the narrowing allowlist (AFP-V0-982), so a path no plugin claims
 no proof that its readers were all selected.
 
 This spec is the canonical home of requirements NCM-V1-001 to NCM-V1-009, copied from the change's
-`specs/non-code-map/spec.md`. Design decisions, failure modes and rollback stay in the change's
+`specs/non-code-map/spec.md`, and of NCM-V1-010 to NCM-V1-014, the owner-delegated amendment of
+NCM-V1-005 for make file edits (2026-11-13, V1-5465). Design decisions, failure modes and rollback stay in the change's
 `design.md`, which owns them; this file adds the delivered rules, the orchestrator decision on the
 design's first open question, and the delivery record (Surfaces, Traceability).
 
@@ -108,14 +109,17 @@ in the mapped file was killed and the killing test is within the entry's `tests`
 The following MUST always select everything, whatever the map says: `go.mod`, `go.sum` and every
 other lockfile; the toolchain pin; `.github/**`; `Makefile`; runner configuration; release
 configuration; generator inputs; build-tag inputs; snapshot update paths; the map file itself;
-`.corvint/test-read-scopes.json`; secret and environment configuration. A `go:embed` input is owned
+`.corvint/test-read-scopes.json`; secret and environment configuration. No map entry narrows a
+`Makefile`, `makefile` or `GNUmakefile`; NCM-V1-010 to NCM-V1-014 alone decide an edit of one, and
+narrow it to its changed targets only when every changed line is attributable, while an included
+`*.mk` file stays on this list (owner-delegated amendment 2026-11-13, V1-5465). A `go:embed` input is owned
 by its embedding package (NCM-V1-001) and selects that package and its dependents. (G15b;
 orchestrator ruling 2026-11-11) No map entry narrows `.corvint/test-read-scopes.json`; NCM-V1-006
 alone decides it, and keeps the selector's own entry-by-entry attribution only when that
 attribution is provable (owner-delegated amendment 2026-11-13, V1-5465).
 
 Earlier wording, superseded by the 2026-11-11 ruling, listed "`go:embed` and build-tag inputs"
-together.
+together. Until the 2026-11-13 amendment for V1-5465, every `Makefile` edit selected everything.
 
 **Scenario: Lockfile**
 - GIVEN a change to `package-lock.json` and an entry claiming two tests
@@ -201,6 +205,91 @@ same inputs. (invariant 4; G15b)
 - WHEN the plan is computed twice
 - THEN both outputs are identical and the worktree is unchanged
 
+- `NCM-V1-010`: (accepted under owner delegation 2026-11-13; V1-5465) Make file edits narrow to their changed targets
+
+An edit of a make file GNU make reads by default (`Makefile`, `makefile` or `GNUmakefile`, at any
+depth) MUST NOT select everything when the selector attributes every changed line to explicit rules
+(NCM-V1-011, NCM-V1-012) and bounds what those rules can run (NCM-V1-013, NCM-V1-014). It then
+prints `noncode make-targets <path> -> <targets>` naming the changed targets, keeps the make file's
+own Go readers (rule (c), declared and unresolved readers, as for any other path), and adds the
+packages of NCM-V1-013 and NCM-V1-014. An edit no target reads (a comment or blank line) names no
+target and adds only those readers. Any edit the selector cannot attribute or bound MUST select
+everything with reason `never-narrowed-path`, the path and `: make edit: <why>`. An included `*.mk`
+file stays never narrowed (NCM-V1-005). (owner decision on V1-5465, delegated, 2026-11-13: widen
+NCM-V1-005 for Makefile edits, fail-closed, with misses kept at 0 on the selection-baseline replay)
+
+**Scenario: One recipe changed**
+- GIVEN a change to the recipe of target `check`, which runs `go test ./tool`, and a known plan base
+- WHEN the selector decides the plan
+- THEN it prints `noncode make-targets Makefile -> check` and `make <module>/tool <- Makefile`, and
+  does not run everything
+
+- `NCM-V1-011`: (accepted under owner delegation 2026-11-13; V1-5465) What a changed make file line is attributed to
+
+Attribution MUST use the driver's own make parse (AZU-V0-001), never a second parser, of the file at
+the plan's base, read from immutable Git objects, and at the head. A changed line is attributable
+when it lies in an explicit rule's text (its header and prerequisite list, a target-specific
+assignment, its recipe, or its `.PHONY` membership), which selects that rule; or when it is a plain
+top-level assignment (no `export`, `override`, `private` or `unexport`, outside every conditional
+and define block) of a variable whose every use site, at the base and at the head, is an explicit
+rule's text or another plain assignment, followed through each such assignment; the variable then
+selects every rule that uses it. A use site is any whole-token occurrence of the name, so an
+attribution can only widen. A new explicit rule is a changed rule.
+
+**Scenario: A variable used by two recipes**
+- GIVEN a change to `FLAGS = -v`, which only the recipes of `a` and `b` reference
+- WHEN the selector decides the plan
+- THEN it prints `noncode make-targets Makefile -> a b`
+
+- `NCM-V1-012`: (accepted under owner delegation 2026-11-13; V1-5465) Make file edits that run everything
+
+The selector MUST select everything, naming why, for: an unknown base (no full commit id, or a
+`--snapshot` plan); a make file deleted, renamed, new at the head or not a regular file; either side
+outside the parsed subset (`$(eval)`, `.ONESHELL`, `.RECIPEPREFIX`, an unbalanced conditional or
+define block); a changed include, conditional, define, export, override, private, vpath,
+special-target, computed-target or default-goal line, or any other line outside every explicit rule;
+a removed rule; a changed pattern rule, double-colon rule or rule any line of which sits inside a
+conditional; a changed variable that is a global setting (any name starting with `.` or `MAKE`,
+`SHELL`, `VPATH`, `GPATH`, `SUFFIXES`, `CURDIR`, `GNUMAKEFLAGS`, `MFLAGS`), is read by make's
+built-in rules, is exported, sits in a file that exports what the driver does not certify, is used
+outside every explicit rule, or is used by no rule; a changed assignment that runs a shell (`!=`) or
+calls `$(shell)`, `$(error)`, `$(warning)`, `$(info)`, `$(file)`, `$(eval)`, `$(call)`, `$(guile)`
+or `$(value)`; and any changed variable in a file that names a variable by a computed reference.
+
+**Scenario: An include line**
+- GIVEN a change that adds `include extra.mk`
+- WHEN the selector decides the plan
+- THEN every test is selected with `never-narrowed-path Makefile: make edit: include line changed: ...`
+
+- `NCM-V1-013`: (accepted under owner delegation 2026-11-13; V1-5465) What the changed targets can run
+
+From each changed target the selector MUST follow the driver units through prerequisites and the
+make invocations of recipes, and add, printed `make <pkg> <- <path>`, every Go package whose
+directory a reached unit runs or reads, or holds a file it does. The reach MUST select everything
+when a reached unit runs a command or make goal that does not resolve, sits in a file outside the
+parsed subset, or imports a unit the driver units do not hold. A reached unit whose commands resolve
+but read what the graph does not bound (an evaluated, uncertified computed site, or a whole-tree
+read) still runs only what it names, so it stays bounded.
+
+**Scenario: A prerequisite's package**
+- GIVEN a changed target `all: check` and `check`, which runs `go test ./tool`
+- WHEN the selector decides the plan
+- THEN `<module>/tool` is selected
+
+- `NCM-V1-014`: (accepted under owner delegation 2026-11-13; V1-5465) Make targets CI invokes directly
+
+When a job of a workflow under `.github/workflows/` invokes a changed target directly, the selector
+MUST add the Go readers of that workflow file, printed `make-ci <pkg> <- <workflow>`; that target's
+reach is NCM-V1-013, so a CI-invoked target whose reach cannot be bounded selects everything. A
+changed target a local action invokes, or any workflow outside the parsed subset, MUST select
+everything.
+
+**Scenario: A CI step's target**
+- GIVEN `.github/workflows/ci.yml` runs `make check`, `check` changed, and package `ciread` names
+  the workflow file
+- WHEN the selector decides the plan
+- THEN `<module>/ciread` is selected
+
 ## Delivered rules
 
 These rules state how V1-5424 reads the requirements above. They add no requirement.
@@ -228,7 +317,10 @@ These rules state how V1-5424 reads the requirements above. They add no requirem
       no full run); every other path under `.corvint/` selects everything (`corvint-config`), the
       map file and an unattributable read-scope declaration edit included;
    4. a path on the never-narrow list (rule 4) selects everything (`never-narrowed-path`), or
-      `runner-removed` when the path is runner configuration the change deleted;
+      `runner-removed` when the path is runner configuration the change deleted; a `Makefile`,
+      `makefile` or `GNUmakefile` edit the selector attributes adds no full run
+      (`make-targets`, NCM-V1-010), and one it cannot attribute prints `: make edit: <why>` after
+      the path;
    5. a declared documentation path adds nothing (`DECLARED_DOCUMENTATION`; the existing
       `documentation <path>` audit line);
    6. a path the plan reports as `UNOWNED_DIRTY_PATH` narrows to a `proven` entry's tests when one
@@ -308,6 +400,11 @@ These rules state how V1-5424 reads the requirements above. They add no requirem
    `FALLBACK <reason> <path>` (`noncodemap.NamesFullRun`) before its generic input checks, which
    would otherwise replace it with another full run such as `the selection input has no supported
    scope`.
+9. A narrowed make file edit (NCM-V1-010) keeps its `noncode` lines in `SelectQualified`'s audit,
+   which otherwise keeps only `data`, `suite` and package lines. Its `make` and `make-ci` packages
+   are attributions like any other: `SelectQualified` drops one only with its observation's
+   exclusion certificate (AFP-V0-9500). tools/gate-ledger's frozen selector fixture stubs
+   `makeedit.go`, so a make file edit there still runs everything.
 
 ## Orchestrator decision on the design's open question 1
 
@@ -356,6 +453,10 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 ## Surfaces
 
 - `internal/noncodemap`: `Parse`, `Read`, `Evaluate`, `NeverNarrowed`, `Decide`, `Propose`.
+- `internal/liveverify/affected`: `AttributeMakeEdit` and `ReachMakeTargets` (NCM-V1-011 to
+  NCM-V1-014), on the driver's make parse and units.
+- `internal/gateselect`: `makeEditAttribution` (`makeedit.go`) reads the base make file and wires
+  NCM-V1-010 to NCM-V1-014 into `Decide` as `Input.MakeEdit`.
 - `internal/gateselect`: `selectPackagesFrom` applies `Decide` to every plan, with
   `repositoryIndex.attributed` and the plan's declared-reader witnesses as Go attribution;
   `AllowedUnknown` keeps admitting `UNOWNED_DIRTY_PATH`; `SelectQualified` keeps a named NCM full
@@ -366,6 +467,7 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 
 - Delivered under V1-5424: NCM-V1-001, 002, 003, 005, 006, 007, 008 and 009; the refusal side of
   NCM-V1-004 (no entry narrows without a confirmed fault case).
+- Delivered under V1-5465: NCM-V1-010 to NCM-V1-014 (`docs/build-log/2026-11-13-mknarrow1113.md`).
 - Waiting: NCM-V1-004's proof link to FIH-V1 non-code fault cases, after V1-5405 lands (change task 6).
 - Acceptance fixtures (change task 7): see the build-log entry
   `docs/build-log/2026-11-11-non-code-map.md` for the fixtures delivered and missing.
@@ -383,3 +485,8 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 | NCM-V1-007 | `TestNCMV1007RefusesUnknownVersion`, `TestNCMV1007RefusesUnknownMember`, `TestNCMV1007RefusesMalformedOrOversized` (`internal/noncodemap`); `TestNCMV1SelectorInvalidMap` (`internal/gateselect`); `TestNCMV1003ProposeDataMapCommand` (`cmd/corvint`, exit 2) |
 | NCM-V1-008 | `TestNCMV1008StaleEntryDoesNotNarrow` (`internal/noncodemap`); `TestNCMV1SelectorInvalidMap`, `TestNCMV1SelectorConfirmsCitedTests` (`internal/gateselect`) |
 | NCM-V1-009 | `TestNCMV1009RepeatedReadIsByteIdentical`, `TestNCMV1009DecisionIsDeterministic` (`internal/noncodemap`) |
+| NCM-V1-010 | `TestNCMV1010MakeEditNarrowsWhenAttributable` (`internal/noncodemap`); `TestNCMV1010SelectorNarrowsMakeEdit`, `TestNCMV1SelectorNeverNarrowed` (no base) (`internal/gateselect`) |
+| NCM-V1-011 | `TestAttributeMakeEditTargets_NCMV1011` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
+| NCM-V1-012 | `TestAttributeMakeEditFailsClosed_NCMV1012` (`internal/liveverify/affected`); `TestNCMV1012SelectorMakeEditFailsClosed` (`internal/gateselect`) |
+| NCM-V1-013 | `TestReachMakeTargets_NCMV1013` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
+| NCM-V1-014 | `TestReachMakeTargetsCI_NCMV1014` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
