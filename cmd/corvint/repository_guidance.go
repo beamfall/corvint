@@ -455,10 +455,17 @@ func snapshotReviewAffected(ctx context.Context, s *genesis.GuidanceSnapshot, in
 	// The snapshot is HEAD's tree, so the prior read scopes and the additive
 	// records are measured from the base commit in the repository, through
 	// the same planning tail as `corvint affected --base` (AFP-V0-930).
-	_, plan, provider, advice := planAffectedGraph(ctx, affectedPlanInputs{
+	graph, plan, provider, advice := planAffectedGraph(ctx, affectedPlanInputs{
 		gitExecutable: gitExecutable, repository: in.Root, tree: scratch, base: in.Base, revision: s.Revision, additive: true,
 	}, graph, affected.NormalizePaths(paths))
-	return affectedReceipt{Advice: advice, Mutates: false, OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: in.Base, Paths: paths}, Revision: s.Revision, Tool: "affected"}, nil
+	receipt = affectedReceipt{Advice: advice, Mutates: false, OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: in.Base, Paths: paths}, Revision: s.Revision, Tool: "affected"}
+	// SLF-V1-007: the verdict `corvint affected --base` decides for the plan,
+	// over the repository: the Go selector compares against the base commit
+	// there, which the scratch tree has no Git history for (RGV-V0-015).
+	if err := affectedDecideVerdict(ctx, in.Root, &receipt, graph, nil); err != nil {
+		return affectedReceipt{}, err
+	}
+	return receipt, nil
 }
 
 func cleanupGuidanceScratch(root string, original error, remove func(string) error) error {

@@ -27,14 +27,11 @@ const (
 )
 
 // The Go attribution of the plan's UNOWNED_DIRTY_PATH entries
-// (RNC-V1-004, owner decision R32), which only the AFP-V0-012 Go selector
-// decides: `corvint test` runs it, `corvint affected` and the MCP plan tool
-// do not, so they pass AttributionUndecided and every such entry forces
-// FULL there, the fail-closed reading.
+// (RNC-V1-004, owner decision R32), which the AFP-V0-012 Go selector decides
+// (attributionOf).
 const (
-	AttributionUndecided = ""
-	AttributionAll       = "attributed"
-	AttributionNone      = "unattributed"
+	AttributionAll  = "attributed"
+	AttributionNone = "unattributed"
 )
 
 // EffectEntry is one plan.unknown entry with its effect and a hint that is
@@ -55,29 +52,19 @@ type RunnerVerdict struct {
 	Tier   string `json:"tier"`
 }
 
-// SelectionVerdict is SelectionVerdictOf's output, the one each of
-// `corvint affected`, `corvint test` and the MCP plan tool prints
-// (SLF-V1-007). Unknown is in plan order; Runners is sorted by runner.
+// SelectionVerdict is the one verdict each of `corvint affected`,
+// `corvint test` and the MCP plan tool prints (SLF-V1-007). Unknown is in
+// plan order; Runners is sorted by runner. Reason is the FULL reason when
+// Scope is full, the same one `corvint test` runs FULL for.
 type SelectionVerdict struct {
 	Scope   string          `json:"scope"`
+	Reason  string          `json:"reason,omitempty"`
 	Unknown []EffectEntry   `json:"unknown"`
 	Runners []RunnerVerdict `json:"runners"`
 }
 
-// VerdictInput is what SelectionVerdictOf reads: the plan's unknown
-// entries and selected unit ids, the runner profile, the Go attribution of
-// its unowned paths, and whether the plan's line evidence narrowed its Go
-// units (GLS-V0-020).
-type VerdictInput struct {
-	Unknown       []Unknown
-	Selected      []string
-	RunnerProfile string
-	Attribution   string
-	LineNarrowed  bool
-}
-
-// unknownAction is the one decision for one plan.unknown entry, shared by
-// SelectionVerdictOf and Build so that neither computes its own.
+// unknownAction is the one decision for one plan.unknown entry, which
+// decideScope makes for Build and the selection verdict alike.
 type unknownAction struct {
 	effect string
 	// suite is the language whose declared suite the entry adds; module the
@@ -111,11 +98,8 @@ func decideUnknown(entry Unknown, attribution, profile string) unknownAction {
 		return unknownAction{effect: EffectIgnored, check: check, hint: "still required, not run: " + check}
 	}
 	if entry.Reason == "UNOWNED_DIRTY_PATH" && attribution != AttributionAll {
-		hint := "no runner instance owns this path, so every test runs (RNC-V1-004)"
-		if attribution == AttributionUndecided {
-			hint += "; corvint test keeps the run narrowed only when a Go selection rule attributes the path, which this command does not decide"
-		}
-		return unknownAction{effect: EffectForcesFull, full: gateselect.UnownedPathFallback + ": " + entry.Detail, hint: hint}
+		return unknownAction{effect: EffectForcesFull, full: gateselect.UnownedPathFallback + ": " + entry.Detail,
+			hint: "no runner instance owns this path and no Go selection rule attributes it, so every test runs (RNC-V1-004)"}
 	}
 	if allowedUnknown(entry) {
 		return unknownAction{effect: EffectIgnored, hint: "allowlisted (AFP-V0-028): no narrowed run omits a reader of the change for it"}
@@ -135,49 +119,163 @@ func decideUnknown(entry Unknown, attribution, profile string) unknownAction {
 // selections at several tiers reports the least narrow.
 var tierRank = map[string]int{contract.TierLine: 0, contract.TierFile: 1, contract.TierFlow: 2, contract.TierFull: 3}
 
-// SelectionVerdictOf maps each plan.unknown entry to its effect and each
-// runner to its tier (SLF-V1-007). It is pure. Any forces-full entry makes
-// the scope full and every named runner's tier full; a runner whose suite an
-// entry adds is full; otherwise a Go runner is line when line evidence
-// narrowed the plan and file when not, a Playwright selection is flow, and
-// every other selection is file. An entry's hint is the plan's when it has
-// one and the effect's otherwise, so it is never empty.
-func SelectionVerdictOf(input VerdictInput) SelectionVerdict {
+// How `corvint test` runs one plan.selected unit: a Go package, a declared
+// consumer's own argv, a declared provider (STR-V0-8702), its language's
+// declared full command (STR-V0-004), or not at all (a make target or CI
+// job, AZU-V0-001).
+const (
+	runNone = iota
+	runGo
+	runConsumer
+	runProvider
+	runLanguage
+)
+
+// selectedRun is how `corvint test` runs the selected unit id, and the
+// language it names; Build places each unit by it and the verdict's runner
+// tiers read it, so a tier describes the execution that happens.
+func selectedRun(declared Declared, profile, id string) (int, string) {
+	language, _, ok := strings.Cut(id, ":")
+	switch {
+	case strings.HasPrefix(id, "declared-consumer:"):
+		return runConsumer, ""
+	case profile != ProfileCI && providerUnit(declared, id):
+		// The ci profile runs only Go (STR-V0-012), so there the unit names
+		// its language's declared command as a check instead.
+		return runProvider, language
+	case !ok || language == driverNamespace:
+		return runNone, ""
+	case language == "go":
+		return runGo, language
+	}
+	return runLanguage, language
+}
+
+// selectedTier is the R16 tier of the execution selectedRun names: a Go
+// package is line when line evidence narrowed the plan and file when not; a
+// Playwright provider runs the selected files' tests, flow; a Vitest
+// provider runs the whole suite of its declared directory, a superset of
+// the selected files (providerInvocations), and a language's declared full
+// command runs that language's whole suite, so both are full. A unit no
+// runner runs has no tier.
+func selectedTier(declared Declared, profile, id string, lineNarrowed bool) (string, string) {
+	kind, language := selectedRun(declared, profile, id)
+	switch kind {
+	case runGo:
+		if lineNarrowed {
+			return language, contract.TierLine
+		}
+		return language, contract.TierFile
+	case runProvider:
+		if runner, _, _ := splitProviderUnit(id); runner == ProviderRunnerPlaywright {
+			return language, contract.TierFlow
+		}
+		return language, contract.TierFull
+	case runLanguage:
+		return language, contract.TierFull
+	}
+	return "", ""
+}
+
+// scopeDecision is the complete scope decision for one plan, the one Build
+// applies and the selection verdict reports (SLF-V1-007): the FULL reason,
+// empty when the run is narrowed; the Go packages the AFP-V0-012 verdict
+// runs; and one action per plan.unknown entry, in plan order.
+type scopeDecision struct {
+	full    string
+	goRun   []string
+	actions []unknownAction
+}
+
+// decideEntries is decideUnknown over every plan.unknown entry.
+func decideEntries(unknown []Unknown, attribution, profile string) []unknownAction {
+	actions := make([]unknownAction, 0, len(unknown))
+	for _, entry := range unknown {
+		actions = append(actions, decideUnknown(entry, attribution, profile))
+	}
+	return actions
+}
+
+// decideScope is the scope decision `corvint test` runs by. FULL, in order
+// of precedence: no plan or no readable declaration (only the declared full
+// scope runs); a runner the inventory or declaration names but the tree no
+// longer declares (RNC-V1-004); the Go selector's fallback or a missing
+// verdict (AFP-V0-012); the first plan.unknown entry that forces full; and a
+// selected package outside the Go universe.
+func decideScope(input Input) scopeDecision {
+	decision := scopeDecision{actions: decideEntries(input.Unknown, attributionOf(input.GoSelection, input.Universe), input.RunnerProfile)}
+	switch {
+	case input.PlanError != "":
+		decision.full = "no plan: " + input.PlanError
+		return decision
+	case input.Declared.Unreadable != "":
+		decision.full = "the declared full scope is unreadable"
+		return decision
+	}
+	switch verdict, detail, _ := strings.Cut(input.GoSelection, " "); verdict {
+	case "FALLBACK":
+		decision.full = detail
+	case "run":
+		decision.goRun = strings.Fields(detail)
+	case "NOTHING":
+	default:
+		decision.full = "no AFP-V0-012 attribution verdict"
+	}
+	if len(input.Removed) != 0 {
+		// RNC-V1-004, owner decision R32: a removed runner runs every test.
+		decision.full = ReasonRunnerRemoved + ": " + strings.Join(input.Removed, ", ") + " is named by the inventory or " + CommandsPath + " but no longer declared, so every test runs"
+	}
+	for _, action := range decision.actions {
+		if decision.full == "" && action.suite == "" && action.module == "" && action.check == "" {
+			decision.full = action.full
+		}
+	}
+	universe := map[string]bool{}
+	for _, pkg := range input.Universe {
+		universe[pkg] = true
+	}
+	for _, pkg := range decision.goRun {
+		if decision.full == "" && !universe[pkg] {
+			decision.full = "selected package outside the Go universe: " + pkg
+		}
+	}
+	return decision
+}
+
+// verdict reports the decision (SLF-V1-007). Its scope is full exactly when
+// the decision has a FULL reason, and then every named runner's tier is
+// full; otherwise a runner whose suite an entry adds is full and every other
+// runner has the tier of the execution its selections get (selectedTier),
+// the least narrow winning. An entry's hint is the plan's when it has one
+// and the effect's otherwise, so it is never empty.
+func (decision scopeDecision) verdict(unknown []Unknown, selected []string, declared Declared, profile string, lineNarrowed bool) SelectionVerdict {
 	verdict := SelectionVerdict{Scope: VerdictNarrowed, Unknown: []EffectEntry{}, Runners: []RunnerVerdict{}}
+	if decision.full != "" {
+		verdict.Scope, verdict.Reason = VerdictFull, decision.full
+	}
 	tiers := map[string]string{}
 	raise := func(runner, tier string) {
 		if current, ok := tiers[runner]; !ok || tierRank[tier] > tierRank[current] {
 			tiers[runner] = tier
 		}
 	}
-	for _, entry := range input.Unknown {
-		action := decideUnknown(entry, input.Attribution, input.RunnerProfile)
+	for index, entry := range unknown {
+		action := decision.actions[index]
 		hint := strings.TrimSpace(entry.Hint)
 		if hint == "" {
 			hint = action.hint
 		}
 		verdict.Unknown = append(verdict.Unknown, EffectEntry{Reason: entry.Reason, Detail: entry.Detail, Effect: action.effect, Hint: hint})
 		switch {
-		case action.effect == EffectForcesFull:
-			verdict.Scope = VerdictFull
 		case action.suite != "":
 			raise(action.suite, contract.TierFull)
 		case action.module != "":
 			raise("go", contract.TierFull)
 		}
 	}
-	for _, id := range input.Selected {
-		language, rest, ok := strings.Cut(id, ":")
-		if !ok || language == driverNamespace || language == "declared-consumer" {
-			continue
-		}
-		switch {
-		case language == "go" && input.LineNarrowed:
-			raise(language, contract.TierLine)
-		case language == "typescript" && strings.HasPrefix(rest, "playwright:"):
-			raise(language, contract.TierFlow)
-		default:
-			raise(language, contract.TierFile)
+	for _, id := range selected {
+		if runner, tier := selectedTier(declared, profile, id, lineNarrowed); runner != "" {
+			raise(runner, tier)
 		}
 	}
 	for _, runner := range slices.Sorted(maps.Keys(tiers)) {
@@ -190,24 +288,25 @@ func SelectionVerdictOf(input VerdictInput) SelectionVerdict {
 	return verdict
 }
 
-// attributionOf reads the Go attribution from the AFP-V0-012 verdict line
-// over a Go universe: run or NOTHING means the selector found a Go rule for
-// every unowned path, since it falls back when it does not.
-func attributionOf(input Input) string {
-	verdict, _, _ := strings.Cut(input.GoSelection, " ")
-	if (verdict == "run" || verdict == "NOTHING") && len(input.Universe) != 0 {
+// attributionOf reads the Go attribution of a plan's UNOWNED_DIRTY_PATH
+// entries from the AFP-V0-012 verdict line over a Go universe: run or
+// NOTHING means the selector found a Go rule for every unowned path, since
+// it falls back when it does not.
+func attributionOf(goSelection string, universe []string) string {
+	verdict, _, _ := strings.Cut(goSelection, " ")
+	if (verdict == "run" || verdict == "NOTHING") && len(universe) != 0 {
 		return AttributionAll
 	}
 	return AttributionNone
 }
 
-// SelectionVerdict is SelectionVerdictOf over the inputs `corvint test`
-// builds its manifest from, with the Go attribution its Go selector decided.
+// SelectionVerdict is the one verdict `corvint affected`, `corvint test` and
+// the MCP plan tool print (SLF-V1-007): the scope decision Build applies to
+// the same Input, so it states exactly the scope `corvint test` runs. Each
+// surface fills the Input from the plan the same way; one with no AFP-V0-012
+// Go verdict is FULL, the fail-closed reading.
 func (input Input) SelectionVerdict() SelectionVerdict {
-	return SelectionVerdictOf(VerdictInput{
-		Unknown: input.Unknown, Selected: input.Selected, RunnerProfile: input.RunnerProfile,
-		Attribution: attributionOf(input), LineNarrowed: len(input.LineUnits) != 0,
-	})
+	return decideScope(input).verdict(input.Unknown, input.Selected, input.Declared, input.RunnerProfile, len(input.LineUnits) != 0)
 }
 
 // EffectCounts counts the verdict's entries by effect, sorted by effect, as

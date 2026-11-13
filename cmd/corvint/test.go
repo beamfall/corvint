@@ -478,11 +478,7 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	// narrows the plan (TIV-V1-002, TIV-V1-006 to TIV-V1-009); the runner
 	// instances it judges are the ones whose full commands a language with
 	// no declared command runs (RNC-V1-013, RNC-V1-014).
-	inventory := readInventoryVerdict(ctx, root, false)
-	for _, instance := range inventory.Instances {
-		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})
-	}
-	input.Removed = sessiontest.RemovedRunners(input.Declared, input.Instances, inventory.Undeclared)
+	inventory := testRemovedRunners(ctx, root, &input)
 	if options.goParallel != 0 {
 		input.Declared = input.Declared.WithGoParallel(options.goParallel)
 	}
@@ -753,7 +749,6 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 		}
 	}
 	for _, selection := range receipt.Plan.Selected {
-		input.Selected = append(input.Selected, selection.UnitID)
 		if selection.Kind == "DECLARED_CONSUMER" && strings.HasPrefix(selection.UnitID, "declared-consumer:") && affected.ValidConsumerRun(selection.Run) {
 			// AZU-V0-007: CI cannot execute the consumer. Keep the legacy
 			// check that the trusted workflow uses to require its browser job,
@@ -769,6 +764,32 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 		}
 	}
 	slices.SortFunc(input.Declared.Languages, func(a, b sessiontest.LanguageCommand) int { return strings.Compare(a.Language, b.Language) })
+	testPlanScope(input, receipt, plan, graph, root, index)
+	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
+	for _, language := range affectedLanguages() {
+		if language.Name() == "go" || language.Name() == affected.DriverNamespace {
+			continue
+		}
+		for _, dirty := range receipt.Plan.Dirty {
+			if language.Owns(dirty) {
+				input.DirtyLanguages = append(input.DirtyLanguages, language.Name())
+				break
+			}
+		}
+	}
+	return nil
+}
+
+// testPlanScope fills the inputs the scope decision reads from a plan: the
+// selected units (with the Playwright files the e2e-safe selection and the
+// flow-linked E2E inventory select), the unknown entries, the Go universe
+// and the AFP-V0-012 Go verdict over plan, the plan's canonical compact
+// receipt. `corvint test` builds its manifest from them and `corvint
+// affected` its selection verdict, so both decide one scope (SLF-V1-007).
+func testPlanScope(input *sessiontest.Input, receipt affectedReceipt, plan gateselect.Receipt, graph *affected.Graph, root string, index *gateselect.Index) {
+	for _, selection := range receipt.Plan.Selected {
+		input.Selected = append(input.Selected, selection.UnitID)
+	}
 	units, unread := testSelectionUnits(receipt.Advice.TestSelection)
 	for _, unit := range units {
 		if !slices.Contains(input.Selected, unit) {
@@ -787,39 +808,48 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	if unread != "" {
 		input.SelectionIncomplete = append(input.SelectionIncomplete, unread)
 	}
-	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
 	for _, entry := range receipt.Plan.Unknown {
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason, Hint: entry.Hint})
 	}
-	for _, language := range affectedLanguages() {
-		if language.Name() == "go" || language.Name() == affected.DriverNamespace {
-			continue
-		}
-		for _, dirty := range receipt.Plan.Dirty {
-			if language.Owns(dirty) {
-				input.DirtyLanguages = append(input.DirtyLanguages, language.Name())
-				break
-			}
-		}
-	}
 	input.Universe, input.Excluded = testGoUniverse(graph)
-	switch module, err := golang.ReadModulePath(root); {
-	case len(input.Universe) == 0:
-		input.GoSelection = "NOTHING no Go universe"
-	case err != nil:
-		input.GoSelection = "FALLBACK the root module path cannot be read"
-	default:
-		lines := gateselect.SelectQualifiedIndexed(plan, module, root, index)
-		if len(lines) != 0 {
-			input.GoSelection = lines[len(lines)-1]
-		}
-		// A change only inside nested modules no observed module builds
-		// selects no root package; their own units run it (STR-V0-064).
-		if strings.HasPrefix(input.GoSelection, "FALLBACK the selection is empty while ") && sessiontest.ModuleCovered(receipt.Plan.Dirty, input.Unknown) {
-			input.GoSelection = "NOTHING every dirty path is inside a nested Go module whose own unit runs it"
-		}
+	input.GoSelection = testGoSelection(plan, receipt.Plan.Dirty, input.Unknown, input.Universe, root, index)
+}
+
+// testRemovedRunners reads the committed test inventory, never writing it
+// (TIV-V1-002), into the runner instances the planned tree declares and the
+// ones it names but no longer declares (RNC-V1-004, RNC-V1-014).
+func testRemovedRunners(ctx context.Context, root string, input *sessiontest.Input) testinventory.Verdict {
+	inventory := readInventoryVerdict(ctx, root, false)
+	for _, instance := range inventory.Instances {
+		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})
 	}
-	return nil
+	input.Removed = sessiontest.RemovedRunners(input.Declared, input.Instances, inventory.Undeclared)
+	return inventory
+}
+
+// testGoSelection is the AFP-V0-012 verdict line `corvint test` plans its Go
+// run by: run, FALLBACK or NOTHING. `corvint affected` and the MCP plan tool
+// read the Go attribution of an UNOWNED_DIRTY_PATH from the same line, so the
+// three surfaces print one verdict for it (SLF-V1-007). A nil index makes the
+// selector scan the tree itself, which selects the same packages.
+func testGoSelection(plan gateselect.Receipt, dirty []string, unknown []sessiontest.Unknown, universe []string, root string, index *gateselect.Index) string {
+	module, err := golang.ReadModulePath(root)
+	switch {
+	case len(universe) == 0:
+		return "NOTHING no Go universe"
+	case err != nil:
+		return "FALLBACK the root module path cannot be read"
+	}
+	selection := ""
+	if lines := gateselect.SelectQualifiedIndexed(plan, module, root, index); len(lines) != 0 {
+		selection = lines[len(lines)-1]
+	}
+	// A change only inside nested modules no observed module builds
+	// selects no root package; their own units run it (STR-V0-064).
+	if strings.HasPrefix(selection, "FALLBACK the selection is empty while ") && sessiontest.ModuleCovered(dirty, unknown) {
+		selection = "NOTHING every dirty path is inside a nested Go module whose own unit runs it"
+	}
+	return selection
 }
 
 // testSelectionUnits reads the plan's advice.test_selection member
@@ -1024,17 +1054,23 @@ func testVerdict(stderr io.Writer, m sessiontest.Manifest) {
 // SELECTION line with the scope and each runner's R16 tier, then one EFFECT
 // line per plan.unknown entry with its effect and hint.
 func testSelectionVerdict(stderr io.Writer, selection sessiontest.SelectionVerdict) {
-	line := "corvint-test: SELECTION " + selection.Scope
+	_, _ = fmt.Fprintln(stderr, "corvint-test: SELECTION "+testSelectionWords(selection))
+	for _, entry := range selection.Unknown {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: EFFECT %s %s %s: %s\n", entry.Effect, entry.Reason, textWord(entry.Detail), textWord(entry.Hint))
+	}
+}
+
+// testSelectionWords is the verdict in one line: the scope, each runner's
+// R16 tier and the count of entries per effect.
+func testSelectionWords(selection sessiontest.SelectionVerdict) string {
+	line := selection.Scope
 	for _, runner := range selection.Runners {
 		line += " " + runner.Runner + "=" + runner.Tier
 	}
 	for _, count := range selection.EffectCounts() {
 		line += " " + count
 	}
-	_, _ = fmt.Fprintln(stderr, line)
-	for _, entry := range selection.Unknown {
-		_, _ = fmt.Fprintf(stderr, "corvint-test: EFFECT %s %s %s: %s\n", entry.Effect, entry.Reason, textWord(entry.Detail), textWord(entry.Hint))
-	}
+	return line
 }
 
 // testPlanVerdict is the dry-run verdict: INCOMPLETE when the plan cannot

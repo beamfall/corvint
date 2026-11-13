@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -239,28 +242,61 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 
 		DegradationDetails: full.DegradationDetails,
 		LineSelection:      full.LineSelection,
-		SelectionVerdict:   affectedSelectionVerdict(full.Plan, full.LineSelection),
+		SelectionVerdict:   affectedProjectedVerdict(full),
 	}, nil
 }
 
-// affectedSelectionVerdict is sessiontest.SelectionVerdictOf over the plan
-// (SLF-V1-007). No Go selector runs here, so the Go attribution of an
-// UNOWNED_DIRTY_PATH is undecided and the entry forces FULL, the
-// fail-closed reading; the line evidence narrows the Go runner exactly when
-// corvint test would apply it.
-func affectedSelectionVerdict(plan affected.Plan, lines *linecov.Selection) sessiontest.SelectionVerdict {
-	input := sessiontest.VerdictInput{Attribution: sessiontest.AttributionUndecided}
-	for _, entry := range plan.Unknown {
-		input.Unknown = append(input.Unknown, sessiontest.Unknown{Reason: entry.Reason, Detail: entry.Detail, Hint: entry.Hint})
+// affectedProjectedVerdict is the selection verdict of the projection
+// alone (SLF-V1-007), which reads no tree and runs no Go selector: with no
+// AFP-V0-012 verdict the scope decision is FULL, the fail-closed reading, so
+// an embedding that keeps it never claims a narrower run than `corvint test`
+// makes. A receipt whose verdict was decided over the planned tree
+// (affectedDecideVerdict) prints that one.
+func affectedProjectedVerdict(full affectedReceipt) sessiontest.SelectionVerdict {
+	if full.selection != nil {
+		return *full.selection
 	}
-	for _, selection := range plan.Selected {
+	input := sessiontest.Input{RunnerProfile: sessiontest.ProfileLocal}
+	for _, selection := range full.Plan.Selected {
 		input.Selected = append(input.Selected, selection.UnitID)
 	}
-	if lines != nil {
-		_, units := testLineUnits(*lines)
-		input.LineNarrowed = len(units) != 0
+	for _, entry := range full.Plan.Unknown {
+		input.Unknown = append(input.Unknown, sessiontest.Unknown{Reason: entry.Reason, Detail: entry.Detail, Hint: entry.Hint})
 	}
-	return sessiontest.SelectionVerdictOf(input)
+	return input.SelectionVerdict()
+}
+
+// affectedDecideVerdict decides the plan's selection verdict as `corvint
+// test` does for the same plan in root (SLF-V1-007) and keeps it on the
+// receipt for the compact projection to print. It fills the scope inputs as
+// `corvint test` does (testPlanScope: the selected units, the unknown
+// entries, the Go universe and the AFP-V0-012 Go selector's verdict, which
+// decides the Go attribution of an UNOWNED_DIRTY_PATH and the Go fallback),
+// reads the declared full scope and the removed runner instances of the
+// committed inventory, and reports the scope decision Build would apply on
+// the local profile.
+func affectedDecideVerdict(ctx context.Context, root string, full *affectedReceipt, graph *affected.Graph, index *gateselect.Index) error {
+	compact, err := compactAffected(*full)
+	if err != nil {
+		return err
+	}
+	encoded, err := gokernel.CanonicalJSON(compact)
+	if err != nil {
+		return err
+	}
+	var plan gateselect.Receipt
+	if err := json.Unmarshal(encoded, &plan); err != nil {
+		return err
+	}
+	input := sessiontest.Input{RunnerProfile: sessiontest.ProfileLocal, Declared: sessiontest.ReadDeclared(root)}
+	if full.LineSelection != nil {
+		_, input.LineUnits = testLineUnits(*full.LineSelection)
+	}
+	testPlanScope(&input, *full, plan, graph, root, index)
+	testRemovedRunners(ctx, root, &input)
+	verdict := input.SelectionVerdict()
+	full.selection = &verdict
+	return nil
 }
 
 // compactAffectedSelections projects each selection, sharing witness chains
