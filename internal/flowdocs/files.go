@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -28,11 +29,14 @@ func openDirectory(dir string) (*os.Root, error) {
 	// every absolute open; dropping it would open \C: instead of C:\.
 	volume := filepath.VolumeName(abs)
 	volumeRoot := volume + string(filepath.Separator)
-	var current *os.Root
-	for _, part := range strings.Split(strings.TrimPrefix(abs[len(volume):], string(filepath.Separator)), string(filepath.Separator)) {
-		if part == "" {
-			continue
+	parts := absoluteParts(abs, volume)
+	if len(parts) > 0 {
+		if resolved, ok := systemAlias(volumeRoot, parts[0]); ok {
+			parts = append(absoluteParts(resolved, volume), parts[1:]...)
 		}
+	}
+	var current *os.Root
+	for _, part := range parts {
 		var next *os.Root
 		var e error
 		if current == nil {
@@ -52,6 +56,41 @@ func openDirectory(dir string) (*os.Root, error) {
 		}
 	}
 	return current, nil
+}
+
+func absoluteParts(abs, volume string) []string {
+	var parts []string
+	for _, part := range strings.Split(strings.TrimPrefix(abs[len(volume):], string(filepath.Separator)), string(filepath.Separator)) {
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
+}
+
+// systemAlias resolves a symlink that is a direct entry of a filesystem root
+// that only its owner can write, such as macOS /var -> private/var or
+// /tmp -> private/tmp. Only the root's owner can create or replace such an
+// entry, so following it grants a caller nothing it could plant; every
+// component of the resolved path is still opened with the no-symlink checks.
+// Any other symlink stays refused (V1-4551).
+func systemAlias(volumeRoot, first string) (string, bool) {
+	if runtime.GOOS == "windows" {
+		return "", false
+	}
+	link, err := os.Lstat(volumeRoot + first)
+	if err != nil || link.Mode()&os.ModeSymlink == 0 {
+		return "", false
+	}
+	root, err := os.Lstat(volumeRoot)
+	if err != nil || !root.IsDir() || root.Mode().Perm()&0o022 != 0 {
+		return "", false
+	}
+	resolved, err := filepath.EvalSymlinks(volumeRoot + first)
+	if err != nil || !filepath.IsAbs(resolved) || filepath.Clean(resolved) != resolved {
+		return "", false
+	}
+	return resolved, true
 }
 
 func openComponent(parent *os.Root, name string) (*os.Root, error) {
