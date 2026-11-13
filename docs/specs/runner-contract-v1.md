@@ -12,9 +12,9 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/runner-contract
 
 ## Agent digest
 - Claim: One compiled-in contract drives every blocking runner by canonical test ID and runner instance; every fallback runs a full command with a reason.
-- Status: accepted / partial. Change `runner-contract` auto-accepted under G14 (decision 0596); tasks 1 to 4, 6 and 9 delivered under V1-5416.
-- Exists: `internal/testrunner/contract` (Go, Vitest, Playwright, Jest, pytest and RSpec select and parse; Minitest runs full); `.corvint/test-commands.json` with built-in defaults; `unowned-path` and `runner-removed` FULL plans.
-- Blocked on: tasks 5 (`corvint test` narrowed runs and receipt), 8, 10, 11, 12; task 7 waits on the NMS-V1-008 parser; deleting Corvint's old declaration edits `.github/`.
+- Status: accepted / partial. Change `runner-contract` auto-accepted under G14 (decision 0596); tasks 1 to 4, 6 and 9 delivered under V1-5416; task 5 (but Minitest) and part of task 7 under V1-5443.
+- Exists: `internal/testrunner/contract` (Go, Vitest, Playwright, Jest, pytest and RSpec select and parse; Minitest runs full); the `corvint test` `contract` adapter running narrowed Vitest, Jest, Playwright, pytest and RSpec selections with per-test receipt results (RNC-V1-019); `internal/testrunner/killswitch` (NMS-V1-008 grammar) on `corvint test`, `affected` and `watch`; `.corvint/test-commands.json` with built-in defaults; `unowned-path` and `runner-removed` FULL plans.
+- Blocked on: Minitest selection and parser (task 5); the kill switch in agent hooks, MCP, the Action and a widened `affected` plan (task 7); tasks 8, 10, 11, 12; deleting Corvint's old declaration edits `.github/`.
 - Read next: Requirements; Surfaces; Traceability.
 
 ## User and boundary
@@ -26,7 +26,7 @@ declared in Corvint's internal CI file `.github/cishards/test-commands.json`; an
 that file got an `INCOMPLETE` FULL run. The compiled-in `registry.RunnerPlugin` was used only by
 `corvint-test-runner`.
 
-This spec is the canonical home of requirements RNC-V1-001 to RNC-V1-018, copied from the change's
+This spec is the canonical home of requirements RNC-V1-001 to RNC-V1-019, copied from the change's
 `specs/runner-contract/spec.md`. Design decisions, failure modes and rollback stay in the change's
 `design.md`, which owns them; this file adds only the delivery record (Surfaces, Traceability).
 
@@ -39,9 +39,11 @@ interface compiled into `corvint`, derived from `registry.RunnerPlugin`, and MUS
 external runner protocol or a separate executable to be selected and run. Once a runner's
 implementation lands, its provider binary is retired (RNC-V1-017).
 Delivery: partial. The interface (`internal/testrunner/contract`) and its seven implementations are
-compiled in, and `corvint test` resolves every runner instance's full command through it. Not yet
-built: the narrowed runs of Go, Vitest and Playwright still go through the STR-V0 adapters and
-`corvint-js-test-provider` (tasks 5 and 11).
+compiled in, `corvint test` resolves every runner instance's full command through it, and its
+`contract` adapter runs narrowed Vitest, Jest, Playwright, pytest and RSpec selections through it
+(RNC-V1-019). Not yet built: Go still runs through the STR-V0 `go` adapter, and a repository that
+declares a `providers` entry still runs Vitest and Playwright through `corvint-js-test-provider`
+(task 11).
 
 **Scenario: Release binary alone**
 - WHEN `corvint test` runs a selection containing Go, Jest and pytest tests
@@ -57,8 +59,11 @@ lister or any project code; they read the committed inventory. RSpec and Minites
 classification. When the inventory is absent, the runner's declared full command runs with reason
 `inventory-absent`; when it is stale, all tests run with reason `inventory-stale`.
 Delivery: partial. Each runner names the inventory's own lister and kind, and `corvint affected`
-starts no runner or lister process. Not yet built: selection from the inventory, so an absent
-inventory is reported (TIV-V1-006) but does not yet change what `corvint test` runs.
+starts no runner or lister process. An instance whose committed inventory record is absent, stale or
+unreadable runs its full command, with the verdict's reason, instead of a contract selection
+(RNC-V1-019). Not yet built: selection from the inventory's listing (the plan's own test files are
+what a contract unit runs), and running every runner's tests, Go included, on `inventory-stale`
+(only the stale instance runs in full).
 
 **Scenario: Plan read**
 - WHEN `corvint affected` plans a change in a pytest project
@@ -74,8 +79,8 @@ Source: G2, owner decision R16 (2026-11-09). Each runner MUST turn a selection i
 exactly the selected tests, recorded `exact: true`, or a larger set recorded `exact: false` with a
 one-line reason. The selection's tier is one of `line | file | flow | full`.
 Delivery: partial. The contract records tier, `exact` and reason for Go, Vitest and Playwright
-selections, and for Jest, pytest and RSpec. Not yet built: `corvint test` runs and prints them
-(tasks 5 and 12).
+selections, and for Jest, pytest and RSpec; `corvint test` prints and records them for every
+contract run (RNC-V1-019). Not yet built: the release manifest's per-runner tier (task 12).
 
 **Scenario: Vitest directory run**
 - WHEN the Vitest implementation can only run a whole directory
@@ -100,9 +105,11 @@ attributes no path;
 Delivery: partial. A runner with no implementation runs its full command with
 `runner-not-implemented`; a language with no declared command runs each runner instance's full
 command; an unowned path no Go rule attributes plans FULL with `unowned-path`, an attributed one
-narrows to its packages, and a removed runner plans FULL with `runner-removed`. The contract
-selects Jest, pytest and RSpec. Not yet built: `corvint test` executing those selections, Minitest
-selection (task 5), and widening for a runner whose binary is unavailable.
+narrows to its packages, and a removed runner plans FULL with `runner-removed`. `corvint test`
+runs the selected Vitest, Jest, Playwright, pytest and RSpec files through the contract
+(RNC-V1-019); Minitest runs its full command with the reason. Not yet built: Minitest selection
+(task 5), and widening every runner for one whose binary is unavailable (its units are `NOT_RUN`
+and the run `INCOMPLETE`).
 
 **Scenario: Minitest without implementation**
 - WHEN the Minitest implementation is not available
@@ -123,8 +130,8 @@ Delivery: partial. The contract reads the Go, Vitest, Playwright, Jest and pytes
 into one outcome and duration per canonical test ID, and RSpec's per file (its stock report names
 no example group chain). A file that failed without a failing test is a file-level fail, and a
 run-level failure in the report (Jest `success: false`, Playwright `errors`, an RSpec error outside
-examples, a pytest internal error) is returned with the results. Not yet built: the `corvint
-test` receipt carrying them, and the Minitest parser (task 5).
+examples, a pytest internal error) is returned with the results. The `corvint test` receipt
+carries them per contract invocation (RNC-V1-019). Not yet built: the Minitest parser (task 5).
 
 **Scenario: Jest JSON report**
 - WHEN a Jest run writes its JSON report
@@ -137,8 +144,9 @@ MUST be `INCOMPLETE`.
 Delivery: partial. `contract.Reconcile` marks every selected test the report omits `NOT_RUN` and the
 run incomplete, and also marks the run incomplete when a package or file did not finish (a Go
 package that panicked, timed out, ended with a started test or never ended) or the report was read
-only in part; it keeps the most severe of duplicate results and marks the run not exact. Not yet
-built: its use in the `corvint test` receipt (task 5).
+only in part; it keeps the most severe of duplicate results and marks the run not exact. The
+`corvint test` contract adapter records its `NOT_RUN` results and makes the run `INCOMPLETE`
+(RNC-V1-019).
 
 **Scenario: Test filtered away**
 - WHEN a selected RSpec example does not appear in the JSON report
@@ -148,8 +156,9 @@ built: its use in the `corvint test` receipt (task 5).
 
 Source: G13. Each runner MUST report the kind it knows (`unit`, `integration`, `e2e`) as a
 `kindSource: runner` signal for the plan; kind is reporting only.
-Delivery: partial. `contract.Kind` reports `e2e` for Playwright and no kind for the other runners.
-Not yet built: the signal in the plan (task 5).
+Delivery: partial. `contract.Kind` reports `e2e` for Playwright and no kind for the other runners,
+and each Playwright contract unit of the `corvint test` manifest carries `kind: e2e` with
+`kindSource: runner`. Not yet built: the signal in the frozen `corvint affected` plan.
 
 **Scenario: Playwright**
 - WHEN the Playwright implementation reports its tests
@@ -165,7 +174,16 @@ grammar of its own. The rule applies on five surfaces, `corvint affected`, `corv
 `corvint watch`, the GitHub Action and agent hooks, and on the MCP tools. An unknown value MUST exit
 2 with a clear message on the CLI surfaces and in the Action, and MUST run all tests in agent hooks
 and MCP.
-Delivery: not yet built (task 7 waits on the NMS-V1-008 parser).
+Delivery: partial. `internal/testrunner/killswitch` reads the NMS-V1-008 grammar (an empty value is
+off). `corvint test` applies it: `full` plans FULL with reason `kill-switch`, `full:<runner>` runs
+every instance of each named runner (Go: its whole universe) in full and keeps the others narrowed,
+the manifest and receipt record `killSwitch`, and stderr prints `corvint-test: KILL-SWITCH`. An
+unknown value exits 2 with `kill-switch-value-unknown` and runs nothing on `corvint test`,
+`corvint affected` and `corvint watch`. `corvint affected` names an active switch on stderr without
+widening its frozen plan, and `corvint watch`, which answers only narrowed Go selections, refuses a
+switch that sends Go to its full command with `kill-switch-full-unsupported`. Not yet built: the
+FULL kill-switch state in the `corvint affected` plan (frozen output, CCF-V1-006), agent hooks, the
+MCP tools and the GitHub Action.
 
 **Scenario: Jest only**
 - WHEN the kill switch is set for Jest only
@@ -197,7 +215,11 @@ Delivery: not yet built (task 10).
 
 Source: G23. A fixture repository with Jest tests MUST show `corvint affected` selecting a Jest test
 and `corvint test` running exactly that test with a per-test outcome.
-Delivery: not yet built (task 5).
+Delivery: delivered on a fixture Jest. In a fixture repository with two Jest test files and a
+committed inventory, `corvint affected` selects the one file a change reaches and `corvint test`
+runs only it through `npx jest --runTestsByPath` and records its test's outcome and duration; the
+Jest executable is a fixture that writes Jest's documented `--json` report, since no live Jest is
+installed on the lane host (NOT_RUN on Linux and macOS).
 
 **Scenario: One Jest test selected**
 - WHEN a change touches code reached by one Jest test
@@ -221,9 +243,9 @@ Source: owner decision R11 (2026-11-09), review T-B4. Every test of every runner
 by the canonical test ID defined by CTI-V1-001 to CTI-V1-012 in change `canonical-test-id`, and the
 same ID MUST be used in the plan, the receipt, flow links, run and line evidence, and watch.
 RNC-V1-012 adds no rule of its own.
-Delivery: partial. Contract commands take, and its results return, canonical test IDs (CTI-V1-001).
-Not yet built: the receipt and the run result record carrying them (tasks 5 and 12, change
-`run-evidence`).
+Delivery: partial. Contract commands take, and its results return, canonical test IDs (CTI-V1-001),
+and the `corvint test` manifest units and receipt outcomes and results of a contract run carry them.
+Not yet built: the run result record (change `run-evidence`).
 
 **Scenario: Same ID end to end**
 - WHEN a pytest test is selected, run and reported
@@ -276,8 +298,9 @@ inventory and watch answers MUST name the instance. The kill switch stays keyed 
 applies to every instance of that runner. No new cross-package analysis is added.
 Delivery: partial. Contract commands are keyed by instance and run from its root;
 `.corvint/test-commands.json` takes instance entries; the manifest runs one
-`declared:<runner>@<root>` unit per instance. Not yet built: running only the reached instance of a
-narrowed selection (task 5).
+`declared:<runner>@<root>` unit per instance; a narrowed contract selection runs only the instances
+that own a selected file, each in its own invocation from its root, and the receipt names the
+instance (RNC-V1-019).
 
 **Scenario: Two pytest rootdirs**
 - GIVEN pytest rootdirs `services/a` and `services/b`
@@ -342,6 +365,43 @@ Delivery: not yet built (task 12).
 - WHEN the release manifest states the 1.0 no-miss and narrowing claims
 - THEN the shell provider is listed as `kept, not qualified` and its results are not counted
 
+- `RNC-V1-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5443) `corvint test` runs narrowed contract selections
+
+Source: RNC-V1-001, RNC-V1-004, RNC-V1-005 and RNC-V1-010 (G23, owner decisions R7, R14, R19), task
+5. On the local profile, `corvint test` MUST run each selected Vitest, Jest, Playwright, pytest or
+RSpec test file of a language `.corvint/test-commands.json` declares no command for through the
+contract: one manifest unit (adapter `contract`) per file and owning instance, whose `unit` is the
+file-level canonical test ID and whose `slice` is the instance key, and one invocation per instance,
+run from its root, whose argv is the contract's narrowing of the instance's full command
+(RNC-V1-013) with the machine report written to a fresh private file outside the repository. A
+`python:<module>` unit MUST run the test files the plan lists for it. The receipt MUST record per
+contract invocation the instance, tier, `exact` flag and reason, each unit's outcome under its
+canonical test ID, and one result per test read from the report (outcome, duration, granularity),
+with every selected test the report does not answer `NOT_RUN` and the run `INCOMPLETE`. A missing,
+unreadable or oversized report, a contract refusal or an undiscoverable runner MUST leave every unit
+`NOT_RUN`; a failing test, a run-level failure no test carries or a nonzero exit MUST NOT pass. A file
+no instance owns, a module the plan lists no test file for, Minitest, the ci profile and a language
+with a declared command keep the full command; an instance whose inventory record is absent, stale or
+unreadable MUST run its full command with that reason; in FULL every instance runs its full command
+and no contract unit is added. Each run MUST print `corvint-test: CONTRACT <instance> tier=<tier>
+exact=<bool>`.
+Delivery: delivered for Vitest, Jest, Playwright, pytest and RSpec with fixture runners; live runs
+of each runner are NOT_RUN (none is installed on the lane host).
+
+**Scenario: One Jest file selected**
+- GIVEN a Jest repository with a committed inventory and two test files
+- WHEN a change reaches one of them and `corvint test` runs
+- THEN only that file runs through `npx jest --runTestsByPath` and the receipt records its tests'
+  outcomes and durations under their canonical test IDs
+
+**Scenario: Report missing**
+- WHEN the runner exits 0 without writing its machine report
+- THEN every selected file is `NOT_RUN` and the run is `INCOMPLETE`
+
+**Scenario: Inventory absent**
+- WHEN the repository commits no inventory record for the instance
+- THEN the instance runs its full command with reason `inventory-absent`
+
 ## Surfaces
 
 Delivered by ticket V1-5416 (build-log `docs/build-log/2026-11-11-runner-contract.md`):
@@ -392,25 +452,51 @@ Delivered by ticket V1-5416 (build-log `docs/build-log/2026-11-11-runner-contrac
   plans FULL with the same reason itself. A go.sum or go.mod change keeps its separate root-module
   fallback. A runner instance the committed inventory or `.corvint/test-commands.json` names but the tree no
   longer declares plans FULL with `runner-removed`.
-- NOT_PRODUCED: tasks 5 (the narrowed `corvint test` path, receipt and Jest end-to-end), 7, 8,
-  10, 11 and 12, and the deletion of Corvint's old declaration (build log).
+- NOT_PRODUCED by V1-5416: tasks 5, 7, 8, 10, 11 and 12, and the deletion of Corvint's old
+  declaration (build log).
+
+Delivered by ticket V1-5443 (build-log `docs/build-log/2026-11-13-runner-contract-run-path.md`):
+
+- `internal/sessiontest` adapter `contract` (RNC-V1-019), registered under
+  `corvint-test-adapter/0` beside `go`, `declared` and `provider`. `Build` turns each selected
+  `typescript:<runner>:<path>`, `ruby:rspec:<stem>` and `python:<module>` unit (the latter through
+  `Input.SelectedTests`, the plan's `Selection.Tests`) into contract units in every owning instance
+  of `Input.Instances`; `Input.FullInstances` (the inventory verdict's full instances) sends an
+  instance to `declared:<runner>@<root>` with the verdict's reason. `Invocations` derives one argv
+  per instance with `ContractReportPlaceholder`; the launch derives it again with a private
+  `corvint-test-report-*` file, reads at most `testid.MaxReportBytes`, parses it with the
+  contract (the repository root with symbolic links resolved, then as given), reconciles it with
+  `contract.ReconcileParsed` and removes the directory. `Invocation` gains `instance`, `tier`,
+  `exact`, `exactReason` and `tests`, and `Unit` gains `kind` and `kindSource`, all omitted
+  elsewhere, so every other manifest and receipt keeps its bytes.
+- `internal/testrunner/killswitch` reads `CORVINT_SELECTION` (RNC-V1-008, the NMS-V1-008
+  grammar; the refusal codes `kill-switch-value-unknown` and `kill-switch-full-unsupported`).
+  `Input.KillSwitch` and `testinventory.Verdict.ForceFull` apply it in `corvint test`; the
+  manifest and receipt gain `killSwitch`.
+- NOT_PRODUCED by V1-5443: the Minitest selection and parser (the Ruby hook is the line-coverage
+  collector; build log), the kill switch's widened `affected` plan, hooks, MCP and Action surfaces,
+  and tasks 8, 10, 11 and 12 (build log).
 
 ## Traceability
 
 | Requirement | Evidence |
 |---|---|
-| RNC-V1-001 | `TestRNCV1001EveryRunnerImplementsTheContract` (`internal/testrunner/contract`); `TestRNCV1013FullRunsInstanceDefaults` (`internal/sessiontest`) |
-| RNC-V1-002 | `TestRNCV1002EveryRunnerSuppliesItsLister` (`internal/testrunner/contract`); `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) |
-| RNC-V1-003 | `TestRNCV1003GoSelection`, `TestRNCV1003VitestDirectoryRunIsNotExact`, `TestRNCV1003PlaywrightSelection`, `TestRNCV1003FileFilterIsNeverAFlag`, `TestRNCV1003GoFlagValuesSurvive`, `TestRNCV1003JestSelection`, `TestRNCV1003PytestSelection` (`internal/testrunner/contract`) |
+| RNC-V1-001 | `TestRNCV1001EveryRunnerImplementsTheContract` (`internal/testrunner/contract`); `TestRNCV1013FullRunsInstanceDefaults`, `TestRNCV1019ContractUnitsPlanTheSelectedFiles` (`internal/sessiontest`) |
+| RNC-V1-002 | `TestRNCV1002EveryRunnerSuppliesItsLister` (`internal/testrunner/contract`); `TestRNCV1002AffectedRunsNoListerInAPytestProject`, `TestRNCV1002JestWithoutInventoryRunsItsFullCommand` (`cmd/corvint`); `TestRNCV1019WhatTheContractDoesNotNarrow` (`internal/sessiontest`) |
+| RNC-V1-003 | `TestRNCV1003GoSelection`, `TestRNCV1003VitestDirectoryRunIsNotExact`, `TestRNCV1003PlaywrightSelection`, `TestRNCV1003FileFilterIsNeverAFlag`, `TestRNCV1003GoFlagValuesSurvive`, `TestRNCV1003JestSelection`, `TestRNCV1003PytestSelection` (`internal/testrunner/contract`); `TestRNCV1019ContractRunRecordsPerTestResults` (`internal/sessiontest`) |
 | RNC-V1-004 | `TestRNCV1004UnimplementedRunnerRunsFull` (`internal/testrunner/contract`); `TestRNCV1004RemovedRunners`, `TestSTRV0003BuildVerdicts` rows `allowlisted unknowns stay narrowed`, `an unattributed unowned path runs every test` and `a removed runner runs every test`, `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest`); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` (`internal/gateselect`); `TestQualifiedUnownedPathIsThePlannersVerdict_RNCV1004` (`internal/gateselect`); `TestUnownedPathRunsAllOnlyWhenNoRuleAttributesIt_RNCV1004`, `TestUnownedPathWithoutGoUniverseRunsAll_RNCV1004`, `TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004` (`internal/liveverify/affected`); `TestRNCV1004RemovedRunnerAndUnownedPathRunEverything` (`cmd/corvint`) |
-| RNC-V1-005 | `TestRNCV1005GoReport`, `TestRNCV1005VitestReport`, `TestRNCV1005PlaywrightReport`, `TestRNCV1005GoTruncatedLineIsReported`, `TestRNCV1005FileLevelFailuresFailTheRun`, `TestRNCV1005JestReport`, `TestRNCV1005PytestReport`, `TestRNCV1005RSpecSelectionAndReport` (`internal/testrunner/contract`) |
-| RNC-V1-006 | `TestRNCV1006MissingResultsAreNotRun`, `TestRNCV1006GoPackageThatEndsAbnormallyIsIncomplete`, `TestRNCV1006DuplicateResultsKeepTheMostSevere`, `TestRNCV1006RunRecordsFailureIncompletenessAndDuplicates` (`internal/testrunner/contract`) |
-| RNC-V1-007 | `TestRNCV1007RunnerKinds` (`internal/testrunner/contract`); the plan signal is NOT_PRODUCED (task 5) |
-| RNC-V1-008 to RNC-V1-011 | NOT_PRODUCED (tasks 5, 7, 10 and 12) |
+| RNC-V1-005 | `TestRNCV1005GoReport`, `TestRNCV1005VitestReport`, `TestRNCV1005PlaywrightReport`, `TestRNCV1005GoTruncatedLineIsReported`, `TestRNCV1005FileLevelFailuresFailTheRun`, `TestRNCV1005JestReport`, `TestRNCV1005PytestReport`, `TestRNCV1005RSpecSelectionAndReport` (`internal/testrunner/contract`); `TestRNCV1019ContractRunRecordsPerTestResults` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
+| RNC-V1-006 | `TestRNCV1006MissingResultsAreNotRun`, `TestRNCV1006GoPackageThatEndsAbnormallyIsIncomplete`, `TestRNCV1006DuplicateResultsKeepTheMostSevere`, `TestRNCV1006RunRecordsFailureIncompletenessAndDuplicates` (`internal/testrunner/contract`); `TestRNCV1019ContractRunFailsClosed` (`internal/sessiontest`) |
+| RNC-V1-007 | `TestRNCV1007RunnerKinds` (`internal/testrunner/contract`); `TestRNCV1019ContractUnitsPlanTheSelectedFiles` (`internal/sessiontest`); the frozen `affected` plan signal is NOT_PRODUCED |
+| RNC-V1-008 | `TestRNCV1008KillSwitchGrammar`, `TestRNCV1008KillSwitchScope` (`internal/testrunner/killswitch`); `TestRNCV1008KillSwitchPlans` (`internal/sessiontest`); `TestRNCV1008KillSwitchOnCorvintTest`, `TestRNCV1008KillSwitchOnAffectedAndWatch` (`cmd/corvint`); hooks, MCP and the Action NOT_PRODUCED |
+| RNC-V1-009 | NOT_PRODUCED (task 10) |
+| RNC-V1-010 | `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
+| RNC-V1-011 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles` (the printed tier and exact flag come from the planned selection); the release manifest is NOT_PRODUCED (task 12) |
 | RNC-V1-012 | `TestRNCV1003GoSelection`, `TestRNCV1005GoReport` (`internal/testrunner/contract`) |
 | RNC-V1-013 | `TestRNCV1013BuiltInDefaults` (`internal/testrunner/contract`); `TestRNCV1013DeclarationMirror` (`tools/test-commands-check`); `TestRNCV1013ReadDeclaredResolution`, `TestRNCV1013InstanceCommand`, `TestRNCV1013FullRunsInstanceDefaults` (`internal/sessiontest`); `TestRNCV1013CLIFullCommandScenarios`, `TestRNCV1013CLIMalformedCommandsRefused` (`cmd/corvint`) |
-| RNC-V1-014 | `TestRNCV1014InstanceOwnsItsTests`, `TestRNCV1003GoSelection` (nested instance) (`internal/testrunner/contract`); `TestRNCV1013InstanceCommand` (`internal/sessiontest`) |
+| RNC-V1-014 | `TestRNCV1014InstanceOwnsItsTests`, `TestRNCV1003GoSelection` (nested instance) (`internal/testrunner/contract`); `TestRNCV1013InstanceCommand`, `TestRNCV1019WhatTheContractDoesNotNarrow` (two instances own one file) (`internal/sessiontest`) |
 | RNC-V1-015 to RNC-V1-018 | NOT_PRODUCED (tasks 8, 11 and 12) |
+| RNC-V1-019 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles`, `TestRNCV1019WhatTheContractDoesNotNarrow`, `TestRNCV1019ContractRunRecordsPerTestResults`, `TestRNCV1019ContractRunFailsClosed`, `TestRNCV1019ContractRunnerUnavailable`, `TestSTRV0004AdapterCapabilityManifest` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
 
 ## Non-goals
 
@@ -423,5 +509,5 @@ RNC-V1-010 (`jest-provider`).
 ## Rollback
 
 Revert the change's commits. The kill switch (RNC-V1-008) falls back to each runner's full command
-(RNC-V1-013) without a revert. RNC-V1-001 to RNC-V1-018 stay listed as retired if the change is
+(RNC-V1-013) without a revert. RNC-V1-001 to RNC-V1-019 stay listed as retired if the change is
 withdrawn and are never reused.
