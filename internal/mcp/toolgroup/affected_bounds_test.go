@@ -144,11 +144,12 @@ func TestMMRV01118AffectedFailureReadsLastLineBounded(t *testing.T) {
 		stderr        string
 		code, message string
 	}{
-		"degraded then refusal":  {degraded + `{"code":"unknown-base","error":"argument --base: unknown","ok":false}` + "\n", "unknown-base", "argument --base: unknown"},
+		"degraded then refusal":  {degraded + `{"code":"invalid-arguments","error":"argument --base: unknown","ok":false}` + "\n", "invalid-arguments", "argument --base: unknown"},
 		"degraded then raw":      {degraded + "panic: planner\n", "affected-failed", "panic: planner"},
-		"trailing blank lines":   {`{"code":"affected-refused","error":"refused","ok":false}` + "\n\n\n", "affected-refused", "refused"},
+		"trailing blank lines":   {`{"code":"unsupported-affected-drift","error":"refused","ok":false}` + "\n\n\n", "unsupported-affected-drift", "refused"},
 		"codeless object":        {`{"error":"no code"}`, "affected-failed", "no code"},
-		"long parsed message":    {`{"code":"long","error":"` + long + `"}` + "\n", "long", long[:affectedFailureLimit]},
+		"long parsed message":    {`{"code":"invalid-arguments","error":"` + long + `"}` + "\n", "invalid-arguments", long[:affectedFailureLimit]},
+		"long unlisted code":     {`{"code":"long","error":"` + long + `"}` + "\n", "affected-failed", ("long: " + long)[:affectedFailureLimit]},
 		"long raw line":          {degraded + long + "\n", "affected-failed", long[:affectedFailureLimit]},
 		"only a degraded line":   {degraded, "affected-failed", strings.TrimSpace(degraded)},
 		"nothing":                {"", "affected-failed", "corvint affected --summary failed"},

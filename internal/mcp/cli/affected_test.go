@@ -23,7 +23,7 @@ import (
 // the base "refused" the way the CLI's argument parser would.
 func stubAffectedRunner(_ context.Context, root, base string, stdout, stderr io.Writer) int {
 	if base == "refused" {
-		_, _ = fmt.Fprintln(stderr, `{"code": "invalid-argument", "error": "argument --base: refused", "ok": false}`)
+		_, _ = fmt.Fprintln(stderr, `{"code": "invalid-arguments", "error": "argument --base: refused", "ok": false}`)
 		return 2
 	}
 	_, _ = fmt.Fprintf(stdout, "{\"base\":%q,\"ok\":true,\"profile\":\"affected-summary/1\",\"root\":%q}\n", base, root)
@@ -144,7 +144,7 @@ func TestMMRV01118AffectedGroupServedThroughHooks(t *testing.T) {
 	}
 	refused := resultOf(t, responses[4])
 	refusedBody, _ := refused["structuredContent"].(map[string]any)
-	if refused["isError"] != true || refusedBody["code"] != "invalid-argument" || refusedBody["error"] != "argument --base: refused" ||
+	if refused["isError"] != true || refusedBody["code"] != "invalid-arguments" || refusedBody["error"] != "argument --base: refused" ||
 		refusedBody["profile"] != toolgroup.AffectedErrorProfile || refusedBody["tool"] != toolgroup.AffectedTool || refusedBody["mutates"] != false {
 		t.Fatalf("refused=%#v", refused)
 	}

@@ -266,7 +266,7 @@ not reused and their text stays in their own specs as history.
 
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
-| MTT-V1-001 | 2.1 | `internal/capcatalog/mcp.go` (`MCPTools`, `CheckMCPTools`) | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow`, `TestCAPV08800MCPToolsReachable` |
+| MTT-V1-001 | 2.1 | `internal/capcatalog/mcp.go` (`MCPTools`, `CheckMCPTools`); `internal/mcp/toolgroup/affected.go` (`AffectedErrors`, the closed error list the affected row advertises) | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow`, `TestCAPV08800MCPToolsReachable`, `TestMTTV1001AffectedErrorsAreAdvertised` |
 | MTT-V1-002 | 2.2 | `tools/mcp-server-doc`, `make mcp-server-doc`, doc gate `mcp-server-doc-check` | `TestMTTV1002StalenessCheckFailsOnAHandEdit`, `TestMTTV1002DocumentCarriesEveryRow` |
 | MTT-V1-003 | 2.3 | `internal/capcatalog/mcp_drift.go` (`MCPDrift`, input property names only), compared with each server's real `tools/list` response | `TestMTTV1003CoreServerRegistersExactlyTheTable`, `TestMTTV1003TestValidityServerRegistersExactlyTheTable` (cmd/corvint-test-validity-mcp), `TestMTTV1003DriftNamesTheTool` |
 | MTT-V1-004 | 2.4 | `internal/mcp/docsserver`, `corvint-docs mcp` (`cmd/corvint-docs/main.go`, `help.go`) | `TestMTTV1004DocsServerToolList`, `TestMTTV1004DocsServerAnswers`, `TestMTTV1004DocsServerRefusesArguments`, `TestMTTV1004CorvintDocsMCPAnswersOnAFixture`, `TestMTTV1004CorvintDocsMCPHelp` |

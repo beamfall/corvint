@@ -1921,13 +1921,21 @@
         "cancelled",
         "server-busy",
         "affected-failed",
+        "ambiguous-affected-base",
+        "corvint-envelope-terminator-collision",
+        "invalid-arguments",
         "invalid-root",
         "not-served",
+        "unsupported-affected-drift",
+        "unsupported-affected-graph",
+        "unsupported-affected-revision",
+        "unsupported-affected-status",
+        "unsupported-affected-temp",
         "verdict-oversized"
       ],
       "cliEquivalent": "corvint affected --summary [--base REV]",
       "parityTest": "corvint TestV15254MCPAffectedMatchesCLI",
-      "note": "a planner refusal carries the CLI's own error code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)"
+      "note": "a planner refusal listed here carries the CLI's own error code and any other is affected-failed, its message led by the planner's code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)"
     },
     {
       "name": "corvint.docs_claims",
