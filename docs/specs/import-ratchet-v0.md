@@ -10,7 +10,7 @@ Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel rest
 ## Agent digest
 - Claim: A checked-in area manifest layers every module package, and a Go test fails on any wrong-way cross-area import that its shrinking baseline does not list.
 - Status: experimental; owner-directed lane implementation under the standing lane auto-accept, pending independent review; re-keyed to the five layers of decision 0594 on 2026-11-09 (V1-5233).
-- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (1 edge, `internal/sessiontest -> .github/cishards`, after V1-5248 and V1-5249 keyed the affected planner, `doccorpus`, `flowdocs` and `mcp/corpusbridge` shared and split the provider receipt models, the test-validity model and test discovery into shared packages, `docs/build-log/2026-11-11-layers-remaining-edges.md`; 17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`; `tools/import-ratchet/direct_git_allowlist.txt` with `direct_git_test.go` (IRT-V0-020, 59 scanned Git spawns listed in 57 functions of 48 files, none routed) and `affected_names_test.go` (IRT-V0-021).
+- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (no edge since V1-4809 and V1-5249 keyed the shard planner `.github/cishards` `tests`, `docs/build-log/2026-11-13-layers-last-edge.md`; 1 edge, `internal/sessiontest -> .github/cishards`, after V1-5248 and V1-5249 keyed the affected planner, `doccorpus`, `flowdocs` and `mcp/corpusbridge` shared and split the provider receipt models, the test-validity model and test discovery into shared packages, `docs/build-log/2026-11-11-layers-remaining-edges.md`; 17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`; `tools/import-ratchet/direct_git_allowlist.txt` with `direct_git_test.go` (IRT-V0-020, 59 scanned Git spawns listed in 57 functions of 48 files, none routed) and `affected_names_test.go` (IRT-V0-021).
 - Blocked on: independent review; the import-rule enforcement, `cmd/corvint` test split, CI sharding and per-binary release follow-ups of decision 0594 shrink the baseline.
 - Read next: Requirements, then Failure modes.
 
@@ -35,9 +35,13 @@ re-keyed the manifest from the panel's eleven areas to those five (`shared` laye
 imports the follow-ups must remove. A package is keyed by role; a leaf that two products need
 (the index's language dialects, `langplugin/decl`, `pythongrammar`) is `shared`; each `cmd`
 binary is keyed to its product; `.github`, `tools`, `script`, `conformance`, `benchmarks` and
-`examples` are `release`, which may import any layer and is not shipped. The re-key, the 44
-measured edges by layer pair and the per-layer test time are recorded in
-`docs/build-log/2026-11-09-layers-manifest.md`.
+`examples` are `release`, which may import any layer and is not shipped. A package under one of
+those directories that a shipped binary compiles in is keyed by its role instead: the shard
+planner `.github/cishards` imports only the standard library and `corvint test` and `affected`
+run it through `internal/sessiontest`, so it is `tests`; the rest of `.github` stays `release`
+(its CI command `.github/cishards/cmd` is in a hidden directory no scanned package imports, so it
+is outside the graph of IRT-V0-003). The re-key, the 44 measured edges by layer pair and the
+per-layer test time are recorded in `docs/build-log/2026-11-09-layers-manifest.md`.
 
 ## Requirements
 
@@ -71,6 +75,9 @@ measured edges by layer pair and the per-layer test time are recorded in
   wrong-way import from a layer-0 package into a package of the highest non-entry layer
   (`release` since V1-5233; `cli` before) yields exactly one `NEW_WRONG_WAY_EDGE` naming it,
   and removing the first baselined import yields exactly one `STALE_BASELINE_EDGE` naming it.
+  When the baseline is empty, both controls still run: the removal control baselines the added
+  control edge and checks the unchanged graph, which yields exactly one `STALE_BASELINE_EDGE`
+  naming that edge.
 - `IRT-V0-006`: The test SHALL run inside `go test ./...` in well under 10 seconds (measured 0.7 s
   on the lane host over 438 packages; 0.09 s over 298 after decision 0594) and carry `//corvint:read-kinds .go go.mod` (AFP-V0-9000), so affected
   selection reruns it on any Go source or module-boundary edit. The manifest and baseline are
@@ -149,7 +156,7 @@ reviewed change.
 | IRT-V0-002 | `TestCheckAcceptsTheBaselinedGraph`, `TestCheckNamesNewWrongWayEdges` (peer-layer edge) |
 | IRT-V0-003 | `TestScanModuleFollowsGoListRules` and `TestScanModuleRootPackage` (root package edges in both directions); under the panel's original area assignment the scanner's 78-edge set equals the panel's `go list -deps -json ./...` computation exactly, and the five-package reassignment removes exactly the eight listed edges (none added) |
 | IRT-V0-004 | `TestCheckNamesNewWrongWayEdges`, `TestCheckRefusesStaleAndMalformedBaselines` |
-| IRT-V0-005 | `TestImportRatchet` controls |
+| IRT-V0-005 | `TestImportRatchet` controls (both run on the empty baseline since V1-4809 and V1-5249) |
 | IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages; 0.09 s, 298 packages and 44 edges after the V1-5233 re-key) |
 | IRT-V0-020 | `TestIRTV0020DirectGitSpawnsAreAllowlisted` (checkout scan against `direct_git_allowlist.txt`, 59 spawns; a synthetic-module control naming an unlisted spawn of each program form (literal, identifier, selector, `gitstatus.Executable()`), a `goBin` program that is not reported, a stale and a malformed entry) |
 | IRT-V0-021 | `TestIRTV0021NoLeafOnlyAffectedImport` (checkout graph and a synthetic-module control that fails a `Language`-only importer, a dot importer and an importer whose only non-leaf selector is on a parameter named `affected`) |

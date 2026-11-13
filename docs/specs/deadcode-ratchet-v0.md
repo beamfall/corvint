@@ -11,7 +11,7 @@ Authoritative inputs: tickets V1-4801 (the report and its baseline) and V1-4827 
 ## Agent digest
 - Claim: `make deadcode` runs a pinned dead-code analyzer for six GOOS/GOARCH configurations and fails unless the functions all six report equal a shrink-only baseline.
 - Status: proposed / experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)
-- Exists: Makefile targets `deadcode` and `deadcode-baseline`, `tools/deadcode-ratchet/` (the runner, the intersection and verdict, `baseline.json`, hermetic tests on `testdata` fixtures); the baseline held 149 entries at 4c3c20333 and holds 35 after the deletion of 114 functions (V1-4827), each kept entry with its reason.
+- Exists: Makefile targets `deadcode` and `deadcode-baseline`, `tools/deadcode-ratchet/` (the runner, the intersection and verdict, `baseline.json`, hermetic tests on `testdata` fixtures); the baseline held 149 entries at 4c3c20333 and held 35 after the deletion of 114 functions (V1-4827); at 366408098 (2026-11-13) `make deadcode` failed with 78 new functions and two stale entries of removed packages, and V1-4827 deleted 76 of them and kept two a spec cites, so it holds 35 again (`docs/build-log/2026-11-13-deadcode-regrowth.md`), each kept entry with its reason.
 - Blocked on: owner acceptance of the intent; independent review; an owner decision on the 35 kept entries (V1-4827 asks for zero).
 - Read next: Requirements, then Failure modes.
 
@@ -32,7 +32,11 @@ origin/main 4c3c20333 (2026-11-11) the six runs report 152 (linux/amd64), 155 (l
 darwin) and 208 (both windows) functions; 149 are in all six. The deletion removed 114 of them
 (1,614 Go lines); 35 stay in the baseline with a reason: 16 cited by a spec (DCR-V0-007), 2 called
 by a cited function, 11 counted by the diagnostic-coverage ratchet test, 4 in paths a concurrent
-lane is editing, 1 under `.github/**` and 1 fixture.
+lane is editing, 1 under `.github/**` and 1 fixture. By origin/main 366408098 (2026-11-13) the
+report had grown by 78 functions, almost all test helpers left behind when decision 0597 removed
+task-context packets and forwarding wrappers the layer splits left unused, and two cited entries
+had gone with their packages. The second deletion removed 76; the two it kept are cited by a spec,
+so the kept groups and the total of 35 are unchanged.
 
 ## Requirements
 
@@ -125,8 +129,8 @@ development tool: no product package imports it and it uses the standard library
 | DCR-V0-004 | `TestDecodeBaselineRefusals`, `TestEncodeBaselineRoundTrip`, `TestCommittedBaselineCount` |
 | DCR-V0-005 | `TestVerdictAcceptsMatchingBaseline`, `TestVerdictNamesNewFunction`, `TestVerdictNamesStaleEntry`; `make deadcode` on a scratch commit that adds one unreachable function exits non-zero naming it |
 | DCR-V0-006 | `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 ./tools/deadcode-ratchet/` (all tests, 0.004 s, fixtures embedded from `testdata`) |
-| DCR-V0-007 | the removed-declaration check in `docs/build-log/2026-11-11-deadcode-ratchet.md` (114 removed declarations, every one a function of the base report; a control that also removes a live function fails naming it); `TestCommittedBaselineReasons` |
-| DCR-V0-008 | `go build` and `go vet` for the six configurations, `go vet -tags` for `race`, `live`, `beamfall_appstore` and `corvint_development` (red at the base, unchanged), `go vet` in `interop/cem01-go`, the tests of the 43 packages that lost a function, and `make deadcode` exit 0 on the 35-entry baseline, all recorded in `docs/build-log/2026-11-11-deadcode-ratchet.md` |
+| DCR-V0-007 | the removed-declaration check in `docs/build-log/2026-11-11-deadcode-ratchet.md` (114 removed declarations, every one a function of the base report; a control that also removes a live function fails naming it); `docs/build-log/2026-11-13-deadcode-regrowth.md` (76 removed, every one in the report at 366408098; two spec-cited functions kept); `TestCommittedBaselineReasons` |
+| DCR-V0-008 | `go build` and `go vet` for the six configurations, `go vet -tags` for `race`, `live`, `beamfall_appstore` and `corvint_development` (red at the base, unchanged), `go vet` in `interop/cem01-go`, the tests of the 43 packages that lost a function, and `make deadcode` exit 0 on the 35-entry baseline, all recorded in `docs/build-log/2026-11-11-deadcode-ratchet.md`; for the 2026-11-13 deletion, the same proof scoped to the five packages that lost a function, in `docs/build-log/2026-11-13-deadcode-regrowth.md` |
 
 ## Rollback
 

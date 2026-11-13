@@ -26,6 +26,7 @@
     {"package":"github.com/Beamfall/corvint/internal/gateselect","func":"SelectStructuralIndexed","reason":"cited by docs/specs/affected-plan-v0.md:6609"},
     {"package":"github.com/Beamfall/corvint/internal/gokernel","func":"ProbeRepositoryAround","reason":"cited by docs/specs/go-production-kernel-migration-v0.md:1221"},
     {"package":"github.com/Beamfall/corvint/internal/gokernel","func":"ProbeRepositoryAroundPrefetching","reason":"cited by docs/specs/local-completion-policy-v0.md:932"},
+    {"package":"github.com/Beamfall/corvint/internal/jstestprovider","func":"QualifiedApplicationRevision","reason":"cited by docs/specs/run-verified-navigation-v0.md:52"},
     {"package":"github.com/Beamfall/corvint/internal/liveverify/affected","func":"Graph.frontierSiteUnits","reason":"left for a concurrent lane (2026-11-11)"},
     {"package":"github.com/Beamfall/corvint/internal/liveverify/affected","func":"holdWalks","reason":"left for a concurrent lane (2026-11-11)"},
     {"package":"github.com/Beamfall/corvint/internal/liveverify/affected/golang/typedreach","func":"graph.merge","reason":"left for a concurrent lane (2026-11-11)"},
@@ -33,8 +34,7 @@
     {"package":"github.com/Beamfall/corvint/internal/liveverify/pymutate","func":"Judge","reason":"cited by docs/specs/falsifiable-packet-v0.md:1980"},
     {"package":"github.com/Beamfall/corvint/internal/mcp/cli","func":"Serve","reason":"cited by docs/specs/mcp-server-2026-07-28-v0.md:1222"},
     {"package":"github.com/Beamfall/corvint/internal/releasecandidate","func":"Verify","reason":"cited by docs/specs/public-release-v0.md:843"},
-    {"package":"github.com/Beamfall/corvint/internal/unplannedread","func":"RefusePacket","reason":"cited by docs/specs/unplanned-read-events-v0.md:123"},
-    {"package":"github.com/Beamfall/corvint/internal/worksource","func":"RefusalReason","reason":"cited by docs/specs/work-queue-observation-v0.md:917"},
+    {"package":"github.com/Beamfall/corvint/internal/testsupport","func":"PrivateWorkRunParent","reason":"cited by docs/specs/work-queue-observation-v0.md:762"},
     {"package":"github.com/Beamfall/corvint/tools/beamfall-shadow/fixtures/matrix/go","func":"Observe","reason":"fixture data read by tools/beamfall-shadow/main_test.go:87, not code to prune"}
   ]
 }
