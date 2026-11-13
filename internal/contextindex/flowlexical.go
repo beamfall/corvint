@@ -42,6 +42,11 @@ func flowWebMask(text string) string {
 				i = end
 				continue
 			}
+			// Markup never opens straight after a name, so any other such '<'
+			// (a return type `): Promise<T> {`, an annotation `: Map<K, V> =`,
+			// a comparison `i<n`) stays code rather than blanking the rest of
+			// the file up to a closing tag.
+			continue
 		}
 		if c == '<' && i+1 < len(code) && (code[i+1] >= 'A' && code[i+1] <= 'Z' || code[i+1] >= 'a' && code[i+1] <= 'z' || code[i+1] == '/') {
 			end := i + 1
