@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//go:build darwin || linux
+
+package sessiontest
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/testrunner/contract"
+)
+
+// fakeJest stands in for Jest: it answers --version, logs its argv and
+// writes a Jest --json report for the files after --runTestsByPath to the
+// --outputFile path, one test "works" per file, as FAKE_MODE says: pass,
+// fail (a failing test, exit 1), noreport, partial (only the first file),
+// runfail (success false with every test passing) or exit1 (every test
+// passes, exit 1).
+const fakeJest = `#!/bin/sh
+[ "$1" = --version ] && { echo 29.7.0; exit 0; }
+echo "$@" >> "$FAKE_DIR/jest-argv"
+here=$(pwd -P)
+out="" files="" bypath=0
+for a in "$@"; do
+  case "$a" in
+  --outputFile=*) out="${a#--outputFile=}" ;;
+  --runTestsByPath) bypath=1 ;;
+  -*) ;;
+  *) [ "$bypath" = 1 ] && files="$files $a" ;;
+  esac
+done
+[ "$FAKE_MODE" = noreport ] && exit 0
+status=passed success=true code=0
+case "$FAKE_MODE" in
+fail) status=failed success=false code=1 ;;
+runfail) success=false ;;
+exit1) code=1 ;;
+esac
+sep="" body=""
+for f in $files; do
+  body="$body$sep{\"name\":\"$here/$f\",\"status\":\"$status\",\"assertionResults\":[{\"ancestorTitles\":[\"suite\"],\"title\":\"works\",\"status\":\"$status\",\"duration\":7}]}"
+  sep=","
+  [ "$FAKE_MODE" = partial ] && break
+done
+printf '{"success":%s,"testResults":[%s]}\n' "$success" "$body" > "$out"
+exit $code
+`
+
+// contractFixture is a local narrowed manifest of two selected Jest files
+// in instance jest@., whose declared runner command is the fake Jest.
+func contractFixture(t *testing.T, mode string) (*Runner, Manifest, string, string) {
+	t.Helper()
+	runner, m, _, dir := runnerFixture(t, "pass")
+	if err := execfile.WriteFile(filepath.Join(dir, "fakejest"), []byte(fakeJest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runner.Environ = []string{"PATH=" + os.Getenv("PATH"), "FAKE_MODE=" + mode, "FAKE_DIR=" + dir}
+	runner.Declared = BuiltInDeclared()
+	runner.Declared.Runners = []RunnerCommand{{Key: "jest", Argv: []string{"fakejest"}}}
+	m.Units = []Unit{
+		{Adapter: AdapterContract, Shard: 0, Slice: "jest@.", Unit: "jest:src/a.test.js"},
+		{Adapter: AdapterContract, Shard: 0, Slice: "jest@.", Unit: "jest:src/b.test.js"},
+	}
+	sourceDigest, err := Digest(m.Source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.SourceDigest = sourceDigest
+	digest, err := Digest(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return runner, m, digest, dir
+}
+
+// RNC-V1-019, RNC-V1-005, RNC-V1-006, RNC-V1-010: a contract invocation
+// runs exactly the selected files with the report written to a private
+// file, and the receipt records the instance, tier and exact flag, each
+// file's outcome under its canonical test ID, and one outcome and duration
+// per test read from the report; the report directory is removed.
+func TestRNCV1019ContractRunRecordsPerTestResults(t *testing.T) {
+	runner, m, digest, dir := contractFixture(t, "pass")
+	var output bytes.Buffer
+	runner.Output = &output
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result != ResultPass || len(receipt.Incomplete) != 0 || len(receipt.Invocations) != 1 {
+		t.Fatalf("receipt %s incomplete %q invocations %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+	run := receipt.Invocations[0]
+	if run.Adapter != AdapterContract || run.AdapterManifest != AdapterManifestProfile || run.Instance != "jest@." || run.Tier != contract.TierFile ||
+		run.Exact == nil || !*run.Exact || run.Exit != 0 || run.Runner != filepath.Join(dir, "fakejest") || run.Version != "29.7.0" {
+		t.Fatalf("invocation %+v", run)
+	}
+	wantOutcomes := []Outcome{
+		{Outcome: OutcomePass, Slice: "jest@.", TestID: "jest:src/a.test.js", Unit: "jest:src/a.test.js"},
+		{Outcome: OutcomePass, Slice: "jest@.", TestID: "jest:src/b.test.js", Unit: "jest:src/b.test.js"},
+	}
+	wantTests := []contract.Result{
+		{ID: "jest:src/a.test.js::suite::works", Outcome: contract.OutcomePass, DurationMillis: 7, Granularity: "test"},
+		{ID: "jest:src/b.test.js::suite::works", Outcome: contract.OutcomePass, DurationMillis: 7, Granularity: "test"},
+	}
+	if !slices.Equal(run.Outcomes, wantOutcomes) || !slices.Equal(run.Tests, wantTests) {
+		t.Fatalf("outcomes %+v tests %+v", run.Outcomes, run.Tests)
+	}
+	report := ""
+	for _, word := range run.Argv {
+		if value, ok := strings.CutPrefix(word, "--outputFile="); ok {
+			report = value
+		}
+	}
+	if report == "" || report == ContractReportPlaceholder || !slices.Equal(run.Argv[len(run.Argv)-3:], []string{"--runTestsByPath", "src/a.test.js", "src/b.test.js"}) {
+		t.Fatalf("argv %q", run.Argv)
+	}
+	if _, err := os.Stat(filepath.Dir(report)); !os.IsNotExist(err) {
+		t.Fatalf("the report directory %s was left behind: %v", filepath.Dir(report), err)
+	}
+	logged, _ := os.ReadFile(filepath.Join(dir, "jest-argv"))
+	if string(logged) != strings.Join(run.Argv[1:], " ")+"\n" {
+		t.Fatalf("logged argv %q", logged)
+	}
+	if !strings.Contains(output.String(), "contract jest@.: 2 results: 2 passed, 0 failed, 0 errored, 0 skipped, 0 NOT_RUN\n") {
+		t.Fatalf("output %q", output.String())
+	}
+	if result, reasons := Verify(m, digest, []Receipt{receipt}, nil); result != ResultPass {
+		t.Fatalf("verify %s %q", result, reasons)
+	}
+	encoded, err := Encode(receipt)
+	if err != nil || !bytes.Contains(encoded, []byte(`"instance":"jest@.","tier":"file","exact":true,"tests":[{"testId":"jest:src/a.test.js::suite::works","outcome":"pass","durationMillis":7,"granularity":"test"}`)) {
+		t.Fatalf("encoded receipt %v %s", err, encoded)
+	}
+}
+
+// RNC-V1-019, RNC-V1-006: a failing test fails its file; a missing report
+// or a test the report does not answer is NOT_RUN and the run INCOMPLETE; a
+// run-level failure no test carries, or a nonzero exit with every test
+// passing, is never a pass; and the exit status is kept in the receipt.
+func TestRNCV1019ContractRunFailsClosed(t *testing.T) {
+	for _, tc := range []struct {
+		mode, result, reason string
+		outcomes             []string
+		exit                 int
+	}{
+		{mode: "fail", result: ResultFail, outcomes: []string{OutcomeFail, OutcomeFail}, exit: 1},
+		{mode: "noreport", result: ResultIncomplete, reason: "contract jest@.: the machine report cannot be read (the runner wrote no machine report); its 2 selected test files are NOT_RUN", outcomes: []string{OutcomeNotRun, OutcomeNotRun}},
+		{mode: "partial", result: ResultIncomplete, reason: "contract jest@.: 1 selected tests have no result in the report, so they are NOT_RUN: [jest:src/b.test.js]", outcomes: []string{OutcomePass, OutcomeNotRun}},
+		{mode: "runfail", result: ResultFail, outcomes: []string{OutcomeFail, OutcomeFail}},
+		{mode: "exit1", result: ResultFail, outcomes: []string{OutcomePass, OutcomePass}, exit: 1},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			runner, m, digest, _ := contractFixture(t, tc.mode)
+			receipt := runner.Execute(context.Background(), m, digest, 0)
+			if receipt.Result != tc.result || len(receipt.Invocations) != 1 || receipt.Invocations[0].Exit != tc.exit {
+				t.Fatalf("receipt %s incomplete %q invocations %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+			}
+			if tc.reason != "" && !slices.Contains(receipt.Incomplete, tc.reason) {
+				t.Fatalf("incomplete %q, want %q", receipt.Incomplete, tc.reason)
+			}
+			var got []string
+			for _, outcome := range receipt.Invocations[0].Outcomes {
+				got = append(got, outcome.Outcome)
+			}
+			if !slices.Equal(got, tc.outcomes) {
+				t.Fatalf("outcomes %q, want %q", got, tc.outcomes)
+			}
+			if tc.mode == "partial" && !slices.Contains(receipt.Invocations[0].Tests, contract.Result{ID: "jest:src/b.test.js", Outcome: contract.OutcomeNotRun, Granularity: "file"}) {
+				t.Fatalf("tests %+v", receipt.Invocations[0].Tests)
+			}
+		})
+	}
+}
+
+// RNC-V1-019: a runner that cannot be discovered, or a selection the
+// contract refuses, launches nothing: each selected file is NOT_RUN beside
+// the reason and the run is INCOMPLETE.
+func TestRNCV1019ContractRunnerUnavailable(t *testing.T) {
+	runner, m, digest, dir := contractFixture(t, "pass")
+	if err := os.Remove(filepath.Join(dir, "fakejest")); err != nil {
+		t.Fatal(err)
+	}
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result != ResultIncomplete || !slices.Contains(receipt.Incomplete, "contract fakejest: runner fakejest not found") ||
+		len(receipt.Invocations) != 1 || receipt.Invocations[0].Instance != "jest@." || receipt.Invocations[0].Outcomes[0].Outcome != OutcomeNotRun {
+		t.Fatalf("receipt %s incomplete %q invocations %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+	runner, m, _, _ = contractFixture(t, "pass")
+	m.Units = []Unit{{Adapter: AdapterContract, Shard: 0, Slice: "minitest@.", Unit: "minitest:test/a_test.rb"}}
+	digest, _ = Digest(m)
+	receipt = runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result != ResultIncomplete || !slices.Contains(receipt.Incomplete, "contract minitest@.: no contract selection or full command for this runner instance") ||
+		len(receipt.Invocations) != 1 || receipt.Invocations[0].Exit != -1 || receipt.Invocations[0].Outcomes[0].Outcome != OutcomeNotRun {
+		t.Fatalf("refused: receipt %s incomplete %q invocations %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+}

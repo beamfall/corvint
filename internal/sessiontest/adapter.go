@@ -43,7 +43,7 @@ type AdapterManifest struct {
 // execute that run and its receipt document, and cancel the same kill.
 func AdapterManifests() map[string]AdapterManifest {
 	manifests := map[string]AdapterManifest{}
-	for _, adapter := range []string{AdapterGo, AdapterDeclared, AdapterProvider} {
+	for _, adapter := range []string{AdapterGo, AdapterDeclared, AdapterProvider, AdapterContract} {
 		manifests[adapter] = AdapterManifest{Adapter: adapter, Operations: slices.Clone(adapterOperations), Profile: AdapterManifestProfile}
 	}
 	return manifests
