@@ -1425,6 +1425,9 @@ jobs:
         working-directory: source
         env:
           TESTED_MERGE: ${{ github.sha }}
+          # CIN-V0-8720: the known-flake list and its authorizer come from the event base (the pull
+          # request's base, the queue base or the pushed commit), never from the tested tree.
+          KNOWN_FLAKES_REVISION: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
           # AFP-V0-461 (V1-2707): outcomes.sh records the pull request head in every shard's
           # outcomes; without it each PR forward row is INCOMPLETE and trips the kill switch.
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -1637,8 +1640,8 @@ jobs:
           # failed slice once (at most 8, else SKIPPED_BOUND) and keep the rerun outcomes beside
           # the first. AFP-V0-441 (V1-2682): the rerun has its own hang detector, RERUN_MINUTES
           # for all its invocations together (exit 124 when it stops them, 137 when its kill
-          # does), and records its exit status in rerun-status; only flaky.sh below may turn a
-          # failed shard into a pass.
+          # does), and records its exit status in rerun-status; only flaky.sh below, with the
+          # CIN-V0-8720 known-flake authorization, may turn a failed shard into a pass.
           # The rerun runs in a child bash under timeout, so no exported function or variable
           # reaches a test's environment; it exits 1 when any rerun invocation failed.
           rerun_invocations() {
@@ -1680,11 +1683,19 @@ jobs:
               # the shard FLAKY in the job summary and an annotation and writes flaky.json), and
               # the flaky output that makes the next step retain flaky.json was written. A second
               # failure, a stopped or incomplete rerun, or a bounded (SKIPPED_BOUND) rerun keeps
-              # the first status.
+              # the first status. CIN-V0-8720: every failed test must also hold a live exception
+              # in known-flakes.tsv, judged by known-flakes.py, both read from the event base and
+              # run from a copy outside the tested tree, so the tested change can edit neither.
+              # The FLAKY record and its artifact stay even when the authorization refuses.
               if [ "$status" != 0 ] && [ -n "$outcomes_ok" ] && sh .github/forward-rows/flaky.sh "$outcomes_dir" "$capture" &&
                 echo "flaky=1" >> "$GITHUB_OUTPUT"; then
                 flaky=1
-                status=0
+                if git show "$KNOWN_FLAKES_REVISION:.github/forward-rows/known-flakes.py" > "$RUNNER_TEMP/known-flakes.py" 2> /dev/null &&
+                  python3 -I -B "$RUNNER_TEMP/known-flakes.py" "$capture" "$outcomes_dir/flaky-failed-packages" "$outcomes_dir/expected"; then
+                  status=0
+                else
+                  echo "::warning::shard $SHARD: CIN-V0-8720: the rerun passed, but not every failed test has an unexpired exception in known-flakes.tsv at $KNOWN_FLAKES_REVISION; the shard keeps its failure"
+                fi
               fi
             fi
             # AFP-V0-531 (V1-2689): a shard that still fails names a typed reason per failed
@@ -2180,6 +2191,12 @@ jobs:
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+      - name: CI workflow helper tests (CIN-V0-8720 to CIN-V0-8723)
+        # Python extract-and-run tests of workflow steps and helpers under .github/forward-rows;
+        # they make no hosted request.
+        working-directory: source
+        run: |
+          python3 -B .github/forward-rows/known-flakes_test.py
       - name: Windows vet including test files (AFP-V0-042)
         # go build skips _test.go files, so a test that breaks only for GOOS=windows reached main
         # (V1-1117). Skipped only on a pull request whose merge commit provably changes no .go,
