@@ -4,6 +4,7 @@ package typescript
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -11,20 +12,52 @@ import (
 
 // slfv1006Fault is one pre-registered fault for a narrowing rule
 // (SLF-V1-006): a project, the file whose line the fault changes and its
-// faulted body, and the test that would kill the fault.
+// faulted body, and the test the plan must select, which would kill the
+// fault. killerNotProduced, when set, says why that test cannot kill the
+// fault: the case then checks the selection side only and claims no killer.
 type slfv1006Fault struct {
-	name   string
-	files  map[string]string
-	path   string
-	mutant string
-	killer string
+	name              string
+	files             map[string]string
+	path              string
+	mutant            string
+	killer            string
+	killerNotProduced string
 }
 
-const slfv1006RoutesTest = "import { test, expect } from \"vitest\"\nimport { pages } from \"../src/routes\"\ntest(\"routes\", () => expect(Object.keys(pages)).toMatchSnapshot())\n"
+// slfv1006PagesTest is the route table's killer for an import.meta.glob
+// table: it loads every page the glob matched and compares each export's
+// value (a function's return value) with want, a literal of the unfaulted
+// pages, so a fault in a page or in a file a page imports changes a value
+// and fails it, while the unfaulted tree passes.
+func slfv1006PagesTest(want string) string {
+	return "import { test, expect } from \"vitest\"\nimport { pages } from \"../src/routes\"\n" +
+		"test(\"routes\", async () => {\n" +
+		"  const loaded: Record<string, Record<string, unknown>> = {}\n" +
+		"  for (const [path, load] of Object.entries(pages)) {\n" +
+		"    const module = await (load as () => Promise<Record<string, unknown>>)()\n" +
+		"    loaded[path] = Object.fromEntries(Object.entries(module).map(([name, value]) => [name, typeof value === \"function\" ? value() : value]))\n" +
+		"  }\n" +
+		"  expect(loaded).toEqual(" + want + ")\n" +
+		"})\n"
+}
+
+// The unfaulted values of the pages each glob matches.
+const (
+	slfv1006FlatPages = `{ "./pages/about.tsx": { default: "ABOUT" }, "./pages/home.tsx": { default: "home" } }`
+	slfv1006AllPages  = `{ "./pages/about.tsx": { default: "ABOUT" }, "./pages/home.tsx": { default: "home" }, "./pages/nested/deep.tsx": { deep: 1 } }`
+)
+
+// slfv1006KeysTest snapshots only the route table's keys; it is the
+// require.context cases' selected test, which kills nothing (below).
+const slfv1006KeysTest = "import { test, expect } from \"vitest\"\nimport { pages } from \"../src/routes\"\ntest(\"routes\", () => expect(Object.keys(pages)).toMatchSnapshot())\n"
+
+// slfv1006NoRequireContext is why no require.context case has a killer.
+const slfv1006NoRequireContext = "NOT_PRODUCED: the project's runner is Vitest, which has no require.context (a webpack API), " +
+	"so no test of the route table runs on the unfaulted tree; a killer needs a webpack- or Jest-run fixture"
 
 // slfv1006GlobProject is a Vite route table that loads its pages through
-// call, with a test of the route table.
-func slfv1006GlobProject(call string) map[string]string {
+// call, with test as the test of the route table.
+func slfv1006GlobProject(call, test string) map[string]string {
 	return map[string]string{
 		"package.json":              `{"devDependencies":{"vitest":"1"}}`,
 		"src/routes.ts":             "export const pages = " + call + "\n",
@@ -32,24 +65,24 @@ func slfv1006GlobProject(call string) map[string]string {
 		"src/pages/home.tsx":        "export default function Home() { return \"home\" }\n",
 		"src/pages/nested/deep.tsx": "export const deep = 1\n",
 		"src/lib/format.ts":         "export const title = (s: string) => s.toUpperCase()\n",
-		"tests/routes.test.ts":      slfv1006RoutesTest,
+		"tests/routes.test.ts":      test,
 	}
 }
 
 // slfv1006GlobFaults are the SLF-V1-003 cases: each literal glob form the
 // rule expands, a recursive match, and a file reached through a globbed one.
 var slfv1006GlobFaults = []slfv1006Fault{
-	{name: "import.meta.glob star", files: slfv1006GlobProject(`import.meta.glob("./pages/*.tsx")`),
+	{name: "import.meta.glob star", files: slfv1006GlobProject(`import.meta.glob("./pages/*.tsx")`, slfv1006PagesTest(slfv1006FlatPages)),
 		path: "src/pages/home.tsx", mutant: "export default function Home() { return \"Home\" }\n", killer: "tests/routes.test.ts"},
-	{name: "import.meta.glob recursive", files: slfv1006GlobProject(`import.meta.glob("./pages/**/*.tsx")`),
+	{name: "import.meta.glob recursive", files: slfv1006GlobProject(`import.meta.glob("./pages/**/*.tsx")`, slfv1006PagesTest(slfv1006AllPages)),
 		path: "src/pages/nested/deep.tsx", mutant: "export const deep = 2\n", killer: "tests/routes.test.ts"},
-	{name: "import.meta.glob array", files: slfv1006GlobProject(`import.meta.glob(["./pages/*.tsx", "./pages/nested/*.tsx"])`),
+	{name: "import.meta.glob array", files: slfv1006GlobProject(`import.meta.glob(["./pages/*.tsx", "./pages/nested/*.tsx"])`, slfv1006PagesTest(slfv1006AllPages)),
 		path: "src/pages/nested/deep.tsx", mutant: "export const deep = 0\n", killer: "tests/routes.test.ts"},
-	{name: "require.context flat", files: slfv1006GlobProject(`require.context("./pages", false, /\.tsx$/)`),
-		path: "src/pages/home.tsx", mutant: "export default function Home() { return \"\" }\n", killer: "tests/routes.test.ts"},
-	{name: "require.context recursive", files: slfv1006GlobProject(`require.context("./pages", true, /\.tsx$/)`),
-		path: "src/pages/nested/deep.tsx", mutant: "export const deep = -1\n", killer: "tests/routes.test.ts"},
-	{name: "file reached through a globbed page", files: slfv1006GlobProject(`import.meta.glob("./pages/*.tsx")`),
+	{name: "require.context flat", files: slfv1006GlobProject(`require.context("./pages", false, /\.tsx$/)`, slfv1006KeysTest),
+		path: "src/pages/home.tsx", mutant: "export default function Home() { return \"\" }\n", killer: "tests/routes.test.ts", killerNotProduced: slfv1006NoRequireContext},
+	{name: "require.context recursive", files: slfv1006GlobProject(`require.context("./pages", true, /\.tsx$/)`, slfv1006KeysTest),
+		path: "src/pages/nested/deep.tsx", mutant: "export const deep = -1\n", killer: "tests/routes.test.ts", killerNotProduced: slfv1006NoRequireContext},
+	{name: "file reached through a globbed page", files: slfv1006GlobProject(`import.meta.glob("./pages/*.tsx")`, slfv1006PagesTest(slfv1006FlatPages)),
 		path: "src/lib/format.ts", mutant: "export const title = (s: string) => s.toLowerCase()\n", killer: "tests/routes.test.ts"},
 }
 
@@ -127,7 +160,9 @@ func slfv1006Plan(t *testing.T, fault slfv1006Fault) (affected.Plan, affected.Re
 // selects the killer or is UNKNOWN; with the gate on the frontier is gone
 // and the plan is BOUNDED and selects the test that kills the fault. That the
 // killer fails on the faulted tree is the FIH-V1 kill, which needs the
-// harness's Vitest and Jest adapters and is not measured here.
+// harness's Vitest and Jest adapters and is not measured here. A case whose
+// killer is NOT_PRODUCED must say why, and a case that claims a killer must
+// not select the keys-only route test, which observes no page's value.
 func slfv1006Run(t *testing.T, rule string, gate *bool, frontier string, faults []slfv1006Fault) {
 	t.Helper()
 	if len(faults) < 5 {
@@ -135,6 +170,11 @@ func slfv1006Run(t *testing.T, rule string, gate *bool, frontier string, faults 
 	}
 	for _, fault := range faults {
 		t.Run(fault.name, func(t *testing.T) {
+			if killer := fault.files[fault.killer]; fault.killerNotProduced == "" && (killer == "" || killer == slfv1006KeysTest) {
+				t.Fatalf("the case claims killer %s, which observes no faulted value: %q", fault.killer, killer)
+			} else if fault.killerNotProduced != "" && !strings.HasPrefix(fault.killerNotProduced, "NOT_PRODUCED: ") {
+				t.Fatalf("killerNotProduced %q names no NOT_PRODUCED reason", fault.killerNotProduced)
+			}
 			held, result := slfv1006Plan(t, fault)
 			if !frontierHas(result, frontier) {
 				t.Fatalf("held rule: no %s frontier, so the case does not exercise %s: %v", frontier, rule, result.Frontier)
