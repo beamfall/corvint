@@ -501,8 +501,8 @@ test units and driver units (make targets, workflow jobs). selectionVerdict
 (SLF-V1-007) gives each plan.unknown entry one effect, ignored,
 adds-suite:<runner> or forces-full, with a hint, and each runner one tier,
 line, file, flow or full; corvint test and the MCP plan tool print the same
-verdict. An UNOWNED_DIRTY_PATH is forces-full here, since only corvint test
-decides whether a Go rule attributes it.
+verdict. Its scope is the one corvint test runs; reason names the cause when
+every test runs.
 Example: corvint affected --base FULL_SHA | jq '.selectionVerdict'
 Every form writes each witness as one object: kind and dirtyPath always;
 viaLength in the default plan and --by-path, via in --full (and in the
