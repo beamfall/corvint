@@ -124,6 +124,29 @@ var startupNames = map[string]bool{
 	"PYTHONPATH": true, "PYTHONSTARTUP": true, "PYTHONHOME": true, "PYTHONUSERBASE": true,
 	"JAVA_TOOL_OPTIONS": true, "_JAVA_OPTIONS": true, "JDK_JAVA_OPTIONS": true,
 	"PHPRC": true, "PHP_INI_SCAN_DIR": true, "TCLLIBPATH": true,
+	// git runs the commands and hooks of these directories (AFP-V0-9710).
+	"GIT_EXEC_PATH": true, "GIT_TEMPLATE_DIR": true,
+}
+
+// commandNames are environment names whose value is a command line that a
+// program runs on its own: git's and other programs' pager, editor, ssh,
+// askpass, external diff and proxy commands, and less's input filters. Such
+// a value runs a file no operand names, so it is a startup name unless it
+// names no repository file (commandOutsideValue, AFP-V0-9710).
+var commandNames = map[string]bool{
+	"PAGER": true, "GIT_PAGER": true, "MANPAGER": true, "EDITOR": true, "VISUAL": true,
+	"GIT_EDITOR": true, "GIT_SEQUENCE_EDITOR": true, "GIT_SSH": true, "GIT_SSH_COMMAND": true,
+	"GIT_ASKPASS": true, "SSH_ASKPASS": true, "GIT_EXTERNAL_DIFF": true, "GIT_PROXY_COMMAND": true,
+	"LESSOPEN": true, "LESSCLOSE": true,
+}
+
+// commandOutsideValue reports an unquoted commandNames value that names no
+// file of the repository: an outsideValue, or one bare command word with no
+// `/`, blank or expansion, which the shell finds on PATH and never in the
+// working directory (`GIT_EDITOR=true`, `PAGER=cat`). Any other value, such
+// as `./tools/pager.sh` or `ssh -F cfg`, may run a repository file.
+func commandOutsideValue(value string) bool {
+	return outsideValue(value) || !strings.ContainsAny(value, "/ \t\n$`\\;|&<>(){}*?[~")
 }
 
 // startupName reports a startupNames name or one of the families that load
@@ -158,25 +181,28 @@ var namingCommands = map[string]bool{
 // which assigns NAME when it is unset or empty.
 var defaultAssignment = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*):?=`)
 
-// setsStartupName reports a command that assigns or exports a startupName:
+// setsStartupName reports a command that assigns or exports a startupName
+// or a commandNames name (AFP-V0-9710):
 // an assignment word anywhere among its words (a prefix, a standalone
 // assignment, which also changes an inherited exported value, or one after
 // a wrapper such as env or sudo), a bare name given to a naming command, or a
 // default-assigning expansion. Such a value makes the next interpreter read a
 // file the plugin does not link (AFP-V0-9976). An assignment of an
-// outsideValue names no repository file and is not counted.
+// outsideValue, or of a commandNames name to a commandOutsideValue, names no
+// repository file and is not counted.
 func setsStartupName(words []string) bool {
 	plain := plainWords(words)
 	naming := false
 	for index, raw := range plain {
 		word := unquote(raw)
 		for _, match := range defaultAssignment.FindAllStringSubmatch(raw, -1) {
-			if startupName(match[1]) {
+			if startupName(match[1]) || commandNames[match[1]] {
 				return true
 			}
 		}
 		if match := assignment.FindStringSubmatch(word); match != nil {
-			if startupName(match[1]) && !outsideValue(word[len(match[0]):]) {
+			value := word[len(match[0]):]
+			if startupName(match[1]) && !outsideValue(value) || commandNames[match[1]] && !commandOutsideValue(value) {
 				return true
 			}
 			continue
@@ -185,7 +211,7 @@ func setsStartupName(words []string) bool {
 			naming = naming || namingCommands[word]
 			continue
 		}
-		if startupName(word) {
+		if startupName(word) || commandNames[word] {
 			return true
 		}
 	}
