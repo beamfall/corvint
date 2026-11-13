@@ -465,7 +465,7 @@ Also part of the bar (owner decisions of 2026-11-09).
     AFU-V1-154 (retired by R11) and said the proposal's E2E-only links conflicted with answer 9.
   - Open tickets: V1-5255.
   - Evidence today: (integ) commit `3c4cda623` adds the unlinked-test report on the CLI and MCP;
-    `internal/flowdocs/flowinventory.go:59@d114c7d4` has an `unassigned` member.
+    `internal/flowdocs/flowinventory.go:60@d114c7d4` has an `unassigned` member.
   - Acceptance evidence at 1.0: both reports on a repository with real flows, with counts that a
     person checked by hand once.
 

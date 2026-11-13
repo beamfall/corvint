@@ -991,6 +991,8 @@ registration. Requirement IDs are unchanged; tests that exercise root dispatch o
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `internal/mcp/cli/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
 | AFU-V1-150..154 | experimental (V1-5255): `internal/appflows/unlinked.go` (`ReadInventoryProvider`, `unlinkedTests`), `query.go` (`FlowGaps` inventory members), `internal/command/flows/flows.go` (`flows gaps --provider`), `internal/mcp/bridge/flows.go` (`provider` input) |
 | AFU-V1-160..165 | experimental (V1-5257): `internal/appflows/status.go` (`FlowStatus`, `StatusSchema`), `internal/command/flows/flows_status.go` (`flows status`), `internal/mcp/bridge/flows.go` (`corvint.flows.status`) |
+| AFU-V1-107 | implemented (V1-5502): `internal/flowdocs/extract.go` (`extractMembers`, `webTopLevel`, `lowestRank`), `flowinventory.go` (web unresolved reason), `generate.go` (version 6); `TestAFUV1107TopLevelWebDeclarationsResolveAsMembers`, `TestFlowDocsPredecessorGeneratorManifestIsTypedStale` |
+| AFU-V1-108..111 | implemented (V1-5503..V1-5506): `internal/flowdocs/flowinventory.go` (`clipText`, the entry-point refusal), `files.go` (`symlinkComponent`), `check.go` (`OutputHint`, `OutputNoDirHint`), `cmd/corvint-docs/docs_check.go`, `cmd/corvint/docs_shim.go` (`docsHelp`); `TestAFUV1108EntryPointRefusalNamesFlowAndMember`, `TestAFUV1109SymlinkedParentRefusalNamesComponentAndTarget`, `TestDMFV1007RecordedOutputDirectory`, `TestDMFV1007DocsFlowsCheckRecordedOutput`, `TestAFUV1111DocsSubcommandHelpPointsAtRealFlags` |
 | AFU-V1-125 | implemented (V1-2414): `internal/flowdocs/generate.go` (`FlowLimitCode`, the whole-scope `candidates` count), `cmd/corvint-docs/docs_flows.go` (wire-code lift); `TestAFUV1125FlowLimitIsTyped`, `TestAFUV1125FlowLimitCLICode` |
 | AFU-V1-126..127 | experimental under the standing lane auto-accept (V1-2788, GitHub #1888): `internal/appflows/input.go` (`decode`, `maskFlowTierKeys`, the distinct Decode refusals), `internal/appflows/selection.go` (`Refusal`, `selectionInputError`, `selectionRefusalSubject`); `TestAFUV1126FlowTierIdentifierKeyIsNotSecret`, `TestAFUV1126E2ESafeFlowTierPasswordKey`, `TestAFUV1127ProviderUnavailableNamesRefusal`, `TestAFUV1024E2ESafeRefusesMalformedInput` |
 | AFU-V1-128..130 | experimental under the standing lane auto-accept (V1-2871, GitHub #1915): `internal/appflows/import.go` (`importPlaywrightList`, `playwrightListDir`, `listSpecs`, `disambiguate`, `dropCollisions`, `ImportSkipped`), `internal/command/flows/flows.go` (`runFlowsImport`, `flowsIntentHelp`); `TestAFUV1128PlaywrightListResolvesDescribeKeys`, `TestAFUV1128FlowsCLIPlaywrightListLinksResolve`, `TestAFUV1ImportOpenAPIAndPlaywright`, `TestAFUV1130FlowsHelpSaysTestLinksOnly` |
@@ -1064,7 +1066,9 @@ accepted variation, or a replacement for independent application/browser qualifi
   HTTP-verb registration (`get`, `post`, `put`, `patch`, `delete`) needs a `/`-rooted path literal
   followed by a handler argument; a member read such as `headers.get("Content-Length")` or a
   single-argument client call is not a binding (since V1-0461 Beamfall qualification,
-  `TestFlowDocsWebMemberCallsAreNotDeclarations`). Calls to the recognized validation, permission, error, persistence
+  `TestFlowDocsWebMemberCallsAreNotDeclarations`). One line of type arguments, nested one level, may
+  sit between the verb and its `(` (`api.post<{ id: string }>('/api/items', body)`) (since V1-5495,
+  `TestFlowDocsTypedClientCallBinding`). Calls to the recognized validation, permission, error, persistence
   and integration vocabulary are observations of source only. Native lexical masks exclude comments,
   strings and Ruby heredocs; web regex/arithmetic suffixes and JSX text are conservatively masked.
   A `<` directly after a name that opens a balanced one-line type-argument list followed by `(`
@@ -1084,7 +1088,19 @@ accepted variation, or a replacement for independent application/browser qualifi
   function declaration may carry type parameters (`function pick<T>(`) (since V1-5491,
   `TestFlowDocsTypeArgumentsOutsideCallsStayCode`, `TestFlowDocsArrowAttributeDoesNotEndTag`,
   `TestFlowDocsSpacedComparisonIsNotATag`, `TestFlowDocsClosingTagAfterNestedMarkupText`,
-  `TestFlowDocsGenericFunctionDeclarations`).
+  `TestFlowDocsGenericFunctionDeclarations`). Markup and code nest: an element opened in code holds
+  markup text, a `{` in that text opens an expression container of code, and the container's own
+  closing `}` or the element's closing tag returns to the enclosing context, so markup nested in a
+  container (`{u ? <a>Get data</a> : null}`, `{cond && <b>Open now</b>}`) is blanked like any other
+  markup text. In code, a `<` after an operand, past whitespace and line breaks (a name other than an
+  expression keyword, a number, `)` or `]`), is a comparison or type-argument list, never a tag, even
+  when a later `>` would close it (`a <b ? {k:1} : c > d`); and a `<` whose name is followed by `,` or
+  `extends` (`const f = <T,>(x: T) => x`, `<K extends keyof S>(key: K) =>`) opens a generic arrow's
+  type parameters, so the arrow is a declaration, while `<T>x</T>` stays markup (since V1-5495..V1-5499,
+  `TestFlowWebMaskJSXOperandsAndTypeParameters`, `TestFlowDocsNestedMarkupTextIsMasked`,
+  `TestFlowDocsGenericArrowDeclarations`, `TestFlowDocsComparisonAfterOperandIsNotATag`). A `{` or `}`
+  inside a regex literal in an attribute still counts toward the tag's braces until regex literals are
+  blanked before the mask (V1-5500, V1-5501).
 - **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
   path, declaration identity and claim kind/callee, never line, revision or output ordering. Repeated
   logical declarations/claim identities remain unresolved. Removal is retirement, never inferred
@@ -1102,7 +1118,10 @@ accepted variation, or a replacement for independent application/browser qualifi
   `iterator.return(v)`) is a call (`TestFlowDocsMemberKeywordCallsAreDrift`). This changed the
   generator to version 2, the AFU-V1-043 member-call declaration fix to version 3, and the
   AFU-V1-043 generic-call mask fix (V1-2415) to version 4, and the AFU-V1-043 web mask and
-  generic declaration fix (V1-5491) to version 5: a version 1, 2, 3 or 4 manifest cannot be
+  generic declaration fix (V1-5491) to version 5, and the AFU-V1-043 nested-markup, operand and
+  type-parameter mask fix (V1-5495..V1-5499) together with the AFU-V1-107 top-level web inventory
+  member fix (V1-5502) and the GPK-V0-395 regex literal mask (V1-5501) to version 6: a version 1,
+  2, 3, 4 or 5 manifest cannot be
   rederived byte for byte, so check, finalize and `generate --previous`
   refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
   once with the current binary
@@ -1163,7 +1182,12 @@ generic-call mask rolls back by removing the `typeArgumentsEnd` branch of `flowW
 generator version returned to 3 (a version 4 manifest then needs regeneration). The V1-5491 web
 mask and generic declaration fix rolls back by restoring the V1-2415 `flowWebMask` tag scan and
 name-`<` branch and the `webDef` pattern without type parameters, with the generator version
-returned to 4 (a version 5 manifest then needs regeneration).
+returned to 4 (a version 5 manifest then needs regeneration). The V1-5495..V1-5499 fix rolls back
+by restoring the V1-5491 `flowWebMask` (markup and expression depth counters, the adjacent-name `<`
+branch, no type-parameter check) and the `registration` pattern without type arguments. The V1-5502
+top-level web inventory members roll back by reverting AFU-V1-107. Reverting both returns the
+generator version to 5 (a version 6 manifest then needs regeneration); reverting only one keeps
+version 6.
 
 ## Complete variation coverage (issue340)
 
@@ -1521,6 +1545,27 @@ auto-accept (2026-10-11).
   and at most 8,192 members in total; a member outside `--scope` is refused because generation never
   reads it; resolution considers at most 16,384 in-scope declarations, above which generation refuses
   and asks for a narrower scope (`TestFlowDocsInventoryRefusals`).
+- **AFU-V1-107**: (V1-5502) With an inventory, a web member (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` or
+  `.cjs`) also resolves to a top-level `class` (including `abstract`),
+  `interface`, `enum` (including `const enum`), `type` alias, `namespace`, `const`, `let` or `var`
+  declaration, each optionally `export`, `export default` or `declare`, in addition to the function
+  declarations and arrow consts that AFU-V1-043 supports. When one name has several such
+  declarations in a path, a function or arrow outranks a value (`class`, `enum`, `namespace`,
+  `const`, `let`, `var`), which outranks a type (`interface`, `type`), so `export const Status`
+  beside `export type Status` resolves to the value and is not ambiguous; same-rank duplicates stay
+  ambiguous (AFU-V1-103). A top-level member's extent ends where its brace depth returns to zero,
+  measured with a depth clamped at zero so a masked-out brace cannot hide later top-level
+  declarations. Nested declarations and class or object members do not resolve, and their reason
+  says to name the enclosing declaration. Without `--flows` only functions and arrows become flows,
+  so the declaration-per-flow output is unchanged apart from the generator version (6). Measured on
+  core `internal/web/app` at 376f40ea9 with an 88-flow, 2,387-member inventory: 1,032 unresolved
+  members before, 53 after (41 symbols absent at that revision, 11 function declarations hidden by
+  the lexical mask, one nested const) (`TestAFUV1107TopLevelWebDeclarationsResolveAsMembers`).
+  Failure modes: a member named by an object property or class method stays unresolved rather than
+  resolving to the wrong span; a newly resolvable declaration in scope can move a name from
+  `unassigned` into a flow. Rollback: revert `extractMembers`, `webTopLevel` and `lowestRank` in
+  `internal/flowdocs/extract.go`, the web reason in `flowinventory.go` and the version bump in
+  `generate.go`.
 
 Failure modes: a stale inventory naming renamed declarations reports them unresolved rather than
 guessing the rename; overlapping members across different flows are allowed and give each flow its
@@ -1528,6 +1573,48 @@ own identities for the shared declaration; a multi-file flow's diagram names eac
 (AFU-V1-811). Rollback: revert this section,
 `flowinventory.go`, `flowbuild.go` and the `--flows` flag; the declaration-per-flow path is unchanged
 and manifests without an inventory remain valid.
+
+## Flow-docs refusals and help that name what to fix (V1-5503..V1-5506)
+
+Human-owned intent: when `docs flows` refuses or cannot compare, the message names the input to
+change and the flag to pass, so the caller does not have to reverse-engineer it. These change
+diagnostics only; no generated page, manifest or check verdict changes, and the generator version
+is unchanged. Accepted under the owner's standing auto-accept (2026-10-11).
+
+- **AFU-V1-108**: (V1-5505) The inventory entry-point refusal names the flow id, the entry point's
+  path and symbol (quoted, each clipped to 256 bytes because they are caller text) and whether the
+  entry point is not a member of the flow or repeats an earlier entry point, for example
+  `flow "checkout" entry point path "app/b.js" symbol "pay" is not a member of the flow`
+  (`TestAFUV1108EntryPointRefusalNamesFlowAndMember`).
+- **AFU-V1-109**: (V1-5503) A directory that `docs flows` opens (`--output-dir`'s parent, `--flows`,
+  `--previous`, `--corpus`) is still refused when any component other than a root-owned top-level
+  system alias such as `/var` or `/tmp` (V1-4551) is a symlink, never followed; the refusal now names that component and the
+  path it resolves to (or `unresolved`) and asks for the resolved path. Any other refusal of a
+  component keeps its message (`TestAFUV1109SymlinkedParentRefusalNamesComponentAndTarget`).
+- **AFU-V1-110**: (V1-5504) `docs flows check` with neither `--output-dir` nor a recorded output
+  directory keeps the DMF-V1-007 verdict (output `NOT_CHECKED`, `output_reason` `no-output-dir`,
+  `clean: false`, exit 1); it is not a refusal, because decision 0596 accepted `NOT_CHECKED` for
+  this case. The report adds `output_hint`, which asks for `--output-dir DIR` and says generation
+  records only an output directory inside `--root`; `docs check` appends the hint to its flows
+  `NOT_CHECKED` detail. A recorded directory that is missing carries no hint
+  (`TestDMFV1007RecordedOutputDirectory`, `TestDMFV1007DocsFlowsCheckRecordedOutput`).
+- **AFU-V1-111**: (V1-5506) `corvint docs SUBCOMMAND... --help` is still answered natively with the
+  one docs group help (CMS-V0-913, decision 0594), byte-identical in every help form as the CLI kit
+  requires (CAP-V0-055). That help names `corvint-docs docs SUBCOMMAND... --help`, with
+  `corvint-docs docs flows generate --help` as the example, which prints the subcommand's usage and
+  real flags (`TestAFUV1111DocsSubcommandHelpPointsAtRealFlags`,
+  `TestDocsShimDoesNotForwardHelpOrNativeFlags`, `TestCLIKit`).
+
+Failure modes: a symlink that disappears between the open and the diagnosis keeps the generic
+component refusal; a component whose target cannot be resolved is named with target `unresolved`.
+The help pointer is static, so it names the corvint-docs form rather than the reader's exact
+subcommand.
+
+Rollback: revert `clipText` and the entry-point message in `internal/flowdocs/flowinventory.go`,
+`symlinkComponent` in `files.go`, `OutputHint` and `OutputNoDirHint` in `check.go` and the detail
+suffix in `cmd/corvint-docs/docs_check.go`, and the pointer sentence in `docsHelp` in
+`cmd/corvint/docs_shim.go`; each restores the previous message with no
+data migration, and a reader that ignores `output_hint` is unaffected.
 
 ## Per-test coverage ingest (GitHub #1587)
 

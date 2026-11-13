@@ -239,7 +239,11 @@ func docsCheckFlows(ctx context.Context, root, commit string) (docsCheckPart, er
 			part.Stale = append(part.Stale, docsCheckItem{Path: c.Path, Detail: "opaque gitlink changed from " + c.Before + " to " + c.After})
 		}
 		if check.Output == flowdocs.OutputNotChecked {
-			part.NotChecked = append(part.NotChecked, docsCheckItem{Path: m.Path, Detail: "output " + flowdocs.OutputNotChecked + ": " + check.OutputReason})
+			detail := "output " + flowdocs.OutputNotChecked + ": " + check.OutputReason
+			if check.OutputHint != "" {
+				detail += "; " + check.OutputHint
+			}
+			part.NotChecked = append(part.NotChecked, docsCheckItem{Path: m.Path, Detail: detail})
 		}
 	}
 	if len(manifests) > 0 {

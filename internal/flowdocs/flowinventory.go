@@ -3,6 +3,7 @@ package flowdocs
 import (
 	json "encoding/json/v2"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -140,12 +141,26 @@ func ParseFlowInventory(raw []byte) (*FlowInventory, error) {
 		seen := map[InventoryMember]bool{}
 		for _, e := range f.EntryPoints {
 			if !members[e] || seen[e] {
-				return nil, fail("flow inventory entry point must name a distinct member of its flow")
+				// The flow id is validated above; the entry point is caller text, so it is
+				// quoted and clipped (AFU-V1-108).
+				problem := "is not a member of the flow"
+				if seen[e] {
+					problem = "repeats an earlier entry point"
+				}
+				return nil, fail(fmt.Sprintf("flow inventory entry point must name a distinct member of its flow: flow %q entry point path %q symbol %q %s", f.ID, clipText(e.Path), clipText(e.Symbol), problem))
 			}
 			seen[e] = true
 		}
 	}
 	return &inv, nil
+}
+
+// clipText bounds caller text a refusal quotes.
+func clipText(s string) string {
+	if len(s) > 256 {
+		return s[:256] + "..."
+	}
+	return s
 }
 
 // ReadInventoryFile reads a bounded regular inventory file.
@@ -223,6 +238,10 @@ func buildInventory(m *Manifest, p *doccorpus.ProviderRecord, inv *FlowInventory
 			reason := "path has no unambiguous supported declaration at this revision"
 			if member.Symbol != "" {
 				reason = "symbol is not a supported declaration in this path at this revision"
+				if ext := path.Ext(member.Path); ext != ".rb" && ext != ".html" {
+					// A web member is a top-level declaration (AFU-V1-107).
+					reason = "symbol is not a top-level declaration in this path at this revision; name a class or object member's enclosing declaration"
+				}
 				if ambiguous[member.Path+":"+member.Symbol] {
 					reason = "symbol declaration is ambiguous in this path at this revision"
 				}
