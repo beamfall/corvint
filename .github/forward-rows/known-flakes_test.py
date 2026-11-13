@@ -413,7 +413,8 @@ class KnownFlakes(unittest.TestCase):
         steps = re.findall(r"(?m)^      - (?:name: (.*)|uses: (\S+).*)$", shard.split("      - name: Go tests (full", 1)[0])
         self.assertEqual(steps[1][1].split("@")[0], "actions/checkout")
         self.assertEqual(steps[2][0], CAPTURE_STEP.strip()[len("- name: "):])
-        self.assertLess(tests.index('known_flakes_src=""'), tests.index("run_tests"))
+        self.assertLess(tests.index('known_flakes_src=""'), tests.index("run_tests | tee"))
+        self.assertLess(tests.index('known_flakes_src=""'), tests.index("            run_tests\n"))
         # The authorization sits inside the flaky.sh branch and is the only status clear.
         flaky = tests.index('sh .github/forward-rows/flaky.sh "$outcomes_dir" "$capture" &&')
         self.assertLess(flaky, tests.index(call))
