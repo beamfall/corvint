@@ -19,6 +19,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
@@ -70,12 +71,21 @@ var (
 
 // Outcome is one execution unit's terminal outcome. TestID is the canonical
 // test ID its unit names (CTI-V1-009), an added field absent when the unit
-// names none and in a receipt written before it existed (CTI-V1-012).
+// names none and in a receipt written before it existed (CTI-V1-012). The duration members are
+// add-only (PTD-V1-001): DurationSource names the report field the time came from, or NOT_MEASURED;
+// DurationMs is set only when measured; DurationGranularity is "file" when the time is a package's
+// or a file's rather than one test's (PTD-V1-004). A receipt written before them still reads.
 type Outcome struct {
-	Outcome string `json:"outcome"`
-	Slice   string `json:"slice"`
-	TestID  string `json:"testId,omitempty"`
-	Unit    string `json:"unit"`
+	DurationGranularity string `json:"durationGranularity,omitempty"`
+	DurationMs          *int64 `json:"durationMs,omitempty"`
+	DurationSource      string `json:"durationSource,omitempty"`
+	Outcome             string `json:"outcome"`
+	Slice               string `json:"slice"`
+	TestID              string `json:"testId,omitempty"`
+	Unit                string `json:"unit"`
+	// durationInvalid marks a reported time that was not a valid duration; Finish lists the unit
+	// under the receipt's durationInvalid (PTD-V1-007).
+	durationInvalid bool
 }
 
 // Invocation is one adapter launch as the receipt records it.
@@ -112,6 +122,9 @@ type Receipt struct {
 	CompletedAt string   `json:"completedAt,omitempty"`
 	Base        string   `json:"base"`
 	Checks      []string `json:"checks"`
+	// DurationInvalid lists each unit whose reported time was negative, non-numeric or above the
+	// bound, recorded NOT_MEASURED (PTD-V1-007, the duration-invalid list); absent when empty.
+	DurationInvalid []string `json:"durationInvalid,omitempty"`
 	// Excluded copies the manifest's STR-V0-069 list; absent when empty.
 	Excluded        []string       `json:"excluded,omitempty"`
 	GraphDigest     string         `json:"graphDigest"`
@@ -426,6 +439,7 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 		}
 	}
 	passed, failed, notRun := 0, false, 0
+	receipt.DurationInvalid = stampDurations(receipt.Invocations, receipt.DurationInvalid)
 	for _, invocation := range receipt.Invocations {
 		if invocation.Exit != 0 {
 			failed = true
@@ -477,6 +491,24 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 		receipt.Result = ResultIncomplete
 	}
 	return receipt
+}
+
+// stampDurations gives every outcome a durationSource, NOT_MEASURED where the adapter measured no
+// time (PTD-V1-001, PTD-V1-003), and lists each invalid one under DurationInvalid (PTD-V1-007).
+// Invocation.ElapsedMilliseconds is never divided among the outcomes (PTD-V1-005).
+func stampDurations(invocations []Invocation, invalid []string) []string {
+	for index := range invocations {
+		for at := range invocations[index].Outcomes {
+			outcome := &invocations[index].Outcomes[at]
+			if outcome.durationInvalid && !slices.Contains(invalid, outcome.Unit) {
+				invalid = append(invalid, outcome.Unit)
+			}
+			if outcome.DurationSource == "" {
+				outcome.DurationSource, outcome.DurationMs = testduration.NotMeasured, nil
+			}
+		}
+	}
+	return invalid
 }
 
 // runnerKey names the runner one invocation needs: the Go adapter, or the
@@ -794,11 +826,11 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 		recorded.Outcomes = notRun(planned.Units)
 		return recorded, "an adapter could not start: " + err.Error(), nil
 	}
-	packages := map[string]string{}
+	packages, elapsed := map[string]string{}, map[string]float64{}
 	var document providerCapture
 	switch planned.Adapter {
 	case AdapterGo:
-		packages = parseTestEvents(stdout, r.Output)
+		packages, elapsed = parseTestEventsTimed(stdout, r.Output)
 	case AdapterProvider:
 		// The receipt document is read, not echoed: providerOutcomes writes
 		// the summary and the failing tests it names.
@@ -842,23 +874,44 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 	}
 	for _, unit := range planned.Units {
 		outcome := OutcomeNotRun
+		var timed *testduration.Measure
 		switch {
 		case planned.Adapter == AdapterGo && unit.Dir != "":
 			if stop == "" {
 				outcome = moduleOutcome(packages, recorded.Exit)
 			}
 		case planned.Adapter == AdapterGo:
-			if value, ok := packages[strings.TrimPrefix(unit.Unit, "go:")]; ok {
+			pkg := strings.TrimPrefix(unit.Unit, "go:")
+			if value, ok := packages[pkg]; ok {
 				outcome = value
+				measure := testduration.Missing()
+				if seconds, ok := elapsed[pkg]; ok {
+					measure = testduration.FromSeconds(seconds, testduration.SourceGo)
+				}
+				timed = &measure
 			}
 		case stop == "" && recorded.Exit == 0:
 			outcome = OutcomePass
 		case stop == "":
 			outcome = OutcomeFail
 		}
-		recorded.Outcomes = append(recorded.Outcomes, Outcome{Outcome: outcome, Slice: unit.Slice, Unit: unit.Unit})
+		recorded.Outcomes = append(recorded.Outcomes, timedOutcome(Outcome{Outcome: outcome, Slice: unit.Slice, Unit: unit.Unit}, timed))
 	}
 	return recorded, stop, nil
+}
+
+// timedOutcome records a Go package unit's reported time (PTD-V1-002): the package-level Elapsed
+// of go test -json, which covers the package's tests and is marked file because it is not one
+// test's (PTD-V1-004). It is never the launch's ElapsedMilliseconds, which includes the build
+// (PTD-V1-005). A nil measure leaves the outcome for stampDurations: a declared suite, a nested
+// module folding many packages, or a unit with no terminal event is NOT_MEASURED.
+func timedOutcome(outcome Outcome, measure *testduration.Measure) Outcome {
+	if measure == nil {
+		return outcome
+	}
+	outcome.DurationGranularity = testduration.GranularityFile
+	outcome.DurationMs, outcome.DurationSource, outcome.durationInvalid = measure.Milliseconds, measure.Source, measure.Invalid
+	return outcome
 }
 
 // moduleOutcome folds a nested module's per-package outcomes into its one
@@ -892,9 +945,11 @@ func notRun(units []Unit) []Outcome {
 	return outcomes
 }
 
-// testEvent is the part of one test2json event the adapter reads.
+// testEvent is the part of one test2json event the adapter reads. Elapsed is the seconds a
+// terminal event reports, the package's own on its package-level event (PTD-V1-002).
 type testEvent struct {
 	Action      string
+	Elapsed     *float64
 	FailedBuild string
 	Output      string
 	Package     string
@@ -908,7 +963,15 @@ const maxEventLine = 1 << 20
 // through; an overlong line passes through unparsed, so a terminal event it
 // held is missing and its unit stays NOT_RUN.
 func parseTestEvents(stream io.Reader, out io.Writer) map[string]string {
+	outcomes, _ := parseTestEventsTimed(stream, out)
+	return outcomes
+}
+
+// parseTestEventsTimed is parseTestEvents that also returns each package's reported Elapsed
+// seconds from its terminal package-level event, absent when the event carried none.
+func parseTestEventsTimed(stream io.Reader, out io.Writer) (map[string]string, map[string]float64) {
 	outcomes := map[string]string{}
+	elapsed := map[string]float64{}
 	timedOut := map[string]bool{}
 	reader := bufio.NewReaderSize(stream, maxEventLine)
 	overlong := false
@@ -944,6 +1007,16 @@ func parseTestEvents(stream io.Reader, out io.Writer) map[string]string {
 							outcomes[event.Package] = OutcomeFail
 						}
 					}
+					// PTD-V1-003: only a package whose tests ran (PASS, FAIL, TIMED_OUT) has a
+					// measured time; a build failure or a package with no tests is NOT_MEASURED.
+					switch outcomes[event.Package] {
+					case OutcomePass, OutcomeFail, OutcomeTimedOut:
+						if event.Elapsed != nil && (event.Action == "pass" || event.Action == "fail") {
+							elapsed[event.Package] = *event.Elapsed
+						}
+					default:
+						delete(elapsed, event.Package)
+					}
 				}
 			}
 		} else if len(line) != 0 {
@@ -951,7 +1024,7 @@ func parseTestEvents(stream io.Reader, out io.Writer) map[string]string {
 		}
 		overlong = false
 		if err != nil {
-			return outcomes
+			return outcomes, elapsed
 		}
 	}
 }

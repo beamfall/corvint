@@ -228,7 +228,7 @@ group chain (`RSpecExample` implements the rule).
 | CTI-V1-006 | `TestCTIV1006PytestNodeIDs` (`pytest.json`) |
 | CTI-V1-007 | `TestCTIV1007RSpecAndMinitest` (`rspec.json`, `minitest.jsonl`) |
 | CTI-V1-008 | `TestCTIV1008FileLevelMatch` (`internal/testid`) |
-| CTI-V1-009 | `TestCTIV1009GoPlanReceiptAndWatchAgree`, `TestCTIV1009PlanAndReceiptAgreePerRunner` (`cmd/corvint`); `TestCTIV1009GoUnitDirFromRootModule` (`internal/sessiontest`); `TestSTRV0010CLIRunWritesReceipt`, `TestSTRV08704CLIMixedGoAndPlaywrightRun` read `testId` back from written receipts |
+| CTI-V1-009 | `TestCTIV1009GoPlanReceiptAndWatchAgree`, `TestCTIV1009PlanAndReceiptAgreePerRunner` (`cmd/corvint`); `TestCTIV1009GoUnitDirFromRootModule`, `TestRVDV1004WatchReceipt` (watch receipt outcomes stamped like `corvint test`'s) (`internal/sessiontest`); `TestRVDV1004CLITestAppendsOneRecordPerRun`, `TestRVDV1004WatchAppendsOneRecordPerSave`, `TestRVDV1007ProdTest020TestThenFlowsStatus` (run evidence rows and a flow link join on the canonical ID); `TestSTRV0010CLIRunWritesReceipt`, `TestSTRV08704CLIMixedGoAndPlaywrightRun` read `testId` back from written receipts |
 | CTI-V1-010 | `TestCTIV1010DuplicateJestTitlesWidenToFile` (`internal/testid`) |
 | CTI-V1-011 | `TestCTIV1011UnknownAndMalformedWidenWithReason`, `TestCTIV1007RSpecAndMinitest` (`internal/testid`) |
 | CTI-V1-012 | `TestCTIV1012LegacyUnitKeys` (`internal/testid`), `TestCTIV1012ReceiptWithAndWithoutTestID` (`internal/sessiontest`) |

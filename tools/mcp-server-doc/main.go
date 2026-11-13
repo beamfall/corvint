@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: Apache-2.0
+
+// Command mcp-server-doc writes docs/MCP-SERVER.md from the MCP tool table,
+// internal/capcatalog MCPTools (MTT-V1-002). With -check it writes nothing and
+// fails when the file differs from what it would write, which is the
+// staleness check `make mcp-server-doc-check` runs in doc-gates. The check
+// also fails when a row names a parity test (MTT-V1-009) that its package
+// directory does not define, so a renamed or deleted test cannot leave a row
+// claiming parity.
+//
+// Usage:
+//
+//	go run ./tools/mcp-server-doc [-check] [-out docs/MCP-SERVER.md]
+package main
+
+import (
+	"bytes"
+	"flag"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/capcatalog"
+)
+
+const defaultOut = "docs/MCP-SERVER.md"
+
+func main() {
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(arguments []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("mcp-server-doc", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	check := flags.Bool("check", false, "fail when the file differs from the generator output; write nothing")
+	out := flags.String("out", defaultOut, "the generated file")
+	root := flags.String("root", ".", "the repository root the parity tests are found under")
+	if err := flags.Parse(arguments); err != nil || flags.NArg() != 0 {
+		_, _ = fmt.Fprintln(stderr, "usage: mcp-server-doc [-check] [-out FILE]")
+		return 2
+	}
+	want := Render(capcatalog.MCPTools())
+	if *check {
+		if err := Check(*out, want); err != nil {
+			_, _ = fmt.Fprintln(stderr, "mcp-server-doc: "+err.Error())
+			return 1
+		}
+		if missing := MissingParityTests(*root, capcatalog.MCPTools()); len(missing) != 0 {
+			_, _ = fmt.Fprintln(stderr, "mcp-server-doc: "+strings.Join(missing, "\nmcp-server-doc: "))
+			return 1
+		}
+		_, _ = fmt.Fprintln(stdout, "mcp-server-doc: ok ("+*out+" matches the MCP tool table)")
+		return 0
+	}
+	if err := os.WriteFile(*out, want, 0o644); err != nil {
+		_, _ = fmt.Fprintln(stderr, "mcp-server-doc: "+err.Error())
+		return 1
+	}
+	return 0
+}
+
+// Check reports whether the file at path holds exactly want.
+func Check(path string, want []byte) error {
+	got, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(got, want) {
+		return fmt.Errorf("%s is stale: it differs from the MCP tool table (internal/capcatalog/mcp.go); edit the table, not the file, then run make mcp-server-doc", path)
+	}
+	return nil
+}
+
+// MissingParityTests names each row whose ParityTest function is not defined
+// by a _test.go file in its binary's cmd/ directory under root (MTT-V1-009).
+func MissingParityTests(root string, rows []capcatalog.MCPTool) []string {
+	var missing []string
+	for _, row := range rows {
+		if row.ParityTest == "" {
+			continue
+		}
+		binary, test, _ := strings.Cut(row.ParityTest, " ")
+		directory := path.Join("cmd", binary)
+		files, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(directory), "*_test.go"))
+		found := false
+		for _, file := range files {
+			if err != nil || found {
+				break
+			}
+			found = definesTest(file, test)
+		}
+		if !found {
+			missing = append(missing, fmt.Sprintf("%s: parity test %s is not defined in %s; fix the row's ParityTest", row.Name, test, directory))
+		}
+	}
+	return missing
+}
+
+// definesTest reports whether the Go file at path declares a top-level
+// function named test, whatever its parameter is named or how it is laid out;
+// a method, a comment or a string holding the name does not count, and a file
+// that does not parse defines nothing.
+func definesTest(path, test string) bool {
+	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
+	if err != nil {
+		return false
+	}
+	for _, declaration := range file.Decls {
+		if function, ok := declaration.(*ast.FuncDecl); ok && function.Recv == nil && function.Name.Name == test {
+			return true
+		}
+	}
+	return false
+}
+
+// Render is the generated document for rows.
+func Render(rows []capcatalog.MCPTool) []byte {
+	var out strings.Builder
+	out.WriteString(header)
+	for _, server := range []struct{ name, title, intro string }{
+		{capcatalog.ServerCore, "`corvint mcp`: testing and flow reports", coreIntro},
+		{capcatalog.ServerDocs, "`corvint-docs mcp`: documentation", docsIntro},
+		{capcatalog.ServerTestValidity, "`corvint-test-validity-mcp`: retiring", testValidityIntro},
+	} {
+		fmt.Fprintf(&out, "\n## %s\n\n%s\n", server.title, server.intro)
+		var served []capcatalog.MCPTool
+		for _, row := range rows {
+			if row.Server == server.name || slices.Contains(row.AlsoOn, server.name) {
+				served = append(served, row)
+			}
+		}
+		out.WriteString("\n| Tool | Availability | Opt-in | Description | Same answer on the command line |\n|---|---|---|---|---|\n")
+		for _, row := range served {
+			fmt.Fprintf(&out, "| `%s` | %s | %s | %s | %s |\n", row.Name, row.Availability, code(row.OptIn, "default"), cell(row.Summary), code(row.CLIEquivalent, "none"))
+		}
+		for _, row := range served {
+			if row.Server == server.name {
+				writeDetail(&out, row)
+			}
+		}
+	}
+	out.WriteString("\n## No MCP tool\n\nThese answers are deliberately served only by a command line.\n\n| Answer | Command | Why |\n|---|---|---|\n")
+	for _, row := range rows {
+		if row.Server == capcatalog.ServerNone {
+			fmt.Fprintf(&out, "| %s | `%s` | %s |\n", cell(row.Summary), row.CLIEquivalent, cell(row.Note))
+		}
+	}
+	out.WriteString(footer)
+	return []byte(out.String())
+}
+
+func writeDetail(out *strings.Builder, row capcatalog.MCPTool) {
+	fmt.Fprintf(out, "\n### `%s`\n\n%s.\n\n", row.Name, row.Summary)
+	if row.InputSchema != "" {
+		fmt.Fprintf(out, "- Input schema: `%s`\n", row.InputSchema)
+	}
+	if len(row.Inputs) == 0 && row.Registered() {
+		out.WriteString("- Inputs: none\n")
+	}
+	for _, input := range row.Inputs {
+		fmt.Fprintf(out, "- Input `%s`: %s\n", input.Name, input.Description)
+	}
+	if len(row.AlsoOn) != 0 {
+		fmt.Fprintf(out, "- Also served by: %s\n", codes(row.AlsoOn))
+	}
+	fmt.Fprintf(out, "- Output profile: `%s`\n", row.OutputProfile)
+	fmt.Fprintf(out, "- Tool errors: %s\n", codes(row.Errors))
+	if row.ParityTest != "" {
+		fmt.Fprintf(out, "- Parity test: `%s`\n", row.ParityTest)
+	}
+	if len(row.Replaces) != 0 {
+		fmt.Fprintf(out, "- Replaces: %s\n", codes(row.Replaces))
+	}
+	if row.Note != "" {
+		fmt.Fprintf(out, "- Note: %s\n", row.Note)
+	}
+}
+
+func codes(values []string) string {
+	quoted := make([]string, len(values))
+	for index, value := range values {
+		quoted[index] = "`" + value + "`"
+	}
+	return strings.Join(quoted, ", ")
+}
+
+func code(value, empty string) string {
+	if value == "" {
+		return empty
+	}
+	return "`" + strings.ReplaceAll(value, "|", `\|`) + "`"
+}
+
+func cell(value string) string { return strings.ReplaceAll(value, "|", `\|`) }
+
+const header = `<!-- Generated by go run ./tools/mcp-server-doc from internal/capcatalog/mcp.go (MTT-V1-002). Do not edit: edit the table and run make mcp-server-doc. -->
+
+# Corvint MCP servers
+
+Status: experimental; protocol ` + "`2026-07-28`" + ` (and ` + "`2025-11-25`" + ` with ` + "`--protocol-version 2025-11-25`" + `); local stdio only.
+
+Corvint serves its MCP tools from two local, read-only stdio servers (owner decision R30, the
+MCP tool table of [` + "`docs/specs/mcp-tool-table-v1.md`" + `](specs/mcp-tool-table-v1.md)):
+
+- ` + "`corvint mcp`" + ` serves the testing and flow-report tools.
+- ` + "`corvint-docs mcp`" + ` serves the documentation tools and works with only the documentation
+  binaries installed.
+
+Neither serves a Tasks tool: Corvint Tasks is used through its command line (owner decision R17).
+Every tool, its server, inputs, output profile, typed errors and command-line equivalent below comes
+from one authored table, ` + "`internal/capcatalog/mcp.go`" + `; a drift test fails when a server
+registers a tool the table does not list, or the table lists one the server does not register. The
+servers expose no repository source, prompts, writes, test execution, updates, telemetry, HTTP or
+network listener. The wire contract is
+[` + "`docs/specs/mcp-server-2026-07-28-v0.md`" + `](specs/mcp-server-2026-07-28-v0.md).
+
+## Configure a client
+
+Configure an MCP client to own the server as a child process, with absolute paths and no shell:
+
+` + "```json" + `
+{
+  "command": "/absolute/path/to/corvint",
+  "args": ["mcp", "--root", "/absolute/path/to/repository", "--tool-profile", "flows,test-evidence,affected"],
+  "transport": "stdio"
+}
+` + "```" + `
+
+` + "```json" + `
+{
+  "command": "/absolute/path/to/corvint-docs",
+  "args": ["mcp", "--root", "/absolute/path/to/repository", "--corpus-artifact", "corpus.json"],
+  "transport": "stdio"
+}
+` + "```" + `
+
+Do not configure a URL, port, environment credential or writable working directory as authority.
+One process is bound to its declared roots for its whole lifetime; request arguments cannot switch
+them. Each server's ` + "`--help`" + ` documents every option, including ` + "`--root ALIAS=ROOT`" + `
+for several roots, ` + "`--workspace FILE`" + ` and ` + "`--follow-ref REF`" + `.
+
+Tool names follow one convention, ` + "`corvint.<area>_<verb>`" + ` with exactly one dot; a renamed tool
+lists its earlier names under Replaces. A call to a tool a server does not list, including a removed
+one, is the unknown-tool error ` + "`-32602`" + `.
+
+## Results and errors
+
+Successful calls return the complete canonical receipt as one text content block, framed by the
+untrusted-data envelope, and, except for the flow tools whose repository-authored text travels only
+inside the envelope, as the identical parsed ` + "`structuredContent`" + `. ` + "`READY`" + ` means the bounded
+operation returned its native receipt; it does not mean Corvint proved the requested proposition.
+` + "`ABSTAINED`" + `, ` + "`UNKNOWN`" + `, ` + "`NOT_OBSERVED`" + `, exclusions, mixed-worktree state and unsupported
+intent are results, not missing fields. Source and diff bodies are never returned. Every tool lists
+the typed tool errors ` + "`server-busy`" + ` and ` + "`cancelled`" + ` beside its own.
+
+An impact receipt with native state ` + "`OUT_OF_SCOPE`" + ` is retained while its bridge wrapper says
+` + "`ABSTAINED`/`NOT_OBSERVED`" + ` with reason ` + "`OUT_OF_SCOPE`" + `; this preserves the exclusion evidence.
+Unsupported and output-budget abstentions have a null native receipt.
+
+| Code/state | Meaning | Action |
+|---|---|---|
+| ` + "`-32700`" + ` | Invalid, duplicate-key, too-deep, or over-limit JSON frame | Fix framing; the server never echoes rejected input |
+| ` + "`-32600`" + ` | Invalid JSON-RPC request envelope | Send JSON-RPC ` + "`2.0`" + `, a string/integer ID, method, and object params |
+| ` + "`-32601`" + ` | Unknown, removed legacy, or unadvertised request method | Re-run ` + "`server/discover`" + `; do not assume an older MCP surface |
+| ` + "`-32602`" + ` | Missing request metadata, invalid cursor, unknown tool, or invalid closed arguments | Correct the request; no repository operation ran |
+| ` + "`-32022`" + ` | Unsupported protocol version | Retry only with one of the returned ` + "`supported`" + ` versions |
+| ` + "`-32603`" + ` | Sanitized unexpected server failure | Treat the operation as unobserved; inspect local process health |
+| ` + "`ABSTAINED`" + ` | Corvint could not safely produce the requested bounded receipt | Preserve the receipt's reason and gaps; widen through an explicit supported operation |
+
+A tool error with ` + "`code`" + ` ` + "`repository-probe-timeout`" + ` means the repository probe outlasted its own
+bound while the request was still live; retrying on a quieter host is reasonable (` + "`MCPV0-038`" + `).
+` + "`repository-unavailable`" + ` remains every other repository refusal. Starting ` + "`corvint mcp`" + ` with
+` + "`--error-profile reason-class`" + ` makes every tool error ` + "`corvint-mcp-tool-error/1`" + `, which adds a
+required ` + "`reasonClass`" + ` from a closed set (` + "`MCPV0-027..028`" + `); read an unknown value as
+` + "`unclassified`" + `.
+
+Errors never include request bodies, repository paths, task text, environment values, Git output,
+Corvint output, or secrets. stdout is exclusively MCP; startup and fatal transport diagnostics use
+sanitized stderr.
+`
+
+const coreIntro = `Start it with ` + "`corvint mcp --root ABSOLUTE_ROOT`" + `. Without ` + "`--tool-profile`" + ` it lists
+` + "`corvint.help`" + `, ` + "`corvint.impact`" + ` and ` + "`corvint.status`" + `; ` + "`--tool-profile LIST`" + ` adds the
+comma list of the profile ` + "`flows`" + ` and the groups ` + "`test-evidence`" + ` and ` + "`affected`" + `. The
+` + "`docs`" + ` and ` + "`corpus`" + ` groups moved to ` + "`corvint-docs mcp`" + `: asking ` + "`corvint mcp`" + ` for either
+exits 2 before any MCP byte with a typed ` + "`profile-moved`" + ` reason naming ` + "`corvint-docs mcp`" + `,
+and the removed ` + "`test-validity`" + ` group exits 2 the same way. The deprecated ` + "`corvint-mcp`" + `
+binary serves the same tools except ` + "`corvint.affected`" + `, whose planner only the ` + "`corvint`" + `
+binary holds.
+
+` + "`corvint.affected`" + ` answers with the exact ` + "`affected-summary/1`" + ` bytes ` + "`corvint affected --summary`" + `
+prints, or, where the command line would exit 2, a successful select-all answer naming its reason:
+a ` + "`CORVINT_SELECTION`" + ` kill switch (MTT-V1-008) or a stale binary (MTT-V1-011). One planner runs
+at a time per root; a verdict too large for one message is the tool error ` + "`verdict-oversized`" + `.`
+
+const docsIntro = `Start it with ` + "`corvint-docs mcp --root ABSOLUTE_ROOT [--corpus-artifact PATH]`" + `. It always lists
+` + "`corvint.help`" + `, ` + "`corvint.docs_draft`" + `, ` + "`corvint.docs_consume`" + ` and every corpus tool.
+` + "`--corpus-artifact PATH`" + ` binds the corpus artifact, a path relative to the root; an artifact
+that opens at startup lists exactly the tools it declares. Without it, or while the artifact cannot
+be opened, each corpus call answers the tool error ` + "`corpus-refused`" + ` naming the fix. The draft
+and consume tools run the ` + "`corvint-docs`" + ` executable's ` + "`docs-tool`" + ` verb. The deprecated
+` + "`corvint-docs-mcp`" + ` binary still serves ` + "`corvint.help`" + `, ` + "`corvint.docs_draft`" + ` and
+` + "`corvint.docs_consume`" + ` until its removal is decided.`
+
+const testValidityIntro = `` + "`corvint.test_validity`" + ` left ` + "`corvint mcp`" + ` with the G24 batch (owner decision M12). Until
+its removal batch takes the ` + "`corvint-test-validity-mcp`" + ` binary off the release list
+(MTT-V1-010), that binary is the only server that answers it.`
+
+const footer = `
+## Limits and lifecycle
+
+- One UTF-8 JSON object per LF-delimited input line; one JSON object per output line.
+- Input and output JSON are each at most 1,048,576 bytes before LF; nesting depth is at most 64.
+- A valid ` + "`notifications/cancelled`" + ` cancels only its matching in-flight request. Clean EOF stops
+  admission and drains admitted responses; SIGINT, SIGTERM and transport failure cancel owned work.
+- Tool listing is deterministic and one page; tool receipts are never paged or silently truncated.
+- Client-advertised roots are ignored. Repository authority is exclusively the startup roots.
+
+## Privacy and authority
+
+Corvint reads local Git and repository evidence under the configured roots. It does not fetch or
+make network requests. Receipts may contain repository-relative paths and content identities even
+though source bodies are omitted; treat them as sensitive local metadata. Every Git runner a server
+uses is pinned to one absolute start-time Git executable (` + "`MCPV0-016`" + `); a Git binary placed on
+PATH after start never runs. Never infer correctness, exhaustive coverage, or a clean worktree from
+a successful transport response.
+
+## Verification status
+
+The compiled-process black-box suite under ` + "`conformance/mcp-2026-07-28`" + ` and the drift, table
+and parity tests of MTT-V1 are the local evidence. Official 2026-07-28 MCP conformance remains
+` + "`NOT_RUN`" + `: the official server runner requires a Streamable HTTP URL and offers no stdio
+target, while these servers deliberately expose no listener. Do not promote this surface from
+experimental until the owning spec's acceptance matrix passes. Disable or remove the child-process
+configuration to roll back; the servers create no repository, trace, database, network, or
+migration state.
+`

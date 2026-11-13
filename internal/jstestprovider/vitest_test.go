@@ -1,7 +1,9 @@
 package jstestprovider
 
 import (
+	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -93,5 +95,39 @@ func TestParseVitestJSON_NoTestFiles(t *testing.T) {
 func TestVitestAnchorFrom_NoStackFrame(t *testing.T) {
 	if a := vitestAnchorFrom("some opaque error with no stack"); a != nil {
 		t.Fatalf("want nil anchor, got %+v", a)
+	}
+}
+
+// PTD-V1-003: an assertion whose duration Vitest omits, writes as null or
+// writes as a non-number keeps its outcome and is marked durationMissing, so
+// no reader takes the wire's 0 for a measured time; a numeric duration is
+// kept and the receipt omits the mark, as before.
+func TestPTDV1003VitestMissingDurationIsMarked(t *testing.T) {
+	report := `{"numTotalTests":4,"success":true,"testResults":[{"name":"/r/src/math.test.ts","status":"passed","assertionResults":[
+		{"fullName":"math timed","title":"timed","status":"passed","duration":3.5,"failureMessages":[]},
+		{"fullName":"math omitted","title":"omitted","status":"passed","failureMessages":[]},
+		{"fullName":"math null","title":"null","status":"passed","duration":null,"failureMessages":[]},
+		{"fullName":"math text","title":"text","status":"failed","duration":"oops","failureMessages":["boom"]}]}]}`
+	outcomes, infra, err := ParseVitestJSON([]byte(report))
+	if err != nil || infra != nil || len(outcomes) != 4 {
+		t.Fatalf("outcomes %+v infra %+v err %v", outcomes, infra, err)
+	}
+	if timed := outcomes[0]; timed.DurationMissing || timed.DurationMS != 3.5 {
+		t.Fatalf("timed %+v", timed)
+	}
+	for _, missing := range outcomes[1:] {
+		if !missing.DurationMissing || missing.DurationMS != 0 {
+			t.Fatalf("%s: %+v", missing.FullName, missing)
+		}
+	}
+	if outcomes[3].State != StateFailed {
+		t.Fatalf("a non-numeric duration lost the outcome: %+v", outcomes[3])
+	}
+	raw, err := json.Marshal(outcomes[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "durationMissing") {
+		t.Fatalf("a timed outcome carries the mark: %s", raw)
 	}
 }

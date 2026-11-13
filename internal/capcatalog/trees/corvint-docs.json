@@ -2628,11 +2628,12 @@
       "command": "corvint-docs flows gaps",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--registry FILE] [--provider FILE]"
+        "corvint-docs [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--no-store] [--registry FILE] [--provider FILE]"
       ],
       "flags": [
         "--evidence",
         "--flows",
+        "--no-store",
         "--provider",
         "--registry",
         "--root"
@@ -2651,11 +2652,12 @@
       "command": "corvint-docs flows impact",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows impact --flows DIR --base SHA"
+        "corvint-docs [--root PATH] flows impact --flows DIR --base SHA [--no-store]"
       ],
       "flags": [
         "--base",
         "--flows",
+        "--no-store",
         "--root"
       ],
       "required": [
@@ -2697,7 +2699,7 @@
       "command": "corvint-docs flows ingest",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA [--source-clean] --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST --fixture-id ID --fixture-digest DIGEST [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]..."
+        "corvint-docs [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA [--source-clean] --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST --fixture-id ID --fixture-digest DIGEST [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]... [--record]"
       ],
       "flags": [
         "--build-artifact-digest",
@@ -2710,6 +2712,7 @@
         "--fixture-id",
         "--format",
         "--from",
+        "--record",
         "--root",
         "--run-id",
         "--runner-version",
@@ -2770,12 +2773,13 @@
       "command": "corvint-docs flows map",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows map --flows DIR [--evidence FILE]... [--registry FILE]",
+        "corvint-docs [--root PATH] flows map --flows DIR [--evidence FILE]... [--no-store] [--registry FILE]",
         "corvint-docs [--root PATH] flows map --flows DIR [--path P | --test-key K]"
       ],
       "flags": [
         "--evidence",
         "--flows",
+        "--no-store",
         "--path",
         "--registry",
         "--root",
@@ -2890,12 +2894,13 @@
       "command": "corvint-docs flows status",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows status --flows DIR [--evidence FILE]... [--base SHA]"
+        "corvint-docs [--root PATH] flows status --flows DIR [--evidence FILE]... [--no-store] [--base SHA]"
       ],
       "flags": [
         "--base",
         "--evidence",
         "--flows",
+        "--no-store",
         "--root"
       ],
       "required": [
@@ -2947,6 +2952,26 @@
       ],
       "example": "corvint-docs how --map FILE --source GOAL",
       "help": "corvint-docs how --help"
+    },
+    {
+      "path": [
+        "mcp"
+      ],
+      "command": "corvint-docs mcp",
+      "summary": "Serve the documentation tools over the local read-only stdio MCP transport (MTT-V1-004, experimental)",
+      "usage": [
+        "corvint-docs mcp --root ABSOLUTE_ROOT [--corpus-artifact PATH] [--protocol-version 2026-07-28|2025-11-25]"
+      ],
+      "flags": [
+        "--corpus-artifact",
+        "--protocol-version",
+        "--root"
+      ],
+      "required": [
+        "--root ABSOLUTE_ROOT"
+      ],
+      "example": "corvint-docs mcp --root ABSOLUTE_ROOT",
+      "help": "corvint-docs mcp --help"
     }
   ]
 }

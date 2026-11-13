@@ -122,7 +122,9 @@ A `Receipt` (`internal/jstestprovider/receipt.go`) binds:
   explicit `{unknown: true, reason: "..."}` when no app-build directory was named; staleness is
   never inferred across an unknown side.
 - `tests[]`: one `TestOutcome` per test, each carrying a fixed `state`, retry count, duration, an
-  optional `file:line` anchor, and a failure message. Failure artifacts (trace/screenshot paths)
+  optional `file:line` anchor, and a failure message. A Vitest outcome whose reporter gave no
+  numeric duration carries `durationMissing: true`, its `durationMs` then the wire's 0 and not a
+  measurement (PTD-V1-003); the member is absent otherwise, so other receipts are unchanged. Failure artifacts (trace/screenshot paths)
   are listed by path, never copied into the receipt. A Playwright outcome also carries
   `attemptDetails`, every attempt's state, retry, duration, failure message, anchor and artifact
   paths in run order (AFU-V1-012); each attempt passes the run-evidence hygiene and the product

@@ -20,3 +20,13 @@ var (
 func versionSpec() companioncli.Spec {
 	return companioncli.Spec{Binary: binaryName, Version: companioncli.ExperimentalVersion, Build: build, Commit: sourceCommit}
 }
+
+// mcpServerVersion is the serverInfo.version `corvint-docs mcp` reports: the
+// release line and this build's stamp, so a client can tell builds apart.
+func mcpServerVersion() string {
+	commit := sourceCommit
+	if commit == "" {
+		commit = "unknown"
+	}
+	return companioncli.ExperimentalVersion + " (build " + build + ", commit " + commit + ")"
+}

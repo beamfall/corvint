@@ -100,7 +100,7 @@ func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 			t.Errorf("binary %q not collected", b)
 		}
 	}
-	for _, tool := range []string{"corvint.impact", "corvint.flows.navigate", "corvint.docs_draft", "corvint.test_validity", "corvint.docs_trace"} {
+	for _, tool := range []string{"corvint.impact", "corvint.flows_navigate", "corvint.docs_draft", "corvint.test_validity", "corvint.docs_trace"} {
 		if !contains(inv.Tools, tool) {
 			t.Errorf("MCP tool %q not collected", tool)
 		}

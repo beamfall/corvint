@@ -14,7 +14,7 @@ func TestMMRV0016HelpPrintsUsage(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		exit := run(context.Background(), []string{flag}, strings.NewReader(""), &stdout, &stderr)
 		if exit != 0 || stderr.Len() != 0 || !strings.HasPrefix(stdout.String(), "usage: corvint-test-validity-mcp ") ||
-			!strings.Contains(stdout.String(), "corvint-mcp --root ROOT --tool-profile test-validity") {
+			!strings.Contains(stdout.String(), "corvint test-validity answers on the command line") {
 			t.Fatalf("%s exit=%d stdout=%q stderr=%q", flag, exit, stdout.String(), stderr.String())
 		}
 	}

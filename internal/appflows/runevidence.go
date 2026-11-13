@@ -85,6 +85,16 @@ type RunAttempt struct {
 	AssertionAnchors []RunAnchor     `json:"assertion_anchors"`
 	Failure          string          `json:"failure,omitempty"`
 	Attachments      []RunAttachment `json:"attachments"`
+	// durationNotMeasured marks an attempt converted from a stored receipt row that names no
+	// measured time: its DurationMS is the wire format's zero, not a measurement (PTD-V1-003,
+	// PTD-V1-008). It is never encoded.
+	durationNotMeasured bool
+}
+
+// DurationMeasured reports whether DurationMS is a measured time. Every attempt decoded from
+// test-run-evidence/0 is measured; one converted from a NOT_MEASURED receipt row is not.
+func (a RunAttempt) DurationMeasured() bool {
+	return !a.durationNotMeasured
 }
 
 type RunAnchor struct {

@@ -46,7 +46,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "33af21364ed31cd30b86a682825be3174840e75fb8d8109f90ac94c4f4a065de"
+    "sha256": "111ef4f75d2230eddea291a399a0423bdc91f3b00e0bcd156feb0ee556db1b74"
   },
   "commands": [
     {
@@ -737,6 +737,7 @@
         "--format",
         "--index",
         "--lines",
+        "--no-store",
         "--revision",
         "--test"
       ],
@@ -991,6 +992,7 @@
         "--lines",
         "--manifest",
         "--manifest-repo",
+        "--no-store",
         "--no-workspace",
         "--repo",
         "--repo-revision",
@@ -1229,7 +1231,7 @@
         "decide digests the packages of HEAD (--packages, default go list ./...) and prints a corvint-test-reuse-decision/0: REUSE only when an admitted record (--trust, default local,main; pull_request needs --pull-request N) passed the package under the same identity with the same digest; --run-list writes the packages still to run.",
         "It writes only the named files; exit 3 when no record or decision can be produced.",
         "--manifest PATH writes the same corvint-test-manifest/0 in every form.",
-        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json).",
+        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json) and appends its bytes as one record of the private run evidence store <git-dir>/corvint/evidence, which flows status and test-evidence read; a failed append prints run-evidence-write-failed and keeps the exit status.",
         "Planning reads the committed test inventory (.corvint/test-inventory.json) at HEAD and prints one \"corvint-test: INVENTORY STATE reasons=...\" line on stderr (an \"inventory:\" summary line, or the dry-run JSON \"inventory\" member); it never narrows the plan, only sends an instance it cannot vouch for to its full command, and never writes the inventory (TIV-V1-002)."
       ],
       "unknowns": [
@@ -1379,6 +1381,7 @@
         "--packages"
       ],
       "schemaIds": [
+        "corvint-test-run/0",
         "linecov-index/4"
       ],
       "inputs": null,
@@ -1389,7 +1392,9 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Writes: nothing under the repository; tests write what they write."
+        "Writes: each save's test run appends one corvint-test-run/0 record to the run evidence store under the Git directory (RVD-V1-004), never the worktree; a failed append prints run-evidence-write-failed on stderr and changes no exit status.",
+        "--dry-run writes nothing.",
+        "Tests write what they write."
       ],
       "unknowns": [
         {
@@ -1475,6 +1480,7 @@
         "--workspace"
       ],
       "schemaIds": [
+        "affected-select-all/1",
         "affected-summary/1"
       ],
       "inputs": null,
@@ -1891,169 +1897,1406 @@
   ],
   "mcpTools": [
     {
-      "name": "corvint.docs_claims",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Claims about a path, claims ranked by text, or supplied status claims by state, qualifier and run; each claim carries a claim_kind, filterable by kind / exclude_kind, and run records rank below behavioural claims ([DCS-V1-591..593](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
-      "name": "corvint.docs_concept",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "One concept's record"
-    },
-    {
-      "name": "corvint.docs_consume",
-      "availability": "corvint-docs-mcp, corvint-mcp --tool-profile docs",
-      "summary": "Recheck a draft's exact bytes against source"
-    },
-    {
-      "name": "corvint.docs_coverage",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Coverage counts per outcome"
-    },
-    {
-      "name": "corvint.docs_dependencies",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Dependencies of a subject"
-    },
-    {
-      "name": "corvint.docs_draft",
-      "availability": "corvint-docs-mcp, corvint-mcp --tool-profile docs",
-      "summary": "Source-pinned documentation draft of a module directory in any language the native index extracts declarations from; dry_run previews an untracked or inline owner as NOT_ADMISSIBLE (SDD-V0-019)"
-    },
-    {
-      "name": "corvint.docs_find_related",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Related subjects"
-    },
-    {
-      "name": "corvint.docs_flow",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "One documented flow"
-    },
-    {
-      "name": "corvint.docs_gaps",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Producer gap claims"
-    },
-    {
-      "name": "corvint.docs_get",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "One subject and its links, by ID or legacy case ID"
-    },
-    {
-      "name": "corvint.docs_get_journey",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "One user journey"
-    },
-    {
-      "name": "corvint.docs_get_stability",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Stability records"
-    },
-    {
-      "name": "corvint.docs_info",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Corpus header, revision and capabilities"
-    },
-    {
-      "name": "corvint.docs_intent",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Intent records of one subject, or every intent comparison"
-    },
-    {
-      "name": "corvint.docs_inventory",
-      "availability": "corvint-mcp --tool-profile corpus (/2 artifacts)",
-      "summary": "Page through the corpus inventory"
-    },
-    {
-      "name": "corvint.docs_locate",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Where a path is documented, including the subjects documenting it through one documents hop, or module and symbol subjects ranked by a query, with line anchors ([DCS-V1-594](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
-      "name": "corvint.docs_navigation",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Navigation structure of one flow id, or of the flows a query selects by name or linked test ([DCS-V1-596..597](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
-      "name": "corvint.docs_search",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Search the corpus; compact receipt by default, receipt: \"full\" for the full one"
-    },
-    {
-      "name": "corvint.docs_trace",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Walk relations to a depth"
-    },
-    {
-      "name": "corvint.docs_validate",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Validate the corpus artifact"
-    },
-    {
-      "name": "corvint.docs_vocabulary",
-      "availability": "corvint-mcp --tool-profile corpus",
-      "summary": "Corpus vocabulary"
+      "name": "corvint-tasks",
+      "server": "none",
+      "availability": "stable",
+      "summary": "Corvint Tasks is used through its command line; neither server serves a Tasks tool",
+      "cliEquivalent": "corvint-tasks",
+      "note": "no Tasks MCP server or tool ships in 1.0 (owner decision R17, MTT-V1-006)"
     },
     {
       "name": "corvint.affected",
-      "availability": "corvint mcp --tool-profile affected",
-      "summary": "Which tests does a change require: the same affected-summary/1 verdict as corvint affected --summary, for a base or for the dirty worktree; corvint-mcp refuses the group"
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "Which tests a change requires: the affected-summary/1 verdict for a base or for the dirty worktree, or a select-all answer with its reason",
+      "optIn": "--tool-profile affected",
+      "inputSchema": "internal/mcp/toolgroup/affected.go",
+      "inputs": [
+        {
+          "name": "base",
+          "description": "Optional base revision; with it the plan is base..HEAD plus the dirty worktree, without it the dirty worktree alone."
+        }
+      ],
+      "outputProfile": "affected-summary/1, affected-select-all/1",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "affected-failed",
+        "ambiguous-affected-base",
+        "corvint-envelope-terminator-collision",
+        "invalid-arguments",
+        "invalid-root",
+        "not-served",
+        "unsupported-affected-drift",
+        "unsupported-affected-graph",
+        "unsupported-affected-revision",
+        "unsupported-affected-status",
+        "unsupported-affected-temp",
+        "verdict-oversized"
+      ],
+      "cliEquivalent": "corvint affected --summary [--base REV]",
+      "parityTest": "corvint TestV15254MCPAffectedMatchesCLI",
+      "note": "a planner refusal listed here carries the CLI's own error code and any other is affected-failed, its message led by the planner's code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)"
     },
     {
-      "name": "corvint.flows.coverage",
-      "availability": "corvint-mcp flows",
-      "summary": "Flow variation coverage"
+      "name": "corvint.docs_claims",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Claims about a path, claims ranked by text, or supplied status claims by state, qualifier and run, filterable by claim kind",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "exclude_kind",
+          "description": "Claim kind, or list of kinds, to leave out."
+        },
+        {
+          "name": "kind",
+          "description": "Claim kind, or list of kinds, to keep."
+        },
+        {
+          "name": "path",
+          "description": "One repository path or symbol to look up; give path or paths, not both."
+        },
+        {
+          "name": "paths",
+          "description": "A batch of repository paths or symbols to look up; give path or paths, not both."
+        },
+        {
+          "name": "qualifier",
+          "description": "Supplied status qualifier to filter by."
+        },
+        {
+          "name": "query",
+          "description": "Claim text to rank against, in place of path or paths."
+        },
+        {
+          "name": "run",
+          "description": "Supplied status run id to filter by."
+        },
+        {
+          "name": "state",
+          "description": "Supplied status state to filter by."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus claims --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
-      "name": "corvint.flows.gaps",
-      "availability": "corvint-mcp flows",
-      "summary": "Flow gaps"
+      "name": "corvint.docs_concept",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "One concept's record, found by name",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "query",
+          "description": "Text to rank records against."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus concept --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
-      "name": "corvint.flows.impact",
-      "availability": "corvint-mcp flows",
-      "summary": "Flows a change reaches"
+      "name": "corvint.docs_consume",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Recheck a draft's exact bytes against source and return the bounded task match",
+      "inputSchema": "internal/mcp/docsbridge/docsbridge.go",
+      "inputs": [
+        {
+          "name": "draft",
+          "description": "The draft bytes to recheck."
+        },
+        {
+          "name": "package",
+          "description": "Repository-relative module directory the draft covers."
+        },
+        {
+          "name": "source",
+          "description": "Repository-relative owner Markdown source."
+        },
+        {
+          "name": "task",
+          "description": "Task text to match against the draft."
+        }
+      ],
+      "outputProfile": "corvint-mcp-docsbridge-result/0",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "documentation-limit-exceeded",
+        "internal-error",
+        "not-installed",
+        "repository-unavailable",
+        "stale-documentation-draft",
+        "unsupported-documentation-source",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs consume --source PATH --package DIR --task TEXT < DRAFT",
+      "parityTest": "corvint-docs TestMTTV1009DocsConsumeToolMatchesCLI"
     },
     {
-      "name": "corvint.flows.map",
-      "availability": "corvint-mcp flows",
-      "summary": "Application flow map"
+      "name": "corvint.docs_coverage",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Documentation coverage counts per outcome",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus coverage --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
-      "name": "corvint.flows.navigate",
-      "availability": "corvint-mcp flows",
-      "summary": "Navigation within the flow map"
+      "name": "corvint.docs_dependencies",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "What one subject depends on",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Subject id, or legacy case id, to read."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus dependencies --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
     },
     {
-      "name": "corvint.flows.status",
-      "availability": "corvint-mcp flows",
-      "summary": "Flow, variation, attached tests and last result"
+      "name": "corvint.docs_draft",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "A source-pinned documentation draft of a module directory; dry_run previews an untracked or inline owner as NOT_ADMISSIBLE",
+      "inputSchema": "internal/mcp/docsbridge/docsbridge.go",
+      "inputs": [
+        {
+          "name": "dry_run",
+          "description": "Preview over an untracked owner file or inline owner_markdown; the result governs nothing."
+        },
+        {
+          "name": "owner_markdown",
+          "description": "Inline owner Markdown, with dry_run."
+        },
+        {
+          "name": "package",
+          "description": "Repository-relative module directory to draft."
+        },
+        {
+          "name": "source",
+          "description": "Repository-relative owner Markdown source."
+        }
+      ],
+      "outputProfile": "corvint-mcp-docsbridge-result/0",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "documentation-limit-exceeded",
+        "internal-error",
+        "not-installed",
+        "repository-unavailable",
+        "stale-documentation-draft",
+        "unsupported-documentation-source",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs draft --source PATH --package DIR",
+      "parityTest": "corvint-docs TestDocsToolVerbAnswersInOneEnvelope"
+    },
+    {
+      "name": "corvint.docs_find_related",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Subjects related to one subject",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Subject id, or legacy case id, to read."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus related --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_flow",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "One documented flow, its sections and records",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Subject id, or legacy case id, to read."
+        },
+        {
+          "name": "include",
+          "description": "Flow record kinds to include."
+        },
+        {
+          "name": "section",
+          "description": "Flow section name, or list of names, to return."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus flow --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_gaps",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Producer gap claims, optionally for one subject or gap kind",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Optional subject id whose gaps to return."
+        },
+        {
+          "name": "kind",
+          "description": "Gap kind, or list of kinds, to keep."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus gaps --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_get",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "One subject and its links, by id or legacy case id",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Subject id, or legacy case id, to read."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus get --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_get_journey",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "One user journey of a subject",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Subject id, or legacy case id, to read."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus journey --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_get_stability",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Stability records of one subject",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Subject id, or legacy case id, to read."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus stability --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_how",
+      "server": "corvint-docs mcp",
+      "availability": "planned",
+      "summary": "Answer a how-to question from the application map",
+      "outputProfile": "site-knowledge-how/0",
+      "errors": [
+        "cancelled",
+        "server-busy"
+      ],
+      "cliEquivalent": "corvint-docs how --json",
+      "note": "lands with change how-rewrite; no server registers it yet"
+    },
+    {
+      "name": "corvint.docs_info",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "The corpus header, revision and capabilities",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus info --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_intent",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Intent records of one subject, or every intent comparison",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Optional subject id; without it every intent comparison is listed."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus intent --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_inventory",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "A page of the corpus inventory of a schema /2 artifact",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus inventory --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_locate",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Where a path is documented, or module and symbol subjects ranked by a query, with line anchors",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "kind",
+          "description": "With query: module or symbol, or both, to rank."
+        },
+        {
+          "name": "path",
+          "description": "One repository path or symbol to look up; give path or paths, not both."
+        },
+        {
+          "name": "paths",
+          "description": "A batch of repository paths or symbols to look up; give path or paths, not both."
+        },
+        {
+          "name": "query",
+          "description": "Text to rank module and symbol subjects against, in place of path or paths."
+        },
+        {
+          "name": "repository",
+          "description": "Optional root-commit identity of a declared repository the paths belong to."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus locate --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_navigation",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Navigation structure of one flow, or of the flows a query selects by name or linked test",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "id",
+          "description": "Flow id whose navigation to return; give id or query."
+        },
+        {
+          "name": "query",
+          "description": "Text matched to flow names and linked tests; give id or query."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus navigation --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_search",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Search the corpus: a compact receipt by default, the full one on request",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "include",
+          "description": "claims adds claim hits to the subject hits; capabilities adds the corpus capabilities."
+        },
+        {
+          "name": "kind",
+          "description": "Subject kind, or list of kinds, to keep."
+        },
+        {
+          "name": "query",
+          "description": "Text to rank records against."
+        },
+        {
+          "name": "receipt",
+          "description": "compact (the default) or full."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus search --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_trace",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Relations walked from one subject to a depth",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "depth",
+          "description": "How many relation hops to walk."
+        },
+        {
+          "name": "id",
+          "description": "Subject id, or legacy case id, to read."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus trace --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_validate",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Validation of the corpus artifact itself",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus validate --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.docs_vocabulary",
+      "server": "corvint-docs mcp",
+      "availability": "experimental",
+      "summary": "Corpus vocabulary entries matching a term",
+      "optIn": "--corpus-artifact PATH",
+      "inputSchema": "internal/mcp/corpusbridge/corpusbridge.go",
+      "inputs": [
+        {
+          "name": "caller_revision",
+          "description": "Optional full commit id the caller works at; the receipt says whether the corpus was built at it."
+        },
+        {
+          "name": "limit",
+          "description": "Most records to return in this page, 1 to the corpus result bound."
+        },
+        {
+          "name": "offset",
+          "description": "Records to skip before this page, for a schema /2 artifact."
+        },
+        {
+          "name": "retirement",
+          "description": "Which retired records to include: the corpus retirement filter."
+        },
+        {
+          "name": "query",
+          "description": "Text to rank records against."
+        }
+      ],
+      "outputProfile": "corvint-corpus-receipt/2",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "corpus-input-unavailable",
+        "corpus-refused",
+        "corpus-unavailable",
+        "deadline-exceeded",
+        "internal-error",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs docs corpus vocabulary --artifact PATH",
+      "parityTest": "corvint-docs TestCorpusTypedCLIMCPEndToEnd"
+    },
+    {
+      "name": "corvint.flows_coverage",
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "Complete accepted flow variation coverage, bound to immutable bytes; the page verdict covers the full inventory",
+      "optIn": "--tool-profile flows",
+      "inputSchema": "internal/mcp/bridge/flows.go",
+      "inputs": [
+        {
+          "name": "denominator",
+          "description": "Repository-relative accepted variation denominator file."
+        },
+        {
+          "name": "limit",
+          "description": "Most rows in this page, 1 to 100."
+        },
+        {
+          "name": "offset",
+          "description": "Rows to skip before this page."
+        },
+        {
+          "name": "receipts",
+          "description": "Repository-relative run receipts file."
+        }
+      ],
+      "outputProfile": "application-flow-coverage/1",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "flows-refused",
+        "internal-error",
+        "repository-unavailable",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs flows coverage",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "replaces": [
+        "corvint.flows.coverage"
+      ]
+    },
+    {
+      "name": "corvint.flows_gaps",
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "Flows at HEAD without passing test evidence and, with a provider, the E2E tests no flow variation links",
+      "optIn": "--tool-profile flows",
+      "inputSchema": "internal/mcp/bridge/flows.go",
+      "inputs": [
+        {
+          "name": "evidence",
+          "description": "Repository-relative test evidence files to join to the flows."
+        },
+        {
+          "name": "flows",
+          "description": "Repository-relative directory holding the flow intent files."
+        },
+        {
+          "name": "provider",
+          "description": "Repository-relative E2E inventory provider file."
+        },
+        {
+          "name": "registry",
+          "description": "Repository-relative E2E test registry file."
+        }
+      ],
+      "outputProfile": "application-flow-gaps/1",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "flows-refused",
+        "internal-error",
+        "repository-unavailable",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs flows gaps",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "replaces": [
+        "corvint.flows.gaps"
+      ]
+    },
+    {
+      "name": "corvint.flows_impact",
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "The flows the base..HEAD changed paths reach through links and the impact graph",
+      "optIn": "--tool-profile flows",
+      "inputSchema": "internal/mcp/bridge/flows.go",
+      "inputs": [
+        {
+          "name": "base",
+          "description": "Full commit id of the base; the change is base..HEAD."
+        },
+        {
+          "name": "flows",
+          "description": "Repository-relative directory holding the flow intent files."
+        }
+      ],
+      "outputProfile": "application-flow-impact/1",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "flows-refused",
+        "internal-error",
+        "repository-unavailable",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs flows impact",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "replaces": [
+        "corvint.flows.impact"
+      ]
+    },
+    {
+      "name": "corvint.flows_map",
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "Flow intents at HEAD with their links and test evidence, or the flows one path or test key reaches",
+      "optIn": "--tool-profile flows",
+      "inputSchema": "internal/mcp/bridge/flows.go",
+      "inputs": [
+        {
+          "name": "evidence",
+          "description": "Repository-relative test evidence files to join to the flows."
+        },
+        {
+          "name": "flows",
+          "description": "Repository-relative directory holding the flow intent files."
+        },
+        {
+          "name": "path",
+          "description": "Repository-relative path whose flows to look up."
+        },
+        {
+          "name": "registry",
+          "description": "Repository-relative E2E test registry file."
+        },
+        {
+          "name": "testKey",
+          "description": "Test key whose flows to look up."
+        }
+      ],
+      "outputProfile": "application-flow-map/1, application-flow-lookup/1",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "flows-refused",
+        "internal-error",
+        "repository-unavailable",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs flows map",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "replaces": [
+        "corvint.flows.map"
+      ]
+    },
+    {
+      "name": "corvint.flows_navigate",
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "The navigation map of the flow intents, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant",
+      "optIn": "--tool-profile flows",
+      "inputSchema": "internal/mcp/bridge/flows.go",
+      "inputs": [
+        {
+          "name": "evidence",
+          "description": "Repository-relative test evidence files to join to the flows."
+        },
+        {
+          "name": "flows",
+          "description": "Repository-relative directory holding the flow intent files."
+        },
+        {
+          "name": "goal",
+          "description": "Flow id of the goal whose packet to compile."
+        },
+        {
+          "name": "maxEffect",
+          "description": "Highest effect class a step may have without a grant: read, write-reversible, write-irreversible or external."
+        },
+        {
+          "name": "registry",
+          "description": "Repository-relative E2E test registry file."
+        },
+        {
+          "name": "traffic",
+          "description": "Repository-relative recorded traffic files."
+        }
+      ],
+      "outputProfile": "application-navigation-map/0, application-navigation-packet/0",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "flows-refused",
+        "internal-error",
+        "repository-unavailable",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs flows navigate",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "replaces": [
+        "corvint.flows.navigate"
+      ]
+    },
+    {
+      "name": "corvint.flows_status",
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches",
+      "optIn": "--tool-profile flows",
+      "inputSchema": "internal/mcp/bridge/flows.go",
+      "inputs": [
+        {
+          "name": "base",
+          "description": "Optional full commit id of the base; only the flows base..HEAD reaches are reported."
+        },
+        {
+          "name": "evidence",
+          "description": "Repository-relative test evidence files to join to the flows."
+        },
+        {
+          "name": "flows",
+          "description": "Repository-relative directory holding the flow intent files."
+        }
+      ],
+      "outputProfile": "application-flow-status/0",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "flows-refused",
+        "internal-error",
+        "repository-unavailable",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint-docs flows status",
+      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "replaces": [
+        "corvint.flows.status"
+      ]
     },
     {
       "name": "corvint.help",
-      "availability": "corvint-mcp (all profiles), corvint-docs-mcp, corvint-test-validity-mcp",
-      "summary": "Same bytes as corvint help guide (default), corvint help --json COMMAND (command) or corvint help --json (topic catalog)"
+      "server": "corvint mcp",
+      "alsoOn": [
+        "corvint-docs mcp",
+        "corvint-test-validity-mcp"
+      ],
+      "availability": "experimental",
+      "summary": "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server",
+      "inputSchema": "internal/mcp/bridge/help.go",
+      "inputs": [
+        {
+          "name": "command",
+          "description": "Command name whose catalog entry to return, with topic command."
+        },
+        {
+          "name": "topic",
+          "description": "guide (the default), command or catalog."
+        }
+      ],
+      "outputProfile": "corvint-mcp-help/0",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "internal-error"
+      ],
+      "cliEquivalent": "corvint help guide | corvint help --json COMMAND | corvint help --json",
+      "parityTest": "corvint TestMTTV1009HelpToolMatchesCLI"
     },
     {
       "name": "corvint.impact",
-      "availability": "corvint-mcp (all profiles)",
-      "summary": "Same receipt as corvint impact, path requests for Go, Ruby, JS and TS"
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "Revision-bound impact evidence for Go, Ruby, JavaScript and TypeScript paths, without source bodies",
+      "inputSchema": "internal/mcp/bridge/bridge.go",
+      "inputs": [
+        {
+          "name": "budgetBytes",
+          "description": "Optional byte budget for the evidence packet."
+        },
+        {
+          "name": "limit",
+          "description": "Most ranked results to return, 1 to 50; default 10."
+        },
+        {
+          "name": "paths",
+          "description": "Repository-relative paths whose impact to compile."
+        },
+        {
+          "name": "snapshot",
+          "description": "Optional commit and tree binding the answer must match."
+        }
+      ],
+      "outputProfile": "corvint-mcp-bridge-result/0",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "internal-error",
+        "repository-unavailable",
+        "corvint-envelope-terminator-collision"
+      ],
+      "cliEquivalent": "corvint impact --language-profile non-go-syntax-v0 --limit N PATH...",
+      "parityTest": "corvint TestMTTV1009ImpactToolMatchesCLI"
     },
     {
       "name": "corvint.status",
-      "availability": "corvint-mcp (all profiles)",
-      "summary": "Repository status receipt"
+      "server": "corvint mcp",
+      "availability": "experimental",
+      "summary": "Exact commit, tree, worktree state and a privacy-preserving dirty-path digest of the served root",
+      "inputSchema": "internal/mcp/bridge/bridge.go",
+      "outputProfile": "corvint-mcp-bridge-result/0",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "internal-error",
+        "repository-unavailable",
+        "corvint-envelope-terminator-collision"
+      ],
+      "note": "no command prints this receipt; corvint status does not exist"
     },
     {
       "name": "corvint.test_evidence",
-      "availability": "corvint-mcp --tool-profile test-evidence",
-      "summary": "Same read-only path, range, test and explanation projection as corvint test-evidence"
+      "server": "corvint mcp",
+      "availability": "preview",
+      "summary": "Retained test evidence for a path, a test, or a test's explanation against a base, read-only",
+      "optIn": "--tool-profile test-evidence",
+      "inputSchema": "internal/mcp/toolgroup/test_evidence.go",
+      "inputs": [
+        {
+          "name": "base",
+          "description": "Base commit for explain."
+        },
+        {
+          "name": "explain",
+          "description": "Test whose selection to explain against base."
+        },
+        {
+          "name": "index",
+          "description": "Optional repository-relative test inventory file."
+        },
+        {
+          "name": "lines",
+          "description": "Optional START:END line range within path."
+        },
+        {
+          "name": "path",
+          "description": "Repository-relative path whose tests to read."
+        },
+        {
+          "name": "revision",
+          "description": "Commit to read at; default HEAD."
+        },
+        {
+          "name": "test",
+          "description": "Test whose dependencies to read."
+        }
+      ],
+      "outputProfile": "corvint-test-evidence-query/1",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "internal-error",
+        "invalid-root"
+      ],
+      "cliEquivalent": "corvint test-evidence",
+      "parityTest": "corvint TestMTTV1009TestEvidenceToolMatchesCLI"
     },
     {
       "name": "corvint.test_validity",
-      "availability": "corvint-test-validity-mcp, corvint-mcp --tool-profile test-validity",
-      "summary": "Five-axis projection of retained test evidence"
+      "server": "corvint-test-validity-mcp",
+      "availability": "deprecated",
+      "summary": "Five-axis projection of retained test evidence",
+      "inputSchema": "internal/mcp/testvaliditybridge/testvaliditybridge.go",
+      "inputs": [
+        {
+          "name": "discover",
+          "description": "Discover retained receipts instead of naming one."
+        },
+        {
+          "name": "receipt",
+          "description": "Retained test receipt to project."
+        }
+      ],
+      "outputProfile": "corvint-mcp-test-validity-result/0",
+      "errors": [
+        "cancelled",
+        "server-busy",
+        "internal-error",
+        "repository-unavailable"
+      ],
+      "note": "removed from corvint mcp with the G24 batch (M12); served only by the retiring corvint-test-validity-mcp binary until its removal batch (MTT-V1-010), so no CLI parity is claimed for it"
     }
   ]
 }
