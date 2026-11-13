@@ -3,6 +3,7 @@ package flowdocs
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -56,5 +57,38 @@ func TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot(t *testing.T) {
 	}
 	if len(opened) != 1 || opened[0] != volumeRoot {
 		t.Fatalf("opening / itself = %q", opened)
+	}
+}
+
+// TestV14551_OpenDirectoryFollowsOnlyRootOwnedSystemAlias pins that a path
+// reached through a top-level system symlink (macOS /var -> private/var) opens,
+// while a symlink below it is still refused. It runs where t.TempDir starts at
+// such an alias, which hosted macOS does, and is skipped elsewhere.
+func TestV14551_OpenDirectoryFollowsOnlyRootOwnedSystemAlias(t *testing.T) {
+	dir := t.TempDir()
+	volumeRoot := filepath.VolumeName(dir) + string(filepath.Separator)
+	first := strings.SplitN(dir[len(volumeRoot):], string(filepath.Separator), 2)[0]
+	link, linkErr := os.Lstat(volumeRoot + first)
+	rootInfo, rootErr := os.Lstat(volumeRoot)
+	if runtime.GOOS == "windows" || linkErr != nil || link.Mode()&os.ModeSymlink == 0 || rootErr != nil || rootInfo.Mode().Perm()&0o022 != 0 {
+		t.Skipf("%s does not start at a symlink in an owner-only filesystem root", dir)
+	}
+	if _, ok := systemAlias(volumeRoot, first); !ok {
+		t.Fatalf("systemAlias(%q, %q) refused a root-owned system symlink", volumeRoot, first)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "real"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	root, err := openDirectory(filepath.Join(dir, "real"))
+	if err != nil {
+		t.Fatalf("openDirectory through the system alias = %v", err)
+	}
+	root.Close()
+	if err := os.Symlink(filepath.Join(dir, "real"), filepath.Join(dir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	if root, err := openDirectory(filepath.Join(dir, "link")); err == nil {
+		root.Close()
+		t.Fatal("a symlink below the system alias was followed")
 	}
 }
