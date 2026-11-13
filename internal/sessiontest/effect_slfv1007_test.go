@@ -108,7 +108,9 @@ func TestSelectionVerdictRunnerTiers_SLFV1007(t *testing.T) {
 		edit(&input)
 		return input.SelectionVerdict()
 	}
-	got := with(func(input *Input) { input.Unknown, input.Declared, input.LineUnits = []Unknown{frontier}, withProviders(), lines })
+	got := with(func(input *Input) {
+		input.Unknown, input.Declared, input.LineUnits = []Unknown{frontier}, withProviders(), lines
+	})
 	want := SelectionVerdict{Scope: VerdictNarrowed, Unknown: []EffectEntry{{Reason: frontier.Reason, Detail: frontier.Detail, Effect: EffectAddsSuite + "python", Hint: got.Unknown[0].Hint}},
 		Runners: []RunnerVerdict{{"go", "line"}, {"python", "full"}, {"ruby", "full"}, {"typescript", "flow"}}}
 	if !reflect.DeepEqual(got, want) {
@@ -120,7 +122,9 @@ func TestSelectionVerdictRunnerTiers_SLFV1007(t *testing.T) {
 	if bare := with(func(input *Input) { input.Selected = selected[1:2] }); !reflect.DeepEqual(bare.Runners, []RunnerVerdict{{"typescript", "full"}}) {
 		t.Fatalf("a Playwright file with no declared provider runs the declared typescript suite: %+v", bare.Runners)
 	}
-	full := with(func(input *Input) { input.Unknown, input.LineUnits = []Unknown{{Reason: "SOMETHING_NEW", Detail: "x"}}, lines })
+	full := with(func(input *Input) {
+		input.Unknown, input.LineUnits = []Unknown{{Reason: "SOMETHING_NEW", Detail: "x"}}, lines
+	})
 	for _, runner := range full.Runners {
 		if runner.Tier != "full" {
 			t.Fatalf("forces-full leaves %+v", full.Runners)
