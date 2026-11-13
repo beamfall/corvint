@@ -1026,6 +1026,24 @@ func TestFlowDocsNestedMarkupTextIsMasked(t *testing.T) {
 	}
 }
 
+// TestFlowDocsFragmentInContainerKeepsTopLevel (V1-5524): a fragment
+// `<>...</>` inside an expression container closes only itself, so the
+// container's `)}` stays code and a declared inventory still resolves the
+// top-level const after the component (AFU-V1-107).
+func TestFlowDocsFragmentInContainerKeepsTopLevel(t *testing.T) {
+	text := "function Card({ ok }) {\n  return (\n    <div>\n      <form>\n        {ok && (\n          <>\n            <b>persist(x)</b>\n          </>\n        )}\n      </form>\n    </div>\n  )\n}\n" +
+		"const STATUS_TONES = { ok: 1 }\n" +
+		"export function after() {\n  save(id);\n}\n"
+	ds, _ := extractDeclarations(contextindex.Source{Path: "app/card.tsx", Data: []byte(text)}, true)
+	got := []string{}
+	for _, d := range ds {
+		got = append(got, d.name)
+	}
+	if want := "Card,STATUS_TONES,after"; strings.Join(got, ",") != want {
+		t.Fatalf("declarations=%v want=%s", got, want)
+	}
+}
+
 // TestFlowDocsGenericArrowDeclarations (V1-5498): a generic arrow's type
 // parameters in a .tsx file (`<T,>(x: T) =>`, `<K extends keyof S>(key: K) =>`)
 // are not markup, so the arrow is a declaration and the declarations after it

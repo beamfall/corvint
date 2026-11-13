@@ -67,7 +67,9 @@ func flowWebMask(text string) string {
 			// generic arrow's type parameters, never an element (V1-5498).
 			continue
 		}
-		if c == '<' && i+1 < len(code) && (code[i+1] >= 'A' && code[i+1] <= 'Z' || code[i+1] >= 'a' && code[i+1] <= 'z' || code[i+1] == '/') {
+		// A fragment `<>` opens markup like a named element, so its `</>` pops
+		// that frame and not the expression container around it (V1-5524).
+		if c == '<' && i+1 < len(code) && (code[i+1] >= 'A' && code[i+1] <= 'Z' || code[i+1] >= 'a' && code[i+1] <= 'z' || code[i+1] == '/' || code[i+1] == '>') {
 			// An attribute expression can hold '>' (onChange={(e) => f(e)}),
 			// so the tag ends at the first '>' outside braces. A ';', '(' or ')'
 			// outside braces never occurs in a tag, so a '<' that reaches one

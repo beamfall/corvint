@@ -31,7 +31,7 @@ const Schema = "corvint-flow-documentation/1"
 // accepts type parameters on a function declaration, so a version 4 manifest
 // can no longer be rederived byte for byte. Version 6 (V1-5495..V1-5499 and
 // V1-5502, AFU-V1-043 and AFU-V1-107) masks markup nested in an expression
-// container, keeps a '<' after any operand and a generic arrow's type
+// container, opens markup at a fragment `<>` (V1-5524), keeps a '<' after any operand and a generic arrow's type
 // parameters as code, accepts type arguments on a registration, and resolves
 // declared inventory members against top-level classes, enums, namespaces,
 // consts, lets, vars, interfaces and type aliases, and the web mask blanks

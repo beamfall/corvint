@@ -59,6 +59,16 @@ func TestFlowWebMaskJSXOperandsAndTypeParameters(t *testing.T) {
 			text: "return (\n  <p>Get data</p>\n)\nconst y = load(1)",
 			want: "return (\n  <p>        </p>\n)\nconst y = load(1)",
 		},
+		{
+			name: "fragment in a conditional container (V1-5524)",
+			text: "return <div>{c && (<>\n  <b>Hi</b>\n</>)} x</div>\nconst y = load(1)",
+			want: "return <div>{c && (<>\n  <b>  </b>\n</>)}  </div>\nconst y = load(1)",
+		},
+		{
+			name: "fragment at the root of a return (V1-5524)",
+			text: "return (<>\n  <p>Get data</p>\n</>)\nconst y = load(1)",
+			want: "return (<>\n  <p>        </p>\n</>)\nconst y = load(1)",
+		},
 	}
 	for _, c := range cases {
 		if got := flowWebMask(c.text); got != c.want {
