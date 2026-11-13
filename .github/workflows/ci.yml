@@ -840,6 +840,26 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Capture the known-flake authorizer before tested code runs (CIN-V0-8720)
+        # Later steps run the tested change's code (its .github scripts, then its tests), and code
+        # that can write the checkout's .git could install a replacement ref (git replace) or
+        # config that substitutes the authorizer. So it is read here, before any of that, from the
+        # event base, ignoring replace refs and system, global and hooks config; the Go tests step
+        # uses the copy only while its bytes match the digest this step outputs. A base without
+        # the authorizer outputs no digest, and then no failed shard is forgiven.
+        id: known-flakes
+        working-directory: source
+        env:
+          KNOWN_FLAKES_REVISION: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
+        run: |
+          authorizer="$RUNNER_TEMP/known-flakes-authorizer.py"
+          if GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1 \
+            git --no-replace-objects -c core.hooksPath=/dev/null show "$KNOWN_FLAKES_REVISION:.github/forward-rows/known-flakes.py" > "$authorizer" 2> /dev/null; then
+            echo "sha256=$(sha256sum < "$authorizer" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          else
+            rm -f -- "$authorizer"
+            echo "::notice::CIN-V0-8720: no known-flake authorizer at $KNOWN_FLAKES_REVISION; no failed shard is forgiven"
+          fi
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         id: go
         with:
@@ -1445,6 +1465,7 @@ jobs:
           # CIN-V0-8720: the known-flake list and its authorizer come from the event base (the pull
           # request's base, the queue base or the pushed commit), never from the tested tree.
           KNOWN_FLAKES_REVISION: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
+          KNOWN_FLAKES_SHA256: ${{ steps.known-flakes.outputs.sha256 }}
           # AFP-V0-461 (V1-2707): outcomes.sh records the pull request head in every shard's
           # outcomes; without it each PR forward row is INCOMPLETE and trips the kill switch.
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -1471,6 +1492,16 @@ jobs:
           CORVINT_SKIP_LIVE_TIER: "1"
         run: |
           test "$(go env GOVERSION)" = "go1.27.4"
+          # CIN-V0-8720: hold the captured authorizer in this shell before any test runs, and only
+          # while its bytes match the capture step's digest; tested code cannot change a variable
+          # of this shell, and none of this is exported.
+          known_flakes_src=""
+          if [ -n "$KNOWN_FLAKES_SHA256" ] && known_flakes_src=$(cat -- "$RUNNER_TEMP/known-flakes-authorizer.py" && echo x); then
+            known_flakes_src=${known_flakes_src%x}
+            [ "$(printf '%s' "$known_flakes_src" | sha256sum | cut -d' ' -f1)" = "$KNOWN_FLAKES_SHA256" ] || known_flakes_src=""
+          else
+            known_flakes_src=""
+          fi
           # AFP-V0-097/098: the only route to a narrowed shard is the gate above. A skipped, refused
           # or failed verdict or gate leaves NARROW_MODE other than NARROWED and runs the whole shard
           # here; the deciding driver never executes tests (its historical profile is evidence only).
@@ -1701,14 +1732,15 @@ jobs:
               # the flaky output that makes the next step retain flaky.json was written. A second
               # failure, a stopped or incomplete rerun, or a bounded (SKIPPED_BOUND) rerun keeps
               # the first status. CIN-V0-8720: every failed test must also hold a live exception
-              # in known-flakes.tsv, judged by known-flakes.py, both read from the event base and
-              # run from a copy outside the tested tree, so the tested change can edit neither.
-              # The FLAKY record and its artifact stay even when the authorization refuses.
+              # in known-flakes.tsv, judged by known-flakes.py, both read from the event base, the
+              # authorizer captured before tested code ran and run from this shell's copy, so the
+              # tested change can edit neither. The FLAKY record and its artifact stay even when
+              # the authorization refuses.
               if [ "$status" != 0 ] && [ -n "$outcomes_ok" ] && sh .github/forward-rows/flaky.sh "$outcomes_dir" "$capture" &&
                 echo "flaky=1" >> "$GITHUB_OUTPUT"; then
                 flaky=1
-                if git show "$KNOWN_FLAKES_REVISION:.github/forward-rows/known-flakes.py" > "$RUNNER_TEMP/known-flakes.py" 2> /dev/null &&
-                  python3 -I -B "$RUNNER_TEMP/known-flakes.py" "$capture" "$outcomes_dir/flaky-failed-packages" "$outcomes_dir/expected"; then
+                if [ -n "$known_flakes_src" ] &&
+                  python3 -I -B - "$capture" "$outcomes_dir/flaky-failed-packages" "$outcomes_dir/expected" < <(printf '%s' "$known_flakes_src"); then
                   status=0
                 else
                   echo "::warning::shard $SHARD: CIN-V0-8720: the rerun passed, but not every failed test has an unexpired exception in known-flakes.tsv at $KNOWN_FLAKES_REVISION; the shard keeps its failure"
