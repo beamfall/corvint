@@ -368,3 +368,55 @@ func TestNCMV1006ReadScopeDeclarationNarrowsWhenAttributable_V15465(t *testing.T
 	withMakefile := Decide(Input{Dirty: []string{declarations[0], "Makefile"}, ReadScopeAttributable: all})
 	wantFull(t, withMakefile, ReasonNeverNarrowed, "Makefile")
 }
+
+// NCM-V1-010 (owner-delegated amendment of NCM-V1-005 for V1-5465): a
+// Makefile, makefile or GNUmakefile edit the selector attributes names its
+// changed targets and adds no full run; one it cannot attribute, or with no
+// attribution callback, runs everything and says why. An included *.mk file
+// and every other never-narrowed path ignore the callback.
+func TestNCMV1010MakeEditNarrowsWhenAttributable(t *testing.T) {
+	attribute := func(targets []string, reason string) func(string) ([]string, string) {
+		return func(string) ([]string, string) { return targets, reason }
+	}
+	for _, p := range []string{"Makefile", "makefile", "GNUmakefile", "tools/sub/Makefile"} {
+		if !MakeFile(p) {
+			t.Fatalf("%s is not a make file", p)
+		}
+		narrowed := Decide(Input{Dirty: []string{p}, MakeEdit: attribute([]string{"check", "vet"}, "")})
+		wantNoFull(t, narrowed)
+		if want := "noncode " + ReasonMakeTargets + " " + p + " -> check vet"; !slices.Equal(narrowed.Audit(), []string{want}) {
+			t.Fatalf("%s audit = %q, want [%q]", p, narrowed.Audit(), want)
+		}
+		quiet := Decide(Input{Dirty: []string{p}, MakeEdit: attribute(nil, "")})
+		wantNoFull(t, quiet)
+		if want := "noncode " + ReasonMakeTargets + " " + p; !slices.Equal(quiet.Audit(), []string{want}) {
+			t.Fatalf("%s comment-only audit = %q, want [%q]", p, quiet.Audit(), want)
+		}
+		refused := Decide(Input{Dirty: []string{p}, MakeEdit: attribute(nil, "include line changed")})
+		line, full := refused.FullRun()
+		if got, want := line.Verdict(), ReasonNeverNarrowed+" "+p+": make edit: include line changed"; !full || got != want {
+			t.Fatalf("%s full %v verdict %q, want %q", p, full, got, want)
+		}
+		if want := "noncode " + ReasonNeverNarrowed + " " + p + ": make edit: include line changed"; !slices.Equal(refused.Audit(), []string{want}) {
+			t.Fatalf("%s refused audit = %q, want [%q]", p, refused.Audit(), want)
+		}
+		plain := Decide(Input{Dirty: []string{p}})
+		wantFull(t, plain, ReasonNeverNarrowed, p)
+		if line, _ := plain.FullRun(); line.Verdict() != ReasonNeverNarrowed+" "+p {
+			t.Fatalf("%s without a callback: verdict %q", p, line.Verdict())
+		}
+	}
+	for _, p := range []string{"rules.mk", "build/common.mk", "go.mod", ".github/workflows/ci.yml", "package.json"} { //corvint:fixture-path
+		if MakeFile(p) {
+			t.Fatalf("%s is a make file", p)
+		}
+		called := false
+		decision := Decide(Input{Dirty: []string{p}, MakeEdit: func(string) ([]string, string) { called = true; return nil, "" }})
+		wantFull(t, decision, ReasonNeverNarrowed, p)
+		if called {
+			t.Fatalf("%s asked the make edit callback", p)
+		}
+	}
+	// A narrowed make file never hides another path's full run.
+	wantFull(t, Decide(Input{Dirty: []string{"Makefile", "go.sum"}, MakeEdit: attribute([]string{"check"}, "")}), ReasonNeverNarrowed, "go.sum")
+}

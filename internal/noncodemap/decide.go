@@ -3,6 +3,7 @@
 package noncodemap
 
 import (
+	"path"
 	"slices"
 	"strings"
 )
@@ -39,7 +40,24 @@ const (
 	// (ReadScopeDeclaration) that the selector attributes entry by entry;
 	// it adds no full run (NCM-V1-006 as amended for V1-5465).
 	ReasonReadScopeDeclaration = "read-scope-declaration"
+	// ReasonMakeTargets is an edit of a make file (MakeFile) that the
+	// selector attributes to the explicit targets it changes; it adds no
+	// full run (NCM-V1-010, the owner-delegated amendment of NCM-V1-005 for
+	// V1-5465).
+	ReasonMakeTargets = "make-targets"
 )
+
+// makeFiles are the make file names GNU make reads by default. An included
+// `*.mk` file stays never narrowed (NCM-V1-005).
+var makeFiles = map[string]bool{"Makefile": true, "makefile": true, "GNUmakefile": true}
+
+// MakeFile reports a path, at any depth, whose base name is one GNU make
+// reads by default: an edit of it may narrow to its changed targets
+// (NCM-V1-010).
+func MakeFile(p string) bool {
+	_, base := path.Split(p)
+	return makeFiles[base]
+}
 
 // readScopeDeclarations are the read-scope declaration and its literal
 // exemptions. An edit of either keeps the selector's own attribution when
@@ -115,6 +133,11 @@ type Input struct {
 	// the current file is absent or a valid declaration, so its readers are
 	// selected. nil attributes neither, which runs everything.
 	ReadScopeAttributable func(string) bool
+	// MakeEdit attributes the edit of a MakeFile path to the explicit
+	// targets it changes: it returns them (possibly none, for an edit no
+	// target reads), or a non-empty reason why the edit runs everything
+	// (NCM-V1-010 to NCM-V1-017). nil attributes no make file edit.
+	MakeEdit func(string) (targets []string, reason string)
 	// Map is the read map; Env the facts its entries' status needs.
 	Map Map
 	Env Env
@@ -128,6 +151,10 @@ type Line struct {
 	Full bool
 	// Tests is the proven entry's tests, on a ReasonProvenEntry line only.
 	Tests []string
+	// Targets is the changed make targets, on a ReasonMakeTargets line only.
+	Targets []string
+	// Detail, when not empty, says why a full line runs everything.
+	Detail string
 }
 
 // EntryReport is one map entry that covers a changed path.
@@ -147,7 +174,8 @@ type Decision struct {
 // each changed path, in byte order, first match wins: the private ledgers;
 // the flow file and its link records; declared documentation, sealed change
 // evidence (no line), an attributable read-scope declaration edit and every
-// other path under `.corvint/`; the never-narrow list (a deleted runner
+// other path under `.corvint/`; the never-narrow list (an attributable make
+// file edit names its changed targets, a deleted runner
 // configuration reads as a removed runner); declared documentation; and each
 // UNOWNED_DIRTY_PATH, which a proven entry narrows, a Go rule's attribution
 // keeps owned, and otherwise selects everything. Any other path keeps the
@@ -196,6 +224,13 @@ func (in Input) decidePath(p string, unowned, documentation, deleted map[string]
 		return Line{Reason: ReasonCorvintConfig, Path: p, Full: true}, true
 	}
 	if category, never := NeverNarrowed(p); never {
+		if category == CategoryMake && MakeFile(p) && in.MakeEdit != nil {
+			targets, reason := in.MakeEdit(p)
+			if reason == "" {
+				return Line{Reason: ReasonMakeTargets, Path: p, Targets: slices.Clone(targets)}, true
+			}
+			return Line{Reason: ReasonNeverNarrowed, Path: p, Full: true, Detail: "make edit: " + reason}, true
+		}
 		if category == CategoryRunnerConfig && deleted[p] {
 			return Line{Reason: ReasonRunnerRemoved, Path: p, Full: true}, true
 		}
@@ -258,6 +293,15 @@ func NamesFullRun(verdict string) bool {
 	return slices.Contains(fullReasons, reason)
 }
 
+// Verdict is the reason a full line prints after `FALLBACK `: its reason
+// and path, then its detail when it has one.
+func (line Line) Verdict() string {
+	if line.Detail != "" {
+		return line.Reason + " " + line.Path + ": " + line.Detail
+	}
+	return line.Reason + " " + line.Path
+}
+
 // FullRun returns the first line that needs every test, if any: an
 // unavailable runner first, then paths in byte order.
 func (decision Decision) FullRun() (Line, bool) {
@@ -280,8 +324,13 @@ func (decision Decision) Audit() []string {
 			continue
 		}
 		text := "noncode " + line.Reason + " " + line.Path
-		if line.Reason == ReasonProvenEntry {
+		switch {
+		case line.Reason == ReasonProvenEntry:
 			text += " -> " + strings.Join(line.Tests, " ")
+		case line.Reason == ReasonMakeTargets && len(line.Targets) != 0:
+			text += " -> " + strings.Join(line.Targets, " ")
+		case line.Detail != "":
+			text += ": " + line.Detail
 		}
 		lines = append(lines, text)
 	}

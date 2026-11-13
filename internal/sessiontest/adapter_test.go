@@ -21,12 +21,14 @@ func TestSTRV0004AdapterCapabilityManifest(t *testing.T) {
 		"declared": {Adapter: "declared", Operations: []string{"cancel", "discover", "execute", "plan"}, Profile: "corvint-test-adapter/0"},
 		// STR-V0-8701: the provider adapter is registered under the same version.
 		"provider": {Adapter: "provider", Operations: []string{"cancel", "discover", "execute", "plan"}, Profile: "corvint-test-adapter/0"},
+		// RNC-V1-019: the contract adapter is registered under the same version.
+		"contract": {Adapter: "contract", Operations: []string{"cancel", "discover", "execute", "plan"}, Profile: "corvint-test-adapter/0"},
 	}
 	manifests := AdapterManifests()
 	if !reflect.DeepEqual(manifests, want) {
 		t.Fatalf("adapter manifests %+v, want %+v", manifests, want)
 	}
-	for _, adapter := range []string{AdapterGo, AdapterDeclared, AdapterProvider} {
+	for _, adapter := range []string{AdapterGo, AdapterDeclared, AdapterProvider, AdapterContract} {
 		if reason := adapterRefusal(manifests, adapter); reason != "" {
 			t.Fatalf("registered adapter %s refused: %s", adapter, reason)
 		}
