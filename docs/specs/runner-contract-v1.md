@@ -496,7 +496,7 @@ Delivered by ticket V1-5443 (build-log `docs/build-log/2026-11-13-runner-contrac
 | RNC-V1-013 | `TestRNCV1013BuiltInDefaults` (`internal/testrunner/contract`); `TestRNCV1013DeclarationMirror` (`tools/test-commands-check`); `TestRNCV1013ReadDeclaredResolution`, `TestRNCV1013InstanceCommand`, `TestRNCV1013FullRunsInstanceDefaults` (`internal/sessiontest`); `TestRNCV1013CLIFullCommandScenarios`, `TestRNCV1013CLIMalformedCommandsRefused` (`cmd/corvint`) |
 | RNC-V1-014 | `TestRNCV1014InstanceOwnsItsTests`, `TestRNCV1003GoSelection` (nested instance) (`internal/testrunner/contract`); `TestRNCV1013InstanceCommand`, `TestRNCV1019WhatTheContractDoesNotNarrow` (two instances own one file) (`internal/sessiontest`) |
 | RNC-V1-015 to RNC-V1-018 | NOT_PRODUCED (tasks 8, 11 and 12) |
-| RNC-V1-019 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles`, `TestRNCV1019WhatTheContractDoesNotNarrow`, `TestRNCV1019ContractRunRecordsPerTestResults`, `TestRNCV1019ContractRunFailsClosed`, `TestRNCV1019ContractRunnerUnavailable`, `TestSTRV0004AdapterCapabilityManifest` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
+| RNC-V1-019 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles`, `TestRNCV1019WhatTheContractDoesNotNarrow`, `TestRNCV1019ContractRunRecordsPerTestResults`, `TestRNCV1019ContractRunFailsClosed`, `TestRNCV1019ContractRunnerUnavailable`, `TestRNCV1019PlaywrightReportPathReachesTheRunner`, `TestSTRV0004AdapterCapabilityManifest` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
 
 ## Non-goals
 
