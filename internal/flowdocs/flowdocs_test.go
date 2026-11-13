@@ -968,6 +968,22 @@ func TestFlowDocsSpacedComparisonIsNotATag(t *testing.T) {
 	}
 }
 
+// TestFlowDocsClosingTagAfterNestedMarkupText: markup nested in an expression
+// container keeps its text, so a name can sit straight before '</'; that '<'
+// still closes the tag and the declaration after the element is extracted.
+func TestFlowDocsClosingTagAfterNestedMarkupText(t *testing.T) {
+	text := "function Export({ url }) {\n  return (\n    <section>\n      {url ? <a href={url}>Download data</a> : null}\n    </section>\n  )\n}\n" +
+		"export function After() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/e.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		got = append(got, d.name)
+	}
+	if want := "After,Export"; strings.Join(got, ",") != want {
+		t.Fatalf("declarations=%v want=%s", got, want)
+	}
+}
+
 // TestFlowDocsGenericFunctionDeclarations: a function declaration with type
 // parameters (`function pick<T>(`, `function set<K extends keyof S>(`) is a
 // declaration like any other.

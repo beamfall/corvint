@@ -1077,12 +1077,14 @@ accepted variation, or a replacement for independent application/browser qualifi
   `=` or a line break (`useCallback<(x: T) => void>(`) is not recognized and stays conservatively
   masked as before. Any other `<` directly after such a name (a return type `): Promise<T> {`, an
   annotation `: Map<K, V> =`, a comparison `i<n`) stays code too, since markup never opens straight
-  after a name. A tag ends at the first `>` outside attribute braces
+  after a name. A `</` still closes a tag even after a name, which the unmasked text of
+  markup nested in an expression container can leave (`{u ? <a>Get data</a> : null}`). A tag ends at the first `>` outside attribute braces
   (`onChange={(e) => f(e)} />`), falling back to the first `>` when the braces never balance, and a
   `<` that reaches `;`, `(` or `)` outside braces first (`i <n;`) is a comparison, not a tag. A
   function declaration may carry type parameters (`function pick<T>(`) (since V1-5491,
   `TestFlowDocsTypeArgumentsOutsideCallsStayCode`, `TestFlowDocsArrowAttributeDoesNotEndTag`,
-  `TestFlowDocsSpacedComparisonIsNotATag`, `TestFlowDocsGenericFunctionDeclarations`).
+  `TestFlowDocsSpacedComparisonIsNotATag`, `TestFlowDocsClosingTagAfterNestedMarkupText`,
+  `TestFlowDocsGenericFunctionDeclarations`).
 - **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
   path, declaration identity and claim kind/callee, never line, revision or output ordering. Repeated
   logical declarations/claim identities remain unresolved. Removal is retirement, never inferred

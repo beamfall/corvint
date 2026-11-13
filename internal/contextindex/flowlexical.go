@@ -33,7 +33,10 @@ func flowWebMask(text string) string {
 	markupDepth, expressionDepth := 0, 0
 	for i := 0; i < len(code); i++ {
 		c := code[i]
-		if c == '<' && i > 0 && webIdentifierByte(code[i-1]) && !flowExpressionKeywords[flowWordBefore(code, i)] {
+		// '</' always closes a tag: text of markup nested in an expression
+		// container is not blanked, so `{u ? <a>Get data</a> : null}` puts a
+		// name straight before it.
+		if c == '<' && i > 0 && i+1 < len(code) && code[i+1] != '/' && webIdentifierByte(code[i-1]) && !flowExpressionKeywords[flowWordBefore(code, i)] {
 			// A type-argument list right after a name and before a call
 			// (useMemo<T>(, useState<Map<K, V>>() is not markup: only the list
 			// is passed over, so the call and what follows stay code (V1-2415).
