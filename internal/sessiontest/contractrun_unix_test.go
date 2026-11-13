@@ -198,3 +198,44 @@ func TestRNCV1019ContractRunnerUnavailable(t *testing.T) {
 		t.Fatalf("refused: receipt %s incomplete %q invocations %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
 	}
 }
+
+// fakePlaywright writes a Playwright JSON report for one passing test to
+// the path PLAYWRIGHT_JSON_OUTPUT_NAME names, and fails without a report
+// when that path is still the plan's placeholder.
+const fakePlaywright = `#!/bin/sh
+[ "$1" = --version ] && { echo 1.48.0; exit 0; }
+echo "$PLAYWRIGHT_JSON_OUTPUT_NAME" > "$FAKE_DIR/playwright-env"
+case "$PLAYWRIGHT_JSON_OUTPUT_NAME" in ""|*"{report}"*) exit 7 ;; esac
+printf '{"config":{"rootDir":"%s"},"suites":[{"title":"a.spec.ts","file":"e2e/a.spec.ts","specs":[{"title":"works","tests":[{"projectName":"chromium","status":"expected","results":[{"duration":5}]}]}]}]}\n' "$(pwd -P)" > "$PLAYWRIGHT_JSON_OUTPUT_NAME"
+`
+
+// RNC-V1-019, RNC-V1-007: a Playwright contract run gets the real report
+// path through PLAYWRIGHT_JSON_OUTPUT_NAME, never the placeholder, and the
+// receipt records that one environment entry and the per-test result.
+func TestRNCV1019PlaywrightReportPathReachesTheRunner(t *testing.T) {
+	runner, m, _, dir := contractFixture(t, "pass")
+	if err := execfile.WriteFile(filepath.Join(dir, "fakeplaywright"), []byte(fakePlaywright), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runner.Declared.Runners = []RunnerCommand{{Key: "playwright", Argv: []string{"fakeplaywright", "test"}}}
+	m.Units = []Unit{{Adapter: AdapterContract, Kind: contract.KindE2E, KindSource: contract.KindSourceRunner, Shard: 0, Slice: "playwright@.", Unit: "playwright:e2e/a.spec.ts"}}
+	digest, err := Digest(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result != ResultPass || len(receipt.Invocations) != 1 {
+		t.Fatalf("receipt %s incomplete %q invocations %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+	run := receipt.Invocations[0]
+	if len(run.Env) != 1 || !strings.HasPrefix(run.Env[0], "PLAYWRIGHT_JSON_OUTPUT_NAME=") || strings.Contains(run.Env[0], ContractReportPlaceholder) {
+		t.Fatalf("recorded env %q", run.Env)
+	}
+	logged, _ := os.ReadFile(filepath.Join(dir, "playwright-env"))
+	if strings.TrimSpace(string(logged)) != strings.TrimPrefix(run.Env[0], "PLAYWRIGHT_JSON_OUTPUT_NAME=") {
+		t.Fatalf("runner saw %q, receipt %q", logged, run.Env)
+	}
+	if !slices.Equal(run.Tests, []contract.Result{{ID: "playwright:e2e/a.spec.ts::chromium::works", Outcome: contract.OutcomePass, DurationMillis: 5, Granularity: "test"}}) {
+		t.Fatalf("tests %+v", run.Tests)
+	}
+}

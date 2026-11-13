@@ -774,9 +774,11 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 			recorded.Outcomes = notRun(planned.Units)
 			return recorded, "", []string{"contract " + recorded.Instance + ": the machine report file cannot be prepared: " + err.Error() + "; its selected tests are NOT_RUN"}
 		}
+		// The environment is the re-derived command's, so the placeholder
+		// report path never reaches the runner or the receipt.
 		argv, report = command.Argv, path
-		plannedEnv = append(plannedEnv, command.Env...)
-		env = append(env, command.Env...)
+		plannedEnv = GoCacheOverride(command.Env, r.Environ)
+		env = append(append([]string{}, r.Environ...), plannedEnv...)
 		recorded.Argv, recorded.Env = argv, nonNil(plannedEnv)
 		recorded.EnvDigest, _ = Digest(env)
 	}
