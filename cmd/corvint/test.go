@@ -28,6 +28,7 @@ import (
 	"github.com/Beamfall/corvint/internal/sessiontest"
 	"github.com/Beamfall/corvint/internal/testinventory"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
+	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
 )
 
 const testHelp = `Run the affected test set (experimental, STR-V0).
@@ -101,6 +102,21 @@ reports no usable result leaves those tests NOT_RUN with the reason and
 the run INCOMPLETE (exit 3), never PASS (STR-V0-8701 to STR-V0-8707).
 Example: "providers": {"vitest": ["corvint-js-test-provider", "unit",
 "--dir", "web"]}.
+Otherwise, in the local profile, a selected Vitest, Jest, Playwright, pytest
+or RSpec test file of a language the file declares no command for runs
+through the compiled-in runner contract (adapter "contract", RNC-V1-019):
+the instance's full command narrowed to the selected files, run from the
+instance root, which writes its machine report to a private file; the
+receipt records the instance, tier, exact flag and one outcome and duration
+per canonical test ID, and a selected test the report does not answer is
+NOT_RUN (exit 3). An instance whose committed inventory record is absent,
+stale or unreadable, and Minitest, run their full command instead, with the
+reason. Each run prints corvint-test: CONTRACT INSTANCE tier=T exact=B.
+CORVINT_SELECTION=full runs every runner's full command, and
+full:RUNNER[,RUNNER] does so for each named runner on every instance,
+printed as corvint-test: KILL-SWITCH; any other non-empty value exits 2
+with kill-switch-value-unknown and runs nothing (RNC-V1-008).
+Example: CORVINT_SELECTION=full:jest corvint test --base HEAD~1.
 A Go package selected only because its own test files changed runs just
 the Test, Example and Fuzz functions those files declare (-run, slice
 "selected" in the manifest) when no unchanged test file of the package
@@ -190,7 +206,8 @@ command); 3 is never a test failure.
 Planning reads the committed test inventory (.corvint/test-inventory.json) at
 HEAD and prints one "corvint-test: INVENTORY STATE reasons=..." line on stderr
 (an "inventory:" summary line, or the dry-run JSON "inventory" member); it
-never narrows the plan and never writes the inventory (TIV-V1-002).
+never narrows the plan, only sends an instance it cannot vouch for to its full
+command, and never writes the inventory (TIV-V1-002).
 `
 
 // testCommandExit maps a shard or fan-in result to the process status:
@@ -375,6 +392,13 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
+	// RNC-V1-008: the kill switch is read before any planning, and a value
+	// outside the kill-switch grammar exits 2 and runs nothing.
+	selectionSwitch, err := killswitch.FromEnv(os.Getenv)
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: killswitch.CodeUnknown, Message: err.Error()})
+		return 2
+	}
 	var shardPlan *sessiontest.ShardPlan
 	if options.shardPlan != "" {
 		// STR-V0-055: the plan is read as the other shard inputs are, before
@@ -474,9 +498,25 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	// narrows the plan (TIV-V1-002, TIV-V1-006 to TIV-V1-009); the runner
 	// instances it judges are the ones whose full commands a language with
 	// no declared command runs (RNC-V1-013, RNC-V1-014).
-	inventory := readInventoryVerdict(ctx, root, false)
+	inventory, listed := readInventoryListed(ctx, root, false)
+	for _, runner := range selectionSwitch.Runners {
+		inventory.ForceFull(runner) // TIV-V1-003, RNC-V1-008
+	}
+	input.KillSwitch = selectionSwitch
+	input.ListedTests = listed
+	input.FullInstances = map[string]string{}
 	for _, instance := range inventory.Instances {
 		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})
+		if instance.Full {
+			// RNC-V1-002: an instance whose inventory record is absent,
+			// stale or unreadable runs its full command, with the reason,
+			// instead of a contract selection.
+			reason := instance.Reason
+			if instance.Cause != "" {
+				reason += ": " + instance.Cause
+			}
+			input.FullInstances[instance.Key] = reason
+		}
 	}
 	input.Removed = sessiontest.RemovedRunners(input.Declared, input.Instances, inventory.Undeclared)
 	if options.goParallel != 0 {
@@ -506,7 +546,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	}
 	// STR-V0-073: an executing run names each whole-package go test's
 	// HEAVY_WHOLE_REASON before any invocation starts, as --dry-run does.
-	testWholeReasons(sessiontest.Invocations(manifest, input.Declared, options.shard, root, options.confine), manifest.Reason, stderr)
+	planned := sessiontest.Invocations(manifest, input.Declared, options.shard, root, options.confine)
+	testWholeReasons(planned, manifest.Reason, stderr)
+	testContractNotices(planned, stderr)
 	receipt, signalExit := testExecute(ctx, root, options, manifest, digest, input, identify, stdout, stderr)
 	return testWriteReceipt(ctx, gitExecutable, root, options, receipt, signalExit, stderr)
 }
@@ -516,6 +558,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 // old path, and one DEFAULT line for each planned runner instance, and for
 // Go, whose full command is the built-in default.
 func testCommandNotices(m sessiontest.Manifest, declared sessiontest.Declared, root string, stderr io.Writer) {
+	if m.KillSwitch != "" {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: KILL-SWITCH %s\n", m.KillSwitch)
+	}
 	if declared.Source == sessiontest.DeclarationPath {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: NOTICE the full commands are read from the old path %s for one release; move them to %s\n", sessiontest.DeclarationPath, sessiontest.CommandsPath)
 	}
@@ -533,6 +578,25 @@ func testCommandNotices(m sessiontest.Manifest, declared sessiontest.Declared, r
 	}
 	if goDefault {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: DEFAULT go: %s declares no go member, so go test runs with no declared environment or flags\n", sessiontest.CommandsPath)
+	}
+}
+
+// testContractNotices prints, for each contract invocation of the shard,
+// the runner instance, its tier, its exact flag and the reason it is not
+// exact, or why the contract refused the selection (RNC-V1-011,
+// RNC-V1-019).
+func testContractNotices(planned []sessiontest.Planned, stderr io.Writer) {
+	for _, invocation := range planned {
+		instance, command, refusal, ok := invocation.ContractSelection()
+		switch {
+		case !ok:
+		case refusal != "":
+			_, _ = fmt.Fprintf(stderr, "corvint-test: CONTRACT %s refused: %s\n", instance, refusal)
+		case command.Exact:
+			_, _ = fmt.Fprintf(stderr, "corvint-test: CONTRACT %s tier=%s exact=true tests=%d\n", instance, command.Tier, len(invocation.Units))
+		default:
+			_, _ = fmt.Fprintf(stderr, "corvint-test: CONTRACT %s tier=%s exact=false tests=%d: %s\n", instance, command.Tier, len(invocation.Units), command.Reason)
+		}
 	}
 }
 
@@ -744,8 +808,12 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 			input.Checks = append(input.Checks, check.Command)
 		}
 	}
+	input.SelectedTests = map[string][]string{}
 	for _, selection := range receipt.Plan.Selected {
 		input.Selected = append(input.Selected, selection.UnitID)
+		if len(selection.Tests) != 0 {
+			input.SelectedTests[selection.UnitID] = append([]string(nil), selection.Tests...)
+		}
 		if selection.Kind == "DECLARED_CONSUMER" && strings.HasPrefix(selection.UnitID, "declared-consumer:") && affected.ValidConsumerRun(selection.Run) {
 			// AZU-V0-007: CI cannot execute the consumer. Keep the legacy
 			// check that the trusted workflow uses to require its browser job,
@@ -1067,6 +1135,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	}
 	if !testSummarySelected(options) {
 		testWholeReasons(invocations, m.Reason, stderr)
+		testContractNotices(invocations, stderr)
 	}
 	if len(m.Incomplete) != 0 {
 		return testCommandExit[sessiontest.ResultIncomplete]

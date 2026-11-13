@@ -17,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
+	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
 )
 
 // runnerLanguages maps each blocking runner other than go to the affected
@@ -138,6 +139,25 @@ type Input struct {
 	// without --line-index.
 	LineUnits map[string]LineUnit
 	LineIndex string
+	// SelectedTests maps a selected unit id to the test files the plan
+	// lists for it (affected Selection.Tests). The contract adapter reads it
+	// for a `python:<module>` unit, which names a module, not a file
+	// (RNC-V1-019).
+	SelectedTests map[string][]string
+	// FullInstances maps a runner instance key to the reason it runs its
+	// full command rather than a contract selection: an inventory verdict
+	// that is not current (RNC-V1-002, TIV-V1-006 to TIV-V1-009) or the kill
+	// switch (RNC-V1-008).
+	FullInstances map[string]string
+	// ListedTests maps a runner instance key to the canonical test IDs the
+	// committed inventory lists per unchanged test file, keyed by its
+	// repository-relative path (testinventory.Listed). A contract unit of
+	// such a file carries them, so a test the runner omits is NOT_RUN
+	// (RNC-V1-006).
+	ListedTests map[string]map[string][]string
+	// KillSwitch is the parsed CORVINT_SELECTION value (RNC-V1-008, the
+	// narrowing-measurement grammar); the zero value is off.
+	KillSwitch killswitch.Switch
 }
 
 // LineUnit is one Go package's line-coverage decision (GLS-V0-020): Mode is
@@ -309,6 +329,10 @@ func Build(input Input) (Manifest, error) {
 	if len(input.Excluded) != 0 {
 		manifest.Excluded = slices.Sorted(slices.Values(input.Excluded))
 	}
+	if input.KillSwitch.Active() {
+		// RNC-V1-008: the manifest states the switch in every scope.
+		manifest.KillSwitch = input.KillSwitch.Describe()
+	}
 	if input.Declared.Unreadable != "" {
 		// Every scope needs the declaration: the Go environment and flags
 		// locally, and the language commands and no-suite assertions in
@@ -343,6 +367,7 @@ func Build(input Input) (Manifest, error) {
 	}
 	languages := map[string]bool{}
 	provided := map[string]bool{}
+	var contracted []contractTest
 	for _, id := range input.Selected {
 		// A make target or CI job (AZU-V0-001) is run by make or CI, not by
 		// a language adapter; the affected plan reports it.
@@ -357,6 +382,10 @@ func Build(input Input) (Manifest, error) {
 			// profile runs only Go (STR-V0-012), so there the unit names its
 			// language's declared command as a check, as before.
 			provided[id] = true
+		} else if tests, ok := contractTests(input, id); ok {
+			// RNC-V1-019: the contract runs the selected files in their
+			// owning instances instead of the language's full command.
+			contracted = append(contracted, tests...)
 		} else if language, _, ok := strings.Cut(id, ":"); ok && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
@@ -364,6 +393,10 @@ func Build(input Input) (Manifest, error) {
 	if len(input.Removed) != 0 {
 		// RNC-V1-004, owner decision R32: a removed runner runs every test.
 		fullReason = ReasonRunnerRemoved + ": " + strings.Join(input.Removed, ", ") + " is named by the inventory or " + CommandsPath + " but no longer declared, so every test runs"
+	}
+	if input.KillSwitch.All {
+		// RNC-V1-008: `full` makes every runner run its full command.
+		fullReason = input.KillSwitch.Describe()
 	}
 	modules := map[string]bool{}
 	for _, entry := range input.Unknown {
@@ -439,6 +472,53 @@ func Build(input Input) (Manifest, error) {
 	if fullReason == "" && len(input.LineUnits) != 0 {
 		goRun = applyLineUnits(&manifest, &input, goRun)
 	}
+	// RNC-V1-008: `full:<runner>` makes each named runner run its full
+	// command on every instance; the other runners stay narrowed.
+	goKilled := fullReason == "" && input.KillSwitch.Full(testid.Go)
+	if goKilled {
+		goRun = append([]string{}, input.Universe...)
+		input.GoSlices = nil
+	}
+	var killed []string
+	for _, instance := range input.Instances {
+		if instance.Runner == testid.Go {
+			// RNC-V1-008: the root universe is one Go instance; each nested
+			// module's own go test ./... is another, run from its directory.
+			if input.KillSwitch.Full(testid.Go) && instance.Root != "." {
+				if input.RunnerProfile != ProfileCI {
+					modules[instance.Root] = true
+				} else if check := ModuleCheck(instance.Root); !slices.Contains(manifest.Checks, check) {
+					manifest.Checks = append(manifest.Checks, check)
+				}
+			}
+			continue
+		}
+		if !input.KillSwitch.Full(instance.Runner) {
+			continue
+		}
+		if _, declared := input.Declared.Command(runnerLanguages[instance.Runner]); declared {
+			languages[runnerLanguages[instance.Runner]] = true
+		} else if !slices.Contains(killed, instance.Key()) {
+			killed = append(killed, instance.Key())
+		}
+	}
+	// RNC-V1-019, TIV-V1-006, TIV-V1-007: an instance the contract would
+	// narrow whose inventory record is absent, stale or unreadable runs its
+	// full command with that reason whether or not a file of it is
+	// selected; placeContract keeps its selected files out.
+	var fallback []string
+	if input.RunnerProfile != ProfileCI {
+		for _, instance := range input.Instances {
+			key := instance.Key()
+			if input.FullInstances[key] == "" || !contractRunners[instance.Runner] || slices.Contains(killed, key) || slices.Contains(fallback, key) {
+				continue
+			}
+			if _, declared := input.Declared.Command(runnerLanguages[instance.Runner]); declared {
+				continue
+			}
+			fallback = append(fallback, key)
+		}
+	}
 	if fullReason != "" {
 		manifest.Scope, manifest.Reason = ScopeFull, fullReason
 		goRun = append([]string{}, input.Universe...)
@@ -466,17 +546,18 @@ func Build(input Input) (Manifest, error) {
 				languages[language] = true
 			}
 		}
-	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 && len(provided) == 0 {
+	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 && len(provided) == 0 && len(contracted) == 0 && len(killed) == 0 && len(fallback) == 0 && !goKilled {
 		manifest.Scope, manifest.Reason = ScopeNothing, strings.TrimPrefix(input.GoSelection, "NOTHING ")
 	}
 	if len(goRun) != 0 {
 		manifest.placeGo(input, goRun)
-	} else if manifest.Scope == ScopeFull && goSuite(input) {
+	} else if (manifest.Scope == ScopeFull || goKilled) && goSuite(input) {
 		manifest.addDeclared("go") // FULL with no Go universe still runs the declared Go full suite
 	}
 	for _, directory := range sortedKeys(modules) {
 		// FULL runs the root universe, never a nested module, so a module
-		// with a dirty path keeps its unit in either scope (STR-V0-064).
+		// with a dirty path keeps its unit in either scope (STR-V0-064);
+		// the Go kill switch adds every nested module (RNC-V1-008).
 		manifest.Units = append(manifest.Units, Unit{
 			Adapter: AdapterGo, Dir: directory, Reason: moduleReason, ReasonCode: ReasonNestedModule, Shard: 0, Slice: SliceWhole, Unit: ModuleUnitPrefix + directory,
 		})
@@ -488,6 +569,29 @@ func Build(input Input) (Manifest, error) {
 	}
 	for _, language := range sortedKeys(languages) {
 		manifest.declaredLanguage(input, language)
+	}
+	if manifest.Scope != ScopeFull {
+		for _, key := range killed {
+			if input.RunnerProfile == ProfileCI {
+				// The ci profile runs only Go (STR-V0-012): the switched
+				// instance's full command is named as a check still required.
+				if check := key + " full command"; !slices.Contains(manifest.Checks, check) {
+					manifest.Checks = append(manifest.Checks, check)
+				}
+				continue
+			}
+			if !slices.ContainsFunc(manifest.Units, func(unit Unit) bool { return unit.Unit == "declared:"+key }) {
+				manifest.Units = append(manifest.Units, Unit{Adapter: AdapterDeclared, Reason: input.KillSwitch.Describe(), Shard: 0, Slice: SliceWhole, Unit: "declared:" + key})
+			}
+		}
+		for _, key := range fallback {
+			if !slices.ContainsFunc(manifest.Units, func(unit Unit) bool { return unit.Unit == "declared:"+key }) {
+				manifest.Units = append(manifest.Units, Unit{Adapter: AdapterDeclared, Reason: input.FullInstances[key], Shard: 0, Slice: SliceWhole, Unit: "declared:" + key})
+			}
+		}
+		// In FULL every instance already runs its full command, so the
+		// selected files add nothing.
+		manifest.placeContract(input, contracted)
 	}
 	manifest.Incomplete = append(manifest.Incomplete, input.SelectionIncomplete...)
 	return manifest.bounded(), nil
@@ -692,25 +796,27 @@ func (m Manifest) bounded() Manifest {
 	})
 	if len(m.Units) > MaxUnits {
 		m.Incomplete = append(m.Incomplete, fmt.Sprintf("%d execution units exceed the %d bound", len(m.Units), MaxUnits))
-		m.Units = []Unit{}
+		m.Units, m.Listed = []Unit{}, nil
 	}
 	if _, err := Encode(m); err != nil {
 		m.Incomplete = append(m.Incomplete, fmt.Sprintf("the manifest exceeds %d bytes", MaxDocumentBytes))
-		m.Units = []Unit{}
+		m.Units, m.Listed = []Unit{}, nil
 	}
 	return m
 }
 
 // adapterOrder places a shard's Go units first, then its provider units,
-// then its declared units.
+// then its contract units, then its declared units.
 func adapterOrder(adapter string) int {
 	switch adapter {
 	case AdapterGo:
 		return 0
 	case AdapterProvider:
 		return 1
+	case AdapterContract:
+		return 2
 	}
-	return 2
+	return 3
 }
 
 func nonNil(values []string) []string {

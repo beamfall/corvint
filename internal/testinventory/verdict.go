@@ -89,16 +89,69 @@ type InstanceVerdict struct {
 // and writes nothing. A tree it cannot list judges every instance it can
 // still declare, which is none, invalid.
 func Judge(tree Tree) Verdict {
+	verdict, _ := JudgeListed(tree)
+	return verdict
+}
+
+// JudgeListed is Judge that also returns Listed of the inventory it read:
+// the tests a narrowed run of each unchanged test file must answer
+// (RNC-V1-006).
+func JudgeListed(tree Tree) (Verdict, map[string]map[string][]string) {
 	files, err := tree.Files()
 	if err != nil {
-		return Verdict{Profile: VerdictProfile, Path: Path, State: StateInvalid, Reason: ReasonInvalid, Detail: "cannot list the tree: " + err.Error(), Instances: []InstanceVerdict{}}
+		return Verdict{Profile: VerdictProfile, Path: Path, State: StateInvalid, Reason: ReasonInvalid, Detail: "cannot list the tree: " + err.Error(), Instances: []InstanceVerdict{}}, nil
 	}
 	declared := Detect(files, tree.Read)
 	data, err := tree.Read(Path, MaxBytes)
 	if errors.Is(err, fs.ErrNotExist) {
-		return JudgeData(nil, false, nil, files, declared)
+		return JudgeData(nil, false, nil, files, declared), nil
 	}
-	return JudgeData(data, true, err, files, declared)
+	verdict := JudgeData(data, true, err, files, declared)
+	if err != nil {
+		return verdict, nil
+	}
+	return verdict, Listed(data, verdict)
+}
+
+// Listed maps each instance key the verdict plans from its record (not
+// Full) to the canonical test IDs the record lists per test file, keyed by
+// the repository-relative file path, for every file the tree holds
+// unchanged since refresh. A narrowed run of such a file must answer each
+// of them, or the test is NOT_RUN (RNC-V1-006). A Full instance, an
+// unassigned or removed file and data that does not decode have no entry.
+func Listed(data []byte, verdict Verdict) map[string]map[string][]string {
+	inventory, err := Decode(data)
+	if err != nil {
+		return nil
+	}
+	records := map[string]Instance{}
+	for _, record := range inventory.Instances {
+		records[record.Key] = record
+	}
+	listed := map[string]map[string][]string{}
+	for _, instance := range verdict.Instances {
+		record, ok := records[instance.Key]
+		if instance.Full || !ok {
+			continue
+		}
+		stale := map[string]bool{}
+		for _, file := range instance.Unassigned {
+			stale[file] = true
+		}
+		for _, file := range instance.Removed {
+			stale[file] = true
+		}
+		files := map[string][]string{}
+		for _, test := range record.Tests {
+			if !stale[test.File] && !slices.Contains(files[test.File], test.ID) {
+				files[test.File] = append(files[test.File], test.ID)
+			}
+		}
+		if len(files) != 0 {
+			listed[instance.Key] = files
+		}
+	}
+	return listed
 }
 
 // JudgeData is Judge over data already read: present false means no
