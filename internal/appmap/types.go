@@ -18,11 +18,13 @@ const (
 	// change to what BuildRoots derives from the same inputs, so `--from` rebuilds a map an
 	// earlier compiler wrote instead of carrying it forward. A binary built from a VCS checkout
 	// also binds its revision (builderIdentity), so an unbumped compiler change still rebuilds.
-	BuilderVersion = "appmap-builder/4"
+	BuilderVersion = "appmap-builder/5"
 
 	DialectUIRouter = "ui-router-states/0"
 	DialectRails    = "rails-routes/0"
 	DialectReact    = "react-router/0"
+	// DialectStatic reads a literal list of prerendered or static route paths (AMAP-V0-980).
+	DialectStatic = "static-routes/0"
 
 	StatusResolved = "resolved"
 	StatusUnknown  = "UNKNOWN"
@@ -88,6 +90,9 @@ type RouterFile struct {
 	Path    string       `json:"path"`
 	Dialect string       `json:"dialect"`
 	Mount   *RouterMount `json:"mount,omitempty"`
+	// Export names the `export const` array of route paths a static-routes/0 file declares
+	// (AMAP-V0-980); it is required for that dialect and refused for every other.
+	Export string `json:"export,omitempty"`
 }
 
 // RouterMount is the declared splat route (`path`, as that router writes its full path) of the
