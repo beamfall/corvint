@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
@@ -100,9 +101,11 @@ func TestRNCV1019ContractRunRecordsPerTestResults(t *testing.T) {
 		run.Exact == nil || !*run.Exact || run.Exit != 0 || run.Runner != filepath.Join(dir, "fakejest") || run.Version != "29.7.0" {
 		t.Fatalf("invocation %+v", run)
 	}
+	// PTD-V1: a file outcome the contract adapter does not yet time is NOT_MEASURED; reading the
+	// report's per-test time into it is the Jest/pytest/RSpec remainder (V1-5542).
 	wantOutcomes := []Outcome{
-		{Outcome: OutcomePass, Slice: "jest@.", TestID: "jest:src/a.test.js", Unit: "jest:src/a.test.js"},
-		{Outcome: OutcomePass, Slice: "jest@.", TestID: "jest:src/b.test.js", Unit: "jest:src/b.test.js"},
+		{Outcome: OutcomePass, Slice: "jest@.", TestID: "jest:src/a.test.js", Unit: "jest:src/a.test.js", DurationSource: testduration.NotMeasured},
+		{Outcome: OutcomePass, Slice: "jest@.", TestID: "jest:src/b.test.js", Unit: "jest:src/b.test.js", DurationSource: testduration.NotMeasured},
 	}
 	wantTests := []contract.Result{
 		{ID: "jest:src/a.test.js::suite::works", Outcome: contract.OutcomePass, DurationMillis: 7, Granularity: "test"},
