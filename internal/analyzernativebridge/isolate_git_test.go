@@ -10,6 +10,13 @@ import (
 // variables itself: TestCandidateRootMatchesResolvedWalkPaths reruns this
 // package from a copy of its directory alone, where no other package resolves.
 func TestMain(m *testing.M) {
+	// A caller's pinned dates would otherwise leak into fixture commits and
+	// change their SHAs, as testsupport.IsolateGit also guards (V1-4695).
+	for _, variable := range []string{"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"} {
+		if err := os.Unsetenv(variable); err != nil {
+			panic(err)
+		}
+	}
 	for _, variable := range [][2]string{
 		{"GIT_CONFIG_GLOBAL", os.DevNull},
 		{"GIT_CONFIG_NOSYSTEM", "1"},
