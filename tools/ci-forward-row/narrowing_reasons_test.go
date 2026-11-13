@@ -261,11 +261,11 @@ func (r *guardRepo) guardMapped(target string) (string, map[string][]string) {
 // must be mapped to its consumers, and a file in neither list is unmapped, so FULL.
 // guardUnmappedInputs are files the guard leaves unmapped, so global: known-flakes.py and
 // known-flakes.tsv decide whether a failed shard passes (CIN-V0-8720), and the Python workflow
-// tests of CIN-V0-8720 to CIN-V0-8723 have no Go test package that reads them to name as a
+// tests of CIN-V0-8720 to CIN-V0-8723 and GHA-V1-040/041 have no Go test package that reads them to name as a
 // consumer. Listing a file before it exists changes nothing.
 var guardGlobalInputs = append([]string{"accept.sh", "bar.jq", "github-guard.sh", "mq-narrow.sh", "names.sh", "narrow.jq", "narrow.sh", "pin-lag.sh", "pr-base.sh", "shard-plan.sh", "verdict.sh"}, guardUnmappedInputs...)
 
-var guardUnmappedInputs = []string{"go-product_test.py", "known-flakes.py", "known-flakes.tsv", "known-flakes_test.py", "linecov-stale_test.py", "mainmiss-confirm_test.py"}
+var guardUnmappedInputs = []string{"go-product_test.py", "known-flakes.py", "known-flakes.tsv", "known-flakes_test.py", "linecov-stale_test.py", "mainmiss-confirm_test.py", "release-binaries_test.py"}
 
 // TestCINV08423GuardClassifiesEveryInput_CINV08423: every file of this repository's
 // .github/forward-rows and both guarded workflows is either a global input (FULL, named) or mapped
