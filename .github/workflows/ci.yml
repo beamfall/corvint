@@ -2197,6 +2197,7 @@ jobs:
         working-directory: source
         run: |
           python3 -B .github/forward-rows/known-flakes_test.py
+          python3 -B .github/forward-rows/go-product_test.py
       - name: Windows vet including test files (AFP-V0-042)
         # go build skips _test.go files, so a test that breaks only for GOOS=windows reached main
         # (V1-1117). Skipped only on a pull request whose merge commit provably changes no .go,
@@ -2330,8 +2331,10 @@ jobs:
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
+    # CIN-V0-8721: artifact-integrity is required too; cadence-plan is needed only to verify its
+    # DEFER skip. always() runs this job even when a need is skipped by design.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, web-flows-plan, web-flows, go-live, shard-plan]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, web-flows-plan, web-flows, go-live, shard-plan, artifact-integrity, cadence-plan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -2346,6 +2349,10 @@ jobs:
           path: ${{ runner.temp }}/ci-coverage
       - name: Every go-product shard and the static job succeeded
         env:
+          INTEGRITY_RESULT: ${{ needs.artifact-integrity.result }}
+          STATIC_REUSE_RESULT: ${{ needs.static-reuse.result }}
+          CADENCE_RESULT: ${{ needs.cadence-plan.result }}
+          CADENCE: ${{ needs.cadence-plan.outputs.cadence }}
           LIVE_RESULT: ${{ needs.go-live.result }}
           WEB_PLAN_RESULT: ${{ needs.web-flows-plan.result }}
           WEB_REQUIRED: ${{ needs.web-flows-plan.outputs.required }}
@@ -2362,6 +2369,30 @@ jobs:
           # count (AFP-V0-2724), sixteen when it did not size.
           SHARDS: ${{ needs.shard-plan.outputs.count || '16' }}
         run: |
+          # CIN-V0-8721: archive integrity is required before every early return. A queue entry
+          # must pass the job (its AFP-V0-163 verified tree reuse concludes success). It may be
+          # skipped only where its own if: skips it: a main push with verified static reuse, a
+          # ci:batched pull request, or a pull request with a verified cadence DEFER.
+          case "$INTEGRITY_RESULT" in
+            success) ;;
+            skipped)
+              if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ] &&
+                [ "$STATIC_REUSE_RESULT" = success ] && [ "$STATIC_REUSE" = REUSE ]; then
+                echo 'artifact-integrity reused from the merge-queue run of this commit (AFP-V0-080).'
+              elif [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$BATCHED" = true ]; then
+                echo 'artifact-integrity deferred to the merge queue (AFP-V0-027).'
+              elif [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$CADENCE_RESULT" = success ] && [ "$CADENCE" = DEFER ]; then
+                echo 'artifact-integrity deferred to the merge queue (CIN-V0-4753).'
+              else
+                echo '::error::artifact-integrity skipped without verified REUSE or DEFER (CIN-V0-8721).'
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::artifact-integrity did not succeed: ${INTEGRITY_RESULT:-no result} (CIN-V0-8721)."
+              exit 1
+              ;;
+          esac
           # CIN-V0-2320: check before any DOCS, REUSE or batched early return. The shell job
           # intentionally skips pushes; every PR and merge-group run must actually pass it.
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$SHELL_RESULT" = skipped ]; then
@@ -2629,7 +2660,8 @@ jobs:
           GOOS=windows GOARCH=amd64 go build ./...
 
   artifact-integrity:
-    # Not a required check; skipped as go-interop is (AFP-V0-080, AFP-V0-081).
+    # Required through go-product (CIN-V0-8721), which admits a skip only for the three conditions
+    # of this job's if: verified static reuse on a main push, ci:batched, or a verified PR DEFER.
     # AFP-V0-163 (V1-2113): a merge-queue entry whose tree a successful pull-request run of its
     # second parent already verified skips the archive gate and still concludes success, so the
     # AFP-V0-080 push reuse keeps working. The tree holds ci.yml, the Makefile, go.mod and every
