@@ -1,0 +1,196 @@
+name: Release binaries
+
+# The one tag pipeline of G15a (decision 0596): GHA-V1-040 to GHA-V1-042
+# (docs/specs/openspec/changes/github-action/specs/github-action/spec.md) and ARTIFACT-BIN-V0-005,
+# -006 and -523 (docs/specs/release-artifact-integrity-v0.md); V1-5236, V1-5237.
+#
+# A pushed version tag starts it: `vX.Y.Z` releases every product binary, `SET/vX.Y.Z` the members
+# of one version set and `NAME/vX.Y.Z` one product binary (`release-binary select`). The `test` job
+# runs the full Go test and vet commands of both modules at the tagged commit. The `build` job then
+# runs `release-binary release --tag`, which builds only the binaries the tag selects, for the
+# catalog's targets (linux/amd64, linux/arm64, darwin/arm64), with the catalog's licence files in
+# every archive, merges the release manifest and rechecks the output; it adds one `SHA256SUMS` of
+# every archive, smoke-tests an installed corvint and corvint-docs set when the tag built both
+# (ARTIFACT-BIN-V0-509), and uploads the output as one artifact. The run then stops.
+#
+# Only `publish` holds `contents: write`, and it starts only after the owner approves the protected
+# `release` environment (GHA-V1-041). It checks out nothing and runs no repository code: it
+# rechecks the artifact's checksums and creates the GitHub release of the tag from those files,
+# unchanged. release-binary itself tags, signs and publishes nothing (ARTIFACT-BIN-V0-006).
+#
+# NOT_VERIFIED here: version-tag protection and the `release` environment's required reviewer are
+# repository settings (GHA-V1-042). NOT_PRODUCED: the build attestation of GHA-V1-040, because
+# which job attests is open (D17) and this repository holds no reviewed SHA pin of an attestation
+# action; adding it adds `id-token: write` (and `attestations: write` if GitHub requires it) to
+# that one job. The manifest is merged without `--base`, so a SET or NAME tag's manifest records
+# only the binaries that tag built.
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "*/v*"
+
+# One run per tag; a release run is never cancelled by another.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: "off"
+  GOSUMDB: "off"
+  GOWORK: "off"
+  GOFLAGS: ""
+  TAG: ${{ github.ref_name }}
+  SHA: ${{ github.sha }}
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      CGO_ENABLED: "1"
+    steps:
+      - &check-tag
+        name: Check the tag
+        # release-binary select is the authority on the tag's scope; this refuses early a ref that
+        # is not a tag or not of the three forms.
+        run: |
+          test "$GITHUB_REF_TYPE" = tag || { echo "::error::$GITHUB_REF is not a tag"; exit 2; }
+          printf '%s\n' "$TAG" | grep -Eqx '([0-9A-Za-z._-]+/)?v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?' ||
+            { echo "::error::$TAG is not vX.Y.Z, SET/vX.Y.Z or NAME/vX.Y.Z"; exit 2; }
+      - &checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          # release-binary stamps the first-parent commit count (ARTIFACT-BIN-V0-002).
+          fetch-depth: 0
+          persist-credentials: false
+      - &verify-checkout
+        name: Verify the checkout is the tagged commit
+        run: test "$(git rev-parse HEAD)" = "$SHA"
+      - &setup-go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.4"
+      - name: Provision the host tools the product's fixed PATH resolves
+        # The Linux half of release-gates.yml's provision step: the checksum-pinned ripgrep release
+        # binary CI tests with, and go1.27.4 first on the fixed PATH.
+        env:
+          RG_VERSION: "15.2.0"
+          RG_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.4"
+          rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 8 --retry-all-errors --retry-delay 5 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
+          sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
+          test "$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)" = /usr/local/bin/rg
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+      - name: Test and vet both modules (GHA-V1-040)
+        # The AGENTS.md "Verify" commands, at the tagged commit.
+        run: |
+          test "$(go env GOVERSION)" = "go1.27.4"
+          go test -count=1 -timeout 30m ./...
+          go vet ./...
+          (cd interop/cem01-go && go test -count=1 -timeout 30m ./... && go vet ./...)
+
+  build:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - *check-tag
+      - *checkout
+      - *verify-checkout
+      - *setup-go
+      - name: Build, checksum and recheck the tag's binaries (ARTIFACT-BIN-V0-523)
+        # The output directory is outside the checkout (ARTIFACT-BIN-V0-007); the run record goes
+        # beside the outputs only after release has rechecked them.
+        run: |
+          out="$RUNNER_TEMP/release"
+          go run ./tools/release-binary release --tag "$TAG" --output "$out" > "$RUNNER_TEMP/release-run.json"
+          cat "$RUNNER_TEMP/release-run.json"
+          cd "$out"
+          cat ./*.SHA256SUMS | LC_ALL=C sort -k2 > SHA256SUMS
+          sha256sum --check --strict SHA256SUMS release-manifest.json.sha256
+          mv "$RUNNER_TEMP/release-run.json" release-run.json
+          ls -l
+      - name: Smoke an installed corvint and corvint-docs set (V1-5237, ARTIFACT-BIN-V0-509)
+        # The runner is linux/amd64. PATH holds git alone, so corvint can find corvint-docs only
+        # beside itself, as on a hand install (docs/INSTALL.md).
+        run: |
+          out="$RUNNER_TEMP/release"
+          if [ ! -f "$out/corvint_linux_amd64.tar.gz" ] || [ ! -f "$out/corvint-docs_linux_amd64.tar.gz" ]; then
+            echo "::notice::$TAG did not build both corvint and corvint-docs; the installed-set smoke does not apply"
+            exit 0
+          fi
+          smoke="$RUNNER_TEMP/smoke"
+          mkdir -p "$smoke/set" "$smoke/path" "$smoke/home" "$smoke/extract"
+          for name in corvint corvint-docs; do
+            tar -xzf "$out/${name}_linux_amd64.tar.gz" -C "$smoke/extract"
+            install -m 0755 "$smoke/extract/${name}_linux_amd64/$name" "$smoke/set/$name"
+          done
+          ln -s "$(command -v git)" "$smoke/path/git"
+          git init -q "$smoke/fixture"
+          printf '# Fixture\n' > "$smoke/fixture/README.md"
+          git -C "$smoke/fixture" add -A
+          git -C "$smoke/fixture" -c user.name=t -c user.email=t@example.invalid commit -qm fixture
+          run() { env -i PATH="$smoke/path" HOME="$smoke/home" "$smoke/set/corvint" "$@"; }
+          run docs --help | tee "$smoke/help.txt"
+          grep -q 'Usage:' "$smoke/help.txt"
+          run --root "$smoke/fixture" docs citations check | tee "$smoke/check.txt"
+          grep -q 'docs citations check:' "$smoke/check.txt"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-binaries
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # GHA-V1-041: the owner's approval of this protected environment starts the job.
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-binaries
+          path: ${{ runner.temp }}/release
+      - name: Recheck the artifact's checksums
+        working-directory: ${{ runner.temp }}/release
+        run: |
+          sha256sum --check --strict SHA256SUMS release-manifest.json.sha256
+          for sums in ./*.SHA256SUMS; do
+            sha256sum --check --strict "$sums"
+          done
+      - name: Create the GitHub release from the stopped run's artifact (GHA-V1-041)
+        working-directory: ${{ runner.temp }}/release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          prerelease=()
+          case "${TAG##*/v}" in *-*) prerelease=(--prerelease) ;; esac
+          gh release create "$TAG" --verify-tag --title "$TAG" "${prerelease[@]}" \
+            --notes "Built from $SHA by run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID; checksums: SHA256SUMS; manifest: release-manifest.json." \
+            ./*
