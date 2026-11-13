@@ -43,7 +43,7 @@ At `978b37b`:
 
 - `corvint flows` dispatched only `record` beside its report, created its output without root or
   symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
-  `import` subcommands (`internal/command/flows/flows.go:53-54@97c5349d`), routes `record` through the
+  `import` subcommands (`internal/command/flows/flows.go:54-55@97c5349d`), routes `record` through the
   root-confined exclusive writer (`internal/appflows/report.go:324@18a159fa`,
   `internal/appflows/input.go:161-174@06fa25b5`), and checks Lstat before open
   (`internal/appflows/input.go:135-142@8ab13087`).

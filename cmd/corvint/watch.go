@@ -12,10 +12,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/linecov/watch"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 const watchHelp = `Rerun the tests a working-tree save can affect (experimental, LPCV-V0).
@@ -54,7 +56,10 @@ refused: linecov watch -command runs those suites.
 
 Exit status: 0 when the loop ends by signal or every --once run passed, 1
 when a --once run failed, 2 for a refusal or an event source failure.
-Writes: nothing under the repository; tests write what they write.
+Writes: each save's test run appends one corvint-test-run/0 record to the
+run evidence store under the Git directory (RVD-V1-004), never the worktree;
+a failed append prints run-evidence-write-failed on stderr and changes no
+exit status. --dry-run writes nothing. Tests write what they write.
 
 Example:
   corvint watch --index linecov.idx --once --dry-run
@@ -179,8 +184,17 @@ func runWatch(ctx context.Context, root string, args []string, stdin io.Reader, 
 
 // runWatchPlan runs each planned invocation under the recorded test runtime
 // (GLS-V0-020), through wrapper when named, with native output on the
-// diagnostic stream so stdout stays one event per line.
+// diagnostic stream so stdout stays one event per line. The run's go test
+// -json streams are read as corvint test reads them and appended as one
+// corvint-test-run/0 record to the run evidence store (RVD-V1-004).
 func runWatchPlan(ctx context.Context, root string, ix *linecov.Index, p watch.Plan, wrapper string, diagnostic io.Writer) error {
+	gitExecutable, gitErr := exec.LookPath("git")
+	var source sessiontest.SourceIdentity
+	if gitErr == nil {
+		source, gitErr = testSourceIdentity(ctx, gitExecutable, root)
+	}
+	runner, version := watchGoRunner(ctx, root)
+	runs := make([]sessiontest.WatchRun, 0, len(p.Run))
 	var lastErr error
 	for _, inv := range p.Run {
 		a := watch.TestArgs(ix, inv)
@@ -192,14 +206,78 @@ func runWatchPlan(ctx context.Context, root string, ix *linecov.Index, p watch.P
 		}
 		cmd := exec.CommandContext(ctx, a[0], a[1:]...)
 		cmd.Dir = root
-		cmd.Stdout, cmd.Stderr = diagnostic, diagnostic
+		events, pipe := io.Pipe()
+		parsed := make(chan sessiontest.GoEvents, 1)
+		go func() {
+			read := sessiontest.ReadGoEvents(events, io.Discard)
+			_, _ = io.Copy(io.Discard, events)
+			parsed <- read
+		}()
+		cmd.Stdout, cmd.Stderr = io.MultiWriter(diagnostic, pipe), diagnostic
 		cmd.Env = append(os.Environ(), "HEAVY_WHOLE_REASON=corvint watch working-tree plan selects whole package")
 		// A cancelled watch kills the wrapper, go test and the test binary
 		// together, and a child that keeps the output pipe cannot hold the
 		// watch open.
+		started := time.Now()
 		if err := linecov.RunIsolated(cmd); err != nil {
 			lastErr = err
 		}
+		elapsed := time.Since(started).Milliseconds()
+		_ = pipe.Close()
+		exit := -1
+		if cmd.ProcessState != nil {
+			exit = cmd.ProcessState.ExitCode()
+		}
+		runs = append(runs, sessiontest.WatchRun{
+			Argv: a, Package: watchImportPath(ix.Module, inv.Package), Selected: inv.Run != "",
+			Runner: runner, Version: version, Exit: exit, ElapsedMilliseconds: elapsed, Events: <-parsed,
+		})
+	}
+	if len(runs) != 0 {
+		watchAppendRunEvidence(ctx, gitExecutable, root, source, gitErr, runs, diagnostic)
 	}
 	return lastErr
+}
+
+// watchAppendRunEvidence appends one save's run as a corvint-test-run/0
+// record through the writer corvint test uses (RVD-V1-004). A failure prints
+// run-evidence-write-failed and leaves the run's result alone (RVD-V1-010).
+func watchAppendRunEvidence(ctx context.Context, gitExecutable, root string, source sessiontest.SourceIdentity, sourceErr error, runs []sessiontest.WatchRun, diagnostic io.Writer) {
+	const prefix = "corvint-watch"
+	if sourceErr != nil {
+		writeFailed(diagnostic, prefix, "the source identity cannot be read: "+sourceErr.Error())
+		return
+	}
+	encoded, err := sessiontest.Encode(sessiontest.WatchReceipt(source, runs, time.Now(), sessiontest.GoUnitDir(root)))
+	if err != nil {
+		writeFailed(diagnostic, prefix, err.Error())
+		return
+	}
+	appendRunEvidence(ctx, gitExecutable, root, encoded, diagnostic, prefix)
+}
+
+// watchImportPath is the import path go test -json names for a module-relative
+// "./dir" package argument.
+func watchImportPath(module, pkg string) string {
+	dir := strings.TrimPrefix(filepath.ToSlash(pkg), "./")
+	if dir == "" || dir == "." {
+		return module
+	}
+	return module + "/" + dir
+}
+
+// watchGoRunner is the go executable the plan's tests run under and its
+// version, as a receipt names them; either is empty when it cannot be read.
+func watchGoRunner(ctx context.Context, root string) (string, string) {
+	runner, err := exec.LookPath("go")
+	if err != nil {
+		return "", ""
+	}
+	cmd := exec.CommandContext(ctx, runner, "env", "GOVERSION")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return runner, ""
+	}
+	return runner, strings.TrimSpace(string(out))
 }

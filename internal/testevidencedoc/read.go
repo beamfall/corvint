@@ -9,12 +9,15 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/gitrun"
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/runevidence"
 	"github.com/Beamfall/corvint/internal/runnerselection"
 	"github.com/Beamfall/corvint/internal/testevidence"
 )
@@ -80,7 +83,67 @@ func Read(ctx context.Context, root string, q Query) Document {
 		in.Runners = append(in.Runners, runnerselection.Runner{Name: name})
 	}
 	sort.Slice(in.Runners, func(i, j int) bool { return in.Runners[i].Name < in.Runners[j].Name })
-	return Project(q, in, records, reason)
+	d := Project(q, in, records, reason)
+	if !q.NoStore {
+		tree, _ := repo.CommitTree(ctx, q.Revision)
+		d.Runs = storedRuns(ctx, root, d, tree)
+	}
+	return bounded(d)
+}
+
+// storedRuns reads the run evidence store, without writing it (RVD-V1-012), for the tests the
+// answer names: the queried test, or the tests of its records. A store that cannot be located or
+// read gives no runs; the answer's own status is unchanged, since stored runs are context and never
+// evidence freshness (RVD-V1-007).
+func storedRuns(ctx context.Context, root string, d Document, tree string) *Runs {
+	tests := map[string]bool{}
+	for _, test := range []string{d.Query.Test, d.Query.Explain} {
+		if test != "" {
+			tests[test] = true
+		}
+	}
+	for _, r := range d.Records {
+		tests[r.Test] = true
+	}
+	if len(tests) == 0 {
+		return nil
+	}
+	store, err := appflows.RunEvidenceStore(ctx, root)
+	if err != nil {
+		return nil
+	}
+	snapshot, err := store.Read()
+	if err != nil {
+		return nil
+	}
+	runs := &Runs{Reasons: []string{}, Results: []Run{}}
+	newest := map[string]Run{}
+	for _, record := range snapshot.Records {
+		for _, row := range record.Rows {
+			if !tests[row.TestID] || row.Project != "" {
+				continue
+			}
+			newest[row.TestID] = Run{Test: row.TestID, Outcome: row.Outcome, NativeOutcome: row.NativeOutcome, Granularity: row.Granularity,
+				Record: record.Entry.ID, Tree: row.Tree, Commit: row.Commit, AtRevision: tree != "" && row.Tree == tree && row.Clean,
+				DurationMs: row.DurationMs, DurationSource: row.DurationSource}
+		}
+	}
+	for _, corrupt := range snapshot.Corrupt {
+		if slices.ContainsFunc(corrupt.Tests, func(test string) bool { return tests[test] }) {
+			runs.CorruptRecords = append(runs.CorruptRecords, corrupt.ID)
+		}
+	}
+	if len(runs.CorruptRecords) != 0 || (snapshot.LogUnreadable && len(newest) != 0) {
+		runs.Reasons = append(runs.Reasons, runevidence.ReasonCorrupt)
+	}
+	for _, run := range newest {
+		runs.Results = append(runs.Results, run)
+	}
+	if len(runs.Results) == 0 && len(runs.Reasons) == 0 {
+		return nil
+	}
+	slices.SortFunc(runs.Results, func(a, b Run) int { return strings.Compare(a.Test, b.Test) })
+	return runs
 }
 
 // changeKind admits only understood Git entry modes and transitions. Unknown
