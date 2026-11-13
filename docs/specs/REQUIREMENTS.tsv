@@ -1105,6 +1105,11 @@ AFU-V1-103	docs/specs/application-flow-understanding-v1.md	A member that does no
 AFU-V1-104	docs/specs/application-flow-understanding-v1.md	In-scope unambiguous declarations that belong to no declared flow are listed in	unrecorded	-
 AFU-V1-105	docs/specs/application-flow-understanding-v1.md	The manifest retains the declared inventory, so `Open`, `finalize`,	unrecorded	-
 AFU-V1-106	docs/specs/application-flow-understanding-v1.md	The inventory file is a bounded regular file of at most 4 MiB with 1 to 256 flow	unrecorded	-
+AFU-V1-107	docs/specs/application-flow-understanding-v1.md	(V1-5502) With an inventory, a web member (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`	unrecorded	-
+AFU-V1-108	docs/specs/application-flow-understanding-v1.md	(V1-5505) The inventory entry-point refusal names the flow id, the entry point's	unrecorded	-
+AFU-V1-109	docs/specs/application-flow-understanding-v1.md	(V1-5503) A directory that `docs flows` opens (`--output-dir`'s parent, `--flows	unrecorded	-
+AFU-V1-110	docs/specs/application-flow-understanding-v1.md	(V1-5504) `docs flows check` with neither `--output-dir` nor a recorded output	unrecorded	-
+AFU-V1-111	docs/specs/application-flow-understanding-v1.md	(V1-5506) `corvint docs SUBCOMMAND... --help` is still answered natively with th	unrecorded	-
 AFU-V1-112	docs/specs/application-flow-understanding-v1.md	The report names the repository, the full revision and its tree, and pins every	unrecorded	-
 AFU-V1-113	docs/specs/application-flow-understanding-v1.md	V8 coverage (an array of script entries, or `{"result": [...]}` as Playwright an	unrecorded	-
 AFU-V1-114	docs/specs/application-flow-understanding-v1.md	A single-test Istanbul `coverage-final.json` (statement map and counts) or LCOV	unrecorded	-
@@ -1344,6 +1349,9 @@ AMAP-V0-974	docs/specs/application-map-v0.md	(experimental under the standing au
 AMAP-V0-975	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-12), G14 of decision 0596;	standing	2026-11-12; decision 0596; V1-5471
 AMAP-V0-976	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-12), G14 of decision 0596;	standing	2026-11-12; decision 0596; V1-5472
 AMAP-V0-977	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-12), G14 of decision 0596;	standing	2026-11-12; decision 0596; V1-5472
+AMAP-V0-978	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-13), G14 of decision 0596;	standing	2026-11-13; decision 0596; V1-5509
+AMAP-V0-979	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-13), G14 of decision 0596;	standing	2026-11-13; decision 0596; V1-5507
+AMAP-V0-980	docs/specs/application-map-v0.md	(experimental under the standing auto-accept (2026-11-13), G14 of decision 0596;	standing	2026-11-13; decision 0596; V1-5508
 AMAP-V0-9501	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4660)	standing	2026-10-11; V1-4660
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
@@ -5747,6 +5755,7 @@ GPK-V0-1950	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-11-02
 GPK-V0-093	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2946) `EvalQuery` MUST compile in	standing	2026-10-28; V1-2946
 GPK-V0-095	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-29, standing auto-accept; V1-3140) The web mask that the	standing	2026-10-29; V1-3140
 GPK-V0-295	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-30, standing auto-accept; V1-3150) Amending the `GPK-V0-095`	standing	2026-10-30; V1-3150
+GPK-V0-395	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-11-13, standing auto-accept; V1-5501) Amending the `GPK-V0-095`	standing	2026-11-13; V1-5501
 GPK-V0-975	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-0179) `EvalQuery`'s	standing	2026-10-31; V1-0179
 GPK-V0-976	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-0179) Path `impact` MUST	standing	2026-10-31; V1-0179
 GPK-V0-336	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated statu	standing	2026-10-31; V1-3377

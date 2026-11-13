@@ -15,6 +15,7 @@ const flowsHelp = `Application flows and assertions, served by corvint-docs.
 Usage:
   corvint [--root PATH] flows [SUBCOMMAND] [OPTIONS]
   corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]
+  corvint [--root PATH] flows appmap build --manifest FILE --worktree [--no-workspace]
 
 The flows commands are not in the corvint binary (decision 0595). This group runs the
 corvint-docs executable beside corvint or on PATH with the same arguments, passes it no

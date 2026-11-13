@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -36,7 +37,7 @@ func openDirectory(dir string) (*os.Root, error) {
 		}
 	}
 	var current *os.Root
-	for _, part := range parts {
+	for i, part := range parts {
 		var next *os.Root
 		var e error
 		if current == nil {
@@ -46,7 +47,7 @@ func openDirectory(dir string) (*os.Root, error) {
 			current.Close()
 		}
 		if e != nil {
-			return nil, e
+			return nil, symlinkComponent(volumeRoot+filepath.Join(parts[:i+1]...), e)
 		}
 		current = next
 	}
@@ -56,6 +57,22 @@ func openDirectory(dir string) (*os.Root, error) {
 		}
 	}
 	return current, nil
+}
+
+// symlinkComponent names a refused component that is a symlink and the
+// target it resolves to, so the caller can pass the resolved path instead
+// (AFU-V1-109). The symlink is still refused, never followed; any other
+// refusal is returned unchanged.
+func symlinkComponent(component string, refused error) error {
+	link, err := os.Lstat(component)
+	if err != nil || link.Mode()&os.ModeSymlink == 0 {
+		return refused
+	}
+	target := "unresolved"
+	if resolved, err := filepath.EvalSymlinks(component); err == nil {
+		target = strconv.Quote(resolved)
+	}
+	return fail("directory must be a real nonsymlink component: " + strconv.Quote(component) + " is a symlink resolving to " + target + "; pass the resolved path")
 }
 
 func absoluteParts(abs, volume string) []string {

@@ -29,12 +29,19 @@ const Schema = "corvint-flow-documentation/1"
 // (V1-5491, AFU-V1-043) keeps any other '<' after a name as code, ends a tag
 // at the first '>' outside attribute braces, refuses a comparison as a tag and
 // accepts type parameters on a function declaration, so a version 4 manifest
-// can no longer be rederived byte for byte.
-const Version = "5"
+// can no longer be rederived byte for byte. Version 6 (V1-5495..V1-5499 and
+// V1-5502, AFU-V1-043 and AFU-V1-107) masks markup nested in an expression
+// container, keeps a '<' after any operand and a generic arrow's type
+// parameters as code, accepts type arguments on a registration, and resolves
+// declared inventory members against top-level classes, enums, namespaces,
+// consts, lets, vars, interfaces and type aliases, and the web mask blanks
+// JavaScript regex literals (V1-5501, GPK-V0-395), so a version 5 manifest can
+// no longer be rederived byte for byte.
+const Version = "6"
 
 // predecessorVersions are generator versions whose manifests are refused with
 // StaleGeneratorCode rather than the generic unsupported-version failure.
-var predecessorVersions = map[string]bool{"1": true, "2": true, "3": true, "4": true}
+var predecessorVersions = map[string]bool{"1": true, "2": true, "3": true, "4": true, "5": true}
 
 // StaleGeneratorCode is the typed refusal of a manifest an older generator
 // wrote: it must be regenerated, not compared (AFU-V1-045).
@@ -249,7 +256,11 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 			continue
 		}
 		s.Data = []byte(text)
-		ds, gaps := extract(s)
+		extractor := extract
+		if inv != nil {
+			extractor = extractMembers
+		}
+		ds, gaps := extractor(s)
 		m.Gaps = append(m.Gaps, gaps...)
 		duplicate := map[string]int{}
 		for _, d := range ds {

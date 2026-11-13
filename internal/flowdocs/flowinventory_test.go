@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -205,5 +206,127 @@ func TestFlowDocsInventoryRefusals(t *testing.T) {
 	outside := head + `{"id":"a","title":"A","members":[{"path":"other/x.rb"}]}]}`
 	if _, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "app", Flows: []byte(outside)}); e == nil || !strings.Contains(e.Error(), "outside --scope") {
 		t.Fatalf("out-of-scope member accepted: %v", e)
+	}
+}
+
+// AFU-V1-108: an entry-point refusal names the flow id and the entry point's path and symbol, and
+// says whether it is foreign to the flow or a repeat.
+func TestAFUV1108EntryPointRefusalNamesFlowAndMember(t *testing.T) {
+	head := `{"schema":"corvint-flow-inventory/1","flows":[`
+	cases := map[string]struct{ raw, want string }{
+		"foreign": {head + `{"id":"checkout","title":"A","members":[{"path":"app/a.rb"}],"entry_points":[{"path":"app/b.js","symbol":"pay"}]}]}`,
+			`flow "checkout" entry point path "app/b.js" symbol "pay" is not a member of the flow`},
+		"repeat": {head + `{"id":"checkout","title":"A","members":[{"path":"app/a.rb"}],"entry_points":[{"path":"app/a.rb"},{"path":"app/a.rb"}]}]}`,
+			`flow "checkout" entry point path "app/a.rb" symbol "" repeats an earlier entry point`},
+	}
+	for name, c := range cases {
+		if _, e := ParseFlowInventory([]byte(c.raw)); e == nil || !strings.Contains(e.Error(), c.want) {
+			t.Errorf("%s: refusal %v does not contain %q", name, e, c.want)
+		}
+	}
+}
+
+const topLevelWeb = `export interface Props {
+  id: string;
+}
+export type Mode = "a" | "b";
+export const Status = { ok: "ok" } as const;
+export type Status = (typeof Status)[keyof typeof Status];
+export class Client {
+  load() {
+    return fetch("/api");
+  }
+}
+export abstract class Base {}
+export const enum Kind { A }
+enum Plain { B }
+let counter = 0;
+var legacy = 1;
+export const api = {
+  load() {
+    return fetch("/x");
+  },
+};
+export interface Button {
+  label: string;
+}
+export const Button = () => {
+  render();
+};
+function helper() {
+  const inner = 1;
+}
+`
+
+// AFU-V1-107: with a declared inventory, top-level classes, enums, consts, lets, vars,
+// interfaces and type aliases resolve as members; a value outranks a same-named type and a
+// function or arrow outranks both; nested declarations and object members do not resolve and
+// the refusal names how to reference them. Without an inventory none of them becomes a flow.
+func TestAFUV1107TopLevelWebDeclarationsResolveAsMembers(t *testing.T) {
+	source := contextindex.Source{Path: "app/web.ts", Data: []byte(topLevelWeb)}
+	plain, _ := extract(source)
+	names := []string{}
+	for _, d := range plain {
+		names = append(names, d.name)
+	}
+	if strings.Join(names, ",") != "Button,helper" {
+		t.Fatalf("extract without an inventory = %q, want only the arrow and the function", names)
+	}
+	ds, _ := extractMembers(source)
+	lines := map[string][]int{}
+	for _, d := range ds {
+		lines[d.name] = append(lines[d.name], d.line)
+	}
+	want := map[string][]int{"Props": {1}, "Mode": {4}, "Status": {5}, "Client": {7}, "Base": {12}, "Kind": {13}, "Plain": {14}, "counter": {15}, "legacy": {16}, "api": {17}, "Button": {25}, "helper": {28}}
+	if len(lines) != len(want) {
+		t.Fatalf("member declarations %v, want %v", lines, want)
+	}
+	for name, at := range want {
+		if !slices.Equal(lines[name], at) {
+			t.Errorf("%s at %v, want %v", name, lines[name], at)
+		}
+	}
+	for _, d := range ds {
+		if d.name == "Client" && d.end != 11 || d.name == "api" && d.end != 21 {
+			t.Errorf("%s extent %d..%d", d.name, d.line, d.end)
+		}
+	}
+
+	root, rev := fixture(t, map[string]string{"app/web.ts": topLevelWeb})
+	members := []string{}
+	for name := range want {
+		members = append(members, `{"path":"app/web.ts","symbol":"`+name+`"}`)
+	}
+	slices.Sort(members)
+	members = append(members, `{"path":"app/web.ts","symbol":"load"}`, `{"path":"app/web.ts","symbol":"inner"}`)
+	flows := `{"schema":"corvint-flow-inventory/1","flows":[{"id":"web","title":"Web","members":[` + strings.Join(members, ",") + `]}]}`
+	ctx := context.Background()
+	r, e := Generate(ctx, root, Options{Revision: rev, Scope: "app", Flows: []byte(flows)})
+	if e != nil {
+		t.Fatal(e)
+	}
+	report := r.Manifest.Inventory.Flows[0]
+	if len(report.Resolved) != len(want) || len(report.Unresolved) != 2 {
+		t.Fatalf("resolved %d unresolved %+v", len(report.Resolved), report.Unresolved)
+	}
+	for _, u := range report.Unresolved {
+		if u.Reason != "symbol is not a top-level declaration in this path at this revision; name a class or object member's enclosing declaration" {
+			t.Errorf("unresolved %s reason %q", u.Symbol, u.Reason)
+		}
+	}
+	if _, e = Open(ctx, root, r.Files["generation.json"]); e != nil {
+		t.Fatalf("inventory manifest does not rederive: %v", e)
+	}
+	bare, e := Generate(ctx, root, Options{Revision: rev, Scope: "app"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	flowNames := []string{}
+	for _, f := range bare.Manifest.Flows {
+		flowNames = append(flowNames, f.Name)
+	}
+	slices.Sort(flowNames)
+	if strings.Join(flowNames, ",") != "Button,helper" {
+		t.Fatalf("flows without an inventory = %q", flowNames)
 	}
 }

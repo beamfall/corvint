@@ -21,7 +21,23 @@ type declaration struct {
 	name         string
 	line, end    int
 	observations []observation
+	// rank orders same-named declarations of one file: 0 for a function, arrow, route or
+	// registration, then memberValue and memberType for the top-level declarations that only
+	// resolve declared inventory members (AFU-V1-107). Only the lowest rank of a name is kept.
+	rank int
 }
+
+// Ranks of top-level web declarations that resolve declared inventory members only.
+const (
+	memberValue = 1 + iota
+	memberType
+)
+
+// webTopLevel is a top-level TypeScript or JavaScript declaration other than a function or
+// arrow: a class, enum, namespace, const, let or var (a value) or an interface or type alias
+// (a type). It is matched only at brace depth zero and only for a declared inventory
+// (AFU-V1-107); it never makes a flow of its own.
+var webTopLevel = regexp.MustCompile(`^\s*(?:export\s+(?:default\s+)?)?(?:declare\s+)?(?:abstract\s+)?(?:const\s+(enum)|(class|interface|enum|type|const|let|var|namespace))\s+([A-Za-z_$][A-Za-z0-9_$]*)`)
 
 var rubyDef = regexp.MustCompile(`^\s*def\s+([A-Za-z_][A-Za-z0-9_!?]*(?:\.[A-Za-z_][A-Za-z0-9_!?]*)?)`)
 var rubyClass = regexp.MustCompile(`^\s*(?:class|module)\s+([A-Za-z_][A-Za-z0-9_:]*)`)
@@ -35,7 +51,10 @@ var call = regexp.MustCompile(`\b([A-Za-z_$][A-Za-z0-9_$]*)(?:[.!?])?\s*\(`)
 var rubyCall = regexp.MustCompile(`(?:^|[.;\s])([A-Za-z_][A-Za-z0-9_]*[!?]?)(?:\s|\(|$)`)
 var rubyBlock = regexp.MustCompile(`^\s*(?:class|module|def|if|unless|case|begin|while|until|for)\b|\bdo\s*(?:\|[^|]*\|)?\s*$`)
 var route = regexp.MustCompile(`^\s*(get|post|put|patch|delete|resources|resource)\s+`)
-var registration = regexp.MustCompile(`\.(directive|controller|component|config|get|post|put|patch|delete)\s*\(`)
+
+// registration may carry one line of type arguments before its '(', nested one
+// level deep: api.post<{ id: string }>( and api.get<Map<K, V>>( (V1-5495).
+var registration = regexp.MustCompile(`\.(directive|controller|component|config|get|post|put|patch|delete)\s*(?:<[^<>()=\n]*(?:<[^<>()=\n]*>[^<>()=\n]*)*>\s*)?\(`)
 var safeLiteral = regexp.MustCompile(`^[A-Za-z0-9_/:.# -]{1,160}$`)
 
 // literalAt is called only after an executable token in masked code. It cannot
@@ -80,6 +99,16 @@ func routeLiteral(code []string, i int, raw string, start int, value string) boo
 	return strings.HasPrefix(rest, ",")
 }
 func extract(source contextindex.Source) ([]declaration, []string) {
+	return extractDeclarations(source, false)
+}
+
+// extractMembers is extract plus the top-level web declarations a declared inventory may name
+// (AFU-V1-107). Without an inventory generation calls extract, so its output is unchanged.
+func extractMembers(source contextindex.Source) ([]declaration, []string) {
+	return extractDeclarations(source, true)
+}
+
+func extractDeclarations(source contextindex.Source, members bool) ([]declaration, []string) {
 	ext := path.Ext(source.Path)
 	if ext == ".html" {
 		return templateDeclarations(source)
@@ -96,6 +125,11 @@ func extract(source contextindex.Source) ([]declaration, []string) {
 	// deliberately bounded to balanced blocks, never a runtime execution order.
 	stack := []string{}
 	active := -1
+	member := -1
+	// topDepth is depth clamped at zero, so one brace the lexical mask drops cannot hide every
+	// later top-level declaration from a declared inventory (AFU-V1-107). depth itself is
+	// unclamped, as before, so function and arrow extents are unchanged.
+	topDepth := 0
 	depth := 0
 	startDepth := 0
 	for i, line := range code {
@@ -138,12 +172,27 @@ func extract(source contextindex.Source) ([]declaration, []string) {
 				ds = append(ds, declaration{name: m[1], line: i + 1, end: i + 1})
 				active = len(ds) - 1
 				startDepth = depth
+			} else if k := webTopLevel.FindStringSubmatch(line); members && topDepth == 0 && k != nil && k[3] != "extends" {
+				rank := memberValue
+				if k[2] == "interface" || k[2] == "type" {
+					rank = memberType
+				}
+				ds = append(ds, declaration{name: k[3], line: i + 1, end: i + 1, rank: rank})
+				member = len(ds) - 1
 			}
-			depth += strings.Count(line, "{") - strings.Count(line, "}")
+			delta := strings.Count(line, "{") - strings.Count(line, "}")
+			depth += delta
+			topDepth = max(0, topDepth+delta)
 			if active >= 0 {
 				ds[active].end = i + 1
 				if depth <= startDepth {
 					active = -1
+				}
+			}
+			if member >= 0 {
+				ds[member].end = i + 1
+				if topDepth == 0 {
+					member = -1
 				}
 			}
 		}
@@ -177,6 +226,9 @@ func extract(source contextindex.Source) ([]declaration, []string) {
 				}
 			}
 		}
+	}
+	if members {
+		ds = lowestRank(ds)
 	}
 	for n := range ds {
 		d := &ds[n]
@@ -305,4 +357,24 @@ func withoutDeclarationName(language, line string) string {
 		return line[:loc[2]] + strings.Repeat(" ", loc[3]-loc[2]) + line[loc[3]:]
 	}
 	return line
+}
+
+// lowestRank keeps, for each name, only the declarations of its lowest rank, so a function or
+// arrow keeps its name when an interface or type of the same name sits beside it, and
+// `const Status` with `type Status` resolves to the value. Same-rank repeats stay and are
+// reported ambiguous (AFU-V1-107).
+func lowestRank(ds []declaration) []declaration {
+	best := map[string]int{}
+	for _, d := range ds {
+		if r, ok := best[d.name]; !ok || d.rank < r {
+			best[d.name] = d.rank
+		}
+	}
+	kept := ds[:0]
+	for _, d := range ds {
+		if d.rank == best[d.name] {
+			kept = append(kept, d)
+		}
+	}
+	return kept
 }
