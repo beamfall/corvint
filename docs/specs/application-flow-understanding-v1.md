@@ -1098,7 +1098,10 @@ accepted variation, or a replacement for independent application/browser qualifi
   `extends` (`const f = <T,>(x: T) => x`, `<K extends keyof S>(key: K) =>`) opens a generic arrow's
   type parameters, so the arrow is a declaration, while `<T>x</T>` stays markup (since V1-5495..V1-5499,
   `TestFlowWebMaskJSXOperandsAndTypeParameters`, `TestFlowDocsNestedMarkupTextIsMasked`,
-  `TestFlowDocsGenericArrowDeclarations`, `TestFlowDocsComparisonAfterOperandIsNotATag`). A `{` or `}`
+  `TestFlowDocsGenericArrowDeclarations`, `TestFlowDocsComparisonAfterOperandIsNotATag`). A fragment
+  `<>` opens markup like a named element, so its `</>` closes only the fragment and the expression
+  container around it (`{c && (<>...</>)}`) stays code (since V1-5524,
+  `TestFlowDocsFragmentInContainerKeepsTopLevel`). A `{` or `}`
   inside a regex literal in an attribute still counts toward the tag's braces until regex literals are
   blanked before the mask (V1-5500, V1-5501).
 - **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
@@ -1119,7 +1122,7 @@ accepted variation, or a replacement for independent application/browser qualifi
   generator to version 2, the AFU-V1-043 member-call declaration fix to version 3, and the
   AFU-V1-043 generic-call mask fix (V1-2415) to version 4, and the AFU-V1-043 web mask and
   generic declaration fix (V1-5491) to version 5, and the AFU-V1-043 nested-markup, operand and
-  type-parameter mask fix (V1-5495..V1-5499) together with the AFU-V1-107 top-level web inventory
+  type-parameter mask fix (V1-5495..V1-5499, with the fragment fix V1-5524) together with the AFU-V1-107 top-level web inventory
   member fix (V1-5502) and the GPK-V0-395 regex literal mask (V1-5501) to version 6: a version 1,
   2, 3, 4 or 5 manifest cannot be
   rederived byte for byte, so check, finalize and `generate --previous`
