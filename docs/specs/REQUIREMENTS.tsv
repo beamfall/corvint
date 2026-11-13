@@ -6707,6 +6707,17 @@ MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	`conformance/mcp-test-vali
 MTV-V0-009	docs/specs/mcp-test-validity-profile-v0.md	`discover: true` (decision 0202) MUST return, as the result's `document`, exactl	unrecorded	-
 MTV-V0-010	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1781) The	standing	2026-10-11; V1-1781
 MTV-V0-950	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2185) The HTTP	standing	2026-10-11; V1-2185
+MTT-V1-001	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) One table fixes every	owner	decision 0596; V1-5447
+MTT-V1-002	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) `docs/MCP-SERVER.md`	owner	decision 0596; V1-5447
+MTT-V1-003	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) The servers register	owner	decision 0596; V1-5447
+MTT-V1-004	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) `corvint-docs mcp` se	owner	decision 0596; V1-5447
+MTT-V1-005	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) `corvint mcp` keeps o	owner	decision 0596; V1-5447
+MTT-V1-006	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) No Tasks MCP tools	owner	decision 0596; V1-5447
+MTT-V1-007	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) One naming convention	owner	decision 0596; V1-5447
+MTT-V1-008	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) `CORVINT_SELECTION` i	owner	decision 0596; V1-5447
+MTT-V1-009	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) Same answer as the co	owner	decision 0596; V1-5447
+MTT-V1-010	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) Retired MCP binaries	owner	decision 0596; V1-5447
+MTT-V1-011	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) The `affected` tool o	owner	decision 0596; V1-5447
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	The receipt MUST expose raw baseline and candidate totals by kind and state, the	unrecorded	-
