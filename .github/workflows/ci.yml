@@ -1390,11 +1390,28 @@ jobs:
           # test-confine wrapper, as the index's runner names them (GLS-V0-009, GLS-V0-041): its
           # build settings, its test runtime and its exec wrapper. The index workflow collects
           # under the same wrapper and deadline, so the identities can match.
-          if ! GOFLAGS=-race CGO_ENABLED=1 "$RUNNER_TEMP/linecov-corvint" --root "$PWD" affected --base "$base" \
+          # CIN-V0-8722 (V1-5258): linecov-corvint is main's planner, not the tested tree's, so its
+          # stamped commit's Go source differs from HEAD whenever the change edits Go source, and
+          # AFP-V0-9730 refuses such a plan unless --accept-stale-binary keeps it as degraded.
+          if ! GOFLAGS=-race CGO_ENABLED=1 "$RUNNER_TEMP/linecov-corvint" --root "$PWD" affected --accept-stale-binary --base "$base" \
             --line-index "$RUNNER_TEMP/linecov-index/linecov.idx" --line-test-timeout 50m \
             --line-exec "$RUNNER_TEMP/test-confine" > "$d/affected.json" 2> "$d/affected.err"; then
             stop "corvint affected --line-index refused: $(tail -n 1 "$d/affected.err")"
           fi
+          # CIN-V0-8722: only the expected self-binary-stale degradation (the plan came from the
+          # trusted main commit, not the tested tree) may go on to the selection decision; it is
+          # named in the summary and kept in the proof. Any other degradation falls back.
+          degraded=$(jq -r 'if (.degradations // []) | type != "array" then "malformed"
+            else (.degradations // []) | map(tostring) | join(",") end' "$d/affected.json" 2> /dev/null) ||
+            stop "the receipt's degradations are unreadable"
+          case "$degraded" in
+            "") ;;
+            self-binary-stale)
+              printf '%s\n' "$degraded" > "$d/degraded"
+              echo "CIN-V0-8722 shard $SHARD: planned by the trusted selector of main commit $tools, not the tested tree; degraded self-binary-stale (AFP-V0-9730)" | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
+            *) stop "the plan is degraded beyond self-binary-stale: $degraded" ;;
+          esac
           jq -e '.lineSelection' "$d/affected.json" > "$d/selection.json" || stop "the receipt has no lineSelection"
           jq -r --arg shard "$SHARD" --arg run "$run" --arg commit "$commit" \
             '"GLS-V0-044 shard \($shard) (index run \($run) at \($commit)): \(.state)\(if .reason then " " + .reason else "" end); units \(.counts.units): whole \(.counts.unitsWhole), tests \(.counts.unitsTests), compile \(.counts.unitsCompile), excluded \(.counts.unitsExcluded); tests kept by coverage \(.counts.testsKeptByCoverage), by fallback \(.counts.testsKeptByFallback), left out \(.counts.testsExcluded); load \(.loadMillis) ms, select \(.selectMillis) ms"' \
@@ -2198,6 +2215,7 @@ jobs:
         run: |
           python3 -B .github/forward-rows/known-flakes_test.py
           python3 -B .github/forward-rows/go-product_test.py
+          python3 -B .github/forward-rows/linecov-stale_test.py
       - name: Windows vet including test files (AFP-V0-042)
         # go build skips _test.go files, so a test that breaks only for GOOS=windows reached main
         # (V1-1117). Skipped only on a pull request whose merge commit provably changes no .go,
