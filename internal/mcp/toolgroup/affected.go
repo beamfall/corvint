@@ -17,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 	"github.com/Beamfall/corvint/internal/selectionswitch"
+	"github.com/Beamfall/corvint/internal/testid"
 )
 
 // AffectedTool answers which tests a change requires: the affected-summary/1
@@ -287,7 +288,7 @@ func killSwitchDetail(kill selectionswitch.Switch) string {
 	value, _ := echoValue(kill.Value)
 	switch {
 	case kill.Unknown:
-		return fmt.Sprintf("%s=%q is neither full nor full:<runner>[,<runner>]; every test is selected instead of a narrowed plan", selectionswitch.Variable, value)
+		return fmt.Sprintf("%s=%q is neither full nor full:<runner>[,<runner>] naming runners from %s; every test is selected instead of a narrowed plan", selectionswitch.Variable, value, strings.Join(testid.Runners, ", "))
 	case kill.All:
 		return selectionswitch.Variable + "=full forces every runner to a full run; every test is selected"
 	}
