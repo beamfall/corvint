@@ -46,7 +46,7 @@ func TestRVDV1004CLITestAppendsOneRecordPerRun(t *testing.T) {
 	snapshot, err := rvdStore(root).Read()
 	if err != nil || len(snapshot.Records) != 1 || !bytes.Equal(snapshot.Records[0].Data, receipt) ||
 		snapshot.Records[0].Entry.ID != runevidence.ID(receipt) || len(snapshot.Records[0].Rows) != 1 ||
-		snapshot.Records[0].Rows[0].TestID != "go:example.test/m/a" || snapshot.Records[0].Rows[0].Outcome != "passed" {
+		snapshot.Records[0].Rows[0].TestID != "go:a" || snapshot.Records[0].Rows[0].Outcome != "passed" {
 		t.Fatalf("store after one run: %+v %v", snapshot, err)
 	}
 	first := snapshot.Records[0].Entry.ID
@@ -127,15 +127,16 @@ func TestRVDV1010CLIWriteFailureKeepsExitCode(t *testing.T) {
 }
 
 // rvdFlowFixture is the session fixture with one committed flow whose variation links the Go
-// package test "go:example.test/m/a", the key a corvint-test-run/0 unit row carries, and a later
-// change to package a measured from the flow commit.
+// package test "go:a", the canonical testId a corvint-test-run/0 outcome carries for unit
+// go:example.test/m/a and so the key its run evidence row has (CTI-V1-009), and a later change to
+// package a measured from the flow commit.
 func rvdFlowFixture(t *testing.T) (root, base string) {
 	t.Helper()
 	root, _, _ = sessionFixture(t, "pass")
 	intent := appflows.FlowIntent{Schema: appflows.FlowIntentSchema, FlowID: "compute", Revision: 1, Kind: "ui", Actor: "developer",
 		Preconditions: []string{}, Steps: []appflows.FlowStep{{StepID: "run", Action: "run A"}}, Outcomes: []appflows.FlowOutcome{},
 		Variations: []appflows.FlowVariation{{VariationID: "compute.basic", Preconditions: []string{}, Steps: []string{"run"}, ObservableFacts: []string{}, Outcomes: []string{}, Projects: []string{}}},
-		Links:      []appflows.FlowLink{{From: "compute.basic", Basis: "declared", Target: appflows.LinkTarget{Type: "test", Path: "a/a_test.go", TestKey: "go:example.test/m/a"}}}}
+		Links:      []appflows.FlowLink{{From: "compute.basic", Basis: "declared", Target: appflows.LinkTarget{Type: "test", Path: "a/a_test.go", TestKey: "go:a"}}}}
 	raw, err := json.Marshal(intent)
 	if err != nil {
 		t.Fatal(err)
@@ -208,7 +209,7 @@ func TestRVDV1007ProdTest020TestThenFlowsStatus(t *testing.T) {
 		t.Fatalf("status %s", out)
 	}
 	got := report.Flows[0].Variations[0].Tests[0]
-	if got.TestKey != "go:example.test/m/a" || got.Result != "passed" || got.Stale || got.SourceCommit != head || got.SourceTree != tree ||
+	if got.TestKey != "go:a" || got.Result != "passed" || got.Stale || got.SourceCommit != head || got.SourceTree != tree ||
 		got.Authority != appflows.AuthorityLocallyObserved || report.RunEvidence == nil || report.RunEvidence.Records != 1 {
 		t.Fatalf("flows status after corvint test: %+v %+v", got, report.RunEvidence)
 	}
@@ -216,7 +217,7 @@ func TestRVDV1007ProdTest020TestThenFlowsStatus(t *testing.T) {
 	if code != 0 || !strings.Contains(out, `"result":"NOT_OBSERVED"`) || strings.Contains(out, "run_evidence") {
 		t.Fatalf("flows status --no-store %d %s", code, out)
 	}
-	code, out, stderr = runCLI(t, "--root", root, "test-evidence", "--test", "go:example.test/m/a")
+	code, out, stderr = runCLI(t, "--root", root, "test-evidence", "--test", "go:a")
 	var evidence struct {
 		Runs *struct {
 			Results []struct {
@@ -229,7 +230,7 @@ func TestRVDV1007ProdTest020TestThenFlowsStatus(t *testing.T) {
 		evidence.Runs.Results[0].Outcome != "passed" || evidence.Runs.Results[0].Tree != tree || !evidence.Runs.Results[0].AtRevision {
 		t.Fatalf("test-evidence %d %s %s", code, stderr, out)
 	}
-	if code, out, _ := runCLI(t, "--root", root, "test-evidence", "--test", "go:example.test/m/a", "--no-store"); code != 0 || strings.Contains(out, `"runs"`) {
+	if code, out, _ := runCLI(t, "--root", root, "test-evidence", "--test", "go:a", "--no-store"); code != 0 || strings.Contains(out, `"runs"`) {
 		t.Fatalf("test-evidence --no-store %d %s", code, out)
 	}
 	// corvint flows forwards to corvint-docs; runFlowsCLI runs the same handlers in process.
@@ -238,7 +239,7 @@ func TestRVDV1007ProdTest020TestThenFlowsStatus(t *testing.T) {
 			t.Fatalf("flows %v %d %s", args, code, stderr)
 		}
 	}
-	for _, args := range [][]string{{"test-evidence", "a/a.go"}, {"flows", "test-evidence", "--flows", "flows", "--test", "go:example.test/m/a"}} {
+	for _, args := range [][]string{{"test-evidence", "a/a.go"}, {"flows", "test-evidence", "--flows", "flows", "--test", "go:a"}} {
 		runCLI(t, append([]string{"--root", root}, args...)...)
 	}
 	if after := rvdStoreDigest(t, root); after != before {
@@ -288,7 +289,7 @@ func TestRVDV1004WatchAppendsOneRecordPerSave(t *testing.T) {
 		t.Fatalf("rows %+v", record.Rows)
 	}
 	row := record.Rows[0]
-	if row.TestID != "go:example.com/m/p" || row.Outcome != "passed" || row.Slice != sessiontest.SliceSelected || row.Clean ||
+	if row.TestID != "go:p" || row.Outcome != "passed" || row.Slice != sessiontest.SliceSelected || row.Clean ||
 		row.DurationSource != "go-test2json" || row.DurationMs == nil || record.Entry.Profile != runevidence.ProfileReceipt {
 		t.Fatalf("watch row %+v entry %+v", row, record.Entry)
 	}
