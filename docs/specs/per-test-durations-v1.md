@@ -176,7 +176,7 @@ Per runner:
 | PTD-V1-004 | `TestPTDV1002GoPackageElapsed` (`internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`) |
 | PTD-V1-005 | `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`) |
 | PTD-V1-006 | `TestPTDV1006AttemptSum` (`internal/testduration`), `TestPTDV1002ProviderReceiptDurations` (receipt `durationMs` sums the attempts) (`internal/sessiontest`); `attemptDurationsMs` is observation only: `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`) |
-| PTD-V1-007 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1002ProviderReceiptDurations` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration` (`internal/testrunner/dynamic`) |
+| PTD-V1-007 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1002ProviderReceiptDurations` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration`, `TestPTDV1007NonNumericTimeKeepsTheReport` (Jest, Vitest, Playwright and RSpec time fields decoded on their own) (`internal/testrunner/dynamic`) |
 | PTD-V1-008 | `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`), `TestRVDV1006RowsFromBothProfiles` (`internal/runevidence`), `TestPTDV1008StoredRowWithoutDurationIsNotMeasured` (`internal/appflows`) |
 | PTD-V1-009 | `TestPTDV1009CostFigureUsesOnlyMeasured` (`internal/testduration`); the consumers themselves are not on this tree |
 

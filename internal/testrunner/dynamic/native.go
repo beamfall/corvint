@@ -363,8 +363,8 @@ type pwTest struct {
 		Retry  int
 		Error  *struct{ Message string }
 		Errors []struct{ Message string }
-		// Duration is the attempt's milliseconds.
-		Duration *float64
+		// Duration is the attempt's milliseconds, decoded on its own (reportedTime).
+		Duration reportedTime
 	}
 }
 type pwSuite struct {
@@ -472,11 +472,7 @@ func parsePlaywright(b []byte, o *tr.Observation) error {
 				// durations, each kept when it ran more than once.
 				measures := make([]testduration.Measure, 0, len(t.Results))
 				for _, a := range t.Results {
-					measure := testduration.Missing()
-					if a.Duration != nil {
-						measure = testduration.FromMilliseconds(*a.Duration, testduration.SourcePlaywright)
-					}
-					measures = append(measures, measure)
+					measures = append(measures, a.Duration.measure(testduration.FromMilliseconds, testduration.SourcePlaywright))
 				}
 				measure, attempts := testduration.Attempts(measures, testduration.SourcePlaywright)
 				if len(attempts) < 2 {

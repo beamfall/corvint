@@ -191,3 +191,41 @@ func TestPTDV1002MinitestReporterOutput(t *testing.T) {
 func bytesReplace(s, old, new string) string {
 	return string(bytes.Replace([]byte(s), []byte(old), []byte(new), 1))
 }
+
+// PTD-V1-007, PTD-V1-003: a time field that is not a number ("oops", an object, a value out of
+// float64 range) no longer fails the whole Jest, Vitest, Playwright or RSpec report. Every outcome
+// survives, the test is NOT_MEASURED and listed under durationInvalid, and the rest of the report
+// still counts. A null time is a report without it: NOT_MEASURED and not invalid.
+func TestPTDV1007NonNumericTimeKeepsTheReport(t *testing.T) {
+	for _, value := range []string{`"oops"`, `{"ms":3}`, `1e400`, `true`} {
+		for _, runner := range []string{"vitest", "jest"} {
+			o := ptdParse(t, runner, runner+".json", string(bytes.Replace([]byte(ptdJestReport), []byte("DURATION"), []byte(value), 1)))
+			if len(o.Tests) != 2 || !o.Complete {
+				t.Fatalf("%s %s: tests %+v complete %v problems %v", runner, value, o.Tests, o.Complete, o.Problems)
+			}
+			adds := ptdTest(t, o, "/r/math.test.ts::math > adds")
+			ptdWant(t, adds, 0, testduration.NotMeasured)
+			if adds.State != tr.Passed || !slices.Equal(o.DurationInvalid, []string{adds.ID}) {
+				t.Fatalf("%s %s: %+v durationInvalid %v", runner, value, adds, o.DurationInvalid)
+			}
+		}
+		playwright := ptdParse(t, "playwright", "playwright.json", bytesReplace(ptdPlaywrightReport, `"duration":900`, `"duration":`+value))
+		retried := ptdTest(t, playwright, "s1::chromium")
+		ptdWant(t, retried, 0, testduration.NotMeasured)
+		if retried.State != tr.Flaky || retried.AttemptDurationsMs != nil || !slices.Equal(playwright.DurationInvalid, []string{"s1::chromium"}) {
+			t.Fatalf("playwright %s: %+v durationInvalid %v", value, retried, playwright.DurationInvalid)
+		}
+		ptdWant(t, ptdTest(t, playwright, "s2::chromium"), 40, testduration.SourcePlaywright)
+		rspec := ptdParse(t, "rspec", "rspec.json", bytesReplace(ptdRSpecReport, `"run_time":0.012`, `"run_time":`+value))
+		works := ptdTest(t, rspec, "./spec/a_spec.rb[1:1]")
+		ptdWant(t, works, 0, testduration.NotMeasured)
+		if works.State != tr.Passed || len(rspec.Tests) != 2 || !slices.Equal(rspec.DurationInvalid, []string{works.ID}) {
+			t.Fatalf("rspec %s: %+v durationInvalid %v", value, works, rspec.DurationInvalid)
+		}
+	}
+	null := ptdParse(t, "jest", "jest.json", string(bytes.Replace([]byte(ptdJestReport), []byte("DURATION"), []byte("null"), 1)))
+	ptdWant(t, ptdTest(t, null, "/r/math.test.ts::math > adds"), 0, testduration.NotMeasured)
+	if len(null.DurationInvalid) != 0 {
+		t.Fatalf("a null time was listed invalid: %v", null.DurationInvalid)
+	}
+}
