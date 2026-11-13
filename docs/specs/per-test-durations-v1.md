@@ -139,7 +139,9 @@ Delivered by ticket V1-5449 (build-log `docs/build-log/2026-11-11-per-test-durat
   package records its `Elapsed` only when its tests ran (PASS, FAIL, TIMED_OUT); a build failure or
   a package with no tests is NOT_MEASURED (PTD-V1-003). A provider (Vitest, Playwright) file unit
   records the sum of its tests' times from the provider receipt, a retried Playwright test counting
-  each attempt; it is NOT_MEASURED when a test has no time, a retry kept only its last attempt's
+  each attempt; it is NOT_MEASURED when a test has no time (no `durationMs`, or the receipt's
+  `durationMissing` mark, which the Vitest parser sets for an absent, null or non-numeric
+  assertion `duration`), a retry kept only its last attempt's
   time, or a test cannot be placed in one selected file (several Vitest files, whose passing tests
   name no file). The receipt outcome has no `attemptDurationsMs`: a file outcome sums many tests,
   so `attemptDurationsMs` is observation only, on `corvint-test-runner` (PTD-V1-006).
@@ -170,7 +172,7 @@ Per runner:
 |---|---|
 | PTD-V1-001 | `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1001OlderReceiptsAndReaders`, `TestPTDV1001VitestProviderReceiptDuration` ("Vitest receipt", at granularity `file`) (`internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`); Jest, pytest, RSpec and Minitest receipts not yet built |
 | PTD-V1-002 | `TestPTDV1002GoPackageElapsed`, `TestPTDV1002ProviderReceiptDurations` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration`, `TestPTDV1002MinitestReporterOutput` (`internal/testrunner/dynamic`); the "Minitest receipt" scenario's receipt half is not yet built (`ruby-providers`) |
-| PTD-V1-003 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1003BuildFailedPackageNotMeasured`, `TestPTDV1002ProviderReceiptDurations` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`), `TestPTDV1008StoredRowWithoutDurationIsNotMeasured` (`internal/appflows`) |
+| PTD-V1-003 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1003BuildFailedPackageNotMeasured`, `TestPTDV1002ProviderReceiptDurations`, `TestPTDV1003VitestNativeReportWithoutDurationIsNotMeasured` (`internal/sessiontest`), `TestPTDV1003VitestMissingDurationIsMarked` (`internal/jstestprovider`), `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`), `TestPTDV1008StoredRowWithoutDurationIsNotMeasured` (`internal/appflows`) |
 | PTD-V1-004 | `TestPTDV1002GoPackageElapsed` (`internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`) |
 | PTD-V1-005 | `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`) |
 | PTD-V1-006 | `TestPTDV1006AttemptSum` (`internal/testduration`), `TestPTDV1002ProviderReceiptDurations` (receipt `durationMs` sums the attempts) (`internal/sessiontest`); `attemptDurationsMs` is observation only: `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`) |
