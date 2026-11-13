@@ -75,6 +75,52 @@ func (scan *driverScan) markComputed(reason string) {
 	scan.envPrefix(reason)
 }
 
+// unfollowed leaves the scanned text's run set open without making it a
+// computed site: it runs a command whose own execution the scan does not
+// follow, so what that command runs in turn is unknown (NCM-V1-019). Only a
+// make edit's reach reads it; the planner's graph is unchanged.
+func (scan *driverScan) unfollowed() { scan.runOpen = true }
+
+// driverFollowed reports a simple command whose execution the scan follows
+// completely (NCM-V1-019): a pure or bounded command, which runs no other
+// program; make, whose goals are the unit's edges; a go command other than
+// generate or tool, with no -exec, -toolexec or -vettool program, which runs
+// only the packages it names; `sh -c` or `bash -c` and the like, whose
+// inline script is scanned as its own commands; and find with no -exec,
+// -execdir, -ok, -okdir or -delete, which runs nothing. A path, an interpreter given
+// a file, and every other program are not followed: a script or binary may
+// run tests it does not name.
+func driverFollowed(words []driverWord) bool {
+	head := words[0].text
+	if strings.Contains(head, "/") {
+		return false
+	}
+	base := path.Base(head)
+	switch {
+	case driverPureCommands[base], driverBoundedCommands[base], base == "make", base == "gmake":
+		return true
+	case base == "go":
+		subcommand := ""
+		for _, word := range words[1:] {
+			text := word.text
+			if strings.HasPrefix(text, "-exec") || strings.HasPrefix(text, "-toolexec") || strings.HasPrefix(text, "-vettool") {
+				return false
+			}
+			if subcommand == "" && !strings.HasPrefix(text, "-") {
+				subcommand = text
+			}
+		}
+		return subcommand != "generate" && subcommand != "tool"
+	case driverShells[base]:
+		return len(words) > 2 && words[1].text == "-c"
+	case base == "find":
+		return !slices.ContainsFunc(words[1:], func(word driverWord) bool {
+			return strings.HasPrefix(word.text, "-exec") || strings.HasPrefix(word.text, "-ok") || word.text == "-delete" || driverDynamic(word.text)
+		})
+	}
+	return false
+}
+
 // envPrefix marks the scanned text a computed invocation for reason without
 // leaving its run set open: the reason is a literal environment assignment
 // in front of a command word the scan resolves (NCM-V1-017). The planner
@@ -963,6 +1009,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 				words = words[1:]
 			}
 		case head == "xargs":
+			s.scan.unfollowed() // The command's operands come from its input.
 			s.scan.revoke("shell:unsupported-wrapper")
 			settle(false, false)
 			wrapped = true
@@ -1376,6 +1423,7 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	case "trap":
 		// AFP-V0-3128: the body runs later as shell code, potentially
 		// with a different environment or directory.
+		s.scan.unfollowed()
 		s.scan.uncertify("shell:trap")
 		s.scan.revoke("shell:unsupported-syntax")
 		for _, word := range words[1:] {
@@ -1414,6 +1462,7 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		s.scan.uncertify("shell:eval")
 		return cwd
 	case ".", "source":
+		s.scan.unfollowed()
 		s.scan.uncertify("shell:sourced")
 		// AFP-V0-9628: the file may define functions or set PS4.
 		s.scan.revoke("shell:sourced")
@@ -1428,6 +1477,9 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	}
 	if driverComputedWord(head) {
 		s.scan.markComputed("shell:computed-command-word")
+	}
+	if !driverFollowed(words) {
+		s.scan.unfollowed()
 	}
 	if !s.driverCertified(words, cwd) {
 		s.scan.uncertify(s.driverUncertifiedReason(words, cwd))

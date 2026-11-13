@@ -101,9 +101,12 @@ func TestNCMV1010SelectorNarrowsMakeEdit(t *testing.T) {
 				noncode += " -> " + tc.targets
 			}
 			requireVerdict(t, makeEditPlan(base, "Makefile"), root, "run "+modules(tc.want...), append([]string{noncode}, tc.audit...)...)
+			// The executed set: qualification re-observes only Go, which
+			// holds no make edge, so it must keep what the make edit added
+			// (NCM-V1-013).
 			qualified := SelectQualified(makeEditPlan(base, "Makefile"), fixtureModule, root)
-			if !slices.Contains(qualified, noncode) || strings.HasPrefix(qualified[len(qualified)-1], "FALLBACK ") {
-				t.Fatalf("SelectQualified did not narrow with %q:\n%s", noncode, strings.Join(qualified, "\n"))
+			if !slices.Contains(qualified, noncode) || qualified[len(qualified)-1] != "run "+modules(tc.want...) {
+				t.Fatalf("SelectQualified did not narrow to %v with %q:\n%s", tc.want, noncode, strings.Join(qualified, "\n"))
 			}
 		})
 	}

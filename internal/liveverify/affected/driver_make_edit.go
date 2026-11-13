@@ -53,6 +53,9 @@ func AttributeMakeEdit(file string, base, head []byte) MakeEdit {
 	if line, changed := makeFirstDifference(before.residual(), after.residual()); changed {
 		return makeRefusal(makeLineKind(line) + " changed: " + makeQuote(line))
 	}
+	if line, moved := makeFirstDifference(makeOrderShared(before.statementOrder(), after.statementOrder())); moved {
+		return makeRefusal("the order of make file statements changed at " + makeQuote(line))
+	}
 	targets, roots, touched := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, name := range makeRuleNames(before, after) {
 		old, inBase := before.rules[name]
@@ -111,6 +114,59 @@ func (parsed *driverMakeFile) residual() []string {
 		}
 	}
 	return lines
+}
+
+// statementOrder is the file's top-level statements in file order, each by
+// its identity: `assign NAME` for a plain assignment, `rule TARGETS` for an
+// explicit rule line and the text of every other remainder line. Recipes
+// are left out: make expands them after it has read the whole file.
+func (parsed *driverMakeFile) statementOrder() []string {
+	plain := make(map[int]string, len(parsed.plain))
+	for _, entry := range parsed.plain {
+		plain[entry.at] = entry.name
+	}
+	order := make([]string, 0, len(parsed.remainder)+len(parsed.headers))
+	header := 0
+	for index := 0; index <= len(parsed.remainder); index++ {
+		for ; header < len(parsed.headers) && parsed.headers[header].at == index; header++ {
+			order = append(order, "rule "+parsed.headers[header].name)
+		}
+		switch name, assigned := plain[index]; {
+		case index == len(parsed.remainder):
+		case assigned:
+			order = append(order, "assign "+name)
+		default:
+			order = append(order, parsed.remainder[index])
+		}
+	}
+	return order
+}
+
+// makeOrderShared projects both statement sequences onto the identities
+// each side holds equally often (NCM-V1-018). A statement added, removed or
+// repeated a different number of times is a changed variable, a new or
+// removed rule or a residual change, which the other checks attribute or
+// refuse; what remains must keep its relative order, because make expands
+// an immediate assignment, a prerequisite list or an include against the
+// values assigned before it.
+func makeOrderShared(base, head []string) ([]string, []string) {
+	baseCount, headCount := map[string]int{}, map[string]int{}
+	for _, identity := range base {
+		baseCount[identity]++
+	}
+	for _, identity := range head {
+		headCount[identity]++
+	}
+	shared := func(sequence []string) []string {
+		out := make([]string, 0, len(sequence))
+		for _, identity := range sequence {
+			if baseCount[identity] == headCount[identity] {
+				out = append(out, identity)
+			}
+		}
+		return out
+	}
+	return shared(base), shared(head)
 }
 
 // assignments is each variable's plain assignment lines, in file order.

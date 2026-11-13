@@ -280,7 +280,16 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 // selectPackagesFrom is selectPackages with the index read from build once the
 // plan passes the checks that need none.
 func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error)) []string {
-	return attributeFrom(plan, module, root, withUnresolved, build, true)
+	lines, _ := attribute(plan, module, root, withUnresolved, build, true)
+	return lines
+}
+
+// selectPackagesObliged is selectPackagesFrom that also returns the import
+// paths an attributed make edit adds (NCM-V1-013, NCM-V1-014). The Go-only
+// graph that qualification re-observes holds no make edge, so its exclusion
+// certificate cannot remove them: SelectQualifiedIndexed keeps each one.
+func selectPackagesObliged(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error)) ([]string, []string) {
+	return attribute(plan, module, root, withUnresolved, build, true)
 }
 
 // attributeFrom is selectPackagesFrom; nonCode applies the NCM-V1 decision
@@ -288,9 +297,22 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 // attribution of a path the decision runs everything for, which
 // packageBounds (tools/gate-ledger) still applies.
 func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error), nonCode bool) []string {
+	lines, _ := attribute(plan, module, root, withUnresolved, build, nonCode)
+	return lines
+}
+
+// attribute is attributeFrom that also returns the sorted import paths of
+// every package an attributed make edit adds, whichever rule printed it.
+func attribute(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error), nonCode bool) ([]string, []string) {
+	lines, made := attributeLines(plan, module, root, withUnresolved, build, nonCode)
+	return lines, sortedKeys(made)
+}
+
+func attributeLines(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error), nonCode bool) ([]string, map[string]bool) {
 	var lines []string
 	var madeBy map[string][]makeSelection
-	fallback := func(reason string) []string { return append(lines, "FALLBACK "+reason) }
+	made := map[string]bool{}
+	fallback := func(reason string) ([]string, map[string]bool) { return append(lines, "FALLBACK "+reason), nil }
 	state := plan.Provider.Go.State
 	if state != "RUNNABLE" && state != "EMPTY_SELECTION" {
 		// NCM-V1-001 (R32): an unavailable runner runs everything, named.
@@ -413,6 +435,9 @@ func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build
 			if len(selection.directories) != 0 {
 				attributed[dirty] = true
 			}
+			for _, directory := range selection.directories {
+				made[importPath(module, directory)] = true
+			}
 			add(selection.directories, selection.kind, " <- "+selection.cause)
 		}
 	}
@@ -455,14 +480,14 @@ func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build
 	}
 	if len(selected) == 0 && len(plan.Plan.Dirty) > 0 {
 		if taskStateOnly(plan) {
-			return append(lines, fmt.Sprintf("NOTHING %d dirty path(s) are Tasks store projection task state; no Go package names or reads them", len(plan.Plan.Dirty)))
+			return append(lines, fmt.Sprintf("NOTHING %d dirty path(s) are Tasks store projection task state; no Go package names or reads them", len(plan.Plan.Dirty))), nil
 		}
 		return fallback(fmt.Sprintf("the selection is empty while %d path(s) are dirty", len(plan.Plan.Dirty)))
 	}
 	if len(selected) == 0 {
-		return append(lines, "NOTHING no dirty or committed path; no Go package to test")
+		return append(lines, "NOTHING no dirty or committed path; no Go package to test"), nil
 	}
-	return append(lines, "run "+strings.Join(selected, " "))
+	return append(lines, "run "+strings.Join(selected, " ")), made
 }
 
 // boundedReaders drops from a dirty path's rule (c) readers each declared
