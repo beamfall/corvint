@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
+	"github.com/Beamfall/corvint/internal/repoenvelope"
 	"github.com/Beamfall/corvint/internal/selectionswitch"
 )
 
@@ -44,6 +46,39 @@ const affectedStaleHint = "rebuild corvint from this checkout and restart corvin
 // AffectedOversizedCode is the tool error for a verdict whose result cannot
 // fit one MCP message; it names the CLI as the way to read it (MMR-V0-1118).
 const AffectedOversizedCode = "verdict-oversized"
+
+// AffectedFailedCode is the tool error for a planner run that failed with
+// no code, an unparsable stderr line, or a code outside
+// affectedPlannerCodes; the planner's own code then leads the message.
+const AffectedFailedCode = "affected-failed"
+
+// affectedPlannerCodes are the planner refusals the tool answers under their
+// own code, the ones a call with only a base can reach and an agent can act
+// on: a base that is malformed, ambiguous or not a commit (or no resolvable
+// HEAD), a worktree or HEAD that moved during the plan, and a graph, status
+// or temporary-directory failure
+// (MTT-V1-001). Any other planner code is AffectedFailedCode, so the
+// advertised error list stays closed.
+var affectedPlannerCodes = []string{
+	"ambiguous-affected-base",
+	"invalid-arguments",
+	"unsupported-affected-drift",
+	"unsupported-affected-graph",
+	"unsupported-affected-revision",
+	"unsupported-affected-status",
+	"unsupported-affected-temp",
+}
+
+// AffectedErrors is the closed list of tool-error codes corvint.affected
+// answers itself, sorted; the server adds cancelled and server-busy to every
+// tool. The MCP tool table advertises exactly these (MTT-V1-001).
+func AffectedErrors() []string {
+	codes := append([]string{
+		AffectedFailedCode, AffectedOversizedCode, CancelledCode, repoenvelope.CollisionCode, "invalid-root", "not-served",
+	}, affectedPlannerCodes...)
+	slices.Sort(codes)
+	return codes
+}
 
 // affectedBaseLimit bounds the base argument; the planner's own revision
 // limit is smaller, so a longer value is refused here before it runs.
@@ -169,6 +204,10 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 			// its exit 2.
 			return group.selectAll(ctx, name, base, AffectedStaleCode, message, affectedStaleHint, selectionswitch.Switch{})
 		}
+		if code != AffectedFailedCode && !slices.Contains(affectedPlannerCodes, code) {
+			// A code the table does not list keeps its name in the message.
+			code, message = AffectedFailedCode, affectedBound(code+": "+message)
+		}
 		return Failure(AffectedErrorProfile, name, code, message)
 	}
 	var structured map[string]any
@@ -289,14 +328,14 @@ func affectedFailure(stderr []byte) (code, message string) {
 	if json.Unmarshal([]byte(line), &emitted) == nil && emitted.Error != "" {
 		code = emitted.Code
 		if code == "" {
-			code = "affected-failed"
+			code = AffectedFailedCode
 		}
 		return code, affectedBound(emitted.Error)
 	}
 	if line == "" {
 		line = "corvint affected --summary failed"
 	}
-	return "affected-failed", affectedBound(line)
+	return AffectedFailedCode, affectedBound(line)
 }
 
 // affectedLastLine is the last non-empty line of stderr, trimmed.

@@ -120,9 +120,9 @@ Which tests a change requires: the affected-summary/1 verdict for a base or for 
 - Input schema: `internal/mcp/toolgroup/affected.go`
 - Input `base`: Optional base revision; with it the plan is base..HEAD plus the dirty worktree, without it the dirty worktree alone.
 - Output profile: `affected-summary/1, affected-select-all/1`
-- Tool errors: `cancelled`, `server-busy`, `affected-failed`, `invalid-root`, `not-served`, `verdict-oversized`
+- Tool errors: `cancelled`, `server-busy`, `affected-failed`, `ambiguous-affected-base`, `corvint-envelope-terminator-collision`, `invalid-arguments`, `invalid-root`, `not-served`, `unsupported-affected-drift`, `unsupported-affected-graph`, `unsupported-affected-revision`, `unsupported-affected-status`, `unsupported-affected-temp`, `verdict-oversized`
 - Parity test: `corvint TestV15254MCPAffectedMatchesCLI`
-- Note: a planner refusal carries the CLI's own error code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)
+- Note: a planner refusal listed here carries the CLI's own error code and any other is affected-failed, its message led by the planner's code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)
 
 ### `corvint.flows_coverage`
 

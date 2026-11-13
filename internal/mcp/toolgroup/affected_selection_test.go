@@ -92,7 +92,7 @@ func TestMTTV1011AffectedToolOnAStaleBinarySelectsAll(t *testing.T) {
 	group, _ := selectionGroup(t, "")
 	group.Run = func(_ context.Context, _, base string, _, stderr io.Writer) int {
 		if base == "other" {
-			_, _ = fmt.Fprintln(stderr, `{"code": "unknown-base", "error": "argument --base: unknown", "ok": false}`)
+			_, _ = fmt.Fprintln(stderr, `{"code": "invalid-arguments", "error": "argument --base: unknown", "ok": false}`)
 			return 2
 		}
 		_, _ = fmt.Fprintln(stderr, `{"code": "self-binary-stale", "error": "this binary was built from commit abc1234; rebuild it", "ok": false}`)
@@ -107,7 +107,7 @@ func TestMTTV1011AffectedToolOnAStaleBinarySelectsAll(t *testing.T) {
 		t.Fatalf("stale: %#v %#v", result, failure)
 	}
 	result, _ = group.Call(context.Background(), AffectedTool, map[string]any{"base": "other"})
-	if structured, _ := result["structuredContent"].(map[string]any); result["isError"] != true || structured["code"] != "unknown-base" {
+	if structured, _ := result["structuredContent"].(map[string]any); result["isError"] != true || structured["code"] != "invalid-arguments" {
 		t.Fatalf("other refusal: %#v", result)
 	}
 }

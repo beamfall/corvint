@@ -354,10 +354,12 @@ func mcpToolRows() []MCPTool {
 			Inputs: []MCPInput{
 				in("base", "Optional base revision; with it the plan is base..HEAD plus the dirty worktree, without it the dirty worktree alone."),
 			},
-			OutputProfile: "affected-summary/1, affected-select-all/1", Errors: errorsOf("affected-failed", "invalid-root", "not-served", "verdict-oversized"),
+			OutputProfile: "affected-summary/1, affected-select-all/1",
+			Errors: errorsOf("affected-failed", "ambiguous-affected-base", collision, "invalid-arguments", "invalid-root", "not-served",
+				"unsupported-affected-drift", "unsupported-affected-graph", "unsupported-affected-revision", "unsupported-affected-status", "unsupported-affected-temp", "verdict-oversized"),
 			CLIEquivalent: "corvint affected --summary [--base REV]",
 			ParityTest:    "corvint TestV15254MCPAffectedMatchesCLI",
-			Note:          "a planner refusal carries the CLI's own error code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)",
+			Note:          "a planner refusal listed here carries the CLI's own error code and any other is affected-failed, its message led by the planner's code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)",
 		},
 		{
 			Name: "corvint.test_evidence", Server: ServerCore, Availability: AvailabilityPreview,
