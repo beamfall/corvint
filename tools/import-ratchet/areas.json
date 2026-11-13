@@ -121,8 +121,9 @@
     {
       "name": "tests",
       "layer": 1,
-      "summary": "test selection, running, validity and review: corvint, corvint-mcp, the test providers and the test runner",
+      "summary": "test selection, running, validity and review: corvint, corvint-mcp, the test providers, the test runner and the shard planner corvint compiles in from .github/cishards",
       "prefixes": [
+        ".github/cishards",
         "cmd/corvint",
         "cmd/corvint-cli",
         "cmd/corvint-go-test-provider",
