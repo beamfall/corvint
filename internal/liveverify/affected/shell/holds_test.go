@@ -566,20 +566,20 @@ func TestMoreInterpreterStartupNames_AFPV09976(t *testing.T) {
 func TestCommandRunningNamesBehindWrappers_AFPV09710(t *testing.T) {
 	held := map[string]string{
 		"command_env_pager":  "command env PAGER=./tools/pager.sh git branch --list\n",
-		"nohup_env_ssh":      "nohup env GIT_SSH_COMMAND=./tools/ssh.sh git fetch origin\n",
-		"timeout_env_editor": "timeout 5 env GIT_EDITOR='sh edit.sh' git commit -q\n",
+		"nohup_env_ssh":      "nohup env GIT_SSH_COMMAND=./tools/ssh.sh git ls-remote origin\n",
+		"timeout_env_editor": "timeout 5 env GIT_EDITOR='sh edit.sh' git tag -a v1\n",
 		"sudo_askpass":       "sudo -E SSH_ASKPASS=tools/askpass.sh true\n",
 		"external_diff":      "GIT_EXTERNAL_DIFF=\"$diff\" git diff --no-index a b\n",
-		"export_bare":        "export GIT_SSH_COMMAND\ngit fetch origin\n",
+		"export_bare":        "export GIT_SSH_COMMAND\ngit ls-remote origin\n",
 		"default_pager":      ": \"${GIT_PAGER:=tools/pager.sh}\"\ngit branch --list\n",
 		"template_dir":       "GIT_TEMPLATE_DIR=templates git init -q x\n",
 		"exec_path":          "export GIT_EXEC_PATH=tools/git\ngit branch --list\n",
 	}
 	bounded := map[string]string{
-		"editor_true":   "GIT_EDITOR=true git commit -q\n",
+		"editor_true":   "GIT_EDITOR=true git tag -a v1\n",
 		"pager_cat":     "command env PAGER=cat git branch --list\n",
-		"askpass_empty": "GIT_ASKPASS= git fetch origin\n",
-		"ssh_absolute":  "nohup env GIT_SSH_COMMAND=/usr/bin/ssh git fetch origin\n",
+		"askpass_empty": "GIT_ASKPASS= git ls-remote origin\n",
+		"ssh_absolute":  "nohup env GIT_SSH_COMMAND=/usr/bin/ssh git ls-remote origin\n",
 		"pager_quoted":  "GIT_PAGER='' git branch --list\n",
 		"template_abs":  "GIT_TEMPLATE_DIR=/usr/share/git-core/templates git init -q x\n",
 	}
@@ -610,8 +610,8 @@ func TestAbsoluteCommandValueWithArgumentsHolds_AFPV09710(t *testing.T) {
 		"ssh_sh_quoted":  "command env GIT_SSH_COMMAND='/bin/sh tools/ssh.sh' git ls-remote ssh://example.invalid/repo\n",
 		"ssh_sh_escaped": "command env GIT_SSH_COMMAND=/bin/sh\\ tools/ssh.sh git ls-remote ssh://example.invalid/repo\n",
 		"pager_args":     "PAGER=\"/usr/bin/less tools/pager.sh\" git branch --list\n",
-		"editor_chain":   "GIT_EDITOR='/bin/true;sh tools/ssh.sh' git commit -q\n",
-		"quoted_path":    "nohup env GIT_SSH_COMMAND='/usr/bin/ssh' git fetch origin\n",
+		"editor_chain":   "GIT_EDITOR='/bin/true;sh tools/ssh.sh' git tag -a v1\n",
+		"quoted_path":    "nohup env GIT_SSH_COMMAND='/usr/bin/ssh' git ls-remote origin\n",
 		"perl_blank":     "PERL5LIB='/opt/lib tools' perl x.pl\n",
 	}
 	bounded := map[string]string{
