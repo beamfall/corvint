@@ -905,6 +905,23 @@ func TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments(t *testing.T) {
 	}
 }
 
+// TestFlowDocsArrowAttributeDoesNotEndTag: a '>' inside an attribute
+// expression (an arrow handler) does not end the tag, so a self-closing
+// element with one closes and the declarations after it are still extracted.
+func TestFlowDocsArrowAttributeDoesNotEndTag(t *testing.T) {
+	text := "function Form() {\n  return (\n    <div>\n      <input onChange={(e) => update(e)} disabled={busy} />\n" +
+		"      <Prompt\n        onCancel={() => {\n          reset()\n        }}\n      />\n    </div>\n  )\n}\n" +
+		"function after() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/form.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		got = append(got, d.name)
+	}
+	if want := "Form,after"; strings.Join(got, ",") != want {
+		t.Fatalf("declarations=%v want=%s", got, want)
+	}
+}
+
 // TestFlowDocsTypeArgumentsOutsideCallsStayCode: a '<' straight after a
 // non-keyword name is a type-argument list or a comparison, never JSX, also
 // when no call follows it (a return type `): Promise<T> {`, an annotation
