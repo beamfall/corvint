@@ -556,3 +556,85 @@ func TestMoreInterpreterStartupNames_AFPV09976(t *testing.T) {
 	wantUnbounded(t, graph, UnboundedDynamicSource, "phprc", "php_scan", "lua_path_54", "lua_cpath", "lua_path", "lua_init", "tcllibpath")
 	wantUnbounded(t, graph, "", "control")
 }
+
+// AFP-V0-9710 (V1-5217 item 3): a pager, editor, ssh, askpass or external
+// diff command assigned behind a wrapper (`command env PAGER=...`,
+// `nohup env GIT_SSH_COMMAND=...`), exported or default-assigned holds the
+// file as a dynamic source: the program runs that command line, which no
+// operand names. Empty values, one bare PATH command word and absolute
+// literal paths name no repository file.
+func TestCommandRunningNamesBehindWrappers_AFPV09710(t *testing.T) {
+	held := map[string]string{
+		"command_env_pager":  "command env PAGER=./tools/pager.sh git branch --list\n",
+		"nohup_env_ssh":      "nohup env GIT_SSH_COMMAND=./tools/ssh.sh git fetch origin\n",
+		"timeout_env_editor": "timeout 5 env GIT_EDITOR='sh edit.sh' git commit -q\n",
+		"sudo_askpass":       "sudo -E SSH_ASKPASS=tools/askpass.sh true\n",
+		"external_diff":      "GIT_EXTERNAL_DIFF=\"$diff\" git diff --no-index a b\n",
+		"export_bare":        "export GIT_SSH_COMMAND\ngit fetch origin\n",
+		"default_pager":      ": \"${GIT_PAGER:=tools/pager.sh}\"\ngit branch --list\n",
+		"template_dir":       "GIT_TEMPLATE_DIR=templates git init -q x\n",
+		"exec_path":          "export GIT_EXEC_PATH=tools/git\ngit branch --list\n",
+	}
+	bounded := map[string]string{
+		"editor_true":   "GIT_EDITOR=true git commit -q\n",
+		"pager_cat":     "command env PAGER=cat git branch --list\n",
+		"askpass_empty": "GIT_ASKPASS= git fetch origin\n",
+		"ssh_absolute":  "nohup env GIT_SSH_COMMAND=/usr/bin/ssh git fetch origin\n",
+		"pager_quoted":  "GIT_PAGER='' git branch --list\n",
+		"template_abs":  "GIT_TEMPLATE_DIR=/usr/share/git-core/templates git init -q x\n",
+	}
+	tests := map[string]string{}
+	var names, controls []string
+	for name, body := range held {
+		tests[name] = body
+		names = append(names, name)
+	}
+	for name, body := range bounded {
+		tests[name] = body
+		controls = append(controls, name)
+	}
+	graph := holdGraph(t, tests, map[string]string{"tools/pager.sh": "cat script/golden.txt\n", "tools/ssh.sh": "true\n"})
+	wantUnbounded(t, graph, UnboundedDynamicSource, names...)
+	wantUnbounded(t, graph, "", controls...)
+}
+
+// AFP-V0-9711 (V1-5217 item 4): a preload or require option of node or bun
+// (`--import`, `-r`, `--require`, `--loader`, `--preload`) is never read as
+// the program operand. A test that runs node runs a toolchain; a helper's
+// run of either is opaque, so a deleted preload file can never be judged
+// unobserved.
+func TestInterpreterPreloadOptions_AFPV09711(t *testing.T) {
+	tests := map[string]string{
+		"node_import":        "node --import ./tools/hook.mjs tools/y.js\n",
+		"node_import_joined": "node --import=./tools/hook.mjs tools/y.js\n",
+		"node_require":       "node -r ./tools/hook.cjs tools/y.js\n",
+		"node_loader":        "nohup node --loader=./tools/hook.mjs tools/y.js\n",
+	}
+	graph := holdGraph(t, tests, map[string]string{"tools/hook.mjs": "x\n", "tools/y.js": "x\n"})
+	wantUnbounded(t, graph, UnboundedRunsToolchain, "node_import", "node_import_joined", "node_require", "node_loader")
+	for _, name := range []string{"node_import", "node_import_joined", "node_require", "node_loader"} {
+		wantSelected(t, graph, "tools/hook.mjs", []string{name}, nil)
+	}
+
+	helpers := []struct{ name, text string }{
+		{"node import", "node --import ./tools/hook.mjs tools/y.js\n"},
+		{"node import joined", "node --import=./tools/hook.mjs tools/y.js\n"},
+		{"node require", "node -r ./tools/hook.cjs tools/y.js\n"},
+		{"node require joined", "node --require=./tools/hook.cjs tools/y.js\n"},
+		{"bun preload", "bun --preload ./tools/hook.ts tools/y.ts\n"},
+		{"bun preload joined", "bun --preload=./tools/hook.ts tools/y.ts\n"},
+	}
+	for _, tc := range helpers {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "tools/x.sh", tc.text)
+			unit, ok := build(t, root).Unit("shell:tools/x.sh")
+			if !ok {
+				t.Fatal("no unit")
+			}
+			if unit.WalkOpaque != OpaqueInterpreter && unit.WalkOpaque != OpaqueToolchain {
+				t.Fatalf("walk opaque %q; want %q or %q", unit.WalkOpaque, OpaqueInterpreter, OpaqueToolchain)
+			}
+		})
+	}
+}
