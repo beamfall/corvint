@@ -642,10 +642,11 @@ capabilities-check:
 # mcp-server-doc regenerates docs/MCP-SERVER.md from the MCP tool table in
 # internal/capcatalog/mcp.go; mcp-server-doc-check, a doc gate, fails when the
 # file differs from the generator output (MTT-V1-002).
-.PHONY: mcp-server-doc mcp-server-doc-check
+.PHONY: mcp-server-doc
 mcp-server-doc:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/mcp-server-doc
 
+.PHONY: mcp-server-doc-check
 mcp-server-doc-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/mcp-server-doc -check
 

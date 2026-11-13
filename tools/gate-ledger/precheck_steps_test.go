@@ -26,6 +26,7 @@ var precheckLedgerNames = []string{
 	"fixed-tmp-paths-check", "flow-guide-check", "go-format-check", "go-version-pins-check",
 	"host-package-versions-check", "host-package-versions-test",
 	"lane-scripts-test", "legal-file-pins-check", "license-headers-check",
+	"mcp-server-doc-check",
 	"line-citations-check", "live-test", "long-lines-check", "mkfifo-build-tags-check",
 	"no-python-runtime-dependency-test", "openspec-check", "py-signal-lint",
 	"requirement-definitions-check", "selection-baseline-check", "selection-contract-check", "shell-foreign-callers-check",
