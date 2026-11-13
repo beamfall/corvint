@@ -185,6 +185,8 @@ and MUST NOT report `clean: true`. Serves PROD-DOCS-005. (finding 13;
 
 Delivery: `docs flows generate` records an output directory inside `--root` as the manifest's `output_dir` (omitted otherwise, so existing version 4 manifests rederive byte for byte); `docs flows check` compares `--output-dir`, else the recorded directory, and reports `output` `CHECKED` or `NOT_CHECKED` with `output_reason` `no-output-dir` or `missing-dir`, never `clean: true` without comparing. A missing `--output-dir` is now `NOT_CHECKED` rather than a refusal. Tests: `TestDMFV1007RecordedOutputDirectory` (`internal/flowdocs`), `TestDMFV1007DocsFlowsCheckRecordedOutput` (`cmd/corvint-docs`).
 
+Amended by AFU-V1-110 (V1-5504): the `no-output-dir` report also carries `output_hint`, which asks for `--output-dir DIR`; the verdict, `clean` and exit code are unchanged.
+
 - `DMF-V1-008`: (accepted automatically under G14, decision 0596; V1-5409) Distinct tool descriptions
 
 Each `corvint.docs_*` MCP tool MUST have its own description that says what task it serves, what it

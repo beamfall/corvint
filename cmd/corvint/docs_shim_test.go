@@ -261,3 +261,22 @@ func TestDocsShimForwardsToSiblingAtThisVersion(t *testing.T) {
 		t.Fatalf("forwarded argv %q, %v", raw, err)
 	}
 }
+
+// AFU-V1-111: `corvint docs SUBCOMMAND... --help` is still answered natively with the one docs
+// group help (CMS-V0-913, CAP-V0-055), and that help names the corvint-docs command that prints a
+// subcommand's real usage and flags.
+func TestAFUV1111DocsSubcommandHelpPointsAtRealFlags(t *testing.T) {
+	for _, args := range [][]string{
+		{"docs", "flows", "generate", "--help"},
+		{"--root", ".", "docs", "flows", "check", "-h"},
+		{"docs", "--help"},
+	} {
+		var stdout, stderr bytes.Buffer
+		if code := run(args, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.String() != helpText("docs") {
+			t.Errorf("%q: exit %d stdout %q stderr %q", args, code, stdout.String(), &stderr)
+		}
+		if !strings.Contains(stdout.String(), "corvint-docs docs SUBCOMMAND... --help prints one subcommand's\nusage and flags, for example corvint-docs docs flows generate --help") {
+			t.Errorf("%q: docs help does not point at the subcommand flags:\n%s", args, stdout.String())
+		}
+	}
+}

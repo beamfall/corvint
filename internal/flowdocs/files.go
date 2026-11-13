@@ -6,7 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -28,11 +30,14 @@ func openDirectory(dir string) (*os.Root, error) {
 	// every absolute open; dropping it would open \C: instead of C:\.
 	volume := filepath.VolumeName(abs)
 	volumeRoot := volume + string(filepath.Separator)
-	var current *os.Root
-	for _, part := range strings.Split(strings.TrimPrefix(abs[len(volume):], string(filepath.Separator)), string(filepath.Separator)) {
-		if part == "" {
-			continue
+	parts := absoluteParts(abs, volume)
+	if len(parts) > 0 {
+		if resolved, ok := systemAlias(volumeRoot, parts[0]); ok {
+			parts = append(absoluteParts(resolved, volume), parts[1:]...)
 		}
+	}
+	var current *os.Root
+	for i, part := range parts {
 		var next *os.Root
 		var e error
 		if current == nil {
@@ -42,7 +47,7 @@ func openDirectory(dir string) (*os.Root, error) {
 			current.Close()
 		}
 		if e != nil {
-			return nil, e
+			return nil, symlinkComponent(volumeRoot+filepath.Join(parts[:i+1]...), e)
 		}
 		current = next
 	}
@@ -52,6 +57,65 @@ func openDirectory(dir string) (*os.Root, error) {
 		}
 	}
 	return current, nil
+}
+
+// symlinkComponent names a refused component that is a symlink and the
+// target it resolves to, so the caller can pass the resolved path instead
+// (AFU-V1-109). The symlink is still refused, never followed; any other
+// refusal is returned unchanged.
+func symlinkComponent(component string, refused error) error {
+	link, err := os.Lstat(component)
+	if err != nil || link.Mode()&os.ModeSymlink == 0 {
+		return refused
+	}
+	target := "unresolved"
+	if resolved, err := filepath.EvalSymlinks(component); err == nil {
+		target = strconv.Quote(resolved)
+	}
+	return fail("directory must be a real nonsymlink component: " + strconv.Quote(component) + " is a symlink resolving to " + target + "; pass the resolved path")
+}
+
+func absoluteParts(abs, volume string) []string {
+	var parts []string
+	for _, part := range strings.Split(strings.TrimPrefix(abs[len(volume):], string(filepath.Separator)), string(filepath.Separator)) {
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
+}
+
+// systemAlias resolves a symlink that is a direct entry of a filesystem root
+// that only its owner can write, such as macOS /var -> private/var or
+// /tmp -> private/tmp. Only the root's owner can create or replace such an
+// entry, so following it grants a caller nothing it could plant; every
+// component of the resolved path is still opened with the no-symlink checks.
+// Any other symlink stays refused (V1-4551).
+func systemAlias(volumeRoot, first string) (string, bool) {
+	if runtime.GOOS == "windows" {
+		return "", false
+	}
+	link, err := os.Lstat(volumeRoot + first)
+	if err != nil || link.Mode()&os.ModeSymlink == 0 {
+		return "", false
+	}
+	root, err := os.Lstat(volumeRoot)
+	if err != nil || !root.IsDir() || root.Mode().Perm()&0o022 != 0 {
+		return "", false
+	}
+	// One hop only: a symlink in the target chain must still meet the
+	// no-follow walk rather than be erased here.
+	target, err := os.Readlink(volumeRoot + first)
+	if err != nil || target == "" {
+		return "", false
+	}
+	if !filepath.IsAbs(target) {
+		target = volumeRoot + target
+	}
+	if resolved := filepath.Clean(target); filepath.IsAbs(resolved) && resolved != volumeRoot && resolved != filepath.Clean(volumeRoot+first) {
+		return resolved, true
+	}
+	return "", false
 }
 
 func openComponent(parent *os.Root, name string) (*os.Root, error) {

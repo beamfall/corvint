@@ -198,6 +198,10 @@ func TestDMFV1007DocsFlowsCheckRecordedOutput(t *testing.T) {
 	if code != 1 || check.Clean || check.Output != flowdocs.OutputNotChecked || check.OutputReason != flowdocs.OutputNoDir {
 		t.Fatalf("no recorded directory %d %+v", code, check)
 	}
+	// AFU-V1-110: the NOT_CHECKED report names the flag that makes the output comparable.
+	if !strings.Contains(check.OutputHint, "--output-dir") || !bytes.Contains(raw, []byte(`"output_hint"`)) {
+		t.Fatalf("no --output-dir hint %q", raw)
+	}
 }
 
 type docsCheckResult struct {

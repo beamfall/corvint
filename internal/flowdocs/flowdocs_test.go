@@ -1083,7 +1083,7 @@ func TestDMFV1007RecordedOutputDirectory(t *testing.T) {
 		t.Fatal("a generation without an output directory recorded one")
 	}
 	checked, e := CheckRevision(context.Background(), root, bare.Files["generation.json"], rev, "")
-	if e != nil || checked.Clean || checked.Output != OutputNotChecked || checked.OutputReason != OutputNoDir {
+	if e != nil || checked.Clean || checked.Output != OutputNotChecked || checked.OutputReason != OutputNoDir || checked.OutputHint != OutputNoDirHint {
 		t.Fatalf("no directory: %v %+v", e, checked)
 	}
 	r, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "app", OutputDir: "docs/flows"})
