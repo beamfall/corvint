@@ -15,11 +15,16 @@ name: Release binaries
 #
 # Only `publish` holds `contents: write`, and it starts only after the owner approves the protected
 # `release` environment (GHA-V1-041). It checks out nothing and runs no repository code: it
-# rechecks the artifact's checksums and creates the GitHub release of the tag from those files,
-# unchanged. release-binary itself tags, signs and publishes nothing (ARTIFACT-BIN-V0-006).
+# rechecks the artifact's checksums, refuses unless the remote tag still names the tested commit,
+# and creates the GitHub release of the tag from those files, unchanged. release-binary itself
+# tags, signs and publishes nothing (ARTIFACT-BIN-V0-006).
 #
-# NOT_VERIFIED here: version-tag protection and the `release` environment's required reviewer are
-# repository settings (GHA-V1-042). NOT_PRODUCED: the build attestation of GHA-V1-040, because
+# Publishing is off by default: `publish` runs only while the repository variable
+# RELEASE_PUBLISH_ENABLED is `true`. Until then a tag runs `test` and `build` and stops. A job
+# that names an environment the repository does not have gets a new, unprotected one, so the owner
+# sets the variable only after configuring `release` with a required reviewer and protecting
+# version tags (GHA-V1-042, repository settings this workflow cannot verify). The owner must not
+# set it before the build attestation of GHA-V1-040 lands: that is NOT_PRODUCED here, because
 # which job attests is open (D17) and this repository holds no reviewed SHA pin of an attestation
 # action; adding it adds `id-token: write` (and `attestations: write` if GitHub requires it) to
 # that one job. The manifest is merged without `--base`, so a SET or NAME tag's manifest records
@@ -165,6 +170,9 @@ jobs:
 
   publish:
     needs: build
+    # Off until the owner has configured the protected `release` environment and the attestation
+    # has landed (see the header); the default stops the run after `build`.
+    if: vars.RELEASE_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     # GHA-V1-041: the owner's approval of this protected environment starts the job.
@@ -189,6 +197,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # The tag may have moved since the run started: refuse unless the remote tag, peeled
+          # through at most 8 annotated tag objects, still names the tested commit. Tag
+          # protection itself is a repository setting (GHA-V1-042).
+          read -r type object < <(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha') || true
+          for _ in 1 2 3 4 5 6 7 8; do
+            [ "$type" = tag ] || break
+            read -r type object < <(gh api "repos/$GH_REPO/git/tags/$object" --jq '.object.type + " " + .object.sha') || true
+          done
+          if [ "$type" != commit ] || [ "$object" != "$SHA" ]; then
+            echo "::error::tag $TAG names ${type:-nothing} ${object:-}, not the tested commit $SHA; nothing is published"
+            exit 1
+          fi
           prerelease=()
           case "${TAG##*/v}" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$TAG" --verify-tag --title "$TAG" "${prerelease[@]}" \

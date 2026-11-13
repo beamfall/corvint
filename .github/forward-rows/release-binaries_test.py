@@ -43,6 +43,10 @@ class ReleaseBinaries(unittest.TestCase):
             self.assertNotIn("permissions:", job(self.text, name), name)
         self.assertEqual(re.findall(r"(?m)^ +contents: (\w+)$", self.text), ["read", "write"])
         self.assertIn("    needs: build\n", self.publish)
+        # Publishing is off unless the owner sets the repository variable (P1 review, round 1).
+        self.assertIn("    if: vars.RELEASE_PUBLISH_ENABLED == 'true'\n", self.publish)
+        self.assertEqual(self.text.count("RELEASE_PUBLISH_ENABLED == 'true'"), 1)
+        self.assertEqual(re.findall(r"(?m)^    if: .*$", self.text), ["    if: vars.RELEASE_PUBLISH_ENABLED == 'true'"])
         self.assertIn("    environment: release\n", self.publish)
         self.assertIn("    permissions:\n      contents: write\n", self.publish)
         # The write job runs no repository code: no checkout, no go, no make, no script path.
@@ -80,15 +84,36 @@ class ReleaseBinaries(unittest.TestCase):
             "%s  release-manifest.json\n" % hashlib.sha256(manifest).hexdigest())
         return out
 
-    def run_step(self, name, out, tag="corvint-docs/v1.0.1"):
+    def run_step(self, name, out, tag="corvint-docs/v1.0.1", ref=None, tags=None):
+        # The gh stub answers `gh api` for the tag ref and annotated tag objects (already in the
+        # --jq form "TYPE SHA"; an empty answer is a failed lookup), logs each api path, and
+        # records any other call's arguments.
         stub = out.parent / "bin"
         stub.mkdir(exist_ok=True)
         gh = stub / "gh"
-        gh.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$GH_ARGS"\n')
+        gh.write_text(textwrap.dedent('''\
+            #!/bin/sh
+            if [ "$1" = api ]; then
+              echo "$2" >> "$GH_API_LOG"
+              case "$2" in
+                repos/o/r/git/ref/tags/"$TAG") answer=$STUB_REF ;;
+                repos/o/r/git/tags/*) eval "answer=\\${STUB_TAG_${2##*/}:-}" ;;
+                *) answer= ;;
+              esac
+              [ -n "$answer" ] || exit 1
+              echo "$answer"
+              exit 0
+            fi
+            printf "%s\\n" "$@" > "$GH_ARGS"
+            '''))
         gh.chmod(gh.stat().st_mode | stat.S_IXUSR)
         env = {"PATH": "%s:%s" % (stub, os.environ["PATH"]), "TAG": tag, "SHA": "a" * 40,
-               "GH_ARGS": str(out.parent / "gh-args"), "GITHUB_SERVER_URL": "https://github.invalid",
+               "GH_ARGS": str(out.parent / "gh-args"), "GH_API_LOG": str(out.parent / "gh-api"),
+               "GH_REPO": "o/r", "STUB_REF": "commit " + "a" * 40 if ref is None else ref,
+               "GITHUB_SERVER_URL": "https://github.invalid",
                "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "1"}
+        for obj, answer in (tags or {}).items():
+            env["STUB_TAG_" + obj] = answer
         return subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c",
                                step_script(self.publish, name)],
                               cwd=out, env=env, capture_output=True, text=True)
@@ -123,6 +148,34 @@ class ReleaseBinaries(unittest.TestCase):
                 self.assertEqual("--prerelease" in args, prerelease)
                 files = sorted(a[2:] for a in args if a.startswith("./"))
                 self.assertEqual(files, sorted(p.name for p in out.iterdir()))
+
+    def test_release_refuses_unless_the_remote_tag_names_the_tested_commit(self):
+        # P2 review, round 1: the remote tag, peeled through annotated tags, must equal $SHA.
+        step = "Create the GitHub release from the stopped run's artifact (GHA-V1-041)"
+        tested, other = "a" * 40, "b" * 40
+        t1, t2 = "1" * 40, "2" * 40
+        nine = {("%d" % i) * 40: "tag " + ("%d" % (i + 1)) * 40 for i in range(1, 9)}
+        nine["9" * 40] = "commit " + tested
+        for label, ref, tags, ok in (
+                ("lightweight at the tested commit", "commit " + tested, {}, True),
+                ("annotated at the tested commit", "tag " + t1, {t1: "commit " + tested}, True),
+                ("annotated twice at the tested commit", "tag " + t1, {t1: "tag " + t2, t2: "commit " + tested}, True),
+                ("moved to another commit", "commit " + other, {}, False),
+                ("annotated at another commit", "tag " + t1, {t1: "commit " + other}, False),
+                ("names a tree", "tree " + tested, {}, False),
+                ("lookup fails", "", {}, False),
+                ("annotated object lookup fails", "tag " + t1, {}, False),
+                ("deeper than eight tag objects", "tag " + "1" * 40, nine, False)):
+            with self.subTest(label), tempfile.TemporaryDirectory() as tmp:
+                out = self.fixture(tmp)
+                result = self.run_step(step, out, "corvint-docs/v1.0.1", ref, tags)
+                created = (out.parent / "gh-args").exists()
+                self.assertEqual(result.returncode == 0, ok, result.stdout + result.stderr)
+                self.assertEqual(created, ok, "gh release create ran: %s" % created)
+                api = (out.parent / "gh-api").read_text().splitlines()
+                self.assertEqual(api[0], "repos/o/r/git/ref/tags/corvint-docs/v1.0.1")
+                if not ok:
+                    self.assertIn("nothing is published", result.stdout)
 
 
 if __name__ == "__main__":
