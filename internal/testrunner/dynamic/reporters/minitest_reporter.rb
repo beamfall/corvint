@@ -31,6 +31,8 @@ class CorvintReporter < Minitest::AbstractReporter
       row[:FailureKind] = 'UNKNOWN'
       row[:Message] = errors.map { |f| "UnexpectedError: #{f.error.class.name}" }.uniq.join("\n")[0, 1024]
     end
+    # PTD-V1-002: Minitest::Result#time is the test's run time in seconds.
+    row[:DurationMs] = (result.time * 1000).round if result.time.is_a?(Numeric)
     @rows << row
   end
   def report

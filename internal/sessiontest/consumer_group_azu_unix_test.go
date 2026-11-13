@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/testduration"
 )
 
 // AZU-V0-007 (selbatch fix round 2): two declared consumers with one runner
@@ -48,7 +49,7 @@ func TestAZUV0007SharedConsumerRunnerRunsOnce(t *testing.T) {
 				t.Fatalf("receipt %s %+v", receipt.Result, receipt.Invocations)
 			}
 			for index, outcome := range receipt.Invocations[0].Outcomes {
-				if outcome != (Outcome{Outcome: tc.outcome, Slice: SliceWhole, Unit: units[index]}) {
+				if outcome != (Outcome{DurationSource: testduration.NotMeasured, Outcome: tc.outcome, Slice: SliceWhole, Unit: units[index]}) {
 					t.Fatalf("outcome %d: %+v", index, outcome)
 				}
 			}

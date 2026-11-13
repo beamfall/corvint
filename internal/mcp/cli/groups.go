@@ -5,36 +5,64 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
-	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
-	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
-	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/mcp/toolgroup"
-	"github.com/Beamfall/corvint/internal/projectpath"
-	"github.com/Beamfall/corvint/internal/rootalias"
 	"github.com/Beamfall/corvint/internal/workspace"
 )
 
-// The refusal reasons the group, corpus and workspace arguments name (MMR-V0-012, MMR-V0-014, MMR-V0-015).
+// The refusal reasons the workspace argument names (MMR-V0-015).
 const (
-	corpusReasonUnpaired     = "--corpus-artifact requires --tool-profile with the corpus group"
-	corpusReasonMissing      = "the corpus group requires --corpus-artifact"
-	corpusReasonAlias        = "--corpus-artifact must be ALIAS=PATH naming a declared --root alias"
-	corpusReasonRepeated     = "--corpus-artifact must be given once with a value"
-	corpusReasonVersion      = "--corpus-artifact cannot be combined with --version"
 	workspaceReasonRepeated  = "--workspace must be given once with a value"
 	workspaceReasonWithRoots = "--workspace cannot be combined with --root or --version"
 )
 
+// removedGroups are the tool groups corvint mcp no longer serves, each with
+// its typed refusal (MTT-V1-005): docs and corpus moved to corvint-docs mcp,
+// and test-validity was removed with the G24 batch (M12).
+var removedGroups = map[string]string{
+	"docs":          "profile-moved: the docs group is served by corvint-docs mcp (MTT-V1-005); start corvint-docs mcp --root ROOT",
+	"corpus":        "profile-moved: the corpus group is served by corvint-docs mcp (MTT-V1-005); start corvint-docs mcp --root ROOT --corpus-artifact PATH",
+	"test-validity": "group-removed: corvint mcp no longer serves the test-validity group (MTT-V1-005); corvint test-validity answers on the command line",
+}
+
+// valueFlags are the corvint mcp flags that take the next argument as their
+// value, with --corpus-artifact, which took one before the corpus group moved.
+var valueFlags = []string{"--corpus-artifact", "--error-profile", "--follow-ref", "--protocol-version", "--root", "--tool-profile", "--workspace"}
+
+// removedGroupReason names the refusal for a --tool-profile list that asks for
+// a removed group, or for --corpus-artifact, which only the corpus group read;
+// "" when neither appears. Only an argument in flag position counts: the value
+// of another flag, such as `--root --corpus-artifact`, is that flag's to refuse.
+func removedGroupReason(arguments []string) string {
+	for index := 0; index < len(arguments); index++ {
+		argument := arguments[index]
+		if argument == "--corpus-artifact" {
+			return removedGroups["corpus"]
+		}
+		if !slices.Contains(valueFlags, argument) || index+1 == len(arguments) {
+			continue
+		}
+		index++
+		if argument != "--tool-profile" {
+			continue
+		}
+		for _, token := range strings.Split(arguments[index], ",") {
+			if reason := removedGroups[token]; reason != "" {
+				return reason
+			}
+		}
+	}
+	return ""
+}
+
 // toolGroups are the per-root and workspace-level groups a --tool-profile list
 // may add beside at most one code profile (MMR-V0-012).
-var toolGroups = []string{toolProfileTestEvidence, toolProfileTestValidity, toolProfileDocs, toolProfileCorpus, toolProfileAffected}
+var toolGroups = []string{toolProfileTestEvidence, toolProfileAffected}
 
 // splitToolProfile reads one --tool-profile value: a single code profile, as
 // MCPV0-026 has always admitted, or a comma list of at most one code profile
@@ -60,70 +88,6 @@ func splitToolProfile(value string) (code string, groups []string, ok bool) {
 		seen[token] = true
 	}
 	return code, groups, true
-}
-
-// extractCorpusArtifact removes the optional --corpus-artifact VALUE
-// (MMR-V0-014): given at most once, with a non-empty value, never beside --version.
-func extractCorpusArtifact(arguments []string) (remaining []string, value, reason string) {
-	remaining = make([]string, 0, len(arguments))
-	for index := 0; index < len(arguments); index++ {
-		if arguments[index] != "--corpus-artifact" {
-			remaining = append(remaining, arguments[index])
-			continue
-		}
-		if value != "" || index+1 == len(arguments) || arguments[index+1] == "" {
-			return nil, "", corpusReasonRepeated
-		}
-		value = arguments[index+1]
-		index++
-	}
-	if value != "" && slices.Contains(remaining, "--version") {
-		return nil, "", corpusReasonVersion
-	}
-	return remaining, value, ""
-}
-
-// bindCorpusArtifact pairs --corpus-artifact with the corpus group and binds
-// it to one declared root (MMR-V0-014): the plain root's PATH, or ALIAS=PATH
-// with aliased roots. PATH follows the corpus --artifact rules: an
-// absolute path must lie below that root, and a relative one must keep the local
-// input path rule.
-func bindCorpusArtifact(roots []rootDeclaration, groups []string, value string) (root, path, reason string) {
-	selected := slices.Contains(groups, toolProfileCorpus)
-	switch {
-	case value == "" && !selected:
-		return "", "", ""
-	case value == "":
-		return "", "", corpusReasonMissing
-	case !selected:
-		return "", "", corpusReasonUnpaired
-	case len(roots) == 0:
-		return "", "", ""
-	}
-	if len(roots) == 1 && roots[0].alias == "" {
-		root, path = roots[0].root, value
-	} else {
-		alias, aliasedPath, aliased := rootalias.Split(value)
-		index := slices.IndexFunc(roots, func(declared rootDeclaration) bool { return declared.alias == alias })
-		if !aliased || aliasedPath == "" || index < 0 {
-			return "", "", corpusReasonAlias
-		}
-		root, path = roots[index].root, aliasedPath
-	}
-	relative := !filepath.IsAbs(path)
-	path, pathReason := toolgroup.RootRelativePath(root, path)
-	if pathReason != "" {
-		return "", "", "--corpus-artifact: " + pathReason
-	}
-	if rule := projectpath.LocalInputRule(path); rule != "" {
-		return "", "", "--corpus-artifact: local input paths must be canonical and relative to --root (" + rule + ")"
-	}
-	// A relative path names a file below the declared root, which may lie below
-	// the toplevel the root resolved to (MCPV0-950).
-	if below := roots[slices.IndexFunc(roots, func(declared rootDeclaration) bool { return declared.root == root })].below; relative && below != "" {
-		path = below + "/" + path
-	}
-	return root, path, ""
 }
 
 // expandWorkspace replaces --workspace FILE with one --root ALIAS=ROOT per
@@ -165,12 +129,10 @@ func expandWorkspace(arguments []string, stderr io.Writer) (remaining []string, 
 	return remaining, ""
 }
 
-// openGroups opens each selected per-root group for every declared root, and
-// the corpus artifact (MMR-V0-013, MMR-V0-014). A root a group cannot open is
-// "repository unavailable", as for the code tools. A corpus artifact that
-// cannot be opened yet is noted on stderr and refused per call, so the server
-// and its other tools keep serving.
-func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath string, stderr io.Writer) string {
+// openGroups opens each selected per-root group for every declared root
+// (MMR-V0-013). A root a group cannot open is "repository unavailable", as
+// for the code tools.
+func (handler *toolHandler) openGroups(groups []string) string {
 	handler.groups = map[string][]toolgroup.Group{}
 	handler.groupTools = map[string]int{}
 	for alias, root := range handler.repositoryRoots {
@@ -189,18 +151,6 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 					return "repository unavailable"
 				}
 				group = toolgroup.NewAffected(root, binding, handler.affected)
-			case toolProfileTestValidity:
-				registry, err := testvaliditybridge.New(root)
-				if err != nil {
-					return "repository unavailable"
-				}
-				group = testvaliditybridge.Group{Registry: registry}
-			case toolProfileDocs:
-				registry, err := docsbridge.New(root)
-				if err != nil {
-					return "repository unavailable"
-				}
-				group = toolgroup.Docs{Registry: registry}
 			default:
 				continue
 			}
@@ -209,17 +159,6 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 			}
 			handler.groups[alias] = append(handler.groups[alias], group)
 		}
-	}
-	if corpusRoot == "" {
-		return ""
-	}
-	corpus, code := corpusbridge.OpenArtifact(corpusRoot, corpusPath)
-	if code != "" {
-		_, _ = fmt.Fprintf(stderr, "corvint-mcp: note: --corpus-artifact unavailable (%s); corpus tools answer corpus-refused until it opens\n", code)
-	}
-	handler.corpus, handler.corpusTools = corpus, map[string]bool{}
-	for _, tool := range corpusbridge.AllTools() {
-		handler.corpusTools[tool.Name] = true
 	}
 	return ""
 }

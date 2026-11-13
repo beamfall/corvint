@@ -25,11 +25,23 @@ type vitestFileResult struct {
 }
 
 type vitestAssertion struct {
-	FullName        string   `json:"fullName"`
-	Title           string   `json:"title"`
-	Status          string   `json:"status"`
-	Duration        float64  `json:"duration"`
-	FailureMessages []string `json:"failureMessages"`
+	FullName string `json:"fullName"`
+	Title    string `json:"title"`
+	Status   string `json:"status"`
+	// Duration is decoded on its own, so an absent, null or non-numeric
+	// duration neither reads as 0 ms nor fails the whole report (PTD-V1-003).
+	Duration        json.RawMessage `json:"duration"`
+	FailureMessages []string        `json:"failureMessages"`
+}
+
+// vitestDuration is an assertion's duration and whether Vitest gave one as a
+// JSON number.
+func vitestDuration(raw json.RawMessage) (float64, bool) {
+	var milliseconds float64
+	if len(raw) == 0 || json.Unmarshal(raw, &milliseconds) != nil || string(raw) == "null" {
+		return 0, false
+	}
+	return milliseconds, true
 }
 
 // vitestStackAnchor matches the first "at <file>:<line>:<col>" frame in a
@@ -57,11 +69,13 @@ func ParseVitestJSON(data []byte) ([]TestOutcome, *InfrastructureFailure, error)
 		assertionFailed := false
 		for _, a := range file.AssertionResults {
 			assertionFailed = assertionFailed || a.Status == "failed"
+			duration, timed := vitestDuration(a.Duration)
 			outcome := TestOutcome{
-				Name:       a.Title,
-				FullName:   a.FullName,
-				State:      vitestState(a.Status),
-				DurationMS: a.Duration,
+				Name:            a.Title,
+				FullName:        a.FullName,
+				State:           vitestState(a.Status),
+				DurationMS:      duration,
+				DurationMissing: !timed,
 			}
 			if len(a.FailureMessages) > 0 {
 				outcome.FailureMessage = a.FailureMessages[0]

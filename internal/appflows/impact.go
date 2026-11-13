@@ -40,6 +40,9 @@ type ImpactFlow struct {
 	Variations []string    `json:"variations"`
 	TestKeys   []string    `json:"test_keys"`
 	Hits       []ImpactHit `json:"hits"`
+	// LastResults is each test key's last stored result when the run evidence store held a record
+	// (RVD-V1-007); absent otherwise, so a report without stored runs keeps its bytes.
+	LastResults []StatusTest `json:"last_results,omitempty"`
 }
 
 // ImpactHit is one link whose target a changed path reaches. Via is the path: the changed path, then

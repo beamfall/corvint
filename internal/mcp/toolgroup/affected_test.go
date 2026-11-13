@@ -19,7 +19,8 @@ import (
 // bounded, never option-like base and nothing else; a group with no runner is
 // the not-served tool error, a root whose binding moved is invalid-root, and a
 // successful run answers the planner's stdout bytes framed, the refusal of a
-// failed run carrying the planner's code and error.
+// failed run carrying the planner's error and its code when the table lists
+// it, affected-failed led by that code otherwise (MTT-V1-001).
 func TestMMRV01118AffectedCallContract(t *testing.T) {
 	root := filepath.Clean(t.TempDir())
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
@@ -71,7 +72,7 @@ func TestMMRV01118AffectedCallContract(t *testing.T) {
 		arguments     map[string]any
 		code, message string
 	}{
-		{"unknown base", map[string]any{"base": "unknown"}, "unknown-base", "argument --base: unknown"},
+		{"unlisted planner code", map[string]any{"base": "unknown"}, "affected-failed", "unknown-base: argument --base: unknown"},
 		{"silent failure", map[string]any{"base": "silent"}, "affected-failed", "corvint affected --summary failed"},
 	} {
 		result, failure := group.Call(ctx, AffectedTool, test.arguments)

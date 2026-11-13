@@ -81,7 +81,7 @@ func TestMCPV0950SubdirectoryRootBindsToplevel(t *testing.T) {
 	if toplevel, reason := rootbind.Resolve(subdirectory); reason != "" || !sameDirectory(t, toplevel, root) {
 		t.Fatalf("Resolve=%q,%q want %q", toplevel, reason, root)
 	}
-	exit, responses, stderr := legacySession(t, []string{"--root", subdirectory, "--tool-profile", "test-validity,docs"},
+	exit, responses, stderr := legacySession(t, []string{"--root", subdirectory, "--tool-profile", "test-evidence"},
 		map[string]any{"method": "tools/call", "params": map[string]any{"name": "corvint.status", "arguments": map[string]any{}}})
 	if exit != 0 || stderr != "" || responses[0]["result"] == nil {
 		t.Fatalf("exit=%d stderr=%q initialize=%#v", exit, stderr, responses[0])
@@ -127,7 +127,7 @@ func TestMCPV0950UnusableRootServesListAndRefusesCalls(t *testing.T) {
 		t.Skip("the temporary directory is inside a Git worktree")
 	}
 	t.Chdir(scratch)
-	profile := "test-validity,docs"
+	profile := "test-evidence"
 	_, responses, _ := legacySession(t, []string{"--root", repository, "--tool-profile", profile}, map[string]any{"method": "tools/list", "params": map[string]any{}})
 	want := unavailableListed(t, responses[1])
 	for _, test := range []struct{ name, root, reason string }{
@@ -177,8 +177,8 @@ func TestMCPV0950UnusableRootServesListAndRefusesCalls(t *testing.T) {
 	}
 }
 
-// MCPV0-950: aliased roots, --follow-ref and a corpus artifact still need a
-// usable repository at startup, so they exit 2, now naming the reason.
+// MCPV0-950: aliased roots and --follow-ref still need a usable repository
+// at startup, so they exit 2, now naming the reason.
 func TestMCPV0950UnusableRootStillExitsWhereARepositoryIsRequired(t *testing.T) {
 	scratch := filepath.Clean(t.TempDir())
 	repository := filepath.Join(scratch, "repo")
@@ -191,7 +191,6 @@ func TestMCPV0950UnusableRootStillExitsWhereARepositoryIsRequired(t *testing.T) 
 	for _, arguments := range [][]string{
 		{"--root", "core=" + repository, "--root", "web=" + plain},
 		{"--root", plain, "--follow-ref", "main"},
-		{"--root", plain, "--tool-profile", "corpus", "--corpus-artifact", "corpus.json"},
 	} {
 		var stdout, stderr bytes.Buffer
 		exit := run(context.Background(), arguments, bytes.NewReader(nil), &stdout, &stderr)

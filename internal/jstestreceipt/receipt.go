@@ -45,18 +45,22 @@ type FailureArtifact struct {
 // TestOutcome is one reporter test/assertion result, normalized to this
 // package's ExecutionState vocabulary.
 type TestOutcome struct {
-	ImportedFiles  map[string]string `json:"importedFiles,omitempty"`
-	ID             string            `json:"id,omitempty"`
-	Project        *ProjectIdentity  `json:"project,omitempty"`
-	Attempts       []Attempt         `json:"attempts,omitempty"`
-	Name           string            `json:"name"`
-	FullName       string            `json:"fullName"`
-	State          ExecutionState    `json:"state"`
-	Retries        int               `json:"retries"`
-	DurationMS     float64           `json:"durationMs"`
-	Anchor         *Anchor           `json:"anchor,omitempty"`
-	FailureMessage string            `json:"failureMessage,omitempty"`
-	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
+	ImportedFiles map[string]string `json:"importedFiles,omitempty"`
+	ID            string            `json:"id,omitempty"`
+	Project       *ProjectIdentity  `json:"project,omitempty"`
+	Attempts      []Attempt         `json:"attempts,omitempty"`
+	Name          string            `json:"name"`
+	FullName      string            `json:"fullName"`
+	State         ExecutionState    `json:"state"`
+	Retries       int               `json:"retries"`
+	DurationMS    float64           `json:"durationMs"`
+	// DurationMissing marks a test whose reporter gave no numeric duration: DurationMS is then
+	// the wire's zero, not a measurement, and a reader records NOT_MEASURED (PTD-V1-003).
+	// Absent means DurationMS is the reporter's own time, so existing receipts are unchanged.
+	DurationMissing bool              `json:"durationMissing,omitempty"`
+	Anchor          *Anchor           `json:"anchor,omitempty"`
+	FailureMessage  string            `json:"failureMessage,omitempty"`
+	Artifacts       []FailureArtifact `json:"artifacts,omitempty"`
 	// AttemptDetails keeps every Playwright attempt in run order (AFU-V1-012), additive on the
 	// unprofiled receipt and explicit /3 profile. Earlier external profiles refuse it.
 	AttemptDetails []AttemptDetail `json:"attemptDetails,omitempty"`

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
 
@@ -18,6 +19,7 @@ type xmlCase struct {
 	Class    string `xml:"classname,attr"`
 	File     string `xml:"file,attr"`
 	Line     string `xml:"line,attr"`
+	Time     string `xml:"time,attr"`
 	Failures []struct {
 		Message string `xml:"message,attr"`
 	} `xml:"failure"`
@@ -85,7 +87,12 @@ func parseXML(b []byte, o *tr.Observation, bun bool) error {
 				problem(o, "conflicting-outcomes", c.Name)
 			}
 			id := s.Name + "::" + c.Class + "::" + c.Name
-			add(o, tr.Test{ID: id, Name: c.Name, File: c.File, Suite: s.Name, State: st})
+			t := tr.Test{ID: id, Name: c.Name, File: c.File, Suite: s.Name, State: st}
+			if o.Runner == "pytest" {
+				// PTD-V1-002: pytest's time is the JUnit testcase time attribute, in seconds.
+				setDuration(o, &t, testduration.FromSecondsText(c.Time, testduration.SourcePytest), nil)
+			}
+			add(o, t)
 		}
 		for _, child := range s.Suites {
 			cn, ch := walk(child)
@@ -356,6 +363,8 @@ type pwTest struct {
 		Retry  int
 		Error  *struct{ Message string }
 		Errors []struct{ Message string }
+		// Duration is the attempt's milliseconds, decoded on its own (reportedTime).
+		Duration reportedTime
 	}
 }
 type pwSuite struct {
@@ -459,6 +468,17 @@ func parsePlaywright(b []byte, o *tr.Observation) error {
 				if len(t.Results) == 0 && x.State != tr.Skipped {
 					problem(o, "missing-attempt", x.ID)
 				}
+				// PTD-V1-002, PTD-V1-006: a Playwright test's time is the sum of its attempts'
+				// durations, each kept when it ran more than once.
+				measures := make([]testduration.Measure, 0, len(t.Results))
+				for _, a := range t.Results {
+					measures = append(measures, a.Duration.measure(testduration.FromMilliseconds, testduration.SourcePlaywright))
+				}
+				measure, attempts := testduration.Attempts(measures, testduration.SourcePlaywright)
+				if len(attempts) < 2 {
+					attempts = nil
+				}
+				setDuration(o, &x, measure, attempts)
 				add(o, x)
 			}
 		}

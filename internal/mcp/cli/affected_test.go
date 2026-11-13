@@ -23,7 +23,7 @@ import (
 // the base "refused" the way the CLI's argument parser would.
 func stubAffectedRunner(_ context.Context, root, base string, stdout, stderr io.Writer) int {
 	if base == "refused" {
-		_, _ = fmt.Fprintln(stderr, `{"code": "invalid-argument", "error": "argument --base: refused", "ok": false}`)
+		_, _ = fmt.Fprintln(stderr, `{"code": "invalid-arguments", "error": "argument --base: refused", "ok": false}`)
 		return 2
 	}
 	_, _ = fmt.Fprintf(stdout, "{\"base\":%q,\"ok\":true,\"profile\":\"affected-summary/1\",\"root\":%q}\n", base, root)
@@ -68,7 +68,7 @@ func hookedSession(t *testing.T, hooks Hooks, arguments []string, requests ...ma
 func TestMMRV01118AffectedGroupRefusedWithoutHooks(t *testing.T) {
 	root := filepath.Clean(t.TempDir())
 	gitInit(t, root)
-	for _, profile := range []string{"affected", "affected,test-validity", "docs,affected"} {
+	for _, profile := range []string{"affected", "affected,test-evidence", "flows,affected"} {
 		var stdout, stderr bytes.Buffer
 		if exit := run(context.Background(), []string{"--root", root, "--tool-profile", profile}, strings.NewReader(""), &stdout, &stderr); exit != 2 ||
 			stderr.String() != "corvint-mcp: invalid arguments: "+affectedReasonUnserved+"\n" || stdout.Len() != 0 {
@@ -144,7 +144,7 @@ func TestMMRV01118AffectedGroupServedThroughHooks(t *testing.T) {
 	}
 	refused := resultOf(t, responses[4])
 	refusedBody, _ := refused["structuredContent"].(map[string]any)
-	if refused["isError"] != true || refusedBody["code"] != "invalid-argument" || refusedBody["error"] != "argument --base: refused" ||
+	if refused["isError"] != true || refusedBody["code"] != "invalid-arguments" || refusedBody["error"] != "argument --base: refused" ||
 		refusedBody["profile"] != toolgroup.AffectedErrorProfile || refusedBody["tool"] != toolgroup.AffectedTool || refusedBody["mutates"] != false {
 		t.Fatalf("refused=%#v", refused)
 	}
