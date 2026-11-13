@@ -2,7 +2,7 @@
 
 // Package selectionswitch reads the CORVINT_SELECTION kill switch (owner
 // decision R13, PROD-TEST-013). Its grammar is owned by the kill-switch
-// requirement of change narrowing-measurement (NMS-V1-008): exactly `full`,
+// requirement of change narrowing-measurement: exactly `full`,
 // which forces every runner to a full run, or `full:<runner>[,<runner>]`,
 // which forces each named runner, every name one of the seven runner tokens
 // (testid.Runners). Any other non-empty value, an unknown runner name among
@@ -58,7 +58,7 @@ func Parse(value string) Switch {
 	}
 	runners := strings.Split(list, ",")
 	for index, runner := range runners {
-		// NMS-V1-008: an unknown runner name is an unknown value, exactly
+		// The kill-switch requirement: an unknown runner name is an unknown value, exactly
 		// as a misspelled form is.
 		if !testid.KnownRunner(runner) || slices.Contains(runners[:index], runner) {
 			return Switch{Value: value, Unknown: true}

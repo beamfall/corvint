@@ -92,7 +92,7 @@ func TestMTTV1005TestValidityIsAnUnknownTool(t *testing.T) {
 }
 
 // MTT-V1-008 scenario: with CORVINT_SELECTION=fastest, or a runner list
-// naming an unknown runner (NMS-V1-008), in the server's environment, a
+// naming an unknown runner (the narrowing-measurement kill switch), in the server's environment, a
 // corvint.affected call selects every test with the unknown-value reason and
 // never runs the planner.
 func TestMTTV1008UnknownSelectionThroughTheServer(t *testing.T) {
