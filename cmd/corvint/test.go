@@ -1116,7 +1116,10 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	case options.pins:
 		// The pins report was written in place of the JSON plan (TSP-V0-944).
 	case testSummarySelected(options):
-		line := "  inventory: " + inventoryVerdictLine(inventory) + "\n"
+		// SLF-V1-007: the summary keeps the selection verdict, bounded like
+		// every other summary item, inside the same budget.
+		line := "  selection: " + summaryClip(testSelectionWords(selection), testSummaryItem) + "\n" +
+			"  inventory: " + inventoryVerdictLine(inventory) + "\n"
 		_, _ = io.WriteString(stdout, testDryRunSummaryBudget(m, digest, invocations, options.shard, testSummaryLimit-options.summaryNoticeBytes-len(line))+line)
 	default:
 		encoded, err := gokernel.CanonicalJSON(document)
