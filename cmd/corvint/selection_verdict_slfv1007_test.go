@@ -77,8 +77,8 @@ func slfv1007Verdict(t *testing.T, surface string, raw any) sessiontest.Selectio
 
 // slfv1007Surfaces runs every surface that prints the verdict on one plan:
 // `corvint affected` (the affected-plan/1 document and its --summary), the
-// `corvint test` plan step (its dry-run document and its stderr) and the MCP
-// plan tool. It fails unless all of them print the same
+// `corvint test` plan step (its dry-run document, its stderr and its default
+// summary) and the MCP plan tool. It fails unless all of them print the same
 // verdict, and returns it with the test step's dry-run scope.
 func slfv1007Surfaces(t *testing.T, root, base string) (sessiontest.SelectionVerdict, string) {
 	t.Helper()
@@ -119,6 +119,16 @@ func slfv1007Surfaces(t *testing.T, root, base string) (sessiontest.SelectionVer
 	}
 	if !strings.Contains(testStderr, strings.Join(lines, "\n")+"\n") {
 		t.Fatalf("test stderr does not print the verdict %q:\n%s", lines, testStderr)
+	}
+
+	// The default local dry run is the bounded summary, which drops the
+	// SELECTION and EFFECT stderr lines but keeps the verdict in its budget.
+	code, summaryOut, summaryErr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run")
+	if code != 0 {
+		t.Fatalf("test --dry-run (summary) exit %d: %s", code, summaryErr)
+	}
+	if !strings.Contains(summaryOut, "\n  selection: "+words+"\n") || len(summaryOut)+len(summaryErr) > testSummaryLimit {
+		t.Fatalf("test --dry-run summary does not print the verdict %q within %d bytes:\n%s%s", words, testSummaryLimit, summaryOut, summaryErr)
 	}
 
 	responses := mcpAffectedChild(t, root,
