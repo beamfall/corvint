@@ -4,6 +4,8 @@ package gateselect
 
 import (
 	"bufio"
+	"bytes"
+	json "encoding/json/v2"
 	"errors"
 	"io"
 	"io/fs"
@@ -46,6 +48,7 @@ func nonCodeDecision(plan Receipt, index *repositoryIndex, root string) (noncode
 		return noncodemap.Decision{}, err
 	}
 	scopes, err := index.readScopes(root)
+	scopesValid := err == nil
 	if err != nil {
 		// The attribution refuses an invalid declaration later; here it
 		// attributes nothing, which can only widen.
@@ -65,6 +68,7 @@ func nonCodeDecision(plan Receipt, index *repositoryIndex, root string) (noncode
 			TestExists: func(test string) bool { return index.testExists(root, test) },
 			IsAncestor: func(commit string) (bool, error) { return ancestorOfHead(root, commit) },
 		},
+		ReadScopeAttributable: func(p string) bool { return readScopeAttributable(plan, root, scopesValid, p) },
 	}
 	for _, entry := range plan.Plan.Unknown {
 		switch entry.Reason {
@@ -101,6 +105,78 @@ func nonCodeDecision(plan Receipt, index *repositoryIndex, root string) (noncode
 		}
 	}
 	return noncodemap.Decide(input), nil
+}
+
+// readScopeLiteralsPath is the read-scope declaration's literal exemptions,
+// read only by the declaration tools (AFP-V0-2404).
+const (
+	readScopeLiteralsPath    = ".corvint/test-read-scope-literals.json"
+	readScopeLiteralsProfile = "corvint-test-read-scope-literals/0"
+)
+
+// readScopeAttributable reports whether the selector attributes an edit of a
+// read-scope declaration path without running everything (NCM-V1-006 as
+// amended for V1-5465). The declaration is attributable when the current
+// declaration is valid (scopesValid) and the plan's base declaration is
+// known (baseReadScopes): declaredBears then selects only the packages whose
+// key was added, whose entries changed or whose key was removed, and those
+// whose scope holds the declaration (AFP-V0-050); rule (c) still selects
+// every package that names it. The literal exemptions change no package's
+// test, only the declaration tools that read them, so an edit is
+// attributable to those readers when the current file is absent or exactly
+// the tools' closed record. Every other case is not attributable.
+func readScopeAttributable(plan Receipt, root string, scopesValid bool, p string) bool {
+	switch p {
+	case readScopesPath:
+		return scopesValid && baseReadScopes(plan, root) != nil
+	case readScopeLiteralsPath:
+		return validReadScopeLiterals(root)
+	}
+	return false
+}
+
+// validReadScopeLiterals reports an absent literal exemptions file, or a
+// regular file within maxReadScopeBytes that is exactly
+// {"profile":readScopeLiteralsProfile,"literals":{PACKAGE:{PATH:REASON}}}
+// with a valid package, a valid path and a non-empty reason everywhere, as
+// tools/test-read-scopes-check reads it.
+func validReadScopeLiterals(root string) bool {
+	name := filepath.Join(root, filepath.FromSlash(readScopeLiteralsPath))
+	info, err := os.Lstat(name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return true
+	}
+	if err != nil || !info.Mode().IsRegular() || info.Size() > maxReadScopeBytes {
+		return false
+	}
+	file, err := os.Open(name)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	body, err := io.ReadAll(io.LimitReader(file, maxReadScopeBytes+1))
+	if err != nil || len(body) > maxReadScopeBytes {
+		return false
+	}
+	var record struct {
+		Profile  string                       `json:"profile"`
+		Literals map[string]map[string]string `json:"literals"`
+	}
+	if json.UnmarshalRead(bytes.NewReader(body), &record, json.RejectUnknownMembers(true)) != nil ||
+		record.Profile != readScopeLiteralsProfile || record.Literals == nil {
+		return false
+	}
+	for directory, paths := range record.Literals {
+		if !validRelativePath(directory) || len(paths) == 0 {
+			return false
+		}
+		for literal, reason := range paths {
+			if !validRelativePath(strings.TrimSuffix(literal, "/")) || strings.TrimSpace(reason) == "" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // enclosingPackage returns the directory of the nearest indexed Go package

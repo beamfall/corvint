@@ -334,3 +334,37 @@ func TestNCMV1009DecisionIsDeterministic(t *testing.T) {
 		t.Fatalf("audit:\n%s\nwant:\n%s", first, want)
 	}
 }
+
+// NCM-V1-006 as amended for V1-5465 (AFP-V0-9712, AFP-V0-9713): an edit of
+// the read-scope declaration or its literal exemptions keeps the selector's
+// attribution, printed read-scope-declaration, only when the selector proves
+// it can attribute that edit; otherwise, and for every other configuration
+// path whatever the callback says, it runs everything as corvint-config.
+func TestNCMV1006ReadScopeDeclarationNarrowsWhenAttributable_V15465(t *testing.T) {
+	declarations := []string{".corvint/test-read-scopes.json", ".corvint/test-read-scope-literals.json"}
+	all := func(string) bool { return true }
+	for _, p := range declarations {
+		if !ReadScopeDeclaration(p) {
+			t.Fatalf("%s is not a read-scope declaration", p)
+		}
+		attributed := Decide(Input{Dirty: []string{p}, ReadScopeAttributable: all})
+		wantNoFull(t, attributed)
+		if want := "noncode " + ReasonReadScopeDeclaration + " " + p; !slices.Equal(attributed.Audit(), []string{want}) {
+			t.Fatalf("%s audit = %q, want [%q]", p, attributed.Audit(), want)
+		}
+		wantFull(t, Decide(Input{Dirty: []string{p}}), ReasonCorvintConfig, p)
+		wantFull(t, Decide(Input{Dirty: []string{p}, ReadScopeAttributable: func(string) bool { return false }}), ReasonCorvintConfig, p)
+	}
+	// The callback answers for one path only: an unattributable sibling runs everything.
+	mixed := Decide(Input{Dirty: declarations, ReadScopeAttributable: func(p string) bool { return p == declarations[0] }})
+	wantFull(t, mixed, ReasonCorvintConfig, declarations[1])
+	for _, p := range []string{".corvint/test-read-scope-trees.json", ".corvint/runtime-readers.json", ".corvint/data-map.json", ".corvint/shell-read-scopes.json"} {
+		if ReadScopeDeclaration(p) {
+			t.Fatalf("%s is a read-scope declaration", p)
+		}
+		wantFull(t, Decide(Input{Dirty: []string{p}, ReadScopeAttributable: all}), ReasonCorvintConfig, p)
+	}
+	// Narrowing one declaration never hides another path's full run.
+	withMakefile := Decide(Input{Dirty: []string{declarations[0], "Makefile"}, ReadScopeAttributable: all})
+	wantFull(t, withMakefile, ReasonNeverNarrowed, "Makefile")
+}
