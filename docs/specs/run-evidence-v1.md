@@ -205,7 +205,8 @@ Delivered by ticket V1-5448 (build-log `docs/build-log/2026-11-11-run-evidence.m
   status; `--dry-run` writes nothing (RVD-V1-004). No GitHub Action is on this tree; one that runs
   `corvint test` appends through it.
 - Readers (RVD-V1-007): `flows status`, `map`, `gaps` and `impact` (and their MCP tools) read the
-  store's records, oldest first, then the `--evidence` files; `--no-store` reads only the files
+  store's records, oldest first, then the `--evidence` files, and a test's last result is the last
+  of them that names it, stale unless bound to HEAD from a clean worktree; `--no-store` reads only the files
   (the MCP tools take no such argument). A receipt row becomes a LOCALLY_OBSERVED record that never
   carries a verified run header. `flows status` adds `source_tree` to each test, `reason`
   `run-evidence-corrupt` to a NOT_OBSERVED test that only a skipped record held, and a
@@ -232,7 +233,7 @@ Delivered by ticket V1-5448 (build-log `docs/build-log/2026-11-11-run-evidence.m
 | RVD-V1-004 | `TestRVDV1004CLITestAppendsOneRecordPerRun`, `TestRVDV1004WatchAppendsOneRecordPerSave` (`cmd/corvint`), `TestRVDV1004WatchReceipt` (`internal/sessiontest`) |
 | RVD-V1-005 | `TestRVDV1005IngestRecord` (`internal/command/flows`) |
 | RVD-V1-006 | `TestRVDV1006RowsFromBothProfiles` (`internal/runevidence`) |
-| RVD-V1-007 | `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`), `TestRVDV1007FlowsReadersUseStore`, `TestRVDV1007FlowsToolsReadStore` (`internal/command/flows`) |
+| RVD-V1-007 | `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`), `TestRVDV1007FlowsReadersUseStore`, `TestRVDV1007FlowsToolsReadStore` (`internal/command/flows`), `TestRVDV1007NewestStoredResultWins` (newest record wins, freshness separate) (`internal/appflows`) |
 | RVD-V1-008 | `TestRVDV1008NoListingVerb` (`cmd/corvint`); the "removed verb" scenario, `TestRVDV1008RunsVerbIsUnknown` (`cmd/corvint`), is skipped: gated on change `source-removal` |
 | RVD-V1-009 | `TestRVDV1009RetentionAt21Runs`, `TestRVDV1009SizeCap` (`internal/runevidence`) |
 | RVD-V1-010 | `TestRVDV1010CorruptRecordSkipped`, `TestRVDV1010UnreadableLogRebuilt`, `TestRVDV1010LockWaitIsBounded`, `TestRVDV1010ReadIsBounded` (`internal/runevidence`), `TestRVDV1010StatusNamesCorruptRecord` (`internal/command/flows`), `TestRVDV1010CLIWriteFailureKeepsExitCode` (`cmd/corvint`) |
