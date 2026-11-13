@@ -31,7 +31,7 @@ func TestSelectionVerdictEffectPerUnknown_SLFV1007(t *testing.T) {
 		{"go frontier off the allowlist", Unknown{Reason: "LANGUAGE_FRONTIER", Detail: "go:cgo:a/a.go"}, EffectForcesFull, nil},
 		{"nested module", Unknown{Reason: "LANGUAGE_FRONTIER", Detail: "go:unobserved-module:nested:nested/x.go"}, EffectAddsSuite + "go", nil},
 		{"binary consumer", Unknown{Reason: "UNSELECTED_BINARY_CONSUMER", Detail: "script/smoke.sh"}, EffectIgnored, nil},
-		{"flow binding", Unknown{Reason: "E2E_FLOWS_INVALID", Detail: ".corvint/e2e-flows.json"}, EffectIgnored, nil},
+		{"flow binding", Unknown{Reason: "E2E_FLOWS_INVALID", Detail: ".corvint/e2e-flows.json"}, EffectIgnored, nil}, //corvint:fixture-path
 		{"attributed unowned path", Unknown{Reason: "UNOWNED_DIRTY_PATH", Detail: "notes/plan.txt"}, EffectIgnored, nil},
 		{"unattributed unowned path", Unknown{Reason: "UNOWNED_DIRTY_PATH", Detail: "notes/plan.txt"}, EffectForcesFull, func(input *Input) {
 			input.GoSelection, input.Universe = "NOTHING no Go universe", nil
