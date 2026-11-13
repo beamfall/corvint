@@ -14,7 +14,7 @@
     {
       "path": [],
       "command": "corvint-docs-mcp",
-      "summary": "usage: corvint-docs-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25]\n       corvint-docs-mcp --version\nA local read-only stdio MCP server for the experimental docs tools of the Git worktree at ROOT.\nDeprecated alias, kept for one release: corvint-mcp --root ROOT --tool-profile docs\nserves the same tools with the same results.\nExample: corvint-docs-mcp --root /absolute/repo",
+      "summary": "usage: corvint-docs-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25]\n       corvint-docs-mcp --version\nA local read-only stdio MCP server for the experimental docs tools of the Git worktree at ROOT.\nDeprecated alias, kept for one release: corvint-docs mcp --root ROOT\nserves the same tools with the same results.\nExample: corvint-docs-mcp --root /absolute/repo",
       "usage": [
         "corvint-docs-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25] [--help] [-h]",
         "corvint-docs-mcp --version"

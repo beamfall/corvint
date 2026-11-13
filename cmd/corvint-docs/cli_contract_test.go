@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/clitree"
+	"github.com/Beamfall/corvint/internal/mcp/docsserver"
 )
 
 // GPK-V0-064 as amended by decision 0196, for the docs parsers: an option-like next token is
@@ -81,6 +82,8 @@ func TestHelpFormsPrintAuthoredTopics(t *testing.T) {
 		{[]string{"help", "docs", "flows"}, docsFlowsHelp},
 		{[]string{"docs-tool", "--help"}, docsToolHelp},
 		{[]string{"help", "docs-tool"}, docsToolHelp},
+		{[]string{"help", "mcp"}, docsserver.Usage},
+		{[]string{"mcp", "--help"}, docsserver.Usage},
 	} {
 		reader := &forbiddenHelpReader{}
 		var stdout, stderr bytes.Buffer
@@ -91,7 +94,7 @@ func TestHelpFormsPrintAuthoredTopics(t *testing.T) {
 	reader := &forbiddenHelpReader{}
 	var stdout, stderr bytes.Buffer
 	if exit := runContext(context.Background(), []string{"help", "not-a-command"}, reader, &stdout, &stderr); exit != 2 || stdout.Len() != 0 ||
-		!strings.HasPrefix(stderr.String(), "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-command' (choose from 'docs', 'flows', 'how', 'docs-tool', 'docs corpus', ") {
+		!strings.HasPrefix(stderr.String(), "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-command' (choose from 'docs', 'flows', 'how', 'mcp', 'docs-tool', 'docs corpus', ") {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
 	}
 	if exit := runContext(context.Background(), []string{"corpus", "info"}, reader, &stdout, &stderr); exit != 2 || !strings.Contains(stderr.String(), "\"code\": \"invalid-arguments\"") {

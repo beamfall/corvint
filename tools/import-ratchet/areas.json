@@ -63,6 +63,7 @@
         "internal/runhygiene",
         "internal/runtimeenv",
         "internal/secretscreen",
+        "internal/selectionswitch",
         "internal/shaderdialect",
         "internal/specindex",
         "internal/taskprojection",
@@ -181,6 +182,7 @@
         "internal/doccompiler",
         "internal/docmaintain",
         "internal/docstools",
+        "internal/mcp/docsserver",
         "internal/requestpath"
       ]
     },

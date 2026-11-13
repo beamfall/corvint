@@ -68,7 +68,7 @@ func hookedSession(t *testing.T, hooks Hooks, arguments []string, requests ...ma
 func TestMMRV01118AffectedGroupRefusedWithoutHooks(t *testing.T) {
 	root := filepath.Clean(t.TempDir())
 	gitInit(t, root)
-	for _, profile := range []string{"affected", "affected,test-validity", "docs,affected"} {
+	for _, profile := range []string{"affected", "affected,test-evidence", "flows,affected"} {
 		var stdout, stderr bytes.Buffer
 		if exit := run(context.Background(), []string{"--root", root, "--tool-profile", profile}, strings.NewReader(""), &stdout, &stderr); exit != 2 ||
 			stderr.String() != "corvint-mcp: invalid arguments: "+affectedReasonUnserved+"\n" || stdout.Len() != 0 {

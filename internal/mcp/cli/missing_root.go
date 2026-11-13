@@ -45,15 +45,15 @@ func substitutionNotice(code, message string) string {
 }
 
 // missingRootFallback applies MCPV0-115 (V1-3497) and MCPV0-861 (V1-3894). Only one plain,
-// well-formed --root without --follow-ref or --corpus-artifact is eligible, and only when its
+// well-formed --root without --follow-ref is eligible, and only when its
 // MCPV0-950 reason is that it does not exist (and lstat agrees) or that it is an existing
 // directory outside any Git worktree. It is then replaced by the Git worktree enclosing the launch
 // directory, which is observed once and still passes every MCPV0-001 check when it is opened. It
 // returns that worktree, the substitution to announce, and true; an ineligible argv, or one with
 // no observable launch worktree, returns false and keeps the root's MCPV0-950 outcome (served
 // unavailable with its reason).
-func missingRootFallback(roots []rootDeclaration, reason string, follows, corpus bool, getwd func() (string, error)) (root string, substitution rootSubstitution, substituted bool) {
-	if len(roots) != 1 || roots[0].alias != "" || follows || corpus || !rootalias.ValidRoot(roots[0].root) {
+func missingRootFallback(roots []rootDeclaration, reason string, follows bool, getwd func() (string, error)) (root string, substitution rootSubstitution, substituted bool) {
+	if len(roots) != 1 || roots[0].alias != "" || follows || !rootalias.ValidRoot(roots[0].root) {
 		return "", rootSubstitution{}, false
 	}
 	switch reason {

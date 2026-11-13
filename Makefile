@@ -639,6 +639,16 @@ test-commands-check:
 capabilities-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/capabilities-check
 
+# mcp-server-doc regenerates docs/MCP-SERVER.md from the MCP tool table in
+# internal/capcatalog/mcp.go; mcp-server-doc-check, a doc gate, fails when the
+# file differs from the generator output (MTT-V1-002).
+.PHONY: mcp-server-doc mcp-server-doc-check
+mcp-server-doc:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/mcp-server-doc
+
+mcp-server-doc-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/mcp-server-doc -check
+
 # capability-catalog regenerates internal/capcatalog/catalog.json from the binary's own
 # `corvint help --json`, and the command-tree snapshots under internal/capcatalog/trees from each
 # binary's own `help --tree` / `help --json`; capability-catalog-check fails when a snapshot, the
@@ -1244,6 +1254,7 @@ DOC_GATE_TARGETS := \
   legal-file-pins-check \
   license-headers-check \
   long-lines-check \
+  mcp-server-doc-check \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
   openspec-check \

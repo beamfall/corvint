@@ -213,7 +213,7 @@ func TestMCPV0115MissingRootOutsideWorktreeServesUnavailable(t *testing.T) {
 		t.Fatalf("exit=%d stderr=%q responses=%#v", exit, stderr, responses)
 	}
 	for _, reason := range []string{rootbind.ReasonMissing, rootbind.ReasonNoWorktree} {
-		if _, _, substituted := missingRootFallback([]rootDeclaration{{root: missingSpareRoot(t)}}, reason, false, false,
+		if _, _, substituted := missingRootFallback([]rootDeclaration{{root: missingSpareRoot(t)}}, reason, false,
 			func() (string, error) { return "", errors.New("getwd") }); substituted {
 			t.Fatalf("%s: unobservable launch directory substituted a root", reason)
 		}
@@ -221,7 +221,7 @@ func TestMCPV0115MissingRootOutsideWorktreeServesUnavailable(t *testing.T) {
 }
 
 // MCPV0-115, MCPV0-861: only one plain --root that is missing or an existing
-// directory outside Git, without --follow-ref or --corpus-artifact, falls back;
+// directory outside Git, without --follow-ref, falls back;
 // every other startup failure is unchanged even when launched inside a worktree.
 func TestMCPV0115FallbackIsNarrow(t *testing.T) {
 	main := makeHostileRepository(t, "core")
@@ -249,7 +249,7 @@ func TestMCPV0115FallbackIsNarrow(t *testing.T) {
 		{"path through a regular file", []string{"--root", filepath.Join(file, "repo")}, 0, "corvint-mcp: repository unavailable: --root does not exist; serving tools/list, and every repository tool call answers invalid-root\n"},
 		{"aliased missing root", []string{"--root", "core=" + missing}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},
 		{"missing root with --follow-ref", []string{"--root", missing, "--follow-ref", "feature"}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},
-		{"missing root with --corpus-artifact", []string{"--root", missing, "--tool-profile", "test-validity,corpus", "--corpus-artifact", "corpus.json"}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},
+		{"missing root with the moved corpus group", []string{"--root", missing, "--tool-profile", "corpus", "--corpus-artifact", "corpus.json"}, 2, "corvint-mcp: invalid arguments: " + removedGroups["corpus"] + "\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.arguments[1] == plain || tc.arguments[1] == "core="+plain {
