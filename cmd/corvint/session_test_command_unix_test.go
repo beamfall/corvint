@@ -583,8 +583,9 @@ func TestSTRV0008CLIBalancedShards(t *testing.T) {
 
 // AFP-V0-050 (V1-1399): `corvint test` narrows an edit of the read-scope
 // declaration against the plan's base, as the planner does: declaring a new
-// package runs only that package, not every declared one. Since NCM-V1-005
-// (V1-5424) the edit is never narrowed: it runs everything, named.
+// package runs only that package, not every declared one. NCM-V1-006
+// (V1-5424) made the edit run everything; as amended for V1-5465
+// (AFP-V0-9712) a known base narrows it again.
 func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
 	root, _, _ := sessionFixture(t, "pass")
 	declaration := func(packages string) string {
@@ -619,10 +620,9 @@ func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &printed); err != nil {
 		t.Fatal(err)
 	}
-	// NCM-V1-005 and NCM-V1-006 (V1-5424) supersede the narrowing: the edit
-	// is Corvint configuration and runs everything, named.
-	if len(printed.Invocations) != 1 || strings.Join(printed.Invocations[0].Argv, " ") != "go test -json -p 1 -count=1 example.test/m/a example.test/m/b example.test/m/c" ||
-		!strings.Contains(stdout, `"reason":"corvint-config .corvint/test-read-scopes.json"`) || !strings.Contains(stdout, `"scope":"FULL"`) {
+	// AFP-V0-9712: the base is known, so only the newly declared package runs.
+	if len(printed.Invocations) != 1 || strings.Join(printed.Invocations[0].Argv, " ") != "go test -json -p 1 -count=1 example.test/m/c" ||
+		!strings.Contains(stdout, `"reason":"whole: DECLARED_READ_SCOPE via .corvint/test-read-scopes.json"`) || !strings.Contains(stdout, `"scope":"NARROWED"`) {
 		t.Fatalf("dry run printed %s", stdout)
 	}
 }
