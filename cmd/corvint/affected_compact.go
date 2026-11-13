@@ -9,6 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // affectedExcludedDigestPrefix tags the digest of the full exclusion list.
@@ -50,6 +51,10 @@ type affectedCompactReceipt struct {
 	SelectedFlat []affectedFlatSelection `json:"selectedFlat"`
 	// LineSelection is copied from the full receipt (GLS-V0-010).
 	LineSelection *linecov.Selection `json:"lineSelection,omitempty"`
+	// SelectionVerdict is each plan.unknown entry's effect and each
+	// runner's tier, from the one function corvint test and the MCP plan
+	// tool print (SLF-V1-007); it never changes the selection.
+	SelectionVerdict sessiontest.SelectionVerdict `json:"selectionVerdict"`
 }
 
 // affectedCompactPlan keeps every plan member except that each selection
@@ -234,7 +239,28 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 
 		DegradationDetails: full.DegradationDetails,
 		LineSelection:      full.LineSelection,
+		SelectionVerdict:   affectedSelectionVerdict(full.Plan, full.LineSelection),
 	}, nil
+}
+
+// affectedSelectionVerdict is sessiontest.SelectionVerdictOf over the plan
+// (SLF-V1-007). No Go selector runs here, so the Go attribution of an
+// UNOWNED_DIRTY_PATH is undecided and the entry forces FULL, the
+// fail-closed reading; the line evidence narrows the Go runner exactly when
+// corvint test would apply it.
+func affectedSelectionVerdict(plan affected.Plan, lines *linecov.Selection) sessiontest.SelectionVerdict {
+	input := sessiontest.VerdictInput{Attribution: sessiontest.AttributionUndecided}
+	for _, entry := range plan.Unknown {
+		input.Unknown = append(input.Unknown, sessiontest.Unknown{Reason: entry.Reason, Detail: entry.Detail, Hint: entry.Hint})
+	}
+	for _, selection := range plan.Selected {
+		input.Selected = append(input.Selected, selection.UnitID)
+	}
+	if lines != nil {
+		_, units := testLineUnits(*lines)
+		input.LineNarrowed = len(units) != 0
+	}
+	return sessiontest.SelectionVerdictOf(input)
 }
 
 // compactAffectedSelections projects each selection, sharing witness chains

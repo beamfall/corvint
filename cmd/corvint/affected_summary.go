@@ -16,12 +16,16 @@ import (
 // unions the committed range (AFP-V0-010); Worktree and Committed split it
 // so a clean tree with a range reads worktree=0 (AFP-V0-820).
 type affectedSummary struct {
-	Committed       int            `json:"committed"`
-	Dirty           int            `json:"dirty"`
+	Committed int `json:"committed"`
+	Dirty     int `json:"dirty"`
+	// Drivers and Tests split Selected into driver units, a make target or
+	// workflow job, and test units (SLF-V1-008); line is unchanged.
+	Drivers         int            `json:"drivers"`
 	Excluded        int            `json:"excluded"`
 	Line            string         `json:"line"`
 	Scope           string         `json:"scope"`
 	Selected        int            `json:"selected"`
+	Tests           int            `json:"tests"`
 	Unknown         int            `json:"unknown"`
 	UnknownByReason map[string]int `json:"unknownByReason"`
 	// UnresolvedPackages counts the selected Go packages whose reads nothing
@@ -43,6 +47,7 @@ func summarizeAffectedPlan(plan affected.Plan, excluded, worktree, committed int
 		reasons = append(reasons, reason)
 	}
 	sort.Strings(reasons)
+	tests, drivers := plan.SelectionCounts()
 	line := fmt.Sprintf("scope=%s dirty=%d selected=%d excluded=%d unknown=%d", plan.Scope, len(plan.Dirty), len(plan.Selected), excluded, len(plan.Unknown))
 	for _, reason := range reasons {
 		line += fmt.Sprintf(" %s=%d", reason, byReason[reason])
@@ -54,6 +59,8 @@ func summarizeAffectedPlan(plan affected.Plan, excluded, worktree, committed int
 		Line:               strings.TrimSpace(line),
 		Scope:              plan.Scope,
 		Selected:           len(plan.Selected),
+		Tests:              tests,
+		Drivers:            drivers,
 		Unknown:            len(plan.Unknown),
 		UnknownByReason:    byReason,
 		UnresolvedPackages: affectedUnresolvedPackages(plan.Selected),

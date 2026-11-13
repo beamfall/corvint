@@ -29,10 +29,13 @@ type affectedVerdict struct {
 	Profile      string               `json:"profile"`
 	Range        affectedVerdictRange `json:"range"`
 	Revision     string               `json:"revision"`
-	Summary      affectedSummary      `json:"summary"`
-	Tiers        affectedVerdictTiers `json:"tiers"`
-	Tool         string               `json:"tool"`
-	Warning      string               `json:"warning,omitempty"`
+	// SelectionVerdict is the plan's SLF-V1-007 verdict, copied from the
+	// affected-plan/1 document, so the MCP plan tool prints it too.
+	SelectionVerdict sessiontest.SelectionVerdict `json:"selectionVerdict"`
+	Summary          affectedSummary              `json:"summary"`
+	Tiers            affectedVerdictTiers         `json:"tiers"`
+	Tool             string                       `json:"tool"`
+	Warning          string                       `json:"warning,omitempty"`
 
 	// DegradationDetails is the compact receipt's notice per code (ACX-V0-750).
 	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
@@ -161,9 +164,11 @@ func affectedVerdictOf(receipt affectedCompactReceipt, goDir func(string) (strin
 		Range:        affectedVerdictRange{Base: receipt.Range.Base, Paths: len(receipt.Range.Paths)},
 		Revision:     receipt.Revision,
 		Summary:      receipt.Summary,
-		Tiers:        tiers,
-		Tool:         receipt.Tool,
-		Warning:      receipt.Warning,
+
+		SelectionVerdict: receipt.SelectionVerdict,
+		Tiers:            tiers,
+		Tool:             receipt.Tool,
+		Warning:          receipt.Warning,
 
 		DegradationDetails: receipt.DegradationDetails,
 		E2E:                affectedVerdictE2EOf(receipt.Plan.E2E),
