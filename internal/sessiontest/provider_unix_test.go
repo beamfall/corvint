@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/testduration"
 )
 
 // fakeProvider stands in for corvint-js-test-provider: it answers --version,
@@ -77,7 +78,7 @@ func TestSTRV08704RunnerReportsProviderWithGo(t *testing.T) {
 	if provider.Adapter != AdapterProvider || provider.AdapterManifest != AdapterManifestProfile || provider.Exit != 0 ||
 		provider.Runner != filepath.Join(dir, ProviderExecutable) || provider.Version != "corvint-js-test-provider 0.0.0-fixture" ||
 		!reflect.DeepEqual(provider.Argv, wantArgv) ||
-		!reflect.DeepEqual(provider.Outcomes, []Outcome{{Outcome: OutcomePass, Slice: SliceWhole, TestID: "playwright:e2e/login.spec.ts", Unit: providerSpec}}) {
+		!reflect.DeepEqual(provider.Outcomes, []Outcome{{DurationGranularity: testduration.GranularityFile, DurationSource: testduration.NotMeasured, Outcome: OutcomePass, Slice: SliceWhole, TestID: "playwright:e2e/login.spec.ts", Unit: providerSpec}}) {
 		t.Fatalf("provider invocation %+v", provider)
 	}
 	logged, _ := os.ReadFile(filepath.Join(dir, "provider-argv"))
@@ -113,7 +114,7 @@ func TestSTRV08704RunnerReportsProviderWithGo(t *testing.T) {
 // usable result, leaves its units NOT_RUN with the reason; the run is
 // INCOMPLETE and the Go invocation still runs and reports.
 func TestSTRV08705RunnerProviderUnavailable(t *testing.T) {
-	notRunOutcome := []Outcome{{Outcome: OutcomeNotRun, Slice: SliceWhole, TestID: "playwright:e2e/login.spec.ts", Unit: providerSpec}}
+	notRunOutcome := []Outcome{{DurationSource: testduration.NotMeasured, Outcome: OutcomeNotRun, Slice: SliceWhole, TestID: "playwright:e2e/login.spec.ts", Unit: providerSpec}}
 	check := func(t *testing.T, receipt Receipt, m Manifest, digest, reason string, exit int) {
 		t.Helper()
 		if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 2 {

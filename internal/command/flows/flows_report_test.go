@@ -256,7 +256,7 @@ func TestV15257StatusReportsAttachedTestsAndLastResults(t *testing.T) {
 		t.Errorf("totals %+v", report.Totals)
 	}
 	happy := statusVariation(t, report, "checkout", "checkout.happy")
-	if len(happy.Tests) != 1 || happy.Code != "" || happy.Tests[0] != (appflows.StatusTest{TestKey: "checkout.spec.ts > pays", Project: "chromium", Result: "passed", SourceCommit: fx.head, RunID: "run-1", Authority: appflows.AuthorityIngested}) {
+	if len(happy.Tests) != 1 || happy.Code != "" || happy.Tests[0] != (appflows.StatusTest{TestKey: "checkout.spec.ts > pays", Project: "chromium", Result: "passed", SourceCommit: fx.head, SourceTree: shopGit(t, fx.root, "rev-parse", "HEAD^{tree}"), RunID: "run-1", Authority: appflows.AuthorityIngested}) {
 		t.Errorf("checkout.happy: %+v", happy)
 	}
 	basic := statusVariation(t, report, "search", "search.basic")

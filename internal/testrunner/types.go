@@ -153,6 +153,13 @@ type Test struct {
 	// RSpec example under the corvint-rspec-json/0 formatter (TRE-V0-085);
 	// omitted when the example was not included through a shared group.
 	InclusionLocations []string `json:"inclusionLocations,omitempty"`
+	// DurationMs is the test's time in whole milliseconds from the runner's own report, set only
+	// when measured; DurationSource names that report field, or NOT_MEASURED; AttemptDurationsMs
+	// holds each attempt's time when the test ran more than once, and DurationMs is their sum
+	// (PTD-V1-002, PTD-V1-003, PTD-V1-006). All three are add-only.
+	DurationMs         *int64  `json:"durationMs,omitempty"`
+	DurationSource     string  `json:"durationSource,omitempty"`
+	AttemptDurationsMs []int64 `json:"attemptDurationsMs,omitempty"`
 }
 type Problem struct {
 	Code   string `json:"code"`
@@ -164,4 +171,8 @@ type Observation struct {
 	Problems         []Problem `json:"problems"`
 	Complete         bool      `json:"complete"`
 	RetryInformation string    `json:"retryInformation"`
+	// DurationInvalid lists each test whose reported time was negative, non-numeric or above the
+	// bound and is NOT_MEASURED (PTD-V1-007, the duration-invalid list); an invalid time is not an
+	// incomplete observation. Add-only.
+	DurationInvalid []string `json:"durationInvalid,omitempty"`
 }

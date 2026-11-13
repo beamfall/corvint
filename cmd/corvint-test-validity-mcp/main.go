@@ -5,9 +5,9 @@
 // internal/testvalidity projection `corvint test-validity` computes, plus the
 // binary-only corvint.help tool every Corvint MCP server shares (MCPV0-103). Its
 // tool is outside cmd/corvint-mcp's default tool set, which MCPV0-008 freezes
-// (decision 0103); `corvint-mcp --tool-profile test-validity` serves the same
-// tool through the same internal/mcp/toolgroup code (MMR-V0-013), and this
-// binary stays for one release as a deprecated alias (MMR-V0-016). It reuses
+// (decision 0103). corvint mcp no longer serves the tool (MTT-V1-005), so this
+// retiring binary is its only server until its removal batch takes it off the
+// release list (MTT-V1-010). It reuses
 // the same transport (internal/mcp/server) and tool-error and cancellation
 // conventions.
 package main
@@ -44,8 +44,8 @@ const (
 const usage = "usage: corvint-test-validity-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25]\n" +
 	"       corvint-test-validity-mcp --version\n" +
 	"A local read-only stdio MCP server for the experimental test-validity tools of the Git worktree at ROOT.\n" +
-	"Deprecated alias, kept for one release: corvint-mcp --root ROOT --tool-profile test-validity\n" +
-	"serves the same tools with the same results.\n" +
+	"Retiring: corvint mcp no longer serves corvint.test_validity (MTT-V1-005); this binary leaves\n" +
+	"the release in its removal batch, and corvint test-validity answers on the command line.\n" +
 	"Example: corvint-test-validity-mcp --root /absolute/repo"
 
 func main() {
