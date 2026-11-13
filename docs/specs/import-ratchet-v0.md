@@ -10,7 +10,7 @@ Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel rest
 ## Agent digest
 - Claim: A checked-in area manifest layers every module package, and a Go test fails on any wrong-way cross-area import that its shrinking baseline does not list.
 - Status: experimental; owner-directed lane implementation under the standing lane auto-accept, pending independent review; re-keyed to the five layers of decision 0594 on 2026-11-09 (V1-5233).
-- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (1 edge, `internal/sessiontest -> .github/cishards`, after V1-5248 and V1-5249 keyed the affected planner, `doccorpus`, `flowdocs` and `mcp/corpusbridge` shared and split the provider receipt models, the test-validity model and test discovery into shared packages, `docs/build-log/2026-11-11-layers-remaining-edges.md`; 17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`; `tools/import-ratchet/direct_git_allowlist.txt` with `direct_git_test.go` (IRT-V0-020, 59 scanned Git spawns listed in 57 functions of 48 files, none routed) and `affected_names_test.go` (IRT-V0-021).
+- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (no edge, after V1-4809 keyed `.github/cishards`, the go-product shard placement that `internal/sessiontest` reproduces and so ships in `corvint`, to `tests`; 1 edge, `internal/sessiontest -> .github/cishards`, after V1-5248 and V1-5249 keyed the affected planner, `doccorpus`, `flowdocs` and `mcp/corpusbridge` shared and split the provider receipt models, the test-validity model and test discovery into shared packages, `docs/build-log/2026-11-11-layers-remaining-edges.md`; 17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`; `tools/import-ratchet/direct_git_allowlist.txt` with `direct_git_test.go` (IRT-V0-020, 59 scanned Git spawns listed in 57 functions of 48 files, none routed) and `affected_names_test.go` (IRT-V0-021).
 - Blocked on: independent review; the import-rule enforcement, `cmd/corvint` test split, CI sharding and per-binary release follow-ups of decision 0594 shrink the baseline.
 - Read next: Requirements, then Failure modes.
 
@@ -35,7 +35,8 @@ re-keyed the manifest from the panel's eleven areas to those five (`shared` laye
 imports the follow-ups must remove. A package is keyed by role; a leaf that two products need
 (the index's language dialects, `langplugin/decl`, `pythongrammar`) is `shared`; each `cmd`
 binary is keyed to its product; `.github`, `tools`, `script`, `conformance`, `benchmarks` and
-`examples` are `release`, which may import any layer and is not shipped. The re-key, the 44
+`examples` are `release`, which may import any layer and is not shipped (except `.github/cishards`,
+keyed `tests` because `internal/sessiontest` compiles it into `corvint`). The re-key, the 44
 measured edges by layer pair and the per-layer test time are recorded in
 `docs/build-log/2026-11-09-layers-manifest.md`.
 
@@ -70,7 +71,9 @@ measured edges by layer pair and the per-layer test time are recorded in
 - `IRT-V0-005`: On the real graph the test SHALL prove its own effectiveness: adding one
   wrong-way import from a layer-0 package into a package of the highest non-entry layer
   (`release` since V1-5233; `cli` before) yields exactly one `NEW_WRONG_WAY_EDGE` naming it,
-  and removing the first baselined import yields exactly one `STALE_BASELINE_EDGE` naming it.
+  and, while the baseline lists an edge, removing the first baselined import yields exactly one
+  `STALE_BASELINE_EDGE` naming it. An empty baseline (since V1-4809 re-keyed `.github/cishards` to
+  `tests`) has no real edge to remove; the added-edge control still runs.
 - `IRT-V0-006`: The test SHALL run inside `go test ./...` in well under 10 seconds (measured 0.7 s
   on the lane host over 438 packages; 0.09 s over 298 after decision 0594) and carry `//corvint:read-kinds .go go.mod` (AFP-V0-9000), so affected
   selection reruns it on any Go source or module-boundary edit. The manifest and baseline are
