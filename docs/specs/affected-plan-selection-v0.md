@@ -3267,6 +3267,64 @@ in build-log entry `docs/build-log/2026-11-11-shellwalk.md`.
   assigns `PATH`, every operand of those commands SHALL stay a read word. A `>` or `>|` target is
   still dropped, since the shell truncates it before the command runs.
 
+### Command-running environment names and interpreter preload options (lane selwalk1113, 2026-11-13; V1-5217)
+
+Lane selwalk1113 closes the two remaining V1-5217 forms. Both rules only add a hold.
+
+- **AFP-V0-9710:** (proposed 2026-11-13; delivery experimental; V1-5217)
+  A shell file SHALL be an unbounded reader with the reason `shell:dynamic-source` when any of
+  its commands assigns, exports or default-assigns a command-running name: `PAGER`, `GIT_PAGER`,
+  `MANPAGER`, `EDITOR`, `VISUAL`, `GIT_EDITOR`, `GIT_SEQUENCE_EDITOR`, `GIT_SSH`,
+  `GIT_SSH_COMMAND`, `GIT_ASKPASS`, `SSH_ASKPASS`, `GIT_EXTERNAL_DIFF`, `GIT_PROXY_COMMAND`,
+  `LESSOPEN` or `LESSCLOSE`, in every AFP-V0-9976 position (a prefix, a standalone assignment, an
+  assignment after `env` or any other wrapper such as `command env PAGER=...` or
+  `nohup env GIT_SSH_COMMAND=...`, a bare name given to a naming command, a `${NAME:=...}`
+  expansion). The program runs that value as a command line, which no operand of the file names.
+  A value that is empty, a `:`-separated list of absolute literal paths, or one bare command word
+  with no `/`, blank, expansion, quote-removed operator or glob character (`GIT_EDITOR=true`,
+  `PAGER=cat`) names no repository file and is not counted. Each absolute path SHALL be one
+  unquoted word with no blank, quote, escape, shell operator or expansion; any other value, such
+  as `GIT_SSH_COMMAND='/bin/sh tools/ssh.sh'`, may pass a repository file as an argument and is
+  counted, as is every quoted or escaped value except an empty one. `GIT_EXEC_PATH` and
+  `GIT_TEMPLATE_DIR`, whose directories git runs commands and hooks from, are AFP-V0-9976
+  startup names.
+- **AFP-V0-9711:** (proposed 2026-11-13; delivery experimental; V1-5217)
+  An interpreter run whose first operand is an option, joined (`--import=./x.mjs`,
+  `--require=x.cjs`, `--loader=./x.mjs`, `--preload=./x.ts`) or separate (`--import ./x.mjs`,
+  `-r x`), SHALL NOT read that option's value as the program operand: a helper's run of `node`,
+  `bun` or another AFP-V0-9990 interpreter so spelled is opaque (`interpreter`, or `toolchain`
+  for a toolchain), and a test that runs `node` stays a `shell:runs-toolchain` unbounded reader
+  (NSA-V0-011), so the preload file is never judged unread.
+
+### Read-scope declaration edits narrow again when attributable (lane selwalk1113, 2026-11-13; V1-5465)
+
+NCM-V1-006 (V1-5424) made every edit of `.corvint/test-read-scopes.json` and
+`.corvint/test-read-scope-literals.json` run every test. Under the owner's 2026-11-12 decision that
+filed V1-5465, the two files narrow again where the AFP-V0-012 selector can attribute the edit,
+recorded as an owner-delegated amendment of NCM-V1-005 and NCM-V1-006 in
+`docs/specs/non-code-map-v1.md`. No other configuration path changes.
+
+- **AFP-V0-9712:** (proposed 2026-11-13; delivery experimental; V1-5465)
+  For an edit of `.corvint/test-read-scopes.json`, the selector SHALL print
+  `noncode read-scope-declaration .corvint/test-read-scopes.json` and keep its attribution, with
+  no full run for that path, only when the current declaration is valid and the base declaration
+  of AFP-V0-050 is known (a full commit, no snapshot, a readable tree and declaration, every
+  declared directory an observed Go package at that commit). The attribution then selects each
+  package whose key was added, whose entries changed or whose key was removed, each package whose
+  declared scope holds the declaration, and each rule (c) reader of the declaration, each on its
+  own `declared` or reader line. When the current declaration is invalid or the base is unknown,
+  the edit SHALL select everything with `FALLBACK corvint-config .corvint/test-read-scopes.json`.
+- **AFP-V0-9713:** (proposed 2026-11-13; delivery experimental; V1-5465)
+  For an edit of `.corvint/test-read-scope-literals.json`, which changes no package's test and is
+  read only by the declaration tools, the selector SHALL print
+  `noncode read-scope-declaration .corvint/test-read-scope-literals.json` and keep its
+  attribution of that file's readers only when the current file is absent, or a regular file of at
+  most 1 MiB that is exactly `{"profile":"corvint-test-read-scope-literals/0","literals":
+  {PACKAGE:{PATH:REASON}}}` with valid relative package and path names, at least one path per
+  package and a non-empty reason for every path. Any other content, including a symbolic link,
+  SHALL select everything with `FALLBACK corvint-config`; an edit no package attributes falls
+  back as any unattributed path does.
+
 ### Flat selection, one witness shape, `--json` and `--head` replay (lane affux, 2026-11-11; V1-4399)
 
 Fail-closed rule for AFP-V0-9987 to AFP-V0-9989: the classes known to need tests the plan cannot
@@ -3877,6 +3935,15 @@ the base. The startup-name list (AFP-V0-9976) is closed and does not include `PA
 assignment that makes a repository program run under a bare name stays unmodelled, as on the
 base. AFP-V0-9977 does not model a utility's dependence on its written operand's prior existence
 (`mkdir` of an existing path fails), as NSA-V0-016 does not.
+The command-running list (AFP-V0-9710) is closed: a program that runs a command from another
+environment name, or from a configuration file such as `GIT_CONFIG_GLOBAL` (left out because the
+repository's tests point it at temporary roots), stays unmodelled, as on the base. A bare command
+word is assumed to resolve on `PATH`; a `PATH` holding `.` would run a repository file of that name.
+For AFP-V0-9712, a confined package whose entries an edit leaves byte-identical is not selected,
+so a test whose verdict depends on another package's scope (none is known) would be missed; the
+declaration's own rule (c) readers stay selected. For AFP-V0-9713, a test whose verdict depends on
+a literal exemption without naming the file is not selected; the declaration tools that read it
+are.
 
 For AFP-V0-9987 to AFP-V0-9989 (lane affux): a consumer that reads `selectedFlat` or
 `summary.unresolvedPackages` as a selection decision would still see exactly `plan.selected`; the
@@ -4006,7 +4073,26 @@ and `TestAwkProgramFiles_AFPV09974`. AFP-V0-9975 to AFP-V0-9977 (V1-5226):
 `nohup`, `time`, `exec` or `command`, directly or through `env`),
 `TestMoreInterpreterStartupNames_AFPV09976` and
 `TestRedefinedUtilitiesKeepOperands_AFPV09977`, each in `internal/liveverify/affected/shell`
-with bounded controls. `TestHeavyShEditKeepsShellReaders_V14170` now admits a docs edit selecting
+with bounded controls. AFP-V0-9710 and AFP-V0-9711 (V1-5217, lane selwalk1113):
+`TestCommandRunningNamesBehindWrappers_AFPV09710` (pager, ssh, editor, askpass and external diff
+commands behind `command env`, `nohup env`, `timeout 5 env` and `sudo -E`, exported and
+default-assigned, held; `GIT_EDITOR=true`, `PAGER=cat`, empty and absolute values not),
+`TestAbsoluteCommandValueWithArgumentsHolds_AFPV09710` (an absolute value with an argument, an
+escaped blank, a `;` or quotes held, and the helper's data file selects the caller) and
+`TestInterpreterPreloadOptions_AFPV09711` (node `--import`, `-r`, `--require`, `--loader` and bun
+`--preload`, joined and separate). Fault injection: with the AFP-V0-9710 code reverted every held
+row of the first test failed; with the option check of `programOperand` removed, the joined bun
+row failed; with `node` removed from `Toolchains`, every test row of the second failed. AFP-V0-9712 and
+AFP-V0-9713 (V1-5465): `TestReadScopeDeclarationNarrowingFaults_AFPV09712` (ten edit shapes, each
+selecting every package whose entries changed and no other; an invalid declaration and a second
+configuration path still run everything), `TestSelectPackagesNarrowsDeclarationEditsAgainstTheBase_AFPV0050`
+(a known base narrows, an unknown base runs everything) and
+`TestReadScopeLiteralsNarrowToReaders_AFPV09713` (`internal/gateselect`);
+`TestNCMV1006ReadScopeDeclarationNarrowsWhenAttributable_V15465` (`internal/noncodemap`);
+`TestSelectorNarrowsDeclarationEditAgainstThePlanBase_AFPV0050` (`tools/gate-affected-select`).
+Fault injection: without the entry comparison of `declaredBears` five edit shapes missed their
+package; with the literal validation skipped every invalid literal case narrowed; with the base
+check dropped every unknown-base case narrowed. `TestHeavyShEditKeepsShellReaders_V14170` now admits a docs edit selecting
 `script/analyzer-schema_test.sh` only by its own `shell:tree-walk` read and checks its and
 `script/codex-review_test.sh`'s import chains to `script/heavy.sh` directly. `TestShellUnitDifferential_AFPV09970` is the reproducible base-versus-head check over every
 repository shell file (procedure in its doc comment, output in the lane's build-log entry). The
@@ -4393,3 +4479,13 @@ to the lexer's blanks and the delimiter trim, `strings.Fields` in `trapAllowed` 
 reading of `walkerPaths`, the calls in `observe`, the `utilities` parameter of `pathTokens` and
 `readWords` and `rootsWith`; then remove the units AFP-V0-9973 recorded from
 `.corvint/unbounded-readers.json`. The plugin then misses the reads these rules hold.
+
+For AFP-V0-9710, delete `commandNames`, `commandOutsideValue` and their uses in
+`setsStartupName`, and the `GIT_EXEC_PATH` and `GIT_TEMPLATE_DIR` startup names; AFP-V0-9711
+pins existing behaviour and needs no code rollback. No repository shell file changes its
+selection under either rule.
+
+For AFP-V0-9712 and AFP-V0-9713, delete `readScopeDeclarations`, `ReasonReadScopeDeclaration` and
+`Input.ReadScopeAttributable` from `internal/noncodemap` and `readScopeAttributable` and
+`validReadScopeLiterals` from `internal/gateselect/noncode.go`; both files then run everything
+again, and the selection-baseline floor returns to its earlier value.
