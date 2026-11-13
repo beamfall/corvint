@@ -4644,5 +4644,29 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/per-test-durations-v1.md",
+    "title": "Per-test durations V1",
+    "reqPrefix": "PTD-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "Receipts record each test's measured time from the runner's own report and mark a missing or invalid time NOT_MEASURED, never estimated.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/run-evidence-v1.md",
+    "title": "Run evidence V1",
+    "reqPrefix": "RVD-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "A private append-only store under the Git directory keeps each test run, written by test and ingest commands and read by default by flow reports.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
