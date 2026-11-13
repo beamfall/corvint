@@ -3,6 +3,7 @@ package flowdocs
 import (
 	json "encoding/json/v2"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -237,6 +238,10 @@ func buildInventory(m *Manifest, p *doccorpus.ProviderRecord, inv *FlowInventory
 			reason := "path has no unambiguous supported declaration at this revision"
 			if member.Symbol != "" {
 				reason = "symbol is not a supported declaration in this path at this revision"
+				if ext := path.Ext(member.Path); ext != ".rb" && ext != ".html" {
+					// A web member is a top-level declaration (AFU-V1-107).
+					reason = "symbol is not a top-level declaration in this path at this revision; name a class or object member's enclosing declaration"
+				}
 				if ambiguous[member.Path+":"+member.Symbol] {
 					reason = "symbol declaration is ambiguous in this path at this revision"
 				}
