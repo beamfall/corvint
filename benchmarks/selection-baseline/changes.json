@@ -3,7 +3,7 @@
   "repository": "https://github.com/beamfall/corvint",
   "note": "V1-2892 fixed change set: every lane change merged to origin/main up to 35475f860 (base = first parent), and every merged-branch commit whose pull-request CI run failed (base = newest first-parent ancestor of main). Failures are the go-product-shard annotations 'exit 1; PACKAGE: test-failures' of each run.",
   "floor": {
-    "narrowMerged": 21,
+    "narrowMerged": 17,
     "misses": 0
   },
   "changes": [
@@ -179,8 +179,8 @@
       "head": "82c235f95bf8b6a1fa77077925f647be063a97b8",
       "pr": 20,
       "recorded": {
-        "ciScope": "NARROW",
-        "verdict": "run"
+        "ciScope": "FULL",
+        "verdict": "FALLBACK"
       }
     },
     {
@@ -201,8 +201,8 @@
       "head": "dc0f8d6c29527a321cdd0cd8e09cdfd3414d666b",
       "pr": 24,
       "recorded": {
-        "ciScope": "NARROW",
-        "verdict": "run"
+        "ciScope": "FULL",
+        "verdict": "FALLBACK"
       }
     },
     {
@@ -395,8 +395,8 @@
       "head": "42c113194fcd7de5e931d16c1e8204bd99e8a887",
       "pr": 21,
       "recorded": {
-        "ciScope": "NARROW",
-        "verdict": "run"
+        "ciScope": "FULL",
+        "verdict": "FALLBACK"
       }
     },
     {
@@ -582,8 +582,8 @@
       "head": "c605450399873cca71193213c5aa4d3f7e43624b",
       "pr": 44,
       "recorded": {
-        "ciScope": "NARROW",
-        "verdict": "run"
+        "ciScope": "FULL",
+        "verdict": "FALLBACK"
       }
     },
     {
@@ -654,8 +654,8 @@
         }
       ],
       "recorded": {
-        "ciScope": "NARROW",
-        "verdict": "run"
+        "ciScope": "FULL",
+        "verdict": "FALLBACK"
       }
     },
     {
