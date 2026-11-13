@@ -112,9 +112,6 @@ func decodePythonUTF8(value []byte) string {
 	return output.String()
 }
 
-// DecodePythonUTF8 exposes the oracle-compatible decoder to scoped CLI adapters.
-func DecodePythonUTF8(value []byte) string { return decodePythonUTF8(value) }
-
 // TrimPythonSpace matches str.strip() for Python's Unicode whitespace set.
 func TrimPythonSpace(value string) string {
 	return strings.TrimFunc(value, func(character rune) bool {

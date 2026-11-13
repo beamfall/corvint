@@ -19,9 +19,6 @@ type OutboundCallRecord = jstestreceipt.OutboundCallRecord
 // OutboundResponse is jstestreceipt.OutboundResponse, kept under its old name.
 type OutboundResponse = jstestreceipt.OutboundResponse
 
-// IsServerErrorStatus is jstestreceipt.IsServerErrorStatus, kept under its old name.
-func IsServerErrorStatus(status int) bool { return jstestreceipt.IsServerErrorStatus(status) }
-
 // ValidOutboundCallRecord is jstestreceipt.ValidOutboundCallRecord, kept under its old name.
 func ValidOutboundCallRecord(record OutboundCallRecord) bool {
 	return jstestreceipt.ValidOutboundCallRecord(record)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -31,15 +30,6 @@ func TestRubyNestingOverflowIsBounded(t *testing.T) {
 	}
 }
 
-// lowerBound sets bound's limit for the rest of the test, so a fixture one past
-// it stays small.
-func lowerBound(t *testing.T, bound *analyzerBound, limit int) {
-	t.Helper()
-	saved := bound.limit
-	bound.limit = limit
-	t.Cleanup(func() { bound.limit = saved })
-}
-
 // selectSetupOf builds files and runs setup-select for spec.
 func selectSetupOf(t *testing.T, files map[string]string, spec string) SetupSelection {
 	t.Helper()
@@ -49,21 +39,6 @@ func selectSetupOf(t *testing.T, files map[string]string, spec string) SetupSele
 		t.Fatal(err)
 	}
 	return SelectSetup(index, []string{spec})
-}
-
-// webConfigChain links tsconfig.json through count extends to a base whose
-// baseUrl resolves `setup/x.setup` (the spec's only import).
-func webConfigChain(count int) map[string]string {
-	files := map[string]string{
-		"setup/x.setup.ts": "export default async () => 1;\n",
-		"tests/x.spec.ts":  "import seed from 'setup/x.setup';\ntest('x', () => seed());\n",
-		"tsconfig.json":    `{"extends": "./c1.json"}`,
-	}
-	for link := 1; link <= count; link++ {
-		files["c"+strconv.Itoa(link)+".json"] = `{"extends": "./c` + strconv.Itoa(link+1) + `.json"}`
-	}
-	files["c"+strconv.Itoa(count)+".json"] = `{"compilerOptions": {"baseUrl": "."}}`
-	return files
 }
 
 // TestSharedResolutionCacheSkipsCycleMarkers: TSA-V0-462. An `export *` cycle

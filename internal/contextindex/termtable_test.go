@@ -6,29 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 )
-
-// referenceTermCounts is the regex definition of a term (lexicalTerms) with
-// occurrences counted.
-func referenceTermCounts(text string) map[string]uint32 {
-	counts := map[string]uint32{}
-	spaced := contextCamel.ReplaceAllString(text, "$1 $2")
-	for _, token := range contextToken.FindAllString(spaced, -1) {
-		if len(token) >= 2 {
-			counts[strings.ToLower(token)]++
-		}
-	}
-	return counts
-}
-
-func firstLine(text string) string {
-	if index := strings.IndexByte(text, '\n'); index >= 0 {
-		return text[:index]
-	}
-	return text
-}
 
 func termTableFixture() *Index {
 	sources := map[string]Source{

@@ -27,11 +27,6 @@ var (
 // invalid-receipt or unreadable code (PRS-V1-920, V1-2683).
 const PlatformUnsupportedCode = pinnedread.PlatformUnsupportedCode
 
-// PlatformRefusal returns ErrPlatformUnsupported where receipt reads are
-// refused and nil where they are qualified, so a caller can refuse before it
-// opens anything.
-func PlatformRefusal() error { return pinnedread.PlatformRefusal() }
-
 // ReadFile reads a resolved, root-relative receipt without following symlinks,
 // bounded by MaxInputBytes.
 func ReadFile(root *os.Root, name string) ([]byte, error) { return pinnedread.ReadFile(root, name) }
@@ -52,12 +47,6 @@ func ReadFileBounded(root *os.Root, name string, limit int64) ([]byte, error) {
 // consumes the opened file through r, which ends after limit+1 bytes.
 func StreamFileBounded(root *os.Root, name string, limit int64, read func(r io.Reader) error) error {
 	return pinnedread.StreamFileBounded(root, name, limit, read)
-}
-
-// StatFile is ReadFileBounded without the read: the lstat record of the leaf,
-// which must be a regular file, after every directory component is pinned.
-func StatFile(root *os.Root, name string) (os.FileInfo, error) {
-	return pinnedread.StatFile(root, name)
 }
 
 func openReceiptDirectory(parent *os.Root, name string) (*os.Root, error) {
