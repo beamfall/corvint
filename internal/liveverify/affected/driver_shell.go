@@ -30,8 +30,10 @@ type driverScan struct {
 	source   *Source
 	computed bool
 	// runOpen marks text whose run set did not resolve: every computed
-	// reason but envPrefix's sets it (NCM-V1-017).
+	// reason but envPrefix's sets it (NCM-V1-017), as does every command
+	// the scan does not follow (NCM-V1-019). openBy names why.
 	runOpen     bool
+	openBy      map[string]bool
 	uncertified bool
 	// uncertifiedBy names why uncertified was set (AZU-V0-611): the
 	// command, operand or form the scan could not bound. Diagnostic only.
@@ -71,54 +73,111 @@ type driverScan struct {
 
 // markComputed marks the scanned text a computed invocation for reason.
 func (scan *driverScan) markComputed(reason string) {
-	scan.runOpen = true
+	scan.unfollowed(reason)
 	scan.envPrefix(reason)
 }
 
-// unfollowed leaves the scanned text's run set open without making it a
-// computed site: it runs a command whose own execution the scan does not
-// follow, so what that command runs in turn is unknown (NCM-V1-019). Only a
-// make edit's reach reads it; the planner's graph is unchanged.
-func (scan *driverScan) unfollowed() { scan.runOpen = true }
-
-// driverFollowed reports a simple command whose execution the scan follows
-// completely (NCM-V1-019): a pure or bounded command, which runs no other
-// program; make, whose goals are the unit's edges; a go command other than
-// generate or tool, with no -exec, -toolexec or -vettool program, which runs
-// only the packages it names; `sh -c` or `bash -c` and the like, whose
-// inline script is scanned as its own commands; and find with no -exec,
-// -execdir, -ok, -okdir or -delete, which runs nothing. A path, an interpreter given
-// a file, and every other program are not followed: a script or binary may
-// run tests it does not name.
-func driverFollowed(words []driverWord) bool {
-	head := words[0].text
-	if strings.Contains(head, "/") {
-		return false
+// unfollowed leaves the scanned text's run set open for reason without
+// making it a computed site: it runs a command whose own execution the scan
+// does not follow, so what that command runs in turn is unknown
+// (NCM-V1-019). Only a make edit's reach reads it, and prints reason; the
+// planner's graph is unchanged.
+func (scan *driverScan) unfollowed(reason string) {
+	scan.runOpen = true
+	if scan.openBy == nil {
+		scan.openBy = map[string]bool{}
 	}
-	base := path.Base(head)
+	scan.openBy[reason] = true
+}
+
+// driverFollowedGo are the go subcommands NCM-V1-019 follows: each runs, at
+// most, the test binaries of the packages it names.
+var driverFollowedGo = map[string]bool{"test": true, "vet": true, "build": true, "list": true}
+
+// driverFollowedBuiltins are the shell builtins NCM-V1-019 follows: none can
+// execute another program. set is followed only for its options.
+var driverFollowedBuiltins = map[string]bool{
+	"echo": true, "printf": true, "true": true, "false": true, ":": true, "test": true, "[": true,
+	"cd": true, "exit": true,
+}
+
+// driverFollowed reports whether the scan follows a simple command's whole
+// execution, and otherwise the reason, which names the command
+// (NCM-V1-019). The rule is closed: make, whose goals are the unit's edges;
+// go whose first argument is test, vet, build or list, with no -exec,
+// -toolexec or -vettool program, which runs only the packages it names; and
+// the builtins echo, printf, true, false, :, test, [, cd, exit, and set with
+// only -e, -u, -x and -o pipefail. A word holding a command substitution,
+// a command word that is a path, and every other program, `sh -c` and find
+// included, are not followed: they may run tests they do not name.
+func driverFollowed(words []driverWord) (bool, string) {
+	head := words[0].text
+	name := driverReasonWord(head)
+	for _, word := range words {
+		if word.substitutes {
+			return false, "shell:command-substitution:" + name
+		}
+	}
+	if strings.Contains(head, "/") {
+		return false, "shell:unfollowed-command:" + name
+	}
 	switch {
-	case driverPureCommands[base], driverBoundedCommands[base], base == "make", base == "gmake":
-		return true
-	case base == "go":
-		subcommand := ""
-		for _, word := range words[1:] {
-			text := word.text
-			if strings.HasPrefix(text, "-exec") || strings.HasPrefix(text, "-toolexec") || strings.HasPrefix(text, "-vettool") {
-				return false
+	case head == "make" || head == "gmake":
+		return true, ""
+	case head == "go":
+		if len(words) < 2 || !driverFollowedGo[words[1].text] {
+			subcommand := ""
+			if len(words) > 1 {
+				subcommand = " " + driverReasonWord(words[1].text)
 			}
-			if subcommand == "" && !strings.HasPrefix(text, "-") {
-				subcommand = text
+			return false, "shell:unfollowed-command:go" + subcommand
+		}
+		for _, word := range words[2:] {
+			flag := word.text
+			if strings.HasPrefix(flag, "--") {
+				flag = flag[1:]
+			}
+			if strings.HasPrefix(flag, "-exec") || strings.HasPrefix(flag, "-toolexec") || strings.HasPrefix(flag, "-vettool") {
+				return false, "shell:unfollowed-command:go " + words[1].text + " " + driverReasonWord(word.text)
 			}
 		}
-		return subcommand != "generate" && subcommand != "tool"
-	case driverShells[base]:
-		return len(words) > 2 && words[1].text == "-c"
-	case base == "find":
-		return !slices.ContainsFunc(words[1:], func(word driverWord) bool {
-			return strings.HasPrefix(word.text, "-exec") || strings.HasPrefix(word.text, "-ok") || word.text == "-delete" || driverDynamic(word.text)
-		})
+		return true, ""
+	case head == "set":
+		if driverFollowedSet(words[1:]) {
+			return true, ""
+		}
+		return false, "shell:unfollowed-command:set"
+	case driverFollowedBuiltins[head]:
+		return true, ""
 	}
-	return false
+	return false, "shell:unfollowed-command:" + name
+}
+
+// driverFollowedSet reports set arguments that are only -e, -u and -x, alone
+// or combined, and -o pipefail, with o last in its word, each with - or +
+// (NCM-V1-019).
+func driverFollowedSet(args []driverWord) bool {
+	if len(args) == 0 {
+		return false
+	}
+	for index := 0; index < len(args); index++ {
+		arg := args[index].text
+		if len(arg) < 2 || arg[0] != '-' && arg[0] != '+' {
+			return false
+		}
+		letters := arg[1:]
+		if rest, found := strings.CutSuffix(letters, "o"); found {
+			index++
+			if index >= len(args) || args[index].text != "pipefail" {
+				return false
+			}
+			letters = rest
+		}
+		if strings.Trim(letters, "eux") != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // envPrefix marks the scanned text a computed invocation for reason without
@@ -174,6 +233,9 @@ type driverWord struct {
 	quoted  bool
 	escaped bool
 	refs    []string
+	// substitutes marks a word holding a command substitution, `$(...)`
+	// or a backtick (NCM-V1-019).
+	substitutes bool
 }
 
 // driverShellScanner splits shell text into simple-command segments.
@@ -406,6 +468,9 @@ func (s *driverShellScanner) script(script, cwd string) {
 				position++
 			case char == '`':
 				s.scan.revoke("shell:unsupported-syntax")
+				// NCM-V1-019: the command whose word the substitution
+				// fills is not followed.
+				s.scan.unfollowed("shell:command-substitution:`")
 				flush(false)
 				backtick = !backtick
 				position++
@@ -615,6 +680,7 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 	quoted := false
 	escaped := false
 	inDouble := false
+	substitutes := false
 	var refs []string
 	for position < len(line) {
 		char := line[position]
@@ -658,6 +724,7 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 				s.scan.revoke("shell:incomplete-word")
 				end = len(line) - position - 1
 			}
+			substitutes = true
 			s.feeds++
 			s.script(line[position+1:position+1+end], cwd)
 			s.feeds--
@@ -674,6 +741,7 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 				}
 				inner := line[next+1 : max(next+1, end)]
 				if !strings.HasPrefix(inner, "(") {
+					substitutes = true
 					s.feeds++
 					s.script(inner, cwd)
 					s.feeds--
@@ -758,7 +826,7 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 		s.scan.revoke("shell:incomplete-word")
 	}
 	s.scan.referenceNames(refs)
-	return driverWord{text: text.String(), quoted: quoted, escaped: escaped, refs: refs}, position
+	return driverWord{text: text.String(), quoted: quoted, escaped: escaped, refs: refs, substitutes: substitutes}, position
 }
 
 // driverSubstitutes reports text holding a command substitution.
@@ -969,19 +1037,26 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			}
 			words = words[1:]
 		case !words[0].quoted && head == "command" && len(words) > 1 && (words[1].text == "-v" || words[1].text == "-V"):
-			// A lookup: it names a command and runs none.
+			// A lookup: it names a command and runs none, but NCM-V1-019
+			// follows no command outside its closed list.
+			s.scan.unfollowed("shell:unfollowed-command:command")
 			settle(false, false)
 			return cwd
 		case !words[0].quoted && driverPrefixKeywords[head]:
 			// Control flow and wrappers retain their existing path scan, but
 			// its permissive token stripping is not a complete grammar proof.
 			s.scan.revoke("shell:unsupported-syntax")
+			if !driverReservedWords[head] {
+				// A wrapper runs another program (NCM-V1-019).
+				s.scan.unfollowed("shell:unfollowed-command:" + head)
+			}
 			if len(pending) != 0 || !driverReservedWords[head] {
 				settle(false, false)
 				wrapped = true
 			}
 			words = words[1:]
 		case head == "env":
+			s.scan.unfollowed("shell:unfollowed-command:env") // NCM-V1-019.
 			s.scan.revoke("shell:unsupported-wrapper")
 			settle(false, false)
 			wrapped = true
@@ -1009,7 +1084,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 				words = words[1:]
 			}
 		case head == "xargs":
-			s.scan.unfollowed() // The command's operands come from its input.
+			s.scan.unfollowed("shell:unfollowed-command:xargs") // The command's operands come from its input.
 			s.scan.revoke("shell:unsupported-wrapper")
 			settle(false, false)
 			wrapped = true
@@ -1029,6 +1104,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			}
 			words = rest
 		case head == "nice" || head == "timeout" || head == "ionice" || head == "taskset":
+			s.scan.unfollowed("shell:unfollowed-command:" + head) // NCM-V1-019.
 			s.scan.revoke("shell:unsupported-wrapper")
 			settle(false, false)
 			wrapped = true
@@ -1358,10 +1434,13 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		// An absolute path below the repository root names the repository
 		// program at that relative path, never a command of the same base
 		// name (AFP-V0-9131).
-		words = append([]driverWord{{text: relative, quoted: words[0].quoted, escaped: words[0].escaped, refs: words[0].refs}}, words[1:]...)
+		words = append([]driverWord{{text: relative, quoted: words[0].quoted, escaped: words[0].escaped, refs: words[0].refs, substitutes: words[0].substitutes}}, words[1:]...)
 	}
 	head := words[0].text
 	s.scan.commandWord(words[0])
+	if followed, reason := driverFollowed(words); !followed {
+		s.scan.unfollowed(reason)
+	}
 	for _, word := range words {
 		switch word.text {
 		case "-eq", "-ne", "-lt", "-le", "-gt", "-ge":
@@ -1414,8 +1493,13 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		"typeset", "let", "mapfile", "readarray", "getopts", "hash", "enable", "shopt", "printf-v", "alias":
 		// Environment mutations persist beyond this simple command. No
 		// forms of these builtins have a modeled environment transition.
-		// Retain the site even when the recipe has no make expansion.
-		s.scan.markComputed("shell:builtin-" + head)
+		// Retain the site even when the recipe has no make expansion. A set
+		// of NCM-V1-019's options runs nothing, so the reach follows it.
+		if head == "set" && driverFollowedSet(words[1:]) {
+			s.scan.envPrefix("shell:builtin-set")
+		} else {
+			s.scan.markComputed("shell:builtin-" + head)
+		}
 		s.scan.revoke("shell:builtin-" + head)
 		s.scan.uncertify("shell:builtin-" + head)
 		s.embedded(words[1:], cwd)
@@ -1423,7 +1507,6 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	case "trap":
 		// AFP-V0-3128: the body runs later as shell code, potentially
 		// with a different environment or directory.
-		s.scan.unfollowed()
 		s.scan.uncertify("shell:trap")
 		s.scan.revoke("shell:unsupported-syntax")
 		for _, word := range words[1:] {
@@ -1462,7 +1545,6 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		s.scan.uncertify("shell:eval")
 		return cwd
 	case ".", "source":
-		s.scan.unfollowed()
 		s.scan.uncertify("shell:sourced")
 		// AFP-V0-9628: the file may define functions or set PS4.
 		s.scan.revoke("shell:sourced")
@@ -1477,9 +1559,6 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	}
 	if driverComputedWord(head) {
 		s.scan.markComputed("shell:computed-command-word")
-	}
-	if !driverFollowed(words) {
-		s.scan.unfollowed()
 	}
 	if !s.driverCertified(words, cwd) {
 		s.scan.uncertify(s.driverUncertifiedReason(words, cwd))

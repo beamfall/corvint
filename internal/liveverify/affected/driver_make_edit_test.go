@@ -143,7 +143,8 @@ all: check
 check:
 	go test ./tool
 cached:
-	go run ./gen $(CACHE)
+	test -d $(CACHE)
+	go test ./gen
 tree:
 	go vet ./core
 	find . -name '*.go'
@@ -155,9 +156,10 @@ nested:
 
 // TestReachMakeTargets_NCMV1013 pins what a changed target can run: its own
 // recipe's paths and its prerequisites' (all reaches check's tool), a
-// target whose resolved commands read what the graph does not bound
-// (evaluated or whole-tree reads) stays bounded, and one whose command does
-// not resolve, or that sits in a file outside the parsed subset, does not.
+// target whose followed commands read what the graph does not bound (an
+// evaluated test operand) stays bounded, and one whose command does not
+// resolve, find's whole-tree read included (NCM-V1-019), or that sits in a
+// file outside the parsed subset, does not.
 func TestReachMakeTargets_NCMV1013(t *testing.T) {
 	root := makeReachRepository(t, map[string]string{"Makefile": makeReachFile, "sub/Makefile": "$(eval Y = 1)\nx:\n\techo\n"})
 	ctx := context.Background()
@@ -170,8 +172,8 @@ func TestReachMakeTargets_NCMV1013(t *testing.T) {
 		{"Makefile", []string{"check"}, []string{"tool"}, ""},
 		{"Makefile", []string{"all"}, []string{"tool"}, ""},
 		{"Makefile", []string{"cached"}, []string{"gen"}, ""},
-		{"Makefile", []string{"tree"}, []string{"core"}, ""},
-		{"Makefile", []string{"opaque"}, nil, `make target "opaque" runs a command or make goal that does not resolve`},
+		{"Makefile", []string{"tree"}, nil, `make target "tree" runs a command or make goal that does not resolve: shell:unfollowed-command:find`},
+		{"Makefile", []string{"opaque"}, nil, `make target "opaque" runs a command or make goal that does not resolve: shell:computed-command-word, shell:unfollowed-command:$?`},
 		{"Makefile", []string{"check", "opaque"}, nil, "does not resolve"},
 		{"Makefile", []string{"nested"}, nil, `make unit "driver:make:sub/Makefile#*" is in a file outside the parsed subset`},
 		{"Makefile", []string{"missing"}, nil, "is not in the driver units"},
@@ -194,9 +196,9 @@ func TestReachMakeTargets_NCMV1013(t *testing.T) {
 			}
 		})
 	}
-	// The bounded cases above must really be the frontier sites the
-	// planner keeps (an evaluated, uncertified site and a whole-tree read),
-	// or the case proves nothing.
+	// The cases above must really be the frontier sites the planner keeps
+	// (an evaluated, uncertified site, bounded in the reach, and a
+	// whole-tree read, open in it), or the case proves nothing.
 	units, err := Driver{}.Units(ctx, root)
 	if err != nil {
 		t.Fatal(err)

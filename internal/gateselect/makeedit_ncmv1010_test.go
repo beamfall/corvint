@@ -14,7 +14,7 @@ all: check
 check:
 	go test $(FLAGS) ./tool
 gen:
-	go run ./gen
+	go test ./gen
 docs:
 	echo docs
 opaque:
@@ -83,7 +83,7 @@ func TestNCMV1010SelectorNarrowsMakeEdit(t *testing.T) {
 		// select, so SelectQualified runs everything.
 		made string
 	}{
-		{"recipe", strings.Replace(makeEditMakefile, "go run ./gen", "go run ./gen -v", 1), "gen",
+		{"recipe", strings.Replace(makeEditMakefile, "go test ./gen", "go test -v ./gen", 1), "gen",
 			[]string{"gen", "mkread"}, []string{"make " + fixtureModule + "/gen <- Makefile"}, "gen"},
 		{"recipe of a CI target", strings.Replace(makeEditMakefile, "./tool\ngen:", "-count=1 ./tool\ngen:", 1), "check",
 			[]string{"ciread", "mkread", "tool"}, []string{"make-ci " + fixtureModule + "/ciread <- .github/workflows/ci.yml", "make " + fixtureModule + "/tool <- Makefile"}, "ciread"}, //corvint:fixture-path
@@ -132,7 +132,7 @@ func TestNCMV1010SelectorNarrowsMakeEdit(t *testing.T) {
 func TestNCMV1012SelectorMakeEditFailsClosed(t *testing.T) {
 	root, base := makeEditRepository(t)
 	full := func(p, why string) string { return "FALLBACK never-narrowed-path " + p + ": make edit: " + why }
-	edited := strings.Replace(makeEditMakefile, "go run ./gen", "go run ./gen -v", 1)
+	edited := strings.Replace(makeEditMakefile, "go test ./gen", "go test -v ./gen", 1)
 	t.Run("unknown base", func(t *testing.T) {
 		writeMakefile(t, root, edited)
 		defer writeMakefile(t, root, makeEditMakefile)
@@ -183,7 +183,7 @@ func TestNCMV1012SelectorMakeEditFailsClosed(t *testing.T) {
 	t.Run("unbounded reach", func(t *testing.T) {
 		writeMakefile(t, root, strings.Replace(makeEditMakefile, "$$RUNNER ./tool", "$$RUNNER -v ./tool", 1))
 		defer writeMakefile(t, root, makeEditMakefile)
-		requireVerdict(t, makeEditPlan(base, "Makefile"), root, full("Makefile", `make target "opaque" runs a command or make goal that does not resolve`))
+		requireVerdict(t, makeEditPlan(base, "Makefile"), root, full("Makefile", `make target "opaque" runs a command or make goal that does not resolve: shell:computed-command-word, shell:unfollowed-command:$?`))
 	})
 	t.Run("included make file", func(t *testing.T) {
 		requireVerdict(t, makeEditPlan(base, "rules.mk"), root, "FALLBACK never-narrowed-path rules.mk")
@@ -195,13 +195,14 @@ gate: clear $(addprefix ledger/,$(STEPS))
 	echo gate
 $(STEPS) $(addprefix ledger/,$(STEPS)): | clear
 ledger/%:
-	go run ./steptool $* -- $(MAKE) $*
+	go test ./steptool
+	$(MAKE) $*
 clear:
 	echo clear
 check:
 	go test ./tool
 gen:
-	go run ./gen
+	go test ./gen
 `
 
 // TestNCMV1015SelectorNarrowsWordListEdit pins NCM-V1-015 and NCM-V1-016 in

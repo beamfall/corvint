@@ -115,21 +115,23 @@ func TestAttributeMakeEditWordListFailsClosed_NCMV1015(t *testing.T) {
 }
 
 // makeInstanceFile has a pattern rule a word-list edit reaches through
-// ledger/<word>, as the repository's ledger/% is.
+// ledger/<word>, as the repository's ledger/% is. Its recipes are go vet,
+// not the repository's go run, which NCM-V1-019 does not follow.
 const makeInstanceFile = `STEPS = check
 all: $(addprefix ledger/,$(STEPS))
 ledger/%:
-	go run ./ledger $* -- $(MAKE) $*
+	go vet ./ledger
+	$(MAKE) $*
 check:
 	go test ./tool
 lint:
 	go vet ./core
 twice/%:
-	go run ./ledger $*
+	go vet ./ledger
 twice/%.x:
-	go run ./core $*
+	go vet ./core
 needs/%: %.in
-	go run ./ledger $*
+	go vet ./ledger
 `
 
 // TestReachMakeEditInstance_NCMV1016 pins the reach through a pattern rule
