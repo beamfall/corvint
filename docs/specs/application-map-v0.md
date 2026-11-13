@@ -2536,7 +2536,8 @@ but does not read it; only non-Go syntax impact does.
   element reads `non-literal-static-route` or `unsupported-static-route`; no declaration reads
   `missing-static-routes`; a second declaration, an initializer that is not an array literal, a
   template substitution or escaped identifier anywhere in the file, an assignment to NAME or a use
-  through a mutating array method reads `computed-static-routes` and declares nothing. Other
+  through a mutating array method reads `computed-static-routes` and declares nothing. A file the route lexer cannot read (an unterminated string, comment or template) reads
+  `unsupported-static-routes-syntax` and declares nothing. Other
   exports of the file are not read.
   - Non-goals: locale or base-path expansion of the list, route lists built by functions, and the
     prerender configuration of bundlers (they name the exported list instead).
