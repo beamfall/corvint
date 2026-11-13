@@ -1492,16 +1492,6 @@ jobs:
           CORVINT_SKIP_LIVE_TIER: "1"
         run: |
           test "$(go env GOVERSION)" = "go1.27.4"
-          # CIN-V0-8720: hold the captured authorizer in this shell before any test runs, and only
-          # while its bytes match the capture step's digest; tested code cannot change a variable
-          # of this shell, and none of this is exported.
-          known_flakes_src=""
-          if [ -n "$KNOWN_FLAKES_SHA256" ] && known_flakes_src=$(cat -- "$RUNNER_TEMP/known-flakes-authorizer.py" && echo x); then
-            known_flakes_src=${known_flakes_src%x}
-            [ "$(printf '%s' "$known_flakes_src" | sha256sum | cut -d' ' -f1)" = "$KNOWN_FLAKES_SHA256" ] || known_flakes_src=""
-          else
-            known_flakes_src=""
-          fi
           # AFP-V0-097/098: the only route to a narrowed shard is the gate above. A skipped, refused
           # or failed verdict or gate leaves NARROW_MODE other than NARROWED and runs the whole shard
           # here; the deciding driver never executes tests (its historical profile is evidence only).
@@ -1713,6 +1703,16 @@ jobs:
             echo "$rerun_status" > "$outcomes_dir/rerun-status"
             sh .github/forward-rows/outcomes.sh rerun "$outcomes_dir" "$outcomes_dir/rerun.stream"
           }
+          # CIN-V0-8720: hold the captured authorizer in this shell before any test runs, and only
+          # while its bytes match the capture step's digest; tested code cannot change a variable
+          # of this shell, and none of this is exported.
+          known_flakes_src=""
+          if [ -n "$KNOWN_FLAKES_SHA256" ] && known_flakes_src=$(cat -- "$RUNNER_TEMP/known-flakes-authorizer.py" && echo x); then
+            known_flakes_src=${known_flakes_src%x}
+            [ "$(printf '%s' "$known_flakes_src" | sha256sum | cut -d' ' -f1)" = "$KNOWN_FLAKES_SHA256" ] || known_flakes_src=""
+          else
+            known_flakes_src=""
+          fi
           # AFP-V0-040: best-effort capture of the JSON stream for the advisory cost-drift
           # report. Only go test's own status decides this step: a capture file that cannot
           # be created runs the tests uncaptured, and tee's status is never consulted.
