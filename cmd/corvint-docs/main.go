@@ -4,7 +4,8 @@
 // the `docs` command group (draft, consume, nav, citations, corpus, maintain
 // and flows), the application-flow group `flows` with its `how` alias
 // (decision 0595), the `--corpus=FILE` join over a core read, and the
-// `docs-tool` verb that answers the MCP documentation tools for corvint-mcp.
+// `docs-tool` verb that answers the MCP documentation tools for the docs
+// bridge, and `mcp`, the documentation MCP server (MTT-V1-004).
 // It takes the same argument vectors `corvint docs ...`, `corvint flows ...`,
 // `corvint how ...` and `corvint --corpus=FILE ...` take; the core forwards
 // those to this executable unchanged and holds no documentation or flow
@@ -27,6 +28,7 @@ import (
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/groupreap"
+	"github.com/Beamfall/corvint/internal/mcp/docsserver"
 	"github.com/Beamfall/corvint/internal/procprofile"
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
@@ -123,6 +125,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		return runDocsTool(ctx, root, tool, stdin, stdout, stderr)
 	}
-	emitError(stderr, argumentError(fmt.Sprintf("%s takes [--root PATH] docs SUBCOMMAND ..., [--root PATH] flows ..., [--root PATH] how ..., --corpus=FILE before a core read, or %s; see %s --help", binaryName, toolVerb, binaryName)))
+	if len(arguments) > 0 && arguments[0] == "mcp" { // MTT-V1-004
+		return docsserver.Serve(ctx, mcpServerVersion(), arguments[1:], stdin, stdout, stderr)
+	}
+	emitError(stderr, argumentError(fmt.Sprintf("%s takes [--root PATH] docs SUBCOMMAND ..., [--root PATH] flows ..., [--root PATH] how ..., mcp --root ROOT, --corpus=FILE before a core read, or %s; see %s --help", binaryName, toolVerb, binaryName)))
 	return 2
 }

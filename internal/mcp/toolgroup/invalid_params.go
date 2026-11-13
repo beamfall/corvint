@@ -7,8 +7,10 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"sync"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/capcatalog"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 )
@@ -92,8 +94,25 @@ func invalidParamsData(tools []bridge.ToolDescriptor, params map[string]any) pro
 		names = append(names, tool.Name)
 	}
 	slices.Sort(names)
-	return protocol.InvalidParamsData{Reason: reasonUnknownTool, Field: "name", Allowed: stringsAsAny(names)}
+	data := protocol.InvalidParamsData{Reason: reasonUnknownTool, Field: "name", Allowed: stringsAsAny(names)}
+	if replacement := replacedBy()[name]; replacement != "" {
+		data.Rule = "renamed to " + replacement + " (MTT-V1-007)"
+	}
+	return data
 }
+
+// replacedBy maps each earlier tool name the MCP tool table lists in a row's
+// replaces column to that row's tool (MTT-V1-007), so a call to an old name
+// stays unknown-tool but names the tool to call instead.
+var replacedBy = sync.OnceValue(func() map[string]string {
+	renamed := map[string]string{}
+	for _, row := range capcatalog.MCPTools() {
+		for _, old := range row.Replaces {
+			renamed[old] = row.Name
+		}
+	}
+	return renamed
+})
 
 // diagnose returns the first rule of schema that value breaks, in a fixed
 // order: type, const and enum, bounds, pattern, then object members in sorted

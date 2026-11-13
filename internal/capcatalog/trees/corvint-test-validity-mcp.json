@@ -14,7 +14,7 @@
     {
       "path": [],
       "command": "corvint-test-validity-mcp",
-      "summary": "usage: corvint-test-validity-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25]\n       corvint-test-validity-mcp --version\nA local read-only stdio MCP server for the experimental test-validity tools of the Git worktree at ROOT.\nDeprecated alias, kept for one release: corvint-mcp --root ROOT --tool-profile test-validity\nserves the same tools with the same results.\nExample: corvint-test-validity-mcp --root /absolute/repo",
+      "summary": "usage: corvint-test-validity-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25]\n       corvint-test-validity-mcp --version\nA local read-only stdio MCP server for the experimental test-validity tools of the Git worktree at ROOT.\nRetiring: corvint mcp no longer serves corvint.test_validity (MTT-V1-005); this binary leaves\nthe release in its removal batch, and corvint test-validity answers on the command line.\nExample: corvint-test-validity-mcp --root /absolute/repo",
       "usage": [
         "corvint-test-validity-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25] [--help] [-h]",
         "corvint-test-validity-mcp --version"

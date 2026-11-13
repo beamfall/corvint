@@ -20,12 +20,12 @@ import (
 
 // The flows descendant profile projects `corvint flows map|gaps|impact|navigate` (AFU-V1-034).
 const (
-	ToolFlowsCoverage = "corvint.flows.coverage"
-	ToolFlowsMap      = "corvint.flows.map"
-	ToolFlowsGaps     = "corvint.flows.gaps"
-	ToolFlowsImpact   = "corvint.flows.impact"
-	ToolFlowsNavigate = "corvint.flows.navigate"
-	ToolFlowsStatus   = "corvint.flows.status"
+	ToolFlowsCoverage = "corvint.flows_coverage"
+	ToolFlowsMap      = "corvint.flows_map"
+	ToolFlowsGaps     = "corvint.flows_gaps"
+	ToolFlowsImpact   = "corvint.flows_impact"
+	ToolFlowsNavigate = "corvint.flows_navigate"
+	ToolFlowsStatus   = "corvint.flows_status"
 
 	maxFlowInputs    = 100
 	maxFlowGoalRunes = 64

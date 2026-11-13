@@ -161,7 +161,7 @@ func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
 			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
 				t.Fatalf("drops guard %v: %s reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, call.tool, err)
 			}
-			if strings.HasPrefix(call.tool, "corvint.flows.") && (callErr == nil || callErr.Code == "") {
+			if strings.HasPrefix(call.tool, "corvint.flows_") && (callErr == nil || callErr.Code == "") {
 				t.Fatalf("drops guard %v: %s served flows whose intent blob is missing: %#v", dropsLazyFetchGuard, call.tool, callErr)
 			}
 		}
@@ -176,7 +176,7 @@ func liftedProbeContext() context.Context {
 	return gokernel.WithProbeBound(context.Background(), 10*time.Minute)
 }
 
-// V1-0349: corvint.flows.coverage, which reads the denominator's committed intents, refuses with a
+// V1-0349: corvint.flows_coverage, which reads the denominator's committed intents, refuses with a
 // coded error and never reaches the promisor remote when a blob:none sparse clone left the intent
 // blob there, including through a Git that ignores GIT_NO_LAZY_FETCH. A full blob:none clone of the
 // same source is the control: it serves the page, so the sparse refusal is the missing blob's. The

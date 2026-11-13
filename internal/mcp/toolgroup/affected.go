@@ -7,11 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
+	"github.com/Beamfall/corvint/internal/selectionswitch"
 )
 
 // AffectedTool answers which tests a change requires: the affected-summary/1
@@ -21,6 +24,22 @@ const AffectedTool = "corvint.affected"
 
 // AffectedErrorProfile is the group's own tool-error object.
 const AffectedErrorProfile = "corvint-affected-mcp-tool-error/0"
+
+// AffectedSelectAllProfile is the successful answer that selects every test
+// with a typed reason, where the CLI would exit 2 instead (MTT-V1-008,
+// MTT-V1-011): an MCP call cannot hand the user an exit status, and "run
+// everything, here is why" never narrows.
+const AffectedSelectAllProfile = "affected-select-all/1"
+
+// AffectedStaleCode is the planner's refusal for a corvint binary older than
+// the repository's Go source (AFP-V0-9730); the tool answers it as a
+// select-all with this reason (MTT-V1-011).
+const AffectedStaleCode = "self-binary-stale"
+
+// affectedStaleHint is the one-line recovery a stale-binary answer carries:
+// the server keeps the binary it started with, so a rebuild alone changes
+// nothing.
+const affectedStaleHint = "rebuild corvint from this checkout and restart corvint mcp; the running server keeps the binary it started with"
 
 // AffectedOversizedCode is the tool error for a verdict whose result cannot
 // fit one MCP message; it names the CLI as the way to read it (MMR-V0-1118).
@@ -59,7 +78,10 @@ type Affected struct {
 	Root    string
 	Binding *rootbind.Binding
 	Run     AffectedRunner
-	gate    chan struct{}
+	// Lookup reads the server's environment for CORVINT_SELECTION; nil is
+	// os.LookupEnv.
+	Lookup func(string) (string, bool)
+	gate   chan struct{}
 }
 
 // NewAffected is the group for root with its own one-run gate.
@@ -75,7 +97,8 @@ func (group Affected) Tools() []bridge.ToolDescriptor {
 			"without base it plans the dirty worktree alone. The verdict carries the plan scope, dirty/selected/excluded/unknown counts, unknown reasons and the sorted tier-0 and tier-1 unit names; " +
 			"missing evidence widens the scope or stays UNKNOWN, never selects fewer tests. Read-only; served by corvint mcp only. " +
 			"One planner runs at a time per root. A verdict too large for one MCP message is the tool error verdict-oversized: read it with the CLI instead. " +
-			"The tool error self-binary-stale means this server is running a corvint binary older than the repository's Go source; " +
+			"CORVINT_SELECTION in the server's environment (full, full:<runner>[,<runner>], or any unknown value) makes the answer an affected-select-all/1 result that selects every test with its reason and a hint, never a narrowed plan. " +
+			"On a corvint binary older than the repository's Go source the answer is affected-select-all/1 with reason self-binary-stale and a rebuild hint, never a narrowed plan; " +
 			"rebuilding changes nothing until the server restarts, so rebuild corvint and restart corvint mcp.",
 		Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
 		InputSchema: map[string]any{
@@ -111,6 +134,18 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 	if ctx.Err() != nil {
 		return Cancelled(AffectedErrorProfile, name) // DMF-V1-010
 	}
+	// MTT-V1-008: the kill switch is read with selectionswitch.Parse, the
+	// one parser of the change narrowing-measurement grammar; any value,
+	// known or not, selects every test with its reason and never runs a
+	// planner that could narrow.
+	lookup := group.Lookup
+	if lookup == nil {
+		lookup = os.LookupEnv
+	}
+	value, _ := lookup(selectionswitch.Variable)
+	if kill := selectionswitch.Parse(value); kill.On() {
+		return group.selectAll(ctx, name, base, kill.Reason(), killSwitchDetail(kill), killSwitchHint(kill), kill)
+	}
 	if group.gate != nil {
 		// A call waiting behind another run honours its own cancellation and
 		// never starts the planner once its context has ended.
@@ -127,6 +162,13 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 			return Cancelled(AffectedErrorProfile, name)
 		}
 		code, message := affectedFailure(stderr.Bytes())
+		if code == AffectedStaleCode {
+			// MTT-V1-011: a stale binary's plan may be narrower than the
+			// checkout's, and a tool error makes an agent retry or skip
+			// tests; select every test and say why instead. The CLI keeps
+			// its exit 2.
+			return group.selectAll(ctx, name, base, AffectedStaleCode, message, affectedStaleHint, selectionswitch.Switch{})
+		}
 		return Failure(AffectedErrorProfile, name, code, message)
 	}
 	var structured map[string]any
@@ -148,6 +190,77 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 			size, protocol.MaxMessageBytes-affectedFrameHeadroom))
 	}
 	return result, nil
+}
+
+// selectAll is the successful select-all answer: scope FULL, every test
+// selected, the typed reason, a one-line detail and hint, and, for the kill
+// switch, the value and runners it named.
+func (group Affected) selectAll(ctx context.Context, name, base, reason, detail, hint string, kill selectionswitch.Switch) (map[string]any, *protocol.RPCError) {
+	structured := map[string]any{
+		"base": base, "detail": detail, "hint": hint, "mutates": false, "ok": true,
+		"profile": AffectedSelectAllProfile, "reason": reason, "scope": "FULL", "selectAll": true, "tool": name,
+	}
+	if kill.On() {
+		value, kept := echoValue(kill.Value)
+		runners := []any{}
+		// A runner token is echoed only when it lies wholly inside the
+		// kept bytes, so the runner list is bounded with the value.
+		end := len("full:")
+		for _, runner := range kill.Runners {
+			if end += len(runner); end > kept {
+				break
+			}
+			runners = append(runners, runner)
+			end++
+		}
+		structured["selection"] = map[string]any{"variable": selectionswitch.Variable, "value": value, "runners": runners}
+	}
+	text, err := json.Marshal(structured)
+	if err != nil {
+		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	return Answer(ctx, AffectedErrorProfile, name, structured, string(text), nil, nil)
+}
+
+// echoLimit bounds the bytes of a CORVINT_SELECTION value a select-all
+// answer echoes, in selection.value and in detail (MTT-V1-008): the value is
+// the server environment's and has no length bound of its own.
+const echoLimit = 256
+
+// echoValue is value cut to echoLimit bytes at a UTF-8 boundary with the
+// marker `...(truncated, N bytes)`, and the count of value's bytes it keeps;
+// a value within the limit is returned whole.
+func echoValue(value string) (string, int) {
+	if len(value) <= echoLimit {
+		return value, len(value)
+	}
+	marker := fmt.Sprintf("...(truncated, %d bytes)", len(value))
+	kept := echoLimit - len(marker)
+	for kept > 0 && !utf8.RuneStart(value[kept]) {
+		kept--
+	}
+	return value[:kept] + marker, kept
+}
+
+// killSwitchDetail says why every test is selected. Every arm quotes the
+// echoed value, never the raw one.
+func killSwitchDetail(kill selectionswitch.Switch) string {
+	value, _ := echoValue(kill.Value)
+	switch {
+	case kill.Unknown:
+		return fmt.Sprintf("%s=%q is neither full nor full:<runner>[,<runner>]; every test is selected instead of a narrowed plan", selectionswitch.Variable, value)
+	case kill.All:
+		return selectionswitch.Variable + "=full forces every runner to a full run; every test is selected"
+	}
+	return fmt.Sprintf("%s=%q forces the named runners to a full run; this tool widens that to every test until the planner serves a per-runner full plan (change narrowing-measurement)", selectionswitch.Variable, value)
+}
+
+// killSwitchHint is the one-line recovery for a kill-switch answer.
+func killSwitchHint(kill selectionswitch.Switch) string {
+	if kill.Unknown {
+		return "set " + selectionswitch.Variable + " to full or full:<runner>[,<runner>], or unset it, in the corvint mcp server's environment and restart the server"
+	}
+	return "unset " + selectionswitch.Variable + " in the corvint mcp server's environment and restart the server to narrow again"
 }
 
 // affectedOversized measures result as the server encodes a frame and reports

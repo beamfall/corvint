@@ -116,6 +116,14 @@ func machineToolFindings(names []string, entries []capcatalog.MCPTool) []Finding
 			findings = append(findings, Finding{"duplicate", sectionTools, entry.Name, "duplicate machine catalog tool"})
 		}
 		seen[entry.Name] = true
+		// A planned row or a "no MCP tool" row names no implementation by
+		// design (MTT-V1-001, MTT-V1-006); a real tool with that name is drift.
+		if !entry.Registered() {
+			if want[entry.Name] {
+				findings = append(findings, Finding{"stale", sectionTools, entry.Name, "machine catalog row is planned or serverless but a tool implements it"})
+			}
+			continue
+		}
 		if !want[entry.Name] {
 			findings = append(findings, Finding{"stale", sectionTools, entry.Name, "machine catalog tool names no implementation"})
 		}

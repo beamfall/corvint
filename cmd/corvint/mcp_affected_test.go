@@ -186,11 +186,12 @@ func staleBuildInfoFunc(info *debug.BuildInfo) func() (*debug.BuildInfo, bool) {
 	return func() (*debug.BuildInfo, bool) { return info, true }
 }
 
-// MMR-V0-1118 with AFP-V0-9730: `affected --summary` refuses a self-binary-stale
-// binary with exit 2, so a stale corvint binary served through corvint mcp
-// answers the CLI's refusal as the tool error with the CLI's code and error,
-// never a plan; because that error is the CLI's, the restart recovery lives in
-// the tool description and the verb's help.
+// MTT-V1-011 (with MMR-V0-1118 and AFP-V0-9730): on a stale corvint binary
+// `affected --summary` still exits 2 with self-binary-stale, while the
+// corvint.affected tool served by that binary answers a successful select-all
+// with reason self-binary-stale and a one-line rebuild hint, never a narrowed
+// plan or a tool error; the restart recovery is also in the tool description
+// and the verb's help.
 func TestV15254MCPAffectedStaleBinaryDegrades(t *testing.T) {
 	root := affectedFixtureRepository(t)
 	built := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
@@ -211,11 +212,13 @@ func TestV15254MCPAffectedStaleBinaryDegrades(t *testing.T) {
 		`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"corvint.affected","arguments":{}}}`,
 	)
-	refused, _ := responses["2"]["result"].(map[string]any)
-	structured, _ := refused["structuredContent"].(map[string]any)
-	if refused["isError"] != true || structured["profile"] != toolgroup.AffectedErrorProfile ||
-		structured["code"] != emitted.Code || structured["error"] != emitted.Error {
-		t.Fatalf("stale binary: MCP %#v, CLI %#v", refused, emitted)
+	answered, _ := responses["2"]["result"].(map[string]any)
+	structured, _ := answered["structuredContent"].(map[string]any)
+	hint, _ := structured["hint"].(string)
+	if answered["isError"] != false || structured["profile"] != toolgroup.AffectedSelectAllProfile || structured["selectAll"] != true ||
+		structured["scope"] != "FULL" || structured["reason"] != selfBinaryStaleCode || structured["detail"] != emitted.Error ||
+		hint == "" || strings.Contains(hint, "\n") || !strings.Contains(hint, "rebuild") || !strings.Contains(hint, "restart") {
+		t.Fatalf("stale binary: MCP %#v, CLI %#v", answered, emitted)
 	}
 	var description string
 	for _, raw := range responses["1"]["result"].(map[string]any)["tools"].([]any) {
