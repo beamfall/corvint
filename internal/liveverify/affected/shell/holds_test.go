@@ -598,6 +598,49 @@ func TestCommandRunningNamesBehindWrappers_AFPV09710(t *testing.T) {
 	wantUnbounded(t, graph, "", controls...)
 }
 
+// AFP-V0-9710 (V1-5217 item 3, fix round 1): only a single absolute path
+// word is an outside value. A value that starts with `/` but carries a
+// blank, an escape, a quote or a shell operator may pass an argument such as
+// tools/ssh.sh, so it holds and a change to that helper's data dependency
+// selects the caller. Mutation note: restoring the old check, which exempted
+// any value whose colon-separated parts each start with `/`, leaves the held
+// cases bounded and makes this test fail.
+func TestAbsoluteCommandValueWithArgumentsHolds_AFPV09710(t *testing.T) {
+	held := map[string]string{
+		"ssh_sh_quoted":  "command env GIT_SSH_COMMAND='/bin/sh tools/ssh.sh' git ls-remote ssh://example.invalid/repo\n",
+		"ssh_sh_escaped": "command env GIT_SSH_COMMAND=/bin/sh\\ tools/ssh.sh git ls-remote ssh://example.invalid/repo\n",
+		"pager_args":     "PAGER=\"/usr/bin/less tools/pager.sh\" git branch --list\n",
+		"editor_chain":   "GIT_EDITOR='/bin/true;sh tools/ssh.sh' git commit -q\n",
+		"quoted_path":    "nohup env GIT_SSH_COMMAND='/usr/bin/ssh' git fetch origin\n",
+		"perl_blank":     "PERL5LIB='/opt/lib tools' perl x.pl\n",
+	}
+	bounded := map[string]string{
+		"ssh_absolute": "command env GIT_SSH_COMMAND=/usr/bin/ssh git ls-remote ssh://example.invalid/repo\n",
+		"perl_outside": "PERL5LIB=/usr/share/perl5:/opt/lib perl x.pl\n",
+		"pager_empty":  "PAGER='' git branch --list\n",
+	}
+	tests := map[string]string{}
+	var names, controls []string
+	for name, body := range held {
+		tests[name] = body
+		names = append(names, name)
+	}
+	for name, body := range bounded {
+		tests[name] = body
+		controls = append(controls, name)
+	}
+	graph := holdGraph(t, tests, map[string]string{
+		"tools/ssh.sh":   "cat tools/ssh.conf\n",
+		"tools/ssh.conf": "Host *\n",
+		"tools/pager.sh": "cat\n",
+	})
+	wantUnbounded(t, graph, UnboundedDynamicSource, names...)
+	wantUnbounded(t, graph, "", controls...)
+	for _, dirty := range []string{"tools/ssh.sh", "tools/ssh.conf"} {
+		wantSelected(t, graph, dirty, []string{"ssh_sh_quoted", "ssh_sh_escaped", "editor_chain"}, []string{"ssh_absolute", "perl_outside", "pager_empty"})
+	}
+}
+
 // AFP-V0-9711 (V1-5217 item 4): a preload or require option of node or bun
 // (`--import`, `-r`, `--require`, `--loader`, `--preload`) is never read as
 // the program operand. A test that runs node runs a toolchain; a helper's
