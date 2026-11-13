@@ -269,7 +269,7 @@ func watchImportPath(module, pkg string) string {
 // watchGoRunner is the go executable the plan's tests run under and its
 // version, as a receipt names them; either is empty when it cannot be read.
 func watchGoRunner(ctx context.Context, root string) (string, string) {
-	runner, err := exec.LookPath("go")
+	runner, err := exec.LookPath(golang.New().Name())
 	if err != nil {
 		return "", ""
 	}
