@@ -988,15 +988,6 @@ type packageReference struct {
 	count   int
 }
 
-// samePackageReferences scans every source in changedPath's directory for
-// lines that reference a name changedPath declares. samePackageReferencesWithDirIndex
-// is the same computation with the index's directory->paths map supplied, so
-// a caller scanning many changed paths (Impact, up to maxImpactPaths) builds
-// that map once instead of once per changed path (V1-0054).
-func samePackageReferences(index *Index, changedPath string, includeTests bool) []packageReference {
-	return samePackageReferencesWithDirIndex(index, changedPath, includeTests, nil)
-}
-
 func samePackageReferencesWithDirIndex(index *Index, changedPath string, includeTests bool, dirIndex map[string][]string) []packageReference {
 	if !strings.HasSuffix(changedPath, ".go") || isTestPath(changedPath) {
 		return nil

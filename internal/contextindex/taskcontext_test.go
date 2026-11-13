@@ -28,12 +28,3 @@ func taskContextFixture(t *testing.T) *Index {
 	}
 	return index
 }
-
-func contextRowsByKind(t *testing.T, packet map[string]any) map[string][]string {
-	t.Helper()
-	found := map[string][]string{}
-	for _, item := range mapsFromAny(packet["results"]) {
-		found[item["kind"].(string)] = append(found[item["kind"].(string)], item["id"].(string))
-	}
-	return found
-}
