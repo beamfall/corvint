@@ -13,7 +13,7 @@ PROD-TEST-015, PROD-TEST-016) and `docs/decisions/0596-accept-product-plan-1-0-2
 ## Agent digest
 - Claim: Python and JavaScript selection raises a named frontier where it drops an edge today; new narrowing rules ship tested but held off until fault injection.
 - Status: accepted (decision 0596, G14; V1-5401) / experimental; partially delivered
-- Exists: `python:absolute-import-unresolved`, glob and mock edges, the literal-config reader and its gates, the coverage hook in `internal/liveverify/affected`, the selection side of the SLF-V1-006 fault cases, `sessiontest.SelectionVerdictOf` (SLF-V1-007) and the `summary.tests`/`summary.drivers` members (SLF-V1-008).
+- Exists: `python:absolute-import-unresolved`, glob and mock edges, the literal-config reader and its gates, the coverage hook in `internal/liveverify/affected`, the selection side of the SLF-V1-006 fault cases, `sessiontest.Input.SelectionVerdict` (SLF-V1-007) and the `summary.tests`/`summary.drivers` members (SLF-V1-008).
 - Blocked on: the SLF-V1-006 FIH-V1 reports, which need the harness's pytest, Vitest and Jest adapters (FIH-V1-008) and a sealed pre-registration on a pinned proof repository (FIH-V1-001, FIH-V1-009); until then every narrowing gate stays off.
 - Read next: Requirements; Narrowing gates; Delivery record.
 
@@ -204,7 +204,10 @@ the killer is selected or the plan is UNKNOWN. SLF-V1-001 has six (`pythonpath` 
 root and a transitive edge), SLF-V1-003 six (`import.meta.glob` star, recursive and array forms,
 flat and recursive `require.context`, a file reached through a globbed page) and SLF-V1-005 six
 (a Vitest include source and a file it reaches, the `setupFiles` and `globalSetup` targets, a Jest
-`roots`/`testMatch` source and a `moduleNameMapper` target). The kill itself, the killer failing
+`roots`/`testMatch` source and a `moduleNameMapper` target). Each `import.meta.glob` case's killer
+loads every globbed page and compares its exported values with the unfaulted ones. The two
+`require.context` cases claim no killer (NOT_PRODUCED): the fixture's runner is Vitest, which has
+no `require.context`, so no test of that route table runs on the unfaulted tree. The kill itself, the killer failing
 three of three runs on the faulted tree, is not measured, so no FIH-V1 report exists for any rule
 (NOT_PRODUCED): `tools/fault-harness` has only its Go adapter, and the pytest, Vitest and Jest
 adapters of FIH-V1-008 (change `fault-injection-harness` task 6) and a sealed pre-registration on
@@ -225,28 +228,39 @@ tool MUST print that function's output and MUST NOT compute their own. Every unk
 non-empty hint. An unknown code the function does not know MUST map to `forces-full`.
 (PROD-TEST-001, PROD-TEST-009)
 
-Built (2026-11-13) on the R32 allowlist that `runner-contract` task 9 delivered.
-`sessiontest.SelectionVerdictOf` maps each entry with `decideUnknown`, the decision
-`sessiontest.Build` also applies, so `corvint test` cannot run a scope the verdict does not state.
-A non-Go `NO_SELECTABLE_TEST` unit and a bearing non-Go frontier add their language's suite
-(`adds-suite:<language>`), a nested Go module adds its own suite (`adds-suite:go`; on the ci
-profile it is a still-required check and `ignored`), a binary consumer, an allowlisted entry and a
-flow-binding entry are `ignored`, and an unattributed `UNOWNED_DIRTY_PATH` and every other entry
-are `forces-full`. A runner is named by its plan language namespace, the name an `adds-suite`
-effect carries; its tier is `full` when its suite is added or any entry forces full, `line` for Go
-when the GLS-V0-020 line evidence narrowed the plan, `flow` for a Playwright selection, and `file`
-otherwise, the least narrow of its selections winning. A hint is the plan's own when it has one
-and the effect's otherwise. `corvint affected` prints the verdict as the `selectionVerdict` member
-of the affected-plan/1 document and of the affected-summary/1 verdict, which the MCP plan tool
-returns byte for byte; `corvint test` prints one `SELECTION` line and one `EFFECT` line per entry
-on stderr and the `selectionVerdict` member of its dry-run document. Both members are optional
-additions under CCF-V1-006. The `--full` (affected-plan/0) document is unchanged.
+Built (2026-11-13; amended 2026-11-13 after the independent review of `637e1be79`) on the R32
+allowlist that `runner-contract` task 9 delivered. `sessiontest.Input.SelectionVerdict` reports
+`decideScope`, the one scope decision `sessiontest.Build` applies to the same input, so the verdict
+states exactly the scope `corvint test` runs. It is full, with Build's own FULL reason in its
+`reason` member, for every FULL cause: no plan, an unreadable declaration, a removed runner
+(RNC-V1-004), the AFP-V0-012 Go selector's fallback or a missing Go verdict, the first
+`forces-full` entry, and a selected package outside the Go universe. `decideUnknown` gives each
+entry its effect: a non-Go `NO_SELECTABLE_TEST` unit and a bearing non-Go frontier add their
+language's suite (`adds-suite:<language>`), a nested Go module adds its own suite (`adds-suite:go`;
+on the ci profile it is a still-required check and `ignored`), a binary consumer, an allowlisted
+entry and a flow-binding entry are `ignored`, and an `UNOWNED_DIRTY_PATH` no Go rule attributes and
+every other entry are `forces-full`. A runner is named by its plan language namespace, the name an
+`adds-suite` effect carries. Its tier is the one of the execution its selections get, read from the
+placement Build uses (`selectedRun`): `line` for a Go package when the GLS-V0-020 line evidence
+narrowed the plan and `file` otherwise, `flow` for a file a declared Playwright provider runs, and
+`full` for a unit its language's declared full command runs, for a declared Vitest provider (it
+runs its directory's whole suite), for a runner whose suite an entry adds and for every runner of a
+full verdict; the least narrow of its selections wins. A hint is the plan's own when it has one and
+the effect's otherwise.
 
-Limit: whether an `UNOWNED_DIRTY_PATH` is attributed is decided by the AFP-V0-012 Go selector,
-which needs the Go index that only `corvint test` builds. `corvint affected` and the MCP tool pass
-the attribution as undecided, so there the entry is `forces-full` with a hint saying so, while
-`corvint test` reports `ignored` when its Go selector attributed the path. The verdicts agree on
-every plan with no attributed unowned path.
+Every surface fills the same input from the plan (`testPlanScope`: the selected units, the unknown
+entries, the Go universe and the Go selector's verdict, plus the declaration and the committed
+inventory's removed runners), so each prints the same verdict. `corvint affected` prints it as the
+`selectionVerdict` member of the affected-plan/1 document and of the affected-summary/1 verdict,
+which the MCP plan tool returns byte for byte, and `corvint review` embeds the same document;
+`corvint test` prints one `SELECTION` line and one `EFFECT` line per entry on stderr, the
+`selectionVerdict` member of its dry-run document, and a `selection:` line in its bounded dry-run
+summary. Both members are optional additions under CCF-V1-006. The `--full` (affected-plan/0)
+document is unchanged and prints no verdict; a projection with no Go verdict (the plan digest
+`corvint test` binds) is full with the reason `no AFP-V0-012 attribution verdict`, the fail-closed
+reading. Cost: `corvint affected` now runs the Go selector `corvint test` runs, which on this
+repository raised a warm `corvint affected --base` from about 1.7 s to about 4.1 s (2026-11-13,
+one host, `NOT_OBSERVED` elsewhere).
 
 **Scenario: Same plan, same verdict**
 - GIVEN a change that yields unknown `NO_SELECTABLE_TEST` and a TypeScript DISCOVERY frontier
