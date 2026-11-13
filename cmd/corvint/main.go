@@ -701,7 +701,11 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		return 2
 	}
 	if options.helpTopic != "" {
-		if _, err := io.WriteString(stdout, helpText(options.helpTopic)); err != nil {
+		text := helpText(options.helpTopic)
+		if options.helpTopic == "docs" {
+			text += docsSubcommandHelpPointer(arguments)
+		}
+		if _, err := io.WriteString(stdout, text); err != nil {
 			emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write help output"})
 			return 2
 		}

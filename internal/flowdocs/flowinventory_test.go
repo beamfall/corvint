@@ -207,3 +207,20 @@ func TestFlowDocsInventoryRefusals(t *testing.T) {
 		t.Fatalf("out-of-scope member accepted: %v", e)
 	}
 }
+
+// AFU-V1-108: an entry-point refusal names the flow id and the entry point's path and symbol, and
+// says whether it is foreign to the flow or a repeat.
+func TestAFUV1108EntryPointRefusalNamesFlowAndMember(t *testing.T) {
+	head := `{"schema":"corvint-flow-inventory/1","flows":[`
+	cases := map[string]struct{ raw, want string }{
+		"foreign": {head + `{"id":"checkout","title":"A","members":[{"path":"app/a.rb"}],"entry_points":[{"path":"app/b.js","symbol":"pay"}]}]}`,
+			`flow "checkout" entry point path "app/b.js" symbol "pay" is not a member of the flow`},
+		"repeat": {head + `{"id":"checkout","title":"A","members":[{"path":"app/a.rb"}],"entry_points":[{"path":"app/a.rb"},{"path":"app/a.rb"}]}]}`,
+			`flow "checkout" entry point path "app/a.rb" symbol "" repeats an earlier entry point`},
+	}
+	for name, c := range cases {
+		if _, e := ParseFlowInventory([]byte(c.raw)); e == nil || !strings.Contains(e.Error(), c.want) {
+			t.Errorf("%s: refusal %v does not contain %q", name, e, c.want)
+		}
+	}
+}

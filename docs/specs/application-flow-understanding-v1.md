@@ -991,6 +991,7 @@ registration. Requirement IDs are unchanged; tests that exercise root dispatch o
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `internal/mcp/cli/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
 | AFU-V1-150..154 | experimental (V1-5255): `internal/appflows/unlinked.go` (`ReadInventoryProvider`, `unlinkedTests`), `query.go` (`FlowGaps` inventory members), `internal/command/flows/flows.go` (`flows gaps --provider`), `internal/mcp/bridge/flows.go` (`provider` input) |
 | AFU-V1-160..165 | experimental (V1-5257): `internal/appflows/status.go` (`FlowStatus`, `StatusSchema`), `internal/command/flows/flows_status.go` (`flows status`), `internal/mcp/bridge/flows.go` (`corvint.flows.status`) |
+| AFU-V1-108..111 | implemented (V1-5503..V1-5506): `internal/flowdocs/flowinventory.go` (`clipText`, the entry-point refusal), `files.go` (`symlinkComponent`), `check.go` (`OutputHint`, `OutputNoDirHint`), `cmd/corvint-docs/docs_check.go`, `cmd/corvint/docs_shim.go` (`docsSubcommandHelpPointer`), `main.go`; `TestAFUV1108EntryPointRefusalNamesFlowAndMember`, `TestAFUV1109SymlinkedParentRefusalNamesComponentAndTarget`, `TestDMFV1007RecordedOutputDirectory`, `TestDMFV1007DocsFlowsCheckRecordedOutput`, `TestAFUV1111DocsSubcommandHelpPointsAtRealFlags` |
 | AFU-V1-125 | implemented (V1-2414): `internal/flowdocs/generate.go` (`FlowLimitCode`, the whole-scope `candidates` count), `cmd/corvint-docs/docs_flows.go` (wire-code lift); `TestAFUV1125FlowLimitIsTyped`, `TestAFUV1125FlowLimitCLICode` |
 | AFU-V1-126..127 | experimental under the standing lane auto-accept (V1-2788, GitHub #1888): `internal/appflows/input.go` (`decode`, `maskFlowTierKeys`, the distinct Decode refusals), `internal/appflows/selection.go` (`Refusal`, `selectionInputError`, `selectionRefusalSubject`); `TestAFUV1126FlowTierIdentifierKeyIsNotSecret`, `TestAFUV1126E2ESafeFlowTierPasswordKey`, `TestAFUV1127ProviderUnavailableNamesRefusal`, `TestAFUV1024E2ESafeRefusesMalformedInput` |
 | AFU-V1-128..130 | experimental under the standing lane auto-accept (V1-2871, GitHub #1915): `internal/appflows/import.go` (`importPlaywrightList`, `playwrightListDir`, `listSpecs`, `disambiguate`, `dropCollisions`, `ImportSkipped`), `internal/command/flows/flows.go` (`runFlowsImport`, `flowsIntentHelp`); `TestAFUV1128PlaywrightListResolvesDescribeKeys`, `TestAFUV1128FlowsCLIPlaywrightListLinksResolve`, `TestAFUV1ImportOpenAPIAndPlaywright`, `TestAFUV1130FlowsHelpSaysTestLinksOnly` |
@@ -1528,6 +1529,48 @@ own identities for the shared declaration; a multi-file flow's diagram names eac
 (AFU-V1-811). Rollback: revert this section,
 `flowinventory.go`, `flowbuild.go` and the `--flows` flag; the declaration-per-flow path is unchanged
 and manifests without an inventory remain valid.
+
+## Flow-docs refusals and help that name what to fix (V1-5503..V1-5506)
+
+Human-owned intent: when `docs flows` refuses or cannot compare, the message names the input to
+change and the flag to pass, so the caller does not have to reverse-engineer it. These change
+diagnostics only; no generated page, manifest or check verdict changes, and the generator version
+is unchanged. Accepted under the owner's standing auto-accept (2026-10-11).
+
+- **AFU-V1-108**: (V1-5505) The inventory entry-point refusal names the flow id, the entry point's
+  path and symbol (quoted, each clipped to 256 bytes because they are caller text) and whether the
+  entry point is not a member of the flow or repeats an earlier entry point, for example
+  `flow "checkout" entry point path "app/b.js" symbol "pay" is not a member of the flow`
+  (`TestAFUV1108EntryPointRefusalNamesFlowAndMember`).
+- **AFU-V1-109**: (V1-5503) A directory that `docs flows` opens (`--output-dir`'s parent, `--flows`,
+  `--previous`, `--corpus`) is still refused when any component other than a root-owned top-level
+  system alias such as `/var` or `/tmp` (V1-4551) is a symlink, never followed; the refusal now names that component and the
+  path it resolves to (or `unresolved`) and asks for the resolved path. Any other refusal of a
+  component keeps its message (`TestAFUV1109SymlinkedParentRefusalNamesComponentAndTarget`).
+- **AFU-V1-110**: (V1-5504) `docs flows check` with neither `--output-dir` nor a recorded output
+  directory keeps the DMF-V1-007 verdict (output `NOT_CHECKED`, `output_reason` `no-output-dir`,
+  `clean: false`, exit 1); it is not a refusal, because decision 0596 accepted `NOT_CHECKED` for
+  this case. The report adds `output_hint`, which asks for `--output-dir DIR` and says generation
+  records only an output directory inside `--root`; `docs check` appends the hint to its flows
+  `NOT_CHECKED` detail. A recorded directory that is missing carries no hint
+  (`TestDMFV1007RecordedOutputDirectory`, `TestDMFV1007DocsFlowsCheckRecordedOutput`).
+- **AFU-V1-111**: (V1-5506) `corvint docs SUBCOMMAND... --help` is still answered natively with the
+  docs group help (CMS-V0-913, decision 0594). When subcommand words (lower-case, up to three)
+  precede the first flag, the help ends with `Subcommand usage and flags: corvint-docs docs
+  SUBCOMMAND... --help`, the command that lists the real flags; `corvint docs --help` and
+  `corvint help docs` print the group help unchanged (`TestAFUV1111DocsSubcommandHelpPointsAtRealFlags`,
+  `TestDocsShimDoesNotForwardHelpOrNativeFlags`).
+
+Failure modes: a symlink that disappears between the open and the diagnosis keeps the generic
+component refusal; a component whose target cannot be resolved is named with target `unresolved`.
+The help pointer is lexical, so a misspelt subcommand word is echoed into the pointer and
+corvint-docs then refuses it with its own unknown-command message.
+
+Rollback: revert `clipText` and the entry-point message in `internal/flowdocs/flowinventory.go`,
+`symlinkComponent` in `files.go`, `OutputHint` and `OutputNoDirHint` in `check.go` and the detail
+suffix in `cmd/corvint-docs/docs_check.go`, and `docsSubcommandHelpPointer` in
+`cmd/corvint/docs_shim.go` with its call in `main.go`; each restores the previous message with no
+data migration, and a reader that ignores `output_hint` is unaffected.
 
 ## Per-test coverage ingest (GitHub #1587)
 

@@ -229,7 +229,9 @@ Check and finalize are read-only. Check reports each stable claim/paragraph's
 fresh/stale/unresolved source binding and byte drift of the rendered pages (exit 1).
 Generate records an output directory inside --root in generation.json; check compares
 --output-dir, else that recorded directory. With neither, or a directory that does not
-exist, output is NOT_CHECKED with a reason and the check is never clean (exit 1).
+exist, output is NOT_CHECKED with a reason and the check is never clean (exit 1); with
+neither, output_hint asks for --output-dir, since an output directory outside --root is
+never recorded.
 Finalize admits separately committed provider bytes without changing source anchors.
 See docs/FLOW-DOCUMENTATION.md for limits and original corpus/runtime joins.
 `
