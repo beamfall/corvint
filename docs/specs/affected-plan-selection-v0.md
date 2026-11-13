@@ -3282,7 +3282,10 @@ Lane selwalk1113 closes the two remaining V1-5217 forms. Both rules only add a h
   expansion). The program runs that value as a command line, which no operand of the file names.
   A value that is empty, a `:`-separated list of absolute literal paths, or one bare command word
   with no `/`, blank, expansion, quote-removed operator or glob character (`GIT_EDITOR=true`,
-  `PAGER=cat`) names no repository file and is not counted. `GIT_EXEC_PATH` and
+  `PAGER=cat`) names no repository file and is not counted. Each absolute path SHALL be one
+  unquoted word with no blank, quote, escape, shell operator or expansion; any other value, such
+  as `GIT_SSH_COMMAND='/bin/sh tools/ssh.sh'`, may pass a repository file as an argument and is
+  counted, as is every quoted or escaped value except an empty one. `GIT_EXEC_PATH` and
   `GIT_TEMPLATE_DIR`, whose directories git runs commands and hooks from, are AFP-V0-9976
   startup names.
 - **AFP-V0-9711:** (proposed 2026-11-13; delivery experimental; V1-5217)
@@ -4073,7 +4076,9 @@ and `TestAwkProgramFiles_AFPV09974`. AFP-V0-9975 to AFP-V0-9977 (V1-5226):
 with bounded controls. AFP-V0-9710 and AFP-V0-9711 (V1-5217, lane selwalk1113):
 `TestCommandRunningNamesBehindWrappers_AFPV09710` (pager, ssh, editor, askpass and external diff
 commands behind `command env`, `nohup env`, `timeout 5 env` and `sudo -E`, exported and
-default-assigned, held; `GIT_EDITOR=true`, `PAGER=cat`, empty and absolute values not) and
+default-assigned, held; `GIT_EDITOR=true`, `PAGER=cat`, empty and absolute values not),
+`TestAbsoluteCommandValueWithArgumentsHolds_AFPV09710` (an absolute value with an argument, an
+escaped blank, a `;` or quotes held, and the helper's data file selects the caller) and
 `TestInterpreterPreloadOptions_AFPV09711` (node `--import`, `-r`, `--require`, `--loader` and bun
 `--preload`, joined and separate). Fault injection: with the AFP-V0-9710 code reverted every held
 row of the first test failed; with the option check of `programOperand` removed, the joined bun

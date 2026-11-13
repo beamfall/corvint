@@ -202,7 +202,10 @@ func setsStartupName(words []string) bool {
 		}
 		if match := assignment.FindStringSubmatch(word); match != nil {
 			value := word[len(match[0]):]
-			if startupName(match[1]) && !outsideValue(value) || commandNames[match[1]] && !commandOutsideValue(value) {
+			// A quoted or escaped value may hide blanks or operators that
+			// its unquoted form loses, so only an empty one is outside.
+			quoted := value != "" && strings.ContainsAny(raw, `'"\`)
+			if startupName(match[1]) && (quoted || !outsideValue(value)) || commandNames[match[1]] && (quoted || !commandOutsideValue(value)) {
 				return true
 			}
 			continue
@@ -221,18 +224,25 @@ func setsStartupName(words []string) bool {
 // outsideValue reports an unquoted assignment value that names no file of
 // the repository: empty, which clears the name, or a list of absolute
 // literal paths, which the plugin resolves outside every repository edge as
-// it does a `source` of an absolute literal (AFP-V0-9976).
+// it does a `source` of an absolute literal (AFP-V0-9976). Each path must
+// be one word: a blank, quote, escape, shell operator or expansion may add
+// an argument or a second command, such as `/bin/sh tools/ssh.sh`, that
+// names a repository file, so such a value is never outside (AFP-V0-9710).
 func outsideValue(value string) bool {
 	if value == "" {
 		return true
 	}
 	for _, part := range strings.Split(value, ":") {
-		if !strings.HasPrefix(part, "/") || dynamic(part) {
+		if !strings.HasPrefix(part, "/") || dynamic(part) || strings.ContainsAny(part, unsafeValueBytes) {
 			return false
 		}
 	}
 	return true
 }
+
+// unsafeValueBytes are the bytes that end a single literal path word or
+// start an argument, a quote, an escape or another command.
+const unsafeValueBytes = " \t\n\r\x00'\"\\;|&<>(){}#="
 
 // redefinesUtilities reports a file in which the name of a utility whose
 // written operands readWords drops may run something else: a function of
