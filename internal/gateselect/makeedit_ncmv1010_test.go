@@ -83,7 +83,7 @@ func TestNCMV1010SelectorNarrowsMakeEdit(t *testing.T) {
 		{"recipe", strings.Replace(makeEditMakefile, "go run ./gen", "go run ./gen -v", 1), "gen",
 			[]string{"gen", "mkread"}, []string{"make " + fixtureModule + "/gen <- Makefile"}},
 		{"recipe of a CI target", strings.Replace(makeEditMakefile, "./tool\ngen:", "-count=1 ./tool\ngen:", 1), "check",
-			[]string{"ciread", "mkread", "tool"}, []string{"make-ci " + fixtureModule + "/ciread <- .github/workflows/ci.yml", "make " + fixtureModule + "/tool <- Makefile"}},
+			[]string{"ciread", "mkread", "tool"}, []string{"make-ci " + fixtureModule + "/ciread <- .github/workflows/ci.yml", "make " + fixtureModule + "/tool <- Makefile"}}, //corvint:fixture-path
 		{"variable", strings.Replace(makeEditMakefile, "FLAGS = -v", "FLAGS = -race", 1), "check",
 			[]string{"ciread", "mkread", "tool"}, nil},
 		{"prerequisite reach", strings.Replace(makeEditMakefile, "all: check", "all: check gen", 1), "all",
