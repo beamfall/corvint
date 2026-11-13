@@ -824,7 +824,7 @@ but does not read it; only non-Go syntax impact does.
   `internal/appmap/endpoints.go`, `internal/command/flows/flows_appmap_endpoints.go` and the verb's dispatch.
   Status: experimental under the standing lane auto-accept (2026-10-11; V1-2850; GitHub #1907).
 - `AMAP-V0-215`: A map MUST carry `builder`, the compiler's `appmap.BuilderVersion`
-  (`appmap-builder/4`; bumped from `/1` by the V1-3932 React route ranking, to `/3` by the AMAP-V0-881 screen `dialect` and to `/4` by the AMAP-V0-970 mapped React routes and AMAP-V0-972/973 loop and helper gotos), which is bumped in the same change as any change to what a build derives
+  (`appmap-builder/5`; bumped from `/1` by the V1-3932 React route ranking, to `/3` by the AMAP-V0-881 screen `dialect`, to `/4` by the AMAP-V0-970 mapped React routes and AMAP-V0-972/973 loop and helper gotos, and to `/5` by the AMAP-V0-979 inferred React mounts and AMAP-V0-980 static routes), which is bumped in the same change as any change to what a build derives
   from the same inputs. The map digest is computed with `builder` and `digest` both empty, so the
   member is provenance, not content, and a map written before it keeps its digest. `BuildFrom`
   rebuilds in full with the reason `builder-version-differs` when MAP's `builder` is absent or
@@ -2358,7 +2358,7 @@ but does not read it; only non-Go syntax impact does.
   string, directly (`path={P.path}`) or through a template whose every substitution is such a
   member. `P` may appear in any form inside `element`, whose tokens keep `P.member` literals
   substituted. A `key` attribute names React reconciliation and MUST be ignored on every route.
-  These routes change what a build derives, so `appmap.BuilderVersion` is `appmap-builder/4`.
+  These routes change what a build derives, so `appmap.BuilderVersion` became `appmap-builder/4` (now `/5`, AMAP-V0-979).
   - Non-goals: computed arrays (`.filter`, spreads, function results, imports), routes inside a
     `.map` callback with a block body, and elements that are not object literals.
   - Failure modes: a binding the conservative scan misses could give a route the wrong path; the
@@ -2481,6 +2481,71 @@ but does not read it; only non-Go syntax impact does.
   workspace file.
   - Falsifier: `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go`.
   - Rollback: as AMAP-V0-976.
+- `AMAP-V0-978`: (experimental under the standing auto-accept (2026-11-13), G14 of decision 0596; V1-5509) The
+  usage of `corvint flows appmap --help` and of `corvint flows appmap build --help` MUST carry the
+  synopsis `corvint [--root PATH] flows appmap build --manifest FILE --worktree [--no-workspace]`,
+  and the build step help MUST list `--worktree` among its options and name
+  `corvint flows appmap stats --map FILE`, which corvint-docs serves and which prints the map's
+  counts of screens (total, resolved, unknown), edges (total and by basis) and unknowns grouped by
+  reason. `docs/APPLICATION-MAP.md` MUST name both, so the capability catalog lists the flag.
+  - Non-goals: a second stats implementation in corvint; the counts stay corvint-docs's.
+  - Falsifier: `TestAMAPV0978AppmapHelpListsWorktreeAndStats` in
+    `cmd/corvint/help_appmap_workflow_test.go`; also `TestCAPV0030AdoptionGuideNamesStepFlags`.
+  - Rollback: remove the synopsis, option and stats lines from the build step help and the flows
+    usage, and regenerate the capability catalog.
+- `AMAP-V0-979`: (experimental under the standing auto-accept (2026-11-13), G14 of decision 0596; V1-5507) When
+  the manifest declares at least two `react-router/0` routers without a `mount`, a build MUST infer
+  the AMAP-V0-192 mount of an unmounted router R under a route of another declared React router H
+  when that route is H's only non-redirect declaration of a literal absolute path ending in `/*`,
+  its `element` opens a JSX tag whose name H binds exactly once at top level, either by a value
+  binding of a static `import ... from "S"` (type-only and namespace bindings excluded) or by a
+  `const` whose initializer holds exactly one dynamic `import("S")` (the `React.lazy` area pattern),
+  and S resolves from H through the index's web import resolver (relative paths, `tsconfig`/
+  `jsconfig` paths and package exports) to R's path. The inferred mount places R exactly as the
+  declared one would; a declared mount always wins. A router two such routes render, or whose
+  inferred mount would close a cycle, stays unmounted with `ambiguous-react-mount`; a route that
+  renders more than one declared router reads `ambiguous-react-mount` on H; a route that renders
+  no declared router but names a binding whose specifier does not resolve reads
+  `unresolved-react-mount-import` at the binding line with the route path and specifier in its
+  detail. Builds that may infer read the source index; the derived routes change, so
+  `appmap.BuilderVersion` is `appmap-builder/5`. Edges stay AMAP-V0-008's: composition adds no
+  router-hierarchy edge, so composed screens gain edges only from flow-step and test-sequence
+  evidence, and an application with neither (core `internal/web/app` on 2026-11-13: 44 screens,
+  0 edges) keeps an edge count of 0.
+  - Non-goals: following a component through other files (a host route rendering a layout that in
+    turn renders the area), shadowing inside function bodies, conditional rendering, and mounts
+    of undeclared router files.
+  - Failure modes: the resolver reads only the nearest `tsconfig.json`/`jsconfig.json`, so an
+    alias declared in a solution-style config's `references` reads
+    `unresolved-react-mount-import` until the area is mounted in the manifest; a top-level name
+    rebound inside a function body could mount the wrong router, bounded by the requirement that
+    the specifier resolve to a declared router.
+  - Falsifier: `TestAMAPV0979InferredAreaMount` and `TestAMAPV0979InferenceBounds` in
+    `internal/appmap/router_infer_test.go`; also `TestAMAPV0979ModuleBindings`.
+  - Rollback: delete `router_infer.go`, its call in `compile.go` and its `routersNeedIndex` term,
+    and return `BuilderVersion` to `appmap-builder/4`; maps rebuild once under `--from`.
+- `AMAP-V0-980`: (experimental under the standing auto-accept (2026-11-13), G14 of decision 0596; V1-5508) A
+  router of dialect `static-routes/0` MUST carry `export`, a JavaScript identifier, and no other
+  dialect may; any other combination refuses with `appmap-invalid-manifest`. The build MUST read
+  the file's one top-level `export const NAME = [...]` (an optional type annotation, and a trailing
+  `as const` or `satisfies T`, allowed) for the prerender route list a static or prerendering build
+  serves, and each element that is a literal absolute path with no `:` parameter or `*` splat MUST
+  declare one resolved, top-level screen of dialect `static-routes/0` named `static:PATH`, anchored
+  at the declaration; a repeated path declares one screen. A path that another router of the map
+  declares as a resolved, non-abstract, non-redirect state stays that router's one screen. Another
+  element reads `non-literal-static-route` or `unsupported-static-route`; no declaration reads
+  `missing-static-routes`; a second declaration, an initializer that is not an array literal, a
+  template substitution or escaped identifier anywhere in the file, an assignment to NAME or a use
+  through a mutating array method reads `computed-static-routes` and declares nothing. Other
+  exports of the file are not read.
+  - Non-goals: locale or base-path expansion of the list, route lists built by functions, and the
+    prerender configuration of bundlers (they name the exported list instead).
+  - Failure modes: a list mutated through an alias of NAME is not seen; a prerendered path the
+    application router reaches only through a splat appears as its own screen.
+  - Falsifier: `TestAMAPV0980PrerenderedRoutes` and `TestAMAPV0980StaticRoutesRefusals` in
+    `internal/appmap/router_static_test.go`.
+  - Rollback: delete `router_static.go`, `DialectStatic` and the `export` member; a manifest naming
+    the dialect then refuses as an unknown dialect.
 
 - `AMAP-V0-9501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4660)
   Tests may reuse an immutable committed seed for an unchanged fixture directory, but each
@@ -2834,6 +2899,9 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-975 | `TestAMAPV0975SubcommandHelp` in `cmd/corvint-docs/help_appmap_test.go` (trailing, interior and `-h` requests, the `--root` preamble, boolean flags and `help flows appmap SUB`; an unknown SUB and `--` keep the old behavior) |
 | AMAP-V0-976 | `TestAMAPV0976WorktreeBuild` in `internal/appmap/worktree_test.go` (an untracked manifest builds, the map carries `working_tree`, two builds are identical, the repository's status and object count are unchanged, and a force-added spec its ignore rules match is mapped); `TestAMAPV0976WorktreeRootAndConfig` in `internal/appmap/worktree_test.go` (a subdirectory `--root` and a sparse checkout, `true` or `2`, refuse; `core.autocrlf`, `info/attributes` and `core.excludesFile` apply to the snapshot; no temporary directory survives success or failure) |
 | AMAP-V0-977 | `TestAMAPV0977WorktreeRefusals` in `internal/command/flows/flows_appmap_worktree_test.go` (the default refusal names `--worktree`; each pinned flag refuses) |
+| AMAP-V0-978 | `TestAMAPV0978AppmapHelpListsWorktreeAndStats` in `cmd/corvint/help_appmap_workflow_test.go` (the flows usage and the build step help carry the `--worktree` synopsis; the build help lists the option and names the stats command); `TestCAPV0030AdoptionGuideNamesStepFlags` |
+| AMAP-V0-979 | `TestAMAPV0979InferredAreaMount` in `internal/appmap/router_infer_test.go` (a `React.lazy` relative dynamic import and a `tsconfig` paths static import mount their area routers; composed screens resolve, host splats are abstract, page objects bind and a test-sequence edge joins composed screens); `TestAMAPV0979InferenceBounds` (a declared mount wins; unresolved, ambiguous and local components infer nothing); `TestAMAPV0979ModuleBindings` |
+| AMAP-V0-980 | `TestAMAPV0980PrerenderedRoutes` in `internal/appmap/router_static_test.go` (literal prerendered paths are `static-routes/0` screens a spec reaches; a repeat is one screen; a router-declared path stays the router's; relative, parameterised and spread elements read their reasons); `TestAMAPV0980StaticRoutesRefusals` (the `export` member rules; missing, mutated, computed and template lists declare nothing; a typed `satisfies` list reads) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,

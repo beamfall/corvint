@@ -51,12 +51,14 @@ Usage:
   corvint [--root PATH] flows appmap build --manifest FILE [--revision REV]
       [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...
       [--workspace FILE | --no-workspace] [--from MAP [--verify]]
+  corvint [--root PATH] flows appmap build --manifest FILE --worktree [--no-workspace]
 
 Inputs:
   --manifest FILE names the committed application-map-manifest/0 document (AMAP-V0-001,
   docs/specs/application-map-v0.md), repository-relative. Build reads the manifest, routers,
   flows and tests from Git at --revision, so they must be committed there; uncommitted edits are
-  not read.
+  not read. --worktree instead reads the working tree of --root, uncommitted and untracked files
+  included, and marks the map unpinned (AMAP-V0-976).
 
 Commit:
   The manifest and every router, flow and test directory it names, at --revision.
@@ -64,7 +66,8 @@ Commit:
 Produces:
   application-map/0 on stdout. Read it to check the routes, screens, flows and page objects the
   manifest declares, and fix the manifest until no unknown is unexpected. Do not commit this
-  output.
+  output. corvint flows appmap stats --map FILE (served by corvint-docs) prints the map's counts
+  of screens, edges and unknowns, with the unknowns grouped by reason (AMAP-V0-978).
 
 Options:
   --manifest FILE                 tracked manifest path inside the root (required)
@@ -80,6 +83,8 @@ Options:
                                   joins and flows for an application source edit (AMAP-V0-245);
                                   else build in full and say why (index-admission-changed, ...)
   --verify                        with --from, also build in full and refuse unless they agree
+  --worktree                      build unpinned from the working tree of --root; combines with
+                                  --no-workspace only (AMAP-V0-976, AMAP-V0-977)
 
 Example:
   corvint flows appmap build --manifest appmap.json --revision HEAD > /tmp/appmap-map.json

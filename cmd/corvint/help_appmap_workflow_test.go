@@ -90,3 +90,20 @@ func TestCAPV0030AdoptionGuideNamesStepFlags(t *testing.T) {
 		t.Fatal("the application-map workflow declares no command step")
 	}
 }
+
+// AMAP-V0-978: `corvint flows appmap --help` and the build step help list --worktree with its
+// synopsis, and the build step help names the stats command that prints the map's counts of
+// screens, edges and unknowns.
+func TestAMAPV0978AppmapHelpListsWorktreeAndStats(t *testing.T) {
+	t.Parallel()
+	synopsis := "corvint [--root PATH] flows appmap build --manifest FILE --worktree [--no-workspace]"
+	if got := runCatalogHelp(t, "flows", "appmap", "--help"); !strings.Contains(got, synopsis) {
+		t.Fatalf("flows appmap help lacks --worktree:\n%s", got)
+	}
+	got := runCatalogHelp(t, "flows", "appmap", "build", "--help")
+	for _, want := range []string{synopsis, "\n  --worktree ", "AMAP-V0-976", "corvint flows appmap stats --map FILE", "screens, edges and unknowns"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("flows appmap build help lacks %q:\n%s", want, got)
+		}
+	}
+}
