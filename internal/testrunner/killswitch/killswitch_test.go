@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// RNC-V1-008 (the NMS-V1-008 grammar): exactly `full` or
+// RNC-V1-008 (the narrowing-measurement grammar): exactly `full` or
 // `full:<runner>[,<runner>]` with known runner tokens; an empty value is
 // off; anything else is refused with the value and the accepted forms.
 func TestRNCV1008KillSwitchGrammar(t *testing.T) {

@@ -121,7 +121,7 @@ func runWatch(ctx context.Context, root string, args []string, stdin io.Reader, 
 	}
 	// RNC-V1-008: watch answers for Go only, so a switch that sends Go to
 	// its full command is refused rather than answered narrowed, as is a
-	// value outside the NMS-V1-008 grammar; a switch naming only other
+	// value outside the kill-switch grammar; a switch naming only other
 	// runners leaves the Go answer unchanged.
 	selectionSwitch, err := killswitch.FromEnv(os.Getenv)
 	if err != nil {

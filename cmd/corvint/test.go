@@ -393,7 +393,7 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		return 2
 	}
 	// RNC-V1-008: the kill switch is read before any planning, and a value
-	// outside the NMS-V1-008 grammar exits 2 and runs nothing.
+	// outside the kill-switch grammar exits 2 and runs nothing.
 	selectionSwitch, err := killswitch.FromEnv(os.Getenv)
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: killswitch.CodeUnknown, Message: err.Error()})

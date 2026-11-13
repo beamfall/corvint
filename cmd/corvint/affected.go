@@ -927,7 +927,7 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	if invocation.ProposeDataMap != "" {
 		return runAffectedProposeDataMap(invocation, stdout, stderr)
 	}
-	// RNC-V1-008: a kill-switch value outside the NMS-V1-008 grammar exits
+	// RNC-V1-008: a kill-switch value outside the kill-switch grammar exits
 	// 2 before any planning. A valid switch is applied by corvint test; the
 	// frozen affected-plan/1 document has no FULL kill-switch state yet
 	// (CCF-V1-006), so this command says on stderr that its plan is not
