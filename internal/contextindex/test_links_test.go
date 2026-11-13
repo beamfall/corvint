@@ -7,16 +7,6 @@ import (
 	"testing"
 )
 
-func compareStrings(left, right string) int {
-	switch {
-	case left < right:
-		return -1
-	case left > right:
-		return 1
-	}
-	return 0
-}
-
 // TestTestLinkTableRefusals_IDXSNAPV0809: a table built for another symbol
 // count is not used, a truncated or out-of-range table is refused when
 // decoded, and a written snapshot loads with the table equal to a fresh build.

@@ -51,19 +51,3 @@ var termsMatchingKeepSets = []string{
 	"session sessionkey key identifier idisentifier bais bakes ba session-revocation revocation",
 	"longidentifiersegment long segment boundary x",
 }
-
-// referenceTermsMatching is the definition termsMatching must meet: the
-// unfiltered term set of the text, intersected with the keep-set.
-func referenceTermsMatching(text string, keep map[string]struct{}) map[string]struct{} {
-	result := make(map[string]struct{})
-	for term := range terms(text) {
-		if _, ok := keep[term]; ok {
-			result[term] = struct{}{}
-		}
-	}
-	return result
-}
-
-func sortedKeys(values map[string]struct{}) []string {
-	return intersection(values, values)
-}

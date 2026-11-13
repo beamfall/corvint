@@ -30,9 +30,6 @@ type RequestOutcomeRecord = jstestreceipt.RequestOutcomeRecord
 // RequestOutcome is jstestreceipt.RequestOutcome, kept under its old name.
 type RequestOutcome = jstestreceipt.RequestOutcome
 
-// IsSuccessStatus is jstestreceipt.IsSuccessStatus, kept under its old name.
-func IsSuccessStatus(status int) bool { return jstestreceipt.IsSuccessStatus(status) }
-
 // ValidRequestOutcomeRecord is jstestreceipt.ValidRequestOutcomeRecord, kept under its old name.
 func ValidRequestOutcomeRecord(record RequestOutcomeRecord) bool {
 	return jstestreceipt.ValidRequestOutcomeRecord(record)

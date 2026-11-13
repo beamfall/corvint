@@ -13,20 +13,6 @@ import (
 	"testing"
 )
 
-// writtenIndexes writes each test index's snapshot into a scratch store
-// (IDX-SNAP-V0-808), so a repository run never touches the shared store.
-func writtenIndexes(t *testing.T) map[string]*Index {
-	t.Helper()
-	t.Setenv("CORVINT_"+indexStoreSuffix, t.TempDir())
-	indexes := symbolTermIndexes(t)
-	for name, index := range indexes {
-		if _, err := WriteSnapshot(index); err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-	}
-	return indexes
-}
-
 // TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811: a snapshot file
 // truncated in place under a deferred load's mapping makes the next body read
 // a refusal (the fault is caught inside the guard), never a SIGBUS, and a

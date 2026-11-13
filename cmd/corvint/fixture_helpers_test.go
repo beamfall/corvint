@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,25 +28,6 @@ func gitFixture(t *testing.T, root string, arguments ...string) string {
 		t.Fatalf("git %v: %v", arguments, err)
 	}
 	return strings.TrimSpace(string(output))
-}
-
-func decodeObject(t *testing.T, raw []byte) map[string]any {
-	t.Helper()
-	var value map[string]any
-	if err := json.Unmarshal(raw, &value); err != nil {
-		t.Fatalf("decode %q: %v", raw, err)
-	}
-	return value
-}
-
-// runContextCommand lifts the frozen 10-second source bound that --expand and each of its Git
-// reads share: these tests verify packets and refusals, not latency, and host load expired a
-// read as git-failed (V1-1398, decision 0082).
-func runContextCommand(t *testing.T, arguments ...string) (int, []byte, string) {
-	t.Helper()
-	var stdout, stderr bytes.Buffer
-	code := runContext(liftedSourceDeadline(context.Background()), arguments, strings.NewReader(""), &stdout, &stderr)
-	return code, stdout.Bytes(), stderr.String()
 }
 
 func writeSummaryFixture(t *testing.T, root, name, content string) {
@@ -161,78 +141,6 @@ func standaloneContextMember(t *testing.T, root string, arguments ...string) jso
 		t.Fatalf("decode standalone payload: %v: %s", err, stdout.String())
 	}
 	return payload.Context
-}
-
-func queryCLIRepository(t *testing.T) string {
-	t.Helper()
-	root := t.TempDir()
-	for _, arguments := range [][]string{
-		{"init", "-q"},
-		{"config", "maintenance.auto", "false"}, {"config", "gc.auto", "0"},
-		{"config", "user.email", "corvint@example.test"},
-		{"config", "user.name", "Corvint Test"},
-	} {
-		command := fixtureGitCommand(arguments...)
-		command.Dir = root
-		if output, err := command.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", arguments, err, output)
-		}
-	}
-	files := map[string]string{
-		".gitignore": ".context-corvint/\n",
-		"AGENTS.md": "# Project instructions\n\nThe roadmap is the only active work queue.\n" +
-			"Run `make orient`, then `script/context-packet.sh --ticket ID`.\n" +
-			"Use `script/roadmap.sh` and run the required workflow gates.\n",
-		"script/context-packet.sh": "#!/bin/sh\nexit 0\n",
-		"script/roadmap.sh":        "#!/bin/sh\nexit 0\n",
-		"internal/parser/token.go": "package parser\n\n// ParseToken validates token parser delimiters.\nfunc ParseToken(input string) string { return input }\n",
-	}
-	for relative, contents := range files {
-		file := filepath.Join(root, filepath.FromSlash(relative))
-		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(file, []byte(contents), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, arguments := range [][]string{{"add", "."}, {"commit", "-qm", "initial authority fixture"}} {
-		command := fixtureGitCommand(arguments...)
-		command.Dir = root
-		if output, err := command.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", arguments, err, output)
-		}
-	}
-	historyPath := filepath.Join(root, "docs", "history.md")
-	if err := os.MkdirAll(filepath.Dir(historyPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	for index, fixture := range []struct {
-		contents string
-		message  []byte
-	}{
-		{"unicode secret dotless i\n", []byte("roadmap prıvate_key\u2003=\u2003correct-horse-battery-staple ticket\n")},
-		{"unicode secret dotted I\n", []byte("roadmap prİvate_key=value ticket\n")},
-		{"unicode secret long s\n", []byte("roadmap ſecret=value ticket\n")},
-		{"unicode secret kelvin\n", []byte("roadmap toKen=value ticket\n")},
-		{"malformed subject\n", []byte{'r', 'o', 'a', 'd', 'm', 'a', 'p', ' ', 0xff, 0xff, ' ', 't', 'i', 'c', 'k', 'e', 't', '\n'}},
-	} {
-		if err := os.WriteFile(historyPath, []byte(fixture.contents), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		messagePath := filepath.Join(t.TempDir(), fmt.Sprintf("message-%d", index))
-		if err := os.WriteFile(messagePath, fixture.message, 0o600); err != nil {
-			t.Fatal(err)
-		}
-		for _, arguments := range [][]string{{"add", "docs/history.md"}, {"commit", "-q", "-F", messagePath}} {
-			command := fixtureGitCommand(arguments...)
-			command.Dir = root
-			if output, err := command.CombinedOutput(); err != nil {
-				t.Fatalf("git %v: %v\n%s", arguments, err, output)
-			}
-		}
-	}
-	return root
 }
 
 func gitOutput(t *testing.T, root string, arguments ...string) string {

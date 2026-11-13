@@ -12,7 +12,10 @@ import (
 // only in the commit that changes the baseline (DCR-V0-004). V1-4801 recorded
 // 139 functions on 2026-11-06; the six-configuration report measured 149 at
 // origin/main 4c3c20333 on 2026-11-11. V1-4827 deleted 114 of them; the 35
-// left are kept under DCR-V0-007, each with its reason.
+// left are kept under DCR-V0-007, each with its reason. On 2026-11-13 the
+// report at origin/main 366408098 named 78 more unreachable functions: V1-4827
+// deleted 76 and kept two that a spec cites, and two entries whose packages had
+// been removed left the baseline, so 35 remain.
 const wantBaselineEntries = 35
 
 //go:embed baseline.json
