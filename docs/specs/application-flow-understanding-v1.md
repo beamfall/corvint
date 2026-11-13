@@ -1064,7 +1064,9 @@ accepted variation, or a replacement for independent application/browser qualifi
   HTTP-verb registration (`get`, `post`, `put`, `patch`, `delete`) needs a `/`-rooted path literal
   followed by a handler argument; a member read such as `headers.get("Content-Length")` or a
   single-argument client call is not a binding (since V1-0461 Beamfall qualification,
-  `TestFlowDocsWebMemberCallsAreNotDeclarations`). Calls to the recognized validation, permission, error, persistence
+  `TestFlowDocsWebMemberCallsAreNotDeclarations`). One line of type arguments, nested one level, may
+  sit between the verb and its `(` (`api.post<{ id: string }>('/api/items', body)`) (since V1-5495,
+  `TestFlowDocsTypedClientCallBinding`). Calls to the recognized validation, permission, error, persistence
   and integration vocabulary are observations of source only. Native lexical masks exclude comments,
   strings and Ruby heredocs; web regex/arithmetic suffixes and JSX text are conservatively masked.
   A `<` directly after a name that opens a balanced one-line type-argument list followed by `(`
@@ -1084,7 +1086,19 @@ accepted variation, or a replacement for independent application/browser qualifi
   function declaration may carry type parameters (`function pick<T>(`) (since V1-5491,
   `TestFlowDocsTypeArgumentsOutsideCallsStayCode`, `TestFlowDocsArrowAttributeDoesNotEndTag`,
   `TestFlowDocsSpacedComparisonIsNotATag`, `TestFlowDocsClosingTagAfterNestedMarkupText`,
-  `TestFlowDocsGenericFunctionDeclarations`).
+  `TestFlowDocsGenericFunctionDeclarations`). Markup and code nest: an element opened in code holds
+  markup text, a `{` in that text opens an expression container of code, and the container's own
+  closing `}` or the element's closing tag returns to the enclosing context, so markup nested in a
+  container (`{u ? <a>Get data</a> : null}`, `{cond && <b>Open now</b>}`) is blanked like any other
+  markup text. In code, a `<` after an operand, past whitespace and line breaks (a name other than an
+  expression keyword, a number, `)` or `]`), is a comparison or type-argument list, never a tag, even
+  when a later `>` would close it (`a <b ? {k:1} : c > d`); and a `<` whose name is followed by `,` or
+  `extends` (`const f = <T,>(x: T) => x`, `<K extends keyof S>(key: K) =>`) opens a generic arrow's
+  type parameters, so the arrow is a declaration, while `<T>x</T>` stays markup (since V1-5495..V1-5499,
+  `TestFlowWebMaskJSXOperandsAndTypeParameters`, `TestFlowDocsNestedMarkupTextIsMasked`,
+  `TestFlowDocsGenericArrowDeclarations`, `TestFlowDocsComparisonAfterOperandIsNotATag`). A `{` or `}`
+  inside a regex literal in an attribute still counts toward the tag's braces until regex literals are
+  blanked before the mask (V1-5500, V1-5501).
 - **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
   path, declaration identity and claim kind/callee, never line, revision or output ordering. Repeated
   logical declarations/claim identities remain unresolved. Removal is retirement, never inferred
@@ -1102,7 +1116,8 @@ accepted variation, or a replacement for independent application/browser qualifi
   `iterator.return(v)`) is a call (`TestFlowDocsMemberKeywordCallsAreDrift`). This changed the
   generator to version 2, the AFU-V1-043 member-call declaration fix to version 3, and the
   AFU-V1-043 generic-call mask fix (V1-2415) to version 4, and the AFU-V1-043 web mask and
-  generic declaration fix (V1-5491) to version 5: a version 1, 2, 3 or 4 manifest cannot be
+  generic declaration fix (V1-5491) to version 5, and the AFU-V1-043 nested-markup, operand and
+  type-parameter mask fix (V1-5495..V1-5499) to version 6: a version 1, 2, 3, 4 or 5 manifest cannot be
   rederived byte for byte, so check, finalize and `generate --previous`
   refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
   once with the current binary
@@ -1163,7 +1178,10 @@ generic-call mask rolls back by removing the `typeArgumentsEnd` branch of `flowW
 generator version returned to 3 (a version 4 manifest then needs regeneration). The V1-5491 web
 mask and generic declaration fix rolls back by restoring the V1-2415 `flowWebMask` tag scan and
 name-`<` branch and the `webDef` pattern without type parameters, with the generator version
-returned to 4 (a version 5 manifest then needs regeneration).
+returned to 4 (a version 5 manifest then needs regeneration). The V1-5495..V1-5499 fix rolls back
+by restoring the V1-5491 `flowWebMask` (markup and expression depth counters, the adjacent-name `<`
+branch, no type-parameter check) and the `registration` pattern without type arguments, with the
+generator version returned to 5 (a version 6 manifest then needs regeneration).
 
 ## Complete variation coverage (issue340)
 
