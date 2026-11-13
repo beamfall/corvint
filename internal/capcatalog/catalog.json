@@ -737,6 +737,7 @@
         "--format",
         "--index",
         "--lines",
+        "--no-store",
         "--revision",
         "--test"
       ],
@@ -991,6 +992,7 @@
         "--lines",
         "--manifest",
         "--manifest-repo",
+        "--no-store",
         "--no-workspace",
         "--repo",
         "--repo-revision",
@@ -1228,7 +1230,7 @@
         "decide digests the packages of HEAD (--packages, default go list ./...) and prints a corvint-test-reuse-decision/0: REUSE only when an admitted record (--trust, default local,main; pull_request needs --pull-request N) passed the package under the same identity with the same digest; --run-list writes the packages still to run.",
         "It writes only the named files; exit 3 when no record or decision can be produced.",
         "--manifest PATH writes the same corvint-test-manifest/0 in every form.",
-        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json).",
+        "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json) and appends its bytes as one record of the private run evidence store <git-dir>/corvint/evidence, which flows status and test-evidence read; a failed append prints run-evidence-write-failed and keeps the exit status.",
         "Planning reads the committed test inventory (.corvint/test-inventory.json) at HEAD and prints one \"corvint-test: INVENTORY STATE reasons=...\" line on stderr (an \"inventory:\" summary line, or the dry-run JSON \"inventory\" member); it never narrows the plan and never writes the inventory (TIV-V1-002)."
       ],
       "unknowns": [
@@ -1378,6 +1380,7 @@
         "--packages"
       ],
       "schemaIds": [
+        "corvint-test-run/0",
         "linecov-index/4"
       ],
       "inputs": null,
@@ -1388,7 +1391,9 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Writes: nothing under the repository; tests write what they write."
+        "Writes: each save's test run appends one corvint-test-run/0 record to the run evidence store under the Git directory (RVD-V1-004), never the worktree; a failed append prints run-evidence-write-failed on stderr and changes no exit status.",
+        "--dry-run writes nothing.",
+        "Tests write what they write."
       ],
       "unknowns": [
         {

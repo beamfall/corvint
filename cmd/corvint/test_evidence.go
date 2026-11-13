@@ -41,9 +41,9 @@ func runTestEvidence(ctx context.Context, root string, args []string, out, diag 
 const testEvidenceHelp = `Read retained test dependencies at an immutable commit.
 
 Usage:
-  corvint [--root PATH] test-evidence PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--format json|text]
-  corvint [--root PATH] test-evidence --test TEST [--revision COMMIT] [--index FILE] [--format json|text]
-  corvint [--root PATH] test-evidence --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--format json|text]
+  corvint [--root PATH] test-evidence PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]
+  corvint [--root PATH] test-evidence --test TEST [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]
+  corvint [--root PATH] test-evidence --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]
 
 Exactly one path, --test or --explain is required. --explain also requires --base.
 --revision defaults to HEAD. --lines is an inclusive line range. --index reads
@@ -54,10 +54,15 @@ inventory-unavailable, missing run context is run-context-unresolved, absent fre
 records are no-fresh-record, and stale-record includes the freshness reason.
 Explanations use the shadow selector; without admitted qualification runners are
 FULL unqualified. No inventory, qualification or run identity is inferred from a
-record. This command writes nothing, runs no tests and executes no runner.
+record. runs adds the newest stored result of each named test, read from the private
+run evidence store <git-dir>/corvint/evidence that each test run appends to, with its
+tree and whether that tree is the revision's (at_revision), or run-evidence-corrupt for
+a skipped record; --no-store leaves it out. Stored runs never change the status (preview).
+This command writes nothing, runs no tests and executes no runner.
 
 Example:
   corvint test-evidence src/main.go --lines 10:20 --revision HEAD
   corvint test-evidence --test suite/TestExample
   corvint test-evidence --explain suite/TestExample --base HEAD~1
+  corvint test-evidence --test go:example.com/m/a --no-store
 `

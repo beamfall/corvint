@@ -181,7 +181,7 @@ func (registry *Registry) callFlowsMap(ctx context.Context, arguments []byte) (R
 		if input.Path != nil || input.TestKey != nil {
 			return appflows.FlowLookup(ctx, root, set, deref(input.Path), deref(input.TestKey))
 		}
-		records, err := readFlowInputs(root, input.Evidence, appflows.ReadRunEvidence)
+		records, _, err := flowRunEvidence(ctx, root, input.Evidence)
 		if err != nil {
 			return nil, err
 		}
@@ -195,7 +195,7 @@ func (registry *Registry) callFlowsGaps(ctx context.Context, arguments []byte) (
 		return Result{}, failure("invalid-arguments")
 	}
 	return registry.runFlows(ctx, ToolFlowsGaps, input.Flows, func(ctx context.Context, root string, set appflows.IntentSet) ([]byte, error) {
-		records, err := readFlowInputs(root, input.Evidence, appflows.ReadRunEvidence)
+		records, _, err := flowRunEvidence(ctx, root, input.Evidence)
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +221,7 @@ func (registry *Registry) callFlowsStatus(ctx context.Context, arguments []byte)
 		defer flowsImpactSerial.Unlock()
 	}
 	return registry.runFlows(ctx, ToolFlowsStatus, input.Flows, func(ctx context.Context, root string, set appflows.IntentSet) ([]byte, error) {
-		records, err := readFlowInputs(root, input.Evidence, appflows.ReadRunEvidence)
+		records, store, err := flowRunEvidence(ctx, root, input.Evidence)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +231,7 @@ func (registry *Registry) callFlowsStatus(ctx context.Context, arguments []byte)
 				return nil, err
 			}
 		}
-		return appflows.FlowStatus(ctx, root, set, records, base)
+		return appflows.FlowStatusFrom(ctx, root, set, records, base, store)
 	})
 }
 
@@ -247,7 +247,11 @@ func (registry *Registry) callFlowsImpact(ctx context.Context, arguments []byte)
 		if err != nil {
 			return nil, err
 		}
-		return appflows.FlowImpactAt(ctx, root, set, resolved)
+		records, _, err := flowRunEvidence(ctx, root, nil)
+		if err != nil {
+			return nil, err
+		}
+		return appflows.FlowImpactResults(ctx, root, set, resolved, records)
 	})
 }
 
@@ -315,6 +319,17 @@ func flowsFailure(ctx context.Context, err error) *Error {
 		return failure("cancelled")
 	}
 	return failure("flows-refused")
+}
+
+// flowRunEvidence is what the flows tools read as run evidence, as their CLI verbs do by default:
+// the run evidence store's records, read without writing (RVD-V1-007, RVD-V1-012), then the named
+// files'.
+func flowRunEvidence(ctx context.Context, root string, files []string) ([]appflows.TestRunEvidence, *appflows.RunEvidenceRead, error) {
+	named, err := readFlowInputs(root, files, appflows.ReadRunEvidence)
+	if err != nil {
+		return nil, nil, err
+	}
+	return appflows.WithStoredRunEvidence(ctx, root, named)
 }
 
 // readFlowInputs resolves repository-relative input files under root, refusing a symlinked parent

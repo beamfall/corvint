@@ -9,6 +9,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/testduration"
 )
 
 // The provider adapter (STR-V0-8701 to STR-V0-8707) runs the Vitest and
@@ -168,16 +170,56 @@ type providerDocument struct {
 			Detail string `json:"detail"`
 			Reason string `json:"reason"`
 		} `json:"infrastructure"`
-		Kind          string `json:"kind"`
-		StaleAppBuild bool   `json:"staleAppBuild"`
-		Tests         []struct {
-			Anchor *struct {
-				File string `json:"file"`
-			} `json:"anchor"`
-			FullName string `json:"fullName"`
-			State    string `json:"state"`
-		} `json:"tests"`
+		Kind          string                 `json:"kind"`
+		StaleAppBuild bool                   `json:"staleAppBuild"`
+		Tests         []providerReportedTest `json:"tests"`
 	} `json:"receipt"`
+}
+
+// providerReportedTest is the part of one provider receipt test the adapter reads. DurationMs is
+// the runner's own per-test time (Vitest's assertion duration, Playwright's last attempt's result
+// duration) and AttemptDetails keeps each Playwright attempt's: the internal/jstestprovider
+// TestOutcome and AttemptDetail members of the same names.
+type providerReportedTest struct {
+	Anchor *struct {
+		File string `json:"file"`
+	} `json:"anchor"`
+	AttemptDetails []struct {
+		DurationMs *float64 `json:"durationMs"`
+	} `json:"attemptDetails"`
+	DurationMs *float64 `json:"durationMs"`
+	FullName   string   `json:"fullName"`
+	Retries    int      `json:"retries"`
+	State      string   `json:"state"`
+}
+
+// providerSources names the duration source of each provider runner (PTD-V1-002).
+var providerSources = map[string]string{ProviderRunnerPlaywright: testduration.SourcePlaywright, ProviderRunnerVitest: testduration.SourceVitest}
+
+// providerTestMeasure is one provider test's reported time (PTD-V1-002, PTD-V1-006): the sum of
+// its attempts when the receipt keeps each attempt, else its durationMs when it ran once. A test
+// retried with only its last attempt's time, one with no time, and an infrastructure entry, which
+// is no test run, are NOT_MEASURED (PTD-V1-003); nothing is estimated.
+func providerTestMeasure(runner string, test providerReportedTest) testduration.Measure {
+	source := providerSources[runner]
+	switch {
+	case test.State == "infrastructure":
+		return testduration.Missing()
+	case len(test.AttemptDetails) != 0:
+		attempts := make([]testduration.Measure, 0, len(test.AttemptDetails))
+		for _, attempt := range test.AttemptDetails {
+			if attempt.DurationMs == nil {
+				attempts = append(attempts, testduration.Missing())
+				continue
+			}
+			attempts = append(attempts, testduration.FromMilliseconds(*attempt.DurationMs, source))
+		}
+		measure, _ := testduration.Attempts(attempts, source)
+		return measure
+	case test.DurationMs == nil || test.Retries != 0:
+		return testduration.Missing()
+	}
+	return testduration.FromMilliseconds(*test.DurationMs, source)
 }
 
 // providerCapture keeps at most providerCaptureLimit bytes of a provider's
@@ -241,12 +283,24 @@ func providerOutcomes(planned Planned, exit int, capture *providerCapture, out i
 	}
 	failing, passed, skipped := make([]bool, len(files)), make([]int, len(files)), make([]int, len(files))
 	stray, counts, lines := false, map[string]int{}, 0
+	// timed holds each file's test times. A provider runs only the selected files, so with one
+	// file every test is its own; with more, a test no single file owns leaves every file's sum
+	// unknown, since adding it to none or to a guessed one would be an estimate (PTD-V1-003).
+	timed, unattributed := make([][]testduration.Measure, len(files)), false
 	for _, test := range receipt.Tests {
 		reported := test.FullName
 		if test.Anchor != nil && test.Anchor.File != "" {
 			reported = test.Anchor.File
 		}
 		owners := providerOwners(files, reported)
+		switch {
+		case len(files) == 1:
+			timed[0] = append(timed[0], providerTestMeasure(runner, test))
+		case len(owners) == 1:
+			timed[owners[0]] = append(timed[owners[0]], providerTestMeasure(runner, test))
+		default:
+			unattributed = true
+		}
 		switch test.State {
 		case "passed", "flaky":
 			counts["passed"]++
@@ -289,7 +343,19 @@ func providerOutcomes(planned Planned, exit int, capture *providerCapture, out i
 			outcome = OutcomeNotRun
 			reasons = append(reasons, name+": its receipt names no test of "+files[index]+" alone; the unit is NOT_RUN")
 		}
-		outcomes = append(outcomes, Outcome{Outcome: outcome, Slice: unit.Slice, Unit: unit.Unit})
+		// A provider file unit that ran records the sum of its tests' reported times as a
+		// file-level duration (PTD-V1-002, PTD-V1-004), NOT_MEASURED when any of them has none or
+		// a test cannot be placed in one file (PTD-V1-003); one invalid time makes the unit
+		// invalid (PTD-V1-007). A NOT_RUN unit ran nothing and Finish marks it NOT_MEASURED alone.
+		recorded := Outcome{Outcome: outcome, Slice: unit.Slice, Unit: unit.Unit}
+		if outcome != OutcomeNotRun {
+			measure := testduration.Missing()
+			if !unattributed {
+				measure, _ = testduration.Attempts(timed[index], providerSources[runner])
+			}
+			recorded = timedOutcome(recorded, &measure)
+		}
+		outcomes = append(outcomes, recorded)
 	}
 	return outcomes, reasons
 }
