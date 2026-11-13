@@ -37,11 +37,15 @@ func TestAFPV0510AffectedSummaryRestatesThePlan(t *testing.T) {
 	}
 	excluded := plan["excluded"].(map[string]any)["count"]
 	// AFP-V0-9987 adds the selected go: UNBOUNDED_READER count.
-	unresolved := 0
+	unresolved, drivers := 0, 0
 	for _, item := range plan["selected"].([]any) {
 		selection := item.(map[string]any)
 		if strings.HasPrefix(selection["unitId"].(string), "go:") && selection["witness"].(map[string]any)["kind"] == "UNBOUNDED_READER" {
 			unresolved++
+		}
+		// SLF-V1-008: a driver unit (a kind, or the driver namespace) is no test.
+		if kind, _ := selection["kind"].(string); kind != "" || strings.HasPrefix(selection["unitId"].(string), "driver:") {
+			drivers++
 		}
 	}
 	want := map[string]any{
@@ -52,6 +56,8 @@ func TestAFPV0510AffectedSummaryRestatesThePlan(t *testing.T) {
 		"excluded":           excluded,
 		"scope":              "UNKNOWN",
 		"selected":           float64(len(plan["selected"].([]any))),
+		"tests":              float64(len(plan["selected"].([]any)) - drivers),
+		"drivers":            float64(drivers),
 		"unknown":            float64(len(plan["unknown"].([]any))),
 		"unknownByReason":    byReason,
 	}

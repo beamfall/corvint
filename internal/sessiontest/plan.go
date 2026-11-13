@@ -68,10 +68,12 @@ func goSuite(input Input) bool {
 	return slices.ContainsFunc(input.Instances, func(instance contract.Instance) bool { return instance.Runner == testid.Go })
 }
 
-// Unknown is one plan.unknown entry.
+// Unknown is one plan.unknown entry. Hint is the plan's optional operator
+// guidance (AFP-V0-494); it never changes the manifest.
 type Unknown struct {
 	Detail string
 	Reason string
+	Hint   string
 }
 
 // PartitionFiles are the repository's AFP-V0-022/041 placement inputs from
@@ -327,17 +329,14 @@ func Build(input Input) (Manifest, error) {
 	}
 	fullReason := ""
 	goRun := []string{}
-	// goAttributed: the Go selector ran over a Go universe and attributed
-	// every UNOWNED_DIRTY_PATH of the plan (gateselect.UnownedPathFallback).
-	goAttributed := false
+	// attributionOf reads from the same verdict whether the Go selector
+	// attributed every UNOWNED_DIRTY_PATH (gateselect.UnownedPathFallback).
 	switch verdict, detail, _ := strings.Cut(input.GoSelection, " "); verdict {
 	case "FALLBACK":
 		fullReason = detail
 	case "run":
 		goRun = strings.Fields(detail)
-		goAttributed = len(input.Universe) != 0
 	case "NOTHING":
-		goAttributed = len(input.Universe) != 0
 	default:
 		fullReason = "no AFP-V0-012 attribution verdict"
 	}
@@ -366,63 +365,30 @@ func Build(input Input) (Manifest, error) {
 		fullReason = ReasonRunnerRemoved + ": " + strings.Join(input.Removed, ", ") + " is named by the inventory or " + CommandsPath + " but no longer declared, so every test runs"
 	}
 	modules := map[string]bool{}
+	attribution := attributionOf(input)
 	for _, entry := range input.Unknown {
-		// An unknown unit with no selectable test still needs its language's
-		// declared full command when no adapter covers it (STR-V0-004).
-		// Driver units are make/CI inputs, not an adapter language, even
-		// when an unparsable file has no selectable target (AZU-V0-9704).
-		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" && language != driverNamespace {
-			languages[language] = true
-		}
-		if directory, ok := moduleDirectory(entry); ok {
-			// The nested module's own go test ./... covers the path
-			// (STR-V0-064). The ci profile's confined runner is not
-			// qualified for it, so there it names the module's suite as a
-			// check still required, which CI runs outside the Go shards,
-			// as the deciding driver admits the entry (AFP-V0-2742).
-			if input.RunnerProfile != ProfileCI {
-				modules[directory] = true
-			} else if check := ModuleCheck(directory); !slices.Contains(manifest.Checks, check) {
-				manifest.Checks = append(manifest.Checks, check)
+		// SLF-V1-007: the one decision SelectionVerdictOf reports. A
+		// NO_SELECTABLE_TEST unit of another language adds its declared
+		// full command (STR-V0-004); a nested module adds its own suite
+		// (STR-V0-064), or on the ci profile names it as a check
+		// (AFP-V0-2742); a binary consumer is named as a check, since FULL
+		// would not run it either (STR-V0-750); an unowned path no Go rule
+		// attributes runs every test (RNC-V1-004, owner decision R32); an
+		// allowlisted or flow-binding entry widens nothing (AFP-V0-028,
+		// AFU-V1-1652); a bearing non-Go frontier adds its language's
+		// declared suite (AFP-V0-2750); every other entry forces FULL.
+		action := decideUnknown(entry, attribution, input.RunnerProfile)
+		switch {
+		case action.suite != "":
+			languages[action.suite] = true
+		case action.module != "":
+			modules[action.module] = true
+		case action.check != "":
+			if !slices.Contains(manifest.Checks, action.check) {
+				manifest.Checks = append(manifest.Checks, action.check)
 			}
-			continue
-		}
-		if file, ok := binaryConsumer(entry); ok {
-			// STR-V0-750: named as a check, not widened for; FULL would not
-			// run it either.
-			if check := BinaryConsumerCheck(file); !slices.Contains(manifest.Checks, check) {
-				manifest.Checks = append(manifest.Checks, check)
-			}
-			continue
-		}
-		if entry.Reason == "UNOWNED_DIRTY_PATH" && !goAttributed {
-			// RNC-V1-004, owner decision R32: with no Go attribution verdict
-			// no rule attributes the path, so no runner instance owns it and
-			// every test runs, with the named reason. A Go verdict of run or
-			// NOTHING means the selector found a Go rule for every unowned
-			// path; it falls back with the same reason when it does not.
-			if fullReason == "" {
-				fullReason = gateselect.UnownedPathFallback + ": " + entry.Detail
-			}
-			continue
-		}
-		if allowedUnknown(entry) {
-			continue // an allowlisted entry hides no reader a narrowed run omits (AFP-V0-028)
-		}
-		if _, ok := gateselect.E2EFlowUnknown(entry.Reason, entry.Detail); ok {
-			// AFU-V1-1652: the flow-bound consumer the entry concerns is still
-			// selected or named as a check above; the entry widens no Go run.
-			continue
-		}
-		if language, ok := frontierSuite(entry); ok {
-			// A bearing non-Go frontier may hide a reader of a changed or
-			// deleted path, so its language's declared suite runs, as the
-			// deciding driver names it; Go selection is unchanged (AFP-V0-2750).
-			languages[language] = true
-			continue
-		}
-		if fullReason == "" {
-			fullReason = fmt.Sprintf("plan.unknown entry outside the AFP-V0-028 allowlist: %s %s", entry.Reason, entry.Detail)
+		case action.full != "" && fullReason == "":
+			fullReason = action.full
 		}
 	}
 	universe := map[string]bool{}

@@ -498,15 +498,19 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		return 2
 	}
 	testCommandNotices(manifest, input.Declared, root, stderr)
+	// SLF-V1-007: the plan's per-unknown effects and per-runner tiers, from
+	// the one function corvint affected and the MCP plan tool print.
+	selection := input.SelectionVerdict()
 	if !testSummarySelected(options) {
 		testVerdict(stderr, manifest)
+		testSelectionVerdict(stderr, selection)
 		_, _ = fmt.Fprintf(stderr, "corvint-test: INVENTORY %s\n", inventoryVerdictLine(inventory))
 	}
 	if options.dryRun {
 		if options.pins {
 			_, _ = io.WriteString(stdout, testPinsReport(digest, pins.tokens, pins.units))
 		}
-		return testDryRun(manifest, digest, input.Declared, root, options, inventory, stdout, stderr)
+		return testDryRun(manifest, digest, input.Declared, root, options, inventory, selection, stdout, stderr)
 	}
 	// STR-V0-073: an executing run names each whole-package go test's
 	// HEAVY_WHOLE_REASON before any invocation starts, as --dry-run does.
@@ -785,7 +789,7 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	}
 	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
 	for _, entry := range receipt.Plan.Unknown {
-		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
+		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason, Hint: entry.Hint})
 	}
 	for _, language := range affectedLanguages() {
 		if language.Name() == "go" || language.Name() == affected.DriverNamespace {
@@ -1016,6 +1020,23 @@ func testVerdict(stderr io.Writer, m sessiontest.Manifest) {
 	}
 }
 
+// testSelectionVerdict prints the SLF-V1-007 selection verdict: one
+// SELECTION line with the scope and each runner's R16 tier, then one EFFECT
+// line per plan.unknown entry with its effect and hint.
+func testSelectionVerdict(stderr io.Writer, selection sessiontest.SelectionVerdict) {
+	line := "corvint-test: SELECTION " + selection.Scope
+	for _, runner := range selection.Runners {
+		line += " " + runner.Runner + "=" + runner.Tier
+	}
+	for _, count := range selection.EffectCounts() {
+		line += " " + count
+	}
+	_, _ = fmt.Fprintln(stderr, line)
+	for _, entry := range selection.Unknown {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: EFFECT %s %s %s: %s\n", entry.Effect, entry.Reason, textWord(entry.Detail), textWord(entry.Hint))
+	}
+}
+
 // testPlanVerdict is the dry-run verdict: INCOMPLETE when the plan cannot
 // run complete, else PLANNED (STR-V0-120).
 func testPlanVerdict(m sessiontest.Manifest) string {
@@ -1027,7 +1048,7 @@ func testPlanVerdict(m sessiontest.Manifest) string {
 
 // testDryRun prints the shard's run set and argv and executes nothing but
 // the Git reads planning needed; --manifest names the only file it writes.
-func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Declared, root string, options testOptions, inventory testinventory.Verdict, stdout, stderr io.Writer) int {
+func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Declared, root string, options testOptions, inventory testinventory.Verdict, selection sessiontest.SelectionVerdict, stdout, stderr io.Writer) int {
 	type plannedJSON struct {
 		Adapter string             `json:"adapter"`
 		Argv    []string           `json:"argv"`
@@ -1043,7 +1064,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	document := map[string]any{
 		"checks": m.Checks, "incomplete": m.Incomplete, "invocations": planned, "manifestDigest": digest,
 		"noSuite": m.NoSuite, "placement": m.Placement, "reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
-		"verdict": testPlanVerdict(m), "inventory": inventory,
+		"verdict": testPlanVerdict(m), "inventory": inventory, "selectionVerdict": selection,
 	}
 	if options.manifest != "" {
 		encoded, err := sessiontest.Encode(m)
