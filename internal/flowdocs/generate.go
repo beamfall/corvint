@@ -29,11 +29,13 @@ const Schema = "corvint-flow-documentation/1"
 // (V1-5491, AFU-V1-043) keeps any other '<' after a name as code, ends a tag
 // at the first '>' outside attribute braces, refuses a comparison as a tag and
 // accepts type parameters on a function declaration, so a version 4 manifest
-// can no longer be rederived byte for byte. Version 6 (V1-5495..V1-5499,
-// AFU-V1-043) masks markup nested in an expression container, keeps a '<'
-// after any operand and a generic arrow's type parameters as code and accepts
-// type arguments on a registration, so a version 5 manifest can no longer be
-// rederived byte for byte.
+// can no longer be rederived byte for byte. Version 6 (V1-5495..V1-5499 and
+// V1-5502, AFU-V1-043 and AFU-V1-107) masks markup nested in an expression
+// container, keeps a '<' after any operand and a generic arrow's type
+// parameters as code, accepts type arguments on a registration, and resolves
+// declared inventory members against top-level classes, enums, namespaces,
+// consts, lets, vars, interfaces and type aliases, so a version 5 manifest can
+// no longer be rederived byte for byte.
 const Version = "6"
 
 // predecessorVersions are generator versions whose manifests are refused with
@@ -253,7 +255,11 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 			continue
 		}
 		s.Data = []byte(text)
-		ds, gaps := extract(s)
+		extractor := extract
+		if inv != nil {
+			extractor = extractMembers
+		}
+		ds, gaps := extractor(s)
 		m.Gaps = append(m.Gaps, gaps...)
 		duplicate := map[string]int{}
 		for _, d := range ds {

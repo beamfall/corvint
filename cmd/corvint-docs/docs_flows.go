@@ -189,11 +189,28 @@ func repositoryRelative(root, path string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	rel, err := filepath.Rel(root, abs)
+	rel, err := filepath.Rel(root, resolveExistingPrefix(abs))
 	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
 		return "", false
 	}
 	return filepath.ToSlash(rel), true
+}
+
+// resolveExistingPrefix resolves symlinks in the longest existing ancestor of abs and keeps the
+// not-yet-created remainder, so a fresh --output-dir under a symlinked root alias (macOS
+// /var -> /private/var) compares with the resolved --root (V1-4551).
+func resolveExistingPrefix(abs string) string {
+	rest := ""
+	for dir := abs; ; dir = filepath.Dir(dir) {
+		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+			return filepath.Join(resolved, rest)
+		}
+		if parent := filepath.Dir(dir); parent == dir {
+			return abs
+		} else {
+			rest = filepath.Join(filepath.Base(dir), rest)
+		}
+	}
 }
 
 const docsFlowsHelp = `Generate bounded source-derived flow documentation (generated trust).
@@ -212,7 +229,9 @@ Check and finalize are read-only. Check reports each stable claim/paragraph's
 fresh/stale/unresolved source binding and byte drift of the rendered pages (exit 1).
 Generate records an output directory inside --root in generation.json; check compares
 --output-dir, else that recorded directory. With neither, or a directory that does not
-exist, output is NOT_CHECKED with a reason and the check is never clean (exit 1).
+exist, output is NOT_CHECKED with a reason and the check is never clean (exit 1); with
+neither, output_hint asks for --output-dir, since an output directory outside --root is
+never recorded.
 Finalize admits separately committed provider bytes without changing source anchors.
 See docs/FLOW-DOCUMENTATION.md for limits and original corpus/runtime joins.
 `
