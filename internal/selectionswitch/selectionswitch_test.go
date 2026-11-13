@@ -8,7 +8,7 @@ import (
 	"github.com/Beamfall/corvint/internal/testid"
 )
 
-// MTT-V1-008 with change narrowing-measurement (NMS-V1-008): exactly full and
+// MTT-V1-008 with change narrowing-measurement's kill switch: exactly full and
 // full:<runner>[,<runner>] naming known runners are in the grammar; every other
 // non-empty value, an unknown runner name among them, is unknown.
 func TestMTTV1008Grammar(t *testing.T) {

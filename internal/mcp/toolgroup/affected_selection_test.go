@@ -156,7 +156,7 @@ func TestMTTV1008RunnerSwitchWidensAndEchoesItsRunners(t *testing.T) {
 
 // MTT-V1-008: a 10 KB value is echoed in at most 256 bytes, cut with the
 // truncation marker, in selection.value and in detail. A long runner list
-// names runners outside the seven, so it is an unknown value (NMS-V1-008)
+// names runners outside the seven, so it is an unknown value (the narrowing-measurement kill switch)
 // and echoes no runners.
 func TestMTTV1008EchoedValueIsBounded(t *testing.T) {
 	long := "fastest" + strings.Repeat("é", 5*1024)
@@ -192,7 +192,7 @@ func TestMTTV1008EchoedValueIsBounded(t *testing.T) {
 	}
 }
 
-// MTT-V1-008 with NMS-V1-008: a runner list naming a runner outside the
+// MTT-V1-008 with the narrowing-measurement kill switch: a runner list naming a runner outside the
 // seven is an unknown value: every test is selected with the unknown-value
 // reason naming the value and the known runners, no runner is echoed, and the
 // planner never runs.
