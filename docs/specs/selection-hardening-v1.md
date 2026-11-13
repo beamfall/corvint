@@ -13,8 +13,8 @@ PROD-TEST-015, PROD-TEST-016) and `docs/decisions/0596-accept-product-plan-1-0-2
 ## Agent digest
 - Claim: Python and JavaScript selection raises a named frontier where it drops an edge today; new narrowing rules ship tested but held off until fault injection.
 - Status: accepted (decision 0596, G14; V1-5401) / experimental; partially delivered
-- Exists: `python:absolute-import-unresolved`, glob and mock edges, the literal-config reader and its gates, and the coverage hook in `internal/liveverify/affected`.
-- Blocked on: SLF-V1-006 (change `fault-injection-harness`); SLF-V1-007 (changes `runner-contract` and `source-removal`); the JSON `tests`/`drivers` members of SLF-V1-008 (next affected-plan profile version; CCF-V1-006 is frozen).
+- Exists: `python:absolute-import-unresolved`, glob and mock edges, the literal-config reader and its gates, the coverage hook in `internal/liveverify/affected`, the selection side of the SLF-V1-006 fault cases, `sessiontest.SelectionVerdictOf` (SLF-V1-007) and the `summary.tests`/`summary.drivers` members (SLF-V1-008).
+- Blocked on: the SLF-V1-006 FIH-V1 reports, which need the harness's pytest, Vitest and Jest adapters (FIH-V1-008) and a sealed pre-registration on a pinned proof repository (FIH-V1-001, FIH-V1-009); until then every narrowing gate stays off.
 - Read next: Requirements; Narrowing gates; Delivery record.
 
 ## User and boundary
@@ -196,8 +196,20 @@ leaving its frontier open, until at least five pre-registered FIH-V1 faults for 
 pinned proof repository are each killed by the tests the rule selects. A miss MUST keep the rule
 disabled. (PROD-TEST-014)
 
-Not yet built: it waits for change `fault-injection-harness`. Until it is, each gate below stays
-off, which is the held state this requirement asks for.
+Partly built (2026-11-13). Each rule has at least five pre-registered faults as Go test cases,
+the selection side of an FIH-V1 case: the faulted tree's plan, with the rule's gate on, is BOUNDED
+and selects the test that kills the fault, and with the gate held the rule's frontier is raised and
+the killer is selected or the plan is UNKNOWN. SLF-V1-001 has six (`pythonpath` in
+`pyproject.toml`, `setup.cfg` and `tox.ini`, a namespace package, a layout root, a `testpaths`
+root and a transitive edge), SLF-V1-003 six (`import.meta.glob` star, recursive and array forms,
+flat and recursive `require.context`, a file reached through a globbed page) and SLF-V1-005 six
+(a Vitest include source and a file it reaches, the `setupFiles` and `globalSetup` targets, a Jest
+`roots`/`testMatch` source and a `moduleNameMapper` target). The kill itself, the killer failing
+three of three runs on the faulted tree, is not measured, so no FIH-V1 report exists for any rule
+(NOT_PRODUCED): `tools/fault-harness` has only its Go adapter, and the pytest, Vitest and Jest
+adapters of FIH-V1-008 (change `fault-injection-harness` task 6) and a sealed pre-registration on
+a pinned proof repository (FIH-V1-001, FIH-V1-009; that change's task 8) do not exist. Each gate
+below therefore stays off, which is the held state this requirement asks for.
 
 **Scenario: Rule held until proved**
 - GIVEN SLF-V1-005 is built and its FIH-V1 report has one surviving fault
@@ -213,7 +225,28 @@ tool MUST print that function's output and MUST NOT compute their own. Every unk
 non-empty hint. An unknown code the function does not know MUST map to `forces-full`.
 (PROD-TEST-001, PROD-TEST-009)
 
-Not yet built: it waits for changes `runner-contract` and `source-removal` (owner decision R32).
+Built (2026-11-13) on the R32 allowlist that `runner-contract` task 9 delivered.
+`sessiontest.SelectionVerdictOf` maps each entry with `decideUnknown`, the decision
+`sessiontest.Build` also applies, so `corvint test` cannot run a scope the verdict does not state.
+A non-Go `NO_SELECTABLE_TEST` unit and a bearing non-Go frontier add their language's suite
+(`adds-suite:<language>`), a nested Go module adds its own suite (`adds-suite:go`; on the ci
+profile it is a still-required check and `ignored`), a binary consumer, an allowlisted entry and a
+flow-binding entry are `ignored`, and an unattributed `UNOWNED_DIRTY_PATH` and every other entry
+are `forces-full`. A runner is named by its plan language namespace, the name an `adds-suite`
+effect carries; its tier is `full` when its suite is added or any entry forces full, `line` for Go
+when the GLS-V0-020 line evidence narrowed the plan, `flow` for a Playwright selection, and `file`
+otherwise, the least narrow of its selections winning. A hint is the plan's own when it has one
+and the effect's otherwise. `corvint affected` prints the verdict as the `selectionVerdict` member
+of the affected-plan/1 document and of the affected-summary/1 verdict, which the MCP plan tool
+returns byte for byte; `corvint test` prints one `SELECTION` line and one `EFFECT` line per entry
+on stderr and the `selectionVerdict` member of its dry-run document. Both members are optional
+additions under CCF-V1-006. The `--full` (affected-plan/0) document is unchanged.
+
+Limit: whether an `UNOWNED_DIRTY_PATH` is attributed is decided by the AFP-V0-012 Go selector,
+which needs the Go index that only `corvint test` builds. `corvint affected` and the MCP tool pass
+the attribution as undecided, so there the entry is `forces-full` with a hint saying so, while
+`corvint test` reports `ignored` when its Go selector attributed the path. The verdicts agree on
+every plan with no attributed unowned path.
 
 **Scenario: Same plan, same verdict**
 - GIVEN a change that yields unknown `NO_SELECTABLE_TEST` and a TypeScript DISCOVERY frontier
@@ -225,20 +258,26 @@ Not yet built: it waits for changes `runner-contract` and `source-removal` (owne
 The `corvint affected` stderr headline MUST report the number of selected test units and the
 number of selected driver units as separate values, `tests=<n> drivers=<m>`, placed where the
 headline's line bound (AFP-V0-3642) cannot cut them. Driver units MUST NOT be counted as tests. The
-headline MUST list driver units only in verbose output. The JSON plan's `tests` and `drivers`
-members wait for the next affected-plan profile version. (PROD-TEST-015)
+headline MUST list driver units only in verbose output. The `summary` object of the affected-plan/1
+document MUST carry the same two counts as the members `tests` and `drivers`, optional additions
+under CCF-V1-006, leaving `summary.line` unchanged. (PROD-TEST-015)
 
 Amended 2026-11-11 by the orchestrator under the owner's delegation (build-log
 `docs/build-log/2026-11-11-selection-hardening-counts-decision.md`): the affected-plan/0 and
 affected-plan/1 profiles stay frozen for 1.0 (CCF-V1-006), so the counts are required on the
 stderr headline and the JSON members move to the next profile version.
 
-Built for the headline. `corvint affected` counts with `affected.Plan.SelectionCounts`, which
+Amended again 2026-11-13 (lane charter of V1-5401): CCF-V1-006 classes adding an optional member to
+a frozen mode other than the four byte-parity verbs as compatible, as AFP-V0-9987 did for
+`summary.unresolvedPackages`, so the JSON members join affected-plan/1 without a new profile and
+the two core-freeze goldens gain only these members and `selectionVerdict`.
+
+Built. `corvint affected` counts with `affected.Plan.SelectionCounts`, which
 counts a `driver:` unit only as a driver, and prints `tests=<n> drivers=<m>` right after the
 summary line's `selected=` total on the headline's first line. That is ahead of the unknown-reason
 counts, `revision=` and `base=`, which can push the line past 200 bytes, so a cut line keeps both
-counts. The headline lists no driver unit. JSON `tests` and `drivers` members: Not yet built
-(frozen profile CCF-V1-006).
+counts. The headline lists no driver unit. `summary.tests` and `summary.drivers` come from the same
+`SelectionCounts`, so the affected-summary/1 verdict and the MCP plan tool carry them too.
 
 **Scenario: Driver units excluded from the test count**
 - GIVEN a plan with three selected test units and two driver units
@@ -273,8 +312,12 @@ Build-log: `docs/build-log/2026-11-11-selection-hardening.md`, the review fixes 
 `docs/build-log/2026-11-11-selection-hardening-counts-decision.md`. Tests:
 `internal/liveverify/affected/python/selection_hardening_test.go`,
 `internal/liveverify/affected/typescript/selection_hardening_test.go`,
-`internal/liveverify/affected/selection_hardening_test.go` and
-`cmd/corvint/affected_counts_test.go`.
+`internal/liveverify/affected/selection_hardening_test.go`,
+`cmd/corvint/affected_counts_test.go`, the SLF-V1-006 fault cases in
+`internal/liveverify/affected/python/fault_cases_slfv1006_test.go` and
+`internal/liveverify/affected/typescript/fault_cases_slfv1006_test.go`, and the SLF-V1-007 tests in
+`internal/sessiontest/effect_slfv1007_test.go` and
+`cmd/corvint/selection_verdict_slfv1007_test.go`.
 
 ## Rollback
 
