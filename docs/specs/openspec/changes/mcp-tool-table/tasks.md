@@ -25,11 +25,11 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       unknown value returns all tests with the reason; `full:go` selects all Go tests.
 - [x] 2.7 Parity tests for rows with a CLI equivalent. Requirements: MTT-V1-009. Proof: one parity
       test per row.
-- [ ] 2.8 No tasks tools; retire MCP binaries from `binaries.json` in their removal batch.
-      Requirements: MTT-V1-006, MTT-V1-010. Proof: tool-list test and the release binaries check.
-- [x] 2.9 Stale binary in the `affected` tool: select-all with reason `self-binary-stale` and a
+- [x] 2.8 Stale binary in the `affected` tool: select-all with reason `self-binary-stale` and a
       rebuild hint; the CLI keeps exit 2 (M1). Requirements: MTT-V1-011. Proof: one tool test and
       one CLI exit-code test on a stale binary.
+- [ ] 2.9 No tasks tools; retire MCP binaries from `binaries.json` in their removal batch.
+      Requirements: MTT-V1-006, MTT-V1-010. Proof: tool-list test and the release binaries check.
 - [ ] 3.1 Mark PROD-DOCS-001 DELIVERED in the plan evidence once 2.4 and 2.5 land. Requirements:
       MTT-V1-004, MTT-V1-005. Proof: plan row read-back.
 - [ ] 3.2 Build-log entry; complete the ticket through the Tasks gate. Requirements: all. Proof:

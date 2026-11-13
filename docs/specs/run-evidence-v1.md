@@ -4,7 +4,8 @@ Owner: Russell Lewis
 Date: 2026-11-11
 Intent status: accepted
 Delivery status: partial
-Authoritative inputs: change folder `docs/specs/openspec/changes/run-evidence/` (`proposal.md`,
+Health: KEEP
+Authoritative inputs: change folder `docs/specs/openspec/changes/archive/2026-11-13-run-evidence/` (`proposal.md`,
 `design.md`, `tasks.md` and `specs/run-evidence/spec.md`), `docs/specs/PRODUCT-PLAN-1.0.md`
 (PROD-DOCS-012, PROD-TEST-018, PROD-TEST-020) and
 `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md` (owner decisions R7, R8 and R38).
