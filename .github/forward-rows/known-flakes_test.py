@@ -41,6 +41,20 @@ def output(text, test=None, package=PKG):
     return json.dumps(e).encode() + b"\n"
 
 
+CAPTURE_STEP = "      - name: Capture the known-flake authorizer before tested code runs (CIN-V0-8720)\n"
+CAPTURE_CMD = ('git --no-replace-objects -c core.hooksPath=/dev/null show '
+               '"$KNOWN_FLAKES_REVISION:.github/forward-rows/known-flakes.py" > "$authorizer" 2> /dev/null; then')
+
+
+def workflow_scripts(ci):
+    """The capture step's script, the Go tests step's hold of the copy and its forgiveness block."""
+    step = ci.split(CAPTURE_STEP, 1)[1].split("\n      - ", 1)[0]
+    capture = textwrap.dedent(step.split("        run: |\n", 1)[1])
+    hold = re.search(r'(?ms)^          known_flakes_src=""\n.*?^          fi$', ci)
+    block = re.search(r'(?ms)^              if \[ "\$status" != 0 \].*?^              fi$', ci)
+    return capture, hold and textwrap.dedent(hold[0]), block and textwrap.dedent(block[0])
+
+
 class KnownFlakes(unittest.TestCase):
     def test_CINV08720_unfinished_invocations_and_tests(self):
         allowed = m.exceptions(ROW, TODAY)
@@ -229,11 +243,30 @@ class KnownFlakes(unittest.TestCase):
             for script in ("flaky.sh", "outcomes.sh", "outcomes.jq"):
                 shutil.copyfile(HERE / script, policy.parent / script)
             ci = (HERE.parent / "workflows" / "ci.yml").read_text()
-            block = re.search(r'(?ms)^              if \[ "\$status" != 0 \].*?^              fi$', ci)
-            self.assertIsNotNone(block, "actual workflow forgiveness block is missing")
-            decision = textwrap.dedent(block[0])
-            self.assertIn('git show "$KNOWN_FLAKES_REVISION:.github/forward-rows/known-flakes.py" > "$RUNNER_TEMP/known-flakes.py"', decision)
+            capture, hold, decision = workflow_scripts(ci)
+            self.assertIsNotNone(hold, "actual workflow hold of the authorizer is missing")
+            self.assertIsNotNone(decision, "actual workflow forgiveness block is missing")
+            self.assertIn(CAPTURE_CMD, capture)
             self.assertNotIn("python3 .github/forward-rows/known-flakes.py", decision)
+            self.assertNotIn("git ", decision)
+            # A replacement ref installed in the checkout, as tested code could, must not change
+            # what the capture step extracts (P1 review, fix round 1).
+            original = git("rev-parse", f"{revision}:.github/forward-rows/known-flakes.py")
+            forgiving = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=root, env=env,
+                                       input=b"import sys\nsys.exit(0)\n", capture_output=True,
+                                       check=True).stdout.decode().strip()
+            git("replace", original, forgiving)
+            self.assertEqual(git("show", f"{revision}:.github/forward-rows/known-flakes.py"),
+                             "import sys\nsys.exit(0)", "the replacement ref is not live")
+            env["GITHUB_OUTPUT"] = str(root / "capture-output")
+            subprocess.run(["bash", "-e", "-c", capture], cwd=root, env=env, check=True)
+            copy = pathlib.Path(runner_temp) / "known-flakes-authorizer.py"
+            self.assertEqual(copy.read_bytes(), (HERE / "known-flakes.py").read_bytes())
+            digest = (root / "capture-output").read_text()
+            self.assertRegex(digest, r"^sha256=[0-9a-f]{64}\n$")
+            env["KNOWN_FLAKES_SHA256"] = digest.strip().split("=", 1)[1]
+            env["GITHUB_OUTPUT"] = str(root / "outputs")
+            decision = hold + "\n" + decision
             env.update(outcomes_ok="1", status="1", flaky="")
             stream = root / "stream"
             outcomes = root / "outcomes"
@@ -262,9 +295,22 @@ class KnownFlakes(unittest.TestCase):
                                          str(outcomes / "flaky-failed-packages"), str(outcomes / "expected")], cwd=root, env=env,
                                         capture_output=True, text=True)
                 self.assertEqual(result.returncode, want, result.stdout + result.stderr)
+            # A copy changed after the capture (tested code can write RUNNER_TEMP) forgives nothing,
+            # and neither does a run whose capture output no digest.
+            stream.write_bytes(failure("TestKnown"))
+            for tamper in ("copy", "digest"):
+                run_env = dict(env)
+                if tamper == "copy":
+                    copy.write_text("import sys\nsys.exit(0)\n")
+                else:
+                    copy.write_bytes((HERE / "known-flakes.py").read_bytes())
+                    run_env["KNOWN_FLAKES_SHA256"] = ""
+                diagnostic = subprocess.run(["bash", "-e", "-c", decision + '\nexit "$status"'],
+                                            cwd=root, env=run_env, capture_output=True, text=True)
+                self.assertEqual(diagnostic.returncode, 1, tamper + diagnostic.stdout + diagnostic.stderr)
             # Test code that ran earlier in the job can write $RUNNER_TEMP, where the authorizer is
-            # copied: a planted module the authorizer imports must not run (python3 -I keeps the
-            # script's directory off sys.path), so an unlisted failure still fails.
+            # captured: a planted module the authorizer imports must not run (python3 -I keeps the
+            # current and script directories off sys.path), so an unlisted failure still fails.
             planted = pathlib.Path(runner_temp) / "datetime.py"
             planted.write_text("import sys\nsys.exit(0)\n")
             stream.write_bytes(failure("TestNew"))
@@ -322,6 +368,14 @@ class KnownFlakes(unittest.TestCase):
             git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
                 "commit", "-qm", "no authorizer")
             env["KNOWN_FLAKES_REVISION"] = git("rev-parse", "HEAD")
+            # The capture step finds no authorizer: it outputs no digest and leaves no copy.
+            env["GITHUB_OUTPUT"] = str(root / "capture-output-2")
+            subprocess.run(["bash", "-e", "-c", capture], cwd=root, env=env, check=True,
+                           capture_output=True)
+            self.assertEqual((root / "capture-output-2").read_text() if (root / "capture-output-2").exists() else "", "")
+            self.assertFalse(copy.exists())
+            env["KNOWN_FLAKES_SHA256"] = ""
+            env["GITHUB_OUTPUT"] = str(root / "outputs")
             (outcomes / "expected").write_text(PKG + "\n")
             for name, data in {"first.json": json.dumps({PKG: "fail"}), "rerun.json": json.dumps({PKG: "pass"}),
                                "rerun-lines": PKG + "\n", "rerun-status": "0\n"}.items():
@@ -347,10 +401,19 @@ class KnownFlakes(unittest.TestCase):
         tests = tests.split("      - name:", 1)[0]
         self.assertIn("KNOWN_FLAKES_REVISION: ${{ github.event.pull_request.base.sha || "
                       "github.event.merge_group.base_sha || github.sha }}", tests)
-        call = ('if git show "$KNOWN_FLAKES_REVISION:.github/forward-rows/known-flakes.py" > "$RUNNER_TEMP/known-flakes.py" 2> /dev/null &&\n'
-                '                  python3 -I -B "$RUNNER_TEMP/known-flakes.py" "$capture" "$outcomes_dir/flaky-failed-packages" "$outcomes_dir/expected"; then\n'
+        self.assertIn("KNOWN_FLAKES_SHA256: ${{ steps.known-flakes.outputs.sha256 }}", tests)
+        call = ('if [ -n "$known_flakes_src" ] &&\n'
+                '                  python3 -I -B - "$capture" "$outcomes_dir/flaky-failed-packages" "$outcomes_dir/expected" < <(printf \'%s\' "$known_flakes_src"); then\n'
                 '                  status=0\n')
         self.assertEqual(tests.count(call), 1)
+        # The capture runs right after the tested checkout, before any step that runs its code,
+        # and the Go tests step holds the copy before its first test.
+        shard = ci.split("\n  go-product-shard:\n", 1)[1]
+        self.assertEqual(shard.count(CAPTURE_STEP), 1)
+        steps = re.findall(r"(?m)^      - (?:name: (.*)|uses: (\S+).*)$", shard.split("      - name: Go tests (full", 1)[0])
+        self.assertEqual(steps[1][1].split("@")[0], "actions/checkout")
+        self.assertEqual(steps[2][0], CAPTURE_STEP.strip()[len("- name: "):])
+        self.assertLess(tests.index('known_flakes_src=""'), tests.index("run_tests"))
         # The authorization sits inside the flaky.sh branch and is the only status clear.
         flaky = tests.index('sh .github/forward-rows/flaky.sh "$outcomes_dir" "$capture" &&')
         self.assertLess(flaky, tests.index(call))
@@ -358,7 +421,7 @@ class KnownFlakes(unittest.TestCase):
         self.assertEqual(len(re.findall(r"(?m)^\s+status=0$", tests)), 1)
         # No other code line of ci.yml runs or reads the authorizer (comments may name it).
         code = [line for line in ci.replace(call, "").splitlines() if not line.lstrip().startswith("#")]
-        self.assertEqual([line for line in code if "known-flakes.py" in line], [])
+        self.assertEqual([line.strip() for line in code if "known-flakes.py" in line], [CAPTURE_CMD])
         self.assertIn("python3 -B .github/forward-rows/known-flakes_test.py", ci)
 
 
