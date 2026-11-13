@@ -35,7 +35,10 @@ var call = regexp.MustCompile(`\b([A-Za-z_$][A-Za-z0-9_$]*)(?:[.!?])?\s*\(`)
 var rubyCall = regexp.MustCompile(`(?:^|[.;\s])([A-Za-z_][A-Za-z0-9_]*[!?]?)(?:\s|\(|$)`)
 var rubyBlock = regexp.MustCompile(`^\s*(?:class|module|def|if|unless|case|begin|while|until|for)\b|\bdo\s*(?:\|[^|]*\|)?\s*$`)
 var route = regexp.MustCompile(`^\s*(get|post|put|patch|delete|resources|resource)\s+`)
-var registration = regexp.MustCompile(`\.(directive|controller|component|config|get|post|put|patch|delete)\s*\(`)
+
+// registration may carry one line of type arguments before its '(', nested one
+// level deep: api.post<{ id: string }>( and api.get<Map<K, V>>( (V1-5495).
+var registration = regexp.MustCompile(`\.(directive|controller|component|config|get|post|put|patch|delete)\s*(?:<[^<>()=\n]*(?:<[^<>()=\n]*>[^<>()=\n]*)*>\s*)?\(`)
 var safeLiteral = regexp.MustCompile(`^[A-Za-z0-9_/:.# -]{1,160}$`)
 
 // literalAt is called only after an executable token in masked code. It cannot

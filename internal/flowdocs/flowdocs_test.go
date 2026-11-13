@@ -793,7 +793,7 @@ func TestFlowDocsMemberKeywordCallsAreDrift(t *testing.T) {
 }
 
 // TestFlowDocsPredecessorGeneratorManifestIsTypedStale (AFU-V1-045, V1-0461):
-// a manifest that generator version 1, 2 or 3 wrote is refused with the typed
+// a manifest that an earlier generator version (1 to 5) wrote is refused with the typed
 // flowdocs-generator-stale code at its own unchanged revision, by Open,
 // check and generate --previous alike, instead of the generic rederivation
 // mismatch; regenerating with the current generator is clean.
@@ -804,7 +804,7 @@ func TestFlowDocsPredecessorGeneratorManifestIsTypedStale(t *testing.T) {
 		t.Fatal(e)
 	}
 	current := r.Files["generation.json"]
-	for _, version := range []string{"1", "2", "3", "4"} {
+	for _, version := range []string{"1", "2", "3", "4", "5"} {
 		predecessor := bytes.Replace(current, []byte(`"version":"`+Version+`"`), []byte(`"version":"`+version+`"`), 1)
 		if bytes.Equal(predecessor, current) {
 			t.Fatal("fixture did not carry the generator version")
@@ -981,6 +981,76 @@ func TestFlowDocsClosingTagAfterNestedMarkupText(t *testing.T) {
 	}
 	if want := "After,Export"; strings.Join(got, ",") != want {
 		t.Fatalf("declarations=%v want=%s", got, want)
+	}
+}
+
+// flowSummary lists each declaration with its observation keys, sorted by name.
+func flowSummary(ds []declaration) string {
+	got := []string{}
+	for _, d := range ds {
+		keys := []string{}
+		for _, o := range d.observations {
+			keys = append(keys, o.key)
+		}
+		got = append(got, d.name+"="+strings.Join(keys, "+"))
+	}
+	return strings.Join(got, ",")
+}
+
+// TestFlowDocsTypedClientCallBinding (V1-5495): type arguments between an
+// HTTP verb and its '(' (`api.post<{ id: string }>(`, an object type with
+// nested objects and ';') neither hide the literal route binding nor the
+// declarations after it.
+func TestFlowDocsTypedClientCallBinding(t *testing.T) {
+	text := "export function create(body: Body) {\n  return api.post<{ id: string }>('/api/items', body)\n}\n" +
+		"export function rename(body: Body) {\n  return api.put<{ a: { b: string }; c: number }>('/api/names', body)\n}\n" +
+		"export function after() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/api.ts", Data: []byte(text)})
+	if got, want := flowSummary(ds), "after=side_effect:save,binding:post:/api/items=,binding:put:/api/names=,create=,rename="; got != want {
+		t.Fatalf("declarations=%s want=%s", got, want)
+	}
+}
+
+// TestFlowDocsNestedMarkupTextIsMasked (V1-5496, V1-5497): markup nested in
+// an expression container, after `?` or `&&`, is blanked like any other
+// markup text, so its text is no observation; the container's code and the
+// declarations after the element stay code.
+func TestFlowDocsNestedMarkupTextIsMasked(t *testing.T) {
+	text := "function Export({ u, cond }) {\n  return (\n    <div>\n      {u ? <a href={u}>persist(data)</a> : null}\n" +
+		"      {cond && <Panel title=\"x\" />}\n      {cond && <b>save(now)</b>}\n    </div>\n  )\n}\n" +
+		"export function after() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/e.tsx", Data: []byte(text)})
+	got := flowSummary(ds)
+	if want := "Export=behavior:jsx-conditional+behavior:jsx-conditional+behavior:jsx-conditional,after=side_effect:save"; got != want {
+		t.Fatalf("declarations=%s want=%s", got, want)
+	}
+}
+
+// TestFlowDocsGenericArrowDeclarations (V1-5498): a generic arrow's type
+// parameters in a .tsx file (`<T,>(x: T) =>`, `<K extends keyof S>(key: K) =>`)
+// are not markup, so the arrow is a declaration and the declarations after it
+// stay code; a plain element `<T>x</T>` still masks its text.
+func TestFlowDocsGenericArrowDeclarations(t *testing.T) {
+	text := "const identity = <T,>(x: T) => x\n" +
+		"const setField = <K extends keyof Pattern>(key: K, value: Pattern[K]) =>\n  update((p) => ({ ...p, [key]: value }))\n" +
+		"const view = <T>persist(x)</T>\n" +
+		"function Field() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/rename.tsx", Data: []byte(text)})
+	if got, want := flowSummary(ds), "Field=side_effect:save,identity=,setField="; got != want {
+		t.Fatalf("declarations=%s want=%s", got, want)
+	}
+}
+
+// TestFlowDocsComparisonAfterOperandIsNotATag (V1-5499): a '<' after an
+// operand (a name, ')' or ']') is a comparison even when spaced and when a
+// later '>' would close it as a tag (`a <b ? {k: 1} : c > d`), so the
+// declaration after it is still extracted.
+func TestFlowDocsComparisonAfterOperandIsNotATag(t *testing.T) {
+	text := "const r = a <b ? {k:1} : c > d\nconst s = f(a) <b ? 1 : c > d\n" +
+		"function after() {\n  save(id);\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/r.ts", Data: []byte(text)})
+	if got, want := flowSummary(ds), "after=side_effect:save"; got != want {
+		t.Fatalf("declarations=%s want=%s", got, want)
 	}
 }
 

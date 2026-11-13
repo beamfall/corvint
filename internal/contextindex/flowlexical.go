@@ -30,26 +30,41 @@ func flowWebCodeLines(text string) []string {
 // JSX text. The native web mask does not claim a JavaScript regex/JSX grammar.
 func flowWebMask(text string) string {
 	code := []byte(stripWebNonCode(text))
-	markupDepth, expressionDepth := 0, 0
+	// frames nest element children (markup) and the code around and inside
+	// them: an element opened in code pushes a markup frame, a '{' in its
+	// children pushes a code frame, and the '}' that closes that container (at
+	// its own brace depth zero) or the closing tag pops back. So the text of
+	// markup nested in an expression container, `{u ? <a>Get data</a> : null}`,
+	// is blanked like any other markup text (V1-5496).
+	type frame struct {
+		markup bool
+		braces int
+	}
+	frames := []frame{{}}
 	for i := 0; i < len(code); i++ {
 		c := code[i]
-		// '</' always closes a tag: text of markup nested in an expression
-		// container is not blanked, so `{u ? <a>Get data</a> : null}` puts a
-		// name straight before it.
-		if c == '<' && i > 0 && i+1 < len(code) && code[i+1] != '/' && webIdentifierByte(code[i-1]) && !flowExpressionKeywords[flowWordBefore(code, i)] {
+		top := &frames[len(frames)-1]
+		if c == '<' && !top.markup && i+1 < len(code) && code[i+1] != '/' && flowOperandBefore(code, i) {
 			// A type-argument list right after a name and before a call
 			// (useMemo<T>(, useState<Map<K, V>>() is not markup: only the list
 			// is passed over, so the call and what follows stay code (V1-2415).
 			// A keyword such as return is no callee: return<div>(x) y</div>
 			// is markup.
-			if end := typeArgumentsEnd(code, i); end > 0 {
-				i = end
-				continue
+			if webIdentifierByte(code[i-1]) {
+				if end := typeArgumentsEnd(code, i); end > 0 {
+					i = end
+					continue
+				}
 			}
-			// Markup never opens straight after a name, so any other such '<'
-			// (a return type `): Promise<T> {`, an annotation `: Map<K, V> =`,
-			// a comparison `i<n`) stays code rather than blanking the rest of
-			// the file up to a closing tag.
+			// Markup never opens straight after an operand, so any other such
+			// '<' (a return type `): Promise<T> {`, an annotation `: Map<K, V> =`,
+			// a comparison `i<n` or `a <b ? {k: 1} : c > d`) stays code rather
+			// than blanking the rest of the file up to a closing tag (V1-5499).
+			continue
+		}
+		if c == '<' && !top.markup && flowTypeParameters(code, i) {
+			// `<T,>(x: T) => x` and `<K extends keyof S>(key: K) =>` open a
+			// generic arrow's type parameters, never an element (V1-5498).
 			continue
 		}
 		if c == '<' && i+1 < len(code) && (code[i+1] >= 'A' && code[i+1] <= 'Z' || code[i+1] >= 'a' && code[i+1] <= 'z' || code[i+1] == '/') {
@@ -92,30 +107,35 @@ func flowWebMask(text string) string {
 			closing := code[i+1] == '/'
 			self := end > i && code[end-1] == '/'
 			if closing {
-				if markupDepth > 0 {
-					markupDepth--
+				// A closing tag ends the innermost element and any expression
+				// container left open inside it.
+				for n := len(frames) - 1; n > 0; n-- {
+					if frames[n].markup {
+						frames = frames[:n]
+						break
+					}
 				}
 			} else if !self {
-				markupDepth++
+				frames = append(frames, frame{markup: true})
 			}
 			i = end
 			continue
 		}
-		if markupDepth > 0 && expressionDepth == 0 {
+		if top.markup {
 			if c == '{' {
-				expressionDepth = 1
+				frames = append(frames, frame{})
 				continue
 			}
 			code[i] = blankOrNewline(c)
 			continue
 		}
-		if expressionDepth > 0 {
-			if c == '{' {
-				expressionDepth++
-			}
-			if c == '}' {
-				expressionDepth--
-			}
+		switch {
+		case c == '{':
+			top.braces++
+		case c == '}' && top.braces > 0:
+			top.braces--
+		case c == '}' && len(frames) > 1:
+			frames = frames[:len(frames)-1]
 		}
 		// A slash left after comment/string masking can start a regex. Losing an
 		// arithmetic suffix is preferable to inventing executable regex contents.
@@ -130,6 +150,45 @@ func flowWebMask(text string) string {
 		}
 	}
 	return string(code)
+}
+
+// flowOperandBefore reports whether the code before the '<' at open, past
+// whitespace and line breaks, ends an operand: a name other than an expression
+// keyword, a number, ')' or ']'. A '<' after an operand is a comparison or a
+// type-argument list; an element only opens where an expression starts.
+func flowOperandBefore(code []byte, open int) bool {
+	end := open
+	for end > 0 && strings.IndexByte(" \t\r\n", code[end-1]) >= 0 {
+		end--
+	}
+	if end == 0 {
+		return false
+	}
+	if p := code[end-1]; p == ')' || p == ']' {
+		return true
+	}
+	return webIdentifierByte(code[end-1]) && !flowExpressionKeywords[flowWordBefore(code, end)]
+}
+
+// flowTypeParameters reports whether the '<' at open starts a type-parameter
+// list: a name followed by ',' or by the keyword extends, which no tag name
+// is. TypeScript reads `<T,>` and `<T extends U>` in .tsx files the same way.
+func flowTypeParameters(code []byte, open int) bool {
+	end := open + 1
+	for end < len(code) && webIdentifierByte(code[end]) {
+		end++
+	}
+	if end == open+1 {
+		return false
+	}
+	for end < len(code) && (code[end] == ' ' || code[end] == '\t') {
+		end++
+	}
+	if end < len(code) && code[end] == ',' {
+		return true
+	}
+	rest := code[end:]
+	return bytes.HasPrefix(rest, []byte("extends")) && len(rest) > len("extends") && (rest[len("extends")] == ' ' || rest[len("extends")] == '\t')
 }
 
 // flowExpressionKeywords are the words an expression, and so a JSX element,
