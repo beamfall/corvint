@@ -55,6 +55,10 @@ const (
 
 var recordName = regexp.MustCompile(`^[0-9a-f]{64}\.json$`)
 
+// readCounted, when set, is told how many bytes each readBounded call consumed, failed calls
+// included; a test sets it to check a read's byte bound.
+var readCounted func(int64)
+
 // readSlack is what a read allows past the cap: the newest record, which the writer keeps even
 // when it alone exceeds the cap. A variable so a test can bound a read without 64 MiB of records.
 var readSlack int64 = MaxRecordBytes
@@ -569,17 +573,25 @@ func (s Store) Read() (Snapshot, error) {
 			if errors.Is(statErr, fs.ErrNotExist) {
 				continue
 			}
-			if statErr == nil && info.Size() > budget && info.Size() <= MaxRecordBytes {
-				corrupt()
-				break
-			}
-			data, err = readBounded(name, min(MaxRecordBytes, budget))
-			if errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
-			if err == nil {
+			if statErr == nil && info.Size() > MaxRecordBytes {
+				// No record the writer keeps is this large: skip it unread, so a damaged store of
+				// oversized files costs no bytes.
+				err = fmt.Errorf("%s exceeds %d bytes", entry.ID, int64(MaxRecordBytes))
+			} else {
+				if budget <= 0 || (statErr == nil && info.Size() > budget) {
+					corrupt()
+					break
+				}
+				data, err = readBounded(name, min(MaxRecordBytes, budget))
+				// Every byte read counts against the budget, a failed read's too (a file that grew
+				// past its limit after the stat), so the total read stays within the bound.
 				budget -= int64(len(data))
-				read[entry.ID] = data
+				if errors.Is(err, fs.ErrNotExist) {
+					continue
+				}
+				if err == nil {
+					read[entry.ID] = data
+				}
 			}
 		}
 		var parsed Parsed
@@ -626,7 +638,8 @@ func nonNil(values []string) []string {
 
 // readBounded reads at most limit bytes of a regular file without following a final symlink and
 // without blocking on a FIFO: the name is checked with Lstat before the open and the descriptor
-// after it.
+// after it. On a read error or a file past limit it returns the error with the bytes it consumed,
+// at most limit+1, so a caller can charge them to a budget; a caller must not use them as data.
 func readBounded(name string, limit int64) ([]byte, error) {
 	info, err := os.Lstat(name)
 	if err != nil {
@@ -644,11 +657,14 @@ func readBounded(name string, limit int64) ([]byte, error) {
 		return nil, fmt.Errorf("%s changed while it was opened", filepath.Base(name))
 	}
 	data, err := io.ReadAll(bufio.NewReader(io.LimitReader(file, limit+1)))
+	if readCounted != nil {
+		readCounted(int64(len(data)))
+	}
 	if err != nil {
-		return nil, err
+		return data, err
 	}
 	if int64(len(data)) > limit {
-		return nil, fmt.Errorf("%s exceeds %d bytes", filepath.Base(name), limit)
+		return data, fmt.Errorf("%s exceeds %d bytes", filepath.Base(name), limit)
 	}
 	return data, nil
 }
