@@ -804,7 +804,7 @@ func TestFlowDocsPredecessorGeneratorManifestIsTypedStale(t *testing.T) {
 		t.Fatal(e)
 	}
 	current := r.Files["generation.json"]
-	for _, version := range []string{"1", "2", "3"} {
+	for _, version := range []string{"1", "2", "3", "4"} {
 		predecessor := bytes.Replace(current, []byte(`"version":"`+Version+`"`), []byte(`"version":"`+version+`"`), 1)
 		if bytes.Equal(predecessor, current) {
 			t.Fatal("fixture did not carry the generator version")
@@ -946,6 +946,41 @@ func TestFlowDocsTypeArgumentsOutsideCallsStayCode(t *testing.T) {
 	want := []string{"Panel=side_effect:save", "after=side_effect:save", "count=", "load="}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("declarations=%v want=%v", got, want)
+	}
+}
+
+// TestFlowDocsSpacedComparisonIsNotATag: `i <n;` matches the tag pattern, but
+// a ';', '(' or ')' before any '>' outside braces never occurs in a tag, so it
+// stays code and the JSX text of a later element is still masked.
+func TestFlowDocsSpacedComparisonIsNotATag(t *testing.T) {
+	text := "function f(n) {\n  for (let i = 0; i <n; i++) { a() }\n}\n" +
+		"function C() {\n  return <p>text save(id)</p>\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/c.tsx", Data: []byte(text)})
+	for _, d := range ds {
+		for _, o := range d.observations {
+			if strings.Contains(o.key, "save") {
+				t.Fatalf("JSX text leaked as %s in %s", o.key, d.name)
+			}
+		}
+	}
+	if len(ds) != 2 {
+		t.Fatalf("declarations=%d want 2", len(ds))
+	}
+}
+
+// TestFlowDocsGenericFunctionDeclarations: a function declaration with type
+// parameters (`function pick<T>(`, `function set<K extends keyof S>(`) is a
+// declaration like any other.
+func TestFlowDocsGenericFunctionDeclarations(t *testing.T) {
+	text := "export function pick<T>(items: readonly T[]): T[] {\n  return items;\n}\n" +
+		"function Shell() {\n  function set<K extends keyof S>(key: K, value: S[K]) {\n    save(key);\n  }\n  return null;\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/s.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		got = append(got, d.name)
+	}
+	if want := "Shell,pick,set"; strings.Join(got, ",") != want {
+		t.Fatalf("declarations=%v want=%s", got, want)
 	}
 }
 

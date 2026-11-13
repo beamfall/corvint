@@ -25,7 +25,7 @@ type declaration struct {
 
 var rubyDef = regexp.MustCompile(`^\s*def\s+([A-Za-z_][A-Za-z0-9_!?]*(?:\.[A-Za-z_][A-Za-z0-9_!?]*)?)`)
 var rubyClass = regexp.MustCompile(`^\s*(?:class|module)\s+([A-Za-z_][A-Za-z0-9_:]*)`)
-var webDef = regexp.MustCompile(`^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(`)
+var webDef = regexp.MustCompile(`^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:<[^()]*>\s*)?\(`)
 
 // webArrow accepts an arrow function only as the direct initializer, optionally
 // wrapped in a React hook/HOC call. A member call such as messages.map(x => ...)
