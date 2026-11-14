@@ -143,8 +143,14 @@ func TestPYRV1003MixedPlanRunsGoAndPytest(t *testing.T) {
 		!strings.HasSuffix(string(logged), " tests/test_a.py tests/test_b.py\n") {
 		t.Fatalf("pytest argv %q", logged)
 	}
-	if cwd, _ := os.ReadFile(filepath.Join(dir, "pytest-cwd")); strings.TrimSpace(string(cwd)) != filepath.Join(dir, "svc") {
-		t.Fatalf("pytest ran from %q", cwd)
+	// The fake records `pwd -P`; resolve the expected path too, since macOS
+	// temp dirs live under the /var -> /private/var symlink.
+	wantCwd, err := filepath.EvalSymlinks(filepath.Join(dir, "svc"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cwd, _ := os.ReadFile(filepath.Join(dir, "pytest-cwd")); strings.TrimSpace(string(cwd)) != wantCwd {
+		t.Fatalf("pytest ran from %q, want %q", cwd, wantCwd)
 	}
 	wantTests := []contract.Result{
 		{ID: "pytest:svc/tests/test_a.py::TestK::test_two[x]", Outcome: contract.OutcomePass, RunnerOutcome: contract.PytestPassed, DurationMillis: 3, Granularity: "test"},
