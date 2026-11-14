@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/testduration"
@@ -119,8 +120,9 @@ const jestRootBlock = "ROOT_DESCRIBE_BLOCK"
 // jestFilterLossy is why a -t pattern built from the selected tests' IDs
 // is not proven to match every one of them, or "" when it is (JST-V1-003):
 // the test files' source was not read, a selected file could not be read
-// or names jestRootBlock, or a selected test belongs to a duplicate group,
-// whose members CTI-V1-010 selects by whole file.
+// or its titles are not proven static (jestStaticLossy), or a selected test
+// belongs to a duplicate group, whose members CTI-V1-010 selects by whole
+// file.
 func jestFilterLossy(request Request, files []string, tests []jestTest) string {
 	for _, test := range tests {
 		if last := test.id.Segments[len(test.id.Segments)-1]; len(test.id.Segments) > 1 && duplicateSuffix(last) {
@@ -144,8 +146,44 @@ func jestFilterLossy(request Request, files []string, tests []jestTest) string {
 		if err != nil {
 			return file + " cannot be read, so nothing proves the -t name pattern keeps every selected test there"
 		}
-		if strings.Contains(string(source), jestRootBlock) {
+		if reason := jestStaticLossy(file, source, tests); reason != "" {
+			return reason
+		}
+	}
+	return ""
+}
+
+// jestStaticLossy is why one selected file's source does not prove a -t
+// pattern keeps its selected tests, or "" (JST-V1-003, review P3-a): every
+// describe and test title in it must be a static string literal placed
+// where the file shows its ancestors (jestTitlePaths); no title may be
+// jestRootBlock, which Jest drops from its report but keeps for -t; no two
+// tests may share one title path (a duplicate group, CTI-V1-010); and each
+// selected test of the file must be one of the title paths read,
+// so a test an imported helper registers, whose ancestors the file does
+// not show, is not filtered by name.
+func jestStaticLossy(file string, source []byte, tests []jestTest) string {
+	paths, reason := jestTitlePaths(source)
+	if reason != "" {
+		return file + ": " + reason + ", so nothing proves the -t name pattern keeps every selected test there"
+	}
+	seen := map[string]bool{}
+	for _, titles := range paths {
+		if slices.Contains(titles, jestRootBlock) {
 			return file + " names " + jestRootBlock + ", a describe title Jest drops from its report but keeps for -t matching"
+		}
+		key := strings.Join(titles, "\x00")
+		if seen[key] {
+			return file + ": two tests have the title path " + strconv.Quote(strings.Join(titles, " > ")) + ", which canonical IDs tell apart only by a duplicate suffix, so nothing proves the -t name pattern keeps every selected test there"
+		}
+		seen[key] = true
+	}
+	for _, test := range tests {
+		if test.id.File != file {
+			continue
+		}
+		if !slices.ContainsFunc(paths, func(titles []string) bool { return slices.Equal(titles, test.id.Segments) }) {
+			return file + ": the selected test " + test.id.String() + " is not a static describe and test title path in the file, so nothing proves the -t name pattern keeps it"
 		}
 	}
 	return ""

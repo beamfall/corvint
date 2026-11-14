@@ -27,7 +27,10 @@ func TestRNCV1003JestSelection(t *testing.T) {
 	if want := []string{"npx", "jest", "--json", "--outputFile=/r.json", "--runTestsByPath", "./-dash.test.js", "src/a.test.js", "src/b.test.js"}; !slices.Equal(got.Argv, want) || !got.Exact || got.Dir != "web" {
 		t.Fatalf("files: %+v, want %q", got, want)
 	}
-	if got := command(t, with("jest:web/src/a.test.js::math::adds")); got.Exact || !slices.Contains(got.Argv, "-t") || !strings.Contains(got.Reason, "no inventory listing") {
+	testLevel := with("jest:web/src/a.test.js::math::adds")
+	testLevel.Jest = supportedJest("web/jest.config.js")
+	testLevel.Jest.Source = titledSource(testLevel.Tests)
+	if got := command(t, testLevel); got.Exact || !slices.Contains(got.Argv, "-t") || !strings.Contains(got.Reason, "no inventory listing") {
 		t.Fatalf("test-level: %+v", got)
 	}
 	if got := command(t, base); !slices.Equal(got.Argv, []string{"npx", "jest", "--json", "--outputFile=/r.json"}) || got.Tier != TierFull || !got.Exact {

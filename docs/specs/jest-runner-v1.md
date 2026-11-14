@@ -196,11 +196,18 @@ Jest drops an ancestor titled `ROOT_DESCRIBE_BLOCK` from its `--json` report but
 name `-t` matches, so a pattern built from a canonical ID can skip a selected test, which the report
 then shows as pending, neither failed nor missing. Corvint MUST pass a `-t` pattern only when the
 mapping from the selected IDs to Jest's full names is proven lossless: the source of every selected
-file is read and names no `ROOT_DESCRIBE_BLOCK`, and no selected test belongs to a duplicate group.
-Otherwise the selected tests MUST run their whole files (`tier: file`, `exact: false`) with the
-reason.
-Delivery: delivered in the contract (`jestFilterLossy`); `corvint test` supplies the bounded source
-reader through `JestSetup.Source`.
+file is read; every describe and test title in it is a static string literal (no identifier,
+import, concatenation, substitution, escape or `.each`) at the top level or directly in a describe
+callback, so the file shows all its ancestors; no title is `ROOT_DESCRIBE_BLOCK`; no two tests share
+one title path; each selected test is one of the title paths read; and no selected test belongs to
+a duplicate group. Otherwise the selected tests MUST run their whole files (`tier: file`, `exact:
+false`) with the reason. A literal source grep for the name missed a computed or imported title
+(review P3-a, 2026-11-13).
+Delivery: delivered in the contract (`jestFilterLossy`, `jestTitlePaths`, a bounded scanner that
+skips comments, strings, templates and regular expressions and fails closed on source it cannot
+follow, such as JSX text); `corvint test` supplies the bounded source reader through
+`JestSetup.Source`. Titles that join to one full name under different paths only widen the run and
+stay `exact: false` (JST-V1-003).
 
 **Scenario: root-named describe block**
 - GIVEN `describe('ROOT_DESCRIBE_BLOCK', () => test('fails', ...))` and the selected test
@@ -242,7 +249,7 @@ Delivered by ticket V1-5455 (build-log `docs/build-log/2026-11-12-jest-runner.md
 |---|---|
 | JST-V1-001 | `TestJSTV1001JestNeedsNoProvider`, `TestRNCV1019ContractRunRecordsPerTestResults` (`internal/sessiontest`); `TestJSTV1006DefaultCommandFromTheInstanceRoot` (`internal/testrunner/contract`); `TestJSTV1009TwoRootFixtureThroughTheConsumers` (`cmd/corvint`) |
 | JST-V1-002 | `TestTIVV1004JestListerTwoRoots`, `TestJSTV1002FailedCollectionLeavesTheInstanceAbsent` (`internal/testinventory`) |
-| JST-V1-003 | `TestJSTV1003NamePatternIsAnchoredAndEscaped`, `TestJSTV1003DuplicateNamesAreNotExact`, `TestJSTV1003RootDescribeBlockWidensToTheFile`, `TestRNCV1003JestSelection`, `TestRNCV1016JestArgvLimitWidens` (`internal/testrunner/contract`) |
+| JST-V1-003 | `TestJSTV1003NamePatternIsAnchoredAndEscaped`, `TestJSTV1003DuplicateNamesAreNotExact`, `TestJSTV1003RootDescribeBlockWidensToTheFile`, `TestJSTV1003ComputedTitlesWidenToTheFile`, `TestRNCV1003JestSelection`, `TestRNCV1016JestArgvLimitWidens` (`internal/testrunner/contract`) |
 | JST-V1-004 | `TestJSTV1004ReportMapsNestedDescribesWithDurations` (`testdata/jest-nested.json`, hand-written in Jest's `--json` shape) (`internal/testrunner/contract`); `TestRNCV1019ContractRunRecordsPerTestResults` (`internal/sessiontest`); `TestJSTV1009TwoRootFixtureThroughTheConsumers` (`cmd/corvint`) |
 | JST-V1-005 | `TestJSTV1005MissingResultsAndReportsAreIncomplete` (`internal/testrunner/contract`); `TestRNCV1019ContractRunFailsClosed` (`internal/sessiontest`); `TestJSTV1009TwoRootFixtureThroughTheConsumers` (`cmd/corvint`, the exit status kept) |
 | JST-V1-006 | `TestJSTV1006DefaultCommandFromTheInstanceRoot` (`internal/testrunner/contract`); `TestJSTV1001JestNeedsNoProvider` (`internal/sessiontest`) |
@@ -250,7 +257,7 @@ Delivered by ticket V1-5455 (build-log `docs/build-log/2026-11-12-jest-runner.md
 | JST-V1-008 | `TestJSTV1008UnsupportedSetupsRunInFull`, `TestJSTV1008SetupFromReader` (`internal/testrunner/contract`); `TestRNCV1019ContractUnitsPlanTheSelectedFiles` (`internal/sessiontest`, the setup read before narrowing) |
 | JST-V1-009 | `TestJSTV1009TwoRootFixtureChain` (`internal/testrunner/contract`, in-process part); `TestJSTV1009TwoRootFixtureThroughTheConsumers` (`cmd/corvint`: affected, the MCP affected tool and test); the watch run is NOT_PRODUCED |
 | JST-V1-010 | `TestJSTV1010NoJestProviderBinary` (`tools/release-binary`) |
-| JST-V1-020 | `TestJSTV1003RootDescribeBlockWidensToTheFile`, `TestJSTV1003DuplicateNamesAreNotExact` (`internal/testrunner/contract`) |
+| JST-V1-020 | `TestJSTV1003RootDescribeBlockWidensToTheFile`, `TestJSTV1003ComputedTitlesWidenToTheFile`, `TestJSTV1003DuplicateNamesAreNotExact` (`internal/testrunner/contract`) |
 
 ## Non-goals
 
