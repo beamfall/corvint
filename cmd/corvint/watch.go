@@ -7,6 +7,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/testid"
+	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
 	"io"
 	"os"
 	"os/exec"
@@ -122,6 +124,17 @@ func runWatch(ctx context.Context, root string, args []string, stdin io.Reader, 
 	}
 	if *once && *eventsStdin {
 		return watchRefuse(diagnostic, "watch-invalid-arguments", "--once and --events-stdin exclude each other")
+	}
+	// RNC-V1-008: watch answers for Go only, so a switch that sends Go to
+	// its full command is refused rather than answered narrowed, as is a
+	// value outside the kill-switch grammar; a switch naming only other
+	// runners leaves the Go answer unchanged.
+	selectionSwitch, err := killswitch.FromEnv(os.Getenv)
+	if err != nil {
+		return watchRefuse(diagnostic, killswitch.CodeUnknown, err.Error())
+	}
+	if selectionSwitch.Full(testid.Go) {
+		return watchRefuse(diagnostic, killswitch.CodeActive, selectionSwitch.Describe()+"; watch answers only narrowed Go selections, so run corvint test for the full command")
 	}
 	if root == "" {
 		root = "."

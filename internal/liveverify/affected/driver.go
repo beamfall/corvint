@@ -130,6 +130,16 @@ type driverRegistry struct {
 	// reasons, when non-nil, receives each computed site's sorted reasons
 	// (AFP-V0-9620). Diagnostics only; units never carry it.
 	reasons map[string][]string
+	// unresolved, when non-nil, receives each unit whose commands or make
+	// goals did not resolve (the builder's runOpen), with the sorted
+	// reasons (NCM-V1-019), as opposed to a unit whose evaluated commands
+	// resolved but read what the graph does not bound. A make edit's reach
+	// reads it (NCM-V1-013).
+	unresolved map[string][]string
+	// instances names, for each make file, the targets no explicit rule
+	// names that a make edit's reach instantiates one pattern rule for
+	// (NCM-V1-016). Only the reach sets it.
+	instances map[string][]string
 }
 
 // UnitsSource observes the driver files through source.
@@ -140,6 +150,14 @@ func (Driver) UnitsSource(source *Source) (Result, error) {
 // driverUnitsSource is UnitsSource that also records, in reasons when it is
 // non-nil, why each computed site is one (AFP-V0-9620).
 func driverUnitsSource(source *Source, reasons map[string][]string) (Result, error) {
+	return driverUnitsObserved(source, reasons, nil, nil)
+}
+
+// driverUnitsObserved is driverUnitsSource that also records, in unresolved
+// when it is non-nil, each unit whose invocations did not resolve, and adds
+// a unit for each target of instances that instantiates one pattern rule of
+// its make file (NCM-V1-016). Only a make edit's reach passes either.
+func driverUnitsObserved(source *Source, reasons map[string][]string, unresolved map[string][]string, instances map[string][]string) (Result, error) {
 	makeFiles, err := source.Files(ByName(driverMakeName))
 	if err != nil {
 		return Result{}, err
@@ -157,12 +175,14 @@ func driverUnitsSource(source *Source, reasons map[string][]string) (Result, err
 		return Result{}, err
 	}
 	registry := &driverRegistry{
-		source:    source,
-		makes:     map[string]*driverMakeFile{},
-		workflows: map[string]*driverWorkflow{},
-		actions:   map[string]string{},
-		fileUnits: map[string][]string{},
-		reasons:   reasons,
+		source:     source,
+		makes:      map[string]*driverMakeFile{},
+		workflows:  map[string]*driverWorkflow{},
+		actions:    map[string]string{},
+		fileUnits:  map[string][]string{},
+		reasons:    reasons,
+		unresolved: unresolved,
+		instances:  instances,
 	}
 	if body, readErr := source.Read("go.mod"); readErr == nil {
 		registry.module = driverModulePath(body)
@@ -248,6 +268,13 @@ type driverUnitBuilder struct {
 	computed    bool
 	evaluated   bool
 	uncertified bool
+	// runOpen marks a unit whose run set did not resolve: computed for any
+	// reason but a literal environment prefix of a resolved command
+	// (NCM-V1-017), which leaves the unit computed for the planner but
+	// names what it runs. A make edit's reach reads it as unresolved and
+	// prints openBy, which names why (NCM-V1-019).
+	runOpen bool
+	openBy  map[string]bool
 	// reasons names why computed was set (AFP-V0-9620), for diagnostics.
 	reasons map[string]bool
 	// evaluatedBy and uncertifiedBy name what set evaluated and uncertified
@@ -264,10 +291,20 @@ func newDriverUnitBuilder(id string) *driverUnitBuilder {
 // markComputed marks the unit a computed invocation for reason.
 func (b *driverUnitBuilder) markComputed(reason string) {
 	b.computed = true
+	b.open(reason)
 	if b.reasons == nil {
 		b.reasons = map[string]bool{}
 	}
 	b.reasons[reason] = true
+}
+
+// open leaves the unit's run set open for reason (NCM-V1-019).
+func (b *driverUnitBuilder) open(reason string) {
+	b.runOpen = true
+	if b.openBy == nil {
+		b.openBy = map[string]bool{}
+	}
+	b.openBy[reason] = true
 }
 
 func (b *driverUnitBuilder) importAll(ids []string) {
@@ -293,11 +330,14 @@ func (b *driverUnitBuilder) readPaths(paths []string) {
 
 // merge folds a shell scan into the unit, its make calls resolved.
 func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
+	// A run set the scan leaves open stays open even when the text is no
+	// computed site: it runs a command whose own execution the scan does not
+	// follow (NCM-V1-019).
+	b.runOpen = b.runOpen || scan.runOpen
+	driverMergeReasons(&b.openBy, scan.openBy)
 	if scan.computed {
 		b.computed = true
-		for reason := range scan.reasons {
-			b.markComputed(reason)
-		}
+		driverMergeReasons(&b.reasons, scan.reasons)
 	}
 	if scan.uncertified {
 		b.uncertified = true
@@ -316,7 +356,13 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 		b.buildPaths[value] = true
 	}
 	for _, call := range scan.makes {
-		b.importAll(registry.resolveMake(call))
+		ids, modelled := registry.resolveMake(call)
+		if !modelled {
+			// A make file the driver does not model runs what it likes
+			// (NCM-V1-019).
+			b.open("make:unmodelled-file:" + driverReasonWord(driverJoin(call.Dir, call.File)))
+		}
+		b.importAll(ids)
 	}
 }
 
@@ -353,6 +399,9 @@ func (b *driverUnitBuilder) unit() Unit {
 
 // unit builds the builder's unit and records why it is a computed site.
 func (registry *driverRegistry) unit(b *driverUnitBuilder) Unit {
+	if registry.unresolved != nil && b.runOpen {
+		registry.unresolved[b.id] = driverSorted(b.openBy)
+	}
 	unit := b.unit()
 	if registry.reasons != nil && slices.Contains(unit.Frontier, FrontierDriverComputedInvocation) {
 		reasons := driverSorted(b.reasons)
@@ -410,10 +459,11 @@ func (registry *driverRegistry) scanBothOutput(text, cwd string) *driverScan {
 
 // resolveMake names the units one make invocation can run. A computed
 // directory or file reaches every make unit; a computed or unknown goal every
-// unit of the file it names.
-func (registry *driverRegistry) resolveMake(call driverMakeCall) []string {
+// unit of the file it names. modelled is false for a make file the driver
+// does not model, whose run set the reach cannot follow (NCM-V1-019).
+func (registry *driverRegistry) resolveMake(call driverMakeCall) (ids []string, modelled bool) {
 	if call.Unbounded {
-		return registry.allMake
+		return registry.allMake, true
 	}
 	file := ""
 	if call.File != "" {
@@ -429,23 +479,23 @@ func (registry *driverRegistry) resolveMake(call driverMakeCall) []string {
 	}
 	parsed, present := registry.makes[file]
 	if !present {
-		return nil
+		return nil, false
 	}
 	all := registry.fileUnits[file]
 	if parsed.unparsable || call.Computed {
-		return all
+		return all, true
 	}
 	goals := call.Targets
 	if len(goals) == 0 {
 		if parsed.defaultGoal == "" || driverDynamic(parsed.defaultGoal) {
-			return all
+			return all, true
 		}
 		goals = strings.Fields(parsed.defaultGoal)
 	}
-	ids := make([]string, 0, len(goals))
+	ids = make([]string, 0, len(goals))
 	for _, goal := range goals {
 		if _, known := parsed.rules[goal]; !known {
-			return all
+			return all, true
 		}
 		ids = append(ids, driverMakeUnitID(file, goal))
 		for _, pattern := range parsed.order {
@@ -454,7 +504,7 @@ func (registry *driverRegistry) resolveMake(call driverMakeCall) []string {
 			}
 		}
 	}
-	return ids
+	return ids, true
 }
 
 // makeUnits builds one unit per rule of a parsed make file, or the single
@@ -586,13 +636,14 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	shared.uncertified, shared.uncertifiedBy = uncertified, uncertifiedBy
 	all := registry.fileUnits[parsed.path]
 	units := make([]Unit, 0, len(parsed.order))
-	for _, target := range parsed.order {
-		rule := parsed.rules[target]
+	// build is one target's unit. instance, when not empty, names the
+	// pattern rule rule is, instantiated for target with auto (NCM-V1-016);
+	// it is otherwise empty and rule is target's own rule.
+	build := func(target string, rule *driverMakeRule, auto map[string]string, instance string) Unit {
 		builder := newDriverUnitBuilder(driverMakeUnitID(parsed.path, target))
-		builder.computed = shared.computed
-		for reason := range shared.reasons {
-			builder.markComputed(reason)
-		}
+		builder.computed, builder.runOpen = shared.computed, shared.runOpen
+		driverMergeReasons(&builder.openBy, shared.openBy)
+		driverMergeReasons(&builder.reasons, shared.reasons)
 		builder.readsTree = shared.readsTree
 		builder.evaluated, builder.uncertified = shared.evaluated, shared.uncertified
 		driverMergeReasons(&builder.evaluatedBy, shared.evaluatedBy)
@@ -608,10 +659,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			builder.tokens[value] = true
 		}
 		builder.addTokens(strings.Join(rule.block, "\n"))
-		auto := map[string]string{"@": target, "@D": path.Dir(target), "@F": path.Base(target)}
-		if rule.pattern {
-			auto = map[string]string{}
-		}
+		pattern := rule.pattern && instance == ""
 		expander := parsed.expander(auto)
 		// Each complete expansion of the prerequisites is one alternative
 		// for the automatic variables; their words together are the edges.
@@ -649,7 +697,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 					prerequisites = append(prerequisites, word)
 				}
 			}
-			if rule.pattern {
+			if pattern {
 				continue
 			}
 			first := driverComputed
@@ -667,9 +715,9 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		for _, word := range prerequisites {
 			registry.prerequisite(builder, parsed, word, all)
 		}
-		for _, pattern := range parsed.order {
-			if parsed.rules[pattern].pattern && pattern != target && driverPatternMatches(pattern, target) {
-				builder.imports[driverMakeUnitID(parsed.path, pattern)] = true
+		for _, other := range parsed.order {
+			if parsed.rules[other].pattern && other != target && other != instance && driverPatternMatches(other, target) {
+				builder.imports[driverMakeUnitID(parsed.path, other)] = true
 			}
 		}
 		// AFP-V0-3121: every complete expansion of a recipe line is scanned,
@@ -705,9 +753,59 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 				}
 			}
 		}
-		units = append(units, registry.unit(builder))
+		return registry.unit(builder)
+	}
+	for _, target := range parsed.order {
+		rule := parsed.rules[target]
+		auto := map[string]string{"@": target, "@D": path.Dir(target), "@F": path.Base(target)}
+		if rule.pattern {
+			auto = map[string]string{}
+		}
+		units = append(units, build(target, rule, auto, ""))
+	}
+	for _, target := range registry.instances[parsed.path] {
+		if pattern, stem, ok := parsed.instance(target); ok {
+			auto := map[string]string{"@": target, "@D": path.Dir(target), "@F": path.Base(target), "*": stem, "*D": path.Dir(stem), "*F": path.Base(stem)}
+			units = append(units, build(target, parsed.rules[pattern], auto, pattern))
+		}
 	}
 	return units
+}
+
+// instance returns the one pattern rule of the file that target, named by no
+// explicit rule, instantiates, and its stem (NCM-V1-016). There is none when
+// an explicit rule names target, when no pattern rule or more than one
+// matches it, or when the match is outside the modeled subset: a pattern
+// rule with prerequisites (a `%` in them takes the stem), a `::` pattern
+// rule, or a pattern with no slash matched against a target in a directory,
+// which make matches against the target's file name alone.
+func (parsed *driverMakeFile) instance(target string) (string, string, bool) {
+	if _, explicit := parsed.rules[target]; explicit || target == "" || strings.ContainsAny(target, "%$") {
+		return "", "", false
+	}
+	found := ""
+	for _, name := range parsed.order {
+		if rule := parsed.rules[name]; rule.pattern && driverPatternMatches(name, target) {
+			if found != "" {
+				return "", "", false
+			}
+			found = name
+		}
+	}
+	if found == "" {
+		return "", "", false
+	}
+	rule := parsed.rules[found]
+	if rule.doubleColon || !strings.Contains(found, "/") && strings.Contains(target, "/") {
+		return "", "", false
+	}
+	for _, line := range rule.prereqs {
+		if strings.TrimSpace(line) != "" {
+			return "", "", false
+		}
+	}
+	prefix, suffix, _ := strings.Cut(found, "%")
+	return found, target[len(prefix) : len(target)-len(suffix)], true
 }
 
 // prerequisite adds the edge one prerequisite word names: a computed word

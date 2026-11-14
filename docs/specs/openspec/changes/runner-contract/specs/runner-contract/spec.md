@@ -293,3 +293,27 @@ vocabulary of the support table is NOT_VERIFIED; the lane checks it when it writ
 - **GIVEN** a run whose shell tests passed
 - **WHEN** the release manifest states the 1.0 no-miss and narrowing claims
 - **THEN** the shell provider is listed as `kept, not qualified` and its results are not counted
+
+### Requirement: RNC-V1-019 `corvint test` runs narrowed contract selections
+
+Source: RNC-V1-001, RNC-V1-004, RNC-V1-005 and RNC-V1-010 (G23, owner decisions R7, R14, R19), task
+5, added by V1-5443. On the local profile, `corvint test` MUST run each selected Vitest, Jest,
+Playwright, pytest or RSpec test file of a language `.corvint/test-commands.json` declares no command
+for through the contract, one invocation per owning instance from its root, with the machine report
+written to a fresh private file, and the receipt MUST record per invocation the instance, tier,
+`exact` flag and one result per test, `NOT_RUN` for every selected test the report does not answer.
+A missing or unreadable report, a contract refusal or an undiscoverable runner MUST leave every unit
+`NOT_RUN`; a failing test, a run-level failure or a nonzero exit MUST NOT pass. Minitest, the ci
+profile, a language with a declared command, a file no instance owns and an instance without a
+current inventory record keep the full command.
+
+#### Scenario: One Jest file selected
+
+- **GIVEN** a Jest repository with a committed inventory and two test files
+- **WHEN** a change reaches one of them and `corvint test` runs
+- **THEN** only that file runs and the receipt records its tests' outcomes and durations
+
+#### Scenario: Report missing
+
+- **WHEN** the runner exits 0 without writing its machine report
+- **THEN** every selected file is `NOT_RUN` and the run is `INCOMPLETE`
