@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -157,14 +158,14 @@ func jestShapeResults(runner string, request ParseRequest) ([]Result, error) {
 			if outcome == "" {
 				outcome = OutcomeError
 			}
-			duration := int64(0)
+			measure := testduration.Missing()
 			if assertion.Duration != nil {
-				duration = int64(*assertion.Duration + 0.5)
+				measure = testduration.FromMilliseconds(*assertion.Duration, testduration.SourceJest)
 			}
 			if outcome == OutcomeFail || outcome == OutcomeError {
 				fileFailed = true
 			}
-			results = append(results, Result{ID: id.String(), Outcome: outcome, DurationMillis: duration, Granularity: testid.GranularityTest})
+			results = append(results, Result{ID: id.String(), Outcome: outcome, Granularity: testid.GranularityTest}.timed(measure))
 		}
 		if file.Status == "failed" && !fileFailed {
 			id, err := testid.New(runner, rel)
@@ -172,7 +173,9 @@ func jestShapeResults(runner string, request ParseRequest) ([]Result, error) {
 				return nil, err
 			}
 			fileFailed = true
-			results = append(results, Result{ID: id.String(), Outcome: OutcomeFail, Granularity: testid.GranularityFile})
+			// PTD-V1-003: a file that failed to load has no time of its own;
+			// it is never a measured 0 ms.
+			results = append(results, Result{ID: id.String(), Outcome: OutcomeFail, Granularity: testid.GranularityFile}.timed(testduration.Missing()))
 		}
 		failed = failed || fileFailed
 	}
@@ -229,15 +232,17 @@ func (playwrightRunner) Command(request Request) (Command, error) {
 	}
 	argv := append(slices.Clone(request.Full), "--reporter=json")
 	for _, file := range files {
-		argv = append(argv, playwrightFilter(file))
+		argv = append(argv, regexpLiteral(file))
 	}
 	return narrowed(request, argv, env, reasons), nil
 }
 
-// playwrightFilter escapes the regular expression metacharacters of file.
-func playwrightFilter(file string) string {
+// regexpLiteral escapes every regular expression metacharacter of text, so
+// a JavaScript regular expression (a Playwright file filter, a Jest -t
+// pattern) matches it literally.
+func regexpLiteral(text string) string {
 	var escaped strings.Builder
-	for _, r := range file {
+	for _, r := range text {
 		if strings.ContainsRune(`\^$.|?*+()[]{}`, r) {
 			escaped.WriteByte('\\')
 		}

@@ -181,10 +181,20 @@ func declaredBy(runner, manifest string, read func(name string, limit int) ([]by
 // nearestLockfile is the runner's lockfile in root or the nearest directory
 // above it.
 func nearestLockfile(files map[string]string, runner, root string) string {
+	return NearestLockfile(func(name string) bool {
+		_, ok := files[name]
+		return ok
+	}, runner, root)
+}
+
+// NearestLockfile is the runner's lockfile in root or the nearest directory
+// above it, in the ecosystem's precedence order, among the
+// repository-relative names exists reports; "" when there is none.
+func NearestLockfile(exists func(name string) bool, runner, root string) string {
 	for dir := root; ; dir = path.Dir(dir) {
 		for _, name := range lockfileNames[runner] {
 			candidate := path.Join(dir, name)
-			if _, ok := files[candidate]; ok {
+			if exists(candidate) {
 				return candidate
 			}
 		}

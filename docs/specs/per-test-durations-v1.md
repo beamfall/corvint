@@ -5,7 +5,7 @@ Date: 2026-11-11
 Intent status: accepted
 Delivery status: partial
 Health: KEEP
-Authoritative inputs: change folder `docs/specs/openspec/changes/per-test-durations/` (`proposal.md`,
+Authoritative inputs: change folder `docs/specs/openspec/changes/archive/2026-11-13-per-test-durations/` (`proposal.md`,
 `design.md`, `tasks.md` and `specs/per-test-durations/spec.md`), `docs/specs/PRODUCT-PLAN-1.0.md`
 (PROD-TEST-016, PROD-TEST-020) and `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md`
 (owner decisions R7, R19 and R38; G4).
@@ -13,8 +13,8 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/per-test-durati
 ## Agent digest
 - Claim: Receipts record each test's measured time from the runner's own report and mark a missing or invalid time NOT_MEASURED, never estimated.
 - Status: accepted / partial. Change `per-test-durations` auto-accepted under G14 (decision 0596); delivered under V1-5449.
-- Exists: `internal/testduration`; duration members on `corvint-test-run/0` outcomes (Go, Vitest and Playwright measured at file granularity); the `internal/testrunner` adapters' report durations; run evidence rows copy them.
-- Blocked on: `corvint test` receipts record NOT_MEASURED for Jest, pytest, RSpec and Minitest until the receipt adapters of changes `jest-provider`, `pytest-provider` and `ruby-providers` exist; `attemptDurationsMs` is observation only; the cost figure and harness adopt `testduration.Cost` in their own changes.
+- Exists: `internal/testduration`; duration members on `corvint-test-run/0` outcomes (Go, Vitest, Playwright, Jest, pytest and RSpec measured at file granularity); the `internal/testrunner` adapters' report durations; run evidence rows copy them.
+- Blocked on: Minitest receipt outcomes stay NOT_MEASURED until change `ruby-providers` adds a Minitest contract adapter; `attemptDurationsMs` is observation only; the cost figure and harness adopt `testduration.Cost` in their own changes.
 - Read next: Surfaces; Traceability.
 
 ## User and boundary
@@ -146,6 +146,16 @@ Delivered by ticket V1-5449 (build-log `docs/build-log/2026-11-11-per-test-durat
   time, or a test cannot be placed in one selected file (several Vitest files, whose passing tests
   name no file). The receipt outcome has no `attemptDurationsMs`: a file outcome sums many tests,
   so `attemptDurationsMs` is observation only, on `corvint-test-runner` (PTD-V1-006).
+- Added by V1-5542 (2026-11-13, build-log `docs/build-log/2026-11-13-jest-pytest-on-the-contract-path.md`):
+  a contract (Jest, pytest, RSpec, Vitest) file unit of `corvint test` records the sum of the times
+  the runner's report gave its tests, at granularity `file`, under the runner's source. The
+  contract parsers mark a result whose report time is absent or invalid (`Result.DurationMissing`,
+  `Result.DurationInvalid`, not serialized), so a missing time makes the file NOT_MEASURED and an
+  invalid one lists it under `durationInvalid`; a selected test left NOT_RUN makes it NOT_MEASURED.
+  A file-level result (a Jest file that failed to load, a pytest collection error on the JUnit or
+  pytest-json-report path) carries no time of its own, so it is marked missing and its file is
+  NOT_MEASURED, never a measured 0 ms (review P2-a, 2026-11-13). Playwright and Go contract units stay NOT_MEASURED: their contract parsers keep no such mark.
+  Minitest runs its full command (RNC-V1-004), so its receipt outcome is NOT_MEASURED.
 - `internal/testrunner` (`corvint-test-runner`): each observed test gains `durationMs`,
   `durationSource` and `attemptDurationsMs`, and the observation `durationInvalid`; an invalid
   time does not make the observation incomplete.
@@ -161,23 +171,23 @@ Per runner:
 | --- | --- | --- | --- |
 | Go | `go test -json` package-level `Elapsed` | measured, `go-test2json`, granularity `file` | not extended: the `go-test` plugin reports `RunnerResult`, which has no duration |
 | Vitest | assertion `duration` | measured, `vitest-json`, granularity `file`: the sum of the provider receipt's test `durationMs` when one file is selected; NOT_MEASURED for several files, since a passing Vitest test names no file | measured, `vitest-json` |
-| Jest | assertion `duration` | NOT_MEASURED: the declared-command adapter reads no report (not yet built, `jest-provider`) | measured, `jest-json` |
+| Jest | assertion `duration` | measured, `jest-json`, granularity `file`: the contract adapter's sum of the file's assertion durations; NOT_MEASURED when one is null or a selected test is NOT_RUN (V1-5542) | measured, `jest-json` |
 | Playwright | sum of result `duration`, each attempt kept | measured, `playwright-json`, granularity `file`: the sum of the file's tests, each the sum of its `attemptDetails` | measured, `playwright-json`, with `attemptDurationsMs` |
-| pytest | JUnit `testcase` `time` | NOT_MEASURED: as Jest (not yet built, `pytest-provider`) | measured, `pytest-junit` |
-| RSpec | JSON `run_time` | NOT_MEASURED: as Jest (not yet built, `ruby-providers`) | measured, `rspec-json` |
-| Minitest | reporter `DurationMs` from `Minitest::Result#time` | NOT_MEASURED: as Jest (not yet built, `ruby-providers`) | measured, `minitest-reporter` |
+| pytest | JUnit `testcase` `time` | measured, `pytest-junit`, granularity `file`: the contract adapter's sum of the file's testcase times (the call phase, `junit_duration_report=call`); NOT_MEASURED as Jest; a time that is not a duration is invalid, not a refusal of the report (V1-5542) | measured, `pytest-junit` |
+| RSpec | JSON `run_time` | measured, `rspec-json`, granularity `file`: the contract adapter's sum of the file's examples' `run_time`; NOT_MEASURED when one has none (V1-5542) | measured, `rspec-json` |
+| Minitest | reporter `DurationMs` from `Minitest::Result#time` | NOT_MEASURED: the contract has no Minitest selection (RNC-V1-004), so Minitest runs its full command, whose output the receipt does not read; a Minitest contract adapter belongs to change `ruby-providers` | measured, `minitest-reporter` |
 
 ## Traceability
 
 | Requirement | Evidence |
 |---|---|
-| PTD-V1-001 | `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1001OlderReceiptsAndReaders`, `TestPTDV1001VitestProviderReceiptDuration` ("Vitest receipt", at granularity `file`) (`internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`); Jest, pytest, RSpec and Minitest receipts not yet built |
-| PTD-V1-002 | `TestPTDV1002GoPackageElapsed`, `TestPTDV1002ProviderReceiptDurations` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration`, `TestPTDV1002MinitestReporterOutput` (`internal/testrunner/dynamic`); the "Minitest receipt" scenario's receipt half is not yet built (`ruby-providers`) |
-| PTD-V1-003 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1003BuildFailedPackageNotMeasured`, `TestPTDV1002ProviderReceiptDurations`, `TestPTDV1003VitestNativeReportWithoutDurationIsNotMeasured` (`internal/sessiontest`), `TestPTDV1003VitestMissingDurationIsMarked` (`internal/jstestprovider`), `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`), `TestPTDV1008StoredRowWithoutDurationIsNotMeasured` (`internal/appflows`) |
-| PTD-V1-004 | `TestPTDV1002GoPackageElapsed` (`internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`) |
+| PTD-V1-001 | `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1001OlderReceiptsAndReaders`, `TestPTDV1001VitestProviderReceiptDuration` ("Vitest receipt", at granularity `file`) (`internal/sessiontest`), `TestRNCV1019ContractRunRecordsPerTestResults` (Jest, `internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`); the Minitest receipt is NOT_MEASURED (`TestPTDV1003MinitestFullCommandIsNotMeasured`) |
+| PTD-V1-002 | `TestPTDV1002GoPackageElapsed`, `TestPTDV1002ProviderReceiptDurations` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration`, `TestPTDV1002MinitestReporterOutput` (`internal/testrunner/dynamic`); the "Minitest receipt" scenario's receipt half is not yet built (`ruby-providers`); Jest, pytest and RSpec receipts (V1-5542): `TestPTDV1002ContractFileDurations`, `TestPTDV1002PytestReceiptDurations`, `TestRNCV1019ContractRunRecordsPerTestResults` (`internal/sessiontest`), `TestPTDV1007JestReportDurations`, `TestPTDV1002RSpecReportDurations`, `TestPTDV1002PytestJUnitTimes` (`internal/testrunner/contract`) |
+| PTD-V1-003 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1003BuildFailedPackageNotMeasured`, `TestPTDV1002ProviderReceiptDurations`, `TestPTDV1003VitestNativeReportWithoutDurationIsNotMeasured` (`internal/sessiontest`), `TestPTDV1003VitestMissingDurationIsMarked` (`internal/jstestprovider`), `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`), `TestPTDV1008StoredRowWithoutDurationIsNotMeasured` (`internal/appflows`), `TestPTDV1002ContractFileDurations`, `TestPTDV1003FileLevelResultIsNotMeasured`, `TestPTDV1003MinitestFullCommandIsNotMeasured` (`internal/sessiontest`), `TestPTDV1002PytestJUnitTimes`, `TestPTDV1002RSpecReportDurations` (`internal/testrunner/contract`) |
+| PTD-V1-004 | `TestPTDV1002GoPackageElapsed` (`internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`), `TestPTDV1002ContractFileDurations`, `TestPTDV1002PytestReceiptDurations` (`internal/sessiontest`) |
 | PTD-V1-005 | `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`) |
 | PTD-V1-006 | `TestPTDV1006AttemptSum` (`internal/testduration`), `TestPTDV1002ProviderReceiptDurations` (receipt `durationMs` sums the attempts) (`internal/sessiontest`); `attemptDurationsMs` is observation only: `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`) |
-| PTD-V1-007 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1002ProviderReceiptDurations` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration`, `TestPTDV1007NonNumericTimeKeepsTheReport` (Jest, Vitest, Playwright and RSpec time fields decoded on their own) (`internal/testrunner/dynamic`) |
+| PTD-V1-007 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1002ProviderReceiptDurations` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration`, `TestPTDV1007NonNumericTimeKeepsTheReport` (Jest, Vitest, Playwright and RSpec time fields decoded on their own) (`internal/testrunner/dynamic`), `TestPTDV1007JestReportDurations`, `TestPTDV1002PytestJUnitTimes` (`internal/testrunner/contract`), `TestPTDV1002PytestReceiptDurations` (`internal/sessiontest`, listed under `durationInvalid`) |
 | PTD-V1-008 | `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`), `TestRVDV1006RowsFromBothProfiles` (`internal/runevidence`), `TestPTDV1008StoredRowWithoutDurationIsNotMeasured` (`internal/appflows`) |
 | PTD-V1-009 | `TestPTDV1009CostFigureUsesOnlyMeasured` (`internal/testduration`); the consumers themselves are not on this tree |
 
