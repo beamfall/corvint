@@ -17,12 +17,14 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
    failing-test fixtures: `TestPYRV1002PytestFilesRunAtTierFile`, `TestPYRV1003PytestOnlyPlanIsNarrowed`,
    `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun` (`internal/sessiontest`),
    `TestPYRV1004PytestJUnitReport` (`internal/testrunner/contract`), `TestPYRV1003CLIRunsPytestSelection`
-   (`cmd/corvint`). The tier label is in the plan (manifest units), the receipt and on stderr; watch
-   is NOT_PRODUCED (change `watch-seven-runners` owns `corvint watch`).
+   (`cmd/corvint`). Since 2026-11-13 pytest runs on main's contract adapter (RNC-V1-019) instead
+   of this change's first `runner` adapter. The tier label is in the contract selection, the
+   receipt and on stderr; watch is NOT_PRODUCED (change `watch-seven-runners` owns `corvint watch`).
 - [x] 5 Fail-closed paths including xdist and plugin deselect. Requirements: PYR-V1-006. Proof: one
-   fixture per path: `TestPYRV1006RunnerTroubleFailsClosed` (no interpreter, pytest not importable,
-   nothing collected, usage and internal errors, invalid report, plugin deselect, a file with no
-   result; `internal/sessiontest`), `TestPYRV1006PytestJUnitRefusals`, `TestPYRV1006XdistMergedReport`,
+   fixture per path: `TestPYRV1006RunnerTroubleFailsClosed` (no interpreter, nothing collected,
+   usage and internal errors, invalid report, plugin deselect with its count printed and under `-p
+   no:terminal`, a selected file the inventory lists no test in, a file with no result;
+   `internal/sessiontest`), `TestPYRV1006PytestJUnitRefusals`, `TestPYRV1006XdistMergedReport`,
    `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`). Fixtures are hand-written from
    pytest's and xdist's source; no live pytest ran (NOT_RUN).
 - [x] 6 Kind labels; environment record; advisory parity test. Requirements: PYR-V1-005, 007, 008.
@@ -32,30 +34,26 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
    (`internal/sessiontest`, environment record, delivered with task 4);
    `TestPYRV1007AdvisoryCommandNamesTheRunTests` (`cmd/corvint`). The owner's kind declaration of
    change `test-inventory` does not exist in this tree, so only the `integration` marker is read
-   (NOT_PRODUCED).
+   (NOT_PRODUCED); a selected file outside `python_files` is named by `corvint test` but not by the
+   advisory command (NOT_PRODUCED, PYR-V1-007 partial).
 - [x] 7 Kill switch. Requirements: PYR-V1-009. Proof: per-runner switch test:
    `TestPYRV1009KillSwitch`, `TestPYRV1009FallbacksNameTheirReason` (`internal/sessiontest`),
-   `TestPYRV1009SelectionGrammar` (`internal/selectionswitch`), `TestPYRV1009CLIKillSwitch`
-   (`cmd/corvint`). No `CORVINT_SELECTION` parser existed in this tree; `internal/selectionswitch`
-   implements exactly the NMS-V1-008 grammar, which owns it, for change `narrowing-measurement` to
-   reuse. Built with task 4, since the switch decides which units task 4 plans.
+   `TestPYRV1009CLIKillSwitch` (`cmd/corvint`), through main's one kill-switch parser
+   (`internal/testrunner/killswitch`, RNC-V1-008); this change's own parser copy was dropped at the
+   merge (2026-11-13).
 - [x] 8 Harness adapter for FIH-V1. Requirements: PYR-V1-010. Proof: harness call test:
    `TestPYRV1010PytestHarnessAdapter`, `TestPYRV1010PytestHarnessFailedMeasurements`,
-   `TestAdapterContract_FIH_V1_008` (`tools/fault-harness`). Its dependent units are every collected
+   `TestPYRV1010PytestHarnessParameterWithSeparator`, `TestAdapterContract_FIH_V1_008`
+   (`tools/fault-harness`). Its dependent units are every collected
    test file (a conservative superset); mapping the plan's `python:` units to pytest entries in the
    harness is NOT_PRODUCED.
 - [ ] 9 Tests under "Acceptance evidence"; build-log entry; complete through the Tasks gate. Proof:
-   retained receipts, `receipt audit`. Tests and the build-log entry
-   (`docs/build-log/2026-11-12-pytest-provider.md`) are written; the fixture repositories are
-   hand-written per requirement. Left open: the Tasks-gate completion (orchestrator) and the live
-   evidence, NOT_PRODUCED: `corvint test` on pydantic/pydantic at the PRR-V1 pin and the NMS-V1 and
-   FIH-V1 reports for pytest need a live pytest, network access and the NMS-V1 build.
+   retained receipts, `receipt audit`. Tests under the spec's Traceability and the build-log entries
+   (`docs/build-log/2026-11-12-pytest-provider.md`,
+   `docs/build-log/2026-11-13-jest-pytest-on-the-contract-path.md`) are written; the fixture
+   repositories are hand-written per requirement and run through `corvint inventory refresh`,
+   `corvint affected` and `corvint test` (`cmd/corvint`). Left open: the Tasks-gate completion and
+   receipt audit (orchestrator), and the live evidence, NOT_PRODUCED: `corvint test` on
+   pydantic/pydantic at the PRR-V1 pin and the NMS-V1 and FIH-V1 reports for pytest need a live
+   pytest, network access and the NMS-V1 build.
 
-Run path (V1-5443, 2026-11-13): `corvint test` now runs the test files the plan lists for each
-selected `python:<module>` unit through the pytest runner contract, one invocation per rootdir
-instance, with one outcome and duration per canonical test ID in the receipt (PYR-V1-002 to 004,
-RNC-V1-019), and `CORVINT_SELECTION=full:pytest` runs every pytest instance in full (PYR-V1-009,
-RNC-V1-008). Blocker for ticking tasks here: `docs/specs/pytest-provider-v1.md` is not on
-`origin/main` (`39050561`), so no PYR-V1 ID is in `REQUIREMENTS.tsv` to trace; the harness adapter
-(PYR-V1-010 in this folder), xdist and plugin-deselect refusals and kind labels are not built; live
-pytest is NOT_RUN (not installed on the lane host).

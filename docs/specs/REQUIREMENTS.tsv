@@ -6038,6 +6038,7 @@ JST-V1-007	docs/specs/jest-runner-v1.md	(accepted under the owner's standing aut
 JST-V1-008	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Unsuppor	standing	2026-10-11; V1-5455
 JST-V1-009	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) End-to-e	standing	2026-10-11; V1-5455
 JST-V1-010	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) No Jest	standing	2026-10-11; V1-5455
+JST-V1-020	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Name fil	standing	2026-10-11; V1-5455
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	The command and its package remain isolated, unregistered, and unreachable from	unrecorded	-
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo	unrecorded	-
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	The target is exactly Android/arm64/none. The twelve input rows below occur once	unrecorded	-

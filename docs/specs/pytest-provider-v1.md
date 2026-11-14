@@ -5,6 +5,7 @@ Date: 2026-11-12
 Requirement prefix: `PYR-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5456)
 Delivery status: experimental; partially delivered
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/pytest-provider/` (`proposal.md`,
 `design.md`, `tasks.md` and `specs/pytest-provider/spec.md`), `docs/specs/PRODUCT-PLAN-1.0.md`
 (PROD-TEST-006, PROD-TEST-008, PROD-TEST-011), `docs/specs/runner-contract-v1.md` (RNC-V1) and
@@ -14,7 +15,7 @@ and R19).
 ## Agent digest
 - Claim: `corvint test` runs the pytest files a plan selects through the compiled-in runner contract, one run per rootdir at tier `file`, with per-test results.
 - Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5456) / experimental; partially delivered
-- Exists: the `runner` adapter of `corvint test` (pytest at tier `file`, per-test receipt members), pytest kinds in the inventory, `internal/selectionswitch`, the harness's pytest adapter.
+- Exists: pytest on the contract adapter of `corvint test` (tier `file`, per-test receipt members, typed refusals, environment record), the JUnit report, pytest kinds in the inventory, the harness's pytest adapter.
 - Blocked on: watch (`watch-seven-runners`), the owner's kind declaration (`test-inventory`), a live pytest run, and the pydantic, NMS-V1 and FIH-V1 measurements.
 - Read next: Requirements; Surfaces; Traceability.
 
@@ -66,10 +67,10 @@ recorded as a release exception; the Python line collector is a 1.0.x ticket (ow
 has passed the FIH-V1 proof (change `line-evidence`). Every selection MUST carry a reason.
 (answer 3, G2)
 Delivery: delivered for the plan and the receipt; NOT_PRODUCED for watch (change
-`watch-seven-runners` owns `corvint watch` for pytest). Each pytest file unit carries tier `file`
-and the reason `tier file: ...` in the manifest, the receipt invocation carries `tier`, and stderr
-prints `corvint-test: RUNNER <instance>: N selected file(s) at tier file`. No FIH-V1 verdict for
-Python line evidence exists, so nothing narrows below the file.
+`watch-seven-runners` owns `corvint watch` for pytest). Each pytest file is one contract unit of
+its instance, the contract request carries tier `file`, the receipt invocation carries `tier` and
+`exact`, and stderr prints `corvint-test: CONTRACT <instance> tier=file exact=B tests=N`. No FIH-V1
+verdict for Python line evidence exists, so nothing narrows below the file.
 
 **Scenario: Line evidence unproven**
 
@@ -81,9 +82,10 @@ Python line evidence exists, so nothing narrows below the file.
 
 `corvint test` MUST run the plan's pytest selections through the compiled-in runner contract, one
 invocation per configuration root, and MUST NOT require an external provider executable. (G23)
-Delivery: delivered. The `runner` adapter of `corvint test` runs each instance's selected files in
-one invocation from its root through `internal/testrunner/contract`; no provider executable is
-involved. A live pytest run is NOT_RUN (pytest is not installed here; a stub answers at its path).
+Delivery: delivered. The contract adapter of `corvint test` (RNC-V1-019) runs each instance's
+selected files in one invocation from its root through `internal/testrunner/contract`; no provider
+executable is involved. The instance must have a current inventory record, else it runs its full
+command (RNC-V1-002). A live pytest run is NOT_RUN (pytest is not installed here; a stub answers at its path).
 
 **Scenario: Mixed plan**
 
@@ -102,9 +104,9 @@ Delivery: delivered as additive members of `corvint-test-run/0`: each runner inv
 lists canonical ID, outcome, `runnerOutcome` (passed, failed, skipped, error, xfailed, xpassed) and
 the call-phase `durationMillis` read from pytest's own JUnit XML report (`-o
 junit_duration_report=call`). A non-strict XPASS is reported by pytest's JUnit writer as passed, so
-it reads `passed` (NOT_VERIFIED against a live pytest). The `run-evidence` store (PROD-TEST-020) and
-`per-test-durations` are not built in this tree, so these members are their source but are not yet
-appended anywhere else.
+it reads `passed` (NOT_VERIFIED against a live pytest). Each file outcome carries the summed JUnit
+time of its tests under `pytest-junit` (PTD-V1-002); the run evidence rows copy the receipt
+(RVD-V1-006).
 
 **Scenario: Failing test**
 
@@ -143,13 +145,18 @@ applied by a conftest, autouse or an inherited method, which a source scan does 
 A missing interpreter or pytest, zero collected selections, an internal or usage error, or an
 invalid capture MUST produce a non-PASS result with a typed reason. Selected tests absent from the
 results are `NOT_RUN` and the run is `INCOMPLETE` (RNC-V1-006, review T-m2). (G1, G10)
-Delivery: delivered. Typed reasons: `runner-unavailable` (no interpreter, or `<full command>
---version` fails), `no-tests-collected` (exit 5), `runner-exit` (exit 2, 3, 4 or outside 0 to 5),
-`runner-report-invalid`, `tests-deselected` (pytest's printed deselected count on a narrowed run)
-and a selected file with no result. Each makes the run INCOMPLETE (exit 3) with the files without a
-result NOT_RUN. A runner-unavailable instance leaves the other runners running instead of exiting 2
-before any run, as the existing provider adapter does (STR-V0-8705). A deselected test is named only
-by count at tier file: the files whose tests ran keep their outcomes.
+Delivery: delivered. Typed reasons: `runner-unavailable` (the command's discovery probe fails),
+`no-tests-collected` (exit 5), `runner-exit` (exit 2, 3, 4 or outside 0 to 5), an unreadable report,
+`tests-deselected` (pytest's printed deselected count), and a selected test with no result. The
+expected tests are the selected files plus every test the committed inventory's pytest collection
+lists in them (RNC-V1-006), so a test a plugin deselects with no trace in the output (`-p
+no:terminal`) is NOT_RUN. A selected file the inventory lists no test in (a changed or new test
+file, TIV-V1-008) cannot prove its completeness, so it fails closed with `tests-deselected:
+completeness cannot be established` (independent review P1, 2026-11-12). Each makes the run
+INCOMPLETE (exit 3). A runner-unavailable instance leaves the other runners running instead of
+exiting 2 before any run, as the existing provider adapter does (STR-V0-8705). A plugin that
+deselects a test during collection too hides it from the inventory as well (NOT_PRODUCED: only an
+injected collection plugin could see it).
 
 **Scenario: Nothing collected**
 
@@ -168,8 +175,9 @@ by count at tier file: the files whose tests ran keep their outcomes.
 
 The advisory `python -m pytest` command printed by `corvint affected` MUST name exactly the tests
 that `corvint test` runs for the same plan. (AFP-V0-472..477; G23)
-Delivery: delivered. `pytestSelectedFiles` names the files for both the advisory command and the
-runner units, so they are equal by construction, and a CLI test compares them.
+Delivery: partial. Both name the test files the plan selected for its Python units, and a CLI test
+compares them. NOT_PRODUCED: a selected file pytest's `python_files` does not admit, or a selection
+over the advisory command's file bound, is named by `corvint test` but not by the advisory command.
 
 **Scenario: Same plan**
 
@@ -181,10 +189,10 @@ runner units, so they are equal by construction, and a CLI test compares them.
 
 The receipt MUST record the Python version, the pytest version and the hash of the lockfile in use,
 when present. (G1)
-Delivery: delivered. Each runner invocation's `environment` records the Python and pytest versions
-from pytest's session header (else the interpreter's `--version` and pytest's `--version` probe,
-else `NOT_OBSERVED`) and the nearest pytest lockfile (uv.lock, poetry.lock, Pipfile.lock, pdm.lock)
-with its SHA-256.
+Delivery: delivered. Each pytest contract invocation's `environment` records the Python and pytest
+versions from pytest's session header (else the interpreter version the discovery probe read, else
+`NOT_OBSERVED`) and the nearest pytest lockfile (uv.lock, poetry.lock, Pipfile.lock, pdm.lock) with
+its SHA-256. A full-command run (a fallback or the kill switch) records no environment.
 
 **Scenario: Lockfile present**
 
@@ -197,11 +205,12 @@ with its SHA-256.
 The provider MUST honour `CORVINT_SELECTION=full` and `full:pytest` (grammar owned by NMS-V1-008,
 owner decision R13 (2026-11-09)) on every pytest instance, and MUST print every full-suite fallback
 with its reason. (G10, G1)
-Delivery: delivered for `corvint test`. `internal/selectionswitch` parses exactly the NMS-V1-008
-grammar (no parser existed in this tree); `full` plans FULL with reason `kill-switch`,
-`full:<runner>` runs each named runner's instances' full commands (Go: every package of its
-universe) with that reason while others stay narrowed, and an unknown value exits 2 with `kill-switch-value-unknown`. Every full-command fallback
-of a pytest selection prints `corvint-test: FULL <unit>: <reason>`.
+Delivery: delivered for `corvint test`, through the one kill-switch parser
+(`internal/testrunner/killswitch`, RNC-V1-008): `full` plans FULL with reason `kill-switch`,
+`full:pytest` runs every pytest instance's full command with that reason while other runners stay
+narrowed, printed as `corvint-test: KILL-SWITCH ...`, and an unknown value exits 2 with
+`kill-switch-value-unknown`. An instance that runs its full command for another reason names it in
+the receipt.
 
 **Scenario: Per-runner switch**
 
@@ -226,7 +235,8 @@ harness's plan step.
 
 ## Surfaces
 
-Delivered by ticket V1-5456 (build-log `docs/build-log/2026-11-12-pytest-provider.md`):
+Delivered by ticket V1-5456 (build-logs `docs/build-log/2026-11-12-pytest-provider.md` and
+`docs/build-log/2026-11-13-jest-pytest-on-the-contract-path.md`):
 
 - `internal/testrunner/contract` (PYR-V1-003, PYR-V1-004, PYR-V1-006): the pytest runner asks
   pytest for its own JUnit XML report (`--rootdir=. --junitxml=REPORT -o junit_family=xunit1 -o
@@ -236,25 +246,16 @@ Delivered by ticket V1-5456 (build-log `docs/build-log/2026-11-12-pytest-provide
   file attribute or with a renamed classname is refused. `Result.runnerOutcome` keeps pytest's own
   word. `PytestExitReason`, `PytestHeader`, `PytestVersion` and `PytestDeselected` read exit
   statuses and output lines. The pytest-json-report reader stays for documents that use it.
-- `internal/sessiontest` (PYR-V1-002 to PYR-V1-004, PYR-V1-006, PYR-V1-008, PYR-V1-009): adapter
-  `runner` (manifest `corvint-test-adapter/0`). `Input.ContractTests` maps a selected `python:` unit
-  to its pytest file IDs. Each file becomes a unit with `instance` (the deepest owning rootdir),
-  `tier: file` and reason code `tier-file`, unless the local declaration names a python full
-  command, no instance owns the file, the profile is `ci` or the kill switch forces pytest; then
-  the full command runs with reason code `runner-fallback` or `kill-switch`. One invocation per
-  instance runs the instance's full command plus the contract argv from its root. Discovery probes
-  the interpreter and `<full command> --version`. The report goes to a private temporary file, and
-  the receipt keeps the placeholder `<runner-report>`. Receipt invocations add `instance`, `tier`,
-  `tests`, `reasons` and `environment`.
-- `internal/selectionswitch` (PYR-V1-009): the NMS-V1-008 `CORVINT_SELECTION` grammar.
+- `internal/sessiontest` (PYR-V1-002 to PYR-V1-004, PYR-V1-006, PYR-V1-008, PYR-V1-009): pytest
+  runs on main's contract adapter (RNC-V1-019); this change adds the pytest exit reasons, the
+  deselected count and the completeness check, the runner-unavailable reason, and the receipt
+  invocation's `environment`. The change's first `runner` adapter was replaced by the contract adapter when
+  the branch merged (2026-11-13).
 - `internal/testinventory` (PYR-V1-001, PYR-V1-005): `pytest-collect` version 2 adds `kind` and
   `kindSource` (`runner`, `default`, `conflict`, `unresolved`) to each pytest test record.
   `NearestLockfile` is exported for the environment record.
-- `cmd/corvint` (PYR-V1-007, PYR-V1-009): `pytestSelectedFiles` feeds both the advisory command and
-  `Input.ContractTests`. `corvint test` refuses an unknown `CORVINT_SELECTION` and prints
-  `corvint-test: RUNNER` and `corvint-test: FULL` lines. The help text and `docs/CAPABILITIES.md`
-  describe both.
-- `tools/fault-harness` (PYR-V1-010): adapter `pytest` and flag `--pytest`.
+- `tools/fault-harness` (PYR-V1-010): adapter `pytest` and flag `--pytest`; a named node's ID is
+  read with the node-ID parser, so a parameter id holding `::` stays one segment.
 - NOT_PRODUCED: the tier label in watch; markers from the owner's kind declaration; a live pytest
   run and `corvint test` on pydantic/pydantic at the PRR-V1 pin; the NMS-V1 and FIH-V1 reports for
   pytest; the harness's mapping of `python:` plan units.
@@ -265,14 +266,14 @@ Delivered by ticket V1-5456 (build-log `docs/build-log/2026-11-12-pytest-provide
 |---|---|
 | PYR-V1-001 | `TestPYRV1001PyprojectRootIsListed`, `TestPYRV1001TwoRootdirsAreTwoInstances`, `TestTIVV1004PytestLister` (`internal/testinventory`); `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) |
 | PYR-V1-002 | `TestPYRV1002PytestFilesRunAtTierFile` (`internal/sessiontest`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`); watch NOT_PRODUCED |
-| PYR-V1-003 | `TestPYRV1002PytestFilesRunAtTierFile`, `TestPYRV1003PytestOnlyPlanIsNarrowed`, `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestSTRV0004AdapterCapabilityManifest` (`internal/sessiontest`); `TestRNCV1003PytestSelection` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`) |
-| PYR-V1-004 | `TestPYRV1004PytestJUnitReport` (`internal/testrunner/contract`); `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun` (`internal/sessiontest`) |
+| PYR-V1-003 | `TestPYRV1002PytestFilesRunAtTierFile`, `TestPYRV1003PytestOnlyPlanIsNarrowed`, `TestPYRV1003MixedPlanRunsGoAndPytest` (`internal/sessiontest`); `TestRNCV1003PytestSelection` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`) |
+| PYR-V1-004 | `TestPYRV1004PytestJUnitReport`, `TestPTDV1002PytestJUnitTimes` (`internal/testrunner/contract`); `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun`, `TestPTDV1002PytestReceiptDurations` (`internal/sessiontest`) |
 | PYR-V1-005 | `TestPYRV1005KindLabels` (`internal/testinventory`); the owner's kind declaration NOT_PRODUCED |
-| PYR-V1-006 | `TestPYRV1006RunnerTroubleFailsClosed` (`internal/sessiontest`); `TestPYRV1006PytestJUnitRefusals`, `TestPYRV1006XdistMergedReport`, `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`) |
+| PYR-V1-006 | `TestPYRV1006RunnerTroubleFailsClosed` (plugin deselect under `-p no:terminal`, a file the inventory lists no test in), `TestRNCV1006OmittedInventoriedTestIsNotRun` (`internal/sessiontest`); `TestPYRV1006PytestJUnitRefusals`, `TestPYRV1006XdistMergedReport`, `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`, a changed test file fails closed) |
 | PYR-V1-007 | `TestPYRV1007AdvisoryCommandNamesTheRunTests` (`cmd/corvint`) |
-| PYR-V1-008 | `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun` (`internal/sessiontest`); `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`) |
-| PYR-V1-009 | `TestPYRV1009KillSwitch`, `TestPYRV1009FallbacksNameTheirReason` (`internal/sessiontest`); `TestPYRV1009SelectionGrammar` (`internal/selectionswitch`); `TestPYRV1009CLIKillSwitch` (`cmd/corvint`) |
-| PYR-V1-010 | `TestPYRV1010PytestHarnessAdapter`, `TestPYRV1010PytestHarnessFailedMeasurements`, `TestAdapterContract_FIH_V1_008` (`tools/fault-harness`) |
+| PYR-V1-008 | `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun` (`internal/sessiontest`); `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`) |
+| PYR-V1-009 | `TestPYRV1009KillSwitch`, `TestPYRV1009FallbacksNameTheirReason` (`internal/sessiontest`); `TestPYRV1009CLIKillSwitch` (`cmd/corvint`) |
+| PYR-V1-010 | `TestPYRV1010PytestHarnessAdapter`, `TestPYRV1010PytestHarnessFailedMeasurements`, `TestPYRV1010PytestHarnessParameterWithSeparator`, `TestAdapterContract_FIH_V1_008` (`tools/fault-harness`) |
 
 ## Non-goals
 
