@@ -36,6 +36,10 @@ type JestSetup struct {
 	Version    string
 	ConfigName string
 	Config     []byte
+	// Source reads a selected test file's bytes by repository-relative
+	// path, so a -t name filter is used only when the file proves it
+	// lossless (JST-V1-003); nil reads nothing and no filter is used.
+	Source func(rel string) ([]byte, error)
 }
 
 // JestSetupFrom reads instance's setup through read, which returns the
@@ -44,7 +48,7 @@ type JestSetup struct {
 // module `npx jest` runs, and the instance config. The contract reads no
 // file itself; read bounds what it reads.
 func JestSetupFrom(instance Instance, read func(rel string) ([]byte, error)) JestSetup {
-	setup := JestSetup{ConfigName: instance.Config}
+	setup := JestSetup{ConfigName: instance.Config, Source: read}
 	for dir := instance.Root; ; dir = path.Dir(dir) {
 		if raw, err := read(path.Join(dir, "node_modules", "jest", "package.json")); err == nil {
 			var manifest struct {
@@ -178,6 +182,12 @@ var (
 	// jestTextKey finds the members a text config may set: testRunner and
 	// testResultsProcessor anywhere, runner only as an object key.
 	jestTextKey = regexp.MustCompile(`\btestRunner\b|\btestResultsProcessor\b|(?:^|[\s{,'"])runner['"]?\s*:`)
+	// jestTextLoads finds a module load or an object spread in a text
+	// config: require(...), a dynamic or static import, or `...`.
+	jestTextLoads = regexp.MustCompile(`\brequire\s*\(|\bimport\b|\.\.\.`)
+	// jestTypeImport is a TypeScript type-only import line, which loads
+	// nothing at run time.
+	jestTypeImport = regexp.MustCompile(`(?m)^\s*import\s+type\b[^\n]*$`)
 	// jestTextValue reads `KEY: 'literal'` after a key.
 	jestTextValue = regexp.MustCompile(`^['"]?\s*:\s*(?:'([^'\n]*)'|"([^"\n]*)")`)
 )
@@ -186,6 +196,13 @@ var (
 // mention of testResultsProcessor is refused, and testRunner and runner
 // narrow only when set to a string literal naming Jest's own.
 func textConfigCause(name, text string) string {
+	// jst review P2: a config that loads another module or spreads an
+	// object (`module.exports = require('./base')`, `...base`) may set a
+	// custom runner or results processor this text read cannot see, so it
+	// is not proven supported. A type-only import loads nothing.
+	if loaded := jestTextLoads.FindString(jestTypeImport.ReplaceAllString(text, "")); loaded != "" {
+		return "config " + name + " loads or spreads another module (" + strings.TrimSpace(loaded) + "), which may set a custom runner or results processor this read cannot see"
+	}
 	for _, match := range jestTextKey.FindAllStringIndex(text, -1) {
 		key := strings.Trim(text[match[0]:match[1]], " \t\r\n{,'\":")
 		rest := text[match[1]:]

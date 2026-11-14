@@ -65,9 +65,27 @@ func (jestRunner) Command(request Request) (Command, error) {
 	for _, file := range files {
 		argv = append(argv, pathArg(request.Instance.Root, file))
 	}
+	if !ArgvFits(argv) {
+		// RNC-V1-016: even the file paths exceed the argument limit, and Jest
+		// takes no argument file for them, so the full command runs.
+		command := full(request, report...)
+		command.Exact, command.Reason = false, fmt.Sprintf("%s: the %d selected file paths exceed the argument limit, so the full command runs", ReasonArgvLimit, len(files))
+		return command, nil
+	}
+	lossy := ""
+	if len(tests) != 0 && !wholeFiles {
+		lossy = jestFilterLossy(request, files, tests)
+	}
 	switch {
 	case len(tests) != 0 && wholeFiles:
 		reasons = append(reasons, "the selection mixes whole files and tests, so the selected tests run their whole files; -t applies to every file")
+	case lossy != "":
+		// JST-V1-003: a -t filter that could skip a selected test is never
+		// passed; the selected tests run their whole files instead.
+		// jestSelection's reasons are about the pattern, which is not passed.
+		command := narrowed(request, argv, nil, []string{lossy + ", so the selected tests run their whole files"})
+		command.Tier = TierFile
+		return command, nil
 	case len(tests) != 0:
 		names := map[string]bool{}
 		for _, test := range tests {
@@ -75,10 +93,61 @@ func (jestRunner) Command(request Request) (Command, error) {
 				names[name] = true
 			}
 		}
-		argv = append(argv, "-t", jestNamePattern(slices.Sorted(maps.Keys(names))))
+		filtered := append(slices.Clone(argv), "-t", jestNamePattern(slices.Sorted(maps.Keys(names))))
+		if !ArgvFits(filtered) {
+			// RNC-V1-016: Jest takes no argument file for -t, so an over-long
+			// pattern widens the selection to its files.
+			command := narrowed(request, argv, nil, []string{ReasonArgvLimit + ": the -t name pattern exceeds the argument limit, so the selected tests run their whole files"})
+			command.Tier = TierFile
+			return command, nil
+		}
+		argv = filtered
 		reasons = append(reasons, jestPatternReasons(request, files, tests)...)
 	}
 	return narrowed(request, argv, nil, slices.Compact(reasons)), nil
+}
+
+// jestRootBlock is the name Jest gives its own root describe block. Jest
+// drops every ancestor with this title from its --json report but keeps it
+// in the full name -t matches (jest-circus jestAdapterInit.ts and
+// utils.ts), so a test under a describe block a project titled so has a
+// canonical ID, read from the report, that a -t pattern built from it
+// cannot match.
+const jestRootBlock = "ROOT_DESCRIBE_BLOCK"
+
+// jestFilterLossy is why a -t pattern built from the selected tests' IDs
+// is not proven to match every one of them, or "" when it is (JST-V1-003):
+// the test files' source was not read, a selected file could not be read
+// or names jestRootBlock, or a selected test belongs to a duplicate group,
+// whose members CTI-V1-010 selects by whole file.
+func jestFilterLossy(request Request, files []string, tests []jestTest) string {
+	for _, test := range tests {
+		if last := test.id.Segments[len(test.id.Segments)-1]; len(test.id.Segments) > 1 && duplicateSuffix(last) {
+			return testid.ReasonDuplicate + ": " + test.id.String() + " is a member of a duplicate group"
+		}
+		for _, listed := range request.Listed {
+			if rest, ok := strings.CutPrefix(listed, test.id.String()+"::"); ok && duplicateSuffix(rest) {
+				return testid.ReasonDuplicate + ": " + test.id.String() + " is a member of a duplicate group"
+			}
+		}
+	}
+	if request.Jest == nil || request.Jest.Source == nil {
+		return "the selected test files' source was not read, so nothing proves the -t name pattern keeps every selected test"
+	}
+	for _, file := range files {
+		selected := slices.ContainsFunc(tests, func(test jestTest) bool { return test.id.File == file })
+		if !selected {
+			continue
+		}
+		source, err := request.Jest.Source(file)
+		if err != nil {
+			return file + " cannot be read, so nothing proves the -t name pattern keeps every selected test there"
+		}
+		if strings.Contains(string(source), jestRootBlock) {
+			return file + " names " + jestRootBlock + ", a describe title Jest drops from its report but keeps for -t matching"
+		}
+	}
+	return ""
 }
 
 // jestTest is one selected test: its ID and the full names its -t pattern

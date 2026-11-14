@@ -241,6 +241,31 @@ func full(request Request, extra ...string) Command {
 	return Command{Argv: append(slices.Clone(request.Full), extra...), Dir: request.Instance.Root, Report: request.Report, Tier: TierFull, Exact: true}
 }
 
+// ReasonArgvLimit names a selection widened because its argv would exceed
+// the operating system's argument limit (RNC-V1-016).
+const ReasonArgvLimit = "argv-limit"
+
+// The argument bounds ArgvFits keeps under: one argument below Linux's
+// MAX_ARG_STRLEN (128 KiB), and the whole argv at a quarter of macOS's
+// 1 MiB ARG_MAX, which also holds the environment.
+const (
+	MaxArgBytes  = 128<<10 - 1
+	MaxArgvBytes = 256 << 10
+)
+
+// ArgvFits reports whether argv stays under MaxArgBytes per argument and
+// MaxArgvBytes in total, counting each argument's terminating NUL.
+func ArgvFits(argv []string) bool {
+	total := 0
+	for _, arg := range argv {
+		if len(arg) > MaxArgBytes {
+			return false
+		}
+		total += len(arg) + 1
+	}
+	return total <= MaxArgvBytes
+}
+
 // tierOf is the tier of a narrowed selection: the plan's, file when unset.
 func tierOf(request Request) string {
 	switch request.Tier {
