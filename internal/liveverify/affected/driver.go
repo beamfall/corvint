@@ -136,6 +136,10 @@ type driverRegistry struct {
 	// resolved but read what the graph does not bound. A make edit's reach
 	// reads it (NCM-V1-013).
 	unresolved map[string][]string
+	// selectors, when non-nil, receives each unit's go package selectors,
+	// one MakeSelectors per scanned text that names any (NCM-V1-013,
+	// V1-5552). Only a make edit's reach sets it.
+	selectors map[string][]MakeSelectors
 	// instances names, for each make file, the targets no explicit rule
 	// names that a make edit's reach instantiates one pattern rule for
 	// (NCM-V1-016). Only the reach sets it.
@@ -150,14 +154,14 @@ func (Driver) UnitsSource(source *Source) (Result, error) {
 // driverUnitsSource is UnitsSource that also records, in reasons when it is
 // non-nil, why each computed site is one (AFP-V0-9620).
 func driverUnitsSource(source *Source, reasons map[string][]string) (Result, error) {
-	return driverUnitsObserved(source, reasons, nil, nil)
+	return driverUnitsObserved(source, reasons, nil, nil, nil)
 }
 
 // driverUnitsObserved is driverUnitsSource that also records, in unresolved
 // when it is non-nil, each unit whose invocations did not resolve, and adds
 // a unit for each target of instances that instantiates one pattern rule of
 // its make file (NCM-V1-016). Only a make edit's reach passes either.
-func driverUnitsObserved(source *Source, reasons map[string][]string, unresolved map[string][]string, instances map[string][]string) (Result, error) {
+func driverUnitsObserved(source *Source, reasons map[string][]string, unresolved map[string][]string, selectors map[string][]MakeSelectors, instances map[string][]string) (Result, error) {
 	makeFiles, err := source.Files(ByName(driverMakeName))
 	if err != nil {
 		return Result{}, err
@@ -182,6 +186,7 @@ func driverUnitsObserved(source *Source, reasons map[string][]string, unresolved
 		fileUnits:  map[string][]string{},
 		reasons:    reasons,
 		unresolved: unresolved,
+		selectors:  selectors,
 		instances:  instances,
 	}
 	if body, readErr := source.Read("go.mod"); readErr == nil {
@@ -282,6 +287,9 @@ type driverUnitBuilder struct {
 	evaluatedBy   map[string]bool
 	uncertifiedBy map[string]bool
 	readsTree     bool
+	// selectors are the go package selectors of the scans merged into the
+	// unit (NCM-V1-013, V1-5552), for a make edit's reach only.
+	selectors []MakeSelectors
 }
 
 func newDriverUnitBuilder(id string) *driverUnitBuilder {
@@ -346,6 +354,9 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 	if scan.readsTree {
 		b.readsTree = true
 	}
+	if group := scan.makeSelectors(); group != nil {
+		b.selectors = append(b.selectors, group)
+	}
 	for token := range scan.tokens {
 		b.tokens[token] = true
 	}
@@ -401,6 +412,9 @@ func (b *driverUnitBuilder) unit() Unit {
 func (registry *driverRegistry) unit(b *driverUnitBuilder) Unit {
 	if registry.unresolved != nil && b.runOpen {
 		registry.unresolved[b.id] = driverSorted(b.openBy)
+	}
+	if registry.selectors != nil && len(b.selectors) != 0 {
+		registry.selectors[b.id] = b.selectors
 	}
 	unit := b.unit()
 	if registry.reasons != nil && slices.Contains(unit.Frontier, FrontierDriverComputedInvocation) {
@@ -588,10 +602,15 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		shared.markComputed("make:export-uncertified")
 		driverMergeReasons(&uncertifiedBy, map[string]bool{"make:export-uncertified": true})
 	}
-	if !parsed.recipeShellCertified() {
+	recipeShellCertified := parsed.recipeShellCertified()
+	if !recipeShellCertified {
 		driverMergeReasons(&uncertifiedBy, map[string]bool{"make:recipe-shell-uncertified": true})
+		// NCM-V1-019 (V1-5551): make hands every recipe line to that
+		// program, which runs what it likes, so no target's run set
+		// resolves; the planner's site is unchanged.
+		shared.open("make:recipe-shell-uncertified")
 	}
-	uncertified = uncertified || !exportsCertified || !parsed.recipeShellCertified()
+	uncertified = uncertified || !exportsCertified || !recipeShellCertified
 	shared.readPaths(fileExpander.readPaths)
 	shared.readPaths(parse.readPaths)
 	for index, include := range parsed.includes {
@@ -645,6 +664,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		driverMergeReasons(&builder.openBy, shared.openBy)
 		driverMergeReasons(&builder.reasons, shared.reasons)
 		builder.readsTree = shared.readsTree
+		builder.selectors = slices.Clone(shared.selectors)
 		builder.evaluated, builder.uncertified = shared.evaluated, shared.uncertified
 		driverMergeReasons(&builder.evaluatedBy, shared.evaluatedBy)
 		driverMergeReasons(&builder.uncertifiedBy, shared.uncertifiedBy)

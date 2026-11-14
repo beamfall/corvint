@@ -42,7 +42,14 @@ type driverScan struct {
 	tokens        map[string]bool
 	paths         map[string]bool
 	buildPaths    map[string]bool
-	makes         []driverMakeCall
+	// selectors holds, for each pass of scanShell or scanShellOutput over
+	// the text, the repository-relative package directories (a `/...`
+	// pattern or a `.go` file kept as such) that its go package patterns
+	// name; a pattern for the whole tree is no selector. Only a make edit's
+	// reach reads them, to refuse a selector that names no package
+	// (NCM-V1-013, V1-5552).
+	selectors []map[string]bool
+	makes     []driverMakeCall
 	// reasons names why computed was set (AFP-V0-9620). It is diagnostic
 	// only: no unit field, wire contract or selection reads it.
 	reasons map[string]bool
@@ -147,6 +154,11 @@ func driverFollowed(words []driverWord) (bool, string) {
 			return true, ""
 		}
 		return false, "shell:unfollowed-command:set"
+	case head == "cd":
+		if _, named := driverChdirOperand(head, words[1:]); named {
+			return true, ""
+		}
+		return false, "shell:unfollowed-command:cd"
 	case driverFollowedBuiltins[head]:
 		return true, ""
 	}
@@ -178,6 +190,35 @@ func driverFollowedSet(args []driverWord) bool {
 		}
 	}
 	return true
+}
+
+// driverChdirOperand is the directory operand of a cd or pushd command's
+// arguments, and whether the scan can name it (NCM-V1-019, V1-5552): cd
+// takes only -L and -P, alone or combined, then an optional `--`; pushd
+// takes only `--`. Exactly one operand must follow, and it must not be `-`
+// (the previous directory), before `--` another option, or for pushd a
+// stack rotation (`+N`, `-N`). No operand changes to the home directory,
+// which the scan cannot name either.
+func driverChdirOperand(head string, args []driverWord) (string, bool) {
+	index, dashes := 0, false
+	for ; index < len(args); index++ {
+		arg := args[index].text
+		if arg == "--" {
+			index, dashes = index+1, true
+			break
+		}
+		if head != "cd" || len(arg) < 2 || arg[0] != '-' || strings.Trim(arg[1:], "LP") != "" {
+			break
+		}
+	}
+	if index != len(args)-1 {
+		return "", false
+	}
+	operand := args[index].text
+	if operand == "" || operand == "-" || !dashes && strings.HasPrefix(operand, "-") || head == "pushd" && strings.ContainsAny(operand[:1], "+-") {
+		return "", false
+	}
+	return operand, true
 }
 
 // envPrefix marks the scanned text a computed invocation for reason without
@@ -273,6 +314,7 @@ func (doc driverHeredoc) terminates(line string) bool {
 // scanShell scans script, run with working directory cwd ("" when unknown),
 // into scan. module is the main Go module path, "" when there is none.
 func (scan *driverScan) scanShell(script, cwd, module string) {
+	scan.selectors = append(scan.selectors, map[string]bool{})
 	scanner := &driverShellScanner{scan: scan, module: module}
 	scanner.script(script, cwd)
 	scan.settleNarrowing()
@@ -281,6 +323,7 @@ func (scan *driverScan) scanShell(script, cwd, module string) {
 // scanShellOutput is scanShell for a script whose standard output the caller
 // substitutes into other text, such as make's `$(shell ...)` (AFP-V0-2956).
 func (scan *driverScan) scanShellOutput(script, cwd, module string) {
+	scan.selectors = append(scan.selectors, map[string]bool{})
 	scanner := &driverShellScanner{scan: scan, module: module, feeds: 1}
 	scanner.script(script, cwd)
 	scan.settleNarrowing()
@@ -1526,10 +1569,14 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		s.embedded(words[1:], cwd)
 		return cwd
 	case "cd", "pushd":
-		if len(words) < 2 {
-			return cwd
+		target, named := driverChdirOperand(head, words[1:])
+		if !named {
+			// No operand (the home directory), `-` (the previous
+			// directory), an option the scan does not model, or a second
+			// operand leaves the directory unknown (V1-5552).
+			s.scan.uncertify("shell:cd-unresolved")
+			return ""
 		}
-		target := words[1].text
 		if driverDynamic(target) || cwd == "" {
 			return ""
 		}
@@ -2574,6 +2621,9 @@ func (s *driverShellScanner) goPattern(pattern, cwd string, into map[string]bool
 		return true
 	}
 	into[relative] = true
+	if passes := s.scan.selectors; len(passes) != 0 && relative != "..." {
+		passes[len(passes)-1][relative] = true
+	}
 	return true
 }
 
