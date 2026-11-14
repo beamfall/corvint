@@ -635,6 +635,13 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		// resolves; the planner's site is unchanged.
 		shared.open("make:recipe-shell-uncertified")
 	}
+	// NCM-V1-019 (V1-5561): an assignment to MAKEFLAGS, MFLAGS,
+	// GNUMAKEFLAGS or MAKEOVERRIDES, in any form and for any target, can pass
+	// a variable override to every make a recipe runs, and to make's own run,
+	// which the scan does not model: no target of the file resolves.
+	for _, name := range driverSorted(parsed.flagAssignments) {
+		shared.open("make:makeflags-assignment:" + name)
+	}
 	uncertified = uncertified || !exportsCertified || !recipeShellCertified
 	shared.readPaths(fileExpander.readPaths)
 	shared.readPaths(parse.readPaths)
