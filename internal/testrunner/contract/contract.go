@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -126,6 +127,27 @@ type Result struct {
 	RunnerOutcome  string             `json:"runnerOutcome,omitempty"`
 	DurationMillis int64              `json:"durationMillis"`
 	Granularity    testid.Granularity `json:"granularity"`
+	// DurationMissing and DurationInvalid say the report gave this result
+	// no time, or one that is not a valid duration (negative, not a number,
+	// above testduration.MaxMilliseconds); DurationMillis is then 0 and no
+	// reader may take it as measured (PTD-V1-003, PTD-V1-007). Neither is
+	// serialized.
+	DurationMissing bool `json:"-"`
+	DurationInvalid bool `json:"-"`
+}
+
+// timed sets a result's duration from a measure the testduration rules
+// read (PTD-V1-002, PTD-V1-003, PTD-V1-007).
+func (r Result) timed(measure testduration.Measure) Result {
+	switch {
+	case measure.Invalid:
+		r.DurationMillis, r.DurationInvalid = 0, true
+	case measure.Milliseconds == nil:
+		r.DurationMillis, r.DurationMissing = 0, true
+	default:
+		r.DurationMillis = *measure.Milliseconds
+	}
+	return r
 }
 
 // Runner is one runner's implementation of the contract (RNC-V1-001).

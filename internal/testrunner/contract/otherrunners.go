@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -316,10 +317,10 @@ func (rspecRunner) Command(request Request) (Command, error) {
 func (rspecRunner) Parse(request ParseRequest) ([]Result, error) {
 	var report struct {
 		Examples []struct {
-			ID       string  `json:"id"`
-			FilePath string  `json:"file_path"`
-			Status   string  `json:"status"`
-			RunTime  float64 `json:"run_time"`
+			ID       string   `json:"id"`
+			FilePath string   `json:"file_path"`
+			Status   string   `json:"status"`
+			RunTime  *float64 `json:"run_time"`
 		} `json:"examples"`
 		Summary struct {
 			ErrorsOutsideOfExamples int `json:"errors_outside_of_examples_count"`
@@ -329,6 +330,7 @@ func (rspecRunner) Parse(request ParseRequest) ([]Result, error) {
 		return nil, fmt.Errorf("rspec report: %w", err)
 	}
 	byFile := map[string]*Result{}
+	times := map[string][]testduration.Measure{}
 	var order []string
 	for _, example := range report.Examples {
 		rerun := example.FilePath
@@ -355,11 +357,18 @@ func (rspecRunner) Parse(request ParseRequest) ([]Result, error) {
 		} else if severity[outcome] > severity[result.Outcome] {
 			result.Outcome = outcome
 		}
-		result.DurationMillis += millis(example.RunTime)
+		// PTD-V1-002: each example's run_time in seconds; the file's time is
+		// their sum, not measured when any example has none (PTD-V1-003).
+		measure := testduration.Missing()
+		if example.RunTime != nil {
+			measure = testduration.FromSeconds(*example.RunTime, testduration.SourceRSpec)
+		}
+		times[id.String()] = append(times[id.String()], measure)
 	}
 	results := make([]Result, 0, len(order))
 	for _, id := range order {
-		results = append(results, *byFile[id])
+		sum, _ := testduration.Attempts(times[id], testduration.SourceRSpec)
+		results = append(results, byFile[id].timed(sum))
 	}
 	if report.Summary.ErrorsOutsideOfExamples != 0 {
 		return results, &ReportError{Failures: []string{fmt.Sprintf("rspec report: %d error(s) outside of examples", report.Summary.ErrorsOutsideOfExamples)}}

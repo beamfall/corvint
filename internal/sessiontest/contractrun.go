@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
@@ -386,7 +387,12 @@ func contractOutcomes(planned Planned, root, report string, readErr error, out i
 	for _, unit := range planned.Units {
 		outcome := unitOutcome(unit.Unit, run.Results)
 		anyFail = anyFail || outcome == OutcomeFail
-		outcomes = append(outcomes, Outcome{Outcome: outcome, Slice: unit.Slice, TestID: unit.Unit, Unit: unit.Unit})
+		recorded := Outcome{Outcome: outcome, Slice: unit.Slice, TestID: unit.Unit, Unit: unit.Unit}
+		if source := contractSources[plan.request.Instance.Runner]; source != "" && outcome != OutcomeNotRun {
+			measure := contractMeasure(unit.Unit, run.Results, source)
+			recorded = timedOutcome(recorded, &measure)
+		}
+		outcomes = append(outcomes, recorded)
 	}
 	if run.Failed && !anyFail {
 		// A run-level failure no result carries fails every unit that would
@@ -427,6 +433,42 @@ func parseContractReport(plan *contractPlan, root string, data []byte) ([]contra
 		}
 	}
 	return results, err
+}
+
+// contractSources are the duration sources of the runners whose contract
+// parser marks a test the report gave no time, or an invalid one
+// (PTD-V1-002). Playwright and Go are absent: their contract parsers keep
+// no such mark, so their contract outcomes stay NOT_MEASURED.
+var contractSources = map[string]string{
+	testid.Jest: testduration.SourceJest, testid.Pytest: testduration.SourcePytest,
+	testid.RSpec: testduration.SourceRSpec, testid.Vitest: testduration.SourceVitest,
+}
+
+// contractMeasure is the duration of one selected file's unit: the sum of
+// the times the report gave its tests, at file granularity (PTD-V1-002,
+// PTD-V1-004). It is NOT_MEASURED when the report answers none of its
+// tests, leaves one NOT_RUN or gives one no time (PTD-V1-003), and invalid
+// when one time is invalid (PTD-V1-007). The invocation's elapsed time is
+// never used (PTD-V1-005).
+func contractMeasure(file string, results []contract.Result, source string) testduration.Measure {
+	var times []testduration.Measure
+	for _, result := range results {
+		if result.ID != file && !testid.Matches(file, result.ID) {
+			continue
+		}
+		switch {
+		case result.Outcome == contract.OutcomeNotRun:
+			return testduration.Missing()
+		case result.DurationInvalid:
+			times = append(times, testduration.Measure{Source: testduration.NotMeasured, Invalid: true})
+		case result.DurationMissing:
+			times = append(times, testduration.Missing())
+		default:
+			times = append(times, testduration.FromMilliseconds(float64(result.DurationMillis), source))
+		}
+	}
+	measure, _ := testduration.Attempts(times, source)
+	return measure
 }
 
 // unitOutcome folds the results of one selected file into its unit outcome.

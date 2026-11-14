@@ -102,18 +102,21 @@ func TestRNCV1019ContractRunRecordsPerTestResults(t *testing.T) {
 		run.Exact == nil || !*run.Exact || run.Exit != 0 || run.Runner != filepath.Join(dir, "fakejest") || run.Version != "29.7.0" {
 		t.Fatalf("invocation %+v", run)
 	}
-	// PTD-V1: a file outcome the contract adapter does not yet time is NOT_MEASURED; reading the
-	// report's per-test time into it is the Jest/pytest/RSpec remainder (V1-5542).
-	wantOutcomes := []Outcome{
-		{Outcome: OutcomePass, Slice: "jest@.", TestID: "jest:src/a.test.js", Unit: "jest:src/a.test.js", DurationSource: testduration.NotMeasured},
-		{Outcome: OutcomePass, Slice: "jest@.", TestID: "jest:src/b.test.js", Unit: "jest:src/b.test.js", DurationSource: testduration.NotMeasured},
-	}
+	// PTD-V1-002, PTD-V1-004 (V1-5542): each file outcome records the sum of its tests' report
+	// times, at file granularity, from the Jest report's assertion duration.
 	wantTests := []contract.Result{
 		{ID: "jest:src/a.test.js::suite::works", Outcome: contract.OutcomePass, DurationMillis: 7, Granularity: "test"},
 		{ID: "jest:src/b.test.js::suite::works", Outcome: contract.OutcomePass, DurationMillis: 7, Granularity: "test"},
 	}
-	if !slices.Equal(run.Outcomes, wantOutcomes) || !slices.Equal(run.Tests, wantTests) {
+	if len(run.Outcomes) != 2 || !slices.Equal(run.Tests, wantTests) {
 		t.Fatalf("outcomes %+v tests %+v", run.Outcomes, run.Tests)
+	}
+	for index, file := range []string{"jest:src/a.test.js", "jest:src/b.test.js"} {
+		outcome := run.Outcomes[index]
+		if outcome.Outcome != OutcomePass || outcome.Slice != "jest@." || outcome.TestID != file || outcome.Unit != file || outcome.DurationMs == nil || *outcome.DurationMs != 7 ||
+			outcome.DurationSource != testduration.SourceJest || outcome.DurationGranularity != testduration.GranularityFile {
+			t.Fatalf("outcome %d %+v", index, outcome)
+		}
 	}
 	report := ""
 	for _, word := range run.Argv {

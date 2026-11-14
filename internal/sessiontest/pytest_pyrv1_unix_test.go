@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
@@ -255,5 +256,29 @@ func TestPYRV1006RunnerTroubleFailsClosed(t *testing.T) {
 				t.Fatal("verify passed a run with runner trouble")
 			}
 		})
+	}
+}
+
+// PTD-V1-002, PTD-V1-004, PTD-V1-007 (V1-5542): a pytest contract run
+// records each file outcome's duration from the JUnit times, at file
+// granularity under pytest-junit; a testcase time that is not a valid
+// duration leaves its file NOT_MEASURED and lists it under the receipt's
+// durationInvalid, and the run still passes.
+func TestPTDV1002PytestReceiptDurations(t *testing.T) {
+	runner, m, digest, _ := pytestFixture(t, true, map[string]string{"report.xml": passingReport}, pytestListed)
+	pytest := pytestInvocation(t, runner.Execute(context.Background(), m, digest, 0))
+	for index, want := range []int64{15, 0} {
+		outcome := pytest.Outcomes[index]
+		if outcome.DurationMs == nil || *outcome.DurationMs != want || outcome.DurationSource != testduration.SourcePytest || outcome.DurationGranularity != testduration.GranularityFile {
+			t.Fatalf("outcome %d %+v, want %d ms", index, outcome, want)
+		}
+	}
+	report := strings.Replace(passingReport, `time="0.003"`, `time="-1"`, 1)
+	runner, m, digest, _ = pytestFixture(t, true, map[string]string{"report.xml": report}, pytestListed)
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	pytest = pytestInvocation(t, receipt)
+	if receipt.Result != ResultPass || pytest.Outcomes[0].DurationMs != nil || pytest.Outcomes[0].DurationSource != testduration.NotMeasured ||
+		!slices.Equal(receipt.DurationInvalid, []string{"pytest:svc/tests/test_a.py"}) {
+		t.Fatalf("receipt %s invalid %q outcome %+v", receipt.Result, receipt.DurationInvalid, pytest.Outcomes[0])
 	}
 }

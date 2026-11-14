@@ -250,7 +250,7 @@ func TestRNCV1005VitestReport(t *testing.T) {
 	want := []Result{
 		{ID: "vitest:web/src/a.test.ts::math::adds", Outcome: OutcomePass, DurationMillis: 3, Granularity: testid.GranularityTest},
 		{ID: "vitest:web/src/a.test.ts::math::divides", Outcome: OutcomeFail, DurationMillis: 1, Granularity: testid.GranularityTest},
-		{ID: "vitest:web/src/a.test.ts::later", Outcome: OutcomeSkip, Granularity: testid.GranularityTest},
+		{ID: "vitest:web/src/a.test.ts::later", Outcome: OutcomeSkip, Granularity: testid.GranularityTest, DurationMissing: true},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("results\n got %+v\nwant %+v", got, want)

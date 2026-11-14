@@ -179,7 +179,7 @@ func TestJSTV1004ReportMapsNestedDescribesWithDurations(t *testing.T) {
 	want := []Result{
 		{ID: "jest:apps/web/src/a.test.ts::cart::adds item", Outcome: OutcomePass, DurationMillis: 14, Granularity: testid.GranularityTest},
 		{ID: "jest:apps/web/src/a.test.ts::cart::totals::rounds (half-up)", Outcome: OutcomeFail, DurationMillis: 3, Granularity: testid.GranularityTest},
-		{ID: "jest:apps/web/src/a.test.ts::cart::totals::skips", Outcome: OutcomeSkip, Granularity: testid.GranularityTest},
+		{ID: "jest:apps/web/src/a.test.ts::cart::totals::skips", Outcome: OutcomeSkip, Granularity: testid.GranularityTest, DurationMissing: true},
 		{ID: "jest:apps/web/src/a.test.ts::top level", Outcome: OutcomePass, DurationMillis: 1, Granularity: testid.GranularityTest},
 	}
 	if !reflect.DeepEqual(got, want) {
