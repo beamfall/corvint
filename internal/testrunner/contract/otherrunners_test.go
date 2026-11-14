@@ -88,7 +88,7 @@ func TestRNCV1005PytestReport(t *testing.T) {
 		{ID: "pytest:svc/tests/test_a.py::test_y", Outcome: OutcomeFail, DurationMillis: 2, Granularity: testid.GranularityTest},
 		{ID: "pytest:svc/tests/test_a.py::test_z", Outcome: OutcomeSkip, Granularity: testid.GranularityTest, DurationMissing: true},
 		{ID: "pytest:svc/tests/test_a.py::test_e", Outcome: OutcomeError, DurationMillis: 3, Granularity: testid.GranularityTest},
-		{ID: "pytest:svc/tests/test_broken.py", Outcome: OutcomeFail, Granularity: testid.GranularityFile},
+		{ID: "pytest:svc/tests/test_broken.py", Outcome: OutcomeFail, Granularity: testid.GranularityFile, DurationMissing: true},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("results\n got %+v\nwant %+v", got, want)
