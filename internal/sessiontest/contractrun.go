@@ -447,7 +447,8 @@ var contractSources = map[string]string{
 // contractMeasure is the duration of one selected file's unit: the sum of
 // the times the report gave its tests, at file granularity (PTD-V1-002,
 // PTD-V1-004). It is NOT_MEASURED when the report answers none of its
-// tests, leaves one NOT_RUN or gives one no time (PTD-V1-003), and invalid
+// tests, leaves one NOT_RUN, gives one no time or answers the file only
+// with a file-level result that has none (PTD-V1-003), and invalid
 // when one time is invalid (PTD-V1-007). The invocation's elapsed time is
 // never used (PTD-V1-005).
 func contractMeasure(file string, results []contract.Result, source string) testduration.Measure {
@@ -458,6 +459,11 @@ func contractMeasure(file string, results []contract.Result, source string) test
 		}
 		switch {
 		case result.Outcome == contract.OutcomeNotRun:
+			return testduration.Missing()
+		case result.Granularity == testid.GranularityFile && result.DurationMissing:
+			// A file-level result with no time (a Jest file that failed to
+			// load, a pytest collection error) leaves the file NOT_MEASURED,
+			// never a measured 0 ms (PTD-V1-003).
 			return testduration.Missing()
 		case result.DurationInvalid:
 			times = append(times, testduration.Measure{Source: testduration.NotMeasured, Invalid: true})

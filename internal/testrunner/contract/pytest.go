@@ -225,7 +225,9 @@ func pytestJUnitResult(root string, test junitCase) (Result, error) {
 		if err != nil {
 			return Result{}, fmt.Errorf("pytest junit report: collector %q: %w", test.Name, err)
 		}
-		return Result{ID: id.String(), Outcome: outcome, Granularity: testid.GranularityFile, RunnerOutcome: native}, nil
+		// PTD-V1-003: a collector's record times no test; it is never a
+		// measured 0 ms.
+		return Result{ID: id.String(), Outcome: outcome, Granularity: testid.GranularityFile, RunnerOutcome: native}.timed(testduration.Missing()), nil
 	}
 	module := strings.ReplaceAll(strings.TrimSuffix(file, ".py"), "/", ".")
 	var segments []string
@@ -313,7 +315,7 @@ func parsePytestJSON(request ParseRequest) ([]Result, error) {
 			return nil, err
 		}
 		failed = true
-		results = append(results, Result{ID: id.String(), Outcome: OutcomeFail, Granularity: testid.GranularityFile})
+		results = append(results, Result{ID: id.String(), Outcome: OutcomeFail, Granularity: testid.GranularityFile}.timed(testduration.Missing()))
 	}
 	if report.ExitCode != nil && *report.ExitCode != 0 && *report.ExitCode != 1 && *report.ExitCode != 5 && !failed {
 		return results, &ReportError{Failures: []string{fmt.Sprintf("pytest report: exit code %d with no failing test", *report.ExitCode)}}

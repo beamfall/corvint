@@ -173,7 +173,9 @@ func jestShapeResults(runner string, request ParseRequest) ([]Result, error) {
 				return nil, err
 			}
 			fileFailed = true
-			results = append(results, Result{ID: id.String(), Outcome: OutcomeFail, Granularity: testid.GranularityFile})
+			// PTD-V1-003: a file that failed to load has no time of its own;
+			// it is never a measured 0 ms.
+			results = append(results, Result{ID: id.String(), Outcome: OutcomeFail, Granularity: testid.GranularityFile}.timed(testduration.Missing()))
 		}
 		failed = failed || fileFailed
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/testduration"
+	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
@@ -56,6 +57,41 @@ func TestPTDV1002ContractFileDurations(t *testing.T) {
 		got := contractMeasure(test.file, test.results, test.source)
 		if ms(got) != test.want || (got.Source == test.source) != test.measured || got.Invalid != test.invalid || (!test.measured && got.Source != testduration.NotMeasured) {
 			t.Errorf("%s: %+v (ms %d), want ms %d measured %v invalid %v", name, got, ms(got), test.want, test.measured, test.invalid)
+		}
+	}
+}
+
+// PTD-V1-003 (V1-5542, review P2-a): a file-level result carries no time of
+// its own. A Jest file that fails to load, and a pytest collection error on
+// both the JUnit and the pytest-json-report paths, leave the selected file
+// NOT_MEASURED, never a measured 0 ms.
+func TestPTDV1003FileLevelResultIsNotMeasured(t *testing.T) {
+	root := t.TempDir()
+	for name, test := range map[string]struct {
+		runner, source, file string
+		report               string
+	}{
+		"jest load failure": {testid.Jest, testduration.SourceJest, "jest:src/a.test.js",
+			`{"success":false,"testResults":[{"name":"` + root + `/src/a.test.js","status":"failed","message":"Cannot find module './missing'","assertionResults":[]}]}`},
+		"pytest junit collection error": {testid.Pytest, testduration.SourcePytest, "pytest:tests/test_a.py",
+			`<testsuites><testsuite name="pytest"><testcase classname="" name="tests.test_a" file="tests/test_a.py"><error message="collection failure">ImportError</error></testcase></testsuite></testsuites>`},
+		"pytest json collection error": {testid.Pytest, testduration.SourcePytest, "pytest:tests/test_a.py",
+			`{"exitcode":2,"collectors":[{"nodeid":"tests/test_a.py","outcome":"failed"}],"tests":[]}`},
+	} {
+		runner, ok := contract.For(test.runner)
+		if !ok {
+			t.Fatalf("%s: no contract for %s", name, test.runner)
+		}
+		results, err := runner.Parse(contract.ParseRequest{Instance: contract.Instance{Runner: test.runner, Root: "."}, Report: []byte(test.report), Root: root})
+		if err != nil {
+			t.Fatalf("%s: parse: %v", name, err)
+		}
+		if len(results) != 1 || results[0].Granularity != testid.GranularityFile || !results[0].DurationMissing {
+			t.Fatalf("%s: results %+v, want one file-level result with no time", name, results)
+		}
+		got := contractMeasure(test.file, results, test.source)
+		if got.Milliseconds != nil || got.Source != testduration.NotMeasured || got.Invalid {
+			t.Errorf("%s: %+v, want NOT_MEASURED", name, got)
 		}
 	}
 }
