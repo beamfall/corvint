@@ -83,6 +83,9 @@ func makeEditAttribution(plan Receipt, index *repositoryIndex, root, p string) (
 		return nil, nil, reach.Reason
 	}
 	if missing := index.missingSelector(reach.Selectors); missing != "" {
+		if index.inNestedModule(missing) {
+			return nil, nil, "a changed make target runs Go selector " + strconv.QuoteToASCII(missing) + " inside a nested module"
+		}
 		return nil, nil, "a changed make target runs Go package " + strconv.QuoteToASCII(missing) + ", which names no package of the repository"
 	}
 	selections := []makeSelection{{kind: "make", directories: index.runPackages(reach.Paths), cause: p}}
@@ -171,6 +174,22 @@ func (index *repositoryIndex) missingSelector(selectors []affected.MakeSelectors
 		}
 	}
 	return ""
+}
+
+// inNestedModule reports a driver selector whose directory is, or is below,
+// one holding a nested go.mod: the index skips that module's packages, so
+// the selector names none of them (NCM-V1-013).
+func (index *repositoryIndex) inNestedModule(selector string) bool {
+	directory := strings.TrimSuffix(selector, "/...")
+	if strings.HasSuffix(directory, ".go") {
+		directory = path.Dir(directory)
+	}
+	for _, nested := range index.nested {
+		if directory == nested || strings.HasPrefix(directory, nested+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // namesPackage reports whether a driver selector names an indexed package:

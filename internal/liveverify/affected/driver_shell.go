@@ -457,6 +457,9 @@ func (s *driverShellScanner) script(script, cwd string) {
 	// substitutions holds, per open parenthesis, whether it opened a
 	// process substitution (`<(`, `>(`).
 	var substitutions []bool
+	// subshells holds, per open parenthesis, the working directory outside
+	// it: a subshell's cd ends at its closing parenthesis (NCM-V1-019).
+	var subshells []string
 	// flush runs the pending command. Its standard output feeds another
 	// command when a pipe follows it or a substitution encloses it
 	// (AFP-V0-2956).
@@ -497,6 +500,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 					s.scan.revoke("shell:unsupported-syntax")
 				}
 				flush(false)
+				subshells = append(subshells, cwd)
 				// After a redirection operator, `(` opens a process
 				// substitution: no redirect target word follows.
 				substitutions = append(substitutions, redirect)
@@ -507,6 +511,16 @@ func (s *driverShellScanner) script(script, cwd string) {
 				flush(false)
 				if len(substitutions) != 0 {
 					substitutions = substitutions[:len(substitutions)-1]
+				}
+				if len(subshells) != 0 {
+					cwd = subshells[len(subshells)-1]
+					subshells = subshells[:len(subshells)-1]
+				} else {
+					// A `)` the scan cannot pair with its `(`, such as a
+					// case pattern's, may close a subshell this text did
+					// not open, so the directory after it is unknown.
+					cwd = ""
+					s.scan.uncertify("shell:unpaired-group")
 				}
 				position++
 			case char == '`':
@@ -2333,7 +2347,10 @@ func (s *driverShellScanner) embedded(words []driverWord, cwd string) {
 				}
 			}
 		case "make", "gmake":
-			s.makeInvocation(words[index+1:], cwd, fed)
+			// A command-line assignment names no file (NCM-V1-019).
+			for assignment := range s.makeInvocation(words[index+1:], cwd, fed) {
+				built[index+1+assignment] = true
+			}
 		}
 		if fed && driverInterpreters[base] || parallel && strings.Contains(word.text, "{") {
 			s.scan.markComputed("shell:fed-interpreter")
@@ -2651,11 +2668,32 @@ func driverGoRelative(cwd, pattern string) string {
 	return joined + "/..."
 }
 
-var driverMakeValueFlags = map[string]bool{"-o": true, "-W": true, "-I": true, "-l": true, "--old-file": true, "--what-if": true, "--include-dir": true, "--load-average": true}
+// driverMakeQuietFlags are the make options NCM-V1-019 follows on a make
+// invocation besides -C, -f, -j and -l: each changes only make's messages,
+// its output order or whether it stops at the first failure, never which
+// recipes it runs or what they run.
+var driverMakeQuietFlags = map[string]bool{
+	"-s": true, "--silent": true, "--quiet": true,
+	"-k": true, "--keep-going": true, "-S": true, "--no-keep-going": true, "--stop": true,
+	"-w": true, "--print-directory": true, "--no-print-directory": true,
+	"-O": true, "--output-sync": true,
+}
+
+// driverMakeOutputSync are the --output-sync types: each only groups output.
+var driverMakeOutputSync = map[string]bool{"none": true, "line": true, "target": true, "recurse": true}
 
 // makeInvocation records a `make` call: its directory, file and goals. A fed
-// call, whose further goals a feeder supplies, is computed (AFP-V0-2957).
-func (s *driverShellScanner) makeInvocation(words []driverWord, cwd string, fed bool) {
+// call, whose further goals a feeder supplies, is computed (AFP-V0-2957). It
+// returns the indexes of words that are command-line variable assignments,
+// which name no file.
+//
+// NCM-V1-019: the reach follows the call only with the options of
+// driverMakeQuietFlags, alone or as combined single letters, -C and -f, which
+// it models, and -j and -l with an optional count. A variable assignment can
+// set SHELL or a value a recipe runs, and any other option, --eval, -e, -n,
+// -I or an unknown one, can change what make runs: each leaves the call
+// unfollowed.
+func (s *driverShellScanner) makeInvocation(words []driverWord, cwd string, fed bool) map[int]bool {
 	call := driverMakeCall{Dir: cwd, Computed: fed}
 	if cwd == "" {
 		call.Unbounded = true
@@ -2678,36 +2716,60 @@ func (s *driverShellScanner) makeInvocation(words []driverWord, cwd string, fed 
 		}
 		call.File = value
 	}
+	unfollowed := func(option string) {
+		name, _, _ := strings.Cut(option, "=")
+		s.scan.unfollowed("make:unfollowed-option:" + driverReasonWord(name))
+	}
+	count := func(index int, decimal bool) int {
+		if index+1 < len(words) && driverMakeCount(words[index+1].text, decimal) {
+			return index + 1
+		}
+		return index
+	}
+	assignments := map[int]bool{}
+	options := true
 	for index := 0; index < len(words); index++ {
 		arg := words[index].text
 		switch {
-		case arg == "-C" || arg == "--directory":
+		case options && arg == "--":
+			options = false
+		case options && (arg == "-C" || arg == "--directory"):
 			if index+1 < len(words) {
 				index++
 				setDir(words[index].text)
 			}
-		case strings.HasPrefix(arg, "--directory="):
+		case options && strings.HasPrefix(arg, "--directory="):
 			setDir(strings.TrimPrefix(arg, "--directory="))
-		case strings.HasPrefix(arg, "-C") && !strings.HasPrefix(arg, "--"):
+		case options && strings.HasPrefix(arg, "-C") && !strings.HasPrefix(arg, "--"):
 			setDir(arg[2:])
-		case arg == "-f" || arg == "--file" || arg == "--makefile":
+		case options && (arg == "-f" || arg == "--file" || arg == "--makefile"):
 			if index+1 < len(words) {
 				index++
 				setFile(words[index].text)
 			}
-		case strings.HasPrefix(arg, "--file=") || strings.HasPrefix(arg, "--makefile="):
+		case options && (strings.HasPrefix(arg, "--file=") || strings.HasPrefix(arg, "--makefile=")):
 			_, value, _ := strings.Cut(arg, "=")
 			setFile(value)
-		case strings.HasPrefix(arg, "-f") && !strings.HasPrefix(arg, "--"):
+		case options && strings.HasPrefix(arg, "-f") && !strings.HasPrefix(arg, "--"):
 			setFile(arg[2:])
-		case arg == "-j" || arg == "--jobs":
-			if index+1 < len(words) && driverNumeric(words[index+1].text) {
-				index++
-			}
-		case driverMakeValueFlags[arg]:
-			index++
-		case strings.HasPrefix(arg, "-"):
+		case options && (arg == "-j" || arg == "--jobs"):
+			index = count(index, false)
+		case options && (arg == "-l" || arg == "--load-average" || arg == "--max-load"):
+			index = count(index, true)
+		case options && strings.HasPrefix(arg, "-j") && driverMakeCount(arg[2:], false),
+			options && strings.HasPrefix(arg, "--jobs=") && driverMakeCount(strings.TrimPrefix(arg, "--jobs="), false),
+			options && strings.HasPrefix(arg, "-l") && driverMakeCount(arg[2:], true),
+			options && (strings.HasPrefix(arg, "--load-average=") || strings.HasPrefix(arg, "--max-load=")) && driverMakeCount(arg[strings.IndexByte(arg, '=')+1:], true),
+			options && strings.HasPrefix(arg, "-O") && !strings.HasPrefix(arg, "--") && driverMakeOutputSync[arg[2:]],
+			options && strings.HasPrefix(arg, "--output-sync=") && driverMakeOutputSync[strings.TrimPrefix(arg, "--output-sync=")],
+			options && driverMakeQuietFlags[arg]:
+		case options && len(arg) > 2 && arg[0] == '-' && arg[1] != '-' && strings.Trim(arg[1:], "skSw") == "":
+		case options && strings.HasPrefix(arg, "-"):
+			unfollowed(arg)
 		case driverAssignment(arg):
+			assignments[index] = true
+			name, _, _ := strings.Cut(arg, "=")
+			s.scan.unfollowed("make:command-line-assignment:" + driverReasonWord(name))
 		case driverDynamic(arg):
 			call.Computed = true
 		default:
@@ -2715,6 +2777,17 @@ func (s *driverShellScanner) makeInvocation(words []driverWord, cwd string, fed 
 		}
 	}
 	s.scan.makes = append(s.scan.makes, call)
+	return assignments
+}
+
+// driverMakeCount reports a make job count, digits only, or with decimal a
+// load average, digits with at most one point.
+func driverMakeCount(value string, decimal bool) bool {
+	if decimal {
+		whole, fraction, _ := strings.Cut(value, ".")
+		return driverNumeric(whole) && (fraction == "" || driverNumeric(fraction)) && !strings.HasSuffix(value, ".")
+	}
+	return driverNumeric(value)
 }
 
 func driverNumeric(value string) bool {
