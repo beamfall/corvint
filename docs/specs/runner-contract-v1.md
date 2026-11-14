@@ -327,7 +327,11 @@ Source: review T-M9. When a runner's argv would exceed the operating system's ar
 implementation MUST pass the selection through an argument file if the runner accepts one, and
 otherwise MUST widen the selection to file level (`tier: file`, `exact: false`) with a reason; if
 still over the limit it MUST run the runner's full command with a reason. It MUST NOT drop tests.
-Delivery: not yet built (task 8).
+Delivery: partial (V1-5455, 2026-11-13). `contract.ArgvFits` bounds one argument below Linux's
+`MAX_ARG_STRLEN` and the whole argv at 256 KiB. Jest takes no argument file, so an over-long `-t`
+pattern widens the selection to its files (`tier: file`, `exact: false`, reason `argv-limit`) and
+over-long file paths run the full command with that reason. Not yet built for the other runners
+(task 8).
 
 **Scenario: Thousands of RSpec examples**
 - WHEN a selection holds 20,000 RSpec `path:line` arguments
@@ -494,13 +498,15 @@ Delivered by ticket V1-5443 (build-log `docs/build-log/2026-11-13-runner-contrac
 | RNC-V1-007 | `TestRNCV1007RunnerKinds` (`internal/testrunner/contract`); `TestRNCV1019ContractUnitsPlanTheSelectedFiles` (`internal/sessiontest`); the frozen `affected` plan signal is NOT_PRODUCED |
 | RNC-V1-008 | `TestRNCV1008KillSwitchGrammar`, `TestRNCV1008KillSwitchScope` (`internal/testrunner/killswitch`); `TestRNCV1008KillSwitchPlans`, `TestRNCV1008GoKillSwitchRunsNestedModules` (`internal/sessiontest`); `TestRNCV1008KillSwitchOnCorvintTest`, `TestRNCV1008KillSwitchOnAffectedAndWatch` (`cmd/corvint`); hooks, MCP and the Action NOT_PRODUCED |
 | RNC-V1-009 | NOT_PRODUCED (task 10) |
-| RNC-V1-010 | `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
+| RNC-V1-010 | `TestRNCV1010JestSelectionRunsEndToEnd`, `TestJSTV1009TwoRootFixtureThroughTheConsumers` (`cmd/corvint`) |
 | RNC-V1-011 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles` (the printed tier and exact flag come from the planned selection); the release manifest is NOT_PRODUCED (task 12) |
 | RNC-V1-012 | `TestRNCV1003GoSelection`, `TestRNCV1005GoReport` (`internal/testrunner/contract`) |
 | RNC-V1-013 | `TestRNCV1013BuiltInDefaults` (`internal/testrunner/contract`); `TestRNCV1013DeclarationMirror` (`tools/test-commands-check`); `TestRNCV1013ReadDeclaredResolution`, `TestRNCV1013InstanceCommand`, `TestRNCV1013FullRunsInstanceDefaults` (`internal/sessiontest`); `TestRNCV1013CLIFullCommandScenarios`, `TestRNCV1013CLIMalformedCommandsRefused` (`cmd/corvint`) |
 | RNC-V1-014 | `TestRNCV1014InstanceOwnsItsTests`, `TestRNCV1003GoSelection` (nested instance) (`internal/testrunner/contract`); `TestRNCV1013InstanceCommand`, `TestRNCV1019WhatTheContractDoesNotNarrow` (two instances own one file) (`internal/sessiontest`) |
-| RNC-V1-015 to RNC-V1-018 | NOT_PRODUCED (tasks 8, 11 and 12) |
-| RNC-V1-019 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles`, `TestRNCV1019WhatTheContractDoesNotNarrow`, `TestRNCV1019ContractRunRecordsPerTestResults`, `TestRNCV1019ContractRunFailsClosed`, `TestRNCV1019ContractRunnerUnavailable`, `TestRNCV1019PlaywrightReportPathReachesTheRunner`, `TestRNCV1019InventoryFallbackRunsUnselectedInstances`, `TestRNCV1019FIFOReportIsIncomplete`, `TestSTRV0004AdapterCapabilityManifest` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
+| RNC-V1-015 | NOT_PRODUCED (task 11) |
+| RNC-V1-016 | `TestRNCV1016JestArgvLimitWidens` (`internal/testrunner/contract`, Jest only); the other runners NOT_PRODUCED (task 8) |
+| RNC-V1-017, RNC-V1-018 | NOT_PRODUCED (tasks 11 and 12) |
+| RNC-V1-019 | `TestRNCV1019ContractUnitsPlanTheSelectedFiles`, `TestRNCV1019WhatTheContractDoesNotNarrow`, `TestRNCV1019ContractRunRecordsPerTestResults`, `TestRNCV1019ContractRunFailsClosed`, `TestRNCV1019ContractRunnerUnavailable`, `TestRNCV1019PlaywrightReportPathReachesTheRunner`, `TestRNCV1019InventoryFallbackRunsUnselectedInstances`, `TestRNCV1019FIFOReportIsIncomplete`, `TestSTRV0004AdapterCapabilityManifest`, `TestPYRV1006RunnerTroubleFailsClosed` (`internal/sessiontest`); `TestRNCV1010JestSelectionRunsEndToEnd` (`cmd/corvint`) |
 
 ## Non-goals
 
