@@ -183,8 +183,9 @@ type contractPlan struct {
 	// expected is what the report must answer: each selected file and
 	// every test the inventory lists in it (RNC-V1-006).
 	expected []string
-	// unlisted are the selected files the inventory lists no test in, so
-	// the report's completeness for them cannot be established.
+	// unlisted are the selected files the inventory lists no test in (new
+	// or changed since refresh): a pytest run reconciles them against the
+	// testcases the report gives them, and fails closed when it gives none.
 	unlisted []string
 	// refusal is why no command could be derived; the units are NOT_RUN.
 	refusal string
@@ -374,13 +375,25 @@ func contractOutcomes(planned Planned, root, report string, readErr error, out i
 	case run.Incomplete:
 		reasons = append(reasons, fmt.Sprintf("contract %s: the report records a file or package that did not finish, or lines it could not read", key))
 	}
-	if plan.request.Instance.Runner == testid.Pytest && len(plan.unlisted) != 0 {
-		// PYR-V1-006: one reported test cannot stand for a whole file. A
-		// plugin can deselect a sibling with no trace in the report or, under
-		// `-p no:terminal`, in the output; only the inventory's collected
-		// test IDs establish that every selected test ran, so a selected
-		// file the inventory lists no test in fails closed.
-		reasons = append(reasons, fmt.Sprintf("contract %s: %s: completeness cannot be established for %d selected files, as the inventory lists no test in them: %s", key, contract.ReasonTestsDeselected, len(plan.unlisted), firstOf(plan.unlisted)))
+	if plan.request.Instance.Runner == testid.Pytest && len(plan.unlisted) != 0 && (parseErr == nil || errors.As(parseErr, &partial)) {
+		// PYR-V1-006, RNC-V1-002: a selected file the inventory lists no test
+		// in (a test file changed or added since refresh, TIV-V1-008) ran
+		// whole, by its file node ID, and is reconciled against the testcases
+		// pytest reported for it. One that reported no testcase (nothing
+		// collected, only a module-level skip, or a collection error) cannot
+		// show that any of its tests ran, so it fails closed.
+		_, _ = fmt.Fprintf(out, "contract %s: %d selected files are new or changed since the inventory refresh, so they ran whole and are reconciled against the testcases pytest reported: %s\n", key, len(plan.unlisted), firstOf(plan.unlisted))
+		var untested []string
+		for _, file := range plan.unlisted {
+			if !slices.ContainsFunc(results, func(result contract.Result) bool {
+				return result.Granularity == testid.GranularityTest && testid.Matches(file, result.ID)
+			}) {
+				untested = append(untested, file)
+			}
+		}
+		if len(untested) != 0 {
+			reasons = append(reasons, fmt.Sprintf("contract %s: %s: completeness cannot be established for %d selected files the inventory lists no test in, as pytest reported no testcase in them: %s", key, contract.ReasonTestsDeselected, len(untested), firstOf(untested)))
+		}
 	}
 	outcomes := make([]Outcome, 0, len(planned.Units))
 	anyFail := false

@@ -106,7 +106,14 @@ the call-phase `durationMillis` read from pytest's own JUnit XML report (`-o
 junit_duration_report=call`). A non-strict XPASS is reported by pytest's JUnit writer as passed, so
 it reads `passed` (NOT_VERIFIED against a live pytest). Each file outcome carries the summed JUnit
 time of its tests under `pytest-junit` (PTD-V1-002); the run evidence rows copy the receipt
-(RVD-V1-006).
+(RVD-V1-006). In xunit1 a testcase's `file` is the file that defines the test, while its
+classname is built from the node ID pytest collected it under; an inherited base-class method or
+an imported test function therefore names another file. The parser splits the classname against
+the modules of the selected files first, then the inventory's files, then the `file` attribute's
+own module, and attributes the testcase to the file whose module prefixes it; a classname no
+candidate prefixes, or two of one group prefix, still refuses the report (review P2-b,
+2026-11-13). A collector record or a file that failed to collect carries no time, so its file is
+NOT_MEASURED (PTD-V1-003).
 
 **Scenario: Failing test**
 
@@ -151,9 +158,12 @@ Delivery: delivered. Typed reasons: `runner-unavailable` (the command's discover
 expected tests are the selected files plus every test the committed inventory's pytest collection
 lists in them (RNC-V1-006), so a test a plugin deselects with no trace in the output (`-p
 no:terminal`) is NOT_RUN. A selected file the inventory lists no test in (a changed or new test
-file, TIV-V1-008) cannot prove its completeness, so it fails closed with `tests-deselected:
-completeness cannot be established` (independent review P1, 2026-11-12). Each makes the run
-INCOMPLETE (exit 3). A runner-unavailable instance leaves the other runners running instead of
+file, TIV-V1-008) runs whole by its file node ID (the RNC-V1-002 widening) and is reconciled
+against the testcases pytest reported for it, so editing or adding a test file passes with its new
+tests in the receipt (review P2-c, 2026-11-13); such a file that reports no testcase, or only a
+collection error, still fails closed with `tests-deselected: completeness cannot be established`.
+For that file a plugin that deselects a test under `-p no:terminal` is not seen (no collected list
+vouches for it until the next refresh). Each of the other cases makes the run INCOMPLETE (exit 3). A runner-unavailable instance leaves the other runners running instead of
 exiting 2 before any run, as the existing provider adapter does (STR-V0-8705). A plugin that
 deselects a test during collection too hides it from the inventory as well (NOT_PRODUCED: only an
 injected collection plugin could see it).
@@ -267,9 +277,9 @@ Delivered by ticket V1-5456 (build-logs `docs/build-log/2026-11-12-pytest-provid
 | PYR-V1-001 | `TestPYRV1001PyprojectRootIsListed`, `TestPYRV1001TwoRootdirsAreTwoInstances`, `TestTIVV1004PytestLister` (`internal/testinventory`); `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) |
 | PYR-V1-002 | `TestPYRV1002PytestFilesRunAtTierFile` (`internal/sessiontest`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`); watch NOT_PRODUCED |
 | PYR-V1-003 | `TestPYRV1002PytestFilesRunAtTierFile`, `TestPYRV1003PytestOnlyPlanIsNarrowed`, `TestPYRV1003MixedPlanRunsGoAndPytest` (`internal/sessiontest`); `TestRNCV1003PytestSelection` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`) |
-| PYR-V1-004 | `TestPYRV1004PytestJUnitReport`, `TestPTDV1002PytestJUnitTimes` (`internal/testrunner/contract`); `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun`, `TestPTDV1002PytestReceiptDurations` (`internal/sessiontest`) |
+| PYR-V1-004 | `TestPYRV1004PytestJUnitReport`, `TestPYRV1004PytestCrossModuleTestcases`, `TestPTDV1002PytestJUnitTimes` (`internal/testrunner/contract`); `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun`, `TestPTDV1002PytestReceiptDurations` (`internal/sessiontest`) |
 | PYR-V1-005 | `TestPYRV1005KindLabels` (`internal/testinventory`); the owner's kind declaration NOT_PRODUCED |
-| PYR-V1-006 | `TestPYRV1006RunnerTroubleFailsClosed` (plugin deselect under `-p no:terminal`, a file the inventory lists no test in), `TestRNCV1006OmittedInventoriedTestIsNotRun` (`internal/sessiontest`); `TestPYRV1006PytestJUnitRefusals`, `TestPYRV1006XdistMergedReport`, `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`, a changed test file fails closed) |
+| PYR-V1-006 | `TestPYRV1006RunnerTroubleFailsClosed` (plugin deselect under `-p no:terminal`, a changed file that reports no testcase or fails to collect), `TestPYRV1006EditedFileRunsWholeAndPasses`, `TestRNCV1006OmittedInventoriedTestIsNotRun` (`internal/sessiontest`); `TestPYRV1006PytestJUnitRefusals`, `TestPYRV1006XdistMergedReport`, `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`, a changed test file with a new test passes) |
 | PYR-V1-007 | `TestPYRV1007AdvisoryCommandNamesTheRunTests` (`cmd/corvint`) |
 | PYR-V1-008 | `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun` (`internal/sessiontest`); `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`) |
 | PYR-V1-009 | `TestPYRV1009KillSwitch`, `TestPYRV1009FallbacksNameTheirReason` (`internal/sessiontest`); `TestPYRV1009CLIKillSwitch` (`cmd/corvint`) |
