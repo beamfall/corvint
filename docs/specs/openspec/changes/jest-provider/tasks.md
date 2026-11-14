@@ -21,7 +21,8 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    Requirements: JST-V1-003. Proof: tests for escaping, anchoring and duplicate names.
    `TestJSTV1003NamePatternIsAnchoredAndEscaped`, `TestJSTV1003DuplicateNamesAreNotExact`. After the
    independent review a pattern is passed only when it is proven lossless (JST-V1-020,
-   `TestJSTV1003RootDescribeBlockWidensToTheFile`), and an over-long one widens to the files
+   `TestJSTV1003RootDescribeBlockWidensToTheFile`; static titles only, review P3-a,
+   `TestJSTV1003ComputedTitlesWidenToTheFile`), and an over-long one widens to the files
    (RNC-V1-016, `TestRNCV1016JestArgvLimitWidens`).
 - [x] 5 Add report reading with outcomes, durations and NOT_RUN.
    Requirements: JST-V1-004, JST-V1-005. Proof: report fixtures, including a missing test and an

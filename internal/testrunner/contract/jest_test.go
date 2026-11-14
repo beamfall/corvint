@@ -28,10 +28,45 @@ func plainSource(string) ([]byte, error) {
 }
 
 func jestRequest(root string, listed []string, tests ...string) Request {
+	setup := supportedJest(root + "/jest.config.js")
+	setup.Source = titledSource(append(slices.Clone(listed), tests...))
 	return Request{
 		Instance: Instance{Runner: testid.Jest, Root: root, Config: root + "/jest.config.js"},
 		Full:     []string{"npx", "jest"}, Report: "/private/r.json", Tier: TierLine,
-		Tests: tests, Listed: listed, Jest: supportedJest(root + "/jest.config.js"),
+		Tests: tests, Listed: listed, Jest: setup,
+	}
+}
+
+// titledSource reads each test file as nested describe blocks and tests
+// with static titles, one test per distinct test ID of ids in that file
+// (a duplicate suffix `#n` names no title of its own), so the -t filter of
+// a selection among them is provably lossless (JST-V1-003).
+func titledSource(ids []string) func(string) ([]byte, error) {
+	return func(rel string) ([]byte, error) {
+		var out strings.Builder
+		seen := map[string]bool{}
+		for _, text := range ids {
+			id, err := testid.Parse(text)
+			if err != nil || id.File != rel || id.IsFileLevel() {
+				continue
+			}
+			segments := id.Segments
+			if last := segments[len(segments)-1]; len(segments) > 1 && duplicateSuffix(last) {
+				segments = segments[:len(segments)-1]
+			}
+			if key := strings.Join(segments, "\x00"); !seen[key] {
+				seen[key] = true
+				for _, title := range segments[:len(segments)-1] {
+					out.WriteString("describe(" + strconv.Quote(title) + ", () => {\n")
+				}
+				out.WriteString("test(" + strconv.Quote(segments[len(segments)-1]) + ", () => {});\n")
+				out.WriteString(strings.Repeat("});\n", len(segments)-1))
+			}
+		}
+		if out.Len() == 0 {
+			return plainSource(rel)
+		}
+		return []byte(out.String()), nil
 	}
 }
 
@@ -365,5 +400,52 @@ func TestRNCV1016JestArgvLimitWidens(t *testing.T) {
 	}
 	if !ArgvFits([]string{"npx", strings.Repeat("x", MaxArgBytes)}) || ArgvFits([]string{strings.Repeat("x", MaxArgBytes+1)}) {
 		t.Fatal("ArgvFits per-argument bound")
+	}
+}
+
+// JST-V1-003 (review P3-a): a literal source grep for ROOT_DESCRIBE_BLOCK
+// missed a title the file computes. The -t filter is used only when every
+// describe and test title in the selected file is a static string literal
+// placed where the file shows its ancestors, and each selected test is one
+// of those title paths; otherwise the selection runs its whole file.
+func TestJSTV1003ComputedTitlesWidenToTheFile(t *testing.T) {
+	lossy := map[string]string{
+		"computed root title": "const name = 'ROOT_' + 'DESCRIBE_BLOCK';\ndescribe(name, () => {\n  test('fails', () => { throw new Error('x'); });\n});\n",
+		"concatenated title":  "describe('ROOT_' + 'DESCRIBE_BLOCK', () => {\n  test('fails', () => {});\n});\n",
+		"imported title":      "import { ROOT } from './titles';\ndescribe(ROOT, () => {\n  test('fails', () => {});\n});\n",
+		"template title":      "const r = 'ROOT';\ndescribe(`${r}_DESCRIBE_BLOCK`, () => {\n  test('fails', () => {});\n});\n",
+		"helper wrapper":      "import { wrap } from './wrap';\nwrap(() => {\n  test('fails', () => {});\n});\n",
+		"helper function":     "function body() {\n  test('fails', () => {});\n}\nmodule.exports = body;\n",
+		"each table":          "test.each([[1], [2]])('fails %i', () => {});\n",
+		"escaped title":       "test('fa\\u0069ls', () => {});\n",
+		"imported tests":      "import { shared } from './shared';\nshared();\ntest('own', () => {});\n",
+		"root title literal":  "describe('ROOT_DESCRIBE_BLOCK', () => test('fails', () => {}));\n",
+		"duplicate path":      "test('fails', () => {});\ntest('fails', () => {});\n",
+		"unterminated":        "test('fails', () => {\n",
+		"jsx apostrophe":      "test('fails', () => { render(<p>Don't</p>); });\n",
+	}
+	for name, source := range lossy {
+		request := jestRequest(".", []string{"jest:f.test.js::fails", "jest:f.test.js::other"}, "jest:f.test.js::fails")
+		request.Jest.Source = func(string) ([]byte, error) { return []byte(source), nil }
+		if got := command(t, request); slices.Contains(got.Argv, "-t") || got.Exact || got.Tier != TierFile || !strings.HasPrefix(got.Reason, "f.test.js") {
+			t.Errorf("%s: %+v, want the whole file", name, got)
+		}
+	}
+	// Static titles survive comments, strings, regular expressions and
+	// template substitutions in test bodies, modifiers and nesting.
+	static := "// describe(name, ...) in a comment\n/* test(x) */\nimport { add } from './add';\n" +
+		"describe('cart', () => {\n  beforeEach(() => { jest.resetModules(); });\n" +
+		"  it.only(\"adds item\", async () => {\n    expect(`${add(1, 2)} (x)`).toMatch(/^3 \\(x\\)$/);\n    const s = 'test(computed)';\n  });\n" +
+		"  describe(`totals`, function () {\n    test.skip('rounds (half-up)', () => { expect(1 / 2).toBe(0.5); });\n  });\n});\n" +
+		"test('top level', () => { const o = { test: 1 }.test; });\n"
+	paths, reason := jestTitlePaths([]byte(static))
+	want := [][]string{{"cart", "adds item"}, {"cart", "totals", "rounds (half-up)"}, {"top level"}}
+	if reason != "" || !reflect.DeepEqual(paths, want) {
+		t.Fatalf("static paths %q reason %q, want %q", paths, reason, want)
+	}
+	request := jestRequest(".", []string{"jest:f.test.js::cart::adds item", "jest:f.test.js::top level"}, "jest:f.test.js::cart::adds item")
+	request.Jest.Source = func(string) ([]byte, error) { return []byte(static), nil }
+	if got := command(t, request); pattern(t, got.Argv) != "^(?:cart adds item)$" || got.Tier != TierLine {
+		t.Fatalf("static: %+v", got)
 	}
 }
