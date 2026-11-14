@@ -86,7 +86,7 @@ func TestRNCV1005PytestReport(t *testing.T) {
 	want := []Result{
 		{ID: "pytest:svc/tests/test_a.py::TestA::test_x[1-2]", Outcome: OutcomePass, DurationMillis: 12, Granularity: testid.GranularityTest},
 		{ID: "pytest:svc/tests/test_a.py::test_y", Outcome: OutcomeFail, DurationMillis: 2, Granularity: testid.GranularityTest},
-		{ID: "pytest:svc/tests/test_a.py::test_z", Outcome: OutcomeSkip, Granularity: testid.GranularityTest},
+		{ID: "pytest:svc/tests/test_a.py::test_z", Outcome: OutcomeSkip, Granularity: testid.GranularityTest, DurationMissing: true},
 		{ID: "pytest:svc/tests/test_a.py::test_e", Outcome: OutcomeError, DurationMillis: 3, Granularity: testid.GranularityTest},
 		{ID: "pytest:svc/tests/test_broken.py", Outcome: OutcomeFail, Granularity: testid.GranularityFile},
 	}

@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -157,14 +158,14 @@ func jestShapeResults(runner string, request ParseRequest) ([]Result, error) {
 			if outcome == "" {
 				outcome = OutcomeError
 			}
-			duration := int64(0)
+			measure := testduration.Missing()
 			if assertion.Duration != nil {
-				duration = int64(*assertion.Duration + 0.5)
+				measure = testduration.FromMilliseconds(*assertion.Duration, testduration.SourceJest)
 			}
 			if outcome == OutcomeFail || outcome == OutcomeError {
 				fileFailed = true
 			}
-			results = append(results, Result{ID: id.String(), Outcome: outcome, DurationMillis: duration, Granularity: testid.GranularityTest})
+			results = append(results, Result{ID: id.String(), Outcome: outcome, Granularity: testid.GranularityTest}.timed(measure))
 		}
 		if file.Status == "failed" && !fileFailed {
 			id, err := testid.New(runner, rel)

@@ -70,7 +70,6 @@ func TestPYRV1006PytestJUnitRefusals(t *testing.T) {
 		"junitprefix":      `<testsuite><testcase classname="pre.tests.test_a" name="test_y" file="tests/test_a.py" time="0.1"/></testsuite>`,
 		"other root":       `<report><testcase classname="tests.test_a" name="test_y" file="tests/test_a.py"/></report>`,
 		"truncated":        `<testsuites><testsuite><testcase classname="tests.test_a" name="test_y" file="tests/test_a.py"`,
-		"negative time":    `<testsuite><testcase classname="tests.test_a" name="test_y" file="tests/test_a.py" time="-1"/></testsuite>`,
 		"escaping file":    `<testsuite><testcase classname="...x" name="test_y" file="../x.py" time="0"/></testsuite>`,
 		"not a json shape": `{"tests": 3}`,
 	} {
@@ -140,5 +139,31 @@ func TestPYRV1006PytestOutputSignals(t *testing.T) {
 		if got, ok := PytestDeselected(line); got != want || ok != (want != 0) {
 			t.Errorf("%q: %d %v, want %d", line, got, ok, want)
 		}
+	}
+}
+
+// PTD-V1-002, PTD-V1-003, PTD-V1-007: a JUnit testcase time is read in
+// seconds; an absent one is not measured and one that is negative or not a
+// number is invalid, each kept as a result rather than refusing the report.
+func TestPTDV1002PytestJUnitTimes(t *testing.T) {
+	r, _ := For(testid.Pytest)
+	report := `<testsuites><testsuite name="pytest">
+<testcase classname="tests.test_a" name="test_timed" file="tests/test_a.py" time="0.250"/>
+<testcase classname="tests.test_a" name="test_untimed" file="tests/test_a.py"/>
+<testcase classname="tests.test_a" name="test_negative" file="tests/test_a.py" time="-1"/>
+<testcase classname="tests.test_a" name="test_text" file="tests/test_a.py" time="soon"/>
+</testsuite></testsuites>`
+	results, err := r.Parse(ParseRequest{Instance: Instance{Runner: testid.Pytest, Root: "."}, Report: []byte(report)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Result{
+		{ID: "pytest:tests/test_a.py::test_timed", Outcome: OutcomePass, RunnerOutcome: PytestPassed, DurationMillis: 250, Granularity: testid.GranularityTest},
+		{ID: "pytest:tests/test_a.py::test_untimed", Outcome: OutcomePass, RunnerOutcome: PytestPassed, Granularity: testid.GranularityTest, DurationMissing: true},
+		{ID: "pytest:tests/test_a.py::test_negative", Outcome: OutcomePass, RunnerOutcome: PytestPassed, Granularity: testid.GranularityTest, DurationInvalid: true},
+		{ID: "pytest:tests/test_a.py::test_text", Outcome: OutcomePass, RunnerOutcome: PytestPassed, Granularity: testid.GranularityTest, DurationInvalid: true},
+	}
+	if !slices.Equal(results, want) {
+		t.Fatalf("results\n got %+v\nwant %+v", results, want)
 	}
 }

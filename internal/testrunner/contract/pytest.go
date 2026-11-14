@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -240,13 +241,11 @@ func pytestJUnitResult(root string, test junitCase) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("pytest junit report: testcase %q: %w", test.Name, err)
 	}
-	seconds := 0.0
-	if test.Time != "" {
-		if seconds, err = strconv.ParseFloat(test.Time, 64); err != nil || seconds < 0 {
-			return Result{}, fmt.Errorf("pytest junit report: testcase %q time %q is not a duration", test.Name, test.Time)
-		}
-	}
-	return Result{ID: id.String(), Outcome: outcome, DurationMillis: millis(seconds), Granularity: testid.GranularityTest, RunnerOutcome: native}, nil
+	// PTD-V1-002, PTD-V1-003, PTD-V1-007: the testcase time attribute in
+	// seconds; absent is not measured, and one that is not a valid duration
+	// is invalid, never a refusal of the report.
+	measure := testduration.FromSecondsText(test.Time, testduration.SourcePytest)
+	return Result{ID: id.String(), Outcome: outcome, Granularity: testid.GranularityTest, RunnerOutcome: native}.timed(measure), nil
 }
 
 // parsePytestJSON reads the pytest-json-report report: each test's outcome
@@ -288,13 +287,18 @@ func parsePytestJSON(request ParseRequest) ([]Result, error) {
 			outcome = OutcomeError
 		}
 		failed = failed || outcome == OutcomeFail || outcome == OutcomeError
-		seconds := 0.0
+		seconds, phases := 0.0, 0
 		for _, p := range []*phase{test.Setup, test.Call, test.Teardown} {
 			if p != nil {
 				seconds += p.Duration
+				phases++
 			}
 		}
-		results = append(results, Result{ID: id.String(), Outcome: outcome, DurationMillis: millis(seconds), Granularity: testid.GranularityTest})
+		measure := testduration.Missing()
+		if phases != 0 {
+			measure = testduration.FromSeconds(seconds, testduration.SourcePytest)
+		}
+		results = append(results, Result{ID: id.String(), Outcome: outcome, Granularity: testid.GranularityTest}.timed(measure))
 	}
 	for _, collector := range report.Collectors {
 		if collector.Outcome != "failed" || collector.NodeID == "" || strings.Contains(collector.NodeID, "::") {
