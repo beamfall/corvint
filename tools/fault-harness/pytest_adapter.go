@@ -45,7 +45,9 @@ func pytestSelection(entries []planEntry) ([]string, error) {
 			continue
 		}
 		for _, name := range e.Run {
-			id, err := testid.New(testid.Pytest, file.File, strings.Split(name, "::")...)
+			// The node ID's own parser keeps a `::` inside a parameter id
+			// (`test_x[a::b]`) in one segment, as pytest's report does.
+			id, err := testid.PytestNodeID(pytestInstance.Root, file.File+"::"+name)
 			if err != nil {
 				return nil, fmt.Errorf("unit %s: unsupported test name %q: %w", e.Unit, name, err)
 			}
