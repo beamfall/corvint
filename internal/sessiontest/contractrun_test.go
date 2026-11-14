@@ -62,7 +62,11 @@ func TestRNCV1019ContractUnitsPlanTheSelectedFiles(t *testing.T) {
 			t.Fatalf("RNC-V1-007 kind of %s: %q %q", unit.Unit, unit.Kind, unit.KindSource)
 		}
 	}
-	planned := Invocations(m, input.Declared, 0, t.TempDir(), "")
+	// JST-V1-008: Jest narrows only in a setup it can read, here Jest 29
+	// with no config file.
+	root := t.TempDir()
+	writeJestInstall(t, root, "29.7.0")
+	planned := Invocations(m, input.Declared, 0, root, "")
 	if len(planned) != 4 {
 		t.Fatalf("invocations %#v", planned)
 	}
@@ -71,7 +75,7 @@ func TestRNCV1019ContractUnitsPlanTheSelectedFiles(t *testing.T) {
 		!slices.Equal(jest.Argv, []string{"npx", "jest", "--json", "--outputFile=" + ContractReportPlaceholder, "--runTestsByPath", "src/a.test.js"}) {
 		t.Fatalf("jest invocation %#v", jest)
 	}
-	if pytest.Dir != "services/a" || !slices.Equal(pytest.Argv, []string{"python", "-m", "pytest", "--json-report", "--json-report-file=" + ContractReportPlaceholder, "tests/test_calc.py"}) {
+	if pytest.Dir != "services/a" || !slices.Equal(pytest.Argv, append(append([]string{"python", "-m", "pytest"}, contract.PytestReportArgs(ContractReportPlaceholder)...), "tests/test_calc.py")) {
 		t.Fatalf("pytest invocation %#v", pytest)
 	}
 	if runnerKey(pytest) != "contract ./services/a python" || runnerKey(jest) != "contract npx" {

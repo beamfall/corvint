@@ -280,8 +280,9 @@ compiled-in runner contract that runs a named test set at a commit and returns a
 
 Delivery: partly delivered: the compiled-in contract (`Adapter`: run a named test set in a tree,
 return per-test outcomes) and the `runner-adapter-missing` refusal for any runner without an
-adapter. Only the Go adapter exists; the other six adapters are task 6 and not yet built. Test:
-`TestAdapterContract_FIH_V1_008`.
+adapter. The Go adapter and the pytest adapter (PYR-V1-010, V1-5456) exist; the other five adapters
+are task 6 and not yet built. Tests: `TestAdapterContract_FIH_V1_008`,
+`TestPYRV1010PytestHarnessAdapter`.
 
 - `FIH-V1-009`: (accepted automatically under G14, decision 0596; V1-5405) Pinned and reproducible
 
@@ -463,7 +464,7 @@ proven` until it does. Test: `TestVerdictGranularity_FIH_V1_015`.
 | FIH-V1-005 | 3 | `tools/fault-harness/run.go`, `adapter.go`, `exec.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoOutcomesFailClosed_FIH_V1_005`, `TestFaultedRunStopped_FIH_V1_005_014`, `TestStopError_FIH_V1_005`, `TestCloneStopped_FIH_V1_005_008_014` |
 | FIH-V1-006 | 3 | `tools/fault-harness/run.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoParityWithOracle_FIH_V1_011` |
 | FIH-V1-007 | 7 | `tools/fault-harness/verdict.go`, `cmds.go`, `seal.go` | `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictCommand_FIH_V1_007`, `TestVerdictBoundToSeal_FIH_V1_002_007_014`, `TestRunSealedSet_FIH_V1_004_005_006` |
-| FIH-V1-008 | 6 | `tools/fault-harness/adapter.go` (Go adapter only) | `TestAdapterContract_FIH_V1_008`, `TestCloneStopped_FIH_V1_005_008_014`; six adapters not yet built |
+| FIH-V1-008 | 6 | `tools/fault-harness/adapter.go` (Go), `tools/fault-harness/pytest_adapter.go` (pytest, PYR-V1-010) | `TestAdapterContract_FIH_V1_008`, `TestCloneStopped_FIH_V1_005_008_014`, `TestPYRV1010PytestHarnessAdapter`; five adapters not yet built |
 | FIH-V1-009 | 6 | not yet built | not yet built |
 | FIH-V1-010 | 6 | not yet built | not yet built |
 | FIH-V1-011 | 3 | `tools/fault-harness/aeo.go`, `main.go` | `TestGoParityWithOracle_FIH_V1_011` |

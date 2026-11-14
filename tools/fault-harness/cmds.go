@@ -248,6 +248,7 @@ func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 	clones := fs.String("clones", "", "existing private clone parent; each case is removed after execution")
 	binary := fs.String("corvint", "corvint", "planner binary path or PATH name")
 	goTest := fs.String("go-test", "go test", "space-separated argv prefix that runs `go test`")
+	pytest := fs.String("pytest", "python -m pytest", "space-separated argv prefix that runs pytest (the pytest adapter, PYR-V1-010)")
 	timeout := fs.Duration("timeout", 30*time.Minute, "wall bound per adapter command")
 	out := fs.String("out", "", "write the results JSON (default stdout)")
 	recordPath := fs.String("record", "", "write the run record ("+runRecordProfile+") holding the results' SHA-256")
@@ -265,7 +266,7 @@ func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 	if err != nil {
 		return refused(w, err)
 	}
-	adapter, err := adapterFor(p.Runner, adapterOptions{GoTest: strings.Fields(*goTest), Timeout: *timeout})
+	adapter, err := adapterFor(p.Runner, adapterOptions{GoTest: strings.Fields(*goTest), Pytest: strings.Fields(*pytest), Timeout: *timeout})
 	if err != nil {
 		return refused(w, err)
 	}
