@@ -5,12 +5,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/testid"
 )
 
 // namedByFixture reports whether the fixture lister names file: it holds a
@@ -42,6 +44,10 @@ func listedInventory(t *testing.T, tree MapTree) string {
 		if instance.Pattern == "" {
 			bound = Candidates(files, instance, declared)
 		}
+		if instance.Runner == testid.Pytest {
+			// listInstance binds every conftest.py under the rootdir.
+			bound = append(bound, conftests(files, instance.Root)...)
+		}
 		for name, content := range tree {
 			if name != Path && under(instance.Root, name) && namedByFixture(content) && !slices.Contains(bound, name) {
 				bound = append(bound, name)
@@ -50,7 +56,9 @@ func listedInventory(t *testing.T, tree MapTree) string {
 		slices.Sort(bound)
 		for _, name := range bound {
 			record.Files = append(record.Files, File{Path: name, Blob: files[name]})
-			record.Tests = append(record.Tests, Test{ID: instance.Runner + ":" + name, File: name, Reason: "test-id-unmapped"})
+			if path.Base(name) != "conftest.py" {
+				record.Tests = append(record.Tests, Test{ID: instance.Runner + ":" + name, File: name, Reason: "test-id-unmapped"})
+			}
 		}
 		inventory.Instances = append(inventory.Instances, record)
 	}
@@ -668,5 +676,48 @@ func TestTIVV1005UnprovenRecordHoldsOnlyListedFiles(t *testing.T) {
 	verdict := JudgeData(data, true, nil, files, declared)
 	if instance := verdict.Instances[0]; instance.Full || len(instance.Unassigned) != generated || instance.Tests != 1 {
 		t.Fatalf("verdict full=%v unassigned=%d tests=%d", instance.Full, len(instance.Unassigned), instance.Tests)
+	}
+}
+
+// TIV-V1-008, PYR-V1-001 (review P3-b): pytest loads every conftest.py on a
+// test file's directory path up to the rootdir, so a refresh binds each
+// conftest.py, and one that changed, appeared or went since refresh makes
+// every test file beneath it unassigned, while a test file outside it stays
+// planned from the record.
+func TestPYRV1001ConftestChangeMakesTestFilesStale(t *testing.T) {
+	fresh := MapTree{
+		"pyproject.toml":         "[project]\nname = 'x'\n\n[tool.pytest.ini_options]\naddopts = \"-q\"\n",
+		"tests/conftest.py":      "import pytest\n\n@pytest.fixture\ndef value():\n    return 1\n",
+		"tests/test_a.py":        "def test_a(value): pass\n",
+		"tests/unit/test_b.py":   "def test_b(value): pass\n",
+		"other/test_c.py":        "def test_c(): pass\n",
+		"other/deeper/helper.py": "X = 1\n",
+	}
+	tree := func(edit func(MapTree)) MapTree {
+		out := MapTree{}
+		for name, content := range fresh {
+			out[name] = content
+		}
+		out[Path] = listedInventory(t, out)
+		edit(out)
+		return out
+	}
+	if instance := judgedInstance(t, Judge(tree(func(MapTree) {})), "pytest@."); instance.Full || len(instance.Unassigned) != 0 || instance.Tests != 3 {
+		t.Fatalf("fresh tree: %+v", instance)
+	}
+	for name, test := range map[string]struct {
+		edit func(MapTree)
+		want []string
+	}{
+		"parent conftest changed": {func(tree MapTree) { tree["tests/conftest.py"] += "\n@pytest.fixture\ndef other():\n    return 2\n" }, []string{"tests/test_a.py", "tests/unit/test_b.py"}},
+		"nearer conftest added":   {func(tree MapTree) { tree["tests/unit/conftest.py"] = "collect_ignore = ['test_b.py']\n" }, []string{"tests/unit/test_b.py"}},
+		"root conftest added":     {func(tree MapTree) { tree["conftest.py"] = "import pytest\n\n@pytest.fixture\ndef root():\n    return 0\n" }, []string{"other/test_c.py", "tests/test_a.py", "tests/unit/test_b.py"}},
+		"parent conftest removed": {func(tree MapTree) { delete(tree, "tests/conftest.py") }, []string{"tests/test_a.py", "tests/unit/test_b.py"}},
+		"unrelated helper edited": {func(tree MapTree) { tree["other/deeper/helper.py"] = "X = 2\n" }, nil},
+	} {
+		instance := judgedInstance(t, Judge(tree(test.edit)), "pytest@.")
+		if instance.Full || !slices.Equal(instance.Unassigned, test.want) {
+			t.Errorf("%s: %+v, want unassigned %q", name, instance, test.want)
+		}
 	}
 }

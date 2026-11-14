@@ -125,6 +125,11 @@ func listInstance(ctx context.Context, input listInput, instance Declared) (Inst
 	if instance.Pattern == "" {
 		bound = append(append([]string{}, candidates...), result.sources...)
 	}
+	if instance.Runner == testid.Pytest {
+		// PYR-V1-001, review P3-b: every conftest.py under the rootdir is
+		// bound too, as a test file's staleness input (judgeInstance).
+		bound = append(bound, conftests(input.Files, instance.Root)...)
+	}
 	seen := map[string]bool{}
 	for _, name := range bound {
 		if seen[name] {

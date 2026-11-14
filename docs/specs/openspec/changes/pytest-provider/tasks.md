@@ -12,6 +12,8 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
    `test-inventory` already collects per rootdir; `TestPYRV1001PyprojectRootIsListed` and
    `TestPYRV1001TwoRootdirsAreTwoInstances` (`internal/testinventory`) prove both scenarios, and
    `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) proves affected runs none.
+   Version 3 binds each `conftest.py` as its test files' staleness input
+   (`TestPYRV1001ConftestChangeMakesTestFilesStale`, review P3-b).
 - [x] 4 Wire the compiled-in pytest runner into `corvint test` at tier `file`; per-test outcomes and
    durations keyed by canonical ID. Requirements: PYR-V1-002, 003, 004. Proof: mixed-plan and
    failing-test fixtures: `TestPYRV1002PytestFilesRunAtTierFile`, `TestPYRV1003PytestOnlyPlanIsNarrowed`,
