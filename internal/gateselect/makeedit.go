@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,6 +82,9 @@ func makeEditAttribution(plan Receipt, index *repositoryIndex, root, p string) (
 	if reach.Reason != "" {
 		return nil, nil, reach.Reason
 	}
+	if missing := index.missingSelector(reach.Selectors); missing != "" {
+		return nil, nil, "a changed make target runs Go package " + strconv.QuoteToASCII(missing) + ", which names no package of the repository"
+	}
 	selections := []makeSelection{{kind: "make", directories: index.runPackages(reach.Paths), cause: p}}
 	for _, workflow := range reach.Workflows {
 		selections = append(selections, makeSelection{kind: "make-ci", directories: index.readers(workflow), cause: workflow})
@@ -134,6 +138,61 @@ func baseMakeFile(root, commit, p string) ([]byte, string) {
 		return nil, "the make file at the base cannot be read"
 	}
 	return body, ""
+}
+
+// missingSelector is the first go package selector of selectors that names
+// no indexed package, or "" when there is none (NCM-V1-013, V1-5552). The
+// driver scans a nested make file's text from its own directory and from the
+// root, one set each, and the text runs from one of them, so a set whose
+// every selector names a package accounts for the text; runPackages would
+// otherwise drop a misread selector, such as `--/b` for `cd -- tool && go
+// test ./b`, without a word, and leave the package it meant unselected.
+func (index *repositoryIndex) missingSelector(selectors []affected.MakeSelectors) string {
+	for _, group := range selectors {
+		missing := ""
+		for _, pass := range group {
+			unnamed := ""
+			for _, selector := range pass {
+				if !index.namesPackage(selector) {
+					unnamed = selector
+					break
+				}
+			}
+			if unnamed == "" {
+				missing = ""
+				break
+			}
+			if missing == "" {
+				missing = unnamed
+			}
+		}
+		if missing != "" {
+			return missing
+		}
+	}
+	return ""
+}
+
+// namesPackage reports whether a driver selector names an indexed package:
+// a `/...` pattern one at or below its directory, a `.go` file one in its
+// directory, and a directory its own.
+func (index *repositoryIndex) namesPackage(selector string) bool {
+	if prefix, pattern := strings.CutSuffix(selector, "/..."); pattern {
+		for directory := range index.packages {
+			if directory != "" && (directory == prefix || strings.HasPrefix(directory, prefix+"/")) {
+				return true
+			}
+		}
+		return false
+	}
+	if strings.HasSuffix(selector, ".go") {
+		parent := path.Dir(selector)
+		if parent == "." {
+			parent = ""
+		}
+		return index.packages[parent] != nil
+	}
+	return index.packages[selector] != nil
 }
 
 // runPackages are the indexed package directories that the given paths name:
