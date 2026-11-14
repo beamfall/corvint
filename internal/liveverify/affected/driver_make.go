@@ -40,6 +40,27 @@ type driverMakeFile struct {
 	statements  []string
 	statementAt []int
 	includeAt   []int
+	// plain holds, for each top-level assignment with no modifier (no
+	// export, override, private or unexport) outside every conditional and
+	// define block, its index in remainder and its variable's name. A make
+	// edit is attributed variable by variable through them (NCM-V1-011);
+	// every other remainder line is compared as text.
+	plain []driverMakePlain
+	// headers holds, for each explicit rule line, its index in remainder
+	// (the number of remainder lines before it) and its targets. A make
+	// edit compares the file's ordered statements through them, since make
+	// expands immediate values and prerequisites where it reads them
+	// (NCM-V1-018).
+	headers []driverMakePlain
+	// depth is the conditional nesting where the parser stands.
+	depth int
+}
+
+// driverMakePlain is one plain assignment line of remainder, or one
+// explicit rule line placed among them.
+type driverMakePlain struct {
+	at   int
+	name string
 }
 
 // driverMakeEvent is one assignment or conditional line of a make file.
@@ -77,6 +98,11 @@ type driverMakeRule struct {
 	prereqAt []int
 	recipe   []string
 	block    []string
+	// conditional marks a rule any line of which sits inside a conditional,
+	// and doubleColon a `::` rule: an edit of either is not attributed to
+	// the rule (NCM-V1-012).
+	conditional bool
+	doubleColon bool
 }
 
 // driverMakeName reports a base name GNU make reads as a make file.
@@ -239,6 +265,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 			for _, rule := range current {
 				rule.recipe = append(rule.recipe, recipe)
 				rule.block = append(rule.block, line)
+				rule.conditional = rule.conditional || conditional > 0
 			}
 			continue
 		}
@@ -252,7 +279,10 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 		}
 		first, rest := driverMakeFirst(trimmed)
 		rest = strings.TrimSpace(rest)
+		parsed.depth = conditional
+		modified := false
 		for first == "export" || first == "override" || first == "private" || first == "unexport" {
+			modified = true
 			if first == "export" && !parsed.exportCertified(rest) {
 				parsed.unmodeledExports = true
 			}
@@ -323,6 +353,9 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 		}
 		if assignment, name, value := driverMakeAssignment(statement, operator); assignment {
 			endRule()
+			if name != "" && conditional == 0 && !modified {
+				parsed.plain = append(parsed.plain, driverMakePlain{at: len(parsed.remainder), name: name})
+			}
 			parsed.remainder = append(parsed.remainder, trimmed)
 			event := driverMakeAssignmentEvent(statement, operator, name, value, false)
 			if name != "" {
@@ -818,6 +851,7 @@ var driverMakeSpecials = map[string]bool{
 func (parsed *driverMakeFile) rule(statement string, colon int, line string, current *[]*driverMakeRule, inRemainderRule *bool) bool {
 	targetText := strings.TrimSuffix(strings.TrimSpace(statement[:colon]), "&")
 	after := statement[colon+1:]
+	doubleColon := strings.HasPrefix(after, ":")
 	after = strings.TrimPrefix(after, ":")
 	recipe := ""
 	if parts := driverMakeSplitTop(after, ';', 2); len(parts) == 2 {
@@ -862,6 +896,7 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 		}
 		return true
 	}
+	parsed.headers = append(parsed.headers, driverMakePlain{at: len(parsed.remainder), name: strings.Join(targets, " ")})
 	rules := make([]*driverMakeRule, 0, len(targets))
 	for _, target := range targets {
 		rule, present := parsed.rules[target]
@@ -874,6 +909,8 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 			}
 		}
 		rule.block = append(rule.block, line)
+		rule.conditional = rule.conditional || parsed.depth > 0
+		rule.doubleColon = rule.doubleColon || doubleColon
 		if targetSpecific {
 			statement := strings.TrimSpace(after)
 			for {

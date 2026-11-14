@@ -1225,13 +1225,14 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
+        "Otherwise, in the local profile, a selected Vitest, Jest, Playwright, pytest or RSpec test file of a language the file declares no command for runs through the compiled-in runner contract (adapter \"contract\", RNC-V1-019): the instance's full command narrowed to the selected files, run from the instance root, which writes its machine report to a private file; the receipt records the instance, tier, exact flag and one outcome and duration per canonical test ID, and a selected test the report does not answer is NOT_RUN (exit 3).",
         "It writes only stdout.",
         "record digests each package a run passed (first-run outcomes of corvint-ci-outcomes/0 documents of HEAD, or a go test -json stream) and writes a corvint-test-reuse-record/0 file to --out.",
         "decide digests the packages of HEAD (--packages, default go list ./...) and prints a corvint-test-reuse-decision/0: REUSE only when an admitted record (--trust, default local,main; pull_request needs --pull-request N) passed the package under the same identity with the same digest; --run-list writes the packages still to run.",
         "It writes only the named files; exit 3 when no record or decision can be produced.",
         "--manifest PATH writes the same corvint-test-manifest/0 in every form.",
         "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json) and appends its bytes as one record of the private run evidence store <git-dir>/corvint/evidence, which flows status and test-evidence read; a failed append prints run-evidence-write-failed and keeps the exit status.",
-        "Planning reads the committed test inventory (.corvint/test-inventory.json) at HEAD and prints one \"corvint-test: INVENTORY STATE reasons=...\" line on stderr (an \"inventory:\" summary line, or the dry-run JSON \"inventory\" member); it never narrows the plan and never writes the inventory (TIV-V1-002)."
+        "Planning reads the committed test inventory (.corvint/test-inventory.json) at HEAD and prints one \"corvint-test: INVENTORY STATE reasons=...\" line on stderr (an \"inventory:\" summary line, or the dry-run JSON \"inventory\" member); it never narrows the plan, only sends an instance it cannot vouch for to its full command, and never writes the inventory (TIV-V1-002)."
       ],
       "unknowns": [
         {

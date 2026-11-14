@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gateselect"
+	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
@@ -120,7 +121,8 @@ func decideUnknown(entry Unknown, attribution, profile string) unknownAction {
 var tierRank = map[string]int{contract.TierLine: 0, contract.TierFile: 1, contract.TierFlow: 2, contract.TierFull: 3}
 
 // How `corvint test` runs one plan.selected unit: a Go package, a declared
-// consumer's own argv, a declared provider (STR-V0-8702), its language's
+// consumer's own argv, a declared provider (STR-V0-8702), the runner
+// contract in the files' owning instances (RNC-V1-019), its language's
 // declared full command (STR-V0-004), or not at all (a make target or CI
 // job, AZU-V0-001).
 const (
@@ -128,18 +130,19 @@ const (
 	runGo
 	runConsumer
 	runProvider
+	runContract
 	runLanguage
 )
 
 // selectedRun is how `corvint test` runs the selected unit id, and the
 // language it names; Build places each unit by it and the verdict's runner
 // tiers read it, so a tier describes the execution that happens.
-func selectedRun(declared Declared, profile, id string) (int, string) {
+func selectedRun(input Input, id string) (int, string) {
 	language, _, ok := strings.Cut(id, ":")
 	switch {
 	case strings.HasPrefix(id, "declared-consumer:"):
 		return runConsumer, ""
-	case profile != ProfileCI && providerUnit(declared, id):
+	case input.RunnerProfile != ProfileCI && providerUnit(input.Declared, id):
 		// The ci profile runs only Go (STR-V0-012), so there the unit names
 		// its language's declared command as a check instead.
 		return runProvider, language
@@ -147,6 +150,9 @@ func selectedRun(declared Declared, profile, id string) (int, string) {
 		return runNone, ""
 	case language == "go":
 		return runGo, language
+	}
+	if _, ok := contractTests(input, id); ok {
+		return runContract, language
 	}
 	return runLanguage, language
 }
@@ -156,13 +162,23 @@ func selectedRun(declared Declared, profile, id string) (int, string) {
 // Playwright provider runs the selected files' tests, flow; a Vitest
 // provider runs the whole suite of its declared directory, a superset of
 // the selected files (providerInvocations), and a language's declared full
-// command runs that language's whole suite, so both are full. A unit no
-// runner runs has no tier.
-func selectedTier(declared Declared, profile, id string, lineNarrowed bool) (string, string) {
-	kind, language := selectedRun(declared, profile, id)
+// command runs that language's whole suite, so both are full. A contract
+// run runs the selected files in their owning instances, file, unless the
+// instance runs its full command (contractFull). A unit no runner runs has
+// no tier.
+func selectedTier(input Input, id string) (string, string) {
+	kind, language := selectedRun(input, id)
 	switch kind {
+	case runContract:
+		tests, _ := contractTests(input, id)
+		for _, test := range tests {
+			if contractFull(input, test.instance) {
+				return language, contract.TierFull
+			}
+		}
+		return language, contract.TierFile
 	case runGo:
-		if lineNarrowed {
+		if len(input.LineUnits) != 0 {
 			return language, contract.TierLine
 		}
 		return language, contract.TierFile
@@ -175,6 +191,14 @@ func selectedTier(declared Declared, profile, id string, lineNarrowed bool) (str
 		return language, contract.TierFull
 	}
 	return "", ""
+}
+
+// contractFull reports whether Build runs instance's full command instead of
+// contract selections in a narrowed plan: the kill switch names its runner
+// (RNC-V1-008), or its inventory record is absent, stale or unreadable
+// (RNC-V1-002, RNC-V1-019).
+func contractFull(input Input, instance contract.Instance) bool {
+	return input.KillSwitch.Full(instance.Runner) || input.FullInstances[instance.Key()] != ""
 }
 
 // scopeDecision is the complete scope decision for one plan, the one Build
@@ -198,9 +222,9 @@ func decideEntries(unknown []Unknown, attribution, profile string) []unknownActi
 
 // decideScope is the scope decision `corvint test` runs by. FULL, in order
 // of precedence: no plan or no readable declaration (only the declared full
-// scope runs); a runner the inventory or declaration names but the tree no
-// longer declares (RNC-V1-004); the Go selector's fallback or a missing
-// verdict (AFP-V0-012); the first plan.unknown entry that forces full; and a
+// scope runs); the `full` kill switch (RNC-V1-008); a runner the inventory
+// or declaration names but the tree no longer declares (RNC-V1-004); the Go
+// selector's fallback or a missing verdict (AFP-V0-012); the first plan.unknown entry that forces full; and a
 // selected package outside the Go universe.
 func decideScope(input Input) scopeDecision {
 	decision := scopeDecision{actions: decideEntries(input.Unknown, attributionOf(input.GoSelection, input.Universe), input.RunnerProfile)}
@@ -225,6 +249,10 @@ func decideScope(input Input) scopeDecision {
 		// RNC-V1-004, owner decision R32: a removed runner runs every test.
 		decision.full = ReasonRunnerRemoved + ": " + strings.Join(input.Removed, ", ") + " is named by the inventory or " + CommandsPath + " but no longer declared, so every test runs"
 	}
+	if input.KillSwitch.All {
+		// RNC-V1-008: `full` makes every runner run its full command.
+		decision.full = input.KillSwitch.Describe()
+	}
 	for _, action := range decision.actions {
 		if decision.full == "" && action.suite == "" && action.module == "" && action.check == "" {
 			decision.full = action.full
@@ -244,11 +272,13 @@ func decideScope(input Input) scopeDecision {
 
 // verdict reports the decision (SLF-V1-007). Its scope is full exactly when
 // the decision has a FULL reason, and then every named runner's tier is
-// full; otherwise a runner whose suite an entry adds is full and every other
-// runner has the tier of the execution its selections get (selectedTier),
-// the least narrow winning. An entry's hint is the plan's when it has one
-// and the effect's otherwise, so it is never empty.
-func (decision scopeDecision) verdict(unknown []Unknown, selected []string, declared Declared, profile string, lineNarrowed bool) SelectionVerdict {
+// full; otherwise a runner whose suite an entry adds is full, a runner the
+// kill switch names or with an instance whose inventory record is not
+// current runs its full command, so is full (RNC-V1-008, RNC-V1-019), and
+// every other runner has the tier of the execution its selections get
+// (selectedTier), the least narrow winning. An entry's hint is the plan's
+// when it has one and the effect's otherwise, so it is never empty.
+func (decision scopeDecision) verdict(input Input) SelectionVerdict {
 	verdict := SelectionVerdict{Scope: VerdictNarrowed, Unknown: []EffectEntry{}, Runners: []RunnerVerdict{}}
 	if decision.full != "" {
 		verdict.Scope, verdict.Reason = VerdictFull, decision.full
@@ -259,7 +289,7 @@ func (decision scopeDecision) verdict(unknown []Unknown, selected []string, decl
 			tiers[runner] = tier
 		}
 	}
-	for index, entry := range unknown {
+	for index, entry := range input.Unknown {
 		action := decision.actions[index]
 		hint := strings.TrimSpace(entry.Hint)
 		if hint == "" {
@@ -273,9 +303,33 @@ func (decision scopeDecision) verdict(unknown []Unknown, selected []string, decl
 			raise("go", contract.TierFull)
 		}
 	}
-	for _, id := range selected {
-		if runner, tier := selectedTier(declared, profile, id, lineNarrowed); runner != "" {
+	for _, id := range input.Selected {
+		if runner, tier := selectedTier(input, id); runner != "" {
 			raise(runner, tier)
+		}
+	}
+	if input.KillSwitch.Full(testid.Go) && (len(input.Universe) != 0 || goSuite(input)) {
+		// RNC-V1-008: the Go kill switch runs the whole root universe, or
+		// the declared Go suite, and every nested module.
+		raise("go", contract.TierFull)
+	}
+	for _, instance := range input.Instances {
+		language, ok := runnerLanguages[instance.Runner]
+		switch {
+		case instance.Runner == testid.Go:
+			if input.KillSwitch.Full(testid.Go) && instance.Root != "." && input.RunnerProfile != ProfileCI {
+				// RNC-V1-008: a nested module's own suite runs whole.
+				raise("go", contract.TierFull)
+			}
+		case !ok:
+		case input.KillSwitch.Full(instance.Runner):
+			// RNC-V1-008: its declared language command or declared:<instance>.
+			raise(language, contract.TierFull)
+		case input.RunnerProfile != ProfileCI && contractRunners[instance.Runner] && input.FullInstances[instance.Key()] != "":
+			if _, declared := input.Declared.Command(language); !declared {
+				// RNC-V1-019, TIV-V1-006: declared:<instance> runs whole.
+				raise(language, contract.TierFull)
+			}
 		}
 	}
 	for _, runner := range slices.Sorted(maps.Keys(tiers)) {
@@ -306,7 +360,7 @@ func attributionOf(goSelection string, universe []string) string {
 // surface fills the Input from the plan the same way; one with no AFP-V0-012
 // Go verdict is FULL, the fail-closed reading.
 func (input Input) SelectionVerdict() SelectionVerdict {
-	return decideScope(input).verdict(input.Unknown, input.Selected, input.Declared, input.RunnerProfile, len(input.LineUnits) != 0)
+	return decideScope(input).verdict(input)
 }
 
 // EffectCounts counts the verdict's entries by effect, sorted by effect, as

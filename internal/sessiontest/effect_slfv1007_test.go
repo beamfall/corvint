@@ -6,7 +6,20 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testrunner/contract"
+	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
 )
+
+// slfv1007Switch parses one CORVINT_SELECTION value.
+func slfv1007Switch(t *testing.T, value string) killswitch.Switch {
+	t.Helper()
+	parsed, err := killswitch.Parse(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return parsed
+}
 
 // SLF-V1-007: one function maps each plan.unknown entry to one effect
 // (ignored, adds-suite:<runner> or forces-full) under the allowlist corvint
@@ -140,7 +153,8 @@ func TestSelectionVerdictRunnerTiers_SLFV1007(t *testing.T) {
 
 // SLF-V1-007: corvint test's verdict comes from the scope decision Build
 // applies, so every FULL cause that is not a plan.unknown entry, a removed
-// runner, no plan, an unreadable declaration and the Go selector's fallback,
+// runner, the `full` kill switch (RNC-V1-008), no plan, an unreadable
+// declaration and the Go selector's fallback,
 // gives the full verdict with Build's own FULL reason, and a narrowed Build
 // gives the narrowed verdict.
 func TestSelectionVerdictFullCausesMatchBuild_SLFV1007(t *testing.T) {
@@ -151,6 +165,11 @@ func TestSelectionVerdictFullCausesMatchBuild_SLFV1007(t *testing.T) {
 	}{
 		{"narrowed", func(*Input) {}, VerdictNarrowed},
 		{"runner removed", func(input *Input) { input.Removed = []string{"jest@."} }, VerdictFull},
+		{"kill switch full", func(input *Input) { input.KillSwitch = slfv1007Switch(t, "full") }, VerdictFull},
+		{"kill switch full after a removed runner", func(input *Input) {
+			input.Removed, input.KillSwitch = []string{"jest@."}, slfv1007Switch(t, "full")
+		}, VerdictFull},
+		{"kill switch for one runner stays narrowed", func(input *Input) { input.KillSwitch = slfv1007Switch(t, "full:pytest") }, VerdictNarrowed},
 		{"no plan", func(input *Input) { input.PlanError = "graph-unavailable: no graph" }, VerdictFull},
 		{"declaration unreadable", func(input *Input) { input.Declared.Unreadable = "permission denied" }, VerdictFull},
 		{"go selector fallback", func(input *Input) { input.GoSelection = "FALLBACK the selection is empty while 1 path(s) are dirty" }, VerdictFull},
@@ -225,6 +244,54 @@ func TestSelectionVerdictTierIsTheExecution_SLFV1007(t *testing.T) {
 			}
 			if test.unit != "" && !slices.ContainsFunc(manifest.Units, func(unit Unit) bool { return unit.Unit == test.unit }) {
 				t.Fatalf("Build runs no %s: %v", test.unit, otherUnits(manifest))
+			}
+		})
+	}
+}
+
+// SLF-V1-007, RNC-V1-019, RNC-V1-008, RNC-V1-002: the unit kinds the runner
+// contract and the kill switch add keep the tier the execution has. A
+// contract unit runs its selected files in their owning instance, file; an
+// instance whose inventory record is not current runs declared:<instance>,
+// and so does one whose runner `full:<runner>` names, so that runner is
+// full while the scope stays narrowed; `full:go` runs the whole universe and
+// each nested module (go-module:<dir>), so go is full.
+func TestSelectionVerdictContractAndKillSwitchTiers_SLFV1007(t *testing.T) {
+	cases := []struct {
+		name    string
+		edit    func(*Input)
+		runners []RunnerVerdict
+		unit    string
+	}{
+		{"contract units are file", func(*Input) {}, []RunnerVerdict{{"python", "file"}, {"ruby", "file"}, {"typescript", "file"}}, "pytest:services/a/tests/test_calc.py"},
+		{"an instance without a current inventory is full", func(input *Input) {
+			input.FullInstances = map[string]string{"jest@.": "inventory-absent"}
+		}, []RunnerVerdict{{"python", "file"}, {"ruby", "file"}, {"typescript", "full"}}, "declared:jest@."},
+		{"full:pytest makes python full", func(input *Input) {
+			input.KillSwitch = slfv1007Switch(t, "full:pytest")
+		}, []RunnerVerdict{{"python", "full"}, {"ruby", "file"}, {"typescript", "file"}}, "declared:pytest@services/a"},
+		{"full:pytest with no selected python file still runs it", func(input *Input) {
+			input.Selected, input.KillSwitch = []string{"ruby:rspec:spec/a_spec"}, slfv1007Switch(t, "full:pytest")
+		}, []RunnerVerdict{{"python", "full"}, {"ruby", "file"}}, "declared:pytest@services/a"},
+		{"full:go runs nested modules whole", func(input *Input) {
+			input.Selected, input.KillSwitch = []string{"ruby:rspec:spec/a_spec"}, slfv1007Switch(t, "full:go")
+			input.Instances = append(input.Instances, contract.Instance{Runner: "go", Root: "tools/x", Config: "tools/x/go.mod"})
+		}, []RunnerVerdict{{"go", "full"}, {"ruby", "file"}}, "go-module:tools/x"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			input := contractInput()
+			test.edit(&input)
+			verdict := input.SelectionVerdict()
+			if verdict.Scope != VerdictNarrowed || !reflect.DeepEqual(verdict.Runners, test.runners) {
+				t.Fatalf("verdict %+v, want narrowed %+v", verdict, test.runners)
+			}
+			manifest, err := Build(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if manifest.Scope != ScopeNarrowed || !slices.ContainsFunc(manifest.Units, func(unit Unit) bool { return unit.Unit == test.unit }) {
+				t.Fatalf("Build %s runs no %s: %q", manifest.Scope, test.unit, contractUnitKeys(manifest))
 			}
 		})
 	}

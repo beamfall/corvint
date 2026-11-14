@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/gateselect"
@@ -13,6 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
 )
 
 // affectedExcludedDigestPrefix tags the digest of the full exclusion list.
@@ -272,8 +274,8 @@ func affectedProjectedVerdict(full affectedReceipt) sessiontest.SelectionVerdict
 // `corvint test` does (testPlanScope: the selected units, the unknown
 // entries, the Go universe and the AFP-V0-012 Go selector's verdict, which
 // decides the Go attribution of an UNOWNED_DIRTY_PATH and the Go fallback),
-// reads the declared full scope and the removed runner instances of the
-// committed inventory, and reports the scope decision Build would apply on
+// reads the declared full scope, the kill switch and the runner instances of
+// the committed inventory (testInventoryScope), and reports the scope decision Build would apply on
 // the local profile.
 func affectedDecideVerdict(ctx context.Context, root string, full *affectedReceipt, graph *affected.Graph, index *gateselect.Index) error {
 	compact, err := compactAffected(*full)
@@ -293,7 +295,13 @@ func affectedDecideVerdict(ctx context.Context, root string, full *affectedRecei
 		_, input.LineUnits = testLineUnits(*full.LineSelection)
 	}
 	testPlanScope(&input, *full, plan, graph, root, index)
-	testRemovedRunners(ctx, root, &input)
+	// RNC-V1-008: the kill switch corvint test applies decides the verdict
+	// too; a value outside its grammar is refused, as corvint test refuses it.
+	selectionSwitch, err := killswitch.FromEnv(os.Getenv)
+	if err != nil {
+		return &gokernel.Error{Code: killswitch.CodeUnknown, Message: err.Error()}
+	}
+	testInventoryScope(ctx, root, &input, selectionSwitch)
 	verdict := input.SelectionVerdict()
 	full.selection = &verdict
 	return nil
