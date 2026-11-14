@@ -711,7 +711,9 @@ func TestPYRV1001ConftestChangeMakesTestFilesStale(t *testing.T) {
 	}{
 		"parent conftest changed": {func(tree MapTree) { tree["tests/conftest.py"] += "\n@pytest.fixture\ndef other():\n    return 2\n" }, []string{"tests/test_a.py", "tests/unit/test_b.py"}},
 		"nearer conftest added":   {func(tree MapTree) { tree["tests/unit/conftest.py"] = "collect_ignore = ['test_b.py']\n" }, []string{"tests/unit/test_b.py"}},
-		"root conftest added":     {func(tree MapTree) { tree["conftest.py"] = "import pytest\n\n@pytest.fixture\ndef root():\n    return 0\n" }, []string{"other/test_c.py", "tests/test_a.py", "tests/unit/test_b.py"}},
+		"root conftest added": {func(tree MapTree) {
+			tree["conftest.py"] = "import pytest\n\n@pytest.fixture\ndef root():\n    return 0\n"
+		}, []string{"other/test_c.py", "tests/test_a.py", "tests/unit/test_b.py"}},
 		"parent conftest removed": {func(tree MapTree) { delete(tree, "tests/conftest.py") }, []string{"tests/test_a.py", "tests/unit/test_b.py"}},
 		"unrelated helper edited": {func(tree MapTree) { tree["other/deeper/helper.py"] = "X = 2\n" }, nil},
 	} {
