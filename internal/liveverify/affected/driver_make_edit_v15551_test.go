@@ -242,9 +242,12 @@ func TestDriverSubshellChdir_NCMV1019(t *testing.T) {
 // `?=` default, even through an inline script; a second makefile option,
 // since make reads every -f file in order; a variable the calling file
 // exports to a make of another file; and a MAKE the file assigns, which
-// $(MAKE) runs. Each leaves the invocation unfollowed. A single -f, an
-// exporting file calling itself, and an assignment beside a command that
-// runs no make stay bounded.
+// $(MAKE) runs. Each leaves the invocation unfollowed. The rows after them
+// pin the channels that already failed closed: a makefile read from
+// standard input or one the driver does not model, an export or env
+// wrapper in the recipe, a MAKEFLAGS or SHELL prefix, and a MAKEFILES the
+// file exports. A single -f, an exporting file calling itself, and an
+// assignment beside a command that runs no make stay bounded.
 func TestReachMakeInvocationEnvironment_NCMV1019(t *testing.T) {
 	ctx := context.Background()
 	files := func(makefile string) map[string]string {
@@ -269,6 +272,13 @@ func TestReachMakeInvocationEnvironment_NCMV1019(t *testing.T) {
 		{"exported to another file", "export LANE = ./tool\ntop:\n\t$(MAKE) -C sub check\n", "make:exported-variable:LANE"},
 		{"target export to another file", "top: export LANE = ./tool\ntop:\n\t$(MAKE) -C sub check\n", "make:exported-variable:LANE"},
 		{"make assigned", "MAKE = ./fake-make\ntop:\n\t$(MAKE) check\ncheck:\n\techo hi\n", "shell:unfollowed-command:./fake-make"},
+		{"standard input file", "top:\n\tprintf 'x:\\n\\tgo test ./tool\\n' | $(MAKE) -f - x\n", "make:unmodelled-file:-"},
+		{"unmodelled file", "top:\n\t$(MAKE) -f nope.mk check\n", "make:unmodelled-file:nope.mk"},
+		{"shell export", "PKG ?= ./other\ntop:\n\texport PKG=./tool; $(MAKE) check\ncheck:\n\tgo test $(PKG)\n", "shell:builtin-export, shell:unfollowed-command:export"},
+		{"env wrapper", "PKG ?= ./other\ntop:\n\tenv PKG=./tool $(MAKE) check\ncheck:\n\tgo test $(PKG)\n", "shell:assignment, shell:unfollowed-command:env"},
+		{"prefix makeflags", "top:\n\tMAKEFLAGS=-e $(MAKE) check\ncheck:\n\techo hi\n", "make:environment-assignment:MAKEFLAGS, shell:assignment"},
+		{"prefix shell", "top:\n\tSHELL=./tools/test-shell $(MAKE) check\ncheck:\n\techo hi\n", "make:environment-assignment:SHELL, shell:assignment"},
+		{"exported makefiles", "export MAKEFILES = extra.mk\ntop:\n\t$(MAKE) check\ncheck:\n\techo hi\n", "make:export-uncertified"},
 		{"one file", "top:\n\t$(MAKE) -f extra.mk check\ncheck:\n\techo hi\n", ""},
 		{"exported to itself", "export LANE = ./tool\ntop:\n\t$(MAKE) -f Makefile check\ncheck:\n\techo hi\n", ""},
 		{"prefix without make", "top:\n\tPKG=./tool go test ./tool\n", ""},
