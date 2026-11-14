@@ -426,7 +426,7 @@ func parseContractReport(plan *contractPlan, root string, data []byte) ([]contra
 	}
 	var results []contract.Result
 	for _, candidate := range roots {
-		results, err = plan.implementation.Parse(contract.ParseRequest{Instance: plan.request.Instance, Report: data, Root: candidate})
+		results, err = plan.implementation.Parse(contract.ParseRequest{Instance: plan.request.Instance, Report: data, Root: candidate, Tests: plan.request.Tests, Files: plan.request.Files})
 		var partial *contract.ReportError
 		if err == nil || errors.As(err, &partial) {
 			return results, err

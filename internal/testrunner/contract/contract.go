@@ -114,6 +114,14 @@ type ParseRequest struct {
 	Root string
 	// Module is the module path of a Go instance's go.mod.
 	Module string
+	// Tests are the selected canonical test IDs the run was narrowed to;
+	// nil for a full run. Files are the instance's test files from the
+	// committed inventory (repository-relative); nil proves nothing. The
+	// pytest parser attributes a JUnit testcase to the file whose module
+	// prefixes its classname, trying the selected files first, then Files
+	// (PYR-V1-004).
+	Tests []string
+	Files []string
 }
 
 // Result is one test's outcome and duration under its canonical test ID

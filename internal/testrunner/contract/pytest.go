@@ -183,9 +183,10 @@ func parsePytestJUnit(request ParseRequest) ([]Result, error) {
 	default:
 		return nil, fmt.Errorf("pytest junit report: root element %q is not testsuites or testsuite", root.XMLName.Local)
 	}
+	modules := pytestModules(request)
 	results := make([]Result, 0, len(cases))
 	for _, test := range cases {
-		result, err := pytestJUnitResult(request.Instance.Root, test)
+		result, err := pytestJUnitResult(request.Instance.Root, modules, test)
 		if err != nil {
 			return nil, err
 		}
@@ -194,7 +195,89 @@ func parsePytestJUnit(request ParseRequest) ([]Result, error) {
 	return results, nil
 }
 
-func pytestJUnitResult(root string, test junitCase) (Result, error) {
+// pytestCandidates are the modules a JUnit classname is split against:
+// each the dotted module name relative to the instance root (the rootdir)
+// and its root-relative file. The first selected are the selected files';
+// the rest are the inventory's other files, a fallback.
+type pytestCandidates struct {
+	modules  [][2]string
+	selected int
+}
+
+// pytestModules reads the candidate modules of a parse request.
+func pytestModules(request ParseRequest) pytestCandidates {
+	root := request.Instance.Root
+	var candidates pytestCandidates
+	seen := map[string]bool{}
+	add := func(file string) {
+		if root != "." {
+			rel, ok := strings.CutPrefix(file, root+"/")
+			if !ok {
+				return
+			}
+			file = rel
+		}
+		if !strings.HasSuffix(file, ".py") || seen[file] {
+			return
+		}
+		seen[file] = true
+		candidates.modules = append(candidates.modules, [2]string{strings.ReplaceAll(strings.TrimSuffix(file, ".py"), "/", "."), file})
+	}
+	for _, text := range request.Tests {
+		if id, err := testid.Parse(text); err == nil {
+			add(id.File)
+		}
+	}
+	candidates.selected = len(candidates.modules)
+	for _, file := range request.Files {
+		add(file)
+	}
+	return candidates
+}
+
+// pytestClassModule is the file a testcase's classname names and the
+// classname parts after that file's module: among the selected files'
+// modules first, then the inventory's, then the module of the testcase's
+// own file attribute. In xunit1 that attribute is the file that defines the
+// test, which for an inherited method or an imported test function is not
+// the module pytest collected it from; the classname is built from the
+// collecting node ID (junitxml.mangle_test_address), so its module is the
+// file the test runs under. Two candidate modules of one group that both
+// prefix the classname are ambiguous and refused, as is a classname no
+// module prefixes.
+func pytestClassModule(class, file string, modules [][2]string, selected int) (string, []string, error) {
+	match := func(module string) ([]string, bool) {
+		switch {
+		case class == module:
+			return nil, true
+		case strings.HasPrefix(class, module+"."):
+			return strings.Split(class[len(module)+1:], "."), true
+		}
+		return nil, false
+	}
+	groups := [][][2]string{modules[:selected], modules[selected:]}
+	for _, group := range groups {
+		found, segments, count := "", []string(nil), 0
+		for _, candidate := range group {
+			if parts, ok := match(candidate[0]); ok {
+				found, segments, count = candidate[1], parts, count+1
+			}
+		}
+		if count > 1 {
+			return "", nil, fmt.Errorf("pytest junit report: testcase classname %q starts with more than one candidate module", class)
+		}
+		if count == 1 {
+			return found, segments, nil
+		}
+	}
+	module := strings.ReplaceAll(strings.TrimSuffix(file, ".py"), "/", ".")
+	if parts, ok := match(module); ok {
+		return file, parts, nil
+	}
+	return "", nil, fmt.Errorf("pytest junit report: testcase classname %q does not start with module %q of file %s or of any selected or inventoried file", class, module, file)
+}
+
+func pytestJUnitResult(root string, modules pytestCandidates, test junitCase) (Result, error) {
 	file := strings.TrimPrefix(strings.ReplaceAll(test.File, `\`, "/"), "./")
 	collector := test.ClassName == nil || *test.ClassName == ""
 	if file == "" && collector {
@@ -229,14 +312,9 @@ func pytestJUnitResult(root string, test junitCase) (Result, error) {
 		// measured 0 ms.
 		return Result{ID: id.String(), Outcome: outcome, Granularity: testid.GranularityFile, RunnerOutcome: native}.timed(testduration.Missing()), nil
 	}
-	module := strings.ReplaceAll(strings.TrimSuffix(file, ".py"), "/", ".")
-	var segments []string
-	switch class := *test.ClassName; {
-	case class == module:
-	case strings.HasPrefix(class, module+"."):
-		segments = strings.Split(class[len(module)+1:], ".")
-	default:
-		return Result{}, fmt.Errorf("pytest junit report: testcase classname %q does not start with module %q of file %s", class, module, file)
+	file, segments, err := pytestClassModule(*test.ClassName, file, modules.modules, modules.selected)
+	if err != nil {
+		return Result{}, err
 	}
 	segments = append(segments, test.Name)
 	id, err := testid.New(testid.Pytest, path.Join(root, file), segments...)

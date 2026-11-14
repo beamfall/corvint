@@ -48,7 +48,7 @@ func TestPYRV1004PytestJUnitReport(t *testing.T) {
 		{ID: "pytest:svc/tests/test_a.py::test_xf", Outcome: OutcomeSkip, RunnerOutcome: PytestXfailed, DurationMillis: 1, Granularity: testid.GranularityTest},
 		{ID: "pytest:svc/tests/test_a.py::test_xp", Outcome: OutcomeFail, RunnerOutcome: PytestXpassed, DurationMillis: 1, Granularity: testid.GranularityTest},
 		{ID: "pytest:svc/pkg/v1.0/test_dots.py::test_d[a.b%3A%3Ac]", Outcome: OutcomePass, RunnerOutcome: PytestPassed, DurationMillis: 5, Granularity: testid.GranularityTest},
-		{ID: "pytest:svc/tests/test_broken.py", Outcome: OutcomeError, RunnerOutcome: PytestError, Granularity: testid.GranularityFile},
+		{ID: "pytest:svc/tests/test_broken.py", Outcome: OutcomeError, RunnerOutcome: PytestError, Granularity: testid.GranularityFile, DurationMissing: true},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("results\n got %+v\nwant %+v", got, want)
@@ -165,5 +165,53 @@ func TestPTDV1002PytestJUnitTimes(t *testing.T) {
 	}
 	if !slices.Equal(results, want) {
 		t.Fatalf("results\n got %+v\nwant %+v", results, want)
+	}
+}
+
+// PYR-V1-004 (review P2-b): in xunit1 a testcase's file attribute is the
+// file that defines the test, and its classname the module pytest collected
+// it from. An inherited base-class method (defined in tests/base.py, run
+// under tests/test_b.py) and an imported test function (defined in
+// tests/helpers.py, run under tests/test_c.py) are attributed to the
+// selected file whose module prefixes the classname; the rest of the report
+// still parses. A classname no candidate module prefixes is still refused,
+// and so is one two selected modules both prefix.
+func TestPYRV1004PytestCrossModuleTestcases(t *testing.T) {
+	r, _ := For(testid.Pytest)
+	report := `<testsuites><testsuite name="pytest" tests="4">
+<testcase classname="tests.test_b.TestB" name="test_inherited" file="tests/base.py" line="4" time="0.004"/>
+<testcase classname="tests.test_b.TestB" name="test_own" file="tests/test_b.py" line="8" time="0.001"/>
+<testcase classname="tests.test_c" name="test_shared" file="tests/helpers.py" line="2" time="0.002"/>
+<testcase classname="svc.test_d" name="test_rooted" file="svc/test_d.py" line="1" time="0.003"/>
+</testsuite></testsuites>`
+	request := ParseRequest{Instance: Instance{Runner: testid.Pytest, Root: "."}, Report: []byte(report),
+		Tests: []string{"pytest:tests/test_b.py", "pytest:tests/test_c.py"}, Files: []string{"svc/test_d.py", "tests/base.py"}}
+	got, err := r.Parse(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, result := range got {
+		ids = append(ids, result.ID)
+	}
+	want := []string{
+		"pytest:tests/test_b.py::TestB::test_inherited", "pytest:tests/test_b.py::TestB::test_own",
+		"pytest:tests/test_c.py::test_shared", "pytest:svc/test_d.py::test_rooted",
+	}
+	if !slices.Equal(ids, want) {
+		t.Fatalf("ids %q, want %q", ids, want)
+	}
+	if run := Reconcile([]string{"pytest:tests/test_b.py", "pytest:tests/test_b.py::TestB::test_inherited", "pytest:tests/test_c.py"}, got); run.Incomplete || run.Failed || len(run.NotRun) != 0 {
+		t.Fatalf("run %+v", run)
+	}
+	for name, request := range map[string]ParseRequest{
+		"no module matches": {Instance: request.Instance, Tests: []string{"pytest:tests/test_x.py"},
+			Report: []byte(`<testsuite><testcase classname="tests.test_b.TestB" name="test_inherited" file="tests/base.py" time="0"/></testsuite>`)},
+		"ambiguous": {Instance: request.Instance, Tests: []string{"pytest:tests/test_b.py", "pytest:tests/test_b/TestB.py"},
+			Report: []byte(`<testsuite><testcase classname="tests.test_b.TestB" name="test_inherited" file="tests/base.py" time="0"/></testsuite>`)},
+	} {
+		if results, err := r.Parse(request); err == nil {
+			t.Errorf("%s: parsed %+v, want a refusal", name, results)
+		}
 	}
 }
