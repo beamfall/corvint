@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -14,9 +15,16 @@ import (
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
 
-// supportedJest is a setup Unsupported admits: Jest 29 and an empty config.
+// supportedJest is a setup Unsupported admits: Jest 29 and an empty config,
+// whose test files' source reads as one plain test.
 func supportedJest(config string) *JestSetup {
-	return &JestSetup{Version: "29.7.0", ConfigName: config, Config: []byte("module.exports = {}\n")}
+	return &JestSetup{Version: "29.7.0", ConfigName: config, Config: []byte("module.exports = {}\n"), Source: plainSource}
+}
+
+// plainSource reads every test file as one plain test, naming no describe
+// block Jest renames.
+func plainSource(string) ([]byte, error) {
+	return []byte("test('adds', () => {});\n"), nil
 }
 
 func jestRequest(root string, listed []string, tests ...string) Request {
@@ -80,7 +88,8 @@ func TestJSTV1003DuplicateNamesAreNotExact(t *testing.T) {
 	}{
 		{"titles that join to the same name", []string{"jest:a.test.js::a b::c", "jest:a.test.js::a::b c"}, []string{"jest:a.test.js::a b::c"}, "also matches jest:a.test.js::a::b c"},
 		{"case variant", []string{"jest:a.test.js::Adds", "jest:a.test.js::adds"}, []string{"jest:a.test.js::adds"}, "also matches jest:a.test.js::Adds"},
-		{"duplicate suffix", []string{"jest:a.test.js::adds", "jest:a.test.js::adds::#2"}, []string{"jest:a.test.js::adds::#2"}, "duplicate suffix"},
+		{"duplicate suffix", []string{"jest:a.test.js::adds", "jest:a.test.js::adds::#2"}, []string{"jest:a.test.js::adds::#2"}, "duplicate-test-id"},
+		{"unsuffixed duplicate member", []string{"jest:a.test.js::adds", "jest:a.test.js::adds::#2", "jest:a.test.js::other"}, []string{"jest:a.test.js::adds"}, "duplicate-test-id"},
 		{"file listed by file", []string{"jest:a.test.js"}, []string{"jest:a.test.js::adds"}, "only by file"},
 		{"no listing", nil, []string{"jest:a.test.js::adds"}, "no inventory listing"},
 		{"mixed whole file and test", []string{"jest:a.test.js::adds", "jest:b.test.js::x"}, []string{"jest:a.test.js::adds", "jest:b.test.js"}, "mixes whole files and tests"},
@@ -96,14 +105,59 @@ func TestJSTV1003DuplicateNamesAreNotExact(t *testing.T) {
 	if got := command(t, jestRequest(".", []string{"jest:a.test.js::adds", "jest:b.test.js::adds"}, "jest:a.test.js::adds")); !got.Exact {
 		t.Fatalf("unselected file widened: %+v", got)
 	}
-	// A duplicate-suffixed ID matches its literal and its base name.
-	got := command(t, jestRequest(".", nil, "jest:a.test.js::adds::#2"))
-	if p := pattern(t, got.Argv); p != `^(?:adds|adds #2)$` {
-		t.Fatalf("duplicate pattern %q", p)
+	// A duplicate group member, suffixed or not, runs its whole file
+	// (CTI-V1-010, jst review P2): no -t pattern could keep only it, and the
+	// file's other tests are not filtered out.
+	for _, tests := range [][]string{{"jest:a.test.js::adds::#2"}, {"jest:a.test.js::adds"}} {
+		got := command(t, jestRequest(".", []string{"jest:a.test.js::adds", "jest:a.test.js::adds::#2", "jest:a.test.js::other"}, tests...))
+		if slices.Contains(got.Argv, "-t") || got.Exact || got.Tier != TierFile || !strings.HasPrefix(got.Reason, "duplicate-test-id: ") {
+			t.Fatalf("duplicate %q: %+v", tests, got)
+		}
 	}
 	// A whole file passes the file only.
 	if got := command(t, jestRequest(".", nil, "jest:a.test.js")); slices.Contains(got.Argv, "-t") || !got.Exact {
 		t.Fatalf("whole file: %+v", got)
+	}
+}
+
+// JST-V1-003, jst review P1: for describe('ROOT_DESCRIBE_BLOCK', () =>
+// test('fails', ...)) Jest drops the ancestor from its --json report, so
+// the canonical ID is jest:f.test.js::fails, but keeps it in the full name
+// -t matches, so `^(?:fails)$` would skip the selected test and the report
+// would show it pending (skip), neither failed nor incomplete. The filter
+// is used only when the file's source proves it lossless; this file names
+// the block, so the selection widens to the whole file, as it does when
+// the source was not read or cannot be read.
+func TestJSTV1003RootDescribeBlockWidensToTheFile(t *testing.T) {
+	source := "describe('ROOT_DESCRIBE_BLOCK', () => {\n  test('fails', () => { throw new Error('x'); });\n});\n"
+	request := jestRequest(".", []string{"jest:f.test.js::fails", "jest:f.test.js::other"}, "jest:f.test.js::fails")
+	request.Jest.Source = func(rel string) ([]byte, error) {
+		if rel != "f.test.js" {
+			t.Fatalf("read %q", rel)
+		}
+		return []byte(source), nil
+	}
+	want := []string{"npx", "jest", "--json", "--outputFile=/private/r.json", "--runTestsByPath", "f.test.js"}
+	got := command(t, request)
+	if !slices.Equal(got.Argv, want) || got.Exact || got.Tier != TierFile || !strings.Contains(got.Reason, "names ROOT_DESCRIBE_BLOCK") {
+		t.Fatalf("command %+v\nwant argv %q", got, want)
+	}
+	// The whole file's report answers the selected test as failed.
+	r, _ := For(testid.Jest)
+	results, err := r.Parse(ParseRequest{Instance: Instance{Runner: testid.Jest, Root: "."}, Root: "/repo", Report: []byte(`{"success":false,"testResults":[{"name":"/repo/f.test.js","status":"failed","assertionResults":[` +
+		`{"ancestorTitles":[],"title":"fails","status":"failed","duration":3},{"ancestorTitles":[],"title":"other","status":"passed","duration":1}]}]}`)})
+	run := ReconcileParsed(request.Tests, results, err)
+	if !run.Failed || len(run.NotRun) != 0 || !slices.ContainsFunc(run.Results, func(result Result) bool { return result.ID == "jest:f.test.js::fails" && result.Outcome == OutcomeFail }) {
+		t.Fatalf("run %+v", run)
+	}
+	for name, read := range map[string]func(string) ([]byte, error){
+		"source not read":   nil,
+		"source unreadable": func(string) ([]byte, error) { return nil, errors.New("gone") },
+	} {
+		request.Jest.Source = read
+		if got := command(t, request); slices.Contains(got.Argv, "-t") || got.Exact || got.Tier != TierFile {
+			t.Fatalf("%s: %+v", name, got)
+		}
 	}
 }
 
@@ -234,6 +288,10 @@ func TestJSTV1008UnsupportedSetupsRunInFull(t *testing.T) {
 		"package.json without jest":   setup("29.7.0", "package.json", `{"name": "x"}`),
 		"package.json custom runner":  setup("29.7.0", "package.json", `{"jest": {"runner": "jest-runner-tsc"}}`),
 		"unknown config file kind":    setup("29.7.0", "jest.config.yaml", "a: b\n"),
+		// jst review P2: an imported or spread config is not resolved.
+		"required base config (js)": setup("29.7.0", "jest.config.js", "module.exports = require('./base');\n"),
+		"imported base config (ts)": setup("29.7.0", "jest.config.ts", "import base from './base';\nexport default { ...base };\n"),
+		"spread base config (js)":   setup("29.7.0", "jest.config.js", "const base = {};\nmodule.exports = { ...base, verbose: true };\n"),
 	}
 	for name, s := range refused {
 		request := jestRequest("web", nil, "jest:web/a.test.js::adds")
@@ -249,6 +307,7 @@ func TestJSTV1008UnsupportedSetupsRunInFull(t *testing.T) {
 		"value naming a runner": setup("27.0.0", "jest.config.js", "module.exports = { preset: 'jest-runner-like' }\n"),
 		"inline project (json)": setup("29.7.0", "jest.config.json", `{"projects": [{"displayName": "a", "testRunner": "jest-jasmine2"}]}`),
 		"package.json jest":     setup("29.7.0", "package.json", `{"jest": {"testEnvironment": "node"}}`),
+		"type-only import (ts)": setup("29.7.0", "jest.config.ts", "import type { Config } from 'jest';\nconst config: Config = { verbose: true };\nexport default config;\n"),
 	}
 	for name, s := range admitted {
 		if cause := s.Unsupported(); cause != "" {
@@ -277,5 +336,34 @@ func TestJSTV1008SetupFromReader(t *testing.T) {
 	delete(files, "node_modules/jest/package.json")
 	if got := JestSetupFrom(Instance{Runner: testid.Jest, Root: "apps/web", Config: "apps/web/jest.config.js"}, read); !strings.Contains(got.Unsupported(), "version cannot be read") {
 		t.Fatalf("no jest install: %q", got.Unsupported())
+	}
+}
+
+// RNC-V1-016: Jest takes no argument file, so a -t pattern over the
+// argument limit widens the selection to its files (tier file, not exact,
+// reason argv-limit), and file paths over the limit run the full command;
+// no selected test is dropped.
+func TestRNCV1016JestArgvLimitWidens(t *testing.T) {
+	long := strings.Repeat("n", MaxArgBytes/4)
+	var tests, listed []string
+	for index := range 5 {
+		id := "jest:a.test.js::" + long + string(rune('a'+index))
+		tests, listed = append(tests, id), append(listed, id)
+	}
+	got := command(t, jestRequest(".", listed, tests...))
+	want := []string{"npx", "jest", "--json", "--outputFile=/private/r.json", "--runTestsByPath", "a.test.js"}
+	if !slices.Equal(got.Argv, want) || got.Exact || got.Tier != TierFile || !strings.HasPrefix(got.Reason, ReasonArgvLimit+": ") {
+		t.Fatalf("over-long pattern: %+v", got)
+	}
+	var files []string
+	for index := range 3000 {
+		files = append(files, "jest:"+strings.Repeat("d", 100)+"/"+strconv.Itoa(index)+".test.js")
+	}
+	got = command(t, jestRequest(".", nil, files...))
+	if got.Tier != TierFull || got.Exact || slices.Contains(got.Argv, "--runTestsByPath") || !strings.HasPrefix(got.Reason, ReasonArgvLimit+": ") {
+		t.Fatalf("over-long paths: tier %s exact %v reason %q argc %d", got.Tier, got.Exact, got.Reason, len(got.Argv))
+	}
+	if !ArgvFits([]string{"npx", strings.Repeat("x", MaxArgBytes)}) || ArgvFits([]string{strings.Repeat("x", MaxArgBytes+1)}) {
+		t.Fatal("ArgvFits per-argument bound")
 	}
 }
