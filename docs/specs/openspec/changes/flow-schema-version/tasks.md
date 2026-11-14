@@ -24,6 +24,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       passes on a candidate build and fails when the unsupported-version fixture plans fewer than all
       E2E tests.
 - [ ] 3.1 Add `FLOWS_SCHEMA_UNSUPPORTED` to the error catalogue (change `user-docs`). Requirements:
-      FSV-V1-004. Proof: the catalogue check passes.
+      FSV-V1-004. Proof: the catalogue check passes. Waits for `docs/ERRORS.md` and its check
+      (change `user-docs` task 2.4, UDC-V1-004), which are not built yet.
 - [ ] 3.2 Build-log entry; complete the ticket through the Tasks gate. Requirements: all. Proof:
       `corvint-tasks ticket show` and `receipt audit`.

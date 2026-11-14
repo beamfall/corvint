@@ -69,10 +69,12 @@ func goSuite(input Input) bool {
 	return slices.ContainsFunc(input.Instances, func(instance contract.Instance) bool { return instance.Runner == testid.Go })
 }
 
-// Unknown is one plan.unknown entry.
+// Unknown is one plan.unknown entry. Hint is the plan's optional operator
+// guidance (AFP-V0-494); it never changes the manifest.
 type Unknown struct {
 	Detail string
 	Reason string
+	Hint   string
 }
 
 // PartitionFiles are the repository's AFP-V0-022/041 placement inputs from
@@ -333,138 +335,66 @@ func Build(input Input) (Manifest, error) {
 		// RNC-V1-008: the manifest states the switch in every scope.
 		manifest.KillSwitch = input.KillSwitch.Describe()
 	}
+	// SLF-V1-007: the one scope decision the selection verdict reports.
+	decision := decideScope(input)
 	if input.Declared.Unreadable != "" {
 		// Every scope needs the declaration: the Go environment and flags
 		// locally, and the language commands and no-suite assertions in
 		// FULL; nothing runs on a guessed scope (STR-V0-003).
-		manifest.Scope, manifest.Reason = ScopeFull, "the declared full scope is unreadable"
-		if input.PlanError != "" {
-			manifest.Reason = "no plan: " + input.PlanError
-		}
+		manifest.Scope, manifest.Reason = ScopeFull, decision.full
 		manifest.Incomplete = append(manifest.Incomplete, "the declared full scope is unreadable: "+input.Declared.Unreadable)
 		return manifest.bounded(), nil
 	}
 	if input.PlanError != "" {
-		manifest.Scope, manifest.Reason = ScopeFull, "no plan: "+input.PlanError
+		manifest.Scope, manifest.Reason = ScopeFull, decision.full
 		manifest.declaredOnly(input)
 		return manifest.bounded(), nil
 	}
-	fullReason := ""
-	goRun := []string{}
-	// goAttributed: the Go selector ran over a Go universe and attributed
-	// every UNOWNED_DIRTY_PATH of the plan (gateselect.UnownedPathFallback).
-	goAttributed := false
-	switch verdict, detail, _ := strings.Cut(input.GoSelection, " "); verdict {
-	case "FALLBACK":
-		fullReason = detail
-	case "run":
-		goRun = strings.Fields(detail)
-		goAttributed = len(input.Universe) != 0
-	case "NOTHING":
-		goAttributed = len(input.Universe) != 0
-	default:
-		fullReason = "no AFP-V0-012 attribution verdict"
-	}
+	fullReason, goRun := decision.full, decision.goRun
 	languages := map[string]bool{}
 	provided := map[string]bool{}
 	var contracted []contractTest
 	for _, id := range input.Selected {
 		// A make target or CI job (AZU-V0-001) is run by make or CI, not by
-		// a language adapter; the affected plan reports it.
-		if strings.HasPrefix(id, "declared-consumer:") {
-			// Each consumer has its own project-owned argv, rather than a
-			// language-wide full command. The caller pins it in Declared.
+		// a language adapter; the affected plan reports it. Each declared
+		// consumer has its own project-owned argv, rather than a
+		// language-wide full command; the caller pins it in Declared.
+		// STR-V0-8702: a declared provider runs the selected file itself,
+		// so the file alone does not need its language's full command.
+		// Everything else that names a language adds its declared full
+		// command (selectedRun).
+		switch kind, language := selectedRun(input, id); kind {
+		case runConsumer:
 			languages[id] = true
-		} else if input.RunnerProfile != ProfileCI && providerUnit(input.Declared, id) {
-			// STR-V0-8702: a declared provider runs the selected file itself,
-			// so the file alone does not need its language's full command.
-			// Everything else that names the language still adds it. The ci
-			// profile runs only Go (STR-V0-012), so there the unit names its
-			// language's declared command as a check, as before.
+		case runProvider:
 			provided[id] = true
-		} else if tests, ok := contractTests(input, id); ok {
+		case runContract:
 			// RNC-V1-019: the contract runs the selected files in their
 			// owning instances instead of the language's full command.
+			tests, _ := contractTests(input, id)
 			contracted = append(contracted, tests...)
-		} else if language, _, ok := strings.Cut(id, ":"); ok && language != "go" && language != driverNamespace {
+		case runLanguage:
 			languages[language] = true
 		}
-	}
-	if len(input.Removed) != 0 {
-		// RNC-V1-004, owner decision R32: a removed runner runs every test.
-		fullReason = ReasonRunnerRemoved + ": " + strings.Join(input.Removed, ", ") + " is named by the inventory or " + CommandsPath + " but no longer declared, so every test runs"
-	}
-	if input.KillSwitch.All {
-		// RNC-V1-008: `full` makes every runner run its full command.
-		fullReason = input.KillSwitch.Describe()
 	}
 	modules := map[string]bool{}
-	for _, entry := range input.Unknown {
-		// An unknown unit with no selectable test still needs its language's
-		// declared full command when no adapter covers it (STR-V0-004).
-		// Driver units are make/CI inputs, not an adapter language, even
-		// when an unparsable file has no selectable target (AZU-V0-9704).
-		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" && language != driverNamespace {
-			languages[language] = true
-		}
-		if directory, ok := moduleDirectory(entry); ok {
-			// The nested module's own go test ./... covers the path
-			// (STR-V0-064). The ci profile's confined runner is not
-			// qualified for it, so there it names the module's suite as a
-			// check still required, which CI runs outside the Go shards,
-			// as the deciding driver admits the entry (AFP-V0-2742).
-			if input.RunnerProfile != ProfileCI {
-				modules[directory] = true
-			} else if check := ModuleCheck(directory); !slices.Contains(manifest.Checks, check) {
-				manifest.Checks = append(manifest.Checks, check)
+	for _, action := range decision.actions {
+		// A NO_SELECTABLE_TEST unit of another language adds its declared
+		// full command (STR-V0-004); a nested module adds its own suite
+		// (STR-V0-064), or on the ci profile names it as a check
+		// (AFP-V0-2742); a binary consumer is named as a check, since FULL
+		// would not run it either (STR-V0-750); a bearing non-Go frontier
+		// adds its language's declared suite (AFP-V0-2750). An entry that
+		// forces FULL is already the decision's FULL reason.
+		switch {
+		case action.suite != "":
+			languages[action.suite] = true
+		case action.module != "":
+			modules[action.module] = true
+		case action.check != "":
+			if !slices.Contains(manifest.Checks, action.check) {
+				manifest.Checks = append(manifest.Checks, action.check)
 			}
-			continue
-		}
-		if file, ok := binaryConsumer(entry); ok {
-			// STR-V0-750: named as a check, not widened for; FULL would not
-			// run it either.
-			if check := BinaryConsumerCheck(file); !slices.Contains(manifest.Checks, check) {
-				manifest.Checks = append(manifest.Checks, check)
-			}
-			continue
-		}
-		if entry.Reason == "UNOWNED_DIRTY_PATH" && !goAttributed {
-			// RNC-V1-004, owner decision R32: with no Go attribution verdict
-			// no rule attributes the path, so no runner instance owns it and
-			// every test runs, with the named reason. A Go verdict of run or
-			// NOTHING means the selector found a Go rule for every unowned
-			// path; it falls back with the same reason when it does not.
-			if fullReason == "" {
-				fullReason = gateselect.UnownedPathFallback + ": " + entry.Detail
-			}
-			continue
-		}
-		if allowedUnknown(entry) {
-			continue // an allowlisted entry hides no reader a narrowed run omits (AFP-V0-028)
-		}
-		if _, ok := gateselect.E2EFlowUnknown(entry.Reason, entry.Detail); ok {
-			// AFU-V1-1652: the flow-bound consumer the entry concerns is still
-			// selected or named as a check above; the entry widens no Go run.
-			continue
-		}
-		if language, ok := frontierSuite(entry); ok {
-			// A bearing non-Go frontier may hide a reader of a changed or
-			// deleted path, so its language's declared suite runs, as the
-			// deciding driver names it; Go selection is unchanged (AFP-V0-2750).
-			languages[language] = true
-			continue
-		}
-		if fullReason == "" {
-			fullReason = fmt.Sprintf("plan.unknown entry outside the AFP-V0-028 allowlist: %s %s", entry.Reason, entry.Detail)
-		}
-	}
-	universe := map[string]bool{}
-	for _, pkg := range input.Universe {
-		universe[pkg] = true
-	}
-	for _, pkg := range goRun {
-		if fullReason == "" && !universe[pkg] {
-			fullReason = "selected package outside the Go universe: " + pkg
 		}
 	}
 	manifest.Scope = ScopeNarrowed
