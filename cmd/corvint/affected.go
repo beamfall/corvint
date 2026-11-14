@@ -21,6 +21,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/extevidence"
+	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/linecov"
@@ -73,6 +74,10 @@ type affectedReceipt struct {
 	// committed range is unioned into plan.dirty; the compact summary
 	// restates it so a clean tree reads worktree=0 (AFP-V0-820).
 	WorktreeDirty int `json:"-"`
+	// selection is the SLF-V1-007 verdict decided over the planned tree
+	// (affectedDecideVerdict), which the compact projection prints; nil
+	// prints the projection's own fail-closed verdict.
+	selection *sessiontest.SelectionVerdict
 }
 
 // affectedRange records the committed half of the dirty set (AFP-V0-010).
@@ -1328,7 +1333,22 @@ func readPlaywrightDiscovery(root, name string) []byte {
 // (AFP-V0-010); the base is immutable, so it is read once and needs no
 // drift recheck.
 func compileAffected(ctx context.Context, invocation affectedInvocation) (affectedReceipt, error) {
-	receipt, _, err := compileAffectedGraph(ctx, invocation)
+	if invocation.Full {
+		receipt, _, err := compileAffectedGraph(ctx, invocation)
+		return receipt, err
+	}
+	var index *gateselect.Index
+	if module, err := golang.ReadModulePath(invocation.Root); err == nil {
+		// The Go selector's index for the selection verdict is scanned while
+		// the graph compiles.
+		index = gateselect.StartIndex(invocation.Root, module, nil)
+	}
+	receipt, graph, err := compileAffectedGraph(ctx, invocation)
+	if err == nil {
+		// SLF-V1-007: the verdict corvint test prints for this plan, which
+		// the affected-plan/1 projection prints; --full prints no verdict.
+		err = affectedDecideVerdict(ctx, invocation.Root, &receipt, graph, index)
+	}
 	return receipt, err
 }
 

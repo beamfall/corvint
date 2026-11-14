@@ -87,7 +87,8 @@ func runAffectedJobs(ctx context.Context, invocation affectedInvocation, stdout,
 		return 3
 	}
 	plan.DeclarationDigest = jobinputs.DigestBytes(body)
-	receipt, err := compileAffected(ctx, invocation)
+	// The job plan reads the plan alone, never the selection verdict.
+	receipt, _, err := compileAffectedGraph(ctx, invocation)
 	if err == nil {
 		// AFP-V0-9730, AFP-V0-11033: a stale binary refuses here as on the
 		// plan; an accepted or unverified one is named in the job plan.

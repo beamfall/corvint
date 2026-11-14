@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
@@ -64,5 +65,26 @@ func TestAffectedHeadlineCountsSurviveTheLineBound_SLFV1008(t *testing.T) {
 	}
 	if !strings.Contains(first, " selected=2 tests=1 drivers=1 ") {
 		t.Fatalf("the cut removed the counts: %q", first)
+	}
+}
+
+// SLF-V1-008 JSON members: the affected-plan/1 summary object, and so the
+// affected-summary/1 verdict and the MCP plan tool that embed it, carries
+// tests and drivers beside the selected total, as optional members added
+// under CCF-V1-006; line keeps its bytes. The golden is the canonical
+// encoding of the summary of three test units and two driver units.
+func TestAffectedSummaryJSONCountsTestsAndDrivers_SLFV1008(t *testing.T) {
+	plan := affected.Plan{Scope: affected.ScopeBounded, Dirty: []string{"a/a.go"}, Unknown: []affected.Unknown{}, Selected: []affected.Selection{
+		{UnitID: "go:example.test/a"}, {UnitID: "go:example.test/b"}, {UnitID: "python:tests.test_x"},
+		{UnitID: "driver:make:Makefile:check", Kind: affected.SelectionKindDriverTarget},
+		{UnitID: "driver:workflow:.github/workflows/ci.yml:test"},
+	}}
+	encoded, err := gokernel.CanonicalJSON(summarizeAffectedPlan(plan, 0, 1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const golden = `{"committed":0,"dirty":1,"drivers":2,"excluded":0,"line":"scope=BOUNDED dirty=1 selected=5 excluded=0 unknown=0","scope":"BOUNDED","selected":5,"tests":3,"unknown":0,"unknownByReason":{},"unresolvedPackages":0,"worktree":1}`
+	if got := strings.TrimSpace(string(encoded)); got != golden {
+		t.Fatalf("summary JSON\n%s\nwant\n%s", got, golden)
 	}
 }
