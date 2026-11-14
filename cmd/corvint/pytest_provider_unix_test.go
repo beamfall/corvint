@@ -133,16 +133,30 @@ func TestPYRV1003CLIRunsPytestSelection(t *testing.T) {
 		t.Fatalf("runner invocation %+v in %s", run, data)
 	}
 
-	// PYR-V1-006: a changed test file is unassigned in the inventory
-	// (TIV-V1-008), so no collected test list vouches for it; its run is
-	// INCOMPLETE with the typed reason even though every reported test
-	// passed, never PASS.
+	// PYR-V1-006, RNC-V1-002 (review P2-c): a changed test file is
+	// unassigned in the inventory (TIV-V1-008), so no collected test list
+	// vouches for it. It runs whole and is reconciled against the testcases
+	// pytest reported: the run passes and the edit's new test is in the
+	// receipt.
 	head := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
-	writeInventoryFiles(t, root, map[string]string{"tests/test_more.py": "def test_more():\n    assert True\n"})
+	writeInventoryFiles(t, root, map[string]string{"tests/test_more.py": "def test_more():\n    assert True\n\ndef test_more_new():\n    assert True\n"})
 	commitAll(t, root, "edit a test file")
 	code, _, stderr = runCLI(t, "--root", root, "test", "--base", head, "--receipt", receiptPath)
-	if code != 3 || !strings.Contains(stderr, "corvint-test: INCOMPLETE contract pytest@.: tests-deselected: completeness cannot be established for 1 selected files, as the inventory lists no test in them: [pytest:tests/test_more.py]\n") {
+	if code != 0 || strings.Contains(stderr, "INCOMPLETE") {
 		t.Fatalf("changed test file: exit %d stderr %s", code, stderr)
+	}
+	data, err = os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt.Invocations = nil
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Result != "PASS" || len(receipt.Invocations) != 1 || !slices.ContainsFunc(receipt.Invocations[0].Tests, func(test struct{ TestID, Outcome string }) bool {
+		return test.TestID == "pytest:tests/test_more.py::test_more_new" && test.Outcome == "pass"
+	}) {
+		t.Fatalf("changed test file: receipt %s", data)
 	}
 }
 

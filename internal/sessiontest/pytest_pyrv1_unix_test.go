@@ -201,12 +201,16 @@ func TestPYRV1004FailingTestFailsTheRun(t *testing.T) {
 // invocation still runs and reports. The plugin cases are the pyr review's
 // P1 regression: a plugin deselects a selected test while `-p no:terminal`
 // hides pytest's deselected count, so only the inventory's collected test
-// IDs can show the omission, and a selected file the inventory lists no
-// test in fails closed rather than letting one result stand for it.
+// IDs can show the omission. A selected file the inventory lists no test
+// in (changed since refresh) that reports no testcase, or only a
+// collection error, still fails closed (review P2-c).
 func TestPYRV1006RunnerTroubleFailsClosed(t *testing.T) {
 	notRun := []string{"pytest:svc/tests/test_a.py NOT_RUN", "pytest:svc/tests/test_b.py NOT_RUN"}
 	passed := []string{"pytest:svc/tests/test_a.py PASS", "pytest:svc/tests/test_b.py NO_TESTS"}
 	withoutTwo := strings.Replace(passingReport, `<testcase classname="tests.test_a.TestK" name="test_two[x]" file="tests/test_a.py" time="0.003"/>`, "", 1)
+	collectErrorA := strings.Replace(withoutTwo, `<testcase classname="tests.test_a" name="test_one" file="tests/test_a.py" time="0.012"/>`,
+		`<testcase classname="" name="tests.test_a" file="tests/test_a.py" time="0"><error message="collection failure">SyntaxError</error></testcase>`, 1)
+	notRunA := []string{"pytest:svc/tests/test_a.py NOT_RUN", "pytest:svc/tests/test_b.py NO_TESTS"}
 	for name, test := range map[string]struct {
 		install  bool
 		files    map[string]string
@@ -228,8 +232,11 @@ func TestPYRV1006RunnerTroubleFailsClosed(t *testing.T) {
 		"plugin deselect under -p no:terminal": {true, map[string]string{"report.xml": withoutTwo}, pytestListed,
 			"contract pytest@svc: 1 selected tests have no result in the report, so they are NOT_RUN: [pytest:svc/tests/test_a.py::TestK::test_two[x]]",
 			[]string{"pytest:svc/tests/test_a.py NOT_RUN", "pytest:svc/tests/test_b.py NO_TESTS"}, true},
-		"a selected file the inventory lists no test in": {true, map[string]string{"report.xml": withoutTwo}, map[string][]string{"pytest:svc/tests/test_b.py": pytestListed["pytest:svc/tests/test_b.py"]},
-			"contract pytest@svc: tests-deselected: completeness cannot be established for 1 selected files, as the inventory lists no test in them: [pytest:svc/tests/test_a.py]", passed, true},
+		"a changed file that fails to collect": {true, map[string]string{"report.xml": collectErrorA, "pytest.exit": "2"}, map[string][]string{"pytest:svc/tests/test_b.py": pytestListed["pytest:svc/tests/test_b.py"]},
+			"contract pytest@svc: tests-deselected: completeness cannot be established for 1 selected files the inventory lists no test in, as pytest reported no testcase in them: [pytest:svc/tests/test_a.py]",
+			[]string{"pytest:svc/tests/test_a.py FAIL", "pytest:svc/tests/test_b.py NO_TESTS"}, true},
+		"a changed file that reports no testcase": {true, map[string]string{"report.xml": strings.Replace(withoutTwo, `<testcase classname="tests.test_a" name="test_one" file="tests/test_a.py" time="0.012"/>`, "", 1)}, map[string][]string{"pytest:svc/tests/test_b.py": pytestListed["pytest:svc/tests/test_b.py"]},
+			"contract pytest@svc: tests-deselected: completeness cannot be established for 1 selected files the inventory lists no test in, as pytest reported no testcase in them: [pytest:svc/tests/test_a.py]", notRunA, true},
 		"a selected file has no result": {true, map[string]string{"report.xml": strings.Replace(passingReport, `<testcase classname="tests.test_b" name="test_skip" file="tests/test_b.py" time="0"><skipped type="pytest.skip" message="later"/></testcase>`, "", 1)}, pytestListed,
 			"contract pytest@svc: 1 selected tests have no result in the report, so they are NOT_RUN: [pytest:svc/tests/test_b.py]",
 			[]string{"pytest:svc/tests/test_a.py PASS", "pytest:svc/tests/test_b.py NOT_RUN"}, true},
@@ -280,5 +287,45 @@ func TestPTDV1002PytestReceiptDurations(t *testing.T) {
 	if receipt.Result != ResultPass || pytest.Outcomes[0].DurationMs != nil || pytest.Outcomes[0].DurationSource != testduration.NotMeasured ||
 		!slices.Equal(receipt.DurationInvalid, []string{"pytest:svc/tests/test_a.py"}) {
 		t.Fatalf("receipt %s invalid %q outcome %+v", receipt.Result, receipt.DurationInvalid, pytest.Outcomes[0])
+	}
+}
+
+// PYR-V1-006, RNC-V1-002 (review P2-c): a test file edited since the
+// inventory refresh, with a new test, is unassigned, so the inventory lists
+// no test in it. It runs whole and is reconciled against the testcases
+// pytest reported for it: the run passes, the new test is in the receipt,
+// and the still-listed file keeps its inventory check.
+func TestPYRV1006EditedFileRunsWholeAndPasses(t *testing.T) {
+	report := strings.Replace(passingReport, `<testcase classname="tests.test_b"`, `<testcase classname="tests.test_a" name="test_new" file="tests/test_a.py" time="0.001"/>
+<testcase classname="tests.test_b"`, 1)
+	listed := map[string][]string{"pytest:svc/tests/test_b.py": pytestListed["pytest:svc/tests/test_b.py"]}
+	runner, m, digest, _ := pytestFixture(t, true, map[string]string{"report.xml": report}, listed)
+	var output bytes.Buffer
+	runner.Output = &output
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	pytest := pytestInvocation(t, receipt)
+	if receipt.Result != ResultPass || len(receipt.Incomplete) != 0 {
+		t.Fatalf("receipt %s incomplete %q", receipt.Result, receipt.Incomplete)
+	}
+	if !slices.ContainsFunc(pytest.Tests, func(result contract.Result) bool {
+		return result.ID == "pytest:svc/tests/test_a.py::test_new" && result.Outcome == contract.OutcomePass
+	}) {
+		t.Fatalf("the new test is not in the receipt: %+v", pytest.Tests)
+	}
+	if got := outcomesOf(pytest); !slices.Equal(got, []string{"pytest:svc/tests/test_a.py PASS", "pytest:svc/tests/test_b.py NO_TESTS"}) {
+		t.Fatalf("file outcomes %q", got)
+	}
+	if !strings.Contains(output.String(), "1 selected files are new or changed since the inventory refresh, so they ran whole") {
+		t.Fatalf("output %q", output.String())
+	}
+	if result, reasons := Verify(m, digest, []Receipt{receipt}, nil); result != ResultPass {
+		t.Fatalf("verify %s %q", result, reasons)
+	}
+	// The still-listed file keeps its inventory check: its listed test
+	// missing from the report is NOT_RUN.
+	report = strings.Replace(report, `<testcase classname="tests.test_b" name="test_skip" file="tests/test_b.py" time="0"><skipped type="pytest.skip" message="later"/></testcase>`, `<testcase classname="tests.test_b" name="test_other" file="tests/test_b.py" time="0"/>`, 1)
+	runner, m, digest, _ = pytestFixture(t, true, map[string]string{"report.xml": report}, listed)
+	if receipt := runner.Execute(context.Background(), m, digest, 0); receipt.Result != ResultIncomplete {
+		t.Fatalf("receipt %s incomplete %q, want INCOMPLETE", receipt.Result, receipt.Incomplete)
 	}
 }
