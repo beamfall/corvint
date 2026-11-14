@@ -448,7 +448,14 @@ its reads (`sort`, `grep`, `sed`, `awk`, `cat`, `cp`, `mkdir`, `rm` and the rest
 options: such a command may run tests it does not name, as `sort --compress-program=script/x.sh`
 does. A make file whose recipe shell (`SHELL`, for the file or a target, or `.SHELLFLAGS`) is not a
 plain shell the driver certifies hands every recipe line to that program, so none of its targets'
-commands is followed, with reason `make:recipe-shell-uncertified`. A word holding a command substitution (`$(` or a backtick) leaves it unbounded too, even in a
+commands is followed, with reason `make:recipe-shell-uncertified`. A make file that assigns
+`MAKEFLAGS`, `MFLAGS`, `GNUMAKEFLAGS` or `MAKEOVERRIDES`, in any form (plain, `+=`, `?=`, `:=`,
+`!=`, `override`, `define`, or target- or pattern-specific, for any target), passes the variable
+overrides it holds to every make a recipe runs, where they beat a `?=` default and a plain
+assignment alike, and GNU make 4.4 applies one placed in `MAKEFLAGS` to its own run as well, so
+none of its targets' commands is followed, with reason `make:makeflags-assignment:<name>`, or
+`make:makeflags-assignment:computed-name` for an assignment whose name make computes; an included
+file's assignments already leave every target unfollowed with `make:include`. A word holding a command substitution (`$(` or a backtick) leaves it unbounded too, even in a
 followed command. The selector MUST print, after the NCM-V1-013 reason, each reason the target's
 run set is open, naming the command (`shell:unfollowed-command:<command>`,
 `shell:command-substitution:<command>`, `make:unmodelled-file:<file>` or the computed site's own
@@ -456,7 +463,8 @@ reason). The mark exists only in the reach: the planner's units and computed sit
 (closed rule amended 2026-11-13 after the round 4 review, V1-5465; `cd` options and the recipe
 shell amended 2026-11-13 for V1-5552 and V1-5551; the make command line and the subshell's working
 directory amended 2026-11-13 after the lane's independent review; the invocation's environment,
-makefile list, exported variables and `MAKE` amended 2026-11-13 after the lane's second review)
+makefile list, exported variables and `MAKE` amended 2026-11-13 after the lane's second review;
+the make flag variables amended 2026-11-13 for V1-5561)
 
 **Scenario: A script that runs go test**
 - GIVEN target `check` runs `script/check.sh`, which runs `go test ./tool`, and a change makes it
@@ -688,6 +696,8 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 - Amended under V1-5551 and V1-5552: NCM-V1-019 (recipe shell, `cd` options, the recursive make
   command line, the subshell's working directory) and NCM-V1-013 (missing-package selector and its
   nested-module reason) (`docs/build-log/2026-11-13-mk1114.md`).
+- Amended under V1-5561: NCM-V1-019 (an assignment to `MAKEFLAGS`, `MFLAGS`, `GNUMAKEFLAGS` or
+  `MAKEOVERRIDES`) (`docs/build-log/2026-11-13-mk1114-makeflags.md`).
 - Waiting: NCM-V1-004's proof link to FIH-V1 non-code fault cases, after V1-5405 lands (change task 6).
 - Acceptance fixtures (change task 7): see the build-log entry
   `docs/build-log/2026-11-11-non-code-map.md` for the fixtures delivered and missing.

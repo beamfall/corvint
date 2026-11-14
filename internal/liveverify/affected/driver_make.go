@@ -29,6 +29,10 @@ type driverMakeFile struct {
 	unparsable       bool
 	unmodeledExports bool
 	exportedNames    []string
+	// flagAssignments names each of driverMakeFlagNames the file assigns,
+	// in any form, or computed-name for an assignment whose name make
+	// computes (NCM-V1-019).
+	flagAssignments map[string]bool
 	// events are the assignments and conditional lines in file order, from
 	// which a variable's alternative values are derived (AFP-V0-3121).
 	events       []driverMakeEvent
@@ -319,6 +323,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 			endRule()
 			parsed.remainder = append(parsed.remainder, trimmed)
 			defineName = strings.TrimSpace(strings.TrimRight(strings.TrimSpace(rest), ":!?+="))
+			parsed.noteFlagAssignment(defineName)
 			defineOp, defineImmediate = driverMakeDefineOperator(rest)
 			defineDepth = 1
 			defineBody = nil
@@ -353,6 +358,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 		}
 		if assignment, name, value := driverMakeAssignment(statement, operator); assignment {
 			endRule()
+			parsed.noteFlagAssignment(name)
 			if name != "" && conditional == 0 && !modified {
 				parsed.plain = append(parsed.plain, driverMakePlain{at: len(parsed.remainder), name: name})
 			}
@@ -387,6 +393,47 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 	}
 	parsed.remainder = append(parsed.remainder, "default-goal="+parsed.defaultGoal)
 	return parsed
+}
+
+// driverMakeFlagNames are the variables make reads its own flags and
+// command-line overrides from, and passes to every make a recipe runs:
+// GNU make 4.4 applies an assignment placed in MAKEFLAGS to its own run as
+// well, and a command-line override beats a `?=` default and a plain
+// assignment alike (NCM-V1-019).
+var driverMakeFlagNames = map[string]bool{"GNUMAKEFLAGS": true, "MAKEFLAGS": true, "MAKEOVERRIDES": true, "MFLAGS": true}
+
+// noteFlagAssignment records an assignment to name when it is one of
+// driverMakeFlagNames, or a name make computes, which can be one.
+func (parsed *driverMakeFile) noteFlagAssignment(name string) {
+	switch {
+	case name == "" || strings.Contains(name, "$"):
+		name = "computed-name"
+	case !driverMakeFlagNames[name]:
+		return
+	}
+	if parsed.flagAssignments == nil {
+		parsed.flagAssignments = map[string]bool{}
+	}
+	parsed.flagAssignments[name] = true
+}
+
+// noteScopedFlagAssignment is noteFlagAssignment for the assignment of a
+// target- or pattern-specific variable line, after its modifiers, whatever
+// its targets are: special and computed targets included.
+func (parsed *driverMakeFile) noteScopedFlagAssignment(text string) {
+	statement := strings.TrimSpace(text)
+	for {
+		modifier, rest := driverMakeFirst(statement)
+		if modifier != "export" && modifier != "override" && modifier != "private" && modifier != "unexport" {
+			break
+		}
+		statement = rest
+	}
+	if operator := driverMakeOperator(statement); operator >= 0 {
+		if assignment, name, _ := driverMakeAssignment(statement, operator); assignment {
+			parsed.noteFlagAssignment(name)
+		}
+	}
 }
 
 func driverMakeFirst(text string) (string, string) {
@@ -863,6 +910,7 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 			return false
 		}
 		targetSpecific = true
+		parsed.noteScopedFlagAssignment(after)
 	}
 	targets := strings.Fields(targetText)
 	special := false
