@@ -103,3 +103,24 @@ func TestPYRV1010PytestHarnessFailedMeasurements(t *testing.T) {
 		})
 	}
 }
+
+// PYR-V1-010, pyr review P2: a parameter id holding `::` (test_x[a::b]) is
+// one node segment, as pytest's report keys it, so the round trip through
+// the selection and the JUnit report finds the executed test.
+func TestPYRV1010PytestHarnessParameterWithSeparator(t *testing.T) {
+	report := `<testsuites><testsuite name="pytest">
+<testcase classname="tests.test_a" name="test_x[a::b]" file="tests/test_a.py" time="0.01"/>
+</testsuite></testsuites>`
+	adapter, dir := pytestHarness(t, report, "0")
+	entries := []planEntry{{Unit: "pytest:tests/test_a.py", Run: []string{"test_x[a::b]"}}}
+	got, err := adapter.Run(context.Background(), t.TempDir(), entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (RunResult{"pytest:tests/test_a.py#test_x[a::b]": Pass}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("outcomes %v, want %v", got, want)
+	}
+	if argv, _ := os.ReadFile(filepath.Join(dir, "argv")); !strings.HasSuffix(strings.TrimSpace(string(argv)), " tests/test_a.py::test_x[a::b]") {
+		t.Fatalf("argv %q", argv)
+	}
+}
