@@ -215,3 +215,42 @@ func TestNCMV1013SelectorNestedModule(t *testing.T) {
 	requireVerdict(t, makeEditPlan(base, "Makefile"), root, want)
 	requireQualified(t, makeEditPlan(base, "Makefile"), root, want)
 }
+
+// TestNCMV1019SelectorMakeEnvironment pins the remaining input channels of a
+// recursive make invocation in the selector (V1-5551 class), each a repro
+// checked against GNU make 4.4.1: an environment assignment in front of the
+// call, which make reads as a variable overriding the `?=` default, so real
+// make runs `go test ./tool`; a second -f, whose file adds tooltest to check;
+// a variable the file exports to a make of another file; and a MAKE the file
+// assigns. Each runs everything (NCM-V1-019) from Select and SelectQualified
+// alike, where the reach used to select mkread and other alone.
+func TestNCMV1019SelectorMakeEnvironment(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                "module " + fixtureModule + "\n\ngo 1.27\n",
+		"tool/tool.go":          "package tool\n",
+		"tool/tool_test.go":     makeFixtureTest("tool", ""),
+		"other/other.go":        "package other\n",
+		"other/other_test.go":   makeFixtureTest("other", ""),
+		"extra.mk":              "tooltest:\n\tgo test ./tool\ncheck: tooltest\n",
+		"sub/Makefile":          "LANE ?= ./other\ncheck:\n\tgo test $(LANE)\n",
+		"fake-make":             "#!/bin/sh\ngo test ./tool\n",
+		"mkread/mkread_test.go": makeFixtureTest("mkread", "var makefile = \"../Makefile\"\n\n"),
+	}
+	for _, tc := range []struct {
+		name, makefile, reason string
+	}{
+		{"environment", "PKG ?= ./other\ntop:\n\tPKG=./tool $(MAKE) check\ncheck:\n\tgo test $(PKG)\n", "make:environment-assignment:PKG"},
+		{"two files", "top:\n\t$(MAKE) -f extra.mk -f Makefile check\ncheck:\n\techo hi\n", "make:several-makefiles"},
+		{"exported", "export LANE = ./tool\ntop:\n\t$(MAKE) -C sub check\n", "make:exported-variable:LANE"},
+		{"make assigned", "MAKE = ./fake-make\ntop:\n\t$(MAKE) check\ncheck:\n\techo hi\n", "shell:unfollowed-command:./fake-make"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files["Makefile"] = tc.makefile
+			root, base := baseRepository(t, files, nil)
+			writeMakefile(t, root, strings.Replace(tc.makefile, "top:\n\t", "top:\n\t: ; ", 1))
+			want := `FALLBACK never-narrowed-path Makefile: make edit: make target "top" runs a command or make goal that does not resolve: ` + tc.reason
+			requireVerdict(t, makeEditPlan(base, "Makefile"), root, want)
+			requireQualified(t, makeEditPlan(base, "Makefile"), root, want)
+		})
+	}
+}
