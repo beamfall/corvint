@@ -1,14 +1,20 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
 )
 
 // affectedExcludedDigestPrefix tags the digest of the full exclusion list.
@@ -50,6 +56,10 @@ type affectedCompactReceipt struct {
 	SelectedFlat []affectedFlatSelection `json:"selectedFlat"`
 	// LineSelection is copied from the full receipt (GLS-V0-010).
 	LineSelection *linecov.Selection `json:"lineSelection,omitempty"`
+	// SelectionVerdict is each plan.unknown entry's effect and each
+	// runner's tier, from the one function corvint test and the MCP plan
+	// tool print (SLF-V1-007); it never changes the selection.
+	SelectionVerdict sessiontest.SelectionVerdict `json:"selectionVerdict"`
 }
 
 // affectedCompactPlan keeps every plan member except that each selection
@@ -234,7 +244,67 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 
 		DegradationDetails: full.DegradationDetails,
 		LineSelection:      full.LineSelection,
+		SelectionVerdict:   affectedProjectedVerdict(full),
 	}, nil
+}
+
+// affectedProjectedVerdict is the selection verdict of the projection
+// alone (SLF-V1-007), which reads no tree and runs no Go selector: with no
+// AFP-V0-012 verdict the scope decision is FULL, the fail-closed reading, so
+// an embedding that keeps it never claims a narrower run than `corvint test`
+// makes. A receipt whose verdict was decided over the planned tree
+// (affectedDecideVerdict) prints that one.
+func affectedProjectedVerdict(full affectedReceipt) sessiontest.SelectionVerdict {
+	if full.selection != nil {
+		return *full.selection
+	}
+	input := sessiontest.Input{RunnerProfile: sessiontest.ProfileLocal}
+	for _, selection := range full.Plan.Selected {
+		input.Selected = append(input.Selected, selection.UnitID)
+	}
+	for _, entry := range full.Plan.Unknown {
+		input.Unknown = append(input.Unknown, sessiontest.Unknown{Reason: entry.Reason, Detail: entry.Detail, Hint: entry.Hint})
+	}
+	return input.SelectionVerdict()
+}
+
+// affectedDecideVerdict decides the plan's selection verdict as `corvint
+// test` does for the same plan in root (SLF-V1-007) and keeps it on the
+// receipt for the compact projection to print. It fills the scope inputs as
+// `corvint test` does (testPlanScope: the selected units, the unknown
+// entries, the Go universe and the AFP-V0-012 Go selector's verdict, which
+// decides the Go attribution of an UNOWNED_DIRTY_PATH and the Go fallback),
+// reads the declared full scope, the kill switch and the runner instances of
+// the committed inventory (testInventoryScope), and reports the scope decision Build would apply on
+// the local profile.
+func affectedDecideVerdict(ctx context.Context, root string, full *affectedReceipt, graph *affected.Graph, index *gateselect.Index) error {
+	compact, err := compactAffected(*full)
+	if err != nil {
+		return err
+	}
+	encoded, err := gokernel.CanonicalJSON(compact)
+	if err != nil {
+		return err
+	}
+	var plan gateselect.Receipt
+	if err := json.Unmarshal(encoded, &plan); err != nil {
+		return err
+	}
+	input := sessiontest.Input{RunnerProfile: sessiontest.ProfileLocal, Declared: sessiontest.ReadDeclared(root)}
+	if full.LineSelection != nil {
+		_, input.LineUnits = testLineUnits(*full.LineSelection)
+	}
+	testPlanScope(&input, *full, plan, graph, root, index)
+	// RNC-V1-008: the kill switch corvint test applies decides the verdict
+	// too; a value outside its grammar is refused, as corvint test refuses it.
+	selectionSwitch, err := killswitch.FromEnv(os.Getenv)
+	if err != nil {
+		return &gokernel.Error{Code: killswitch.CodeUnknown, Message: err.Error()}
+	}
+	testInventoryScope(ctx, root, &input, selectionSwitch)
+	verdict := input.SelectionVerdict()
+	full.selection = &verdict
+	return nil
 }
 
 // compactAffectedSelections projects each selection, sharing witness chains

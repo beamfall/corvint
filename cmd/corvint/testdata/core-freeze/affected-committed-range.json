@@ -107,13 +107,45 @@
       "witness": "DIRECT_SOURCE_CHANGE"
     }
   ],
+  "selectionVerdict": {
+    "reason": "root module definition is dirty: go.mod",
+    "runners": [
+      {
+        "runner": "go",
+        "tier": "full"
+      }
+    ],
+    "scope": "full",
+    "unknown": [
+      {
+        "detail": "go.mod",
+        "effect": "forces-full",
+        "hint": "no runner instance owns this path and no Go selection rule attributes it, so every test runs (RNC-V1-004)",
+        "reason": "UNOWNED_DIRTY_PATH"
+      },
+      {
+        "detail": "testing/features.yaml",
+        "effect": "forces-full",
+        "hint": "no runner instance owns this path and no Go selection rule attributes it, so every test runs (RNC-V1-004)",
+        "reason": "UNOWNED_DIRTY_PATH"
+      },
+      {
+        "detail": "testing/scenarios.yaml",
+        "effect": "forces-full",
+        "hint": "no runner instance owns this path and no Go selection rule attributes it, so every test runs (RNC-V1-004)",
+        "reason": "UNOWNED_DIRTY_PATH"
+      }
+    ]
+  },
   "summary": {
     "committed": 5,
     "dirty": 5,
+    "drivers": 0,
     "excluded": 0,
     "line": "scope=UNKNOWN dirty=5 selected=1 excluded=0 unknown=3 UNOWNED_DIRTY_PATH=3",
     "scope": "UNKNOWN",
     "selected": 1,
+    "tests": 1,
     "unknown": 3,
     "unknownByReason": {
       "UNOWNED_DIRTY_PATH": 3

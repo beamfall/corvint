@@ -2,13 +2,13 @@
 
 Each task names the requirement IDs it delivers and its proof. Tick tasks in order.
 
-Ticket V1-5399 exists (filed by the orchestrator on 2026-11-11); task 1.1 stays unticked until the
-orchestrator sets its `requirementRefs`.
+Ticket V1-5399 exists (filed by the orchestrator on 2026-11-11).
 
 ## Tasks
 
-- [ ] 1.1 File the ticket and reserve prefix `OSC-V1` (001 to 012). Requirements: all. Proof:
-      `corvint-tasks ticket show` with `requirementRefs` listing OSC-V1-001 to 012.
+- [x] 1.1 File the ticket and reserve prefix `OSC-V1` (001 to 012). Requirements: all. Proof:
+      `corvint-tasks ticket show` with `requirementRefs` listing OSC-V1-001 to 012. V1-5399 filed;
+      OSC-V1 reserved on main (`docs/specs/README.md` row, `reqPrefix` in `docs/specs/INDEX.json`).
 - [x] 1.2 First commit: create `docs/specs/openspec-check-v1.md` from the spec delta, its README row
       and the regenerated index; amend PRS-V1-018 in the same commit. Requirements: OSC-V1-001 to
       012, PRS-V1-018. Proof: `make spec-requirements-check` passes.
