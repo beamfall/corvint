@@ -414,7 +414,16 @@ execution. The rule is closed: the reach follows only
    combined as in `-ks`). A command-line variable assignment (`SHELL=...`, or one a recipe runs)
    leaves the invocation unfollowed with `make:command-line-assignment:<name>`, and records no
    path; any other option (`--eval`, `-e`, `-n`, `-I`, `-o`, `-W` or one the scan does not know)
-   leaves it unfollowed with `make:unfollowed-option:<option>`;
+   leaves it unfollowed with `make:unfollowed-option:<option>`. Make reads every environment
+   variable as a make variable, which overrides a `?=` default, so an assignment in front of the
+   command that runs the invocation, directly or through an inline script (`PKG=./tool $(MAKE)
+   check`), leaves it unfollowed with `make:environment-assignment:<name>`; make reads every `-f`
+   file in order, so a second `-f`, `--file` or `--makefile`, in any spelling, leaves it unfollowed
+   with `make:several-makefiles`; and a variable the calling make file exports, for the file or a
+   target, is in the environment of every make it calls, so an invocation of any other make file,
+   or one whose file the scan cannot name, is unfollowed with `make:exported-variable:<name>`.
+   `$(MAKE)` names `make` only in a file that does not assign `MAKE`; in one that does, it runs
+   the program that value names, which this rule follows like any other command word;
 2. `go` whose first argument is `test`, `vet`, `build` or `list`, with no word beginning `-exec`,
    `-toolexec` or `-vettool` (with one or two dashes), which runs only the packages it names. Any
    global flag before the subcommand (`-C` or any other word beginning `-`) and every other
@@ -446,7 +455,8 @@ run set is open, naming the command (`shell:unfollowed-command:<command>`,
 reason). The mark exists only in the reach: the planner's units and computed sites are unchanged.
 (closed rule amended 2026-11-13 after the round 4 review, V1-5465; `cd` options and the recipe
 shell amended 2026-11-13 for V1-5552 and V1-5551; the make command line and the subshell's working
-directory amended 2026-11-13 after the lane's independent review)
+directory amended 2026-11-13 after the lane's independent review; the invocation's environment,
+makefile list, exported variables and `MAKE` amended 2026-11-13 after the lane's second review)
 
 **Scenario: A script that runs go test**
 - GIVEN target `check` runs `script/check.sh`, which runs `go test ./tool`, and a change makes it
@@ -482,6 +492,14 @@ directory amended 2026-11-13 after the lane's independent review)
 - THEN every test is selected with
   `never-narrowed-path Makefile: make edit: make target "top" runs a command or make goal that does not resolve: make:command-line-assignment:SHELL`;
   `$(MAKE) '--eval=x: ; go test ./tool' x` gives `make:unfollowed-option:--eval` the same way
+
+**Scenario: A recursive make's environment and makefile list**
+- GIVEN a make file holding `PKG ?= ./other`, whose target `top` runs `PKG=./tool $(MAKE) check`,
+  where `check` runs `go test $(PKG)`, and a change edits `top`
+- WHEN the selector decides the plan
+- THEN every test is selected with
+  `never-narrowed-path Makefile: make edit: make target "top" runs a command or make goal that does not resolve: make:environment-assignment:PKG`;
+  `$(MAKE) -f extra.mk -f Makefile check` gives `make:several-makefiles` the same way
 
 **Scenario: cd in a subshell**
 - GIVEN target `t` of `sub/Makefile` runs `(cd tool && go vet .); go test ./c`, and a change edits it
@@ -696,4 +714,4 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 | NCM-V1-016 | `TestReachMakeEditInstance_NCMV1016` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-017 | `TestDriverEnvPrefix_NCMV1017` (`internal/liveverify/affected`) |
 | NCM-V1-018 | `TestAttributeMakeEditOrder_NCMV1018` (`internal/liveverify/affected`); `TestNCMV1018SelectorOrderMove` (`internal/gateselect`) |
-| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019`, `TestReachMakeRecipeShell_NCMV1019`, `TestReachMakeChdir_NCMV1019`, `TestDriverChdirPlanner_AFPV09051`, `TestReachMakeInvocationCommandLine_NCMV1019`, `TestDriverMakeAssignmentPath_NCMV1019`, `TestDriverSubshellChdir_NCMV1019` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript`, `TestNCMV1019SelectorClosedRule`, `TestNCMV1019SelectorRecipeShell`, `TestNCMV1019SelectorChdirOptions`, `TestNCMV1019SelectorMakeCommandLine`, `TestNCMV1019SelectorSubshellChdir`, `TestNCMV1019SelectorSubshellPrecision` (`internal/gateselect`) |
+| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019`, `TestReachMakeRecipeShell_NCMV1019`, `TestReachMakeChdir_NCMV1019`, `TestDriverChdirPlanner_AFPV09051`, `TestReachMakeInvocationCommandLine_NCMV1019`, `TestDriverMakeAssignmentPath_NCMV1019`, `TestDriverSubshellChdir_NCMV1019`, `TestReachMakeInvocationEnvironment_NCMV1019` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript`, `TestNCMV1019SelectorClosedRule`, `TestNCMV1019SelectorRecipeShell`, `TestNCMV1019SelectorChdirOptions`, `TestNCMV1019SelectorMakeCommandLine`, `TestNCMV1019SelectorSubshellChdir`, `TestNCMV1019SelectorSubshellPrecision`, `TestNCMV1019SelectorMakeEnvironment` (`internal/gateselect`) |

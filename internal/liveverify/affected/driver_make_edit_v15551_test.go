@@ -235,3 +235,56 @@ func TestDriverSubshellChdir_NCMV1019(t *testing.T) {
 		})
 	}
 }
+
+// TestReachMakeInvocationEnvironment_NCMV1019 pins the recursive make
+// invocation's remaining input channels in the reach: an assignment in the
+// command's environment, which make reads as a variable that overrides a
+// `?=` default, even through an inline script; a second makefile option,
+// since make reads every -f file in order; a variable the calling file
+// exports to a make of another file; and a MAKE the file assigns, which
+// $(MAKE) runs. Each leaves the invocation unfollowed. A single -f, an
+// exporting file calling itself, and an assignment beside a command that
+// runs no make stay bounded.
+func TestReachMakeInvocationEnvironment_NCMV1019(t *testing.T) {
+	ctx := context.Background()
+	files := func(makefile string) map[string]string {
+		return map[string]string{
+			"Makefile":     makefile,
+			"extra.mk":     "tooltest:\n\tgo test ./tool\ncheck: tooltest\n",
+			"sub/Makefile": "LANE ?= ./other\ncheck:\n\tgo test $(LANE)\n",
+			"fake-make":    "#!/bin/sh\ngo test ./tool\n",
+		}
+	}
+	for _, tc := range []struct {
+		name, makefile, reason string
+	}{
+		{"prefix default", "PKG ?= ./other\ntop:\n\tPKG=./tool $(MAKE) check\ncheck:\n\tgo test $(PKG)\n", "make:environment-assignment:PKG"},
+		{"prefix lower case", "pkg ?= ./other\ntop:\n\tpkg=./tool $(MAKE) check\ncheck:\n\tgo test $(pkg)\n", "make:environment-assignment:pkg"},
+		{"prefix gmake", "PKG ?= ./other\ntop:\n\tPKG=./tool gmake check\ncheck:\n\tgo test $(PKG)\n", "make:environment-assignment:PKG"},
+		{"prefix inline script", "PKG ?= ./other\ntop:\n\tPKG=./tool sh -c '$(MAKE) check'\ncheck:\n\tgo test $(PKG)\n", "make:environment-assignment:PKG, shell:unfollowed-command:sh"},
+		{"prefix makefiles", "top:\n\tMAKEFILES=extra.mk $(MAKE) check\ncheck:\n\techo hi\n", "make:environment-assignment:MAKEFILES, shell:assignment"},
+		{"two files", "top:\n\t$(MAKE) -f extra.mk -f Makefile check\ncheck:\n\techo hi\n", "make:several-makefiles"},
+		{"two files attached", "top:\n\t$(MAKE) -fextra.mk --file=Makefile check\ncheck:\n\techo hi\n", "make:several-makefiles"},
+		{"two files long", "top:\n\t$(MAKE) --makefile extra.mk --makefile=Makefile check\ncheck:\n\techo hi\n", "make:several-makefiles"},
+		{"exported to another file", "export LANE = ./tool\ntop:\n\t$(MAKE) -C sub check\n", "make:exported-variable:LANE"},
+		{"target export to another file", "top: export LANE = ./tool\ntop:\n\t$(MAKE) -C sub check\n", "make:exported-variable:LANE"},
+		{"make assigned", "MAKE = ./fake-make\ntop:\n\t$(MAKE) check\ncheck:\n\techo hi\n", "shell:unfollowed-command:./fake-make"},
+		{"one file", "top:\n\t$(MAKE) -f extra.mk check\ncheck:\n\techo hi\n", ""},
+		{"exported to itself", "export LANE = ./tool\ntop:\n\t$(MAKE) -f Makefile check\ncheck:\n\techo hi\n", ""},
+		{"prefix without make", "top:\n\tPKG=./tool go test ./tool\n", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := makeReachRepository(t, files(tc.makefile))
+			reach := ReachMakeTargets(ctx, root, "Makefile", []string{"top"})
+			if tc.reason == "" {
+				if reach.Reason != "" {
+					t.Fatalf("not bounded: %s", reach.Reason)
+				}
+				return
+			}
+			if want := `make target "top" runs a command or make goal that does not resolve: ` + tc.reason; reach.Reason != want {
+				t.Fatalf("reason %q, want %q", reach.Reason, want)
+			}
+		})
+	}
+}

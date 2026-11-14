@@ -290,6 +290,10 @@ type driverUnitBuilder struct {
 	// selectors are the go package selectors of the scans merged into the
 	// unit (NCM-V1-013, V1-5552), for a make edit's reach only.
 	selectors []MakeSelectors
+	// caller is the make file whose recipes the unit runs, nil for any
+	// other unit: what it exports reaches a make its recipes call
+	// (NCM-V1-019).
+	caller *driverMakeFile
 }
 
 func newDriverUnitBuilder(id string) *driverUnitBuilder {
@@ -374,6 +378,17 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 			b.open("make:unmodelled-file:" + driverReasonWord(driverJoin(call.Dir, call.File)))
 		}
 		b.importAll(ids)
+		// NCM-V1-019: a variable the calling file exports is in the
+		// environment of the make it calls, where it overrides a `?=`
+		// default and passes on to every make that one calls. Only a call
+		// of the same file reads the values the scan already unions.
+		if b.caller != nil && len(b.caller.exportedNames) != 0 {
+			if file, _ := registry.makeFile(call); file != b.caller.path {
+				for _, name := range b.caller.exportedNames {
+					b.open("make:exported-variable:" + driverReasonWord(name))
+				}
+			}
+		}
 	}
 }
 
@@ -479,20 +494,8 @@ func (registry *driverRegistry) resolveMake(call driverMakeCall) (ids []string, 
 	if call.Unbounded {
 		return registry.allMake, true
 	}
-	file := ""
-	if call.File != "" {
-		file = driverJoin(call.Dir, call.File)
-	} else {
-		for _, name := range []string{"GNUmakefile", "makefile", "Makefile"} {
-			candidate := driverJoin(call.Dir, name)
-			if _, present := registry.makes[candidate]; present {
-				file = candidate
-				break
-			}
-		}
-	}
-	parsed, present := registry.makes[file]
-	if !present {
+	file, parsed := registry.makeFile(call)
+	if parsed == nil {
 		return nil, false
 	}
 	all := registry.fileUnits[file]
@@ -521,6 +524,27 @@ func (registry *driverRegistry) resolveMake(call driverMakeCall) (ids []string, 
 	return ids, true
 }
 
+// makeFile names the make file a bounded make invocation reads and its
+// parse, nil when the driver does not model it, and "" for an unbounded call.
+func (registry *driverRegistry) makeFile(call driverMakeCall) (string, *driverMakeFile) {
+	if call.Unbounded {
+		return "", nil
+	}
+	file := ""
+	if call.File != "" {
+		file = driverJoin(call.Dir, call.File)
+	} else {
+		for _, name := range []string{"GNUmakefile", "makefile", "Makefile"} {
+			candidate := driverJoin(call.Dir, name)
+			if _, present := registry.makes[candidate]; present {
+				file = candidate
+				break
+			}
+		}
+	}
+	return file, registry.makes[file]
+}
+
 // makeUnits builds one unit per rule of a parsed make file, or the single
 // unparsable-file unit.
 func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) []Unit {
@@ -535,6 +559,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// whose targets are special or computed, every `$(shell ...)` the
 	// variables run while make reads the file, and the included files.
 	shared := newDriverUnitBuilder("")
+	shared.caller = parsed
 	shared.addTokens(strings.Join(parsed.remainder, "\n"))
 	fileExpander := parsed.expander(map[string]string{})
 	for _, name := range driverSortedKeys(parsed.vars) {
@@ -660,6 +685,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// it is otherwise empty and rule is target's own rule.
 	build := func(target string, rule *driverMakeRule, auto map[string]string, instance string) Unit {
 		builder := newDriverUnitBuilder(driverMakeUnitID(parsed.path, target))
+		builder.caller = parsed
 		builder.computed, builder.runOpen = shared.computed, shared.runOpen
 		driverMergeReasons(&builder.openBy, shared.openBy)
 		driverMergeReasons(&builder.reasons, shared.reasons)

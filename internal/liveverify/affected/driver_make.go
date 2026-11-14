@@ -1322,7 +1322,11 @@ func (e *driverExpander) lookup(name string) string {
 		}
 		return driverComputed
 	case "MAKE":
-		return "make"
+		// NCM-V1-019: a file that assigns MAKE runs that program for
+		// $(MAKE), which its own value names.
+		if _, set := e.file.vars["MAKE"]; !set {
+			return "make"
+		}
 	case "MAKEFILE_LIST":
 		return path.Base(e.file.path)
 	case "MAKEFLAGS", "MFLAGS":

@@ -297,6 +297,10 @@ type driverShellScanner struct {
 	// opaque counts the enclosing inline scripts of a shell other than sh or
 	// bash, whose special parameters differ: no assignment is narrowed there.
 	opaque int
+	// environ holds the names of the environment assignments in front of the
+	// enclosing commands, which a make they run reads as variables
+	// (NCM-V1-019).
+	environ []string
 }
 
 type driverHeredoc struct {
@@ -1183,6 +1187,15 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 				words = words[1:]
 			}
 		default:
+			// NCM-V1-019: every environment variable is a make variable,
+			// which overrides a `?=` default, so a make the command runs,
+			// directly or through an inline script, is not followed.
+			depth := len(s.environ)
+			for _, word := range pending {
+				name, _, _ := strings.Cut(word.text, "=")
+				s.environ = append(s.environ, name)
+			}
+			defer func() { s.environ = s.environ[:depth] }()
 			// `IFS= read -r name...` sets IFS for read alone (AFP-V0-9624).
 			if !(len(pending) == 1 && pending[0].text == "IFS=" && s.localRead(words) != nil) {
 				settle(false, true)
@@ -2688,16 +2701,21 @@ var driverMakeOutputSync = map[string]bool{"none": true, "line": true, "target":
 // which name no file.
 //
 // NCM-V1-019: the reach follows the call only with the options of
-// driverMakeQuietFlags, alone or as combined single letters, -C and -f, which
-// it models, and -j and -l with an optional count. A variable assignment can
-// set SHELL or a value a recipe runs, and any other option, --eval, -e, -n,
-// -I or an unknown one, can change what make runs: each leaves the call
-// unfollowed.
+// driverMakeQuietFlags, alone or as combined single letters, -C and one -f,
+// which it models, and -j and -l with an optional count. A variable
+// assignment, on the command line or in the command's environment, can set
+// SHELL or a value a recipe runs; a second -f makes make read both files;
+// and any other option, --eval, -e, -n, -I or an unknown one, can change
+// what make runs: each leaves the call unfollowed.
 func (s *driverShellScanner) makeInvocation(words []driverWord, cwd string, fed bool) map[int]bool {
 	call := driverMakeCall{Dir: cwd, Computed: fed}
 	if cwd == "" {
 		call.Unbounded = true
 	}
+	for _, name := range s.environ {
+		s.scan.unfollowed("make:environment-assignment:" + driverReasonWord(name))
+	}
+	files := 0
 	setDir := func(value string) {
 		if driverDynamic(value) || call.Dir == "" {
 			call.Unbounded = true
@@ -2710,6 +2728,10 @@ func (s *driverShellScanner) makeInvocation(words []driverWord, cwd string, fed 
 		}
 	}
 	setFile := func(value string) {
+		if files++; files == 2 {
+			// Make reads every -f file in order (NCM-V1-019).
+			s.scan.unfollowed("make:several-makefiles")
+		}
 		if driverDynamic(value) {
 			call.Unbounded = true
 			return
