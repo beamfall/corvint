@@ -2,16 +2,22 @@
 package sessiontest
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testid"
+	"github.com/Beamfall/corvint/internal/testinventory"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
@@ -177,6 +183,10 @@ type contractPlan struct {
 	// expected is what the report must answer: each selected file and
 	// every test the inventory lists in it (RNC-V1-006).
 	expected []string
+	// unlisted are the selected files the inventory lists no test in (new
+	// or changed since refresh): a pytest run reconciles them against the
+	// testcases the report gives them, and fails closed when it gives none.
+	unlisted []string
 	// refusal is why no command could be derived; the units are NOT_RUN.
 	refusal string
 }
@@ -222,11 +232,19 @@ func contractInvocations(m Manifest, declared Declared, shard int, root string) 
 			tests = append(tests, unit.Unit)
 			plan.expected = append(plan.expected, unit.Unit)
 			plan.expected = append(plan.expected, listed[unit.Key()]...)
+			if len(listed[unit.Key()]) == 0 {
+				plan.unlisted = append(plan.unlisted, unit.Unit)
+			}
 		}
 		plan.implementation = implementation
 		plan.request = contract.Request{
 			Instance: contract.Instance{Runner: runner, Root: instanceRoot}, Full: full, Tests: tests,
 			Tier: contract.TierFile, Report: ContractReportPlaceholder,
+		}
+		if runner == testid.Jest {
+			// JST-V1-008: a Jest selection narrows only in a setup the
+			// contract read and supports; any other runs the full command.
+			plan.request.Jest = jestSetup(root, plan.request.Instance, full)
 		}
 		command, err := implementation.Command(plan.request)
 		if err != nil {
@@ -357,12 +375,37 @@ func contractOutcomes(planned Planned, root, report string, readErr error, out i
 	case run.Incomplete:
 		reasons = append(reasons, fmt.Sprintf("contract %s: the report records a file or package that did not finish, or lines it could not read", key))
 	}
+	if plan.request.Instance.Runner == testid.Pytest && len(plan.unlisted) != 0 && (parseErr == nil || errors.As(parseErr, &partial)) {
+		// PYR-V1-006, RNC-V1-002: a selected file the inventory lists no test
+		// in (a test file changed or added since refresh, TIV-V1-008) ran
+		// whole, by its file node ID, and is reconciled against the testcases
+		// pytest reported for it. One that reported no testcase (nothing
+		// collected, only a module-level skip, or a collection error) cannot
+		// show that any of its tests ran, so it fails closed.
+		_, _ = fmt.Fprintf(out, "contract %s: %d selected files are new or changed since the inventory refresh, so they ran whole and are reconciled against the testcases pytest reported: %s\n", key, len(plan.unlisted), firstOf(plan.unlisted))
+		var untested []string
+		for _, file := range plan.unlisted {
+			if !slices.ContainsFunc(results, func(result contract.Result) bool {
+				return result.Granularity == testid.GranularityTest && testid.Matches(file, result.ID)
+			}) {
+				untested = append(untested, file)
+			}
+		}
+		if len(untested) != 0 {
+			reasons = append(reasons, fmt.Sprintf("contract %s: %s: completeness cannot be established for %d selected files the inventory lists no test in, as pytest reported no testcase in them: %s", key, contract.ReasonTestsDeselected, len(untested), firstOf(untested)))
+		}
+	}
 	outcomes := make([]Outcome, 0, len(planned.Units))
 	anyFail := false
 	for _, unit := range planned.Units {
 		outcome := unitOutcome(unit.Unit, run.Results)
 		anyFail = anyFail || outcome == OutcomeFail
-		outcomes = append(outcomes, Outcome{Outcome: outcome, Slice: unit.Slice, TestID: unit.Unit, Unit: unit.Unit})
+		recorded := Outcome{Outcome: outcome, Slice: unit.Slice, TestID: unit.Unit, Unit: unit.Unit}
+		if source := contractSources[plan.request.Instance.Runner]; source != "" && outcome != OutcomeNotRun {
+			measure := contractMeasure(unit.Unit, run.Results, source)
+			recorded = timedOutcome(recorded, &measure)
+		}
+		outcomes = append(outcomes, recorded)
 	}
 	if run.Failed && !anyFail {
 		// A run-level failure no result carries fails every unit that would
@@ -396,13 +439,55 @@ func parseContractReport(plan *contractPlan, root string, data []byte) ([]contra
 	}
 	var results []contract.Result
 	for _, candidate := range roots {
-		results, err = plan.implementation.Parse(contract.ParseRequest{Instance: plan.request.Instance, Report: data, Root: candidate})
+		results, err = plan.implementation.Parse(contract.ParseRequest{Instance: plan.request.Instance, Report: data, Root: candidate, Tests: plan.request.Tests, Files: plan.request.Files})
 		var partial *contract.ReportError
 		if err == nil || errors.As(err, &partial) {
 			return results, err
 		}
 	}
 	return results, err
+}
+
+// contractSources are the duration sources of the runners whose contract
+// parser marks a test the report gave no time, or an invalid one
+// (PTD-V1-002). Playwright and Go are absent: their contract parsers keep
+// no such mark, so their contract outcomes stay NOT_MEASURED.
+var contractSources = map[string]string{
+	testid.Jest: testduration.SourceJest, testid.Pytest: testduration.SourcePytest,
+	testid.RSpec: testduration.SourceRSpec, testid.Vitest: testduration.SourceVitest,
+}
+
+// contractMeasure is the duration of one selected file's unit: the sum of
+// the times the report gave its tests, at file granularity (PTD-V1-002,
+// PTD-V1-004). It is NOT_MEASURED when the report answers none of its
+// tests, leaves one NOT_RUN, gives one no time or answers the file only
+// with a file-level result that has none (PTD-V1-003), and invalid
+// when one time is invalid (PTD-V1-007). The invocation's elapsed time is
+// never used (PTD-V1-005).
+func contractMeasure(file string, results []contract.Result, source string) testduration.Measure {
+	var times []testduration.Measure
+	for _, result := range results {
+		if result.ID != file && !testid.Matches(file, result.ID) {
+			continue
+		}
+		switch {
+		case result.Outcome == contract.OutcomeNotRun:
+			return testduration.Missing()
+		case result.Granularity == testid.GranularityFile && result.DurationMissing:
+			// A file-level result with no time (a Jest file that failed to
+			// load, a pytest collection error) leaves the file NOT_MEASURED,
+			// never a measured 0 ms (PTD-V1-003).
+			return testduration.Missing()
+		case result.DurationInvalid:
+			times = append(times, testduration.Measure{Source: testduration.NotMeasured, Invalid: true})
+		case result.DurationMissing:
+			times = append(times, testduration.Missing())
+		default:
+			times = append(times, testduration.FromMilliseconds(float64(result.DurationMillis), source))
+		}
+	}
+	measure, _ := testduration.Attempts(times, source)
+	return measure
 }
 
 // unitOutcome folds the results of one selected file into its unit outcome.
@@ -433,4 +518,182 @@ func (p Planned) ContractSelection() (instance string, command contract.Command,
 		return "", contract.Command{}, "", false
 	}
 	return p.Units[0].Slice, p.contract.command, p.contract.refusal, true
+}
+
+// RunnerEnvironment is the environment record of one pytest contract
+// invocation (PYR-V1-008): the Python and pytest versions, NOT_OBSERVED
+// when neither the session header nor the discovery probe named one, and
+// the nearest pytest lockfile with its SHA-256 when there is one.
+type RunnerEnvironment struct {
+	Python         string `json:"python"`
+	Pytest         string `json:"pytest"`
+	Lockfile       string `json:"lockfile,omitempty"`
+	LockfileSHA256 string `json:"lockfileSha256,omitempty"`
+}
+
+// lockfileLimit bounds the lockfile bytes hashed for the environment record.
+const lockfileLimit = 256 << 20
+
+// pytestOutput passes a pytest run's stdout through to out and reads two
+// kinds of line as they pass: the session header (the Python and pytest
+// versions) and a deselected count. A line longer than its buffer is passed
+// through unread.
+type pytestOutput struct {
+	out        io.Writer
+	line       []byte
+	python     string
+	pytest     string
+	deselected int
+}
+
+func (w *pytestOutput) Write(p []byte) (int, error) {
+	_, _ = w.out.Write(p)
+	for _, b := range p {
+		if b != '\n' {
+			if len(w.line) < 64<<10 {
+				w.line = append(w.line, b)
+			}
+			continue
+		}
+		w.read(string(w.line))
+		w.line = w.line[:0]
+	}
+	return len(p), nil
+}
+
+func (w *pytestOutput) read(line string) {
+	if python, pytest, ok := contract.PytestHeader(line); ok && w.python == "" {
+		w.python, w.pytest = python, pytest
+	}
+	if count, ok := contract.PytestDeselected(line); ok && count > w.deselected {
+		w.deselected = count
+	}
+}
+
+func (w *pytestOutput) flush() {
+	if len(w.line) != 0 {
+		w.read(string(w.line))
+		w.line = w.line[:0]
+	}
+}
+
+// pytestRecord adds what a finished pytest contract invocation reports
+// beyond its results (PYR-V1-006, PYR-V1-008): the typed reason of an exit
+// status that is not a test outcome, a deselected count pytest printed, and
+// the environment record. version is the version the discovery probe read
+// from the command's first word.
+func pytestRecord(repository string, recorded *Invocation, version string, output *pytestOutput) []string {
+	var reasons []string
+	key := recorded.Instance
+	if reason := contract.PytestExitReason(recorded.Exit); reason != "" {
+		reasons = append(reasons, "contract "+key+": "+reason)
+	}
+	if output.deselected != 0 {
+		reasons = append(reasons, fmt.Sprintf("contract %s: %s: %d collected tests were deselected by a plugin or option, so the selected files did not all run", key, contract.ReasonTestsDeselected, output.deselected))
+	}
+	python, pytest := output.python, output.pytest
+	if python == "" {
+		python = notObservedVersion
+		if value, ok := strings.CutPrefix(version, "Python "); ok {
+			python = value
+		}
+	}
+	if pytest == "" {
+		pytest = notObservedVersion
+	}
+	_, root, _ := strings.Cut(key, "@")
+	lockfile, sum := lockfileRecord(repository, root)
+	recorded.Environment = &RunnerEnvironment{Python: python, Pytest: pytest, Lockfile: lockfile, LockfileSHA256: sum}
+	return reasons
+}
+
+// notObservedVersion is a version no output named.
+const notObservedVersion = "NOT_OBSERVED"
+
+// lockfileRecord is the nearest pytest lockfile of root (the instance root
+// or the nearest directory above it, testinventory's precedence) and its
+// SHA-256, or empty strings when there is none or it cannot be read.
+func lockfileRecord(repository, root string) (string, string) {
+	name := testinventory.NearestLockfile(func(rel string) bool {
+		info, err := os.Lstat(filepath.Join(repository, filepath.FromSlash(rel)))
+		return err == nil && info.Mode().IsRegular()
+	}, testid.Pytest, root)
+	if name == "" {
+		return "", ""
+	}
+	file, err := openInput(filepath.Join(repository, filepath.FromSlash(name)))
+	if err != nil {
+		return name, ""
+	}
+	defer file.Close()
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return name, ""
+	}
+	hash := sha256.New()
+	if n, err := io.Copy(hash, io.LimitReader(file, lockfileLimit+1)); err != nil || n > lockfileLimit {
+		return name, ""
+	}
+	return name, hex.EncodeToString(hash.Sum(nil))
+}
+
+// jestConfigNames are the config files Jest itself looks for in its root
+// directory when no --config is given, in its order
+// (https://jestjs.io/docs/configuration), then package.json's jest member.
+var jestConfigNames = []string{"jest.config.js", "jest.config.ts", "jest.config.mjs", "jest.config.cjs", "jest.config.cts", "jest.config.mts", "jest.config.json", "package.json"}
+
+// jestSetupLimit bounds each file jestSetup reads.
+const jestSetupLimit = 1 << 20
+
+// jestSetup reads the setup of one Jest instance for the contract
+// (JST-V1-008): the installed jest version and the config the full command
+// runs with, the file its --config or -c names (relative to the instance
+// root) or else the first of Jest's own config files in the instance root.
+// Every read is bounded and refuses a symbolic link or a non-regular file;
+// what cannot be read leaves the setup unsupported, so the full command
+// runs.
+func jestSetup(root string, instance contract.Instance, full []string) *contract.JestSetup {
+	read := func(rel string) ([]byte, error) {
+		if !filepath.IsLocal(filepath.FromSlash(rel)) {
+			return nil, errors.New("outside the repository")
+		}
+		file, err := openInput(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+			return nil, errors.New("not a regular file")
+		}
+		data, err := io.ReadAll(io.LimitReader(file, jestSetupLimit+1))
+		if err != nil || len(data) > jestSetupLimit {
+			return nil, errors.New("unreadable or too large")
+		}
+		return data, nil
+	}
+	config := ""
+	for index, word := range full {
+		if value, ok := strings.CutPrefix(word, "--config="); ok {
+			config = value
+		} else if (word == "--config" || word == "-c") && index+1 < len(full) {
+			config = full[index+1]
+		}
+	}
+	if config != "" {
+		instance.Config = path.Join(instance.Root, filepath.ToSlash(config))
+	} else {
+		for _, name := range jestConfigNames {
+			candidate := path.Join(instance.Root, name)
+			raw, err := read(candidate)
+			if err != nil {
+				continue
+			}
+			if name == "package.json" && !bytes.Contains(raw, []byte(`"jest"`)) {
+				continue
+			}
+			instance.Config = candidate
+			break
+		}
+	}
+	setup := contract.JestSetupFrom(instance, read)
+	return &setup
 }

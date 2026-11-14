@@ -19,7 +19,8 @@ import (
 // node_modules/.bin/jest: it logs its argv, answers --version and the
 // inventory's --listTests, and for a run writes a Jest --json report for
 // the files after --runTestsByPath (every test file without it) to the
-// --outputFile path, one test per file titled by the file, failing when
+// --outputFile path (to stdout without one, as the inventory's collection
+// run asks, JST-V1-002), one test per file titled by the file, failing when
 // JEST_FIXTURE_FAIL names the file. The live runner is not on this host
 // (NOT_RUN); the report shape is Jest's documented --json output.
 const fixtureJest = `#!/bin/sh
@@ -47,7 +48,11 @@ for f in $files; do
   body="$body$sep{\"name\":\"$here/$f\",\"status\":\"$status\",\"assertionResults\":[{\"ancestorTitles\":[\"$title\"],\"title\":\"works\",\"status\":\"$status\",\"duration\":4}]}"
   sep=","
 done
-[ -n "$out" ] && printf '{"success":%s,"testResults":[%s]}\n' "$success" "$body" > "$out"
+if [ -n "$out" ]; then
+  printf '{"success":%s,"testResults":[%s]}\n' "$success" "$body" > "$out"
+else
+  printf '{"success":%s,"testResults":[%s]}\n' "$success" "$body"
+fi
 exit $code
 `
 
@@ -81,6 +86,13 @@ func jestFixtureRepository(t *testing.T, inventory bool) (root, log string) {
 		t.Fatal(err)
 	}
 	if err := execfile.WriteFile(filepath.Join(root, "node_modules", ".bin", "jest"), []byte(fixtureJest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// JST-V1-008: the installed Jest package a supported setup names.
+	if err := os.MkdirAll(filepath.Join(root, "node_modules", "jest"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "node_modules", "jest", "package.json"), []byte(`{"name":"jest","version":"29.7.0"}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	bin := t.TempDir()

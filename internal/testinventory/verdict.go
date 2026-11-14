@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -247,6 +248,34 @@ func judgeInstance(instance Declared, record Instance, files map[string]string, 
 			changed[name] = true
 		}
 	}
+	if instance.Runner == testid.Pytest {
+		// Review P3-b: pytest loads each conftest.py on a test file's
+		// directory path up to the rootdir, and one can add, change or
+		// deselect its tests, so a conftest.py that changed, appeared or
+		// went since refresh makes every test file beneath it changed.
+		moved := func(name string) bool {
+			blob, inTree := files[name]
+			was, inRecord := recorded[name]
+			return inTree != inRecord || blob != was
+		}
+		for _, file := range record.Files {
+			if path.Base(file.Path) == "conftest.py" && instance.Pattern == "" {
+				// A conftest.py holds no test of a proven instance: its
+				// change unassigns the test files beneath it, not itself.
+				delete(changed, file.Path)
+				continue
+			}
+			if _, present := files[file.Path]; !present || changed[file.Path] {
+				continue
+			}
+			for _, name := range conftestPath(instance.Root, file.Path) {
+				if moved(name) {
+					changed[file.Path] = true
+					break
+				}
+			}
+		}
+	}
 	for name := range changed {
 		verdict.Unassigned = append(verdict.Unassigned, name)
 	}
@@ -261,6 +290,31 @@ func judgeInstance(instance Declared, record Instance, files map[string]string, 
 		}
 	}
 	return verdict
+}
+
+// conftests are the conftest.py files of files under root, sorted.
+func conftests(files map[string]string, root string) []string {
+	var out []string
+	for name := range files {
+		if path.Base(name) == "conftest.py" && under(root, name) {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// conftestPath is the conftest.py path of each directory from file's own up
+// to root, the ones pytest loads for it.
+func conftestPath(root, file string) []string {
+	var out []string
+	for dir := path.Dir(file); under(root, dir) || dir == "."; dir = path.Dir(dir) {
+		out = append(out, path.Join(dir, "conftest.py"))
+		if dir == root || dir == "." {
+			break
+		}
+	}
+	return out
 }
 
 // languageOf names the files an unproven instance's candidates take.
@@ -324,9 +378,9 @@ type ListerIdentity struct {
 var listers = map[string]ListerIdentity{
 	testid.Go:         {Name: "go-ast", Version: "1", Kind: KindStatic},
 	testid.Vitest:     {Name: "vitest-list", Version: "1", Kind: KindExecuting},
-	testid.Jest:       {Name: "jest-list-tests", Version: "1", Kind: KindExecuting},
+	testid.Jest:       {Name: "jest-list-tests", Version: "2", Kind: KindExecuting},
 	testid.Playwright: {Name: "playwright-list", Version: "1", Kind: KindExecuting},
-	testid.Pytest:     {Name: "pytest-collect", Version: "1", Kind: KindExecuting},
+	testid.Pytest:     {Name: "pytest-collect", Version: "3", Kind: KindExecuting},
 	testid.RSpec:      {Name: "rspec-static", Version: "1", Kind: KindStatic},
 	testid.Minitest:   {Name: "minitest-static", Version: "1", Kind: KindStatic},
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -57,30 +58,94 @@ func TestTIVV1004VitestLister(t *testing.T) {
 	}
 }
 
-// TIV-V1-003, TIV-V1-004: two Jest roots are two instances; `jest
-// --listTests` names files only, so each is listed at file level.
+// jestStub writes node_modules/.bin/jest: `--listTests` prints every
+// *.test.js of the working directory, and the collection run prints the
+// report of collect, keyed by the working directory's base name, with ROOT
+// replaced by the working directory. The report has Jest's `--json` shape
+// (the AggregatedResult of @jest/test-result, https://jestjs.io/docs/cli#--json);
+// it is hand-written, as this host has no Jest install. Any other argv exits 9.
+func jestStub(t *testing.T, root string, collect map[string]string, collectExit int) {
+	t.Helper()
+	full := filepath.Join(root, "node_modules", ".bin", "jest")
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\ncase \"$*\" in\n" +
+		"'--listTests --config jest.config.js') for f in *.test.js; do echo \"$(pwd -P)/$f\"; done ;;\n" +
+		"'--config jest.config.js --ci --coverage=false --passWithNoTests --json --testNamePattern=^(?!)')\n" +
+		"  echo 'Determining test suites to run...'\n" +
+		"  case \"$(basename \"$(pwd -P)\")\" in\n"
+	for name, report := range collect {
+		script += "  " + name + ") printf '%s\\n' '" + report + "' | sed \"s|ROOT|$(pwd -P)|g\" ;;\n"
+	}
+	script += "  esac\n  exit " + strconv.Itoa(collectExit) + " ;;\n*) echo \"unexpected argv: $*\" >&2; exit 9 ;;\nesac\n"
+	if err := execfile.WriteFile(full, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TIV-V1-003, TIV-V1-004, JST-V1-002, JST-V1-007: two Jest roots are two
+// instances. `jest --listTests` names the files and Jest's collection run
+// names each test by canonical ID from its ancestorTitles and title
+// (CTI-V1-004); a listed file the collection names no test of stays at file
+// level with test-id-unmapped.
 func TestTIVV1004JestListerTwoRoots(t *testing.T) {
 	root, git := gitRepo(t, map[string]string{
 		".gitignore":                "node_modules/\n",
 		"package-lock.json":         "{}\n",
 		"apps/web/jest.config.js":   "module.exports = {}\n",
-		"apps/web/a.test.js":        "test('a', () => {})\n",
+		"apps/web/a.test.js":        "describe('cart', () => { it('adds item', () => {}) })\ntest('handles (a+b)', () => {})\n",
+		"apps/web/empty.test.js":    "\n",
 		"apps/admin/jest.config.js": "module.exports = {}\n",
 		"apps/admin/b.test.js":      "test('b', () => {})\n",
 	})
-	stub(t, root, "node_modules/.bin/jest", "--listTests --config jest.config.js",
-		`for f in *.test.js; do echo "$(pwd -P)/$f"; done`)
+	jestStub(t, root, map[string]string{
+		"web":   `{"success":true,"testResults":[{"name":"ROOT/a.test.js","status":"passed","assertionResults":[{"ancestorTitles":["cart"],"title":"adds item","status":"pending","duration":null},{"ancestorTitles":[],"title":"handles (a+b)","status":"pending","duration":null}]}]}`,
+		"admin": `{"success":true,"testResults":[{"name":"ROOT/b.test.js","status":"passed","assertionResults":[{"ancestorTitles":[],"title":"b","status":"pending","duration":null}]}]}`,
+	}, 0)
 	inventory := refreshTwice(t, git, nil)
 	web, admin := instanceByKey(t, inventory, "jest@apps/web"), instanceByKey(t, inventory, "jest@apps/admin")
-	if got := testsOf(web); !reflect.DeepEqual(got, []Test{{ID: "jest:apps/web/a.test.js", File: "apps/web/a.test.js", Reason: "test-id-unmapped"}}) {
+	wantWeb := []Test{
+		{ID: "jest:apps/web/a.test.js::cart::adds item", File: "apps/web/a.test.js"},
+		{ID: "jest:apps/web/a.test.js::handles (a+b)", File: "apps/web/a.test.js"},
+		{ID: "jest:apps/web/empty.test.js", File: "apps/web/empty.test.js", Reason: "test-id-unmapped"},
+	}
+	if got := testsOf(web); !reflect.DeepEqual(got, wantWeb) {
 		t.Fatalf("jest web %+v", got)
 	}
-	if got := testsOf(admin); !reflect.DeepEqual(got, []Test{{ID: "jest:apps/admin/b.test.js", File: "apps/admin/b.test.js", Reason: "test-id-unmapped"}}) {
+	if got := testsOf(admin); !reflect.DeepEqual(got, []Test{{ID: "jest:apps/admin/b.test.js::b", File: "apps/admin/b.test.js"}}) {
 		t.Fatalf("jest admin %+v", got)
 	}
-	requireBinding(t, root, web, "apps/web/a.test.js")
-	if web.Lockfile != "package-lock.json" || web.Lister.Command[0] != "node_modules/.bin/jest" {
-		t.Fatalf("jest web lockfile %q command %v", web.Lockfile, web.Lister.Command)
+	requireBinding(t, root, web, "apps/web/a.test.js", "apps/web/empty.test.js")
+	if web.Lockfile != "package-lock.json" || web.Lister.Command[0] != "node_modules/.bin/jest" || web.Lister.Kind != KindExecuting || web.Lister.Version != "2" {
+		t.Fatalf("jest web lockfile %q lister %+v", web.Lockfile, web.Lister)
+	}
+}
+
+// JST-V1-002, TIV-V1-011: a failing collection run (a test file that does
+// not load exits 1) fails the lister, so the instance is absent from the
+// inventory and recorded as a failure, never listed by guess.
+func TestJSTV1002FailedCollectionLeavesTheInstanceAbsent(t *testing.T) {
+	root, git := gitRepo(t, map[string]string{
+		".gitignore":         "node_modules/\n",
+		"package-lock.json":  "{}\n",
+		"web/jest.config.js": "module.exports = {}\n",
+		"web/a.test.js":      "test('a', () => {})\n",
+	})
+	jestStub(t, root, map[string]string{
+		"web": `{"success":false,"testResults":[{"name":"ROOT/a.test.js","status":"failed","assertionResults":[]}]}`,
+	}, 1)
+	inventory, err := Build(context.Background(), Options{Git: git})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, instance := range inventory.Instances {
+		if instance.Key == "jest@web" {
+			t.Fatalf("instance listed despite a failed collection: %+v", instance)
+		}
+	}
+	if len(inventory.Failures) != 1 || inventory.Failures[0].Key != "jest@web" || !strings.Contains(inventory.Failures[0].Error, "jest collection run") {
+		t.Fatalf("failures %+v", inventory.Failures)
 	}
 }
 
@@ -132,7 +197,9 @@ func TestTIVV1004PlaywrightLister(t *testing.T) {
 
 // TIV-V1-004, TIV-V1-005: `pytest --collect-only -q` runs through the
 // project's virtualenv with the instance root as rootdir, and each node ID
-// becomes one test with its parameter part kept (CTI-V1-006).
+// becomes one test with its parameter part kept (CTI-V1-006). Each test
+// carries its kind (PYR-V1-005): TestK is not in the file, so its kind is
+// UNKNOWN.
 func TestTIVV1004PytestLister(t *testing.T) {
 	root, git := gitRepo(t, map[string]string{
 		".gitignore":          ".venv/\n",
@@ -146,8 +213,8 @@ func TestTIVV1004PytestLister(t *testing.T) {
 	inventory := refreshTwice(t, git, nil)
 	pytest := instanceByKey(t, inventory, "pytest@svc")
 	want := []Test{
-		{ID: "pytest:svc/tests/test_a.py::TestK::test_two[a%3A%3Ab]", File: "svc/tests/test_a.py"},
-		{ID: "pytest:svc/tests/test_a.py::test_one", File: "svc/tests/test_a.py"},
+		{ID: "pytest:svc/tests/test_a.py::TestK::test_two[a%3A%3Ab]", File: "svc/tests/test_a.py", Kind: KindUnknown, KindSource: KindSourceUnresolved},
+		{ID: "pytest:svc/tests/test_a.py::test_one", File: "svc/tests/test_a.py", Kind: KindUnit, KindSource: KindSourceDefault},
 	}
 	if got := testsOf(pytest); !reflect.DeepEqual(got, want) {
 		t.Fatalf("pytest tests %+v", got)

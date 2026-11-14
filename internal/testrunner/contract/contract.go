@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/testduration"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -81,6 +82,14 @@ type Request struct {
 	Files []string
 	// Report is the absolute path the runner writes its machine report to.
 	Report string
+	// Listed are the canonical test IDs the committed inventory lists for
+	// the instance. A name filter is exact only when no unselected listed
+	// test can match it; nil proves nothing.
+	Listed []string
+	// Jest is the Jest instance's setup (JST-V1-008), read by JestSetupFrom.
+	// A nil setup is one Corvint did not read, so a Jest selection runs the
+	// full command.
+	Jest *JestSetup
 }
 
 // Command is the argv one selection runs, from Dir (the instance root,
@@ -105,16 +114,48 @@ type ParseRequest struct {
 	Root string
 	// Module is the module path of a Go instance's go.mod.
 	Module string
+	// Tests are the selected canonical test IDs the run was narrowed to;
+	// nil for a full run. Files are the instance's test files from the
+	// committed inventory (repository-relative); nil proves nothing. The
+	// pytest parser attributes a JUnit testcase to the file whose module
+	// prefixes its classname, trying the selected files first, then Files
+	// (PYR-V1-004).
+	Tests []string
+	Files []string
 }
 
 // Result is one test's outcome and duration under its canonical test ID
 // (RNC-V1-005, RNC-V1-012). Granularity is `test` unless the report names
-// no finer unit than the file (or the Go package).
+// no finer unit than the file (or the Go package). RunnerOutcome is the
+// runner's own outcome word when it is finer than Outcome (pytest's
+// xfailed and xpassed, PYR-V1-004); it is absent otherwise.
 type Result struct {
 	ID             string             `json:"testId"`
 	Outcome        string             `json:"outcome"`
+	RunnerOutcome  string             `json:"runnerOutcome,omitempty"`
 	DurationMillis int64              `json:"durationMillis"`
 	Granularity    testid.Granularity `json:"granularity"`
+	// DurationMissing and DurationInvalid say the report gave this result
+	// no time, or one that is not a valid duration (negative, not a number,
+	// above testduration.MaxMilliseconds); DurationMillis is then 0 and no
+	// reader may take it as measured (PTD-V1-003, PTD-V1-007). Neither is
+	// serialized.
+	DurationMissing bool `json:"-"`
+	DurationInvalid bool `json:"-"`
+}
+
+// timed sets a result's duration from a measure the testduration rules
+// read (PTD-V1-002, PTD-V1-003, PTD-V1-007).
+func (r Result) timed(measure testduration.Measure) Result {
+	switch {
+	case measure.Invalid:
+		r.DurationMillis, r.DurationInvalid = 0, true
+	case measure.Milliseconds == nil:
+		r.DurationMillis, r.DurationMissing = 0, true
+	default:
+		r.DurationMillis = *measure.Milliseconds
+	}
+	return r
 }
 
 // Runner is one runner's implementation of the contract (RNC-V1-001).
@@ -228,6 +269,31 @@ func checkRequest(request Request, runner string) error {
 // full is the command that runs request's whole instance.
 func full(request Request, extra ...string) Command {
 	return Command{Argv: append(slices.Clone(request.Full), extra...), Dir: request.Instance.Root, Report: request.Report, Tier: TierFull, Exact: true}
+}
+
+// ReasonArgvLimit names a selection widened because its argv would exceed
+// the operating system's argument limit (RNC-V1-016).
+const ReasonArgvLimit = "argv-limit"
+
+// The argument bounds ArgvFits keeps under: one argument below Linux's
+// MAX_ARG_STRLEN (128 KiB), and the whole argv at a quarter of macOS's
+// 1 MiB ARG_MAX, which also holds the environment.
+const (
+	MaxArgBytes  = 128<<10 - 1
+	MaxArgvBytes = 256 << 10
+)
+
+// ArgvFits reports whether argv stays under MaxArgBytes per argument and
+// MaxArgvBytes in total, counting each argument's terminating NUL.
+func ArgvFits(argv []string) bool {
+	total := 0
+	for _, arg := range argv {
+		if len(arg) > MaxArgBytes {
+			return false
+		}
+		total += len(arg) + 1
+	}
+	return total <= MaxArgvBytes
 }
 
 // tierOf is the tier of a narrowed selection: the plan's, file when unset.
