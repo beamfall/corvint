@@ -36,7 +36,11 @@ func TestAdapterContract_FIH_V1_008(t *testing.T) {
 	if a, err := adapterFor("go", adapterOptions{}); err != nil || a.Runner() != "go" {
 		t.Fatalf("go adapter: %v", err)
 	}
-	for _, r := range []string{"vitest", "pytest", "cypress"} {
+	// pytest has an adapter since PYR-V1-010 (TestPYRV1010PytestHarnessAdapter).
+	if a, err := adapterFor("pytest", adapterOptions{}); err != nil || a.Runner() != "pytest" {
+		t.Fatalf("pytest adapter: %v", err)
+	}
+	for _, r := range []string{"vitest", "cypress"} {
 		if _, err := adapterFor(r, adapterOptions{}); refusalCode(err) != "runner-adapter-missing" {
 			t.Fatalf("%s: %v", r, err)
 		}

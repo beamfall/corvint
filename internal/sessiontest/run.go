@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/testduration"
+	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
 
@@ -115,6 +116,9 @@ type Invocation struct {
 	Exact       *bool             `json:"exact,omitempty"`
 	ExactReason string            `json:"exactReason,omitempty"`
 	Tests       []contract.Result `json:"tests,omitempty"`
+	// Environment is set only on a pytest contract invocation that ran
+	// (PYR-V1-008): the Python and pytest versions and the lockfile hash.
+	Environment *RunnerEnvironment `json:"environment,omitempty"`
 }
 
 // Receipt is the STR-V0-010 corvint-test-run/0 document of one shard.
@@ -362,6 +366,13 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			// of its selected tests recorded NOT_RUN beside the reason.
 			receipt.Invocations = append(receipt.Invocations, providerUnavailable(planned, key, manifests)...)
 			receipt.Invocations = append(receipt.Invocations, contractUnavailable(planned, key, manifests)...)
+			for _, other := range planned {
+				// PYR-V1-006: a pytest instance that cannot be started names
+				// the typed reason.
+				if other.contract != nil && other.contract.request.Instance.Runner == testid.Pytest && runnerKey(other) == key {
+					receipt.Incomplete = append(receipt.Incomplete, "contract "+other.Units[0].Slice+": "+contract.ReasonRunnerUnavailable+": "+err.Error())
+				}
+			}
 			planned = withoutRunner(planned, key)
 			continue
 		}
@@ -828,13 +839,20 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 	}
 	packages, elapsed := map[string]string{}, map[string]float64{}
 	var document providerCapture
-	switch planned.Adapter {
-	case AdapterGo:
+	var pytestOut *pytestOutput
+	switch {
+	case planned.Adapter == AdapterGo:
 		packages, elapsed = parseTestEventsTimed(stdout, r.Output)
-	case AdapterProvider:
+	case planned.Adapter == AdapterProvider:
 		// The receipt document is read, not echoed: providerOutcomes writes
 		// the summary and the failing tests it names.
 		_, _ = io.Copy(&document, stdout)
+	case planned.contract != nil && planned.contract.request.Instance.Runner == testid.Pytest:
+		// PYR-V1-006, PYR-V1-008: pytest's output is passed through and
+		// read for its session header and a deselected count.
+		pytestOut = &pytestOutput{out: r.Output}
+		_, _ = io.Copy(pytestOut, stdout)
+		pytestOut.flush()
 	default:
 		_, _ = io.Copy(r.Output, stdout)
 	}
@@ -858,6 +876,9 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 		}
 		outcomes, run, unobserved := contractOutcomes(planned, r.Root, report, nil, r.Output)
 		recorded.Outcomes, recorded.Tests = outcomes, run.Results
+		if pytestOut != nil {
+			unobserved = append(unobserved, pytestRecord(r.Root, &recorded, identity[1], pytestOut)...)
+		}
 		if !run.Exact {
 			exact := false
 			recorded.Exact = &exact

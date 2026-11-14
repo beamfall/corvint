@@ -421,8 +421,9 @@ Delivered by ticket V1-5416 (build-log `docs/build-log/2026-11-11-runner-contrac
   `-` and is `exact` only when a non-empty inventory listing holds no other file of the instance
   whose path contains it; a test-level ID runs its file. Jest runs files by literal path
   (`--runTestsByPath`, `--json --outputFile=REPORT`) and selected tests through one anchored `-t`
-  pattern, and an unsupported setup runs its full command (JST-V1-003, JST-V1-008); pytest runs exact node IDs and reads the
-  pytest-json-report report (`--json-report --json-report-file=REPORT`); RSpec runs spec files and
+  pattern, and an unsupported setup runs its full command (JST-V1-003, JST-V1-008); pytest runs exact node IDs and reads pytest's
+  own JUnit XML report (`--junitxml=REPORT`, xunit1, since PYR-V1-004; the pytest-json-report
+  reader stays); RSpec runs spec files and
   writes `--format json --out REPORT` beside the progress formatter; a path starting with `-` is
   passed as `./path`. Minitest runs its full command with `runner-not-implemented` and has no
   parser. `Kind` is `e2e` for Playwright (RNC-V1-007). Runner flags come from public documentation

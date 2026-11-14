@@ -72,12 +72,13 @@ type Adapter interface {
 	DependentUnits(ctx context.Context, root string, paths []string) ([]string, error)
 }
 
-// runners lists the seven blocking runners of FIH-V1-008; only Go has an
-// adapter in this tree (tasks 6 builds the other six).
+// runners lists the seven blocking runners of FIH-V1-008; Go and pytest
+// (PYR-V1-010) have adapters in this tree (task 6 builds the other five).
 var runners = []string{"go", "vitest", "jest", "playwright", "pytest", "rspec", "minitest"}
 
 type adapterOptions struct {
 	GoTest  []string      // argv prefix running `go test`; default {"go", "test"}
+	Pytest  []string      // argv prefix running pytest; default {"python", "-m", "pytest"}
 	Scope   []string      // packages of a whole-suite run; default {"./..."}
 	Timeout time.Duration // wall bound per adapter command
 }
@@ -88,6 +89,15 @@ func adapterFor(runner string, opt adapterOptions) (Adapter, error) {
 		a := goAdapter{goTest: opt.GoTest, scope: opt.Scope, timeout: opt.Timeout}
 		if len(a.goTest) == 0 {
 			a.goTest = []string{"go", "test"}
+		}
+		if a.timeout <= 0 {
+			a.timeout = 30 * time.Minute
+		}
+		return a, nil
+	case "pytest":
+		a := pytestAdapter{pytest: opt.Pytest, timeout: opt.Timeout}
+		if len(a.pytest) == 0 {
+			a.pytest = []string{"python", "-m", "pytest"}
 		}
 		if a.timeout <= 0 {
 			a.timeout = 30 * time.Minute
