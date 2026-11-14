@@ -24,9 +24,11 @@ runs and, when the p95 is over budget and either reading reached the core count,
 contention threshold, which `internal/perfbudget` applies to every perf run; the reader is
 test-local because `internal/perfbudget` imports `internal/linecov`. An unobserved load average is
 not contention, so hosts that cannot report one are still judged, as is every quiet host.
+Contention excuses at most twice the budget (the loaded runners measured 1.22 times), so a gross
+regression still fails the nightly gate, and an explicit `LINECOV_PLAN_P95_BUDGET` is always judged.
 `TestPlanBudgetContended` pins the decision and that Linux and Darwin observe the load.
 
-Limit: the nightly gate runs the package under load, so it will usually report `NOT_JUDGED` there
-rather than enforce the budget; enforcement comes from a quiet run of the test or the
-reference-host measurement. `TestPlanTimeBudgetWithSegments` has not failed (p95 24 ms) and is
+Limit: the nightly gate runs the package under load, so between one and two times the budget it
+reports `NOT_JUDGED` rather than enforcing the exact bound; that comes from a quiet run of the test
+or the reference-host measurement. `TestPlanTimeBudgetWithSegments` has not failed (p95 24 ms) and is
 unchanged.

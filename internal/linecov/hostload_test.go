@@ -36,6 +36,11 @@ func hostLoad1() (load float64, ok bool) {
 	return load, err == nil
 }
 
+// contendedPlanBudgetFactor bounds what contention can excuse: the loaded
+// nightly gate runners measured at most 1.22 times the GLS-V0-003 budget, so a
+// p95 past twice the budget fails even on a contended host.
+const contendedPlanBudgetFactor = 2
+
 // planBudgetContended is PRB-V0-028's contention threshold applied to a plan
 // budget run: a 1-minute load average before or after that reached the core
 // count. An unobserved load is not contention, so the budget stays judged.
