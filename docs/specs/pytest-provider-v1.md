@@ -44,7 +44,12 @@ configuration root (rootdir) is one runner instance (RNC-V1-014, owner decision 
 Delivery: delivered. The `pytest-collect` lister of change `test-inventory` collects through pytest
 from each rootdir (`--rootdir=.`, `-c CONFIG`), one instance per configuration root found in
 pytest's search order (with pytest.toml first, as pytest 9 reads it), and keys each node ID by
-canonical test ID; `corvint affected` starts no lister (RNC-V1-002).
+canonical test ID; `corvint affected` starts no lister (RNC-V1-002). Since version 3 the record
+also binds every `conftest.py` under the rootdir, and a reader judges each test file against the
+`conftest.py` of every directory from its own up to the rootdir, the ones pytest loads for it: one
+that changed, appeared or went since refresh makes the test files beneath it unassigned
+(TIV-V1-008), while the `conftest.py` itself, which holds no test, is not (review P3-b,
+2026-11-13). The version bump makes a version 2 record stale (TIV-V1-007) until the next refresh.
 
 **Scenario: pyproject root**
 
@@ -128,7 +133,7 @@ Each pytest test MUST carry `kind` and `kindSource`: e2e when it uses pytest-pla
 integration when it carries the pytest marker `integration` (or a marker named in the owner's
 kind declaration of change `test-inventory`), unit otherwise, UNKNOWN on conflict. The label MUST
 NOT change selection in 1.0. (G13, review T-m4)
-Delivery: partial. The lister (version 2) labels each test from its own source: e2e for a
+Delivery: partial. The lister (version 2 and later) labels each test from its own source: e2e for a
 pytest-playwright fixture parameter or `usefixtures` when a manifest or the file names the plugin,
 integration for the `integration` marker on the function, its class or the module, UNKNOWN on both
 or when the function is not in the file, unit otherwise. NOT_PRODUCED: markers named in the owner's
@@ -261,8 +266,9 @@ Delivered by ticket V1-5456 (build-logs `docs/build-log/2026-11-12-pytest-provid
   deselected count and the completeness check, the runner-unavailable reason, and the receipt
   invocation's `environment`. The change's first `runner` adapter was replaced by the contract adapter when
   the branch merged (2026-11-13).
-- `internal/testinventory` (PYR-V1-001, PYR-V1-005): `pytest-collect` version 2 adds `kind` and
-  `kindSource` (`runner`, `default`, `conflict`, `unresolved`) to each pytest test record.
+- `internal/testinventory` (PYR-V1-001, PYR-V1-005): `pytest-collect` version 3 binds each
+  `conftest.py` as its test files' staleness input; version 2 added `kind` and `kindSource`
+  (`runner`, `default`, `conflict`, `unresolved`) to each pytest test record.
   `NearestLockfile` is exported for the environment record.
 - `tools/fault-harness` (PYR-V1-010): adapter `pytest` and flag `--pytest`; a named node's ID is
   read with the node-ID parser, so a parameter id holding `::` stays one segment.
@@ -274,7 +280,7 @@ Delivered by ticket V1-5456 (build-logs `docs/build-log/2026-11-12-pytest-provid
 
 | Requirement | Evidence |
 |---|---|
-| PYR-V1-001 | `TestPYRV1001PyprojectRootIsListed`, `TestPYRV1001TwoRootdirsAreTwoInstances`, `TestTIVV1004PytestLister` (`internal/testinventory`); `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) |
+| PYR-V1-001 | `TestPYRV1001PyprojectRootIsListed`, `TestPYRV1001TwoRootdirsAreTwoInstances`, `TestPYRV1001ConftestChangeMakesTestFilesStale`, `TestTIVV1004PytestLister` (`internal/testinventory`); `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) |
 | PYR-V1-002 | `TestPYRV1002PytestFilesRunAtTierFile` (`internal/sessiontest`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`); watch NOT_PRODUCED |
 | PYR-V1-003 | `TestPYRV1002PytestFilesRunAtTierFile`, `TestPYRV1003PytestOnlyPlanIsNarrowed`, `TestPYRV1003MixedPlanRunsGoAndPytest` (`internal/sessiontest`); `TestRNCV1003PytestSelection` (`internal/testrunner/contract`); `TestPYRV1003CLIRunsPytestSelection` (`cmd/corvint`) |
 | PYR-V1-004 | `TestPYRV1004PytestJUnitReport`, `TestPYRV1004PytestCrossModuleTestcases`, `TestPTDV1002PytestJUnitTimes` (`internal/testrunner/contract`); `TestPYRV1003MixedPlanRunsGoAndPytest`, `TestPYRV1004FailingTestFailsTheRun`, `TestPTDV1002PytestReceiptDurations` (`internal/sessiontest`) |
