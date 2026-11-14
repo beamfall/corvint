@@ -12,11 +12,12 @@ import (
 )
 
 // RNC-V1-003, RNC-V1-014: Jest runs the selected files by literal path,
-// exact for files and whole-file for a test-level ID, from the instance
-// root; the full command adds only the report flags.
+// exact for files, and a test-level ID adds a -t name pattern that no
+// listing proves exact (JST-V1-003), from the instance root; the full
+// command adds only the report flags.
 func TestRNCV1003JestSelection(t *testing.T) {
 	instance := Instance{Runner: testid.Jest, Root: "web", Config: "web/jest.config.js"}
-	base := Request{Instance: instance, Full: []string{"npx", "jest"}, Report: "/r.json", Tier: TierFile}
+	base := Request{Instance: instance, Full: []string{"npx", "jest"}, Report: "/r.json", Tier: TierFile, Jest: supportedJest("web/jest.config.js")}
 	with := func(tests ...string) Request {
 		request := base
 		request.Tests = tests
@@ -26,7 +27,10 @@ func TestRNCV1003JestSelection(t *testing.T) {
 	if want := []string{"npx", "jest", "--json", "--outputFile=/r.json", "--runTestsByPath", "./-dash.test.js", "src/a.test.js", "src/b.test.js"}; !slices.Equal(got.Argv, want) || !got.Exact || got.Dir != "web" {
 		t.Fatalf("files: %+v, want %q", got, want)
 	}
-	if got := command(t, with("jest:web/src/a.test.js::math::adds")); got.Exact || !strings.Contains(got.Reason, "whole file") {
+	testLevel := with("jest:web/src/a.test.js::math::adds")
+	testLevel.Jest = supportedJest("web/jest.config.js")
+	testLevel.Jest.Source = titledSource(testLevel.Tests)
+	if got := command(t, testLevel); got.Exact || !slices.Contains(got.Argv, "-t") || !strings.Contains(got.Reason, "no inventory listing") {
 		t.Fatalf("test-level: %+v", got)
 	}
 	if got := command(t, base); !slices.Equal(got.Argv, []string{"npx", "jest", "--json", "--outputFile=/r.json"}) || got.Tier != TierFull || !got.Exact {
@@ -54,13 +58,15 @@ func TestRNCV1005JestReport(t *testing.T) {
 }
 
 // RNC-V1-003: pytest names each selection as an exact node ID relative to
-// the instance root (the rootdir), parameter parts verbatim.
+// the instance root (the rootdir), parameter parts verbatim. PYR-V1-004
+// replaced the pytest-json-report plugin flags with pytest's own JUnit XML
+// report, which needs no plugin.
 func TestRNCV1003PytestSelection(t *testing.T) {
 	instance := Instance{Runner: testid.Pytest, Root: "svc", Config: "svc/pytest.ini"}
 	got := command(t, Request{Instance: instance, Full: []string{"python", "-m", "pytest"}, Report: "/r.json", Tests: []string{
 		"pytest:svc/tests/test_a.py::TestA::test_x[1-2]", "pytest:svc/tests/test_b.py", "pytest:svc/-x_test.py::test_y",
 	}})
-	want := []string{"python", "-m", "pytest", "--json-report", "--json-report-file=/r.json", "./-x_test.py::test_y", "tests/test_a.py::TestA::test_x[1-2]", "tests/test_b.py"}
+	want := []string{"python", "-m", "pytest", "--rootdir=.", "--junitxml=/r.json", "-o", "junit_family=xunit1", "-o", "junit_duration_report=call", "./-x_test.py::test_y", "tests/test_a.py::TestA::test_x[1-2]", "tests/test_b.py"}
 	if !slices.Equal(got.Argv, want) || !got.Exact || got.Dir != "svc" || got.Tier != TierFile {
 		t.Fatalf("pytest: %+v, want %q", got, want)
 	}
@@ -83,9 +89,9 @@ func TestRNCV1005PytestReport(t *testing.T) {
 	want := []Result{
 		{ID: "pytest:svc/tests/test_a.py::TestA::test_x[1-2]", Outcome: OutcomePass, DurationMillis: 12, Granularity: testid.GranularityTest},
 		{ID: "pytest:svc/tests/test_a.py::test_y", Outcome: OutcomeFail, DurationMillis: 2, Granularity: testid.GranularityTest},
-		{ID: "pytest:svc/tests/test_a.py::test_z", Outcome: OutcomeSkip, Granularity: testid.GranularityTest},
+		{ID: "pytest:svc/tests/test_a.py::test_z", Outcome: OutcomeSkip, Granularity: testid.GranularityTest, DurationMissing: true},
 		{ID: "pytest:svc/tests/test_a.py::test_e", Outcome: OutcomeError, DurationMillis: 3, Granularity: testid.GranularityTest},
-		{ID: "pytest:svc/tests/test_broken.py", Outcome: OutcomeFail, Granularity: testid.GranularityFile},
+		{ID: "pytest:svc/tests/test_broken.py", Outcome: OutcomeFail, Granularity: testid.GranularityFile, DurationMissing: true},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("results\n got %+v\nwant %+v", got, want)

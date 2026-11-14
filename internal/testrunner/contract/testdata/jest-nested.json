@@ -1,0 +1,31 @@
+{
+  "numFailedTestSuites": 1,
+  "numFailedTests": 1,
+  "numPassedTestSuites": 0,
+  "numPassedTests": 2,
+  "numPendingTestSuites": 0,
+  "numPendingTests": 1,
+  "numRuntimeErrorTestSuites": 0,
+  "numTodoTests": 0,
+  "numTotalTestSuites": 1,
+  "numTotalTests": 4,
+  "startTime": 1762900000000,
+  "success": false,
+  "wasInterrupted": false,
+  "testResults": [
+    {
+      "name": "/repo/apps/web/src/a.test.ts",
+      "status": "failed",
+      "message": "rounds (half-up) failed",
+      "startTime": 1762900000100,
+      "endTime": 1762900000140,
+      "summary": "",
+      "assertionResults": [
+        {"ancestorTitles": ["cart"], "fullName": "cart adds item", "title": "adds item", "status": "passed", "duration": 14, "failureMessages": [], "location": null},
+        {"ancestorTitles": ["cart", "totals"], "fullName": "cart totals rounds (half-up)", "title": "rounds (half-up)", "status": "failed", "duration": 2.6, "failureMessages": ["Error: expected 3"], "location": null},
+        {"ancestorTitles": ["cart", "totals"], "fullName": "cart totals skips", "title": "skips", "status": "pending", "duration": null, "failureMessages": [], "location": null},
+        {"ancestorTitles": [], "fullName": "top level", "title": "top level", "status": "passed", "duration": 1, "failureMessages": [], "location": null}
+      ]
+    }
+  ]
+}

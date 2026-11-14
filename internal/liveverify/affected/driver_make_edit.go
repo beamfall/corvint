@@ -780,8 +780,35 @@ type MakeReach struct {
 	// Workflows are the workflow files a job of which invokes a changed
 	// target directly.
 	Workflows []string
+	// Selectors are the go package selectors the reached make units run,
+	// one MakeSelectors per scanned text that names any, deduplicated.
+	Selectors []MakeSelectors
 	// Reason, when not empty, names why the reach cannot be bounded.
 	Reason string
+}
+
+// MakeSelectors are the go package selectors of one scanned recipe or shell
+// text, one sorted set for each working directory the driver scanned it
+// from (the make file's own and, for a nested make file, the root): each a
+// repository-relative package directory, a `/...` pattern, or a `.go` file
+// (NCM-V1-013, V1-5552). The text runs from one of those directories, so a
+// selector set names a package for every selector of at least one set
+// unless the scan misread a selector: the selector then fails closed.
+type MakeSelectors [][]string
+
+// makeSelectors is the scan's selectors, or nil when no pass of it named
+// any.
+func (scan *driverScan) makeSelectors() MakeSelectors {
+	group := make(MakeSelectors, 0, len(scan.selectors))
+	named := false
+	for _, pass := range scan.selectors {
+		named = named || len(pass) != 0
+		group = append(group, driverSorted(pass))
+	}
+	if !named {
+		return nil
+	}
+	return group
 }
 
 // ReachMakeTargets follows the driver units of root (AZU-V0-001) from each
@@ -813,7 +840,8 @@ func ReachMakeEdit(ctx context.Context, root, file string, edit MakeEdit) MakeRe
 // for direct invocations only.
 func reachMakeTargets(source *Source, file string, targets, touched []string) MakeReach {
 	unresolved := map[string][]string{}
-	result, err := driverUnitsObserved(source, nil, unresolved, map[string][]string{file: targets})
+	selectors := map[string][]MakeSelectors{}
+	result, err := driverUnitsObserved(source, nil, unresolved, selectors, map[string][]string{file: targets})
 	if err != nil {
 		return MakeReach{Reason: "the driver units cannot be read: " + makeQuote(err.Error())}
 	}
@@ -833,6 +861,8 @@ func reachMakeTargets(source *Source, file string, targets, touched []string) Ma
 	}
 	reached := map[string]bool{}
 	paths := map[string]bool{}
+	var reachedSelectors []MakeSelectors
+	seenSelectors := map[string]bool{}
 	for len(pending) != 0 {
 		id := pending[0]
 		pending = pending[1:]
@@ -854,6 +884,16 @@ func reachMakeTargets(source *Source, file string, targets, touched []string) Ma
 		for _, value := range slices.Concat(unit.PathImports, unit.BuildPathImports) {
 			paths[value] = true
 		}
+		for _, group := range selectors[id] {
+			key := ""
+			for _, pass := range group {
+				key += strings.Join(pass, "\x00") + "\x01"
+			}
+			if !seenSelectors[key] {
+				seenSelectors[key] = true
+				reachedSelectors = append(reachedSelectors, group)
+			}
+		}
 		pending = append(pending, unit.Imports...)
 	}
 	workflows := map[string]bool{}
@@ -874,5 +914,5 @@ func reachMakeTargets(source *Source, file string, targets, touched []string) Ma
 		}
 		workflows[file] = true
 	}
-	return MakeReach{Paths: driverSorted(paths), Workflows: driverSorted(workflows)}
+	return MakeReach{Paths: driverSorted(paths), Workflows: driverSorted(workflows), Selectors: reachedSelectors}
 }

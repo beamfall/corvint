@@ -282,8 +282,19 @@ file outside the parsed subset, or imports a unit the driver units do not hold. 
 commands resolve and are followed but read what the graph does not bound (an evaluated, uncertified
 computed site) still runs only what it names, so it stays bounded; a whole-tree reader such as `find`
 is not followed (NCM-V1-019). NCM-V1-016, NCM-V1-017 and NCM-V1-019 refine which targets and
-commands resolve. (root encodings and NCM-V1-019 amended 2026-11-13 after the independent review,
-and the whole-tree read after the round 4 review, V1-5465)
+commands resolve. A go package selector a reached unit runs (a package directory, a `/...` pattern
+or a `.go` file, the whole tree aside) MUST name an indexed package (one at or below a `/...`
+pattern's directory, or the `.go` file's own); the driver scans a nested make file's text from its
+own directory and from the root, and the text runs from one of them, so the selectors of one text
+name packages when every selector of either scan does. Otherwise the selector misread the command
+or names no package of the repository, and the edit MUST select everything with
+`a changed make target runs Go package "<selector>", which names no package of the repository`
+rather than drop it, or, when the selector's directory is or lies below one holding a nested
+`go.mod`, whose packages the index skips, with
+`a changed make target runs Go selector "<selector>" inside a nested module`. (root encodings and
+NCM-V1-019 amended 2026-11-13 after the independent review, and the whole-tree read after the round 4
+review, V1-5465; the missing-package selector amended 2026-11-13 for V1-5552, and its nested-module
+reason after the lane's independent review)
 
 **Scenario: A prerequisite's package**
 - GIVEN a changed target `all: check` and `check`, which runs `go test ./tool`
@@ -396,14 +407,37 @@ In the reach of NCM-V1-013, a command MUST count as unresolved unless the scan f
 execution. The rule is closed: the reach follows only
 
 1. `make`, `gmake` or `$(MAKE)` invocations of a make file the driver models, whose goals are the
-   unit's edges;
+   unit's edges, with no option but `-C`, `-f` (which the driver models), `-j` and `-l` (with an
+   optional count) and the options that change only make's messages, output order or stop on
+   failure (`-s`, `--silent`, `--quiet`, `-k`, `--keep-going`, `-S`, `--no-keep-going`, `--stop`,
+   `-w`, `--print-directory`, `--no-print-directory`, `-O` and `--output-sync`, the single letters
+   combined as in `-ks`). A command-line variable assignment (`SHELL=...`, or one a recipe runs)
+   leaves the invocation unfollowed with `make:command-line-assignment:<name>`, and records no
+   path; any other option (`--eval`, `-e`, `-n`, `-I`, `-o`, `-W` or one the scan does not know)
+   leaves it unfollowed with `make:unfollowed-option:<option>`. Make reads every environment
+   variable as a make variable, which overrides a `?=` default, so an assignment in front of the
+   command that runs the invocation, directly or through an inline script (`PKG=./tool $(MAKE)
+   check`), leaves it unfollowed with `make:environment-assignment:<name>`; make reads every `-f`
+   file in order, so a second `-f`, `--file` or `--makefile`, in any spelling, leaves it unfollowed
+   with `make:several-makefiles`; and a variable the calling make file exports, for the file or a
+   target, is in the environment of every make it calls, so an invocation of any other make file,
+   or one whose file the scan cannot name, is unfollowed with `make:exported-variable:<name>`.
+   `$(MAKE)` names `make` only in a file that does not assign `MAKE`; in one that does, it runs
+   the program that value names, which this rule follows like any other command word;
 2. `go` whose first argument is `test`, `vet`, `build` or `list`, with no word beginning `-exec`,
    `-toolexec` or `-vettool` (with one or two dashes), which runs only the packages it names. Any
    global flag before the subcommand (`-C` or any other word beginning `-`) and every other
    subcommand (`generate`, `tool`, `run` and the rest) is not followed;
-3. the shell builtins `echo`, `printf`, `true`, `false`, `:`, `test`, `[`, `cd` and `exit`, which
-   cannot execute anything, and `set` whose arguments are only `-e`, `-u`, `-x` (alone or combined,
-   with `-` or `+`) and `-o pipefail`; and
+3. the shell builtins `echo`, `printf`, `true`, `false`, `:`, `test`, `[` and `exit`, which
+   cannot execute anything; `set` whose arguments are only `-e`, `-u`, `-x` (alone or combined,
+   with `-` or `+`) and `-o pipefail`; and `cd` whose options are only `-L` and `-P` (alone or
+   combined) and an optional `--`, followed by exactly one directory operand that is not `-`, which
+   the scan resolves as the working directory of what follows. `cd` with any other option, no
+   operand (the home directory), `-` (the previous directory) or a second operand is not followed.
+   A `cd` inside a `( ... )` subshell sets the working directory until its closing parenthesis;
+   one inside a `{ ...; }` group holds after it. A `)` the scan cannot pair with a `(` leaves the
+   working directory unknown, so a go selector after it names the whole tree, and the text
+   uncertified (`shell:unpaired-group`); and
 4. shell syntax that is no command (`if`, `then`, `fi`, `while`, `do`, `done`, `!` and the like).
 
 Every other command MUST leave the target's reach unbounded, so the edit selects everything: a
@@ -412,12 +446,25 @@ wrapper (`env`, `nice`, `timeout`, `xargs`, `exec`, `time`, `command` and the li
 sourced file, a `trap`, `export` and every program the driver's scanner calls pure or bounded for
 its reads (`sort`, `grep`, `sed`, `awk`, `cat`, `cp`, `mkdir`, `rm` and the rest), whatever its
 options: such a command may run tests it does not name, as `sort --compress-program=script/x.sh`
-does. A word holding a command substitution (`$(` or a backtick) leaves it unbounded too, even in a
+does. A make file whose recipe shell (`SHELL`, for the file or a target, or `.SHELLFLAGS`) is not a
+plain shell the driver certifies hands every recipe line to that program, so none of its targets'
+commands is followed, with reason `make:recipe-shell-uncertified`. A make file that assigns
+`MAKEFLAGS`, `MFLAGS`, `GNUMAKEFLAGS` or `MAKEOVERRIDES`, in any form (plain, `+=`, `?=`, `:=`,
+`!=`, `override`, `define`, or target- or pattern-specific, for any target), passes the variable
+overrides it holds to every make a recipe runs, where they beat a `?=` default and a plain
+assignment alike, and GNU make 4.4 applies one placed in `MAKEFLAGS` to its own run as well, so
+none of its targets' commands is followed, with reason `make:makeflags-assignment:<name>`, or
+`make:makeflags-assignment:computed-name` for an assignment whose name make computes; an included
+file's assignments already leave every target unfollowed with `make:include`. A word holding a command substitution (`$(` or a backtick) leaves it unbounded too, even in a
 followed command. The selector MUST print, after the NCM-V1-013 reason, each reason the target's
 run set is open, naming the command (`shell:unfollowed-command:<command>`,
 `shell:command-substitution:<command>`, `make:unmodelled-file:<file>` or the computed site's own
 reason). The mark exists only in the reach: the planner's units and computed sites are unchanged.
-(closed rule amended 2026-11-13 after the round 4 review, V1-5465)
+(closed rule amended 2026-11-13 after the round 4 review, V1-5465; `cd` options and the recipe
+shell amended 2026-11-13 for V1-5552 and V1-5551; the make command line and the subshell's working
+directory amended 2026-11-13 after the lane's independent review; the invocation's environment,
+makefile list, exported variables and `MAKE` amended 2026-11-13 after the lane's second review;
+the make flag variables amended 2026-11-13 for V1-5561)
 
 **Scenario: A script that runs go test**
 - GIVEN target `check` runs `script/check.sh`, which runs `go test ./tool`, and a change makes it
@@ -433,6 +480,39 @@ reason). The mark exists only in the reach: the planner's units and computed sit
 - THEN every test is selected with
   `never-narrowed-path Makefile: make edit: make target "sorted" runs a command or make goal that does not resolve: shell:unfollowed-command:sort`;
   `go -C . generate ./gen` gives `shell:unfollowed-command:go -C` the same way
+
+**Scenario: An unrecognized recipe shell**
+- GIVEN `SHELL = ./tools/test-shell`, unchanged, where the wrapper runs `go test ./tool`, and a
+  change to target `check`'s `echo` recipe line
+- WHEN the selector decides the plan
+- THEN every test is selected with
+  `never-narrowed-path Makefile: make edit: make target "check" runs a command or make goal that does not resolve: make:recipe-shell-uncertified`
+
+**Scenario: cd with options**
+- GIVEN target `t` runs `cd -- tool && go test ./b`, and a change edits it
+- WHEN the selector decides the plan
+- THEN `<module>/tool/b` is selected; `cd -e tool` gives `shell:unfollowed-command:cd` instead
+
+**Scenario: A recursive make command line**
+- GIVEN target `top` runs `$(MAKE) SHELL=./tools/test-shell check`, where the wrapper runs
+  `go test ./tool`, and a change edits it
+- WHEN the selector decides the plan
+- THEN every test is selected with
+  `never-narrowed-path Makefile: make edit: make target "top" runs a command or make goal that does not resolve: make:command-line-assignment:SHELL`;
+  `$(MAKE) '--eval=x: ; go test ./tool' x` gives `make:unfollowed-option:--eval` the same way
+
+**Scenario: A recursive make's environment and makefile list**
+- GIVEN a make file holding `PKG ?= ./other`, whose target `top` runs `PKG=./tool $(MAKE) check`,
+  where `check` runs `go test $(PKG)`, and a change edits `top`
+- WHEN the selector decides the plan
+- THEN every test is selected with
+  `never-narrowed-path Makefile: make edit: make target "top" runs a command or make goal that does not resolve: make:environment-assignment:PKG`;
+  `$(MAKE) -f extra.mk -f Makefile check` gives `make:several-makefiles` the same way
+
+**Scenario: cd in a subshell**
+- GIVEN target `t` of `sub/Makefile` runs `(cd tool && go vet .); go test ./c`, and a change edits it
+- WHEN the selector decides the plan
+- THEN `<module>/sub/tool` and `<module>/sub/c` are selected, not `<module>/sub/tool/c`
 
 ## Delivered rules
 
@@ -613,6 +693,11 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 - Delivered under V1-5424: NCM-V1-001, 002, 003, 005, 006, 007, 008 and 009; the refusal side of
   NCM-V1-004 (no entry narrows without a confirmed fault case).
 - Delivered under V1-5465: NCM-V1-010 to NCM-V1-019 (`docs/build-log/2026-11-13-mknarrow1113.md`).
+- Amended under V1-5551 and V1-5552: NCM-V1-019 (recipe shell, `cd` options, the recursive make
+  command line, the subshell's working directory) and NCM-V1-013 (missing-package selector and its
+  nested-module reason) (`docs/build-log/2026-11-13-mk1114.md`).
+- Amended under V1-5561: NCM-V1-019 (an assignment to `MAKEFLAGS`, `MFLAGS`, `GNUMAKEFLAGS` or
+  `MAKEOVERRIDES`) (`docs/build-log/2026-11-13-mk1114-makeflags.md`).
 - Waiting: NCM-V1-004's proof link to FIH-V1 non-code fault cases, after V1-5405 lands (change task 6).
 - Acceptance fixtures (change task 7): see the build-log entry
   `docs/build-log/2026-11-11-non-code-map.md` for the fixtures delivered and missing.
@@ -633,10 +718,10 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 | NCM-V1-010 | `TestNCMV1010MakeEditNarrowsWhenAttributable` (`internal/noncodemap`); `TestNCMV1010SelectorNarrowsMakeEdit`, `TestNCMV1SelectorNeverNarrowed` (no base) (`internal/gateselect`) |
 | NCM-V1-011 | `TestAttributeMakeEditTargets_NCMV1011` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
 | NCM-V1-012 | `TestAttributeMakeEditFailsClosed_NCMV1012` (`internal/liveverify/affected`); `TestNCMV1012SelectorMakeEditFailsClosed` (`internal/gateselect`) |
-| NCM-V1-013 | `TestReachMakeTargets_NCMV1013` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (final qualified set), `TestNCMV1013SelectorRootPatterns` (`internal/gateselect`) |
+| NCM-V1-013 | `TestReachMakeTargets_NCMV1013`, `TestReachMakeSelectorPasses_NCMV1013` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (final qualified set), `TestNCMV1013SelectorRootPatterns`, `TestNCMV1013SelectorNestedMakefileSelectors`, `TestNCMV1019SelectorChdirOptions` (missing selector), `TestNCMV1013SelectorNestedModule` (`internal/gateselect`) |
 | NCM-V1-014 | `TestReachMakeTargetsCI_NCMV1014`, `TestReachMakeEditInstance_NCMV1016` (touched rule) (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit`, `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-015 | `TestAttributeMakeEditWordList_NCMV1015`, `TestAttributeMakeEditWordListFailsClosed_NCMV1015` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-016 | `TestReachMakeEditInstance_NCMV1016` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-017 | `TestDriverEnvPrefix_NCMV1017` (`internal/liveverify/affected`) |
 | NCM-V1-018 | `TestAttributeMakeEditOrder_NCMV1018` (`internal/liveverify/affected`); `TestNCMV1018SelectorOrderMove` (`internal/gateselect`) |
-| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript`, `TestNCMV1019SelectorClosedRule` (`internal/gateselect`) |
+| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019`, `TestReachMakeRecipeShell_NCMV1019`, `TestReachMakeChdir_NCMV1019`, `TestDriverChdirPlanner_AFPV09051`, `TestReachMakeInvocationCommandLine_NCMV1019`, `TestDriverMakeAssignmentPath_NCMV1019`, `TestDriverSubshellChdir_NCMV1019`, `TestReachMakeInvocationEnvironment_NCMV1019` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript`, `TestNCMV1019SelectorClosedRule`, `TestNCMV1019SelectorRecipeShell`, `TestNCMV1019SelectorChdirOptions`, `TestNCMV1019SelectorMakeCommandLine`, `TestNCMV1019SelectorSubshellChdir`, `TestNCMV1019SelectorSubshellPrecision`, `TestNCMV1019SelectorMakeEnvironment` (`internal/gateselect`) |

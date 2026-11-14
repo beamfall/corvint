@@ -372,7 +372,7 @@
     "narrowing-measurement": "measurement",
     "non-code-map": "affected",
     "openspec-check": "specs",
-    "per-test-durations": "run-evidence",
+    "2026-11-13-per-test-durations": "run-evidence",
     "proof-repositories": "measurement",
     "pytest-provider": "runner",
     "release-process": "release",

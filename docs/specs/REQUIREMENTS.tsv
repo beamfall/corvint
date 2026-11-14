@@ -6028,6 +6028,17 @@ JAT-V0-007	docs/specs/java-affected-test-v0.md	A file that loads classes or memb
 JAT-V0-008	docs/specs/java-affected-test-v0.md	Kotlin and Java cross-reach is reported as unit frontiers, not edges, because ea	unrecorded	-
 JAT-V0-009	docs/specs/java-affected-test-v0.md	The plugin MUST NOT execute repository code, a compiler, a build tool or an	unrecorded	-
 JAT-V0-010	docs/specs/java-affected-test-v0.md	The plugin MUST pass the shared seam conformance suite (`core <- mid <- leaf` pl	unrecorded	-
+JST-V1-001	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Jest is	standing	2026-10-11; V1-5455
+JST-V1-002	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Jest dis	standing	2026-10-11; V1-5455
+JST-V1-003	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Selectio	standing	2026-10-11; V1-5455
+JST-V1-004	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Results	standing	2026-10-11; V1-5455
+JST-V1-005	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Missing	standing	2026-10-11; V1-5455
+JST-V1-006	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Default	standing	2026-10-11; V1-5455
+JST-V1-007	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Instance	standing	2026-10-11; V1-5455
+JST-V1-008	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Unsuppor	standing	2026-10-11; V1-5455
+JST-V1-009	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) End-to-e	standing	2026-10-11; V1-5455
+JST-V1-010	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) No Jest	standing	2026-10-11; V1-5455
+JST-V1-020	docs/specs/jest-runner-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5455) Name fil	standing	2026-10-11; V1-5455
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	The command and its package remain isolated, unregistered, and unreachable from	unrecorded	-
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo	unrecorded	-
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	The target is exactly Android/arm64/none. The twelve input rows below occur once	unrecorded	-
@@ -7555,6 +7566,16 @@ PSL-V0-024	docs/specs/pulse-snapshot-lease-v0.md	Corvint dogfood runs first in s
 PSL-V0-025	docs/specs/pulse-snapshot-lease-v0.md	Beamfall dogfood runs second during an actual roadmap-authorized task. Pulse MUS	unrecorded	-
 PSL-V0-026	docs/specs/pulse-snapshot-lease-v0.md	Rollback is process termination and selection of existing one-shot Corvint comma	unrecorded	-
 PSL-V0-027	docs/specs/pulse-snapshot-lease-v0.md	Delivery and performance claims are stage-specific. P0-A cannot inherit P0-B/P0-	unrecorded	-
+PYR-V1-001	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Discovery	owner	decision 0596; V1-5456
+PYR-V1-002	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Selection granularity	owner	decision 0596; V1-5456
+PYR-V1-003	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Run through `corvint	owner	decision 0596; V1-5456
+PYR-V1-004	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Per-test results	owner	decision 0596; V1-5456
+PYR-V1-005	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Kind label	owner	decision 0596; V1-5456
+PYR-V1-006	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Fail closed on runner	owner	decision 0596; V1-5456
+PYR-V1-007	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Advisory command and	owner	decision 0596; V1-5456
+PYR-V1-008	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Environment recorded	owner	decision 0596; V1-5456
+PYR-V1-009	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Kill switch and fallb	owner	decision 0596; V1-5456
+PYR-V1-010	docs/specs/pytest-provider-v1.md	(accepted automatically under G14, decision 0596; V1-5456) Harness adapter	owner	decision 0596; V1-5456
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con	unrecorded	-
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	Completed qualified non-Stop events MUST derive repository scope exclusively fro	unrecorded	-
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	Qualified Stop MUST derive the active handle inside the same protected scope, co	unrecorded	-

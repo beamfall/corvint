@@ -136,6 +136,10 @@ type driverRegistry struct {
 	// resolved but read what the graph does not bound. A make edit's reach
 	// reads it (NCM-V1-013).
 	unresolved map[string][]string
+	// selectors, when non-nil, receives each unit's go package selectors,
+	// one MakeSelectors per scanned text that names any (NCM-V1-013,
+	// V1-5552). Only a make edit's reach sets it.
+	selectors map[string][]MakeSelectors
 	// instances names, for each make file, the targets no explicit rule
 	// names that a make edit's reach instantiates one pattern rule for
 	// (NCM-V1-016). Only the reach sets it.
@@ -150,14 +154,14 @@ func (Driver) UnitsSource(source *Source) (Result, error) {
 // driverUnitsSource is UnitsSource that also records, in reasons when it is
 // non-nil, why each computed site is one (AFP-V0-9620).
 func driverUnitsSource(source *Source, reasons map[string][]string) (Result, error) {
-	return driverUnitsObserved(source, reasons, nil, nil)
+	return driverUnitsObserved(source, reasons, nil, nil, nil)
 }
 
 // driverUnitsObserved is driverUnitsSource that also records, in unresolved
 // when it is non-nil, each unit whose invocations did not resolve, and adds
 // a unit for each target of instances that instantiates one pattern rule of
 // its make file (NCM-V1-016). Only a make edit's reach passes either.
-func driverUnitsObserved(source *Source, reasons map[string][]string, unresolved map[string][]string, instances map[string][]string) (Result, error) {
+func driverUnitsObserved(source *Source, reasons map[string][]string, unresolved map[string][]string, selectors map[string][]MakeSelectors, instances map[string][]string) (Result, error) {
 	makeFiles, err := source.Files(ByName(driverMakeName))
 	if err != nil {
 		return Result{}, err
@@ -182,6 +186,7 @@ func driverUnitsObserved(source *Source, reasons map[string][]string, unresolved
 		fileUnits:  map[string][]string{},
 		reasons:    reasons,
 		unresolved: unresolved,
+		selectors:  selectors,
 		instances:  instances,
 	}
 	if body, readErr := source.Read("go.mod"); readErr == nil {
@@ -282,6 +287,13 @@ type driverUnitBuilder struct {
 	evaluatedBy   map[string]bool
 	uncertifiedBy map[string]bool
 	readsTree     bool
+	// selectors are the go package selectors of the scans merged into the
+	// unit (NCM-V1-013, V1-5552), for a make edit's reach only.
+	selectors []MakeSelectors
+	// caller is the make file whose recipes the unit runs, nil for any
+	// other unit: what it exports reaches a make its recipes call
+	// (NCM-V1-019).
+	caller *driverMakeFile
 }
 
 func newDriverUnitBuilder(id string) *driverUnitBuilder {
@@ -346,6 +358,9 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 	if scan.readsTree {
 		b.readsTree = true
 	}
+	if group := scan.makeSelectors(); group != nil {
+		b.selectors = append(b.selectors, group)
+	}
 	for token := range scan.tokens {
 		b.tokens[token] = true
 	}
@@ -363,6 +378,17 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 			b.open("make:unmodelled-file:" + driverReasonWord(driverJoin(call.Dir, call.File)))
 		}
 		b.importAll(ids)
+		// NCM-V1-019: a variable the calling file exports is in the
+		// environment of the make it calls, where it overrides a `?=`
+		// default and passes on to every make that one calls. Only a call
+		// of the same file reads the values the scan already unions.
+		if b.caller != nil && len(b.caller.exportedNames) != 0 {
+			if file, _ := registry.makeFile(call); file != b.caller.path {
+				for _, name := range b.caller.exportedNames {
+					b.open("make:exported-variable:" + driverReasonWord(name))
+				}
+			}
+		}
 	}
 }
 
@@ -401,6 +427,9 @@ func (b *driverUnitBuilder) unit() Unit {
 func (registry *driverRegistry) unit(b *driverUnitBuilder) Unit {
 	if registry.unresolved != nil && b.runOpen {
 		registry.unresolved[b.id] = driverSorted(b.openBy)
+	}
+	if registry.selectors != nil && len(b.selectors) != 0 {
+		registry.selectors[b.id] = b.selectors
 	}
 	unit := b.unit()
 	if registry.reasons != nil && slices.Contains(unit.Frontier, FrontierDriverComputedInvocation) {
@@ -465,20 +494,8 @@ func (registry *driverRegistry) resolveMake(call driverMakeCall) (ids []string, 
 	if call.Unbounded {
 		return registry.allMake, true
 	}
-	file := ""
-	if call.File != "" {
-		file = driverJoin(call.Dir, call.File)
-	} else {
-		for _, name := range []string{"GNUmakefile", "makefile", "Makefile"} {
-			candidate := driverJoin(call.Dir, name)
-			if _, present := registry.makes[candidate]; present {
-				file = candidate
-				break
-			}
-		}
-	}
-	parsed, present := registry.makes[file]
-	if !present {
+	file, parsed := registry.makeFile(call)
+	if parsed == nil {
 		return nil, false
 	}
 	all := registry.fileUnits[file]
@@ -507,6 +524,27 @@ func (registry *driverRegistry) resolveMake(call driverMakeCall) (ids []string, 
 	return ids, true
 }
 
+// makeFile names the make file a bounded make invocation reads and its
+// parse, nil when the driver does not model it, and "" for an unbounded call.
+func (registry *driverRegistry) makeFile(call driverMakeCall) (string, *driverMakeFile) {
+	if call.Unbounded {
+		return "", nil
+	}
+	file := ""
+	if call.File != "" {
+		file = driverJoin(call.Dir, call.File)
+	} else {
+		for _, name := range []string{"GNUmakefile", "makefile", "Makefile"} {
+			candidate := driverJoin(call.Dir, name)
+			if _, present := registry.makes[candidate]; present {
+				file = candidate
+				break
+			}
+		}
+	}
+	return file, registry.makes[file]
+}
+
 // makeUnits builds one unit per rule of a parsed make file, or the single
 // unparsable-file unit.
 func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) []Unit {
@@ -521,6 +559,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// whose targets are special or computed, every `$(shell ...)` the
 	// variables run while make reads the file, and the included files.
 	shared := newDriverUnitBuilder("")
+	shared.caller = parsed
 	shared.addTokens(strings.Join(parsed.remainder, "\n"))
 	fileExpander := parsed.expander(map[string]string{})
 	for _, name := range driverSortedKeys(parsed.vars) {
@@ -588,10 +627,22 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		shared.markComputed("make:export-uncertified")
 		driverMergeReasons(&uncertifiedBy, map[string]bool{"make:export-uncertified": true})
 	}
-	if !parsed.recipeShellCertified() {
+	recipeShellCertified := parsed.recipeShellCertified()
+	if !recipeShellCertified {
 		driverMergeReasons(&uncertifiedBy, map[string]bool{"make:recipe-shell-uncertified": true})
+		// NCM-V1-019 (V1-5551): make hands every recipe line to that
+		// program, which runs what it likes, so no target's run set
+		// resolves; the planner's site is unchanged.
+		shared.open("make:recipe-shell-uncertified")
 	}
-	uncertified = uncertified || !exportsCertified || !parsed.recipeShellCertified()
+	// NCM-V1-019 (V1-5561): an assignment to MAKEFLAGS, MFLAGS,
+	// GNUMAKEFLAGS or MAKEOVERRIDES, in any form and for any target, can pass
+	// a variable override to every make a recipe runs, and to make's own run,
+	// which the scan does not model: no target of the file resolves.
+	for _, name := range driverSorted(parsed.flagAssignments) {
+		shared.open("make:makeflags-assignment:" + name)
+	}
+	uncertified = uncertified || !exportsCertified || !recipeShellCertified
 	shared.readPaths(fileExpander.readPaths)
 	shared.readPaths(parse.readPaths)
 	for index, include := range parsed.includes {
@@ -641,10 +692,12 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// it is otherwise empty and rule is target's own rule.
 	build := func(target string, rule *driverMakeRule, auto map[string]string, instance string) Unit {
 		builder := newDriverUnitBuilder(driverMakeUnitID(parsed.path, target))
+		builder.caller = parsed
 		builder.computed, builder.runOpen = shared.computed, shared.runOpen
 		driverMergeReasons(&builder.openBy, shared.openBy)
 		driverMergeReasons(&builder.reasons, shared.reasons)
 		builder.readsTree = shared.readsTree
+		builder.selectors = slices.Clone(shared.selectors)
 		builder.evaluated, builder.uncertified = shared.evaluated, shared.uncertified
 		driverMergeReasons(&builder.evaluatedBy, shared.evaluatedBy)
 		driverMergeReasons(&builder.uncertifiedBy, shared.uncertifiedBy)
