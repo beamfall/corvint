@@ -3,6 +3,7 @@ package gateselect
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -106,4 +107,111 @@ func TestNCMV1013SelectorNestedMakefileSelectors(t *testing.T) {
 	}
 	want := []string{"sub/x", "subread"}
 	requireVerdict(t, makeEditPlan(base, "sub/Makefile"), root, "run "+modules(want...), "noncode make-targets sub/Makefile -> check")
+}
+
+// TestNCMV1019SelectorMakeCommandLine pins the recursive make invocation's
+// command line (V1-5551 class): a variable assignment on it, SHELL or one a
+// recipe reads, and an option outside the closed list, such as --eval, leave
+// the invocation unfollowed, so a change to the target that runs it selects
+// everything (NCM-V1-019); an option on that list keeps it narrowed.
+func TestNCMV1019SelectorMakeCommandLine(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                "module " + fixtureModule + "\n\ngo 1.27\n",
+		"tool/tool.go":          "package tool\n",
+		"tool/tool_test.go":     makeFixtureTest("tool", ""),
+		"tools/test-shell":      "#!/bin/sh\ngo test ./tool\n",
+		"mkread/mkread_test.go": makeFixtureTest("mkread", "var makefile = \"../Makefile\"\n\n"),
+	}
+	for _, tc := range []struct {
+		name, makefile, reason string
+	}{
+		{"shell", "top:\n\t$(MAKE) SHELL=./tools/test-shell check\ncheck:\n\techo hi\n", "make:command-line-assignment:SHELL"},
+		{"variable", "top:\n\t$(MAKE) PKG=./tool check\ncheck:\n\tgo test $(PKG)\n", "make:command-line-assignment:PKG"},
+		{"eval", "top:\n\t$(MAKE) '--eval=x: ; go test ./tool' x\ncheck:\n\techo hi\n", "make:unfollowed-option:--eval"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files["Makefile"] = tc.makefile
+			root, base := baseRepository(t, files, nil)
+			writeMakefile(t, root, strings.Replace(tc.makefile, "top:\n\t", "top:\n\t: ; ", 1))
+			want := `FALLBACK never-narrowed-path Makefile: make edit: make target "top" runs a command or make goal that does not resolve: ` + tc.reason
+			requireVerdict(t, makeEditPlan(base, "Makefile"), root, want)
+			requireQualified(t, makeEditPlan(base, "Makefile"), root, want)
+		})
+	}
+	files["Makefile"] = "top:\n\t$(MAKE) -s --no-print-directory -k -j 4 check\ncheck:\n\tgo test ./tool\n"
+	root, base := baseRepository(t, files, nil)
+	writeMakefile(t, root, strings.Replace(files["Makefile"], "top:\n\t", "top:\n\t: ; ", 1))
+	want := []string{"mkread", "tool"}
+	requireVerdict(t, makeEditPlan(base, "Makefile"), root, "run "+modules(want...), "noncode make-targets Makefile -> top")
+}
+
+// TestNCMV1019SelectorSubshellChdir pins that a cd inside a subshell changes
+// the directory of that subshell alone: the go selector after the closing
+// parenthesis reads the make file's directory again, while a `{ ...; }`
+// group runs in the shell itself and keeps the cd (NCM-V1-019).
+func TestNCMV1019SelectorSubshellChdir(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                  "module " + fixtureModule + "\n\ngo 1.27\n",
+		"subread/subread_test.go": makeFixtureTest("subread", "var makefile = \"../sub/Makefile\"\n\n"),
+	}
+	for _, directory := range []string{"sub/c", "sub/tool", "sub/tool/c"} {
+		name := path.Base(directory)
+		files[directory+"/"+name+".go"] = "package " + name + "\n"
+		files[directory+"/"+name+"_test.go"] = makeFixtureTest(name, "")
+	}
+	for _, tc := range []struct {
+		name, recipe string
+		want         []string
+	}{
+		{"subshell", "(cd tool && go vet .); go test ./c", []string{"sub/c", "sub/tool", "subread"}},
+		{"group", "{ cd tool && go vet .; }; go test ./c", []string{"sub/tool", "sub/tool/c", "subread"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := "t:\n\t" + tc.recipe + "\n"
+			files["sub/Makefile"] = before
+			root, base := baseRepository(t, files, nil)
+			if err := os.WriteFile(filepath.Join(root, "sub", "Makefile"), []byte("t:\n\t: ; "+tc.recipe+"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			requireVerdict(t, makeEditPlan(base, "sub/Makefile"), root, "run "+modules(tc.want...), "noncode make-targets sub/Makefile -> t")
+		})
+	}
+}
+
+// TestNCMV1019SelectorSubshellPrecision pins that a cd scoped to a subshell
+// no longer leaks into the selector after it: `go test ./other` names the
+// root's other package, not tool/other, and the edit narrows.
+func TestNCMV1019SelectorSubshellPrecision(t *testing.T) {
+	before := "t:\n\t(cd tool && go vet .); go test ./other\n"
+	root, base := baseRepository(t, map[string]string{
+		"go.mod":                "module " + fixtureModule + "\n\ngo 1.27\n",
+		"tool/tool.go":          "package tool\n",
+		"tool/tool_test.go":     makeFixtureTest("tool", ""),
+		"other/other.go":        "package other\n",
+		"other/other_test.go":   makeFixtureTest("other", ""),
+		"mkread/mkread_test.go": makeFixtureTest("mkread", "var makefile = \"../Makefile\"\n\n"),
+		"Makefile":              before,
+	}, nil)
+	writeMakefile(t, root, strings.Replace(before, "t:\n\t", "t:\n\t: ; ", 1))
+	want := []string{"mkread", "other", "tool"}
+	requireVerdict(t, makeEditPlan(base, "Makefile"), root, "run "+modules(want...), "noncode make-targets Makefile -> t")
+}
+
+// TestNCMV1013SelectorNestedModule pins the reason for a go selector inside
+// a nested module, whose packages the repository index skips: the edit still
+// selects everything, and says why (NCM-V1-013).
+func TestNCMV1013SelectorNestedModule(t *testing.T) {
+	before := "t:\n\tcd interop/x && go vet ./...\n"
+	root, base := baseRepository(t, map[string]string{
+		"go.mod":                "module " + fixtureModule + "\n\ngo 1.27\n",
+		"interop/x/go.mod":      "module example.com/x\n\ngo 1.27\n",
+		"interop/x/x.go":        "package x\n",
+		"interop/x/x_test.go":   makeFixtureTest("x", ""),
+		"mkread/mkread_test.go": makeFixtureTest("mkread", "var makefile = \"../Makefile\"\n\n"),
+		"Makefile":              before,
+	}, nil)
+	writeMakefile(t, root, strings.Replace(before, "t:\n\t", "t:\n\t: ; ", 1))
+	want := `FALLBACK never-narrowed-path Makefile: make edit: a changed make target runs Go selector "interop/x/..." inside a nested module`
+	requireVerdict(t, makeEditPlan(base, "Makefile"), root, want)
+	requireQualified(t, makeEditPlan(base, "Makefile"), root, want)
 }
