@@ -183,8 +183,9 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   its package ID with `test-id-unmapped`, and several unparseable files of one package share one such
   entry while every file stays bound); RSpec `rspec-static` (static, file level); Minitest
   `minitest-static` (static: `def test_` methods of a top-level class deriving directly from
-  `Minitest::Test`, otherwise file level); Vitest `vitest list --json`, Jest `jest --listTests` (file
-  level), Playwright `playwright test --list --reporter=json` converted through
+  `Minitest::Test`, otherwise file level); Vitest `vitest list --json`, Jest `jest --listTests` for
+  files and Jest's collection run for test names (version 2, JST-V1-002; a file it names no test
+  of stays at file level), Playwright `playwright test --list --reporter=json` converted through
   `playwright-discovery/0` (its source digest is recorded), pytest `--collect-only -q -p
   no:cacheprovider` (all executing, from the project's own `node_modules/.bin` or `.venv`). Each
   record binds the commit, config and lockfile blobs, the lister identity and the blob of every

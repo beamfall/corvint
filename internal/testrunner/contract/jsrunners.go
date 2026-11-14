@@ -229,15 +229,17 @@ func (playwrightRunner) Command(request Request) (Command, error) {
 	}
 	argv := append(slices.Clone(request.Full), "--reporter=json")
 	for _, file := range files {
-		argv = append(argv, playwrightFilter(file))
+		argv = append(argv, regexpLiteral(file))
 	}
 	return narrowed(request, argv, env, reasons), nil
 }
 
-// playwrightFilter escapes the regular expression metacharacters of file.
-func playwrightFilter(file string) string {
+// regexpLiteral escapes every regular expression metacharacter of text, so
+// a JavaScript regular expression (a Playwright file filter, a Jest -t
+// pattern) matches it literally.
+func regexpLiteral(text string) string {
 	var escaped strings.Builder
-	for _, r := range file {
+	for _, r := range text {
 		if strings.ContainsRune(`\^$.|?*+()[]{}`, r) {
 			escaped.WriteByte('\\')
 		}
