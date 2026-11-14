@@ -3,7 +3,7 @@
 Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and `run-evidence`
 (owner decision R38 (2026-11-09) build order). Each task names its requirement IDs and its proof.
 
-- [ ] 1 File the ticket, reserve prefix `PYR-V1` and set `requirementRefs` to the ten IDs. Proof:
+- [x] 1 File the ticket, reserve prefix `PYR-V1` and set `requirementRefs` to the ten IDs. Proof:
    `ticket show` read back.
 - [x] 2 First commit: create `pytest-provider-v1.md`, its `docs/specs/README.md` row and the
    regenerated index. Requirements: PYR-V1-001..010. Proof: spec diff (V1-5456, first commit).
