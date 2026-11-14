@@ -4,6 +4,7 @@ package contract
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -21,8 +22,9 @@ func pathArg(root, file string) string {
 	return rel
 }
 
-// jestRunner selects by exact test file path (--runTestsByPath) and reads
-// the --json report written to Report through --outputFile.
+// jestRunner selects by exact test file path (--runTestsByPath) and one
+// anchored -t name pattern, and reads the --json report written to Report
+// through --outputFile (docs/specs/jest-runner-v1.md).
 type jestRunner struct{}
 
 func (jestRunner) Name() string                         { return testid.Jest }
@@ -31,9 +33,17 @@ func (jestRunner) Default(Instance, func(string) bool) []string {
 	return []string{"npx", "jest"}
 }
 
-// Command runs the selected files by path. --runTestsByPath takes each path
-// literally, not as a pattern, so a file selection is exact; a test-level
-// ID runs its whole file, since a --testNamePattern applies to every file.
+// Command runs the selected files by path (JST-V1-003). --runTestsByPath
+// takes each path literally, not as a pattern, so the file part is exact.
+// A selection of tests adds one -t pattern, `^(?:NAME|...)$` over the
+// selected full names with every regular expression character escaped;
+// Jest matches it, case-insensitively, against each test's full name (its
+// ancestorTitles and title joined by spaces) in every selected file. The
+// selection is exact only when the inventory listing holds no unselected
+// test of those files whose full name the pattern also matches. A selection
+// that mixes whole files and tests passes no pattern, since -t would filter
+// the whole files too. A setup Corvint cannot read or does not support runs
+// the full command with ReasonJestUnsupported (JST-V1-008).
 func (jestRunner) Command(request Request) (Command, error) {
 	if err := checkRequest(request, testid.Jest); err != nil {
 		return Command{}, err
@@ -42,7 +52,12 @@ func (jestRunner) Command(request Request) (Command, error) {
 	if request.Tests == nil {
 		return full(request, report...), nil
 	}
-	files, reasons, err := testFiles(request, "a selected test runs its whole file; --testNamePattern applies to every file")
+	if cause := request.Jest.Unsupported(); cause != "" {
+		command := full(request, report...)
+		command.Exact, command.Reason = false, ReasonJestUnsupported+": "+cause+", so the full command runs"
+		return command, nil
+	}
+	files, wholeFiles, tests, reasons, err := jestSelection(request)
 	if err != nil {
 		return Command{}, err
 	}
@@ -50,10 +65,122 @@ func (jestRunner) Command(request Request) (Command, error) {
 	for _, file := range files {
 		argv = append(argv, pathArg(request.Instance.Root, file))
 	}
-	return narrowed(request, argv, nil, reasons), nil
+	switch {
+	case len(tests) != 0 && wholeFiles:
+		reasons = append(reasons, "the selection mixes whole files and tests, so the selected tests run their whole files; -t applies to every file")
+	case len(tests) != 0:
+		names := map[string]bool{}
+		for _, test := range tests {
+			for _, name := range test.names {
+				names[name] = true
+			}
+		}
+		argv = append(argv, "-t", jestNamePattern(slices.Sorted(maps.Keys(names))))
+		reasons = append(reasons, jestPatternReasons(request, files, tests)...)
+	}
+	return narrowed(request, argv, nil, slices.Compact(reasons)), nil
 }
 
-// Parse reads the Jest --json report (CTI-V1-004).
+// jestTest is one selected test: its ID and the full names its -t pattern
+// must match.
+type jestTest struct {
+	id    testid.ID
+	names []string
+}
+
+// jestSelection reads a Jest selection: the sorted files it names, whether
+// any selection is a whole file, and its tests. A test ID whose last
+// segment is a duplicate suffix `#n` (CTI-V1-010) matches both its literal
+// full name and its base name, since the canonical ID cannot tell a
+// duplicate from a test titled `#n`, so it is never exact.
+func jestSelection(request Request) (files []string, wholeFiles bool, tests []jestTest, reasons []string, err error) {
+	for _, text := range request.Tests {
+		id, err := testid.Parse(text)
+		if err != nil {
+			return nil, false, nil, nil, err
+		}
+		if !slices.Contains(files, id.File) {
+			files = append(files, id.File)
+		}
+		if id.IsFileLevel() {
+			wholeFiles = true
+			continue
+		}
+		test := jestTest{id: id, names: []string{strings.Join(id.Segments, " ")}}
+		if last := id.Segments[len(id.Segments)-1]; len(id.Segments) > 1 && duplicateSuffix(last) {
+			test.names = append(test.names, strings.Join(id.Segments[:len(id.Segments)-1], " "))
+			reasons = append(reasons, "the selected test "+text+" carries a duplicate suffix, so every test with its base name runs")
+		}
+		tests = append(tests, test)
+	}
+	if len(files) == 0 {
+		return nil, false, nil, nil, fmt.Errorf("%s: an empty selection runs nothing", request.Instance.Key())
+	}
+	slices.Sort(files)
+	return files, wholeFiles, tests, reasons, nil
+}
+
+// duplicateSuffix reports whether segment is a CTI-V1-010 suffix `#n`.
+func duplicateSuffix(segment string) bool {
+	digits, ok := strings.CutPrefix(segment, "#")
+	if !ok || digits == "" {
+		return false
+	}
+	for _, r := range digits {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// jestNamePattern is the -t pattern matching exactly names, anchored at
+// both ends, each name escaped as a regular expression literal.
+func jestNamePattern(names []string) string {
+	escaped := make([]string, len(names))
+	for index, name := range names {
+		escaped[index] = regexpLiteral(name)
+	}
+	return "^(?:" + strings.Join(escaped, "|") + ")$"
+}
+
+// jestPatternReasons is why the -t pattern of tests over files may run more
+// than the selection: no listing, a selected file listed only by file, or
+// an unselected listed test of those files whose full name equals a
+// selected one, ignoring case as Jest's pattern does.
+func jestPatternReasons(request Request, files []string, tests []jestTest) []string {
+	if request.Listed == nil {
+		return []string{"no inventory listing proves the name pattern matches only the selected tests"}
+	}
+	selected := map[string]bool{}
+	var names []string
+	for _, test := range tests {
+		selected[test.id.String()] = true
+		names = append(names, test.names...)
+	}
+	var reasons []string
+	for _, text := range request.Listed {
+		id, err := testid.Parse(text)
+		if err != nil || id.Runner != testid.Jest || !slices.Contains(files, id.File) || selected[text] {
+			continue
+		}
+		if id.IsFileLevel() {
+			reasons = append(reasons, "the inventory lists "+id.File+" only by file, so no listing proves the name pattern matches only the selected tests there")
+			continue
+		}
+		full := strings.Join(id.Segments, " ")
+		for _, name := range names {
+			if strings.EqualFold(full, name) {
+				reasons = append(reasons, "the name pattern also matches "+text)
+				break
+			}
+		}
+	}
+	slices.Sort(reasons)
+	return reasons
+}
+
+// Parse reads the Jest --json report (CTI-V1-004, JST-V1-004).
 func (jestRunner) Parse(request ParseRequest) ([]Result, error) {
 	return jestShapeResults(testid.Jest, request)
 }

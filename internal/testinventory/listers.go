@@ -13,12 +13,14 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -431,12 +433,23 @@ func listVitest(ctx context.Context, input listInput, instance Declared) (listin
 	return result, nil
 }
 
-// listJest runs `jest --listTests` (TIV-V1-004): one absolute test file
-// per line, each named at file level with test-id-unmapped, since the
-// listing carries no titles.
+// jestCollectPattern is the -t pattern of the Jest collection run: an empty
+// negative lookahead, which no full name matches, so Jest loads every test
+// file and reports each test as skipped without running its body or the
+// hooks of a block whose tests are all skipped.
+const jestCollectPattern = "^(?!)"
+
+// listJest is the Jest lister (TIV-V1-004, JST-V1-002). `jest --listTests`
+// names the test files, one absolute path per line; Jest's own collection
+// run (--json with jestCollectPattern, the report printed on stdout) names
+// each test from its ancestorTitles and title (CTI-V1-004). A listed file
+// the collection names no test of is listed at file level with
+// test-id-unmapped. Either run failing fails the lister, so the instance is
+// absent from the inventory and runs in full (TIV-V1-011).
 func listJest(ctx context.Context, input listInput, instance Declared) (listing, error) {
 	bin, err := nodeBin(input, instance.Root, "jest")
-	result := listing{command: []string{"node_modules/.bin/jest", "--listTests", "--config", relativeTo(instance.Root, instance.Config)}}
+	config := relativeTo(instance.Root, instance.Config)
+	result := listing{command: []string{"node_modules/.bin/jest", "--listTests", "--config", config}}
 	if err != nil {
 		return result, err
 	}
@@ -446,6 +459,7 @@ func listJest(ctx context.Context, input listInput, instance Declared) (listing,
 		return result, err
 	}
 	base := filepath.Join(input.Root, filepath.FromSlash(instance.Root))
+	var files []string
 	scanner := bufio.NewScanner(bytes.NewReader(out))
 	scanner.Buffer(make([]byte, 0, 64<<10), maxListerOutput)
 	for scanner.Scan() {
@@ -457,13 +471,51 @@ func listJest(ctx context.Context, input listInput, instance Declared) (listing,
 		if err != nil {
 			return result, err
 		}
-		id, err := testid.New(testid.Jest, file)
-		if err != nil {
-			return result, err
-		}
-		result.add(id, testid.ReasonUnmapped, file)
+		files = append(files, file)
 	}
-	return result, scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return result, err
+	}
+	if len(files) == 0 {
+		return result, nil
+	}
+	collect := []string{bin, "--config", config, "--ci", "--coverage=false", "--passWithNoTests", "--json", "--testNamePattern=" + jestCollectPattern}
+	out, err = run(ctx, input, instance.Root, collect)
+	if err != nil {
+		return result, fmt.Errorf("jest collection run: %w", err)
+	}
+	named, err := testid.JestJSON(testid.Jest, bytes.NewReader(jsonPayload(out, '{')), input.Root)
+	if err != nil {
+		if resolved, rerr := filepath.EvalSymlinks(input.Root); rerr == nil && resolved != input.Root {
+			named, err = testid.JestJSON(testid.Jest, bytes.NewReader(jsonPayload(out, '{')), resolved)
+		}
+		if err != nil {
+			return result, fmt.Errorf("jest collection run: %w", err)
+		}
+	}
+	byFile := map[string][]testid.ID{}
+	for _, n := range named {
+		byFile[n.ID.File] = append(byFile[n.ID.File], n.ID)
+	}
+	for _, file := range files {
+		ids := byFile[file]
+		if len(ids) == 0 {
+			id, err := testid.New(testid.Jest, file)
+			if err != nil {
+				return result, err
+			}
+			result.add(id, testid.ReasonUnmapped, file)
+			continue
+		}
+		for _, id := range ids {
+			result.add(id, "", file)
+		}
+		delete(byFile, file)
+	}
+	if len(byFile) != 0 {
+		return result, fmt.Errorf("jest collection run names %s, which jest --listTests did not list", slices.Sorted(maps.Keys(byFile))[0])
+	}
+	return result, nil
 }
 
 // listPlaywright runs `playwright test --list --reporter=json`

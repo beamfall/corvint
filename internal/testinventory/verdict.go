@@ -324,7 +324,7 @@ type ListerIdentity struct {
 var listers = map[string]ListerIdentity{
 	testid.Go:         {Name: "go-ast", Version: "1", Kind: KindStatic},
 	testid.Vitest:     {Name: "vitest-list", Version: "1", Kind: KindExecuting},
-	testid.Jest:       {Name: "jest-list-tests", Version: "1", Kind: KindExecuting},
+	testid.Jest:       {Name: "jest-list-tests", Version: "2", Kind: KindExecuting},
 	testid.Playwright: {Name: "playwright-list", Version: "1", Kind: KindExecuting},
 	testid.Pytest:     {Name: "pytest-collect", Version: "1", Kind: KindExecuting},
 	testid.RSpec:      {Name: "rspec-static", Version: "1", Kind: KindStatic},
