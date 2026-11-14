@@ -72,7 +72,9 @@ func JestSetupFrom(instance Instance, read func(rel string) ([]byte, error)) Jes
 // cannot be read or is below MinJestMajor, a config that cannot be read,
 // or a config that sets testResultsProcessor (which rewrites the --json
 // report) or a testRunner or runner other than Jest's own. Jest's
-// `reporters` do not change the --json report and are not refused. A
+// `reporters` do not change the --json report and are not refused. An
+// empty ConfigName with no Config is an instance with no config file, which
+// runs on Jest's defaults and narrows. A
 // JavaScript or TypeScript config is read as text: a value set through a
 // preset, a spread or a computed object is not seen, and a report that
 // then lacks a selected test leaves it NOT_RUN (JST-V1-005).
@@ -88,6 +90,10 @@ func (s *JestSetup) Unsupported() string {
 		return fmt.Sprintf("the installed Jest version %q cannot be read", s.Version)
 	case major < MinJestMajor:
 		return fmt.Sprintf("Jest %s is below the minimum major version %d", s.Version, MinJestMajor)
+	case s.ConfigName == "" && s.Config == nil:
+		// No config file: Jest's defaults apply, and they set no custom
+		// runner or results processor.
+		return ""
 	case s.Config == nil:
 		return "config " + s.ConfigName + " cannot be read"
 	}

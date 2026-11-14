@@ -326,7 +326,7 @@ var listers = map[string]ListerIdentity{
 	testid.Vitest:     {Name: "vitest-list", Version: "1", Kind: KindExecuting},
 	testid.Jest:       {Name: "jest-list-tests", Version: "2", Kind: KindExecuting},
 	testid.Playwright: {Name: "playwright-list", Version: "1", Kind: KindExecuting},
-	testid.Pytest:     {Name: "pytest-collect", Version: "1", Kind: KindExecuting},
+	testid.Pytest:     {Name: "pytest-collect", Version: "2", Kind: KindExecuting},
 	testid.RSpec:      {Name: "rspec-static", Version: "1", Kind: KindStatic},
 	testid.Minitest:   {Name: "minitest-static", Version: "1", Kind: KindStatic},
 }

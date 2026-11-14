@@ -67,6 +67,7 @@ func contractFixture(t *testing.T, mode string) (*Runner, Manifest, string, stri
 	runner.Environ = []string{"PATH=" + os.Getenv("PATH"), "FAKE_MODE=" + mode, "FAKE_DIR=" + dir}
 	runner.Declared = BuiltInDeclared()
 	runner.Declared.Runners = []RunnerCommand{{Key: "jest", Argv: []string{"fakejest"}}}
+	writeJestInstall(t, dir, "29.7.0")
 	m.Units = []Unit{
 		{Adapter: AdapterContract, Shard: 0, Slice: "jest@.", Unit: "jest:src/a.test.js"},
 		{Adapter: AdapterContract, Shard: 0, Slice: "jest@.", Unit: "jest:src/b.test.js"},
@@ -245,17 +246,17 @@ func TestRNCV1019PlaywrightReportPathReachesTheRunner(t *testing.T) {
 	}
 }
 
-// fakePytest stands in for pytest with pytest-json-report: it answers
-// --version and writes, to the --json-report-file path, a report in which
-// only test_add of tests/test_calc.py ran and passed, as when a plugin, -k
-// or a collection skip deselects its sibling test_sub.
+// fakePytest stands in for pytest: it answers --version and writes, to
+// the --junitxml path, a JUnit XML report (xunit1) in which only test_add
+// of tests/test_calc.py ran and passed, as when a plugin, -k or a
+// collection skip deselects its sibling test_sub.
 const fakePytest = `#!/bin/sh
 [ "$1" = --version ] && { echo "pytest 8.3.3"; exit 0; }
 out=""
 for a in "$@"; do
-  case "$a" in --json-report-file=*) out="${a#--json-report-file=}" ;; esac
+  case "$a" in --junitxml=*) out="${a#--junitxml=}" ;; esac
 done
-printf '{"exitcode":0,"tests":[{"nodeid":"tests/test_calc.py::test_add","outcome":"passed","call":{"duration":0.004}}]}\n' > "$out"
+printf '<testsuites><testsuite name="pytest"><testcase classname="tests.test_calc" name="test_add" file="tests/test_calc.py" time="0.004"/></testsuite></testsuites>\n' > "$out"
 `
 
 // RNC-V1-006: a test the inventory lists in a selected file that the
@@ -282,7 +283,7 @@ func TestRNCV1006OmittedInventoriedTestIsNotRun(t *testing.T) {
 		t.Fatalf("outcomes %+v", run.Outcomes)
 	}
 	want := []contract.Result{
-		{ID: "pytest:tests/test_calc.py::test_add", Outcome: contract.OutcomePass, DurationMillis: 4, Granularity: "test"},
+		{ID: "pytest:tests/test_calc.py::test_add", Outcome: contract.OutcomePass, RunnerOutcome: contract.PytestPassed, DurationMillis: 4, Granularity: "test"},
 		{ID: "pytest:tests/test_calc.py::test_sub", Outcome: contract.OutcomeNotRun, Granularity: "test"},
 	}
 	if !slices.Equal(run.Tests, want) {
