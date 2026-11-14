@@ -41,13 +41,20 @@
   },
   "revision": "<varies:string>",
   "selectedFlat": [],
+  "selectionVerdict": {
+    "runners": [],
+    "scope": "narrowed",
+    "unknown": []
+  },
   "summary": {
     "committed": 0,
     "dirty": 0,
+    "drivers": 0,
     "excluded": 1,
     "line": "scope=BOUNDED dirty=0 selected=0 excluded=1 unknown=0",
     "scope": "BOUNDED",
     "selected": 0,
+    "tests": 0,
     "unknown": 0,
     "unknownByReason": {},
     "unresolvedPackages": 0,

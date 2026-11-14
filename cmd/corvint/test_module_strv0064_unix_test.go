@@ -40,6 +40,9 @@ func TestSTRV0064CLINestedModuleRuns(t *testing.T) {
 	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full")
 	// STR-V0-073: the nested module's ./... runs whole, so its HEAVY_WHOLE_REASON follows.
 	wantDry := "corvint-test: NARROWED 1 execution units\n" +
+		// SLF-V1-007: the nested module adds the go runner's suite.
+		"corvint-test: SELECTION narrowed go=full adds-suite:go=1\n" +
+		"corvint-test: EFFECT adds-suite:go LANGUAGE_FRONTIER go:unobserved-module:nested:nested/n.go: the nested Go module's own suite runs whole: go -C nested test ./... (AFP-V0-650)\n" +
 		"corvint-test: INVENTORY absent reasons=inventory-absent full=2/2 unassigned=0\n" +
 		"corvint-test: whole-package go test planned; under script/heavy.sh run it with HEAVY_WHOLE_REASON='corvint test selected go-module:nested whole: " +
 		"a nested Go module the root does not build: its packages are not indexed, so its own go test ./... runs whole from its directory (AFP-V0-650)' (STR-V0-073)\n"
