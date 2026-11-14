@@ -282,8 +282,16 @@ file outside the parsed subset, or imports a unit the driver units do not hold. 
 commands resolve and are followed but read what the graph does not bound (an evaluated, uncertified
 computed site) still runs only what it names, so it stays bounded; a whole-tree reader such as `find`
 is not followed (NCM-V1-019). NCM-V1-016, NCM-V1-017 and NCM-V1-019 refine which targets and
-commands resolve. (root encodings and NCM-V1-019 amended 2026-11-13 after the independent review,
-and the whole-tree read after the round 4 review, V1-5465)
+commands resolve. A go package selector a reached unit runs (a package directory, a `/...` pattern
+or a `.go` file, the whole tree aside) MUST name an indexed package (one at or below a `/...`
+pattern's directory, or the `.go` file's own); the driver scans a nested make file's text from its
+own directory and from the root, and the text runs from one of them, so the selectors of one text
+name packages when every selector of either scan does. Otherwise the selector misread the command
+or names no package of the repository, and the edit MUST select everything with
+`a changed make target runs Go package "<selector>", which names no package of the repository`
+rather than drop it. (root encodings and NCM-V1-019 amended 2026-11-13 after the independent review,
+and the whole-tree read after the round 4 review, V1-5465; the missing-package selector amended
+2026-11-13 for V1-5552)
 
 **Scenario: A prerequisite's package**
 - GIVEN a changed target `all: check` and `check`, which runs `go test ./tool`
@@ -401,9 +409,13 @@ execution. The rule is closed: the reach follows only
    `-toolexec` or `-vettool` (with one or two dashes), which runs only the packages it names. Any
    global flag before the subcommand (`-C` or any other word beginning `-`) and every other
    subcommand (`generate`, `tool`, `run` and the rest) is not followed;
-3. the shell builtins `echo`, `printf`, `true`, `false`, `:`, `test`, `[`, `cd` and `exit`, which
-   cannot execute anything, and `set` whose arguments are only `-e`, `-u`, `-x` (alone or combined,
-   with `-` or `+`) and `-o pipefail`; and
+3. the shell builtins `echo`, `printf`, `true`, `false`, `:`, `test`, `[` and `exit`, which
+   cannot execute anything; `set` whose arguments are only `-e`, `-u`, `-x` (alone or combined,
+   with `-` or `+`) and `-o pipefail`; and `cd` whose options are only `-L` and `-P` (alone or
+   combined) and an optional `--`, followed by exactly one directory operand that is not `-`, which
+   the scan resolves as the working directory of what follows. `cd` with any other option, no
+   operand (the home directory), `-` (the previous directory) or a second operand is not followed;
+   and
 4. shell syntax that is no command (`if`, `then`, `fi`, `while`, `do`, `done`, `!` and the like).
 
 Every other command MUST leave the target's reach unbounded, so the edit selects everything: a
@@ -412,12 +424,15 @@ wrapper (`env`, `nice`, `timeout`, `xargs`, `exec`, `time`, `command` and the li
 sourced file, a `trap`, `export` and every program the driver's scanner calls pure or bounded for
 its reads (`sort`, `grep`, `sed`, `awk`, `cat`, `cp`, `mkdir`, `rm` and the rest), whatever its
 options: such a command may run tests it does not name, as `sort --compress-program=script/x.sh`
-does. A word holding a command substitution (`$(` or a backtick) leaves it unbounded too, even in a
+does. A make file whose recipe shell (`SHELL`, for the file or a target, or `.SHELLFLAGS`) is not a
+plain shell the driver certifies hands every recipe line to that program, so none of its targets'
+commands is followed, with reason `make:recipe-shell-uncertified`. A word holding a command substitution (`$(` or a backtick) leaves it unbounded too, even in a
 followed command. The selector MUST print, after the NCM-V1-013 reason, each reason the target's
 run set is open, naming the command (`shell:unfollowed-command:<command>`,
 `shell:command-substitution:<command>`, `make:unmodelled-file:<file>` or the computed site's own
 reason). The mark exists only in the reach: the planner's units and computed sites are unchanged.
-(closed rule amended 2026-11-13 after the round 4 review, V1-5465)
+(closed rule amended 2026-11-13 after the round 4 review, V1-5465; `cd` options and the recipe
+shell amended 2026-11-13 for V1-5552 and V1-5551)
 
 **Scenario: A script that runs go test**
 - GIVEN target `check` runs `script/check.sh`, which runs `go test ./tool`, and a change makes it
@@ -433,6 +448,18 @@ reason). The mark exists only in the reach: the planner's units and computed sit
 - THEN every test is selected with
   `never-narrowed-path Makefile: make edit: make target "sorted" runs a command or make goal that does not resolve: shell:unfollowed-command:sort`;
   `go -C . generate ./gen` gives `shell:unfollowed-command:go -C` the same way
+
+**Scenario: An unrecognized recipe shell**
+- GIVEN `SHELL = ./tools/test-shell`, unchanged, where the wrapper runs `go test ./tool`, and a
+  change to target `check`'s `echo` recipe line
+- WHEN the selector decides the plan
+- THEN every test is selected with
+  `never-narrowed-path Makefile: make edit: make target "check" runs a command or make goal that does not resolve: make:recipe-shell-uncertified`
+
+**Scenario: cd with options**
+- GIVEN target `t` runs `cd -- tool && go test ./b`, and a change edits it
+- WHEN the selector decides the plan
+- THEN `<module>/tool/b` is selected; `cd -e tool` gives `shell:unfollowed-command:cd` instead
 
 ## Delivered rules
 
@@ -613,6 +640,8 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 - Delivered under V1-5424: NCM-V1-001, 002, 003, 005, 006, 007, 008 and 009; the refusal side of
   NCM-V1-004 (no entry narrows without a confirmed fault case).
 - Delivered under V1-5465: NCM-V1-010 to NCM-V1-019 (`docs/build-log/2026-11-13-mknarrow1113.md`).
+- Amended under V1-5551 and V1-5552: NCM-V1-019 (recipe shell, `cd` options) and NCM-V1-013
+  (missing-package selector) (`docs/build-log/2026-11-13-mk1114.md`).
 - Waiting: NCM-V1-004's proof link to FIH-V1 non-code fault cases, after V1-5405 lands (change task 6).
 - Acceptance fixtures (change task 7): see the build-log entry
   `docs/build-log/2026-11-11-non-code-map.md` for the fixtures delivered and missing.
@@ -633,10 +662,10 @@ narrowing asserts the named full run instead, and keeps covering the attribution
 | NCM-V1-010 | `TestNCMV1010MakeEditNarrowsWhenAttributable` (`internal/noncodemap`); `TestNCMV1010SelectorNarrowsMakeEdit`, `TestNCMV1SelectorNeverNarrowed` (no base) (`internal/gateselect`) |
 | NCM-V1-011 | `TestAttributeMakeEditTargets_NCMV1011` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (`internal/gateselect`) |
 | NCM-V1-012 | `TestAttributeMakeEditFailsClosed_NCMV1012` (`internal/liveverify/affected`); `TestNCMV1012SelectorMakeEditFailsClosed` (`internal/gateselect`) |
-| NCM-V1-013 | `TestReachMakeTargets_NCMV1013` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (final qualified set), `TestNCMV1013SelectorRootPatterns` (`internal/gateselect`) |
+| NCM-V1-013 | `TestReachMakeTargets_NCMV1013`, `TestReachMakeSelectorPasses_NCMV1013` (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit` (final qualified set), `TestNCMV1013SelectorRootPatterns`, `TestNCMV1013SelectorNestedMakefileSelectors`, `TestNCMV1019SelectorChdirOptions` (missing selector) (`internal/gateselect`) |
 | NCM-V1-014 | `TestReachMakeTargetsCI_NCMV1014`, `TestReachMakeEditInstance_NCMV1016` (touched rule) (`internal/liveverify/affected`); `TestNCMV1010SelectorNarrowsMakeEdit`, `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-015 | `TestAttributeMakeEditWordList_NCMV1015`, `TestAttributeMakeEditWordListFailsClosed_NCMV1015` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-016 | `TestReachMakeEditInstance_NCMV1016` (`internal/liveverify/affected`); `TestNCMV1015SelectorNarrowsWordListEdit` (`internal/gateselect`) |
 | NCM-V1-017 | `TestDriverEnvPrefix_NCMV1017` (`internal/liveverify/affected`) |
 | NCM-V1-018 | `TestAttributeMakeEditOrder_NCMV1018` (`internal/liveverify/affected`); `TestNCMV1018SelectorOrderMove` (`internal/gateselect`) |
-| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript`, `TestNCMV1019SelectorClosedRule` (`internal/gateselect`) |
+| NCM-V1-019 | `TestDriverUnfollowedCommand_NCMV1019`, `TestReachMakeRecipeShell_NCMV1019`, `TestReachMakeChdir_NCMV1019`, `TestDriverChdirPlanner_AFPV09051` (`internal/liveverify/affected`); `TestNCMV1019SelectorUnfollowedScript`, `TestNCMV1019SelectorClosedRule`, `TestNCMV1019SelectorRecipeShell`, `TestNCMV1019SelectorChdirOptions` (`internal/gateselect`) |
