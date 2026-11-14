@@ -27,8 +27,9 @@ Build after changes `runner-contract`, `canonical-test-id`, `test-inventory` and
    usage and internal errors, invalid report, plugin deselect with its count printed and under `-p
    no:terminal`, a changed file that reports no testcase or fails to collect, a file with no
    result; `internal/sessiontest`), `TestPYRV1006EditedFileRunsWholeAndPasses` (a changed file
-   runs whole and passes, review P2-c), `TestPYRV1006PytestJUnitRefusals`, `TestPYRV1006XdistMergedReport`,
-   `TestPYRV1006PytestOutputSignals` (`internal/testrunner/contract`). Fixtures are hand-written from
+   runs whole and passes, review P2-c), `TestPYRV1006PytestJUnitRefusals`,
+   `TestPYRV1006XdistMergedReport`, `TestPYRV1006PytestOutputSignals`
+   (`internal/testrunner/contract`). Fixtures are hand-written from
    pytest's and xdist's source; no live pytest ran (NOT_RUN).
 - [x] 6 Kind labels; environment record; advisory parity test. Requirements: PYR-V1-005, 007, 008.
    Proof: fixture tests. `TestPYRV1005KindLabels` (`internal/testinventory`; lister `pytest-collect`
