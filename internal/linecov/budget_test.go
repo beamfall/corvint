@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -108,7 +109,14 @@ func lbPlan(tb testing.TB, file string, in PlanInput) Selection {
 // As MCJ-V0-025 does for the segmented plan, each run is measured by process
 // user plus system CPU time, so scheduler stalls on a shared runner neither
 // fail nor hide the budget; total wall time is still reported, and
-// reference-host wall latency stays a benchmark qualification.
+// reference-host wall latency stays a benchmark qualification. Process CPU
+// still inflates under contention (cache, memory bandwidth and GC workers on
+// busy cores: p95 110 to 122 ms on the loaded nightly gate runners, V1-5003),
+// so an over-budget p95 on a host whose 1-minute load average reached the core
+// count before or after the runs is reported NOT_JUDGED, as PRB-V0-028 and
+// PRB-V0-039 treat a contended perf run; a quiet or unobserved host is judged.
+// Contention never excuses a p95 beyond contendedPlanBudgetFactor times the
+// budget, and an explicit LINECOV_PLAN_P95_BUDGET is always judged.
 func TestLazyPlanBudget(t *testing.T) {
 	file, in := lbInputs(t)
 	sel := lbPlan(t, file, in)
@@ -121,12 +129,14 @@ func TestLazyPlanBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	const runs = 40
+	loadBefore, loadedBefore := hostLoad1()
 	wallStart := time.Now()
 	p50, p95, err := measurePlanCPU(runs, planCPUTime, func() { lbPlan(t, file, in) })
 	if err != nil {
 		t.Fatal(err)
 	}
 	wall := time.Since(wallStart)
+	loadAfter, loadedAfter := hostLoad1()
 	// Under -race (raceScale > 1) the lazy path also decodes the 20 MB index on
 	// every run: process CPU p95 was 0.55 s on an idle 4-core linux/amd64 host,
 	// and CI's shared runners measured the segmented plan's CPU at about twice
@@ -136,8 +146,9 @@ func TestLazyPlanBudget(t *testing.T) {
 	if raceScale > 1 {
 		budget *= 2
 	}
-	if v := os.Getenv("LINECOV_PLAN_P95_BUDGET"); v != "" {
-		d, err := time.ParseDuration(v)
+	override := os.Getenv("LINECOV_PLAN_P95_BUDGET")
+	if override != "" {
+		d, err := time.ParseDuration(override)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -147,6 +158,11 @@ func TestLazyPlanBudget(t *testing.T) {
 	t.Logf("index %d bytes; %d changed files, %d units, %d tests declared, %d kept by coverage, %d excluded; open+plan CPU p50 %s p95 %s (budget %s), wall total %s",
 		st.Size(), len(in.Change), sel.Counts.Units, sel.Counts.TestsDeclared, sel.Counts.TestsCoverage, sel.Counts.TestsExcluded, p50, p95, budget, wall)
 	if p95 > budget {
+		cores := runtime.NumCPU()
+		if override == "" && p95 <= contendedPlanBudgetFactor*budget && planBudgetContended(loadBefore, loadAfter, loadedBefore && loadedAfter, cores) {
+			t.Skipf("GLS-V0-003 NOT_JUDGED: open+plan CPU p95 %s exceeds %s on a contended host: 1-minute load average %.2f before and %.2f after, threshold %d (the core count)",
+				p95, budget, loadBefore, loadAfter, cores)
+		}
 		t.Fatalf("open+plan CPU p95 %s exceeds %s", p95, budget)
 	}
 }
