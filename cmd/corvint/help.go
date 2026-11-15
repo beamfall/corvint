@@ -924,6 +924,9 @@ Arguments:
         admitted but lacking a reverse-import rule emit an explicit coverage
         uncertainty; no language rule is inferred.
         An unadmitted suffix returns unsupported-impact-path-suffix.
+        A directory reads as the admitted tracked files directly inside it
+        (subdirectories are not read), exactly as naming those files does;
+        one holding none returns unsupported-impact-directory.
 
 Single-root impact reads one --root at its HEAD; there --at and --revision
 refuse unsupported-impact-layout (ANL-V0-063). --app-root and --test-root
