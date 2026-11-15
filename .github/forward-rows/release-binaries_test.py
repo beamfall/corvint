@@ -63,6 +63,16 @@ class ReleaseBinaries(unittest.TestCase):
                         "(cd interop/cem01-go && go test -count=1 -timeout 30m ./... && go vet ./...)"):
             self.assertIn(command, test)
 
+    def test_build_binds_the_core_gate_report_and_release_writes_the_checksums(self):
+        # ARTIFACT-BIN-V0-525, -526 (V1-5473): a tag that builds corvint runs the archive gate
+        # before release, release binds it with --core-gate, and SHA256SUMS comes from release.
+        build = job(self.text, "build")
+        gate = build.index('go run ./conformance/release-artifact-v0 archive --revision "$SHA" --output "$RUNNER_TEMP/gate/core"')
+        self.assertLess(gate, build.index("go run ./tools/release-binary release"))
+        self.assertIn('gate=(--core-gate "$RUNNER_TEMP/gate/core")', build)
+        self.assertIn('"${gate[@]}"', build)
+        self.assertNotIn("> SHA256SUMS", build)
+
     def test_every_action_is_pinned_by_full_sha(self):
         uses = re.findall(r"(?m)^\s*(?:- )?uses: (\S+)", self.text)
         self.assertTrue(uses)
