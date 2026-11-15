@@ -2,15 +2,20 @@ name: Release binaries
 
 # The one tag pipeline of G15a (decision 0596): GHA-V1-040 to GHA-V1-042
 # (docs/specs/openspec/changes/github-action/specs/github-action/spec.md) and ARTIFACT-BIN-V0-005,
-# -006 and -523 (docs/specs/release-artifact-integrity-v0.md); V1-5236, V1-5237.
+# -006, -523, -525 and -526 (docs/specs/release-artifact-integrity-v0.md); V1-5236, V1-5237, V1-5473.
 #
 # A pushed version tag starts it: `vX.Y.Z` releases every product binary, `SET/vX.Y.Z` the members
 # of one version set and `NAME/vX.Y.Z` one product binary (`release-binary select`). The `test` job
 # runs the full Go test and vet commands of both modules at the tagged commit. The `build` job then
 # runs `release-binary release --tag`, which builds only the binaries the tag selects, for the
 # catalog's targets (linux/amd64, linux/arm64, darwin/arm64), with the catalog's licence files in
-# every archive, merges the release manifest and rechecks the output; it adds one `SHA256SUMS` of
-# every archive, smoke-tests an installed corvint and corvint-docs set when the tag built both
+# every archive, merges the release manifest, rechecks the output and writes one `SHA256SUMS` of
+# every archive (ARTIFACT-BIN-V0-525). When the tag builds corvint, the job first runs the corvint
+# archive gate at the same commit, and `release --core-gate` requires the gate's corvint archives
+# to equal its own byte for byte and carries the gate's `verification-report.json` into the
+# output, the Core qualification `corvint-update apply --component core` binds each corvint
+# archive to before it installs the core set (ARTIFACT-BIN-V0-526, UPD-V0-920). The job then
+# smoke-tests an installed core set when the tag built corvint and corvint-docs
 # (ARTIFACT-BIN-V0-509), and uploads the output as one artifact. The run then stops.
 #
 # Only `publish` holds `contents: write`, and it starts only after the owner approves the protected
@@ -87,7 +92,8 @@ jobs:
         with:
           cache: false
           go-version: "1.27.4"
-      - name: Provision the host tools the product's fixed PATH resolves
+      - &provision
+        name: Provision the host tools the product's fixed PATH resolves
         # The Linux half of release-gates.yml's provision step: the checksum-pinned ripgrep release
         # binary CI tests with, and go1.27.4 first on the fixed PATH.
         env:
@@ -119,27 +125,46 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - *check-tag
       - *checkout
       - *verify-checkout
       - *setup-go
-      - name: Build, checksum and recheck the tag's binaries (ARTIFACT-BIN-V0-523)
+      # The gate's host smoke runs the built corvint, which resolves the same host tools.
+      - *provision
+      - name: Run the corvint archive gate when the tag builds corvint (ARTIFACT-BIN-V0-526)
+        # Runbook step 5: two cold builds per target, byte-identical, and the verification report
+        # corvint-update reads. Its parent must be a real 0700 directory.
+        run: |
+          go run ./tools/release-binary select --tag "$TAG" | tee "$RUNNER_TEMP/selection.json"
+          if ! grep -q '"corvint"' "$RUNNER_TEMP/selection.json"; then
+            echo "::notice::$TAG does not build corvint; the archive gate does not apply"
+            exit 0
+          fi
+          mkdir -m 0700 "$RUNNER_TEMP/gate"
+          go run ./conformance/release-artifact-v0 archive --revision "$SHA" --output "$RUNNER_TEMP/gate/core"
+          (cd "$RUNNER_TEMP/gate/core" && sha256sum --check --strict SHA256SUMS)
+      - name: Build, checksum and recheck the tag's binaries (ARTIFACT-BIN-V0-523, -525)
         # The output directory is outside the checkout (ARTIFACT-BIN-V0-007); the run record goes
-        # beside the outputs only after release has rechecked them.
+        # beside the outputs only after release has rechecked them. release writes SHA256SUMS and,
+        # with --core-gate, the bound verification-report.json.
         run: |
           out="$RUNNER_TEMP/release"
-          go run ./tools/release-binary release --tag "$TAG" --output "$out" > "$RUNNER_TEMP/release-run.json"
+          gate=()
+          if [ -d "$RUNNER_TEMP/gate/core" ]; then
+            gate=(--core-gate "$RUNNER_TEMP/gate/core")
+          fi
+          go run ./tools/release-binary release --tag "$TAG" --output "$out" "${gate[@]}" > "$RUNNER_TEMP/release-run.json"
           cat "$RUNNER_TEMP/release-run.json"
           cd "$out"
-          cat ./*.SHA256SUMS | LC_ALL=C sort -k2 > SHA256SUMS
           sha256sum --check --strict SHA256SUMS release-manifest.json.sha256
           mv "$RUNNER_TEMP/release-run.json" release-run.json
           ls -l
-      - name: Smoke an installed corvint and corvint-docs set (V1-5237, ARTIFACT-BIN-V0-509)
+      - name: Smoke an installed core set (V1-5237, V1-5473, ARTIFACT-BIN-V0-509)
         # The runner is linux/amd64. PATH holds git alone, so corvint can find corvint-docs only
-        # beside itself, as on a hand install (docs/INSTALL.md).
+        # beside itself, as on a hand install (docs/INSTALL.md). Each MCP server the tag built is
+        # installed beside them and must report corvint's version.
         run: |
           out="$RUNNER_TEMP/release"
           if [ ! -f "$out/corvint_linux_amd64.tar.gz" ] || [ ! -f "$out/corvint-docs_linux_amd64.tar.gz" ]; then
@@ -162,6 +187,14 @@ jobs:
           grep -q 'Usage:' "$smoke/help.txt"
           run --root "$smoke/fixture" docs citations check | tee "$smoke/check.txt"
           grep -q 'docs citations check:' "$smoke/check.txt"
+          version=$(run --version | head -n 1 | awk '{print $2}')
+          for name in corvint-mcp corvint-docs-mcp; do
+            [ -f "$out/${name}_linux_amd64.tar.gz" ] || continue
+            tar -xzf "$out/${name}_linux_amd64.tar.gz" -C "$smoke/extract"
+            install -m 0755 "$smoke/extract/${name}_linux_amd64/$name" "$smoke/set/$name"
+            env -i PATH="$smoke/path" HOME="$smoke/home" "$smoke/set/$name" --version | tee "$smoke/$name.txt"
+            grep -q "^$name $version " "$smoke/$name.txt"
+          done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-binaries
