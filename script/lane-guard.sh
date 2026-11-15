@@ -21,12 +21,14 @@
 #
 #   LANE_GUARD_ROOTS  colon-separated directory prefixes; when set, a command whose cwd is under
 #                     none of them is allowed unchecked. Unset: every command is checked.
-#   LANE_GUARD_HEAVY  the wrapper path the deny message names; default script/heavy.sh.
+#   LANE_GUARD_HEAVY  the go test wrapper; default script/heavy.sh. An absolute path applies when it
+#                     exists; a relative one is looked up from the cwd upward. The go test rule applies
+#                     only where a wrapper is found, and the deny names its absolute path (V1-5268).
 # Prints nothing (allow) or one JSON decision line; always exits 0.
 set -uo pipefail
 
 if [[ ${1-} == -h || ${1-} == --help ]]; then
-  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 
@@ -66,6 +68,19 @@ for my $line (split /\n/, $cmd, -1) {
 my $flat = join " ", @kept;
 my $tool = defined $in->{tool_name} ? "$in->{tool_name}" : "";
 my $heavy = $ENV{LANE_GUARD_HEAVY} // "script/heavy.sh";
+# The go test rule names a wrapper the agent can run: an absolute LANE_GUARD_HEAVY that exists, or the
+# relative one found in the cwd or an ancestor. Where none exists (a repository without the
+# wrapper) the rule does not apply (V1-5268, V1-5565, V1-5579, V1-5583).
+my $wrapper = "";
+if ($heavy =~ m{^/}) {
+    $wrapper = $heavy if -f $heavy;
+} elsif ($heavy ne "" && $cwd =~ m{^/}) {
+    for (my $d = $cwd; ; $d =~ s{/[^/]*$}{}) {
+        $d =~ s{/+$}{};
+        if (-f "$d/$heavy") { $wrapper = "$d/$heavy"; last; }
+        last if $d eq "";
+    }
+}
 sub deny {
     print JSON::PP->new->canonical->encode({hookSpecificOutput => {hookEventName => "PreToolUse",
         permissionDecision => "deny", permissionDecisionReason => $_[0]}}), "\n";
@@ -154,7 +169,7 @@ my $in_background = defined $rib_value && "$rib_value" ne "" && "$rib_value" ne 
     }
 }
 if (defined $in->{agent_id} && "$in->{agent_id}" ne "") {
-    my $bg = "Lane rule: no background work (run_in_background, &, nohup/setsid/disown, Monitor); a lane waiting on its own background job stays parked. Run it in the foreground through $heavy under 600s, splitting it if needed.";
+    my $bg = "Lane rule: no background work (run_in_background, &, nohup/setsid/disown, Monitor); a lane waiting on its own background job stays parked. Run it in the foreground through " . ($wrapper ne "" ? $wrapper : $heavy) . " under 600s, splitting it if needed.";
     deny($bg) if $tool eq "Monitor";
     my $rib = ref $in->{tool_input} eq "HASH" ? $in->{tool_input}{run_in_background} : undef;
     deny($bg) if defined $rib && "$rib" ne "" && "$rib" ne "0" && "$rib" ne "false";
@@ -166,9 +181,10 @@ if ($flat =~ /(?:^|[;&|({\s])(?:until|while)\s.*sleep/ ||
     $flat =~ /tail\s+(?:-[^|]*\s)?-[A-Za-z]*[fF][^|]*\|[^;&]*grep\s.*-m/) {
     deny("Lane rule: no polling loops (until/while/for-seq with sleep, tail -f | grep -m). Run the command in the foreground under 600s, or end your turn and let the orchestrator wake you.");
 }
-if ($flat =~ /(?:^|[;&|(]|&&|\|\|)\s*(?:(?:[A-Za-z_]+=\S*|env|time|nice|command)\s+)*go\s+test(?:\s|$)/ && # bash32: allow
+if ($wrapper ne "" &&
+    $flat =~ /(?:^|[;&|(]|&&|\|\|)\s*(?:(?:[A-Za-z_]+=\S*|env|time|nice|command|-[unC]\s+\S+|-[A-Za-z-]+(?:=\S*)?)\s+)*go\s+test(?:\s|$)/ && # bash32: allow
     $flat !~ /(?:^|[\s;&|(])\S*heavy\.sh(?:\s|$)/) {
-    deny("Lane rule: run go test through $heavy (e.g. $heavy env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run <narrow> ./pkg/), one package per command.");
+    deny("Lane rule: run go test through $wrapper (e.g. $wrapper env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run <narrow> ./pkg/), one package per command.");
 }
 exit 0;
 '
