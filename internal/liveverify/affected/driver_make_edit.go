@@ -686,7 +686,9 @@ func makeReferences(line, name string) bool {
 
 // computedReference returns the first line of the file holding a reference
 // whose variable name is itself expanded (`$($(X))`, `$(A_$(B))`), or whose
-// value, origin, flavor or call argument is.
+// value, origin, flavor or call argument is. `$$` is make's escaped dollar,
+// not a reference, so `$$(cmd)` and `$$(( a - b ))` in a recipe or a value are
+// shell text and never computed (V1-5159).
 func (parsed *driverMakeFile) computedReference() (string, bool) {
 	lines := slices.Clone(parsed.remainder)
 	for _, name := range parsed.order {
@@ -694,6 +696,10 @@ func (parsed *driverMakeFile) computedReference() (string, bool) {
 	}
 	for _, line := range lines {
 		for index := 0; index+1 < len(line); index++ {
+			if line[index] == '$' && line[index+1] == '$' {
+				index++
+				continue
+			}
 			if line[index] != '$' || line[index+1] != '(' && line[index+1] != '{' {
 				continue
 			}
