@@ -27,4 +27,6 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       FSV-V1-004. Proof: the catalogue check passes. Waits for `docs/ERRORS.md` and its check
       (change `user-docs` task 2.4, UDC-V1-004), which are not built yet.
 - [ ] 3.2 Build-log entry; complete the ticket through the Tasks gate. Requirements: all. Proof:
-      `corvint-tasks ticket show` and `receipt audit`.
+      `corvint-tasks ticket show` and `receipt audit`. Build-log done:
+      `docs/build-log/2026-11-11-flow-schema-version.md`. Unticked: 2.6 and 3.1 are open
+      (OSC-V1-005) and the ticket completion is NOT_OBSERVED (2026-11-15).

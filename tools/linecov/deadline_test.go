@@ -34,7 +34,7 @@ func TestQualificationDeadline(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	_, _, err := failingTests(dir, "m", []string{"p"}, 17*time.Second)
+	_, _, err := failingTests(dir, "m", []string{"p"}, 17*time.Second, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestQualificationDeadline(t *testing.T) {
 	if !strings.Contains(string(b), "-timeout=17s\n") {
 		t.Fatalf("deadline lost: %s", b)
 	}
-	if _, _, err = failingTests(dir, "m", []string{"p"}, 0); err == nil {
+	if _, _, err = failingTests(dir, "m", []string{"p"}, 0, 0); err == nil {
 		t.Fatal("unknown deadline admitted")
 	}
 }
@@ -89,7 +89,7 @@ func TestQualifySuiteTimeoutCountsEveryTestFailing(t *testing.T) {
 	}
 	t.Setenv("EVENTS", filepath.Join(dir, "events"))
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	failed, b, err := failingTests(dir, "m", []string{"p"}, 2*time.Second)
+	failed, b, err := failingTests(dir, "m", []string{"p"}, 2*time.Second, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestQualifySuiteTimeoutCountsEveryTestFailing(t *testing.T) {
 	if len(failed) != 0 || !b.crash["p"] || len(b.build) != 0 {
 		t.Fatalf("timed-out package: failed %v crash %v build %v, want no test failure and a crash of p", failed, b.crash, b.build)
 	}
-	if _, _, err := failingTests(dir, "m", []string{"q"}, 2*time.Second); err == nil || !strings.Contains(err.Error(), "no result for q") {
+	if _, _, err := failingTests(dir, "m", []string{"q"}, 2*time.Second, 0); err == nil || !strings.Contains(err.Error(), "no result for q") {
 		t.Fatalf("a package with no result: %v, want an error", err)
 	}
 }

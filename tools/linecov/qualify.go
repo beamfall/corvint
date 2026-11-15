@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"math"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -22,6 +23,7 @@ import (
 	"runtime/debug"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -97,6 +99,11 @@ type QualReport struct {
 	Controls  []MutantResult    `json:"controls"`
 	Counts    ReportCounts      `json:"counts"`
 	ElapsedMS int64             `json:"elapsedMillis"`
+	// MaxRSS is the -max-rss bound on each suite run's process group, and
+	// MaxRSSEnforced whether this host's watchdog could measure it; where it
+	// could not, only the test deadline bounded the runs (GLS-V0-058).
+	MaxRSS         int64 `json:"maxRSSBytes"`
+	MaxRSSEnforced bool  `json:"maxRSSEnforced"`
 }
 
 // ReportIndex identifies the index a report qualified against.
@@ -141,6 +148,8 @@ func qualify(args []string) error {
 	execWrapper := fs.String("exec", "", "go test -exec wrapper the suite runs under, as the index's runner names it")
 	summarize := fs.Bool("summarize", false, "fold the REPORT arguments into one summary")
 	record := fs.String("record", "", "with -summarize: write the qualification record here")
+	maxRSS := byteSize(defaultMaxRSS)
+	fs.Var(&maxRSS, "max-rss", "resident-memory bound on each suite run's process group, as bytes or with a KiB, MiB or GiB suffix; a run past it is killed and its mutant invalid (Linux only; elsewhere unenforced)")
 	fs.Parse(args)
 	if *summarize {
 		return summarizeReports(*root, *record, fs.Args())
@@ -203,14 +212,18 @@ func qualify(args []string) error {
 	}
 	began := time.Now()
 	rep := QualReport{Sources: executableSources(*root), Profile: QualificationProfile, Seed: *seed, Index: ReportIndex{Commit: ix.Commit, Digest: ix.Digest(), Runner: ix.Runner},
-		Packages: dirs, Suite: suite, Start: *start, Order: len(sites), Mutants: []MutantResult{}, Controls: []MutantResult{}}
+		Packages: dirs, Suite: suite, Start: *start, Order: len(sites), Mutants: []MutantResult{}, Controls: []MutantResult{},
+		MaxRSS: int64(maxRSS), MaxRSSEnforced: linecov.RSSWatchdogEnforced()}
+	if !rep.MaxRSSEnforced {
+		fmt.Fprintf(os.Stderr, "linecov qualify: -max-rss %d bytes is unenforced on this platform; only the test deadline bounds each run (GLS-V0-058)\n", rep.MaxRSS)
+	}
 	baselineHeads, err := linecov.HeadTestNames(*root, suite)
 	if err != nil {
 		return err
 	}
 	// A clean full-suite baseline distinguishes regressions from ambient failures.
 	for _, pkg := range suite {
-		failed, broken, err := failingTests(*root, ix.Module, []string{pkg}, *testTimeout, *execWrapper)
+		failed, broken, err := failingTests(*root, ix.Module, []string{pkg}, *testTimeout, int64(maxRSS), *execWrapper)
 		failed = declaredFailures(failed, baselineHeads)
 		broken.settle(failed, baselineHeads)
 		result := BaselineResult{Package: pkg, State: "passed", Failing: sortedKeys(failed)}
@@ -231,7 +244,7 @@ func qualify(args []string) error {
 		return err
 	}
 	defer git("reset", "-q", "--hard", ix.Commit)
-	q := qualifier{root: *root, ix: ix, suite: suite, git: git, timeout: *testTimeout, exec: *execWrapper}
+	q := qualifier{root: *root, ix: ix, suite: suite, git: git, timeout: *testTimeout, maxRSS: int64(maxRSS), exec: *execWrapper}
 	heads, err := linecov.HeadTestNames(*root, suite)
 	if err != nil {
 		return err
@@ -297,6 +310,7 @@ type qualifier struct {
 	suite   []string
 	git     func(args ...string) error
 	timeout time.Duration
+	maxRSS  int64  // the -max-rss bound on each suite run's process group
 	exec    string // the go test -exec wrapper, "" for none
 }
 
@@ -399,7 +413,7 @@ func (q qualifier) mutant(s Site) (MutantResult, error) {
 		}
 	}
 	res.KeptCount = len(kept)
-	failed, broken, err := failingTests(q.root, q.ix.Module, q.suite, q.timeout, q.exec)
+	failed, broken, err := failingTests(q.root, q.ix.Module, q.suite, q.timeout, q.maxRSS, q.exec)
 	if errors.Is(err, errQualifyInterrupted) {
 		return res, err
 	}
@@ -754,11 +768,17 @@ func (b broken) settle(failed map[string]bool, heads map[string][]string) {
 // (GLS-V0-057).
 var errQualifyInterrupted = errors.New("qualify: interrupted")
 
+// errRSSLimit is a suite run the RSS watchdog killed: the mutant is invalid,
+// with the limit and the observed size as its reason, and the baseline fails
+// (GLS-V0-059).
+var errRSSLimit = errors.New("qualify: rss-limit-exceeded")
+
 // failingTests runs the directories whole and returns failing top-level
 // tests as dir.Name, and the packages that failed outside every test. A
 // directory with no package result means go test did not run it, which
-// proves nothing, so it is an error.
-func failingTests(root, module string, dirs []string, timeout time.Duration, wrapper ...string) (map[string]bool, broken, error) {
+// proves nothing, so it is an error. maxRSS > 0 bounds each run's process
+// group (GLS-V0-058); a run past it ends the call with errRSSLimit.
+func failingTests(root, module string, dirs []string, timeout time.Duration, maxRSS int64, wrapper ...string) (map[string]bool, broken, error) {
 	if timeout <= 0 {
 		return nil, broken{}, errors.New("qualify: missing-recorded-test-deadline")
 	}
@@ -780,9 +800,14 @@ func failingTests(root, module string, dirs []string, timeout time.Duration, wra
 		cmd.Dir = root
 		var data bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &data, &data
-		err := linecov.RunIsolated(cmd)
+		err := linecov.RunIsolatedRSS(cmd, maxRSS)
 		if ctx.Err() != nil {
 			return nil, broken{}, fmt.Errorf("%w while running %s", errQualifyInterrupted, d)
+		}
+		// Whatever the killed run printed proves nothing: no package result
+		// of it is read (GLS-V0-059).
+		if over := (*linecov.RSSLimitError)(nil); errors.As(err, &over) {
+			return nil, broken{}, fmt.Errorf("%w while running %s: %v", errRSSLimit, d, over)
 		}
 		out = append(out, data.Bytes()...)
 		out = append(out, '\n')
@@ -827,6 +852,36 @@ func failingTests(root, module string, dirs []string, timeout time.Duration, wra
 		}
 	}
 	return failed, b, nil
+}
+
+// defaultMaxRSS bounds a suite run's process group when -max-rss is not
+// given: far above any suite of this repository, far below a host that a
+// runaway mutant could exhaust (V1-5336 observed 22 GB).
+const defaultMaxRSS = 8 << 30
+
+// byteSize is a positive byte count, written as an integer with an optional
+// KiB, MiB or GiB suffix.
+type byteSize int64
+
+func (b *byteSize) String() string { return strconv.FormatInt(int64(*b), 10) }
+
+func (b *byteSize) Set(v string) error {
+	mult, num := int64(1), v
+	for _, u := range []struct {
+		suffix string
+		mult   int64
+	}{{"KiB", 1 << 10}, {"MiB", 1 << 20}, {"GiB", 1 << 30}} {
+		if strings.HasSuffix(v, u.suffix) {
+			mult, num = u.mult, strings.TrimSuffix(v, u.suffix)
+			break
+		}
+	}
+	n, err := strconv.ParseInt(num, 10, 64)
+	if err != nil || n <= 0 || n > math.MaxInt64/mult {
+		return fmt.Errorf("want a positive byte count such as 8GiB, got %q", v)
+	}
+	*b = byteSize(n * mult)
+	return nil
 }
 
 // declaredFailures keeps the failures of tests their package declares at
