@@ -30,15 +30,18 @@ const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
 type options struct {
-	command         string
-	helpTopic       string
-	root            string
-	impactPaths     []string
-	impactProviders []string
-	impactCheckouts []extevidence.Checkout
-	impactLimit     int
-	impactBudget    *int
-	requireClean    bool
+	command     string
+	helpTopic   string
+	root        string
+	impactPaths []string
+	// impactDirectories names the impactPaths operands that are directories under the root; each
+	// is expanded against the index before impact reads it (GPK-V0-883).
+	impactDirectories map[string]bool
+	impactProviders   []string
+	impactCheckouts   []extevidence.Checkout
+	impactLimit       int
+	impactBudget      *int
+	requireClean      bool
 	// impactCapabilities and impactProducer are the GPK-V0-084 listing and
 	// the opt-in PUB-V0-027 producer member.
 	impactCapabilities bool
@@ -311,7 +314,13 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 			return result, err
 		}
 		if err := validateImpactPathAdmission(normalized); err != nil {
-			return result, err
+			if !impactDirectoryOperand(result.root, normalized) {
+				return result, err
+			}
+			if result.impactDirectories == nil {
+				result.impactDirectories = map[string]bool{}
+			}
+			result.impactDirectories[normalized] = true
 		}
 		result.impactPaths = append(result.impactPaths, normalized)
 		index++
@@ -728,6 +737,14 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			return nil, err
 		}
 		compute := func(index *contextindex.Index) (map[string]any, error) {
+			// GPK-V0-883: a directory operand reads as the admitted files directly inside it. The
+			// captured options stay unexpanded because compute may run against more than one index.
+			options := options
+			paths, emptyDirectory := contextindex.ExpandImpactDirectories(index, options.impactPaths, options.impactDirectories)
+			if emptyDirectory != "" {
+				return nil, impactDirectoryRefusal(emptyDirectory)
+			}
+			options.impactPaths = paths
 			if options.requireClean && index.SourceDirty() {
 				return contextindex.ImpactCleanAbstention(index, options.impactPaths, options.impactLimit, impactBudget(options.impactPaths, options.impactBudget))
 			}
@@ -799,6 +816,14 @@ func validateImpactPathAdmission(value string) error {
 		return nil
 	}
 	return impactPathSuffixRefusal(value)
+}
+
+// impactDirectoryOperand reports whether an operand the suffix admission refused is a directory
+// under root. Only such an operand is read from the file system at parse time; an unadmitted file
+// keeps its refusal without a read (GPK-V0-883).
+func impactDirectoryOperand(root, normalized string) bool {
+	info, err := os.Stat(filepath.Join(root, filepath.FromSlash(normalized)))
+	return err == nil && info.IsDir()
 }
 
 // standaloneImpactContext compiles path impact. The syntax profile, explicit or
