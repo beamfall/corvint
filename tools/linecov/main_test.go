@@ -82,14 +82,14 @@ func TestCleanRefusesEditsAndUntrackedGo(t *testing.T) {
 
 func TestFailingTestsNeedsAResultPerPackage(t *testing.T) {
 	root := module(t)
-	failed, b, err := failingTests(root, "example.com/m", []string{"p"}, time.Minute)
+	failed, b, err := failingTests(root, "example.com/m", []string{"p"}, time.Minute, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !failed["p.TestFail"] || failed["p.TestPass"] || len(b.build) != 0 || len(b.crash) != 0 {
 		t.Fatalf("failed=%v broken=%+v", failed, b)
 	}
-	if _, _, err := failingTests(root, "example.com/m", []string{"p", "absent"}, time.Minute); err == nil {
+	if _, _, err := failingTests(root, "example.com/m", []string{"p", "absent"}, time.Minute, 0); err == nil {
 		t.Fatal("a package go test never ran was accepted")
 	}
 }
@@ -101,7 +101,7 @@ func TestPrintedUndeclaredFailureKeepsCrash(t *testing.T) {
 	write(t, root, "go.mod", "module example.com/m\n\ngo 1.22\n")
 	write(t, root, "q/q.go", "package q\n")
 	write(t, root, "q/q_test.go", "package q\n\nimport (\n\t\"fmt\"\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestMain(m *testing.M) {\n\tm.Run()\n\tos.Exit(3)\n}\n\nfunc TestPrints(t *testing.T) { fmt.Println(\"--- FAIL: TestGhost (0.00s)\") }\n")
-	failed, b, err := failingTests(root, "example.com/m", []string{"q"}, time.Minute)
+	failed, b, err := failingTests(root, "example.com/m", []string{"q"}, time.Minute, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
