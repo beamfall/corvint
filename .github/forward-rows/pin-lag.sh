@@ -29,7 +29,7 @@ lag=0
 for pair in "CORVINT_PR_TOOL_SOURCE $tool" "CORVINT_TEST_SHADOW_SOURCE $shadow"; do
   name=${pair%% *} pin=${pair#* }
   case $pin in
-    *[!0-9a-f]* | '') unreadable "$name '$pin' is not a full commit id" ;;
+    *[!0123456789abcdef]* | '') unreadable "$name '$pin' is not a full commit id" ;;
   esac
   [ ${#pin} -eq 40 ] || unreadable "$name '$pin' is not a full commit id"
   git cat-file -e "$pin^{commit}" 2> /dev/null || unreadable "$name $pin is not a commit of this checkout"
