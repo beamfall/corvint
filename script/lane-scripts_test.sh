@@ -2410,6 +2410,8 @@ guard() { # guard CWD COMMAND -> prints the decision (empty when allowed)
     "$script/lane-guard.sh"
 }
 denied() { [[ $(guard "$tmp" "$1") == *'"permissionDecision":"deny"'* ]]; }
+# The go test rule applies where the wrapper exists (V1-5268): give $tmp one.
+mkdir -p "$tmp/script" "$tmp/sub/dir" && : >"$tmp/script/heavy.sh"
 loop_body=$'while true; do\n  sleep 5\ndone'
 for cmd in \
   "until gh pr view 1 --json state | grep -q MERGED; do sleep 30; done" \
@@ -2418,7 +2420,10 @@ for cmd in \
   "tail -f log | grep -m1 PASS" \
   "go test ./internal/x" \
   "cd lane && GOTOOLCHAIN=local go test -run TestA ./internal/x" \
-  "make build && env GOFLAGS=-p=4 go test ./cmd/corvint"; do
+  "make build && env GOFLAGS=-p=4 go test ./cmd/corvint" \
+  "env -u GOWORK go test ./internal/x" \
+  "env -i PATH=/bin go test ./internal/x" \
+  "nice -n 10 go test ./internal/x"; do
   denied "$cmd" || fail "lane-guard allowed: $cmd"
 done
 for cmd in \
@@ -2439,7 +2444,22 @@ denied "until grep -q x <<< \"\$v\"; do sleep 1; done" || fail "lane-guard treat
 # LANE_GUARD_ROOTS scopes the guard; outside every root nothing is checked.
 [[ -z $(LANE_GUARD_ROOTS=/nonexistent-root guard "$tmp" "go test ./x") ]] || fail "lane-guard checked outside LANE_GUARD_ROOTS"
 LANE_GUARD_ROOTS=/nonexistent-root:$tmp denied "go test ./x" || fail "lane-guard skipped a cwd inside LANE_GUARD_ROOTS"
-[[ $(LANE_GUARD_HEAVY=/opt/heavy.sh guard "$tmp" "go test ./x") == *'through /opt/heavy.sh'* ]] || fail "lane-guard ignored LANE_GUARD_HEAVY"
+abs=$tmp/abs-wrapper && mkdir -p "$abs/tools/sub" "$abs/.git" && : >"$abs/tools/hv.sh"
+[[ $(LANE_GUARD_HEAVY="$abs/tools/hv.sh" guard "$abs/tools/sub" "go test ./x") == *"through $abs/tools/hv.sh "* ]] || fail "lane-guard ignored LANE_GUARD_HEAVY"
+# V1-5268/V1-5565/V1-5579/V1-5583: the deny names the wrapper's absolute path, found from a
+# subdirectory too; with no wrapper (a repository without script/heavy.sh, or an absolute
+# LANE_GUARD_HEAVY that does not exist) go test is not refused.
+[[ $(guard "$tmp/sub/dir" "go test ./x") == *"through $tmp/script/heavy.sh "* ]] || fail "lane-guard did not name the wrapper found above the cwd"
+nowrap=$tmp/no-wrapper && mkdir -p "$nowrap/.git"
+[[ -z $(guard "$nowrap" "go test ./x") ]] || fail "lane-guard refused go test in a repository without the wrapper"
+[[ -z $(guard "$nowrap" "env -u GOWORK go test ./x") ]] || fail "lane-guard refused env -u go test in a repository without the wrapper"
+[[ $(LANE_GUARD_HEAVY=/nonexistent/heavy.sh guard "$tmp" "go test ./x") == *"through $tmp/script/heavy.sh "* ]] || fail "lane-guard named a LANE_GUARD_HEAVY that does not exist"
+# An absolute LANE_GUARD_HEAVY (the machine-wide install) applies only inside its own checkout, and
+# the upward search stops at a checkout root (a directory holding .git).
+[[ -z $(LANE_GUARD_HEAVY="$abs/tools/hv.sh" guard "$nowrap" "go test ./x") ]] || fail "lane-guard applied an absolute LANE_GUARD_HEAVY outside its checkout"
+mkdir -p "$tmp/inner/.git"
+[[ -z $(guard "$tmp/inner" "go test ./x") ]] || fail "lane-guard searched for the wrapper past a checkout root"
+/bin/rm -rf "$nowrap" "$abs" "$tmp/inner"
 [[ -z $(printf 'not json' | "$script/lane-guard.sh") ]] || fail "lane-guard refused unparseable input"
 ok
 fi
