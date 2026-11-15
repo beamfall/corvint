@@ -119,7 +119,14 @@ func TestAddedRecordEntryBothSelectors_AFPV3423(t *testing.T) {
 				t.Errorf("%s planner %s: %v; want %v", mode, dirty, planner, want)
 			}
 			for name, selectFn := range map[string]func(Receipt, string, string) []string{"gate": Select, "structural": SelectStructural, "qualified": SelectQualified} {
+				builds := countPartialBuilds(t)
 				lines := selectFn(receipt, fixtureModule, root)
+				// AFP-V0-11134: the qualified selector's record-addition
+				// admission (which observes in mode A) and its proof observe
+				// the root once between them.
+				if name == "qualified" && *builds != 1 {
+					t.Errorf("%s qualified %s: %d partial builds, want 1", mode, dirty, *builds)
+				}
 				got := strings.TrimPrefix(lines[len(lines)-1], "run ")
 				var packages []string
 				for _, pkg := range want {
