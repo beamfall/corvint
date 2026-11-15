@@ -455,8 +455,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   the same key conflict. The `scripts`, `packages`, and `tests` registry containers union entries,
   each entry atomic, including its arrays and objects. Git's empty add/add base is an empty map;
   current sides still require object roots. It MUST reject duplicate keys, non-object
-  roots, malformed JSON and trailing input. On conflict it exits nonzero; `DWC-V0-7766` defines the
-  file it leaves.
+  roots, malformed JSON and trailing input. On conflict it exits nonzero and leaves ours untouched.
   Success emits sorted object keys, two-space indentation, unescaped HTML and a final LF, retaining
   numeric precision. Only the three named shell/test registries receive this attribute, never CEMs.
 - `DWC-V0-7703`: (accepted under the owner's standing auto-accept (2026-11-07); V1-5043)
@@ -485,22 +484,6 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   of additional hand edits. Replay MUST compare conflict paths before/after driver installation
   for merges of fetched origin/main into origin/claude/unbrd and origin/claude/selbatch in scratch
   clones, retaining revisions, digests and counts in the dated build log; raw logs stay outside Git.
-- `DWC-V0-7766`: (accepted under the owner's standing auto-accept (2026-11-15); V1-5532; amends the
-  `DWC-V0-7702` conflict outcome) When the JSON driver refuses, it MUST NOT leave ours as the
-  result, because Git keeps the driver's file and a plain `git add` would record ours and drop the
-  other side's entries. For competing changes to one key it MUST write the three-way merge with
-  every independent key resolved and, at each competing key, a block of Git-style markers of the
-  requested size, `<` ours, `|` base, `=` and `>` theirs, holding that key's
-  rendered entry on each side (an absent side is an empty section), and print to stderr each
-  competing key with its container and its base, ours and theirs values (`absent` when missing),
-  then a `fix:` line. When an input cannot be merged at all (malformed, duplicate key, non-object
-  root, trailing input) it MUST write the three inputs whole between such markers, sized above
-  every marker-character run that starts an input line, naming the refused side. Either file is
-  invalid JSON, so `test-read-scopes-check` and every registry reader refuse it until resolved.
-  The exit stays 1; a failure to write exits 2. A clean merge is byte-identical to
-  `DWC-V0-7702`. Evidence: `TestJSONConflictDWCV07766` and the `json-divergence`,
-  `json-competing-keys` and `json-malformed` cases of `TestGitDriversDWCV07703`. Rollback: revert
-  to leaving ours untouched.
 
 ## Merge prevention boundaries and rollback
 
@@ -512,7 +495,7 @@ GitHub's server-side merge is out of scope: installation is per local repository
 The older DWC-V0-001-only path keeps its narrower behavior; DWC-V0-7704 is an additional derivation.
 Failure to execute Git, parse input, regenerate, or reproduce a full tree never grants acceptance.
 These changes add no wire fields, stderr/error/exit changes to existing commands, or frozen goldens.
-Rollback DWC-V0-7700..7705 (and DWC-V0-7766) by removing the new attributes, unsetting the three local driver entries,
+Rollback DWC-V0-7700..7705 by removing the new attributes, unsetting the three local driver entries,
 removing the driverMerge call and development tool; ordinary conflicts and the existing
 DWC-V0-001 regenerated-specs path remain. Promotion requires focused whole-package tests and
 independent review; local replay does not establish server-side conflict prevention.
@@ -525,7 +508,6 @@ independent review; local replay does not establish server-side conflict prevent
 | DWC-V0-7703 | .gitattributes, Makefile merge-drivers; TestGitDriversDWCV07703 |
 | DWC-V0-7704 | internal/dogfoodflow/merge_drivers.go; TestBatchCheckDWCV07704Drivers |
 | DWC-V0-7705 | fault injection tests above; docs/build-log/2026-11-07-mergeprev.md replay |
-| DWC-V0-7766 | internal/mergedrivers/json.go `JSONConflict`; tools/merge-drivers; TestJSONConflictDWCV07766; TestGitDriversDWCV07703 |
 
 ## Failure modes
 
@@ -536,7 +518,6 @@ independent review; local replay does not establish server-side conflict prevent
 | Generated path is a symlink or non-regular file, or a mode changed | Replay refuses without following it |
 | Replay fails or exceeds 5 minutes | `merge-resolution-unbound` |
 | Tracked changes or missing REV | Script exits 2 |
-| Registry JSON driver refuses (competing key, malformed side) | Conflict-marked, JSON-invalid file naming each competing key with its values; exit 1 (DWC-V0-7766) |
 | Check report staging crosses a mount boundary | Sibling staging preserves exact bytes and atomic publication |
 | Any other publication failure | Prior report stays unchanged; failure and temporary cleanup remain visible |
 | A refused sealed-head precheck whose range holds a foreign path, a merge commit or a dirty tree (`DWC-V0-746`) | `unwind: NOT_RUN REASON` with the hand command; HEAD unchanged; exit 1 |

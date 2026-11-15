@@ -4281,7 +4281,6 @@ DWC-V0-7702	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted 
 DWC-V0-7703	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043)	standing	2026-11-07; V1-5043
 DWC-V0-7704	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043;	standing	2026-11-07; V1-5043
 DWC-V0-7705	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043)	standing	2026-11-07; V1-5043
-DWC-V0-7766	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-15); V1-5532; amends t	standing	2026-11-15; V1-5532
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-
@@ -6077,6 +6076,7 @@ ASD-V0-578	docs/specs/lane-check-tooling-v0.md	(experimental under the standing 
 ASD-V0-579	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3489) `DOC_GAT	standing	2026-11-01; V1-3489
 ASD-V0-3730	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, mbrescue fix round 4, 2026-11	standing	2026-11-07; #126
 ASD-V0-3731	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, mbrescue fix round 4, 2026-11	standing	2026-11-07; #126
+ASD-V0-3792	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-15; V1-5532; supersed	standing	2026-11-15; V1-5532
 DTL-V0-001	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4463; refines	standing	2026-10-11; V1-4463
 DTL-V0-002	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4464; refines	standing	2026-10-11; V1-4464
 DTL-V0-003	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3761; refines	standing	2026-10-11; V1-3761
