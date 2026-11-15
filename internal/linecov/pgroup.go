@@ -19,19 +19,28 @@ func RunIsolated(cmd *exec.Cmd) error {
 }
 
 // RSSLimitError is a run the RSS watchdog killed: the resident memory of its
-// process group, Observed bytes, passed Limit (GLS-V0-058).
+// process group, Observed bytes, passed Limit (GLS-V0-058). A non-nil
+// Unmeasured is a sample that failed mid-run: the group was killed because
+// the limit could no longer be enforced, and Observed is -1.
 type RSSLimitError struct {
 	Limit, Observed int64
+	Unmeasured      error
 }
 
+func (e *RSSLimitError) Unwrap() error { return e.Unmeasured }
+
 func (e *RSSLimitError) Error() string {
+	if e.Unmeasured != nil {
+		return fmt.Sprintf("rss-unmeasurable: the %d MiB limit could not be enforced (%v); the group was killed", e.Limit>>20, e.Unmeasured)
+	}
 	return fmt.Sprintf("rss-limit-exceeded: process group resident memory %d MiB passed the %d MiB limit; the group was killed", e.Observed>>20, e.Limit>>20)
 }
 
-// RSSWatchdogEnforced reports whether this platform can measure a process
-// group's resident memory. Where it cannot, RunIsolatedRSS runs without the
-// watchdog and only the command's context deadline bounds the run.
-func RSSWatchdogEnforced() bool { return groupRSSSupported }
+// RSSWatchdogEnforced reports whether this host can measure a process
+// group's resident memory: a supported platform with procfs readable. Where
+// it cannot, RunIsolatedRSS runs without the watchdog and only the command's
+// context deadline bounds the run.
+func RSSWatchdogEnforced() bool { return groupRSSSupported && groupRSSAvailable() }
 
 // rssPollInterval is how often the watchdog samples the group.
 const rssPollInterval = 50 * time.Millisecond
@@ -39,7 +48,9 @@ const rssPollInterval = 50 * time.Millisecond
 // RunIsolatedRSS runs cmd as RunIsolated does, under a watchdog that samples
 // the resident memory of cmd's whole process group and, once it exceeds
 // maxRSS bytes, kills the group and returns *RSSLimitError rather than the
-// command's own exit error (GLS-V0-058). maxRSS <= 0, or a platform where
+// command's own exit error (GLS-V0-058). A sample that fails mid-run also
+// kills the group and returns *RSSLimitError with Unmeasured set, so an
+// unmeasured run never passes as bounded. maxRSS <= 0, or a host where
 // RSSWatchdogEnforced is false, runs without the watchdog.
 func RunIsolatedRSS(cmd *exec.Cmd, maxRSS int64) error {
 	isolate(cmd)
@@ -50,7 +61,7 @@ func RunIsolatedRSS(cmd *exec.Cmd, maxRSS int64) error {
 	var over *RSSLimitError
 	var wg sync.WaitGroup
 	done := make(chan struct{})
-	if maxRSS > 0 && groupRSSSupported {
+	if maxRSS > 0 && RSSWatchdogEnforced() {
 		pgid := cmd.Process.Pid
 		wg.Add(1)
 		go func() {
@@ -60,7 +71,13 @@ func RunIsolatedRSS(cmd *exec.Cmd, maxRSS int64) error {
 			for {
 				// The leader is not reaped before done closes, so its pid,
 				// the group id, cannot be reused while this loop samples it.
-				if rss := groupRSS(pgid); rss > maxRSS {
+				rss, err := groupRSS(pgid)
+				if err != nil {
+					over = &RSSLimitError{Limit: maxRSS, Observed: -1, Unmeasured: err}
+					killGroup(pgid)
+					return
+				}
+				if rss > maxRSS {
 					over = &RSSLimitError{Limit: maxRSS, Observed: rss}
 					killGroup(pgid)
 					return
