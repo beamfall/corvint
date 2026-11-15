@@ -56,6 +56,13 @@ func ImpactCapabilities(defaultLimit int) map[string]any {
 			"admissionCaseInsensitive": true,
 			"unadmitted":               "unsupported-impact-path-suffix",
 		},
+		// GPK-V0-883: a directory operand is expanded, not aggregated; the
+		// expanded files count toward pathsMax.
+		"directories": map[string]any{
+			"expansion": "admitted-files-directly-inside",
+			"recursive": false,
+			"empty":     "unsupported-impact-directory",
+		},
 		"reverseImports": map[string]any{
 			"closureDepth":         impactReverseImportClosureDepth,
 			"advisoryClosureDepth": map[string]any{".rb": rubyAutoloadAdvisoryClosureDepth},

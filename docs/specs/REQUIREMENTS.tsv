@@ -5781,6 +5781,7 @@ GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	A **beta rung** exist
 GPK-V0-960	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3663) The quer	standing	2026-10-31; V1-3663
 GPK-V0-880	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3873) The	standing	2026-11-01; V1-3873
 GPK-V0-881	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2081) The	standing	2026-11-01; V1-2081
+GPK-V0-883	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-11-15; V1-5436) A	standing	2026-11-15; V1-5436
 GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	`corvint query` MAY add a general `repository`-intent profile on Darwin	unrecorded	-
 GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	The standalone `corvint query` `repository`-intent profile introduced	unrecorded	-
 GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave	unrecorded	-

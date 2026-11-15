@@ -1135,11 +1135,12 @@ which is the whole of what the row asserts.
   `impact.omit-unadmitted-path` and `affected.use-path`, the latter registered in
   `docs/specs/FIX-REGISTRY.tsv` as passing the refused tracked file or directory to
   `corvint affected --path`. Its code, message, subject and exit status are unchanged, at every
-  layer that shares it (`impact`, a `batch` impact row, a `harness event` `file-change`), so a
-  tracked directory and the `Makefile` are refused with a code that names the supported
-  alternative. Non-goals: admitting directories or build files to impact (a directory would need
-  an aggregation contract and new receipt bytes); changing `affected`. Failure mode: a caller that
-  reads only `code` sees no change.
+  layer that shares it (`impact`, a `batch` impact row, a `harness event` `file-change`), so the
+  `Makefile`, and a directory at the two layers `GPK-V0-883` does not reach, are refused with a
+  code that names the supported alternative. Non-goals: admitting build files to impact; a
+  directory aggregation contract or new receipt bytes (`GPK-V0-883` expands a `corvint impact`
+  directory operand to its files instead); changing `affected`. Failure mode: a caller that reads
+  only `code` sees no change.
 - `GPK-V0-881`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2081) The
   `GPK-V0-084` listing MUST carry a `reverseImports` member: `closureDepth` 1 (results stop at
   direct importers), `advisoryClosureDepth` `{".rb": 2}` (Ruby's advisory autoload rows reach a
@@ -1147,6 +1148,22 @@ which is the whole of what the row asserts.
   selection) and `transitiveSelection` `"corvint affected --path"`. A test MUST prove the member's
   values and that the impact help states the same depths. Non-goals: a receipt member; changing the
   walk depth.
+- `GPK-V0-883`: (experimental under the standing lane auto-accept, 2026-11-15; V1-5436) A
+  `corvint impact` path operand whose suffix the index does not admit and that names a directory
+  under the root MUST be read as the indexed files directly inside it whose suffix the index
+  admits, so the receipt and exit status are byte-identical to naming those files, alone or mixed
+  with file operands; the `GPK-V0-084` path bound applies to the expanded list. Subdirectories
+  MUST NOT be read. A directory with no such file MUST refuse with
+  `unsupported-impact-directory` (exit 2), subject the directory as given after normalization,
+  supported fixes `impact.omit-unadmitted-path` then `affected.use-path`, and MUST NOT be dropped
+  from a mixed list. Any other unadmitted operand keeps the `unsupported-impact-path-suffix`
+  refusal unchanged. The `GPK-V0-084` listing MUST carry a `directories` member: `expansion`
+  `"admitted-files-directly-inside"`, `recursive` `false`, `empty`
+  `"unsupported-impact-directory"`. Non-goals: recursion; a per-directory aggregate or any new
+  receipt member; directory operands in a `batch` impact row, a `harness event` `file-change` or
+  MCP `corvint.impact`; a directory whose own name carries an admitted suffix. Failure modes: a
+  directory whose admitted files exceed the path bound refuses as the same file list does; the
+  directory test reads the working tree, so a directory removed from it refuses by suffix.
 
 ## Non-goals and simpler baseline
 
@@ -2194,7 +2211,7 @@ member; no receipt, index, snapshot or trace changes.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `GPK-V0-880` (experimental 2026-11-01, V1-3873) | `impactPathSuffixRefusal` in `cmd/corvint/diagnostic_refusals.go`; `affected.use-path` in `docs/specs/FIX-REGISTRY.tsv` | `TestGPKV0880SuffixRefusalNamesAffectedForDirectoryAndMakefile`, `TestFixIdentifiersResolveInRegistry` |
+| `GPK-V0-880` (experimental 2026-11-01, V1-3873) | `impactPathSuffixRefusal` in `cmd/corvint/diagnostic_refusals.go`; `affected.use-path` in `docs/specs/FIX-REGISTRY.tsv` | `TestGPKV0880SuffixRefusalNamesAffectedForMakefileAndAbsentDirectory`, `TestFixIdentifiersResolveInRegistry` |
 | `GPK-V0-881` (experimental 2026-11-01, V1-2081) | `ImpactCapabilities` in `internal/contextindex/impact_capabilities.go` | `TestGPKV0881ImpactCapabilitiesStateTheReverseImportClosure`, `TestGPKV0084ImpactCapabilitiesListing` |
 
 ## Amendment 2026-11-02 (V1-2716): the lexical channel decodes an escaped task
@@ -2210,3 +2227,28 @@ files appear in no lexical arm's top 20, and appending even one more lexical row
 gate leaves unwidened costs more precision than it returns recall. Non-goals: no change to the
 fusion constants, the identifier gate, the cutoff or the confident tier. Acceptance evidence:
 `docs/build-log/2026-11-02-ret-u43.md`.
+
+## Amendment 2026-11-15 (V1-5436): impact reads a directory as its admitted files
+
+`corvint impact internal/pairing` refused with `unsupported-impact-path-suffix` (corvint
+1.0.0-rc.3.dev build 189), so a caller with a package directory in hand had to list its files
+first. `GPK-V0-880` left directories out because an aggregate would need its own contract and new
+receipt bytes. Expansion needs neither: the directory is replaced by the admitted files directly
+inside it before the request is cleaned, so the receipt is the one those files already produce and
+no parity-manifest case (`CCF-V1-006`), golden or divergence-register row changes. The owner's
+standing lane auto-accept (2026-10-11) covers the requirement.
+
+Decision: direct children only. One operand stays one package, matching the Go package unit the
+reverse-import walk uses, and a recursive walk of a source tree would exceed the path bound. A
+directory that expands to nothing gets its own code so a caller can tell it from a mistyped file.
+
+`GPK-V0-883` (defined at the end of the Requirements section) applies, and amends the directory
+clause of `GPK-V0-880`.
+
+Rollback: remove the directory test in `parseImpactArgumentsForPlatform`, `ExpandImpactDirectories`,
+the `unsupported-impact-directory` code and the `directories` listing member; directories then
+refuse by suffix as before. No receipt, index, snapshot or trace changes.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| `GPK-V0-883` (experimental 2026-11-15, V1-5436) | `ExpandImpactDirectories` in `internal/contextindex/impact_directories.go`; `impactDirectoryOperand` in `cmd/corvint/main.go`; `impactDirectoryRefusal` in `cmd/corvint/diagnostic_refusals.go`; `directories` in `ImpactCapabilities` | `TestGPKV0883ImpactDirectoryReadsAsItsAdmittedFiles`, `TestGPKV0883ImpactRefusesADirectoryWithoutAdmittedFiles`, `TestGPKV0883ImpactCapabilitiesStateDirectoryExpansion`, `TestGPKV0883ExpandImpactDirectories` |
