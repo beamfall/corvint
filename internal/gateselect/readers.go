@@ -83,6 +83,7 @@ type repositoryIndex struct {
 	codeRunners    map[string][]string   // command directory -> directories whose non-test files may run its binary (AFP-V0-2992)
 	testRunners    map[string][]string   // command directory -> directories whose _test.go files alone may run its binary
 	execsErr       error                 // why the binary-execs declaration was not applied; rule (d) then widens to every package
+	partial        partialGraph          // the selection's one Go-only partial observation (AFP-V0-11134)
 }
 
 func indexRepository(root, module string) (*repositoryIndex, error) {

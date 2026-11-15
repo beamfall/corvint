@@ -149,16 +149,24 @@ ARG=$arg awk -F'\t' '$1 > 0 {
 newline='
 '
 while IFS='	' read -r directory calls; do
-    files=$(cd "$work/tree" && {
-        for file in "$directory"/*.go; do
-            # The leading ( keeps bash 3.2 (macOS sh) from closing the $( ) at the pattern's ).
-            case $file in (*_test.go) continue ;; esac
-            test ! -f "$file" || printf '%s\n' "$file"
-        done
-    } | LC_ALL=C sort) || {
+    # ECO-V0-7561: the listing writes a file and is sorted afterwards, so a parse or runtime
+    # failure inside it fails the gate instead of a pipeline into sort reporting sort's success.
+    # set -e is ignored in a subshell run as an if or || condition, so the subshell runs as a
+    # plain command under its own set -e and its status is read afterwards: a parse error and a
+    # failed write both stop the listing.
+    set +e
+    (set -e; cd "$work/tree"; for file in "$directory"/*.go; do
+        # The leading ( keeps bash 3.2 (macOS sh) from closing a $( ) at the pattern's ).
+        case $file in (*_test.go) continue ;; esac
+        test ! -f "$file" || printf '%s\n' "$file" || exit 1
+    done) >"$work/listing"
+    listed=$?
+    set -e
+    if [ "$listed" -ne 0 ]; then
         printf 'error-code ownership: cannot list the scratch tree for %s\n' "$directory" >&2
         exit 1
-    }
+    fi
+    files=$(LC_ALL=C sort "$work/listing")
     test -n "$files" || continue
     status=0
     (

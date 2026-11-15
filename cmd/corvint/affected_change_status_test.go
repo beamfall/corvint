@@ -2,7 +2,10 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -33,6 +36,26 @@ func affectedSelectedShellTests(t *testing.T, receipt map[string]any) []string {
 		}
 	}
 	return tests
+}
+
+// affectedStatusNarrowed renders each plan.changeStatusNarrowed entry of a
+// compact receipt as "UNIT GATE PATH:STATUS...".
+func affectedStatusNarrowed(t *testing.T, receipt map[string]any) []string {
+	t.Helper()
+	plan, _ := receipt["plan"].(map[string]any)
+	entries, _ := plan["changeStatusNarrowed"].([]any)
+	var out []string
+	for _, raw := range entries {
+		entry, _ := raw.(map[string]any)
+		fields := []string{fmt.Sprint(entry["unitId"]), fmt.Sprint(entry["gate"])}
+		paths, _ := entry["paths"].([]any)
+		for _, rawPath := range paths {
+			item, _ := rawPath.(map[string]any)
+			fields = append(fields, fmt.Sprint(item["path"])+":"+fmt.Sprint(item["status"]))
+		}
+		out = append(out, strings.Join(fields, " "))
+	}
+	return out
 }
 
 // AFP-V0-9960: `corvint affected --base` passes each changed path's status
@@ -89,6 +112,33 @@ func TestAffectedChangeStatusCLI_AFPV09960(t *testing.T) {
 	}
 	if !slices.Contains(edited, "long_test.sh") {
 		t.Errorf("edit with --base: long_test.sh (ls -l, a content read) not selected: %v", edited)
+	}
+	// AFP-V0-11054: the compact JSON names both dropped units with their
+	// gate and the edited paths' status, and the text form prints them.
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--base", base)
+	if code != 0 {
+		t.Fatalf("affected --base: exit %d: %s", code, stderr)
+	}
+	if got := affectedStatusNarrowed(t, receipt); !slices.Equal(got, []string{
+		"shell:lister_test.sh AFP-V0-9962 script/a.sh:modified",
+		"shell:walker_test.sh AFP-V0-9963 docs/x.md:modified script/a.sh:modified",
+	}) {
+		t.Errorf("edit with --base: plan.changeStatusNarrowed = %v", got)
+	}
+	var text, textErr bytes.Buffer
+	if code := runContext(context.Background(), []string{"--root", root, "affected", "--base", base, "--format", "text"}, strings.NewReader(""), &text, &textErr); code != 0 {
+		t.Fatalf("affected --format text: exit %d: %s", code, textErr.String())
+	}
+	for _, line := range []string{
+		"status-narrowed shell:lister_test.sh gate AFP-V0-9962 paths 1 script/a.sh:modified\n",
+		"status-narrowed shell:walker_test.sh gate AFP-V0-9963 paths 2 docs/x.md:modified script/a.sh:modified\n",
+	} {
+		if !strings.Contains(text.String(), line) {
+			t.Errorf("text form lacks %q:\n%s", line, text.String())
+		}
+	}
+	if receipt, _, _, _ := runAffectedCLI(t, root); len(affectedStatusNarrowed(t, receipt)) != 0 {
+		t.Errorf("edit without --base: plan.changeStatusNarrowed = %v, want none", affectedStatusNarrowed(t, receipt))
 	}
 	// Without a base every status is unknown, which selects as before.
 	unknown := plan()

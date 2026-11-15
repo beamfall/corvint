@@ -8,10 +8,11 @@ import (
 	"testing"
 )
 
-// GPK-V0-880 (V1-3873): impact refuses a tracked directory and the Makefile
-// with a code whose supported fixes name the transitive alternative,
-// corvint affected --path, beside omitting the path.
-func TestGPKV0880SuffixRefusalNamesAffectedForDirectoryAndMakefile(t *testing.T) {
+// GPK-V0-880 (V1-3873): impact refuses the Makefile and a path that is no
+// directory under the root with a code whose supported fixes name the
+// transitive alternative, corvint affected --path, beside omitting the path.
+// A directory under the root is expanded instead (GPK-V0-883).
+func TestGPKV0880SuffixRefusalNamesAffectedForMakefileAndAbsentDirectory(t *testing.T) {
 	t.Parallel()
 	root := impactCLIRepository(t)
 	if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte("all:\n\t@true\n"), 0o644); err != nil {
@@ -24,7 +25,7 @@ func TestGPKV0880SuffixRefusalNamesAffectedForDirectoryAndMakefile(t *testing.T)
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
 		}
 	}
-	for _, path := range []string{"pkg", "Makefile"} {
+	for _, path := range []string{"pkg/absent", "Makefile"} {
 		exit, stdout, stderr := runCLI(t, "--root", root, "impact", path)
 		if exit != 2 || stdout != "" {
 			t.Fatalf("impact %s: exit=%d stdout=%q", path, exit, stdout)

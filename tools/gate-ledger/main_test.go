@@ -569,8 +569,10 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 		// makeedit.go attributes a make file edit with the engine's make model
 		// (NCM-V1-010); the fixture's stub attributes none, so a make file
 		// edit keeps its full run there.
+		// partialgraph.go memoizes the engine's Go-only partial graph for those two
+		// files (AFP-V0-11134); the stub keeps the index field and observes nothing.
 		base := filepath.Base(source)
-		if !strings.HasSuffix(source, "_test.go") && base != "qualified.go" && base != "recordadditions.go" && base != "makeedit.go" {
+		if !strings.HasSuffix(source, "_test.go") && base != "qualified.go" && base != "recordadditions.go" && base != "makeedit.go" && base != "partialgraph.go" {
 			names = append(names, "gateselect/"+base)
 		}
 	}
@@ -589,7 +591,10 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 		files["internal/"+name] = strings.ReplaceAll(string(data), "github.com/Beamfall/corvint/internal/", "example.com/fixture/internal/")
 	}
 	if _, err := os.Stat(filepath.Join(internal, "gateselect", "recordadditions.go")); err == nil {
-		files["internal/gateselect/recordadditions.go"] = "package gateselect\n\nfunc recordAdditionAllows(Receipt, string, string) func(string, string) bool {\n\treturn func(string, string) bool { return true }\n}\n"
+		files["internal/gateselect/recordadditions.go"] = "package gateselect\n\nfunc recordAdditionAllows(Receipt, string, string, *partialGraph) func(string, string) bool {\n\treturn func(string, string) bool { return true }\n}\n"
+	}
+	if _, err := os.Stat(filepath.Join(internal, "gateselect", "partialgraph.go")); err == nil {
+		files["internal/gateselect/partialgraph.go"] = "package gateselect\n\ntype partialGraph struct{}\n\nfunc partialGraphOf(*repositoryIndex) *partialGraph { return nil }\n"
 	}
 	if _, err := os.Stat(filepath.Join(internal, "gateselect", "makeedit.go")); err == nil {
 		files["internal/gateselect/makeedit.go"] = "package gateselect\n\ntype makeSelection struct {\n\tkind        string\n\tdirectories []string\n\tcause       string\n}\n\n" +
