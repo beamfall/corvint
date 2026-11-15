@@ -238,6 +238,25 @@ measure. None of them drops a unit the change can reach.
   The graph cache MUST store name-listing reads, and its version MUST change with this field.
   A cache written under an older version MUST be rebuilt and MUST NOT be read as holding no
   name-listing reads. Change status MUST NOT be cached.
+- **AFP-V0-11054:** (proposed 2026-11-15; delivery experimental; V1-5367; reports AFP-V0-9962
+  and AFP-V0-9963) A plan that change status narrowed MUST say so. The plan member
+  `changeStatusNarrowed` MUST list, sorted by unit ID, each unit that the same plan with every
+  status read as `unknown` selects and this plan does not select. Each entry carries `unitId`;
+  `gate`, the requirement whose rule dropped it (`AFP-V0-9962` for a unit whose own
+  name-listing read was narrowed, `AFP-V0-9963` for a name-only walker, the rule of the first
+  such unit on its unknown-status witness chain otherwise, and `AFP-V0-9960` when no unit on
+  that chain is either); `via`, that chain unit when it is not the unit itself; `paths`, the
+  dirty paths that would otherwise have selected it, each with its `status` (`added`,
+  `deleted`, `type-changed`, `modified` or `unknown`), sorted by path and at most 16 of them;
+  and `pathCount`, the number of such paths. For `AFP-V0-9962` those paths are the dirty paths a
+  name-listing token names and no other token of the unit names; for `AFP-V0-9963` and
+  `AFP-V0-9960` they are every dirty path. The member is reporting only: it never changes
+  `selected`, `scope`, `unknown`, the provider, advice or the exit status. It is omitted when no
+  unit was dropped, so a plan with no status, or with no unit holding a name-listing read or a
+  name-only walk, is byte-identical to the plan before this member and is planned once. The
+  full (`affected-plan/0`) and compact (`affected-plan/1`) plans both carry it, as an optional
+  member under CCF-V1-006 (no profile change), and `--format text` prints one
+  `status-narrowed UNIT gate GATE [via UNIT] paths N PATH:STATUS...` line per entry.
 - **AFP-V0-9990:** (proposed 2026-11-11; delivery experimental; V1-5191, V1-5193, V1-5194)
   The shell plugin MUST record three walk facts for every unit, test or helper. Walk
   directories are the literal directories its own commands list or walk: a path operand of a
@@ -3683,6 +3702,37 @@ files with a newline and no code holds one. Precision that is not an escape:
 `driver:make:Makefile#flow-guide-check` is still selected through the Makefile driver's
 `FRONTIER_SITE` on every edit, and that driver frontier is outside this section.
 
+### One partial Go observation per qualified selection (lane perf1115, 2026-11-15; V1-5162)
+
+Intent (lane perf1115 charter, 2026-11-15; V1-5162): the doc-gates `selection-baseline-check`
+replay is CPU-bound in per-change planning (`docs/build-log/2026-11-11-selection-baseline-profile.md`),
+and one `corvint test --dry-run` of the batch range `16ba0021a..7a0c1e26a` observed the same
+464-directory Go tree three times: once for the plan graph and twice through
+`affected.BuildPartial`, inside one `gateselect.SelectQualifiedIndexed` call, by the
+record-addition admission (AFP-V0-3423) and by the qualifying proof (AFP-V0-9500). Both build the
+same Go-only partial graph of the same root; each then derives its own copy through the graph's
+copy-on-write `With` methods.
+
+- **AFP-V0-11134:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5162) Within one repository index of `internal/gateselect`, the record-addition admission
+  and the qualifying proof SHALL share one Go-only partial observation of the index's root: the
+  first of them to need it builds it with `affected.BuildPartial` and the Go plugin, and the other
+  reuses it. Only a successful build is kept. A failed or cancelled build is kept by no one, and
+  the next caller builds again under its own context and deadline. A different root, or a
+  selection with no index, builds a fresh graph and keeps nothing. The kept graph lives as long as
+  the index, so only selections that already read one index of the same root, module and tree
+  (AFP-V0-822) share it, never another root, process or the user graph cache (invariant 4). Neither
+  caller may mutate the shared graph; each derives its selection inputs through the `With`
+  methods, which copy. Every selection, verdict, audit line and exit code SHALL stay as it was
+  before. Measured on the batch range with the Makefile and two `.corvint` edits dropped, cold
+  graph cache, this host (12 CPUs): `corvint test --dry-run` went from 38.1–42.3 s to
+  32.6–33.3 s wall, and from 60.1–65.5 to 49.8–51.2 CPU-s, with byte-identical JSON and stderr.
+  Six of the slowest selection-baseline changes replayed with identical results and summed step
+  seconds 405.5 to 386.0 (inside run-to-run noise). Non-goals: sharing the plan graph's
+  observation with the proof; any cross-process or persisted cache; a CI time budget. Failure mode:
+  a future caller that mutated the shared graph in place would leak one caller's selection inputs
+  into the other's, so the graph's `With` methods stay copy-on-write.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -4039,6 +4089,11 @@ group and a command substitution) and `TestNameListingContentDecides_AFPV09961`.
 AFP-V0-9962: `TestNameListingSelection_AFPV09962`. AFP-V0-9963:
 `TestNameOnlyTreeWalker_AFPV09963`. AFP-V0-9964: `TestGraphCacheNameListings_AFPV09964`. The
 mutation evidence and measurements are in `docs/build-log/2026-11-11-affstatus.md`.
+AFP-V0-11054: `TestChangeStatusNarrowedRecord_AFPV011054` in `internal/liveverify/affected`
+(an edit below a listed directory records the lister under AFP-V0-9962 and the name-only walker
+under AFP-V0-9963 and selects neither; an addition, an unknown status and a content read record
+nothing) and `TestAffectedChangeStatusCLI_AFPV09960`, which reads the record from the compact
+JSON and the text form. The entry is `docs/build-log/2026-11-15-sel1115.md`.
 AFP-V0-9990: `TestShellWalkFacts_AFPV09990` (one row per walker, opacity reason and control)
 and `TestShellWalkFactsTempRoot_AFPV09990`. AFP-V0-9991: `TestShellWalkOperandFragments_AFPV09991`
 and `TestBareOperandListerAcceptance_V15193`. AFP-V0-9992: `TestDeletedShellScriptAdmission_AFPV09992`
@@ -4291,6 +4346,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9731 | the `testFileCount` member of `affectedCompactSelection` (`cmd/corvint/affected_compact.go`) and `affectedByPathUnit` (`cmd/corvint/affected_by_path.go`); the `test-files=` word in `renderAffectedText` and `renderAffectedByPathText` | `TestAffectedTestCountsMatchGoTestList_AFPV09731` in `cmd/corvint/affected_test_file_counts_test.go` (go test -list parity, both counts in the compact, text and by-path forms, unchanged full plan); `TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range` with the regenerated golden |
 | AFP-V0-9732 | `gateselect.PlannedRunSet` through `testPlanRunSet` in `cmd/corvint/test.go` (AFP-V0-2402, unchanged) | `TestV14361RangeAffectedAndTestSelectTheSameGoPackages_AFPV09732` in `cmd/corvint/selection_agreement_replay_test.go` (100 Go packages on both sides, NARROWED; skipped where the commits are absent; in CI it runs only in the `go-product-shard` job, `fetch-depth: 0`, when `cmd/corvint` is in the shard's run set); `TestAFPV02402RunSetIsThePlanGoSelection`; the CLI replay in `../build-log/2026-11-09-seldis.md` |
 | AFP-V0-11033 | `parseAcceptStaleBinary` in `cmd/corvint/affected.go`; `staleBinaryGate` in `cmd/corvint/self_binary.go`; its calls and the flag in `parseAffectedJobsOptions` and `runAffectedJobs` (`cmd/corvint/affected_jobs.go`) and `parseAffectedAuditOptions` and `runAffectedAudit` (`cmd/corvint/affected_audit.go`); the `Degradations` and `DegradationDetails` members of `jobinputs.Plan` (`internal/jobinputs/jobinputs.go`) and `affectedAuditReport` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go`, the `jobs` and `audit` forms (refused on separate and merged streams with the subcommand's `go run` recovery, accepted documents carry the members with the stderr line exactly when the streams differ, repeated flag refused; it fails on the exit-0 and exit-3 documents); `TestAffectedJobsCLI`; `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445`; `TestAffectedAuditMissingObservationIsUnknown_AFPV0447`; the V1-5012 `producer` member in `runAffectedAudit`: `TestAffectedAuditNamesItsPlanningBinary_V15012` in `cmd/corvint/affected_audit_producer_test.go` (fresh, accepted-stale and unstamped binaries name HEAD, the older commit and `unknown`; it fails without the member); `make capabilities-check` |
+| AFP-V0-11134 | `partialGraph` in `internal/gateselect/partialgraph.go`; its field on `repositoryIndex` (`readers.go`) and its uses in `recordAdditionAllows` (`recordadditions.go`), `attributeLines` (`select.go`) and `SelectQualifiedIndexed` (`qualified.go`) | `TestPartialGraphObservedOncePerIndex_AFPV011134` (one kept build per index and root, a failed build retried, another root fresh, a nil memo building every time); the build count added to `TestAddedRecordEntryBothSelectors_AFPV3423` (the qualified selector builds once; it fails with 2 builds without the share) |
 | AFP-V0-9987 | `affectedFlatSelected` and the `SelectedFlat` member of `affectedCompactReceipt` (`cmd/corvint/affected_flat.go`, `cmd/corvint/affected_compact.go`); `UnresolvedPackages` in `summarizeAffectedPlan` (`cmd/corvint/affected_summary.go`) | `TestAffectedSelectedFlatAndUnresolvedCount_AFPV09987` and `TestAffectedNewMembersNeverChangeSelection_AFPV09987` in `cmd/corvint/affected_flat_test.go`; core-freeze goldens `affected-committed-range.json` and `affected-worktree.json` regenerated for these two members only |
 | AFP-V0-9988 | `affectedCompactWitness`, `compactWitness` (`cmd/corvint/affected_compact.go`) and `affected.Witness.MarshalJSON` (`internal/liveverify/affected/select.go`), unchanged; `--json` in `parseAffectedOptions` (`cmd/corvint/affected.go`) and `affectedHelp` (`cmd/corvint/help.go`) | `TestAffectedWitnessOneShapeAcrossModes_AFPV09988` and `TestAffectedJSONFlagIsTheDefaultJSON_AFPV09988` in `cmd/corvint/affected_flat_test.go`; `make capabilities-check` |
 | AFP-V0-9989 | `--head` in `parseAffectedOptions` and `affectedHeadOptionRefusal` (`cmd/corvint/affected_head.go`); `materializeAffectedHead` (`cmd/corvint/affected_head.go`) | `TestAffectedHeadPlansTheCommitPairFromGitObjects_AFPV09989` and `TestAffectedHeadRefusesInputsOutsideGitObjects_AFPV09989` in `cmd/corvint/affected_head_test.go`; before/after counts in `../build-log/2026-11-11-affux.md` |
@@ -4302,6 +4358,11 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-2831 | the `Select web-flows consumer` step of `ci.yml` | `.github/web-flows/plan_base_test.py` (proven parent, refused proof requires the consumer, merge queue keeps its base, bindings); hosted run `NOT_OBSERVED` |
 
 ## Rollback
+
+For AFP-V0-11134, delete `internal/gateselect/partialgraph.go`, the `partial` field of
+`repositoryIndex` and the build count in `TestAddedRecordEntryBothSelectors_AFPV3423`, and call
+`affected.BuildPartial(ctx, root, golang.New())` again in `recordAdditionAllows` and
+`SelectQualifiedIndexed`. No selection, cache or receipt changes.
 
 For AFP-V0-9987 to AFP-V0-9989, revert the lane affux commits: drop `selectedFlat` and
 `summary.unresolvedPackages` and restore the two core-freeze goldens, delete `--json` and `--head`

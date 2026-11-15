@@ -81,7 +81,9 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	defer cancel()
 	// Other language selections remain in Provider.Go.Packages. A partial
 	// observation cannot certify cross-language edges and never removes them.
-	graph, err := affected.BuildPartial(ctx, root, golang.New())
+	// The record-addition admission above observed the same root through
+	// the same index; reuse that observation (AFP-V0-11134).
+	graph, err := partialGraphOf(index).observe(ctx, root)
 	if err != nil {
 		return fallback(fmt.Sprintf("the repository could not be indexed for attribution: %q", err.Error()))
 	}

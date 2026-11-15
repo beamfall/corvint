@@ -211,47 +211,73 @@ func TestDTLV0003WorktreeBuild(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		root := t.TempDir()
-		scripts := filepath.Join(root, "script")
-		if err := os.Mkdir(scripts, 0700); err != nil {
-			t.Fatal(err)
+		// The script names the build under Git's resolved git dir. macOS TempDir sits under
+		// /var -> /private/var, so the ordinary case is already symlinked there; the symlinked
+		// case gives every host a checkout reached through a symlinked temporary parent, which
+		// must build at the canonical path (V1-4551).
+		ordinary := t.TempDir()
+		physicalParent := t.TempDir()
+		linkParent := filepath.Join(t.TempDir(), "link")
+		if err := os.Symlink(physicalParent, linkParent); err != nil {
+			t.Fatalf("symlinked temporary parent: %v", err)
 		}
-		for name, text := range map[string]string{
-			"lane-corvint.sh":      string(body),
-			"lane-binary-check.sh": "#!/bin/sh\necho 'STALE installed build'\nexit 1\n",
-			"heavy.sh":             "#!/bin/sh\n[ -z \"${CORVINT_DOGTOOLS_FAIL-}\" ] || exit 2\nwhile [ \"$1\" != -o ]; do shift; done\nshift\nprintf '#!/bin/sh\\necho worktree\\n' > \"$1\"\nchmod +x \"$1\"\n",
+		for _, tc := range []struct{ name, root string }{
+			{"ordinary", ordinary},
+			{"symlinked-parent", filepath.Join(linkParent, "repo")},
 		} {
-			if err := execfile.WriteFile(filepath.Join(scripts, name), []byte(text), 0755); err != nil {
-				t.Fatal(err)
-			}
-		}
-		c := exec.Command("git", "init", "-q", root)
-		if out, err := c.CombinedOutput(); err != nil {
-			t.Fatalf("%v %s", err, out)
-		}
-		c = exec.Command("bash", filepath.Join(scripts, "lane-corvint.sh"))
-		out, err := c.Output()
-		if err != nil {
-			t.Fatal(err)
-		}
-		binary := strings.TrimSpace(string(out))
-		// The script names the build under Git's resolved top level; macOS TempDir sits under
-		// /var -> /private/var, so the want is the symlink-resolved root.
-		resolved, err := filepath.EvalSymlinks(root)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if binary != filepath.Join(resolved, ".git", "corvint", "lane-corvint") {
-			t.Fatal(binary)
-		}
-		if got, err := exec.Command(binary).Output(); err != nil || strings.TrimSpace(string(got)) != "worktree" {
-			t.Fatalf("%v %q", err, got)
-		}
-		c = exec.Command("bash", filepath.Join(scripts, "lane-corvint.sh"))
-		c.Env = append(os.Environ(), "CORVINT_DOGTOOLS_FAIL=1")
-		out, err = c.CombinedOutput()
-		if err == nil || c.ProcessState.ExitCode() != 2 || !strings.Contains(string(out), "worktree-build-failed") {
-			t.Fatalf("%v %s", err, out)
+			t.Run(tc.name, func(t *testing.T) {
+				root := tc.root
+				scripts := filepath.Join(root, "script")
+				if err := os.MkdirAll(scripts, 0700); err != nil {
+					t.Fatal(err)
+				}
+				for name, text := range map[string]string{
+					"lane-corvint.sh":      string(body),
+					"lane-binary-check.sh": "#!/bin/sh\necho 'STALE installed build'\nexit 1\n",
+					"heavy.sh":             "#!/bin/sh\n[ -z \"${CORVINT_DOGTOOLS_FAIL-}\" ] || exit 2\nwhile [ \"$1\" != -o ]; do shift; done\nshift\nprintf '#!/bin/sh\\necho worktree\\n' > \"$1\"\nchmod +x \"$1\"\n",
+				} {
+					if err := execfile.WriteFile(filepath.Join(scripts, name), []byte(text), 0755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				c := exec.Command("git", "init", "-q", root)
+				if out, err := c.CombinedOutput(); err != nil {
+					t.Fatalf("%v %s", err, out)
+				}
+				c = exec.Command("bash", filepath.Join(scripts, "lane-corvint.sh"))
+				out, err := c.Output()
+				if err != nil {
+					t.Fatal(err)
+				}
+				binary := strings.TrimSpace(string(out))
+				resolved, err := filepath.EvalSymlinks(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tc.name == "symlinked-parent" {
+					// The alias must differ from the canonical root, or this case proves nothing.
+					physical, err := filepath.EvalSymlinks(physicalParent)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if resolved == root || resolved != filepath.Join(physical, "repo") {
+						t.Fatalf("fixture root %s resolved to %s; want %s", root, resolved, filepath.Join(physical, "repo"))
+					}
+				}
+				want := filepath.Join(resolved, ".git", "corvint", "lane-corvint")
+				if binary != want {
+					t.Fatalf("worktree executable = %s; want canonical %s", binary, want)
+				}
+				if got, err := exec.Command(binary).Output(); err != nil || strings.TrimSpace(string(got)) != "worktree" {
+					t.Fatalf("%v %q", err, got)
+				}
+				c = exec.Command("bash", filepath.Join(scripts, "lane-corvint.sh"))
+				c.Env = append(os.Environ(), "CORVINT_DOGTOOLS_FAIL=1")
+				out, err = c.CombinedOutput()
+				if err == nil || c.ProcessState.ExitCode() != 2 || !strings.Contains(string(out), "worktree-build-failed") {
+					t.Fatalf("%v %s", err, out)
+				}
+			})
 		}
 	})
 }

@@ -902,6 +902,18 @@ lanes and external full-suite/mutation observations at every historical revision
   `TestPackageRunnableSites_AZU_V0_008`, `TestRunnableUnits_TJAA_V0_1161`; in this tree the twelve
   `node:test` sites of `extensions/vscode/test` close and the three `test-runner-unknown` fixture
   sites close through their hosts (AZU-V0-211). Rollback: classify the reasons `INBOUND`.
+- **AZU-V0-10031: Replay accepts a stale candidate.** (experimental under the owner's standing lane
+  auto-accept, 2026-11-15; V1-5124) Implementing AZU-V0-009: the replay runs a caller-selected
+  binary on historical merge trees, so the binary is stale against every tree it plans. When a
+  planner invocation refuses with `self-binary-stale` (AFP-V0-846, AFP-V0-9730), the replay SHALL
+  retry that invocation once with `--accept-stale-binary` and record the wall time of the accepted
+  invocation alone. It SHALL NOT pass the flag to a binary that did not refuse, so an older
+  baseline without the flag still plans. Any other failure, or a repeated refusal, still fails
+  the replay unaccepted. Safety evidence is unchanged: a missing receipt stays `NOT_PRODUCED`.
+  Evidence: `TestReadPlanAcceptsStaleCandidate_AZU_V0_10031`; on 2026-11-15 the BASE replay of
+  the eight frozen merges stopped at its second merge with `self-binary-stale`, and with this rule
+  it replayed all eight. Rollback: drop the retry; the replay then needs a binary that predates
+  AFP-V0-9730.
 
 ## Non-goals
 
@@ -1225,6 +1237,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-212 | V1-4686, V1-4999 | `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`, `TestDiscoverySiteKeepsEntryOnDirtyConfiguration_AZU_V0_212`, `TestUnownedPathDisablesSiteClosure_AZU_V0_212`, `TestFrontierSitesSurviveTheGraphCache_AZU_V0_212`, `TestPathAliasResolvesUnderALiteralGlobalTestIgnore_TJAA_V0_770`, `TestRepositoryShellDataReaders_AFPV03330` (sibling data selects no closure) |
 | AZU-V0-213 | V1-4691 | `TestPackageRunnableSites_AZU_V0_008`, `TestRunnableUnits_TJAA_V0_1161` |
 | AZU-V0-214 | V1-4999, V1-5184 | `TestDriverWorkflowAnchorsAndAliases_AZU_V0_214`, `TestReleaseGatesWorkflowParses_AZU_V0_214`; the repository workflow `release-gates.yml` parses |
+| AZU-V0-10031 | V1-5124 | `TestReadPlanAcceptsStaleCandidate_AZU_V0_10031` (`tools/affected-zero-unknown-replay`); eight-merge replay in `docs/build-log/2026-11-15-azu-replay-stale-candidate.md` |
 
 The comparison proof's failure mode is an escaped path mistaken for a pure guard. The binding
 and scanner regressions retain real reads, aliases, closures, shadowing and parse failures.
