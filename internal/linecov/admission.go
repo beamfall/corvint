@@ -27,6 +27,8 @@ var QualifiedSources = []string{
 	"internal/linecov/pgroup.go",
 	"internal/linecov/pgroup_unix.go",
 	"internal/linecov/pgroup_other.go",
+	"internal/linecov/pgroup_rss_linux.go",
+	"internal/linecov/pgroup_rss_other.go",
 	"internal/linecov/segments.go",
 	"internal/linecov/qualify.go",
 	"internal/linecov/windows.go",
