@@ -58,6 +58,36 @@ func TestMTTV1004CorvintDocsMCPAnswersOnAFixture(t *testing.T) {
 	}
 }
 
+// MTT-V1-004, PROD-DOCS-001: a `corvint-docs mcp` session that lists the tools
+// and answers read calls leaves the repository as it found it: the same HEAD,
+// refs and `git status`, ignored and untracked files included.
+func TestMTTV1004CorvintDocsMCPLeavesTheRepositoryUnchanged(t *testing.T) {
+	root, _ := typedCorpusCLIFixture(t)
+	snapshot := func() string {
+		return strings.Join([]string{
+			cemGit(t, root, "rev-parse", "HEAD"),
+			cemGit(t, root, "for-each-ref", "--format=%(refname) %(objectname)"),
+			cemGit(t, root, "status", "--porcelain=v1", "--untracked-files=all", "--ignored"),
+		}, "\n")
+	}
+	before := snapshot()
+	responses := docsMCPChild(t, []string{"--root", root, "--corpus-artifact", "corpus.json"},
+		`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"corvint.docs_get","arguments":{"id":"proof:flow"}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"corvint.docs_search","arguments":{"query":"Checkout"}}}`,
+		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"corvint.help","arguments":{}}}`,
+	)
+	for _, id := range []string{"1", "2", "3", "4"} {
+		result, _ := responses[id]["result"].(map[string]any)
+		if result == nil || (id != "1" && result["isError"] != false) {
+			t.Fatalf("request %s did not answer: %#v", id, responses[id])
+		}
+	}
+	if after := snapshot(); after != before {
+		t.Fatalf("corvint-docs mcp changed the repository:\nbefore %s\nafter  %s", before, after)
+	}
+}
+
 // MTT-V1-004: the verb's help is the server's usage, reachable both ways.
 func TestMTTV1004CorvintDocsMCPHelp(t *testing.T) {
 	for _, arguments := range [][]string{{"mcp", "--help"}, {"help", "mcp"}} {
