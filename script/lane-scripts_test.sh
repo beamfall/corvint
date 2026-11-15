@@ -2444,13 +2444,13 @@ denied "until grep -q x <<< \"\$v\"; do sleep 1; done" || fail "lane-guard treat
 # LANE_GUARD_ROOTS scopes the guard; outside every root nothing is checked.
 [[ -z $(LANE_GUARD_ROOTS=/nonexistent-root guard "$tmp" "go test ./x") ]] || fail "lane-guard checked outside LANE_GUARD_ROOTS"
 LANE_GUARD_ROOTS=/nonexistent-root:$tmp denied "go test ./x" || fail "lane-guard skipped a cwd inside LANE_GUARD_ROOTS"
-abs=$(mktemp -d) && mkdir -p "$abs/tools/sub" && : >"$abs/tools/hv.sh"
+abs=$tmp/abs-wrapper && mkdir -p "$abs/tools/sub" "$abs/.git" && : >"$abs/tools/hv.sh"
 [[ $(LANE_GUARD_HEAVY="$abs/tools/hv.sh" guard "$abs/tools/sub" "go test ./x") == *"through $abs/tools/hv.sh "* ]] || fail "lane-guard ignored LANE_GUARD_HEAVY"
 # V1-5268/V1-5565/V1-5579/V1-5583: the deny names the wrapper's absolute path, found from a
 # subdirectory too; with no wrapper (a repository without script/heavy.sh, or an absolute
 # LANE_GUARD_HEAVY that does not exist) go test is not refused.
 [[ $(guard "$tmp/sub/dir" "go test ./x") == *"through $tmp/script/heavy.sh "* ]] || fail "lane-guard did not name the wrapper found above the cwd"
-nowrap=$(mktemp -d)
+nowrap=$tmp/no-wrapper && mkdir -p "$nowrap/.git"
 [[ -z $(guard "$nowrap" "go test ./x") ]] || fail "lane-guard refused go test in a repository without the wrapper"
 [[ -z $(guard "$nowrap" "env -u GOWORK go test ./x") ]] || fail "lane-guard refused env -u go test in a repository without the wrapper"
 [[ $(LANE_GUARD_HEAVY=/nonexistent/heavy.sh guard "$tmp" "go test ./x") == *"through $tmp/script/heavy.sh "* ]] || fail "lane-guard named a LANE_GUARD_HEAVY that does not exist"
