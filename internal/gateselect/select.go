@@ -386,7 +386,7 @@ func attributeLines(plan Receipt, module, root string, withUnresolved bool, buil
 	}
 	dirties := sortedUnique(plan.Plan.Dirty)
 	readers := index.pathReaders(dirties)
-	recordAllows := recordAdditionAllows(plan, root, module)
+	recordAllows := recordAdditionAllows(plan, root, module, partialGraphOf(index))
 	// The planner's narrowings apply to SelectStructural (`corvint test`)
 	// only; Select, the CI PR tier's frozen selector, keeps the whole
 	// attribution as it keeps rule (d) (STR-V0-061).
