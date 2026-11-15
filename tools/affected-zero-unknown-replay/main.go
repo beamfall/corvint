@@ -204,15 +204,32 @@ func runs(filters map[string][]*regexp.Regexp, unit, test string) bool {
 	}
 	return false
 }
+
+// selfBinaryStale is the refusal code of a binary built from a commit whose
+// Go sources differ from the checkout it plans (AFP-V0-846, AFP-V0-9730).
+const selfBinaryStale = "self-binary-stale"
+
+// staleRefusal reports whether a planner's stderr is the self-binary-stale
+// refusal document.
+func staleRefusal(stderr []byte) bool {
+	var refusal struct {
+		Code string `json:"code"`
+	}
+	return json.NewDecoder(bytes.NewReader(stderr)).Decode(&refusal) == nil && refusal.Code == selfBinaryStale
+}
+
+// readPlan plans base in root. The replay runs a caller-selected binary on
+// historical trees, so the binary is stale against every replayed tree by
+// construction; a self-binary-stale refusal is retried once with
+// --accept-stale-binary (AZU-V0-10031). An older binary that never refuses
+// is never passed the flag. Wall time is the accepted invocation's alone.
 func readPlan(binary, root, base string) (plan, int64, error) {
-	start := time.Now()
-	cmd := exec.Command(binary, "--root", root, "affected", "--no-cache", "--full", "--base", base)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	raw, err := cmd.Output()
-	elapsed := time.Since(start).Milliseconds()
+	raw, elapsed, stderr, err := invokePlanner(binary, root, base)
+	if err != nil && staleRefusal(stderr) {
+		raw, elapsed, stderr, err = invokePlanner(binary, root, base, "--accept-stale-binary")
+	}
 	if err != nil {
-		return plan{}, elapsed, fmt.Errorf("affected %s: %w: %s", base, err, stderr.String())
+		return plan{}, elapsed, fmt.Errorf("affected %s: %w: %s", base, err, stderr)
 	}
 	var result envelope
 	if err := json.Unmarshal(raw, &result); err != nil {
@@ -223,6 +240,16 @@ func readPlan(binary, root, base string) (plan, int64, error) {
 	}
 	result.Plan.Raw = raw
 	return result.Plan, elapsed, nil
+}
+
+func invokePlanner(binary, root, base string, extra ...string) ([]byte, int64, []byte, error) {
+	start := time.Now()
+	argv := append([]string{"--root", root, "affected", "--no-cache", "--full", "--base", base}, extra...)
+	cmd := exec.Command(binary, argv...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	raw, err := cmd.Output()
+	return raw, time.Since(start).Milliseconds(), stderr.Bytes(), err
 }
 
 // diffHeaderPath decodes Git's C-quoted paths. Unquoted spaces belong to
