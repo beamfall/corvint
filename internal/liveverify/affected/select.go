@@ -237,6 +237,11 @@ type Plan struct {
 	// E2E is the E2E test selection of a repository that declares its flows
 	// (APK-V0-001); omitted without the declaration.
 	E2E *E2EPlan `json:"e2e,omitempty"`
+	// ChangeStatusNarrowed names each unit the plan does not select only
+	// because change status narrowed a name-listing read or a name-only walk,
+	// with the gate and the dirty paths' statuses (AFP-V0-11054). It is
+	// reporting only and omitted when no unit was dropped.
+	ChangeStatusNarrowed []StatusNarrowing `json:"changeStatusNarrowed,omitempty"`
 }
 
 // FrontierBearer is one source that made the frontier entry Detail bear on a
@@ -465,6 +470,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	if len(plan.Unknown) != 0 {
 		plan.Scope = ScopeUnknown
 	}
+	plan.ChangeStatusNarrowed = graph.statusNarrowed(plan)
 	return plan
 }
 

@@ -80,6 +80,19 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 	for _, exclusion := range receipt.Plan.GoAdditiveExcluded {
 		fmt.Fprintf(&out, "narrowed %s through %s\n", textWord(exclusion.UnitID), textWord(exclusion.Through))
 	}
+	// AFP-V0-11054: each unit change status dropped, with its gate and the
+	// dirty paths that would otherwise have selected it.
+	for _, narrowing := range receipt.Plan.ChangeStatusNarrowed {
+		fmt.Fprintf(&out, "status-narrowed %s gate %s", textWord(narrowing.UnitID), textWord(narrowing.Gate))
+		if narrowing.Via != "" {
+			fmt.Fprintf(&out, " via %s", textWord(narrowing.Via))
+		}
+		fmt.Fprintf(&out, " paths %d", narrowing.PathCount)
+		for _, entry := range narrowing.Paths {
+			fmt.Fprintf(&out, " %s", textWord(entry.Path+":"+string(entry.Status)))
+		}
+		out.WriteString("\n")
+	}
 	for _, unknown := range receipt.Plan.Unknown {
 		fmt.Fprintf(&out, "unknown %s %s", textWord(unknown.Reason), textWord(unknown.Detail))
 		hint := unknown.Hint
