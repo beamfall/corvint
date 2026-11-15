@@ -5252,6 +5252,7 @@ ECO-V0-005	docs/specs/error-code-ownership-gate-v0.md	A `git grep` exit status o
 ECO-V0-006	docs/specs/error-code-ownership-gate-v0.md	A spec row that owns a code MUST describe only what the emitting code path check	unrecorded	-
 ECO-V0-007	docs/specs/error-code-ownership-gate-v0.md	(accepted, decision 0100; amended under the owner's standing auto-accept (2026-1	standing	decision 0100; 2026-10-11; V1-4400
 ECO-V0-008	docs/specs/error-code-ownership-gate-v0.md	The `position` search MAY run over a private scratch tree that holds, at its own	unrecorded	-
+ECO-V0-7561	docs/specs/error-code-ownership-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-15); V1-5189) The	standing	2026-11-15; V1-5189
 ERI-V0-001	docs/specs/expanded-range-impact-v0.md	`corvint impact --base FULL_COMMIT_ID --range-profile expanded-256` MUST explici	unrecorded	-
 ERI-V0-002	docs/specs/expanded-range-impact-v0.md	The experimental profile MUST use the complete original base-to-captured-HEAD	unrecorded	-
 ERI-V0-003	docs/specs/expanded-range-impact-v0.md	Only this profile's path capacity changes. The cumulative 10,000-admitted-hunk a	unrecorded	-
@@ -6078,6 +6079,7 @@ ASD-V0-578	docs/specs/lane-check-tooling-v0.md	(experimental under the standing 
 ASD-V0-579	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3489) `DOC_GAT	standing	2026-11-01; V1-3489
 ASD-V0-3730	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, mbrescue fix round 4, 2026-11	standing	2026-11-07; #126
 ASD-V0-3731	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, mbrescue fix round 4, 2026-11	standing	2026-11-07; #126
+ASD-V0-3792	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-15; V1-5532; supersed	standing	2026-11-15; V1-5532
 DTL-V0-001	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4463; refines	standing	2026-10-11; V1-4463
 DTL-V0-002	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4464; refines	standing	2026-10-11; V1-4464
 DTL-V0-003	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3761; refines	standing	2026-10-11; V1-3761
@@ -8369,7 +8371,7 @@ SNR-V0-013	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST run `Benchmark
 SNR-V0-014	docs/specs/sql-native-ratchet-gate-v0.md	On completing every prior requirement without refusal, the gate MUST print exact	unrecorded	-
 SNR-V0-015	docs/specs/sql-native-ratchet-gate-v0.md	Every artifact the gate creates — the `SNR-V0-001` lock directory, the `git arch	unrecorded	-
 SNR-V0-030	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2120) The admitted toolchain source is the Makefile `go-version` target	unrecorded	-
-SNR-V0-031	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2249; amended by decision 0557) The pin table MUST carry a row for the offic	unrecorded	-
+SNR-V0-031	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2249; amended by decision 0557 and V1-5411) The pin table MUST carry a row f	unrecorded	-
 SOP-V0-001	docs/specs/stable-operations-v0.md	The install-lifecycle check MUST accept either one release archive whose single	unrecorded	-
 SOP-V0-002	docs/specs/stable-operations-v0.md	The check MUST create a committed fixture repository in its own temporary direct	unrecorded	-
 SOP-V0-003	docs/specs/stable-operations-v0.md	An upgrade MUST install into a second store beside the first and run `corvint	unrecorded	-
