@@ -21,14 +21,15 @@
 #
 #   LANE_GUARD_ROOTS  colon-separated directory prefixes; when set, a command whose cwd is under
 #                     none of them is allowed unchecked. Unset: every command is checked.
-#   LANE_GUARD_HEAVY  the go test wrapper; default script/heavy.sh. An absolute path applies when it
-#                     exists; a relative one is looked up from the cwd upward. The go test rule applies
-#                     only where a wrapper is found, and the deny names its absolute path (V1-5268).
+#   LANE_GUARD_HEAVY  the go test wrapper; default script/heavy.sh, looked up from the cwd up to the
+#                     checkout root. An absolute path is used, when no relative one is found, for cwds
+#                     inside its own checkout. Where no wrapper applies the go test rule is off; the
+#                     deny names the wrapper by absolute path (V1-5268).
 # Prints nothing (allow) or one JSON decision line; always exits 0.
 set -uo pipefail
 
 if [[ ${1-} == -h || ${1-} == --help ]]; then
-  sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 
@@ -68,17 +69,22 @@ for my $line (split /\n/, $cmd, -1) {
 my $flat = join " ", @kept;
 my $tool = defined $in->{tool_name} ? "$in->{tool_name}" : "";
 my $heavy = $ENV{LANE_GUARD_HEAVY} // "script/heavy.sh";
-# The go test rule names a wrapper the agent can run: an absolute LANE_GUARD_HEAVY that exists, or the
-# relative one found in the cwd or an ancestor. Where none exists (a repository without the
-# wrapper) the rule does not apply (V1-5268, V1-5565, V1-5579, V1-5583).
+# The go test rule names a wrapper the agent can run (V1-5268, V1-5565, V1-5579, V1-5583): the
+# relative wrapper (LANE_GUARD_HEAVY when relative, else script/heavy.sh) found in the cwd or an
+# ancestor up to the checkout root (the first directory holding .git), or else an absolute
+# LANE_GUARD_HEAVY that exists, when the cwd is inside its checkout (two levels above it). With
+# neither (a repository without the wrapper) the rule does not apply.
 my $wrapper = "";
-if ($heavy =~ m{^/}) {
-    $wrapper = $heavy if -f $heavy;
-} elsif ($heavy ne "" && $cwd =~ m{^/}) {
+my $relative = $heavy =~ m{^/} || $heavy eq "" ? "script/heavy.sh" : $heavy;
+if ($cwd =~ m{^/}) {
     for (my $d = $cwd; ; $d =~ s{/[^/]*$}{}) {
         $d =~ s{/+$}{};
-        if (-f "$d/$heavy") { $wrapper = "$d/$heavy"; last; }
-        last if $d eq "";
+        if (-f "$d/$relative") { $wrapper = "$d/$relative"; last; }
+        last if $d eq "" || -e "$d/.git";
+    }
+    if ($wrapper eq "" && $heavy =~ m{^/} && -f $heavy) {
+        (my $root = $heavy) =~ s{/[^/]*/[^/]*$}{};
+        $wrapper = $heavy if $root eq "" || $cwd eq $root || index($cwd, "$root/") == 0;
     }
 }
 sub deny {
