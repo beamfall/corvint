@@ -148,7 +148,7 @@ questions and three extra points on 2026-11-09. This plan cites each as "owner d
 | R26 | Agent qualification keys and cap (superseded by R39 and R40) | PROD-INT-026 |
 | R27 | One pinned model per agent host; model ID and agent version recorded | PROD-INT-026 |
 | R28, R29 | `corvint context` ships non-blocking with no claim of measured benefit; measurement in 1.0.x | PROD-INT-030 |
-| R30 | Docs tools on one `corvint-docs mcp` server; `corvint mcp` keeps testing tools; one tool table | PROD-DOCS-001, PROD-DOCS-007 |
+| R30 | Docs tools on one `corvint-docs mcp` server; `corvint mcp` keeps testing tools; one tool table | PROD-DOCS-001 (`DELIVERED`, V1-5447), PROD-DOCS-007 |
 | R31 | Only Corvint configuration files under `.corvint/` force a full run; a flows edit runs linked tests; doc-only edits and the private ledgers add nothing | PROD-TEST-019 |
 | R32 | A change no runner owns, or a removed runner, runs all tests with a named reason; UNOWNED_DIRTY_PATH comes off the allowlist | PROD-TEST-011 |
 | R33 | Public repository `beamfall/corvint-vscode`; orphaned code deleted and tracked in a table | "Removed from 1.0" |
@@ -820,17 +820,24 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Changed: (changed 2026-11-09, R30) It named `corvint mcp` as the server and was `DELIVERED`.
     Owner decision R30 (2026-11-09) puts the documentation tools on one `corvint-docs mcp` server
     with one tool table; the state is `PARTIAL` until that server and table ship.
+  - Delivered: (2026-11-15, V1-5447) `corvint-docs mcp`, the narrowed `corvint mcp` and the tool
+    table are on `origin/main` (change `mcp-tool-table`, tasks 2.1 to 2.8; MTT-V1-001 to MTT-V1-009
+    and MTT-V1-011). The separate `corvint-mcp` and `corvint-docs-mcp` binaries still ship
+    (PROD-INT-006); retiring them is MTT-V1-010 and waits on an owner decision.
   - Source: owner, "documentation (mcp, ...)"; R30.
-  - Intent: proposed. Delivery: implemented. State: PARTIAL.
+  - Intent: proposed. Delivery: implemented. State: DELIVERED.
   - Scenario: an agent lists tools.
     - **WHEN** an MCP client connects to `corvint-docs mcp` over stdio and lists the tools
     - **THEN** it receives the documentation tools named in the tool table, and each call returns a
       bounded answer
     - **AND** `git status` shows no change after the session
   - Implemented by: MCPV0-001 to MCPV0-005 (`mcp-server-2026-07-28-v0.md`), MMR-V0-001 to
-    MMR-V0-003 (decision 0441) and MMR-V0-012. Planned: `mcp-tool-table`.
-  - Open tickets: a new ticket for the single docs server and the tool table.
-  - Evidence today: `cmd/corvint-mcp`, `cmd/corvint-docs-mcp`, `internal/mcp/`,
+    MMR-V0-003 (decision 0441), MMR-V0-012, and MTT-V1-001 to MTT-V1-009 and MTT-V1-011
+    (`mcp-tool-table-v1.md`).
+  - Open tickets: V1-5447 (delivery recorded; completion through the Tasks gate pending).
+  - Evidence today: `cmd/corvint-docs` (`corvint-docs mcp`), `internal/mcp/docsserver`,
+    `internal/capcatalog/mcp.go` (the tool table), `cmd/corvint-mcp`, `cmd/corvint-docs-mcp`,
+    `internal/mcp/`,
     `conformance/mcp-2026-07-28/`, `docs/MCP-SERVER.md`. The `test-validity` MCP group and
     `cmd/corvint-test-validity-mcp` are removed by G24.
   - Acceptance evidence at 1.0: the conformance suite recorded against the RC binary, and one
@@ -2202,13 +2209,13 @@ The counts follow the State field of each requirement above.
 | Group | Requirements | DELIVERED | PARTIAL | MISSING |
 |---|---|---|---|---|
 | Testing | 20 | 0 | 15 | 5 |
-| Documentation | 13 | 0 | 11 | 2 |
+| Documentation | 13 | 1 | 10 | 2 |
 | Task manager | 13 | 0 | 8 | 5 |
 | Integration and release (001 to 017) | 17 | 0 | 11 | 6 |
 | GitHub Actions (018 to 022) | 5 | 0 | 0 | 5 |
 | Agent support (023 to 027) | 5 | 0 | 0 | 5 |
 | Revived preview verbs (028 to 031) | 4 | 0 | 0 | 4 |
-| Total | 77 | 0 | 45 | 32 |
+| Total | 77 | 1 | 44 | 32 |
 
 The task manager states marked PARTIAL were not verified from this repository.
 

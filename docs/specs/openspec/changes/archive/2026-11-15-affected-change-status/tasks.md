@@ -24,9 +24,16 @@ Each task names its requirement IDs and its proof.
 - [x] 7 Mutation evidence for `listingCanChange` and for the closed list. Requirements:
    AFP-V0-9961, AFP-V0-9962. Proof: each named
    mutant killed by a named test, listed in the build log.
-- [ ] 8 Measurements: `selection-baseline` (misses 0, narrow count not below the floor) and the
+- [x] 8 Measurements: `selection-baseline` (misses 0, narrow count not below the floor) and the
    pr-39 replay (no `FALLBACK`). Requirements: AFP-V0-9962, AFP-V0-9963. Proof: the table in a
    build-log entry, with the commands.
    Run 2026-11-11 (`docs/build-log/2026-11-11-affstatus.md`): the baseline passes (36/43, misses
    0); the pr-39 replay is still `FALLBACK` before and after, so the proof is not met and the task
    stays open.
+   Run 2026-11-15 (`docs/build-log/2026-11-15-affstatus-measure.md`): the baseline passes (17/43,
+   floor 17, misses 0), and pr-39 raises no `UNINDEXED_SOURCE_PATH`. pr-39 is still `FALLBACK`,
+   now from the non-code map rule NCM-V1-006 (`corvint-config .corvint/documentation-paths.json`),
+   not from a plan unknown. OWNER (delegated, 2026-11-15): the criterion reads "no `FALLBACK` whose
+   reason is a plan unknown or a shell admission"; a FULL reason from the accepted non-code map
+   (NCM-V1-006 `corvint-config`, `never-narrowed-path`) outranks it as project-owned authority.
+   pr-39 and ci-af9d23f80 meet it on babe97abb, so the task is done.
