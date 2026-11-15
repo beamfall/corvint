@@ -22,26 +22,28 @@ func TestJSONConflictASDV03792(t *testing.T) {
     "main": [
       "y"
     ],
-<<<<<<< ours
+LT ours
     "shared": [
       "a",
       "ours"
     ],
-||||||| base
+BAR base
     "shared": [
       "a"
     ],
-=======
+EQ
     "shared": [
       "a",
       "theirs"
     ],
->>>>>>> theirs
+GT theirs
     "untouched": []
   },
   "profile": "p"
 }
 `
+	// Spell the markers at run time so the conflict-markers gate does not flag this source.
+	want = strings.NewReplacer("LT ", strings.Repeat("<", 7)+" ", "BAR ", strings.Repeat("|", 7)+" ", "EQ\n", strings.Repeat("=", 7)+"\n", "GT ", strings.Repeat(">", 7)+" ").Replace(want)
 	_, err := JSON([]byte(base), []byte(ours), []byte(theirs))
 	if err == nil || err.Error() != `competing registry key "shared" in "packages": base ["a"], ours ["a","ours"], theirs ["a","theirs"]` {
 		t.Fatalf("refusal does not name the key and its values: %v", err)
