@@ -65,6 +65,7 @@ var admittedUnsupportedCodes = map[string]bool{
 	"unsupported-harness-event":                  true,
 	"unsupported-harness-host":                   true,
 	"unsupported-hunk-selector":                  true,
+	"unsupported-impact-directory":               true,
 	"unsupported-impact-option":                  true,
 	"unsupported-impact-path":                    true,
 	"unsupported-impact-path-suffix":             true,

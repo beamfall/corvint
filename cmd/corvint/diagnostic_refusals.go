@@ -153,6 +153,15 @@ func impactPathSuffixRefusal(normalized string) error {
 	})
 }
 
+// impactDirectoryRefusal: a directory operand holds no indexed file with an admitted suffix directly
+// inside it, so it expands to nothing (GPK-V0-883). The subject is the directory, never a suffix.
+func impactDirectoryRefusal(directory string) error {
+	return refused("unsupported-impact-directory", "the directory holds no tracked file with a suffix admitted by the repository index; subdirectories are not read", diagnostic.Refusal{
+		Subject:        diagnostic.Subject{Kind: "value", Value: directory},
+		SupportedFixes: []string{"impact.omit-unadmitted-path", "affected.use-path"},
+	})
+}
+
 // rangeDiffBoundRefusal: like the changed-paths bound, the bounded read stops at the bound, so no
 // diff size is evidence.
 func rangeDiffBoundRefusal(base string) error {
