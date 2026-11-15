@@ -77,6 +77,18 @@ so the allowlist stayed empty.
   scratch tree MUST be built only from index content, and the exit status of its `git grep` falls
   under the `ECO-V0-005` rule. (V1-2210, accepted under the owner's standing auto-accept of
   2026-10-11.)
+- `ECO-V0-7561`: (accepted under the owner's standing auto-accept (2026-11-15); V1-5189) The
+  script MUST parse under every `/bin/sh` the gate runs on, including macOS `/bin/sh` (bash 3.2,
+  which ends a `$( ... )` at the `)` of a case pattern that lacks its POSIX leading `(`), so a
+  single-line `case` MUST use the `(pattern)` form. A failure while listing a declaring
+  directory's files, including a parse or runtime error inside that listing, MUST fail the gate
+  naming the directory, never be read as an empty file list: the listing's exit status MUST NOT
+  be masked by a pipeline into `sort`. Evidence: test case 9 (`sh -n`, `bash --posix -n` and,
+  when present, `dash -n` accept the script; no single-line `case` pattern lacks its leading
+  `(`), and case 10 (a failure planted inside the listing, either a nonzero command or an `eval`
+  of a case statement that does not parse, exits 1 naming the directory, where BASE
+  `1a02c5f39` exits 0). macOS `/bin/sh` itself is `NOT_RUN` on Linux hosts. Rollback: restore
+  the piped listing.
 
 ## Non-goals and simpler baseline
 
@@ -116,6 +128,7 @@ by `make error-code-ownership-check`.
 | ECO-V0-006 | review of each owning row; the rows added with this gate cite their emitting line |
 | ECO-V0-007 | test case 1, a passing run printing nothing; `gate` membership |
 | ECO-V0-008 | test case 2, whose site line number fails when the scratch tree drops the empty lines; on 2026-10-21 the live tree gave the same 3,163 sites and 1,506 first sites both ways |
+| ECO-V0-7561 | test cases 9 (the script parses under `sh -n`, `bash --posix -n` and `dash -n`; every single-line `case` pattern has its leading `(`) and 10 (a planted listing failure or listing parse error exits 1 naming the directory) |
 
 ## Traceability
 
@@ -129,6 +142,7 @@ by `make error-code-ownership-check`.
 | ECO-V0-006 | owning spec rows | review |
 | ECO-V0-007 | the exit paths, `--list`, and `error-code-ownership-check`/`error-code-ownership-test` in `gate` | case 1; `make gate` membership |
 | ECO-V0-008 | the candidate-line search, the scratch tree, and `search_tree` in the same script | case 2; the 2026-10-21 live-tree comparison |
+| ECO-V0-7561 | the per-directory listing written to a file before it is sorted, and the `(*_test.go)` pattern, in the same script | cases 9 and 10 |
 
 ## Rollout, rollback, and drift
 

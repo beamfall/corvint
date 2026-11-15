@@ -1,13 +1,15 @@
 #!/bin/sh
 set -eu
 
-# Eight cases, on a fixture repository: an emitted set that equals owned plus allowlisted
+# Ten cases, on a fixture repository: an emitted set that equals owned plus allowlisted
 # passes; a new unowned code, found through a discovered `code`-parameter closure, fails and
 # is named with its site; an allowlisted code a spec now names fails as stale; test files and
 # untracked files are outside the scan; a `git grep` failure is refused loudly instead of
 # being read as an empty emitted set; and a conversion to a named `...Error` string type, a
 # later `code` parameter (matched only in its declaring directory) and a multi-target `reason`
-# assignment are each extracted.
+# assignment are each extracted; the script parses under POSIX shells with every single-line
+# case pattern in its (pattern) form, and a failure inside a declaring directory's listing
+# fails naming it (ECO-V0-7561).
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-error-code-ownership-test.XXXXXX")
@@ -174,6 +176,37 @@ func classify() (string, string) {
 EOF
 expect_named assignment assigned-code internal/pkg/classify.go:5
 
+# 9. ECO-V0-7561: the script parses under POSIX shells, and no single-line case pattern lacks its
+# leading ( (bash 3.2, macOS /bin/sh, ends a $( ) at the bare pattern's ) and fails to parse).
+script="$test_root/script/check-error-code-ownership.sh"
+sh -n "$script" || fail "sh -n rejects the script"
+if command -v bash >/dev/null 2>&1; then bash --posix -n "$script" || fail "bash --posix -n rejects the script"; fi
+if command -v dash >/dev/null 2>&1; then dash -n "$script" || fail "dash -n rejects the script"; fi
+bare=$(grep -nE '^[^#]*[[:space:]]case[[:space:]].*[[:space:]]in[[:space:]]+[^([:space:]][^)]*\)' "$script" || :)
+[ -z "$bare" ] || fail "a single-line case pattern lacks its leading (: $bare"
+
+# 10. ECO-V0-7561: a failure inside a declaring directory's listing, a failed write or a case
+# statement that does not parse, fails the gate naming the directory instead of reading as an
+# empty file list (a listing piped into sort reported sort's success).
+cp "$script" "$test_root/original.sh"
+for planted in write parse; do
+    # shellcheck disable=SC2016 # sed scripts and planted shell text, never expanded here
+    case $planted in
+        (write) sed 's/|| printf .%s\\n. "\$file" || exit 1$/|| printf '"'"'%s\\n'"'"' "$file" >\&9 || exit 1/' "$test_root/original.sh" > "$script" ;;
+        (parse) sed 's/^\( *\)case \$file in (\*_test\.go) continue ;; esac$/\1eval '"'"'case $file in (*_test.go) continue ;; esac )'"'"'/' "$test_root/original.sh" > "$script" ;;
+    esac
+    cmp -s "$script" "$test_root/original.sh" && fail "the $planted failure was not planted; update this test"
+    status=0
+    output=$(cd "$test_root" && sh script/check-error-code-ownership.sh 2>&1) || status=$?
+    [ "$status" -eq 1 ] || fail "a planted $planted failure in the listing exited $status: $output"
+    case $output in
+        (*"cannot list the scratch tree for internal/pkg"*) ;;
+        (*) fail "a planted $planted failure did not name the directory: $output" ;;
+    esac
+done
+cp "$test_root/original.sh" "$script"
+output=$(run) || fail "the restored script did not pass: $output"
+
 # LVT-V0-007: the Git process count stays at three as declaring directories grow.
 real_git=$(command -v git)
 printf '#!/bin/sh\nprintf "git\\n" >> "%s/count"\nexec "%s" "$@"\n' "$fakebin" "$real_git" > "$fakebin/git"
@@ -194,4 +227,4 @@ counted || fail "the expanded fixture failed"
 many=$(wc -l < "$fakebin/count" | tr -d ' ')
 # LVT-V0-006: constant spawns; main's ECO-V0-7500 unstaged-path listing adds one to the three.
 [ "$few" = "$many" ] && [ "$many" -le 4 ] || fail "Git spawns grew or exceed four: $few to $many"
-printf 'check-error-code-ownership_test: 8 cases passed (%s git spawns)\n' "$many"
+printf 'check-error-code-ownership_test: 10 cases passed (%s git spawns)\n' "$many"

@@ -226,6 +226,7 @@ AFP-V0-9961	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; deliv
 AFP-V0-9962	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)	unrecorded	-
 AFP-V0-9963	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)	unrecorded	-
 AFP-V0-9964	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)	unrecorded	-
+AFP-V0-11054	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-15; delivery experimental; V1-5367; reports AFP-V0-9962	unrecorded	-
 AFP-V0-9990	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5191, V1-5193, V1-5194)	unrecorded	-
 AFP-V0-9991	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5193)	unrecorded	-
 AFP-V0-9992	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5191)	unrecorded	-
@@ -441,6 +442,7 @@ AFP-V0-9980	docs/specs/affected-plan-selection-v0.md	(experimental; owner-reques
 AFP-V0-9981	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5364) A test of `tools/flow-guide-check`	unrecorded	-
 AFP-V0-9982	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5365; amends AFP-V0-3300 for the AZU-V0-212	unrecorded	-
 AFP-V0-9983	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5365) Under AFP-V0-9982 the reader SHALL stay	unrecorded	-
+AFP-V0-11134	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -780,6 +782,7 @@ AZU-V0-214	docs/specs/affected-zero-unknown-v0.md	Workflow anchors and aliases.*
 AZU-V0-211	docs/specs/affected-zero-unknown-v0.md	Hosted fixture sites close through their Go host.** (experimental under the owne	unrecorded	-
 AZU-V0-212	docs/specs/affected-zero-unknown-v0.md	Outbound site closure.** (experimental under the owner's standing lane auto-acce	unrecorded	-
 AZU-V0-213	docs/specs/affected-zero-unknown-v0.md	Package-runnable sites.** (experimental under the owner's standing lane auto-acc	unrecorded	-
+AZU-V0-10031	docs/specs/affected-zero-unknown-v0.md	Replay accepts a stale candidate.** (experimental under the owner's standing lan	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
@@ -5250,6 +5253,7 @@ ECO-V0-005	docs/specs/error-code-ownership-gate-v0.md	A `git grep` exit status o
 ECO-V0-006	docs/specs/error-code-ownership-gate-v0.md	A spec row that owns a code MUST describe only what the emitting code path check	unrecorded	-
 ECO-V0-007	docs/specs/error-code-ownership-gate-v0.md	(accepted, decision 0100; amended under the owner's standing auto-accept (2026-1	standing	decision 0100; 2026-10-11; V1-4400
 ECO-V0-008	docs/specs/error-code-ownership-gate-v0.md	The `position` search MAY run over a private scratch tree that holds, at its own	unrecorded	-
+ECO-V0-7561	docs/specs/error-code-ownership-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-15); V1-5189) The	standing	2026-11-15; V1-5189
 ERI-V0-001	docs/specs/expanded-range-impact-v0.md	`corvint impact --base FULL_COMMIT_ID --range-profile expanded-256` MUST explici	unrecorded	-
 ERI-V0-002	docs/specs/expanded-range-impact-v0.md	The experimental profile MUST use the complete original base-to-captured-HEAD	unrecorded	-
 ERI-V0-003	docs/specs/expanded-range-impact-v0.md	Only this profile's path capacity changes. The cumulative 10,000-admitted-hunk a	unrecorded	-
@@ -6078,6 +6082,7 @@ ASD-V0-578	docs/specs/lane-check-tooling-v0.md	(experimental under the standing 
 ASD-V0-579	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3489) `DOC_GAT	standing	2026-11-01; V1-3489
 ASD-V0-3730	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, mbrescue fix round 4, 2026-11	standing	2026-11-07; #126
 ASD-V0-3731	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, mbrescue fix round 4, 2026-11	standing	2026-11-07; #126
+ASD-V0-3792	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-15; V1-5532; supersed	standing	2026-11-15; V1-5532
 DTL-V0-001	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4463; refines	standing	2026-10-11; V1-4463
 DTL-V0-002	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4464; refines	standing	2026-10-11; V1-4464
 DTL-V0-003	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3761; refines	standing	2026-10-11; V1-3761
@@ -7617,6 +7622,8 @@ ARTIFACT-BIN-V0-521	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-52
 ARTIFACT-BIN-V0-522	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5295) The catalog's `core` version set MUST be `corvint`,	unrecorded	-
 ARTIFACT-BIN-V0-523	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236) `release-binary release --tag TAG --output DIR	unrecorded	-
 ARTIFACT-BIN-V0-524	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236) `release` MUST refuse a DIR that exists and is not	unrecorded	-
+ARTIFACT-BIN-V0-525	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5473) after the recheck, `release` MUST write	unrecorded	-
+ARTIFACT-BIN-V0-526	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5473) `release --core-gate GATE_DIR` names the output	unrecorded	-
 ARTIFACT-BIN-V0-001	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
 ARTIFACT-BIN-V0-002	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
 ARTIFACT-BIN-V0-003	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
@@ -8369,7 +8376,7 @@ SNR-V0-013	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST run `Benchmark
 SNR-V0-014	docs/specs/sql-native-ratchet-gate-v0.md	On completing every prior requirement without refusal, the gate MUST print exact	unrecorded	-
 SNR-V0-015	docs/specs/sql-native-ratchet-gate-v0.md	Every artifact the gate creates — the `SNR-V0-001` lock directory, the `git arch	unrecorded	-
 SNR-V0-030	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2120) The admitted toolchain source is the Makefile `go-version` target	unrecorded	-
-SNR-V0-031	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2249; amended by decision 0557) The pin table MUST carry a row for the offic	unrecorded	-
+SNR-V0-031	docs/specs/sql-native-ratchet-gate-v0.md	(V1-2249; amended by decision 0557 and V1-5411) The pin table MUST carry a row f	unrecorded	-
 SOP-V0-001	docs/specs/stable-operations-v0.md	The install-lifecycle check MUST accept either one release archive whose single	unrecorded	-
 SOP-V0-002	docs/specs/stable-operations-v0.md	The check MUST create a committed fixture repository in its own temporary direct	unrecorded	-
 SOP-V0-003	docs/specs/stable-operations-v0.md	An upgrade MUST install into a second store beside the first and run `corvint	unrecorded	-

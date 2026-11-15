@@ -7,11 +7,15 @@ set -eu
 # receipt below, never the path or the version string alone.
 #
 # SNR-V0-030: one pin row per installation measured on a version the Makefile `go-version` target
-# admits (decision 0557: exactly go1.27.3). A row is
+# admits (decision 0557's exact-pin rule, now go1.27.4). A row is
 #   version go_binary_sha256 receipt_tool_sha256 goroot_entries goroot_sha256
 # and a toolchain that matches no row refuses with reason=TOOLCHAIN_MISMATCH before any build.
+# SNR-V0-031 (V1-5411): the go1.27.4 row is the linux/amd64 official toolchain module
+# golang.org/toolchain@v0.0.1-go1.27.4.linux-amd64, measured 2026-11-15 on the owner's WSL2 x86_64
+# host (receipt tool built with run_go's flags) and exercised by `TMPDIR=<private dir>
+# PATH=<module>/bin:$PATH make sql-native-ratchets`; see SNR-V0-031 for the evidence.
 toolchain_pins='
-go1.27.3 60fa7fbaac037e24462915e8c19a1c73b02f548df0098b323823d6fbcdd0c764 53863afb7d3b9004aa68543d4ae5e91f0361bc99a59e42d74daff10d11268c18 17299 4b77ec3a600150c33036ecae172fcaa5edccf3ddcbcff339a8690505c8a47367
+go1.27.4 de0ae3e082ce7599eae4fb69fa2ef1e43b8f31ffd3fce62cdf81930aa9005050 ce485de2ed246b946e202dd9fa20dbdb639cd915fbfe0c9166235d687f8d11aa 13475 ea503b0c42bbd04df6b0efeb8944cfea6d50f9420c53a50eafb5233be2ce05b2
 '
 
 causal_parent=a7db6200685c1ea7d4afc1798fb376ccc724acd1
