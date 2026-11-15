@@ -547,12 +547,12 @@ func TestAFPV0484BarShadowCost(t *testing.T) {
 	if !reflect.DeepEqual(sc["window"], sc["epoch"]) || !strings.Contains(fmt.Sprint(sc["advisory"]), "never feeds") {
 		t.Fatalf("shadowCost = %v", sc)
 	}
-	// A CLEAN re-run whose cost upload failed is unpriced: neither the older MISS run's cost nor an
-	// older CLEAN run's cost prices it.
+	// A CLEAN re-run whose cost upload failed is unpriced: neither the older FLAKY run's cost nor an
+	// older CLEAN run's cost prices it. (An older MISS row is never replaced, CIN-V0-7921.)
 	retry := sub(bar(t, []string{
 		name("CLEAN", 6),
-		costName("MISS", 6, "1", "s0500-b0100-c0200-d0300-m1000"),
-		missName(6),
+		costName("FLAKY", 6, "1", "s0500-b0100-c0200-d0300-m1000"),
+		name("FLAKY", 6),
 		costName("CLEAN", 6, "1", "s0500-b0100-c0200-d0300-m0000"),
 		name("CLEAN", 6)}), "shadowCost")
 	if e := sub(retry, "epoch"); num(e["complete"]) != 1 || num(e["priced"]) != 0 || num(sub(e, "selection")["missRows"]) != 0 {
