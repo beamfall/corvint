@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func replayFixture() (safetyReceipt, plan, plan, map[string]map[int]bool) {
@@ -558,5 +560,57 @@ func TestUnknownByCategory_V1_5124(t *testing.T) {
 	}
 	if categorySummary(nil) != "" {
 		t.Error("empty summary must be empty")
+	}
+}
+
+// AZU-V0-10031 (V1-5124): the candidate is stale against every replayed tree by
+// construction, so a self-binary-stale refusal is retried once with
+// --accept-stale-binary; any other failure, and a refusal the retry repeats,
+// still fails the plan, and a binary that does not refuse never sees the flag.
+func TestReadPlanAcceptsStaleCandidate_AZU_V0_10031(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture planner is a POSIX shell executable")
+	}
+	dir := t.TempDir()
+	log := filepath.Join(dir, "argv.log")
+	binary := filepath.Join(dir, "planner")
+	if err := execfile.WriteFile(binary, []byte(`#!/bin/sh
+printf '%s\n' "$*" >> "$PLANNER_LOG"
+case "$PLANNER_MODE:$*" in
+  stale:*--accept-stale-binary*|fresh:*) ;;
+  stale:*|stuck:*) printf '%s\n' '{"code": "self-binary-stale", "error": "rebuild"}' >&2; exit 2 ;;
+  other:*) printf '%s\n' '{"code": "base-unresolved", "error": "no base"}' >&2; exit 2 ;;
+esac
+printf '%s\n' '{"ok":true,"plan":{"selected":[],"excluded":[],"unknown":[]}}'
+`), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		mode   string
+		ok     bool
+		invoke int
+	}{{"fresh", true, 1}, {"stale", true, 2}, {"stuck", false, 2}, {"other", false, 1}} {
+		t.Run(tc.mode, func(t *testing.T) {
+			if err := os.WriteFile(log, nil, 0600); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PLANNER_LOG", log)
+			t.Setenv("PLANNER_MODE", tc.mode)
+			_, _, err := readPlan(binary, dir, strings.Repeat("b", 40))
+			body, readErr := os.ReadFile(log)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			calls := strings.Split(strings.TrimSpace(string(body)), "\n")
+			if (err == nil) != tc.ok || len(calls) != tc.invoke {
+				t.Fatalf("mode %s: err=%v calls=%q", tc.mode, err, calls)
+			}
+			if strings.Contains(calls[0], "--accept-stale-binary") {
+				t.Fatalf("first invocation passed the flag: %q", calls[0])
+			}
+			if tc.invoke == 2 && !strings.HasSuffix(calls[1], " --accept-stale-binary") {
+				t.Fatalf("retry lacks the flag: %q", calls[1])
+			}
+		})
 	}
 }

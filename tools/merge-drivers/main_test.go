@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,7 +63,10 @@ func TestGitDriversDWCV07703(t *testing.T) {
 		{"json-add-add", ".corvint/test-read-scopes.json", ``, `{"packages":{"a":[]}}`, `{"packages":{"b":[]}}`, false},                                      //corvint:fixture-path
 		{"json", ".corvint/test-read-scopes.json", `{"packages":{}}`, `{"packages":{"a":[]}}`, `{"packages":{"b":[]}}`, false},                               //corvint:fixture-path
 		{"json-divergence", ".corvint/test-read-scopes.json", `{"packages":{"a":[]}}`, `{"packages":{"a":["ours"]}}`, `{"packages":{"a":["theirs"]}}`, true}, //corvint:fixture-path
-		{"projection", "docs/specs/README.md", "base\n", "ours\n", "theirs\n", false},                                                                        //corvint:fixture-path
+		// V1-5532: the batch-1113y shape, each side adding its own entries beside one competing key.
+		{"json-competing-keys", ".corvint/test-read-scopes.json", `{"profile":"p","packages":{"conformance/x":["go.mod"]}}`, `{"profile":"p","packages":{"conformance/x":["go.mod","lane/"],"lane/a":["docs/"],"lane/b":[]}}`, `{"profile":"p","packages":{"conformance/x":["go.mod","main/"],"main/c":["Makefile"]}}`, true}, //corvint:fixture-path
+		{"json-malformed", ".corvint/test-read-scopes.json", `{"packages":{}}`, `{"packages":{"a":[]}}`, `{"packages":`, true}, //corvint:fixture-path
+		{"projection", "docs/specs/README.md", "base\n", "ours\n", "theirs\n", false},                                          //corvint:fixture-path
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -127,9 +131,40 @@ func TestGitDriversDWCV07703(t *testing.T) {
 				if !bytes.Contains(result, []byte(`"a": []`)) || !bytes.Contains(result, []byte(`"b": []`)) {
 					t.Fatalf("lost key: %s", result)
 				}
-			case "projection", "json-divergence":
+			case "projection":
 				if string(result) != tc.ours {
 					t.Fatalf("ours changed: %q", result)
+				}
+			case "json-divergence", "json-competing-keys", "json-malformed":
+				// ASD-V0-3792: the refusal leaves an unmerged path whose file no JSON reader
+				// accepts, holding every side's entries, never ours alone.
+				if git(t, root, "diff", "--name-only", "--diff-filter=U") != tc.path {
+					t.Fatalf("refused path is not unmerged: %s", out)
+				}
+				lines := append([]byte("\n"), result...)
+				if json.Valid(result) || !bytes.Contains(lines, []byte("\n<<<<<<< ours\n")) || !bytes.Contains(lines, []byte("\n>>>>>>> theirs\n")) {
+					t.Fatalf("refusal left a file that reads as resolved: %s", result)
+				}
+				sides := map[string][2]string{
+					"json-divergence":     {`"ours"`, `"theirs"`},
+					"json-competing-keys": {`"lane/a"`, `"main/c"`},
+					"json-malformed":      {`{"packages":{"a":[]}}`, `{"packages":`},
+				}[tc.name]
+				for _, entry := range sides {
+					if !bytes.Contains(result, []byte(entry)) {
+						t.Fatalf("entry %s dropped: %s", entry, result)
+					}
+				}
+				if tc.name == "json-competing-keys" {
+					for _, want := range []string{
+						`"lane/b": []`,
+						`competing registry key "conformance/x" in "packages": base ["go.mod"], ours ["go.mod","lane/"], theirs ["go.mod","main/"]`,
+						"fix: edit the conflict-marked registry",
+					} {
+						if !bytes.Contains(append(result, out...), []byte(want)) {
+							t.Fatalf("missing %q:\n%s\n%s", want, result, out)
+						}
+					}
 				}
 			case "edit", "literal-base-edit", "literal-end-edit":
 				if !bytes.Contains(result, []byte("||||||| base\nold\n")) {

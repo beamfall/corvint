@@ -237,6 +237,29 @@ Context, failure modes and evidence: the "Plan-aligned release catalog and one-t
   empty (`output-not-empty`), so no entry from another run is merged into its manifest, and MUST
   leave DIR as it found it when any step fails: every file an earlier step of the same run wrote
   is removed, and DIR is removed when the run created it.
+- `ARTIFACT-BIN-V0-525`: (proposed; V1-5473) after the recheck, `release` MUST write
+  `DIR/SHA256SUMS`, one `SHA256  NAME` row (two spaces) for every archive the run wrote, sorted
+  by name in byte order, so DIR is the release asset set `corvint-update` reads: each
+  `<app>_<goos>_<goarch>.tar.gz` of the `core` set and `corvint_<goos>_<goarch>.tar.gz` have
+  their row in one release checksum file (`UPD-V0-920`, `UPD-V0-922`). The file is written like
+  every other output (`ARTIFACT-BIN-V0-007`), and a failure removes it with the rest
+  (`ARTIFACT-BIN-V0-524`).
+- `ARTIFACT-BIN-V0-526`: (proposed; V1-5473) `release --core-gate GATE_DIR` names the output
+  directory of the `corvint` archive gate (`go run ./conformance/release-artifact-v0 archive`,
+  `ARTIFACT-GO-V0`) run at the same commit. A tag whose selection holds `corvint` MUST refuse
+  without it (`core-gate-required`), and a tag whose selection lacks `corvint` MUST refuse with it
+  (`core-gate-unused`), both before anything is built. The gate's `verification-report.json`
+  (at most 1 MiB) MUST be schema `corvint.release-go-archive-report.v2`, verdict `PASS` with no
+  reasons, `revision` equal to the commit `release` built and `toolchain` equal to the Go version
+  it built with. For every `corvint` archive `release` built, the report MUST hold exactly one
+  target of that archive name whose `retainedArchive` SHA-256 and size equal the archive's and
+  whose `retainedBinary` SHA-256 equals the archive's binary, and `GATE_DIR` MUST hold an archive
+  of that name with the same SHA-256, so the published `corvint` archives are the gate's
+  byte-identical retained archives; otherwise `core-gate-mismatch` refuses naming the archive and
+  the field. Then `release` MUST copy the report unchanged into `DIR/verification-report.json`,
+  the Core qualification `corvint-update` binds each `corvint` archive to, and print its SHA-256
+  in the run summary. Without this binding a published tag release has no Core qualification and
+  every `apply --component core` refuses.
 
 ### Per-binary release profile requirements (V1-5236, decision 0594 item 8)
 
@@ -656,7 +679,17 @@ selection already existed; what a tag still lacked was one command that turns th
 verified output directory without building any other binary (V1-5236). The workflow that runs it
 and publishes the output is a `.github/` change outside this section.
 
-The requirements `ARTIFACT-BIN-V0-520..524` are defined in the Requirements section above.
+The requirements `ARTIFACT-BIN-V0-520..526` are defined in the Requirements section above.
+
+The tag pipeline's output was still not an appliable Core release (V1-5473): it built every
+core-set app archive, but its one release `SHA256SUMS` was assembled by a workflow shell line, and
+it carried no `verification-report.json`, the gate report `corvint-update` requires before it
+installs any `corvint` archive, so every `apply --component core` against a tag release would
+refuse. `ARTIFACT-BIN-V0-525` moves the checksum file into `release`; `ARTIFACT-BIN-V0-526` binds
+the gate's report to the `corvint` archives `release` built (the two producers build with the
+same flags from the same commit, so their archives are byte-identical, and the binding refuses if
+they ever are not) and carries the report into the output. The workflow that runs the gate before
+`release` is the separate `.github/` change.
 
 ### Failure modes
 
@@ -670,6 +703,15 @@ The requirements `ARTIFACT-BIN-V0-520..524` are defined in the Requirements sect
   simply never part of a release.
 - A `release` run is interrupted between two writes: the run removes what it wrote, but a killed
   process leaves files behind; the next run then refuses `output-not-empty` until DIR is emptied.
+- The archive gate and `release` disagree on a `corvint` archive's bytes (a build flag or legal
+  file drifts in one producer): `release --core-gate` refuses `core-gate-mismatch` and nothing is
+  retained, so no release pairs a gate report with archives it did not retain.
+- The gate still builds five `corvint` targets (`REL-V1-008` aligns it to three): the copied report
+  also names darwin/amd64 and windows/amd64 archives that the tag release does not carry, so
+  `apply` on darwin/amd64 refuses for the missing archive, as `ARTIFACT-BIN-V0-522` already says.
+- A `NAME/vX.Y.Z` tag for one app publishes that app alone; `corvint-update apply --component core`
+  reads a release that carries `corvint` and every app, so only a `vX.Y.Z` or `core/vX.Y.Z` tag
+  release is appliable.
 
 ### Acceptance evidence
 
@@ -680,6 +722,8 @@ The requirements `ARTIFACT-BIN-V0-520..524` are defined in the Requirements sect
 | `ARTIFACT-BIN-V0-522` | `TestCoreSetAppsMatchTheCatalogVersionSet`, `TestAppPlatformsMatchTheCatalogTargets`, `internal/releasecandidate` app tests |
 | `ARTIFACT-BIN-V0-523` | `TestReleaseTagBuildsOnlyTheSelectedBinariesAndVerifies` |
 | `ARTIFACT-BIN-V0-524` | `TestReleaseTagRefusesNonEmptyOutputAndRollsBackOnFailure` |
+| `ARTIFACT-BIN-V0-525` | `TestReleaseCoreTagBindsTheGateReportAndWritesTheChecksums` (the `SHA256SUMS` rows), `TestReleaseTagBuildsOnlyTheSelectedBinariesAndVerifies` |
+| `ARTIFACT-BIN-V0-526` | `TestReleaseCoreTagBindsTheGateReportAndWritesTheChecksums` (missing and unused gate, revision, verdict, digest and gate-archive refusals with nothing retained; the report copied unchanged); `TestUPDV0920ApplyInstallsATagReleaseOutput` in `internal/update`, run with `CORVINT_UPDATE_RELEASE_DIR` naming a real gate-bound `release` output: one `apply --component core` installs `corvint` and the three apps at the archives' digests (skipped when unset) |
 
 ### Rollback
 
@@ -687,3 +731,7 @@ Revert the catalog rows and targets, the `withheld` role, the `release` command 
 candidate's `AppPlatforms` in one change; the five-target catalog then builds again and the
 candidate reads the four shipped platforms. No stored state or published artifact depends on
 either.
+
+`ARTIFACT-BIN-V0-525` and `-526` roll back together with the workflow's gate step: `release` then
+writes no `SHA256SUMS` or report, and the workflow's shell line assembles the checksums again; a
+tag release is then not appliable by `corvint-update` until the report is supplied by hand.

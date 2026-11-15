@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
-	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
 // recordAdditionAllows re-observes additions and source-bound scopes; a receipt
 // cannot supply its own exclusion. Both gate-affected-select and the planner
 // use this same admission rule (AFP-V0-3423). Unknown input only widens.
-func recordAdditionAllows(plan Receipt, root, module string) func(string, string) bool {
+// observed supplies the selection's shared partial observation (AFP-V0-11134).
+func recordAdditionAllows(plan Receipt, root, module string, observed *partialGraph) func(string, string) bool {
 	allow := func(string, string) bool { return true }
 	if plan.Snapshot != nil {
 		return allow
@@ -26,7 +26,7 @@ func recordAdditionAllows(plan Receipt, root, module string) func(string, string
 	if len(affected.AddedRecordEntries(ctx, "git", root, base, plan.Plan.Dirty)) == 0 {
 		return allow
 	}
-	graph, err := affected.BuildPartial(ctx, root, golang.New())
+	graph, err := observed.observe(ctx, root)
 	if err != nil {
 		return allow
 	}

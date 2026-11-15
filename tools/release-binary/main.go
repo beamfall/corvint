@@ -30,10 +30,13 @@ commands:
   manifest  --output DIR [--base FILE] [--declare-skew SET=REASON]... [--root DIR] [--binaries FILE]
             Merge DIR/*.release-entry.json over the previous release-manifest.json in FILE,
             refuse undeclared version skew, write DIR/release-manifest.json and its .sha256.
-  release   --tag TAG --output DIR [--base FILE] [--declare-skew SET=REASON]... [--root DIR] [--binaries FILE]
+  release   --tag TAG --output DIR [--core-gate GATE_DIR] [--base FILE] [--declare-skew SET=REASON]... [--root DIR] [--binaries FILE]
             Run one tag end to end: select its binaries, build each of them (and nothing else)
-            into DIR, merge the release manifest over FILE and recheck DIR; print the
-            corvint.release-run/1 summary. DIR must be absent or empty; a failure leaves it as found.
+            into DIR, merge the release manifest over FILE, recheck DIR and write DIR/SHA256SUMS
+            for every archive; print the corvint.release-run/1 summary. A tag that builds corvint
+            needs --core-gate, the corvint archive gate's output at the same commit: its corvint
+            archives must equal the ones built here, and its verification-report.json is copied
+            into DIR. DIR must be absent or empty; a failure leaves it as found.
   verify    --manifest FILE [--output DIR] [--binaries FILE]
             Recheck a manifest's shape and skew rule and, with DIR, its digest file, every
             archive and NAME.SHA256SUMS of each recorded binary whose archives are present.
@@ -44,6 +47,7 @@ example:
   go run ./tools/release-binary build --binary corvint-docs --version 1.0.1 --output /tmp/rel
   go run ./tools/release-binary manifest --output /tmp/rel --base previous/release-manifest.json
   go run ./tools/release-binary release --tag corvint-docs/v1.0.1 --output /tmp/rel-docs --base previous/release-manifest.json
+  go run ./tools/release-binary release --tag core/v1.0.1 --output /tmp/rel-core --core-gate /tmp/gate/core
 
 exit status: 0 success; 2 refusal or usage error, with the reason on stderr.
 `
@@ -87,6 +91,7 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	hostOnly := flags.Bool("host-only", false, "build only the host target (local dry run)")
 	base := flags.String("base", "", "previous release-manifest.json to carry forward")
 	manifestPath := flags.String("manifest", "", "release-manifest.json to verify")
+	coreGate := flags.String("core-gate", "", "release: the corvint archive gate's output directory at the same commit")
 	var declarations skewFlags
 	flags.Var(&declarations, "declare-skew", "SET=REASON: record that this release knowingly skews SET")
 	if err := flags.Parse(rest); err != nil {
@@ -157,7 +162,7 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		if err != nil {
 			return refuse(stderr, command, err)
 		}
-		run, err := runRelease(ctx, ReleaseOptions{Root: repository, Catalog: catalog, Tag: *tag, Output: *output, Base: *base, Declarations: declarations})
+		run, err := runRelease(ctx, ReleaseOptions{Root: repository, Catalog: catalog, Tag: *tag, Output: *output, Base: *base, Declarations: declarations, CoreGate: *coreGate})
 		if err != nil {
 			return refuse(stderr, command, err)
 		}

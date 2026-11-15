@@ -103,6 +103,9 @@ type affectedCompactPlan struct {
 	// E2E is the plan's E2E selection of a repository that declares its
 	// flows (APK-V0-001, APK-V0-005).
 	E2E *affected.E2EPlan `json:"e2e,omitempty"`
+	// ChangeStatusNarrowed is the plan's units dropped by change-status
+	// narrowing (AFP-V0-11054).
+	ChangeStatusNarrowed []affected.StatusNarrowing `json:"changeStatusNarrowed,omitempty"`
 }
 
 // affectedCompactAdvice is the affected-plan/0 advice except that the
@@ -230,6 +233,8 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 			DeclaredOwners:     full.Plan.DeclaredOwners,
 			E2EOmitted:         full.Plan.E2EOmitted,
 			E2E:                full.Plan.E2E,
+
+			ChangeStatusNarrowed: full.Plan.ChangeStatusNarrowed,
 		},
 		Profile:      affectedCompactProfile,
 		Provider:     full.Provider,

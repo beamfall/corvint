@@ -830,12 +830,13 @@ release-manifest: go-version
 # release-tag runs one release tag end to end into the absent or empty RELEASE_OUT: it selects
 # the tag's binaries (vX.Y.Z, SET/vX.Y.Z or NAME/vX.Y.Z), builds each of them and no other, merges
 # the release manifest over RELEASE_BASE (optional) and rechecks the output (ARTIFACT-BIN-V0-523,
-# -524). It never tags, publishes or opens a network connection. Example:
+# -524). A tag that builds corvint also needs RELEASE_CORE_GATE=<gate output dir at the same
+# commit> (ARTIFACT-BIN-V0-525). It never tags, publishes or opens a network connection. Example:
 #   make release-tag RELEASE_TAG=corvint-docs/v1.0.1 RELEASE_OUT=/tmp/rel-docs RELEASE_BASE=prev/release-manifest.json
 .PHONY: release-tag
 release-tag: go-version
-	@test -n "$(RELEASE_TAG)" && test -n "$(RELEASE_OUT)" || { echo "release-tag: pass RELEASE_TAG=<tag> RELEASE_OUT=<dir> [RELEASE_BASE=<release-manifest.json>] [RELEASE_DECLARE_SKEW=SET=REASON]" >&2; exit 2; }
-	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary release --tag "$(RELEASE_TAG)" --output "$(RELEASE_OUT)" $(if $(RELEASE_BASE),--base "$(RELEASE_BASE)") $(if $(RELEASE_DECLARE_SKEW),--declare-skew "$(RELEASE_DECLARE_SKEW)")
+	@test -n "$(RELEASE_TAG)" && test -n "$(RELEASE_OUT)" || { echo "release-tag: pass RELEASE_TAG=<tag> RELEASE_OUT=<dir> [RELEASE_BASE=<release-manifest.json>] [RELEASE_DECLARE_SKEW=SET=REASON] [RELEASE_CORE_GATE=<gate-dir>]" >&2; exit 2; }
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary release --tag "$(RELEASE_TAG)" --output "$(RELEASE_OUT)" $(if $(RELEASE_BASE),--base "$(RELEASE_BASE)") $(if $(RELEASE_DECLARE_SKEW),--declare-skew "$(RELEASE_DECLARE_SKEW)") $(if $(RELEASE_CORE_GATE),--core-gate "$(RELEASE_CORE_GATE)")
 
 # no-python-runtime-dependency-test is the GOC-V0-008 falsifying assertion: no build, test, hook or
 # packaging path names a Python interpreter.
