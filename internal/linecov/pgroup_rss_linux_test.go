@@ -101,7 +101,54 @@ func TestRunIsolatedRSSUnderLimitKeepsResult(t *testing.T) {
 	if !errors.As(err, &exit) || exit.ExitCode() != 3 {
 		t.Fatalf("an under-limit run must keep its exit status, got %v", err)
 	}
-	if rss := groupRSS(os.Getpid()); rss != 0 && syscall.Getpgrp() != os.Getpid() {
+	if rss, _ := groupRSS(os.Getpid()); rss != 0 && syscall.Getpgrp() != os.Getpid() {
 		t.Fatalf("a pid that leads no group sampled %d bytes", rss)
+	}
+}
+
+// GLS-V0-058: a host whose procfs is absent records the limit unenforced,
+// and a procfs that becomes unreadable mid-run kills the group and returns
+// *RSSLimitError with Unmeasured set: an unmeasured run never passes as
+// bounded, and a failed sample is never read as zero bytes.
+func TestRSSWatchdogFailsClosedWithoutProcfs(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a mode-0100 directory, so procfs cannot be made unreadable")
+	}
+	saved := procRoot
+	t.Cleanup(func() { procRoot = saved })
+
+	procRoot = filepath.Join(t.TempDir(), "absent")
+	if RSSWatchdogEnforced() {
+		t.Fatal("a host without procfs must record the limit unenforced")
+	}
+
+	// Searchable but not listable: the availability probe passes, every
+	// sample's listing fails.
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "self"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "self", "stat"), []byte("1 (x) S 0 1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o100); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	procRoot = dir
+	if !RSSWatchdogEnforced() {
+		t.Fatal("a searchable procfs must pass the availability probe")
+	}
+	if _, err := groupRSS(os.Getpid()); err == nil {
+		t.Fatal("an unlistable procfs must be a sampling error, not a zero reading")
+	}
+	start := time.Now()
+	err := RunIsolatedRSS(exec.CommandContext(context.Background(), "sleep", "30"), 256<<20)
+	var over *RSSLimitError
+	if !errors.As(err, &over) || over.Unmeasured == nil || over.Observed != -1 {
+		t.Fatalf("a run whose group cannot be sampled must end in an unmeasured *RSSLimitError, got %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("the unmeasurable run took %s to stop", elapsed)
 	}
 }

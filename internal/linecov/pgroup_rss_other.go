@@ -10,6 +10,8 @@ package linecov
 // (GLS-V0-058).
 const groupRSSSupported = false
 
-func groupRSS(pgid int) int64 { return 0 }
+func groupRSSAvailable() bool { return false }
+
+func groupRSS(pgid int) (int64, error) { return 0, nil }
 
 func killGroup(pgid int) {}

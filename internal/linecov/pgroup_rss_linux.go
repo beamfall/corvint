@@ -6,6 +6,7 @@ package linecov
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strconv"
 	"syscall"
@@ -13,17 +14,33 @@ import (
 
 const groupRSSSupported = true
 
+// procRoot is where procfs is read; tests point it at an unreadable
+// directory to prove the watchdog fails closed.
+var procRoot = "/proc"
+
+// groupRSSAvailable reports whether procfs is mounted and readable here: a
+// chroot or container without it cannot measure a group, so the limit is
+// recorded unenforced rather than silently read as zero (GLS-V0-058).
+func groupRSSAvailable() bool {
+	_, err := os.Stat(procRoot + "/self/stat")
+	return err == nil
+}
+
 // groupRSS sums the resident set of every process whose process group is
 // pgid, read from /proc/PID/stat (pgrp is field 5, rss in pages field 24).
 // It needs no privileges: stat is world-readable for every process. A process
-// that exits between listing and reading is skipped.
-func groupRSS(pgid int) int64 {
-	d, err := os.Open("/proc")
+// that exits between listing and reading is skipped. A /proc that cannot be
+// opened or listed is an error, never a zero reading.
+func groupRSS(pgid int) (int64, error) {
+	d, err := os.Open(procRoot)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("open %s: %w", procRoot, err)
 	}
-	names, _ := d.Readdirnames(-1)
+	names, err := d.Readdirnames(-1)
 	d.Close()
+	if err != nil {
+		return 0, fmt.Errorf("list %s: %w", procRoot, err)
+	}
 	want := strconv.Itoa(pgid)
 	page := int64(os.Getpagesize())
 	var total int64
@@ -31,7 +48,7 @@ func groupRSS(pgid int) int64 {
 		if name[0] < '0' || name[0] > '9' {
 			continue
 		}
-		data, err := os.ReadFile("/proc/" + name + "/stat")
+		data, err := os.ReadFile(procRoot + "/" + name + "/stat")
 		if err != nil {
 			continue
 		}
@@ -49,7 +66,7 @@ func groupRSS(pgid int) int64 {
 			total += pages * page
 		}
 	}
-	return total
+	return total, nil
 }
 
 func killGroup(pgid int) { _ = syscall.Kill(-pgid, syscall.SIGKILL) }
