@@ -30,3 +30,7 @@ Each task names its requirement IDs and its proof.
    Run 2026-11-11 (`docs/build-log/2026-11-11-affstatus.md`): the baseline passes (36/43, misses
    0); the pr-39 replay is still `FALLBACK` before and after, so the proof is not met and the task
    stays open.
+   Run 2026-11-15 (`docs/build-log/2026-11-15-affstatus-measure.md`): the baseline passes (17/43,
+   floor 17, misses 0), and pr-39 raises no `UNINDEXED_SOURCE_PATH`. pr-39 is still `FALLBACK`,
+   now from the non-code map rule NCM-V1-006 (`corvint-config .corvint/documentation-paths.json`),
+   not from a plan unknown. The task stays open pending the owner's decision on the criterion.
