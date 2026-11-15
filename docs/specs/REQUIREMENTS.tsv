@@ -7620,6 +7620,8 @@ ARTIFACT-BIN-V0-521	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-52
 ARTIFACT-BIN-V0-522	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5295) The catalog's `core` version set MUST be `corvint`,	unrecorded	-
 ARTIFACT-BIN-V0-523	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236) `release-binary release --tag TAG --output DIR	unrecorded	-
 ARTIFACT-BIN-V0-524	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236) `release` MUST refuse a DIR that exists and is not	unrecorded	-
+ARTIFACT-BIN-V0-525	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5473) after the recheck, `release` MUST write	unrecorded	-
+ARTIFACT-BIN-V0-526	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5473) `release --core-gate GATE_DIR` names the output	unrecorded	-
 ARTIFACT-BIN-V0-001	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
 ARTIFACT-BIN-V0-002	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
 ARTIFACT-BIN-V0-003	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
