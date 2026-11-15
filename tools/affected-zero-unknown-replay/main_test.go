@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func replayFixture() (safetyReceipt, plan, plan, map[string]map[int]bool) {
@@ -572,7 +574,7 @@ func TestReadPlanAcceptsStaleCandidate_AZU_V0_10031(t *testing.T) {
 	dir := t.TempDir()
 	log := filepath.Join(dir, "argv.log")
 	binary := filepath.Join(dir, "planner")
-	if err := os.WriteFile(binary, []byte(`#!/bin/sh
+	if err := execfile.WriteFile(binary, []byte(`#!/bin/sh
 printf '%s\n' "$*" >> "$PLANNER_LOG"
 case "$PLANNER_MODE:$*" in
   stale:*--accept-stale-binary*|fresh:*) ;;
