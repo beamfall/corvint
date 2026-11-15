@@ -30,7 +30,16 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       one CLI exit-code test on a stale binary.
 - [ ] 2.9 No tasks tools; retire MCP binaries from `binaries.json` in their removal batch.
       Requirements: MTT-V1-006, MTT-V1-010. Proof: tool-list test and the release binaries check.
+      No-Tasks-tool half done: `TestMTTV1006CoreServerServesNoTasksTool` (`internal/mcp/cli`),
+      `TestMTTV1006DocsServerServesNoTasksTool` (`internal/mcp/docsserver`). Retirement open: it
+      needs an owner decision, because PROD-INT-006 (decision 0596), `AGENTS.md`, `docs/INSTALL.md`
+      and the `corvint-update` core set still ship `corvint-mcp` and `corvint-docs-mcp` (2026-11-15).
 - [ ] 3.1 Mark PROD-DOCS-001 DELIVERED in the plan evidence once 2.4 and 2.5 land. Requirements:
-      MTT-V1-004, MTT-V1-005. Proof: plan row read-back.
+      MTT-V1-004, MTT-V1-005. Proof: plan row read-back. Done (2026-11-15): PROD-DOCS-001 `State:
+      DELIVERED` with a `Delivered:` line, the R30 row and the state counts in
+      `docs/specs/PRODUCT-PLAN-1.0.md`; read-only session test
+      `TestMTTV1004CorvintDocsMCPLeavesTheRepositoryUnchanged`. Unticked only because 2.9 is open
+      (OSC-V1-005).
 - [ ] 3.2 Build-log entry; complete the ticket through the Tasks gate. Requirements: all. Proof:
-      `corvint-tasks ticket show` and `receipt audit`.
+      `corvint-tasks ticket show` and `receipt audit`. Build-log done:
+      `docs/build-log/2026-11-15-mcp-tool-table.md`. Open: 2.9 and the V1-5447 completion.
