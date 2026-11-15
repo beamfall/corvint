@@ -28,7 +28,7 @@ func init() {
 	if root == "" {
 		return
 	}
-	_, _, err := failingTests(root, "example.com/m", []string{"p"}, time.Minute)
+	_, _, err := failingTests(root, "example.com/m", []string{"p"}, time.Minute, 0)
 	fmt.Printf("helper-returned interrupted=%t err=%v\n", errors.Is(err, errQualifyInterrupted), err)
 	os.Exit(0)
 }

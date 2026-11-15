@@ -192,7 +192,7 @@
       "command": "linecov qualify",
       "summary": "Qualify Go selection by fault injection",
       "usage": [
-        "linecov qualify -root DIR -index INDEX -packages a,b [-suite a,b,c] [-mutants N] [-controls N] [-seed N] [-report FILE]",
+        "linecov qualify -root DIR -index INDEX -packages a,b [-suite a,b,c] [-mutants N] [-controls N] [-seed N] [-report FILE] [-max-rss 8GiB]",
         "linecov qualify -summarize -record FILE REPORT..."
       ],
       "flags": [
@@ -209,10 +209,11 @@
         "-test-timeout",
         "-exec",
         "-summarize",
-        "-record"
+        "-record",
+        "-max-rss"
       ],
       "required": [],
-      "example": "linecov qualify -root DIR -index INDEX -packages a,b [-suite a,b,c] [-mutants N] [-controls N] [-seed N] [-report FILE]",
+      "example": "linecov qualify -root DIR -index INDEX -packages a,b [-suite a,b,c] [-mutants N] [-controls N] [-seed N] [-report FILE] [-max-rss 8GiB]",
       "help": "linecov qualify --help"
     },
     {
