@@ -5,7 +5,7 @@
 # (newest first, one per line; exhausted=1 when the listing read every artifact;
 # format json prints one object for the AFP-V0-097 verdict instead of markdown).
 # A row counts once per (pull request, commit): a re-run row of the same pair
-# replaces the older one. An INFRA row (AFP-V0-052, a hosted set-up failure) is
+# replaces the older one, except that a MISS row is never replaced (CIN-V0-7921, V1-5392). An INFRA row (AFP-V0-052, a hosted set-up failure) is
 # neither complete nor INCOMPLETE and is reported on its own.
 # Two separate counts (owner, 2026-10-20; V1-0812): the AFP-V0-029 bar counts
 # every row of the epoch, the AFP-V0-030 kill switch only its latest 20 rows,
@@ -61,9 +61,13 @@ def counts($rows):
 | ([$parsed[] | select(.epoch == $epoch and .class == "NARROWED")] | length) as $narrowed
 | (($ARGS.named.exhausted // "") == "1"
    or any($parsed[]; (.epoch | tonumber) < ($epoch | tonumber))) as $covered
+# CIN-V0-7921 (V1-5392): a MISS row is never replaced. A newer re-run row of the pair keeps
+# the pair's place, newest first, but an older MISS row of the pair takes its class and name.
 | (reduce $all[] as $r ({seen: {}, rows: []};
     ($r.pr + "-" + $r.sha) as $k
-    | if .seen[$k] then . else .seen[$k] = true | .rows += [$r] end) | .rows) as $unique
+    | if .seen[$k] == null then .seen[$k] = (.rows | length) | .rows += [$r]
+      elif $r.class == "MISS" and .rows[.seen[$k]].class != "MISS" then .rows[.seen[$k]] = $r
+      else . end) | .rows) as $unique
 | (reduce $unique[] as $r ({rows: [], infra: 0};
     if (.rows | length) >= 20 then . elif $r.class == "INFRA" then .infra += 1 else .rows += [$r] end)) as $window
 | counts($unique) as $e
