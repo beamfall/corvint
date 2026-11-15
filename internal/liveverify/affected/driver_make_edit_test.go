@@ -154,6 +154,34 @@ nested:
 	$(MAKE) -C sub x
 `
 
+// TestAttributeMakeEditEscapedDollarIsNotComputed_NCMV1012 pins that make's
+// escaped dollar is not a reference (V1-5159): a file whose recipe or value
+// holds shell substitution or arithmetic (`$$(date +%s)`, `$$(( a - b ))`,
+// `$${secs}`) still attributes a changed variable, while a real computed
+// reference after an escaped dollar (`$$$($(NAME))`) still runs everything.
+// Before the fix the batch range 16ba0021a..7a0c1e26a ran everything because
+// the Makefile's `closeout_step` held `$$(( $$(date +%s) - t0 ))`.
+func TestAttributeMakeEditEscapedDollarIsNotComputed_NCMV1012(t *testing.T) {
+	const shellText = "timed:\n\tt0=$$(date +%s); secs=$$(( $$(date +%s) - t0 )); echo \"$${secs}s\"\n" +
+		"step = t0=$$(date +%s); $(1) || rc=$$?; echo $$(( $$(date +%s) - t0 ))\n" +
+		"stepped:\n\t$(call step,true)\n"
+	base := makeEditBase + shellText
+	head := strings.Replace(makeEditBase, "TOOL ?= go", "TOOL ?= go1.27", 1) + shellText
+	edit := AttributeMakeEdit("Makefile", []byte(base), []byte(head))
+	if edit.Reason != "" {
+		t.Fatalf("escaped dollars read as a computed reference: %s", edit.Reason)
+	}
+	if want := []string{"check", "vet"}; !slices.Equal(edit.Targets, want) {
+		t.Fatalf("targets %v, want %v", edit.Targets, want)
+	}
+	for _, computed := range []string{"x:\n\techo $$$($(NAME))\n", "x:\n\techo $$$$ $(A_$(B))\n"} {
+		edit := AttributeMakeEdit("Makefile", []byte(base+computed), []byte(head+computed))
+		if !strings.Contains(edit.Reason, "computed reference") {
+			t.Fatalf("%q: reason %q, want a computed reference", computed, edit.Reason)
+		}
+	}
+}
+
 // TestReachMakeTargets_NCMV1013 pins what a changed target can run: its own
 // recipe's paths and its prerequisites' (all reaches check's tool), a
 // target whose followed commands read what the graph does not bound (an
