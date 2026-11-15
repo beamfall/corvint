@@ -21,6 +21,11 @@ type ReleaseRun struct {
 	Binaries       []string `json:"binaries"`
 	ManifestSHA256 string   `json:"manifestSha256"`
 	Rechecked      []string `json:"rechecked"`
+	// ChecksumsSHA256 is the digest of DIR/SHA256SUMS (ARTIFACT-BIN-V0-525).
+	ChecksumsSHA256 string `json:"checksumsSha256"`
+	// CoreGateReportSHA256 is the digest of the gate report copied into DIR, when the tag
+	// built corvint (ARTIFACT-BIN-V0-526).
+	CoreGateReportSHA256 string `json:"coreGateReportSha256,omitempty"`
 }
 
 // ReleaseOptions are the inputs of one tag's release run.
@@ -31,19 +36,38 @@ type ReleaseOptions struct {
 	Output       string
 	Base         string
 	Declarations []SkewDeclaration
+	// CoreGate is the corvint archive gate's output directory; required exactly when the tag
+	// builds corvint (ARTIFACT-BIN-V0-526).
+	CoreGate string
 }
 
 // runRelease turns one tag into a verified output directory: it selects the tag's binaries,
 // builds each of them and nothing else, merges their entries into the release manifest and
-// rechecks the directory. DIR must be absent or empty, so the manifest merges only this run's
-// entries, and any failure leaves DIR as the run found it (ARTIFACT-BIN-V0-523, -524).
+// rechecks the directory, then binds the corvint archives to the gate report and writes the
+// release's one SHA256SUMS. DIR must be absent or empty, so the manifest merges only this run's
+// entries, and any failure leaves DIR as the run found it (ARTIFACT-BIN-V0-523..526).
 func runRelease(ctx context.Context, options ReleaseOptions) (run ReleaseRun, err error) {
 	selection, err := selectTag(options.Catalog, options.Tag)
 	if err != nil {
 		return ReleaseRun{}, err
 	}
+	if err := checkCoreGateUse(selection, options.CoreGate); err != nil {
+		return ReleaseRun{}, err
+	}
 	if err := refuseOutputInsideRepository(options.Root, options.Output); err != nil {
 		return ReleaseRun{}, err
+	}
+	var gate *coreGate
+	if options.CoreGate != "" {
+		commit, _, err := cleanHead(ctx, options.Root)
+		if err != nil {
+			return ReleaseRun{}, err
+		}
+		loaded, err := loadCoreGate(options.CoreGate, commit)
+		if err != nil {
+			return ReleaseRun{}, err
+		}
+		gate = &loaded
 	}
 	created, err := claimEmptyOutput(options.Output)
 	if err != nil {
@@ -70,6 +94,11 @@ func runRelease(ctx context.Context, options ReleaseOptions) (run ReleaseRun, er
 		for _, archive := range entry.Archives {
 			written = append(written, archive.Name)
 		}
+		if gate != nil && name == coreGateBinary {
+			if err = gate.bind(entry); err != nil {
+				return ReleaseRun{}, err
+			}
+		}
 	}
 	manifest, err := runManifest(options.Catalog, options.Root, options.Output, options.Base, options.Declarations)
 	if err != nil {
@@ -84,7 +113,28 @@ func runRelease(ctx context.Context, options ReleaseOptions) (run ReleaseRun, er
 	if err != nil {
 		return ReleaseRun{}, err
 	}
-	return ReleaseRun{Schema: releaseRunSchema, Tag: selection.Tag, Scope: selection.Scope, Version: selection.Version, Binaries: selection.Binaries, ManifestSHA256: digestOf(raw), Rechecked: rechecked}, nil
+	run = ReleaseRun{Schema: releaseRunSchema, Tag: selection.Tag, Scope: selection.Scope, Version: selection.Version, Binaries: selection.Binaries, ManifestSHA256: digestOf(raw), Rechecked: rechecked}
+	files := &outputs{directory: options.Output}
+	if gate != nil {
+		if err = files.reserve(coreGateReportName); err != nil {
+			return ReleaseRun{}, err
+		}
+		if err = files.write(coreGateReportName, gate.raw, 0o644); err != nil {
+			return ReleaseRun{}, err
+		}
+		written = append(written, coreGateReportName)
+		run.CoreGateReportSHA256 = digestOf(gate.raw)
+	}
+	checksums := releaseChecksums(manifest, options.Output)
+	if err = files.reserve(releaseChecksumsName); err != nil {
+		return ReleaseRun{}, err
+	}
+	if err = files.write(releaseChecksumsName, checksums, 0o644); err != nil {
+		return ReleaseRun{}, err
+	}
+	written = append(written, releaseChecksumsName)
+	run.ChecksumsSHA256 = digestOf(checksums)
+	return run, nil
 }
 
 // claimEmptyOutput requires DIR to be absent or an empty directory and reports whether this run
