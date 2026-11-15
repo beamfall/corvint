@@ -424,6 +424,29 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   records the package as failed with the interruption and exits 1, and a mutant or control
   returns the interruption as the run's error rather than counting the mutant `invalid` and taking
   the next site. The checkout is reset to the index commit as on any other exit.
+- `GLS-V0-058`: (proposed 2026-11-15, experimental; V1-5336) Every `go test` run of
+  `linecov qualify`, the baseline and each mutant's suite package, MUST run in its own process
+  group (`GLS-V0-056`) under a resident-memory watchdog. The watchdog samples the summed resident
+  set of every process in that group: the `go` command, the compiler and linker, the test binary
+  and anything those start. On Linux it reads `/proc/PID/stat` every 50 ms, which needs no
+  privileges and no systemd. When the sum passes the `-max-rss` bound it kills the whole group with
+  SIGKILL. `-max-rss` takes a positive byte count with an optional `KiB`, `MiB` or `GiB` suffix and
+  defaults to `8GiB`; zero or a negative value is refused. Outside Linux no portable, unprivileged
+  group measurement exists, so the watchdog is off and the run's `go test -timeout` deadline is
+  the only bound. qualify then prints that the limit is unenforced. Each report records the bound
+  as `maxRSSBytes` and whether it was enforced as `maxRSSEnforced`. Failure mode: a mutant that
+  allocates without bound, such as a loop mutant that never advances a lexer, grows a test binary
+  until the kernel OOM-kills it. V1-5336 observed 22 GB of anonymous RSS, after which systemd
+  stopped every process in the lane's scope (rc=143). Rollback: revert `failingTests` to
+  `linecov.RunIsolated` and delete `internal/linecov/pgroup_rss_*.go` and the flag. That brings the
+  failure mode back and needs the requalification described under Acceptance evidence.
+- `GLS-V0-059`: (proposed 2026-11-15, experimental; V1-5336) A run the watchdog killed is not a
+  result. `failingTests` reads none of that run's output and returns `rss-limit-exceeded`, naming
+  the package, the limit and the observed size. A mutant or control whose suite run was killed is
+  `invalid` with that text as its `detail`. It is never `survived`, never `killed` and never a
+  crash of `linecov qualify`, which goes on to the next site. A killed baseline run fails the
+  baseline (`GLS-V0-031`). Only the run's own group is killed: `linecov qualify` and any process
+  outside that group, such as a sibling in the caller's group, keep running.
 
 ### CI (V1-4366)
 
@@ -517,9 +540,9 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
 
 ### Environment completeness and qualification timeouts (V1-4514)
 
-IDs `GLS-V0-051..060` are reserved for this block; `GLS-V0-056` and `GLS-V0-057` are the
-`linecov qualify` process-group requirements above (V1-5331), and `GLS-V0-055` and
-`GLS-V0-058..060` are unused.
+IDs `GLS-V0-051..060` are reserved for this block. `GLS-V0-056` and `GLS-V0-057` are the
+`linecov qualify` process-group requirements above (V1-5331). `GLS-V0-058` and `GLS-V0-059` are
+its memory watchdog (V1-5336). `GLS-V0-055` and `GLS-V0-060` are unused.
 
 - `GLS-V0-051`: (proposed 2026-11-11; V1-4514; delivery experimental) Reading the runner identity
   also refuses the settings that the go command, its compiler, cgo or linker read straight from
@@ -649,6 +672,7 @@ objects and the head test files; it writes nothing.
 | Mutant kills a test the selector did not keep | miss; qualification fails (`GLS-V0-031`) |
 | Mutant or baseline test signals its own process group | only that run's group receives it; the package has no result, the mutant is `invalid` or the baseline fails, and the caller survives (`GLS-V0-056`) |
 | SIGINT or SIGTERM to `linecov qualify` during a run | the run's group is killed and qualify stops with an error; no mutant is counted for it (`GLS-V0-057`) |
+| A mutant or baseline run's process group passes `-max-rss` (default 8 GiB) | on Linux the watchdog kills the whole group; the mutant is `invalid` with `rss-limit-exceeded` naming the limit, or the baseline fails, and qualify and processes outside the group survive (`GLS-V0-058`, `GLS-V0-059`); outside Linux, or on Linux without a readable procfs, the limit is recorded unenforced and the test deadline bounds the run; a sample that fails mid-run kills the group as `rss-unmeasurable`, never read as zero |
 | Main full run fails a test a narrowed run left out | suspected miss; confirmed miss kills exclusion (`GLS-V0-046`, `GLS-V0-047`) |
 | Any CI step error | the shard's lists are unchanged (`GLS-V0-043`) |
 
@@ -685,6 +709,9 @@ regenerating again.
 record must be regenerated before exclusion is admitted again (`GLS-V0-034`); until then every
 plan stays SHADOW, which is the fail-closed state. Rolling them back is a revert of
 `failingTests` to a direct `exec.Command` run, and needs the same requalification.
+`GLS-V0-058` and `GLS-V0-059` change the same qualified source and add
+`internal/linecov/pgroup_rss_linux.go` and `pgroup_rss_other.go` to the qualified sources. They
+need the same regeneration, and until then plans stay SHADOW in the same fail-closed way.
 
 ## Traceability
 
@@ -700,6 +727,7 @@ plan stays SHADOW, which is the fail-closed state. Rolling them back is a revert
 | GLS-V0-030..034 | `tools/linecov/qualify.go` | `TestQualifyFixtureHasNoMiss`, `TestQualifyReportsASeededMiss`, `TestSummarizeAndQualified`, `TestWorkflowQualifiedInvocationMatchesWrapperRecord`; `.github/linecov/qualification.json`; build log |
 | GLS-V0-035 | `tools/linecov/qualify.go` (unchanged) over the fixture in `tools/linecov/qualify_crosspkg_test.go` | `TestQualifyCrossPackageFixtureHasNoMiss` (every site of lib, each kind valid, zero misses, a lib mutant killed only by `app.TestReport`, the control keeps none), `TestQualifyReportsACrossPackageSeededMiss` (the seeded index fails qualify naming `app.TestReport`); build log `2026-11-11-selection-baseline-profile.md` |
 | GLS-V0-056, GLS-V0-057 | `tools/linecov/qualify.go` (`failingTests`), `internal/linecov/pgroup*.go` (`RunIsolated`) | `TestQualifyRunCannotSignalCaller`, `TestQualifyInterruptKillsRunGroup`; build log `2026-11-11-linecov-qualify-pgroup.md` |
+| GLS-V0-058, GLS-V0-059 | `tools/linecov/qualify.go` (`failingTests`, `-max-rss`), `internal/linecov/pgroup.go` (`RunIsolatedRSS`), `internal/linecov/pgroup_rss_linux.go`, `pgroup_rss_other.go` | `TestRunIsolatedRSSKillsGroupOverLimit`, `TestRunIsolatedRSSUnderLimitKeepsResult`, `TestRSSWatchdogEnforcedOnlyOnLinux`, `TestRSSWatchdogFailsClosedWithoutProcfs`, `TestQualifyRunOverRSSLimitIsInvalid`, `TestMaxRSSFlag`; build log `2026-11-15-linecov-qualify-rss-watchdog.md` |
 | GLS-V0-040..047 | `.github/workflows/ci.yml`, `linecov-index.yml`, `linecov-miss.yml`, `tools/linecov` | `TestCISelectionRewritesWholePackages`, `TestCINarrowsWholePackages`, `TestMissFindsExcludedFailures`, `TestLinecovPackageMissConfirmation`, `TestLinecovMissConfirmationReproducesRecordedRunner`, `TestLinecovKillSurvivesArtifactExpiry`, `TestLinecovKillMarkerWriter`, `TestAFPV0170RecordNeedsEveryShardFullUnderAnyVerdict`; workflow YAML and shell syntax checks |
 | GLS-V0-050 | build log | `2026-11-03-gls-line-selection.md`, `2026-11-06-lineidx-enable.md` |
 | GLS-V0-051, GLS-V0-052 | `internal/linecov/runner.go` | `TestRunnerIDRefusesUnreportedToolchainEnvironment`, `TestRunnerIDBindsRuntimeReadEnvironment`, `TestAffectedLineFCOrCIChangeKeepsStaticPlan` |

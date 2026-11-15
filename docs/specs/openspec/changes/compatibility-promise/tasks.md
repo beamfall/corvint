@@ -29,4 +29,5 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       `TestCMPV1002HandEditedPage`, `TestCMPV1003UnlistedSurface`.
 - [ ] 3.1 Build-log entry `docs/build-log/YYYY-MM-DD-compatibility-promise.md`; complete the
       ticket through the Tasks gate. Requirements: all. Proof: `corvint-tasks ticket show` and
-      `receipt audit`.
+      `receipt audit`. Build-log done: `docs/build-log/2026-11-11-compatibility-promise.md`. Unticked:
+      the V1-5434 completion is NOT_OBSERVED from a worktree with no Tasks journal (2026-11-15).

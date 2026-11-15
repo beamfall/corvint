@@ -28,6 +28,10 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       output.
 - [ ] 2.5 File the ticket for a CI step that runs the range form on pull requests (`.github`, its
       own PR), and add one paragraph on the two rules to `docs/SPEC-DRIVEN-DEVELOPMENT.md`.
-      Requirements: TTG-V0-962. Proof: the ticket ID and the diff.
+      Requirements: TTG-V0-962. Proof: the ticket ID and the diff. Paragraph done: the range-form
+      rules paragraph in `docs/SPEC-DRIVEN-DEVELOPMENT.md` (commits a3694dbd3, 2e9805ce6). Unticked:
+      no ticket for the CI step is in the committed `.taskman/` (2026-11-15).
 - [ ] 3.1 Build-log entry; complete V1-4803 through the Tasks gate. Requirements: all. Proof:
-      `corvint-tasks ticket show` and `receipt audit`.
+      `corvint-tasks ticket show` and `receipt audit`. Build-log done:
+      `docs/build-log/2026-11-11-traceability-gate-upgrade.md`. Unticked: 2.5 is open (OSC-V1-005)
+      and the V1-4803 completion is NOT_OBSERVED (2026-11-15).
