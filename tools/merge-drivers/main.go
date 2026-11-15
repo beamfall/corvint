@@ -17,8 +17,11 @@ const usage = `usage: merge-drivers append-union|json-union BASE OURS THEIRS [MA
 
 Git merge drivers (DWC-V0-7700..7703). Required inputs are Git's %O %A %B;
 MARKER_SIZE defaults to 7. Writes only OURS. Exit 0: resolved; 1: conflict;
-2: invalid invocation or I/O failure. keep-ours defers generated projections
-to make spec-requirements; spec-requirements-check still rejects stale output.
+2: invalid invocation or I/O failure. On a json-union conflict OURS becomes
+the merge with conflict markers at each competing key (or around the whole
+inputs when one cannot be parsed), never ours alone (ASD-V0-3792). keep-ours
+defers generated projections to make spec-requirements;
+spec-requirements-check still rejects stale output.
 
 Example: go run ./tools/merge-drivers append-union base.md ours.md theirs.md 7
 Install locally: make merge-drivers
@@ -63,7 +66,15 @@ func run(args []string, stderr io.Writer) int {
 	} else {
 		result, err = mergedrivers.JSON(data[0], data[1], data[2])
 		if err != nil {
+			// ASD-V0-3792: Git keeps whatever OURS holds, so a refusal must leave a
+			// file that no registry reader accepts and `git add` cannot pass off as
+			// resolved, never ours alone, which would drop the other side's entries.
 			fmt.Fprintln(stderr, err)
+			if err := os.WriteFile(args[2], mergedrivers.JSONConflict(data[0], data[1], data[2], size), 0o600); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 2
+			}
+			fmt.Fprintln(stderr, "fix: edit the conflict-marked registry to keep the intended entry for each marked key (often both sides' entries in one value), remove the markers, check it with the registry's check (make test-read-scopes-check for .corvint/test-read-scopes.json), then git add it")
 			return 1
 		}
 	}
