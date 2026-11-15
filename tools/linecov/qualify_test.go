@@ -352,3 +352,23 @@ func TestQualifyRefusesFailingBaseline(t *testing.T) {
 		t.Fatalf("baseline was promoted: %+v", r)
 	}
 }
+
+// GLS-V0-058: -max-rss takes a positive byte count with an optional binary
+// suffix and defaults to 8 GiB.
+func TestMaxRSSFlag(t *testing.T) {
+	if defaultMaxRSS != 8<<30 {
+		t.Fatalf("default -max-rss is %d", defaultMaxRSS)
+	}
+	for in, want := range map[string]int64{"256MiB": 256 << 20, "8GiB": 8 << 30, "4096": 4096, "64KiB": 64 << 10} {
+		var b byteSize
+		if err := b.Set(in); err != nil || int64(b) != want {
+			t.Errorf("Set(%q) = %d, %v; want %d", in, b, err, want)
+		}
+	}
+	for _, in := range []string{"", "0", "-1", "1GB", "x", "9999999999GiB"} {
+		var b byteSize
+		if err := b.Set(in); err == nil {
+			t.Errorf("Set(%q) accepted %d", in, b)
+		}
+	}
+}

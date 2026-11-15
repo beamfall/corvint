@@ -633,6 +633,10 @@ The rule is enforced by `script/lane-guard.sh` (ASD-V0-024, V1-1953), a PreToolU
 operator installs in Claude Code settings with `LANE_GUARD_ROOTS=<lanes-root>` (and, once lanes use
 the repository semaphore, `LANE_GUARD_HEAVY=script/heavy.sh`, the default). It denies polling loops and `go test`
 without `heavy.sh`, and ignores heredoc bodies, so writing a file that contains a loop is allowed.
+The `go test` rule applies only where a wrapper exists for the cwd: `script/heavy.sh` in the cwd or an
+ancestor up to the checkout root, or an absolute `LANE_GUARD_HEAVY` for cwds inside its own checkout.
+A machine-wide install therefore leaves other repositories' `go test` alone, and the deny names the
+wrapper by absolute path (V1-5565).
 For a subagent (the hook input has an `agent_id`; install it for `Bash|Monitor`) it also denies
 background work: `run_in_background`, `Monitor`, `nohup`/`setsid`/`disown` and a shell-level `&`,
 while `&&`, redirections such as `2>&1` and `&>`, `|&`, quoted strings, comments and heredoc
