@@ -238,6 +238,25 @@ measure. None of them drops a unit the change can reach.
   The graph cache MUST store name-listing reads, and its version MUST change with this field.
   A cache written under an older version MUST be rebuilt and MUST NOT be read as holding no
   name-listing reads. Change status MUST NOT be cached.
+- **AFP-V0-11054:** (proposed 2026-11-15; delivery experimental; V1-5367; reports AFP-V0-9962
+  and AFP-V0-9963) A plan that change status narrowed MUST say so. The plan member
+  `changeStatusNarrowed` MUST list, sorted by unit ID, each unit that the same plan with every
+  status read as `unknown` selects and this plan does not select. Each entry carries `unitId`;
+  `gate`, the requirement whose rule dropped it (`AFP-V0-9962` for a unit whose own
+  name-listing read was narrowed, `AFP-V0-9963` for a name-only walker, the rule of the first
+  such unit on its unknown-status witness chain otherwise, and `AFP-V0-9960` when no unit on
+  that chain is either); `via`, that chain unit when it is not the unit itself; `paths`, the
+  dirty paths that would otherwise have selected it, each with its `status` (`added`,
+  `deleted`, `type-changed`, `modified` or `unknown`), sorted by path and at most 16 of them;
+  and `pathCount`, the number of such paths. For `AFP-V0-9962` those paths are the dirty paths a
+  name-listing token names and no other token of the unit names; for `AFP-V0-9963` and
+  `AFP-V0-9960` they are every dirty path. The member is reporting only: it never changes
+  `selected`, `scope`, `unknown`, the provider, advice or the exit status. It is omitted when no
+  unit was dropped, so a plan with no status, or with no unit holding a name-listing read or a
+  name-only walk, is byte-identical to the plan before this member and is planned once. The
+  full (`affected-plan/0`) and compact (`affected-plan/1`) plans both carry it, as an optional
+  member under CCF-V1-006 (no profile change), and `--format text` prints one
+  `status-narrowed UNIT gate GATE [via UNIT] paths N PATH:STATUS...` line per entry.
 - **AFP-V0-9990:** (proposed 2026-11-11; delivery experimental; V1-5191, V1-5193, V1-5194)
   The shell plugin MUST record three walk facts for every unit, test or helper. Walk
   directories are the literal directories its own commands list or walk: a path operand of a
@@ -4070,6 +4089,11 @@ group and a command substitution) and `TestNameListingContentDecides_AFPV09961`.
 AFP-V0-9962: `TestNameListingSelection_AFPV09962`. AFP-V0-9963:
 `TestNameOnlyTreeWalker_AFPV09963`. AFP-V0-9964: `TestGraphCacheNameListings_AFPV09964`. The
 mutation evidence and measurements are in `docs/build-log/2026-11-11-affstatus.md`.
+AFP-V0-11054: `TestChangeStatusNarrowedRecord_AFPV011054` in `internal/liveverify/affected`
+(an edit below a listed directory records the lister under AFP-V0-9962 and the name-only walker
+under AFP-V0-9963 and selects neither; an addition, an unknown status and a content read record
+nothing) and `TestAffectedChangeStatusCLI_AFPV09960`, which reads the record from the compact
+JSON and the text form. The entry is `docs/build-log/2026-11-15-sel1115.md`.
 AFP-V0-9990: `TestShellWalkFacts_AFPV09990` (one row per walker, opacity reason and control)
 and `TestShellWalkFactsTempRoot_AFPV09990`. AFP-V0-9991: `TestShellWalkOperandFragments_AFPV09991`
 and `TestBareOperandListerAcceptance_V15193`. AFP-V0-9992: `TestDeletedShellScriptAdmission_AFPV09992`
