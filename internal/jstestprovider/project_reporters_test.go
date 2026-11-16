@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,7 +38,7 @@ func keptFixture(t *testing.T) Receipt {
 // replace-only template; keep mode is opt-in.
 func TestExternalCommandDefaultConfigUnchanged(t *testing.T) {
 	scratch := t.TempDir()
-	cfg := E2EConfig{Config: Config{ConfigFile: hostAbs("/repo/playwright.config.cjs")}}
+	cfg := E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{ConfigFile: hostAbs("/repo/playwright.config.cjs")}}
 	config, _, reportPath, err := externalCommand(cfg, scratch)
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +102,7 @@ func TestKeptReporterListResolution(t *testing.T) {
 			configFile := filepath.Join(project, name+".config.cjs")
 			write(configFile, "module.exports = {reporter: "+test.reporter+"};\n")
 			scratch := t.TempDir()
-			config, _, reportPath, err := externalCommand(E2EConfig{Config: Config{ConfigFile: configFile}, KeepReporters: true}, scratch)
+			config, _, reportPath, err := externalCommand(E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{ConfigFile: configFile}, KeepReporters: true}, scratch)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -162,7 +163,7 @@ func TestKeptProjectReporterRunsBesideProvider(t *testing.T) {
 		scratch := t.TempDir()
 		evidence := filepath.Join(root, "evidence.json")
 		_ = os.Remove(evidence)
-		config, _, reportPath, err := externalCommand(E2EConfig{Config: Config{ConfigFile: filepath.Join(root, "playwright.config.cjs")}, KeepReporters: keep}, scratch)
+		config, _, reportPath, err := externalCommand(E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{ConfigFile: filepath.Join(root, "playwright.config.cjs")}, KeepReporters: keep}, scratch)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -301,7 +302,7 @@ func TestProjectReportersBindingShape(t *testing.T) {
 // PWP-V0-013: keep mode is refused outside the external profiles, including
 // the direct freshness entry point, before any process starts.
 func TestKeepReportersUnsupportedMode(t *testing.T) {
-	if _, err := RunFreshE2E(context.Background(), E2EConfig{KeepReporters: true, Freshness: &FreshnessConfig{}}); err == nil || err.Error() != "keep-reporters-unsupported-mode" {
+	if _, err := RunFreshE2E(context.Background(), E2EConfig{LoopbackGet: loopbackhttp.Get, KeepReporters: true, Freshness: &FreshnessConfig{}}); err == nil || err.Error() != "keep-reporters-unsupported-mode" {
 		t.Fatalf("direct freshness run: %v", err)
 	}
 	for name, cfg := range map[string]E2EConfig{

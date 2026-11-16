@@ -16,9 +16,9 @@ func TestRegistersDeclaredDialects_LGPV0025(t *testing.T) {
 		var ok bool
 		switch d.Kind {
 		case decl.ImpactDialect:
-			_, ok = dialect.LookupImpact(d.Name)
+			_, ok = dialect.NewRegistry(Hooks()).LookupImpact(d.Name)
 		case decl.RegionDialect:
-			_, ok = dialect.LookupRegion(d.Name)
+			_, ok = dialect.NewRegistry(Hooks()).LookupRegion(d.Name)
 		default:
 			continue
 		}

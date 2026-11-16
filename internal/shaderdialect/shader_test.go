@@ -79,7 +79,7 @@ func TestRSPV0005NormalizationAndIncludes(t *testing.T) {
 	if s.Reason != "" || !reflect.DeepEqual(s.Includes, []Include{{Name: "lib/common.h", Angled: true}}) {
 		t.Fatalf("%+v", s)
 	}
-	hook, ok := dialect.LookupRegion("shader")
+	hook, ok := dialect.NewRegistry(Hooks()).LookupRegion("shader")
 	if !ok || hook.Normalize == nil || hook.Symbols == nil {
 		t.Fatal("dialect unregistered")
 	}

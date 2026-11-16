@@ -7,14 +7,6 @@ import (
 	"github.com/Beamfall/corvint/internal/shaderdialect"
 )
 
-// The shader plugin registers its region hooks on link. Its extractor keeps
-// unsupported syntax explicit in the existing extraction-note shape.
-func init() {
-	for _, suffix := range []string{".metal", ".hlsl", ".glsl"} {
-		symbolExtractors[suffix] = shaderSymbols
-	}
-}
-
 func shaderSymbols(source Source, text string) ([]Symbol, []ExtractionNote) {
 	extraction := shaderdialect.Symbols(text, maxSourceLines, maxSymbolsPerSource)
 	reason := ""

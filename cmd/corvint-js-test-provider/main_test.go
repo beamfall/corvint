@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -109,7 +110,7 @@ func TestQualifyKeepReportersRunOrderAndNotRun(t *testing.T) {
 				return jstestprovider.Receipt{}, errors.New("project-reporters-invalid")
 			}
 			var stdout, stderr bytes.Buffer
-			err := qualifyKeepReporters(context.Background(), jstestprovider.E2EConfig{ExternalServer: true, KeepReporters: true}, &stdout, &stderr, "")
+			err := qualifyKeepReporters(context.Background(), jstestprovider.E2EConfig{LoopbackGet: loopbackhttp.Get, ExternalServer: true, KeepReporters: true}, &stdout, &stderr, "")
 			if !errors.Is(err, errNotQualified) || fmt.Sprint(modes) != fmt.Sprint(test.modes) {
 				t.Fatalf("err=%v modes=%v", err, modes)
 			}
@@ -458,7 +459,7 @@ func TestPWPV0038E2ERefusalExitStatusAndStderrLine(t *testing.T) {
 // the refusal; no watch status line precedes it.
 func TestPWPV0038WatchRefusalWritesNoStatusLine(t *testing.T) {
 	dir := t.TempDir()
-	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: dir, ConfigFile: filepath.Join(dir, "playwright.config.cjs"), RunnerVersion: "1.62.0", TestFiles: []string{filepath.Join(dir, "a.spec.cjs")}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:1"}
+	cfg := jstestprovider.E2EConfig{LoopbackGet: loopbackhttp.Get, Config: jstestprovider.Config{Dir: dir, ConfigFile: filepath.Join(dir, "playwright.config.cjs"), RunnerVersion: "1.62.0", TestFiles: []string{filepath.Join(dir, "a.spec.cjs")}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:1"}
 	var stdout, stderr strings.Builder
 	err := runE2EWatch(context.Background(), cfg, true, &watchOptions{paths: []string{"a.spec.cjs"}}, &stdout, &stderr)
 	var refusal *jstestprovider.E2ERefusal

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"io"
 	"net/http"
 	"os"
@@ -189,7 +190,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 			expectation := ApplicationAttestationExpectation{Repository: ApplicationRepositoryExpectation{RootCommit: repo.RootCommit, Revision: repo.Revision, Tree: repo.Tree, DirtyPolicy: "require-clean"}, Build: ApplicationArtifactIdentity{Kind: "source", Digest: "sha256:" + digest(filepath.Join(root, "app.html"))}, Configuration: ApplicationArtifactIdentity{Kind: "source", Digest: "sha256:" + digest(filepath.Join(root, "playwright.config.cjs"))}, InstanceKind: "process"}
 			attestationConfig := filepath.Join(out, "attestation.json")
 			writeCanonicalFixture(t, attestationConfig, jstestreceipt.ApplicationAttestationConfig{Profile: jstestreceipt.ApplicationAttestationConfigProfile, Expectation: expectation})
-			cfg := E2EConfig{Config: Config{Dir: root, TestFiles: []string{filepath.Join(root, "counter.spec.cjs")}, ConfigFile: filepath.Join(root, "playwright.config.cjs"), PackageJSON: filepath.Join(root, "package.json"), Lockfile: filepath.Join(root, "package-lock.json"), RunnerName: "playwright", RunnerVersion: runnerVersion, DeclaredEnvKeys: []string{"PATH", "LANG", "LC_ALL", "TMPDIR"}, Timeout: 30 * time.Second}, ServerArgv: []string{node, filepath.Join(root, "server.cjs")}, ServerReadyURL: "http://127.0.0.1:4394/", TestArgv: []string{"--workers=1", "--retries=0", "--forbid-only"}, ApplicationAttestation: &ApplicationAttestationProvider{Argv: []string{os.Args[0], "-test.run=^TestPTFV0AttestationHelper$"}, ConfigFile: attestationConfig}, Freshness: &FreshnessConfig{ProductDir: root, ProductExpected: *repo, TestExpected: *repo, ArtifactPath: "app.html", SourceDigest: strings.TrimPrefix(expectation.Build.Digest, "sha256:"), DocumentURL: "http://127.0.0.1:4394/", Runner: command(node, filepath.Join(fixtureModules, "playwright", "cli.js")), Server: command(node, filepath.Join(root, "server.cjs")), Observer: command(node, filepath.Join(root, "observer.cjs"), "fresh"), ObserverConfigFile: observerConfig, ObserverConfigDigest: digest(observerConfig)}}
+			cfg := E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{Dir: root, TestFiles: []string{filepath.Join(root, "counter.spec.cjs")}, ConfigFile: filepath.Join(root, "playwright.config.cjs"), PackageJSON: filepath.Join(root, "package.json"), Lockfile: filepath.Join(root, "package-lock.json"), RunnerName: "playwright", RunnerVersion: runnerVersion, DeclaredEnvKeys: []string{"PATH", "LANG", "LC_ALL", "TMPDIR"}, Timeout: 30 * time.Second}, ServerArgv: []string{node, filepath.Join(root, "server.cjs")}, ServerReadyURL: "http://127.0.0.1:4394/", TestArgv: []string{"--workers=1", "--retries=0", "--forbid-only"}, ApplicationAttestation: &ApplicationAttestationProvider{Argv: []string{os.Args[0], "-test.run=^TestPTFV0AttestationHelper$"}, ConfigFile: attestationConfig}, Freshness: &FreshnessConfig{ProductDir: root, ProductExpected: *repo, TestExpected: *repo, ArtifactPath: "app.html", SourceDigest: strings.TrimPrefix(expectation.Build.Digest, "sha256:"), DocumentURL: "http://127.0.0.1:4394/", Runner: command(node, filepath.Join(fixtureModules, "playwright", "cli.js")), Server: command(node, filepath.Join(root, "server.cjs")), Observer: command(node, filepath.Join(root, "observer.cjs"), "fresh"), ObserverConfigFile: observerConfig, ObserverConfigDigest: digest(observerConfig)}}
 			cfg.Freshness.Dependencies = freshLiveDependencies(t, fixtureModules, []string{filepath.Join(root, "app.html"), filepath.Join(root, "server.cjs"), filepath.Join(root, "observer.cjs"), filepath.Join(root, "counter.spec.cjs"), filepath.Join(root, "playwright.config.cjs"), filepath.Join(root, "package.json"), filepath.Join(root, "package-lock.json"), observerConfig, attestationConfig})
 			cfg.Freshness.DependencyDigest = FreshDependencyDigest(cfg.Freshness.Dependencies)
 			if mode == "mutant" {
@@ -221,7 +222,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 						t.Errorf("foreign fixture cleanup: %+v", o)
 					}
 				})
-				if e := externalReady(context.Background(), cfg.ServerReadyURL, 5*time.Second); e != nil {
+				if e := externalReady(context.Background(), cfg.ServerReadyURL, 5*time.Second, loopbackhttp.Get); e != nil {
 					t.Fatal(e)
 				}
 			}
@@ -316,7 +317,7 @@ func TestPTFV0WorkerHelper(t *testing.T) {
 	if e != nil {
 		os.Exit(2)
 	}
-	var cfg E2EConfig
+	cfg := E2EConfig{LoopbackGet: loopbackhttp.Get}
 	if json.Unmarshal(b, &cfg) != nil {
 		os.Exit(2)
 	}

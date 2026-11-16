@@ -1,37 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0
 package contextindex
 
-import "io/fs"
+import "github.com/Beamfall/corvint/internal/langplugin/dialect"
 
-// SwiftPMTarget is one SwiftPM target the affected Swift model reads from the
-// indexed Package.swift manifests: its unit ID, module name and member paths
-// (sources, then tests).
-type SwiftPMTarget struct {
-	ID      string
-	Module  string
-	Members []string
+type SwiftPMTarget = dialect.SwiftPMTarget
+type SwiftImport = dialect.SwiftImport
+type SwiftPMReader = dialect.SwiftPMReader
+
+// WithSwiftPMReader returns a request-local index view with an explicit Swift reader.
+// The reader is runtime wiring, never serialized index content.
+func (index *Index) WithSwiftPMReader(reader SwiftPMReader) *Index {
+	if index == nil {
+		return nil
+	}
+	copy := *index
+	copy.swiftPMReader = reader
+	return &copy
 }
-
-// SwiftImport is one module a Swift import declaration names, with the 1-based
-// line of the declaration.
-type SwiftImport struct {
-	Module string
-	Line   int
-}
-
-// SwiftPMReader supplies the affected Swift model's SwiftPM reading to path
-// impact (NGI-V0-980, NGI-V0-988). This package does not import the model: it
-// is part of the corvint-tasks source archive closure (PUB-V0-012, PUB-V0-013)
-// and the test-selection planner is not, so a binary links
-// internal/swiftimpact to register it. Without a reader, Swift paths have no
-// target membership and the receipt says so.
-type SwiftPMReader interface {
-	Targets(fsys fs.FS) ([]SwiftPMTarget, error)
-	ImportedModules(text string) []SwiftImport
-}
-
-// swiftPMReader is set once, from a package init, before any request runs.
-var swiftPMReader SwiftPMReader
-
-// RegisterSwiftPMReader installs the SwiftPM reading path impact uses. Only
-// internal/swiftimpact's init calls it.
-func RegisterSwiftPMReader(reader SwiftPMReader) { swiftPMReader = reader }

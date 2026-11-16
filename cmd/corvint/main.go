@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/swiftimpact"
 	"io"
 	"math/big"
 	"os"
@@ -737,6 +738,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			return nil, err
 		}
 		compute := func(index *contextindex.Index) (map[string]any, error) {
+			index = index.WithSwiftPMReader(swiftimpact.Reader{})
 			// GPK-V0-883: a directory operand reads as the admitted files directly inside it. The
 			// captured options stay unexpanded because compute may run against more than one index.
 			options := options
@@ -832,6 +834,7 @@ func impactDirectoryOperand(root, normalized string) bool {
 // default profile keeps the harness default budget it has always had for a path
 // no reverse-import rule names.
 func standaloneImpactContext(index *contextindex.Index, paths []string, limit int, budget *int) (map[string]any, error) {
+	index = index.WithSwiftPMReader(swiftimpact.Reader{})
 	if contextindex.SyntaxProfileSelected(paths) {
 		return contextindex.PathImpactSyntax(index, paths, limit, budget)
 	}

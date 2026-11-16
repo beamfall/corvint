@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,7 +35,7 @@ func fakeExternalRun(t *testing.T, script string, mutate func(*E2EConfig)) Recei
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ready")) }))
 	defer server.Close()
-	cfg := E2EConfig{Config: Config{Dir: repo, TestFiles: []string{filepath.Join(repo, "test.js")}, ConfigFile: filepath.Join(repo, "config.js"),
+	cfg := E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{Dir: repo, TestFiles: []string{filepath.Join(repo, "test.js")}, ConfigFile: filepath.Join(repo, "config.js"),
 		PackageJSON: filepath.Join(repo, "package.json"), Lockfile: filepath.Join(repo, "lock.json"), RunnerName: "playwright", RunnerVersion: "1.60.0", Timeout: 20 * time.Second},
 		ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: server.URL, ServerReadyLimit: 5 * time.Second}
 	if mutate != nil {
@@ -215,8 +216,8 @@ func TestPWPV0031ReadinessRulesByMode(t *testing.T) {
 			}
 			w.WriteHeader(test.status)
 		}))
-		owned := waitReady(context.Background(), server.URL, 200*time.Millisecond) == nil
-		external := externalReady(context.Background(), server.URL, 200*time.Millisecond) == nil
+		owned := waitReady(context.Background(), server.URL, 200*time.Millisecond, loopbackhttp.Get) == nil
+		external := externalReady(context.Background(), server.URL, 200*time.Millisecond, loopbackhttp.Get) == nil
 		server.Close()
 		if owned != test.owned || external != test.external {
 			t.Fatalf("status %d: owned=%v external=%v", test.status, owned, external)

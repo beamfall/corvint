@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,7 +32,7 @@ func TestRunE2E_CancellationSetsInfrastructure(t *testing.T) {
 		err     error
 	}, 1)
 	go func() {
-		receipt, err := RunE2E(ctx, E2EConfig{
+		receipt, err := RunE2E(ctx, E2EConfig{LoopbackGet: loopbackhttp.Get,
 			Config:     Config{Dir: t.TempDir(), RunnerName: "playwright", Timeout: 5 * time.Second},
 			ServerArgv: []string{"/bin/sleep", "60"},
 			TestArgv:   []string{"/bin/sleep", "60"},
@@ -66,7 +67,7 @@ func TestRunE2E_CancellationSetsInfrastructure(t *testing.T) {
 
 func TestRunE2E_AttestationRequiresExternalServerBeforeExecution(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "started")
-	receipt, err := RunE2E(context.Background(), E2EConfig{
+	receipt, err := RunE2E(context.Background(), E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config:                 Config{Dir: t.TempDir(), RunnerName: "playwright"},
 		ServerArgv:             []string{"/usr/bin/touch", marker},
 		ApplicationAttestation: &ApplicationAttestationProvider{Argv: []string{"/bin/false"}, ConfigFile: "/missing"},
@@ -229,7 +230,7 @@ func TestWaitReadyStopsOnCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	time.AfterFunc(20*time.Millisecond, cancel)
 	start := time.Now()
-	err := waitReady(ctx, server.URL, 5*time.Second)
+	err := waitReady(ctx, server.URL, 5*time.Second, loopbackhttp.Get)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err=%v", err)
 	}

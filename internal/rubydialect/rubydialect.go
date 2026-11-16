@@ -28,11 +28,13 @@ import (
 // plugin is the language plugin whose declarations this package implements.
 const plugin = "ruby"
 
-func init() {
+// Hooks returns the Ruby algorithms without changing a package registry.
+func Hooks() dialect.Hooks {
+	hooks := dialect.Hooks{Impacts: map[string]dialect.Impact{}, Regions: map[string]dialect.Region{}}
 	for _, d := range decl.Of(plugin).Dialects {
 		switch d.Kind {
 		case decl.ImpactDialect:
-			dialect.RegisterImpact(d.Name, dialect.Impact{
+			hooks.Impacts[d.Name] = dialect.Impact{
 				CodeLines: CodeLines,
 				Probes: []dialect.Probe{
 					{Code: "observed-reflective-dispatch", Pattern: dialect.Reflection},
@@ -41,14 +43,15 @@ func init() {
 				Loads:        loads,
 				StaticLoad:   StaticLoad,
 				Verification: VerificationCommand,
-			})
+			}
 		case decl.RegionDialect:
-			dialect.RegisterRegion(d.Name, dialect.Region{
+			hooks.Regions[d.Name] = dialect.Region{
 				Normalize: func(text string) ([]dialect.Line, bool) { return NormalizedLines(text), true },
 				Symbols:   Symbols,
-			})
+			}
 		}
 	}
+	return hooks
 }
 
 var (
