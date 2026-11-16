@@ -1,5 +1,7 @@
 # 2026-11-16: line-selection qualification ledger (V1-4365)
 
+> Ruby row superseded by `2026-11-16-r1ruby-ruby-line-admission.md` (decision 0601); the rest of this ledger stands.
+
 Requirements: LPCV-V0-950 through LPCV-V0-955, LPCV-V0-963; GLS-V0-030 through
 GLS-V0-034. Lane source: `df315e35056d15c7933b5ff97c605cedf5ef4919`.
 
