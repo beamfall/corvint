@@ -63,6 +63,8 @@ type TestRunEvidence struct {
 	// file's or package's tests only together (RVD-V1-006). It is never encoded; a decoded
 	// test-run-evidence/0 record names one test (AFL-V1-002).
 	granularity string
+	// slice is a converted receipt row's slice of its unit, "" for a whole one (RVD-V1-006).
+	slice string
 }
 
 type RunRunner struct {

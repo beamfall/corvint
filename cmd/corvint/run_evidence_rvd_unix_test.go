@@ -133,22 +133,29 @@ func TestRVDV1010CLIWriteFailureKeepsExitCode(t *testing.T) {
 func rvdFlowFixture(t *testing.T) (root, base string) {
 	t.Helper()
 	root, _, _ = sessionFixture(t, "pass")
-	intent := appflows.FlowIntent{Schema: appflows.FlowIntentSchema, FlowID: "compute", Revision: 1, Kind: "ui", Actor: "developer",
-		Preconditions: []string{}, Steps: []appflows.FlowStep{{StepID: "run", Action: "run A"}}, Outcomes: []appflows.FlowOutcome{},
-		Variations: []appflows.FlowVariation{{VariationID: "compute.basic", Preconditions: []string{}, Steps: []string{"run"}, ObservableFacts: []string{}, Outcomes: []string{}, Projects: []string{}}},
-		Links:      []appflows.FlowLink{{From: "compute.basic", Basis: "declared", Target: appflows.LinkTarget{Type: "test", Path: "a/a_test.go", TestKey: "go:a"}}}}
-	raw, err := json.Marshal(intent)
-	if err != nil {
-		t.Fatal(err)
+	// The link is committed unanchored, then reviewed at that commit, because flows status attaches
+	// only reviewed links (AFL-V1-001).
+	writeIntent := func(anchor string) {
+		intent := appflows.FlowIntent{Schema: appflows.FlowIntentSchema, FlowID: "compute", Revision: 1, Kind: "ui", Actor: "developer",
+			Preconditions: []string{}, Steps: []appflows.FlowStep{{StepID: "run", Action: "run A"}}, Outcomes: []appflows.FlowOutcome{},
+			Variations: []appflows.FlowVariation{{VariationID: "compute.basic", Preconditions: []string{}, Steps: []string{"run"}, ObservableFacts: []string{}, Outcomes: []string{}, Projects: []string{}}},
+			Links:      []appflows.FlowLink{{From: "compute.basic", Basis: "declared", Target: appflows.LinkTarget{Type: "test", Path: "a/a_test.go", TestKey: "go:a"}, ReviewedAt: anchor}}}
+		raw, err := json.Marshal(intent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(root, "flows"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "flows", "compute.json"), raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := os.MkdirAll(filepath.Join(root, "flows"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "flows", "compute.json"), raw, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeIntent("")
 	affectedGit(t, root, "add", ".")
 	affectedGit(t, root, "commit", "-qm", "add the compute flow")
+	writeIntent(strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD")))
+	affectedGit(t, root, "commit", "-qam", "review the compute flow")
 	base = strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
 	if err := os.WriteFile(filepath.Join(root, "a", "a.go"), []byte("package a\n\nfunc A() int { return 5 }\n"), 0o644); err != nil {
 		t.Fatal(err)

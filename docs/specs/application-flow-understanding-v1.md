@@ -347,7 +347,9 @@ Flow status report (change `flows-status-report`, V1-5257, PROD-TEST-010; the pr
   DIR [--evidence FILE]...` MUST print, for each flow and each variation, the attached tests (the
   non-inferred `test` links from the variation, crossed with its projects as `flows map` evidence
   pairs are) and the last recorded result of each. A variation with no attached test is shown with
-  an empty test list and the code `no-test`.
+  an empty test list and the code `no-test`. (Reconciled 2026-11-16 with AFL-V1-001, which
+  replaces this block: only `reviewed` test links attach a test; a stale or unreviewed link
+  attaches none.)
 - `AFU-V1-161`: (proposed 2026-11-09; V1-5257; delivery experimental) The last result MUST come
   from the newest `test-run-evidence/0` record that names the pair: the last in evidence order (the
   run evidence store's records in append order, then the `--evidence` files), whatever its tree, so
