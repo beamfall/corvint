@@ -1376,9 +1376,16 @@ func unquote(word string) string {
 
 // Path tokens use the AFP-V0-012 lexicon after expansions are blanked; a token
 // is path-shaped when it carries a slash or a dot and is not a bare number.
+// The word of a value-supplying parameter expansion (`${N:-WORD}`,
+// `${NAME=WORD}`, `${NAME:+WORD}` and their forms without the colon) is kept
+// first: it is the value the expansion takes when the parameter is unset,
+// empty or set, so a literal default such as
+// `file=${1:-conformance/register.md}` is a path the script reads
+// (AZU-V0-8920). The `?` form's word is an error message, not a value.
 var (
-	expansion = regexp.MustCompile(`\$\{[^}]*\}|\$\([^)]*\)|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-]`)
-	pathToken = regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
+	expansion      = regexp.MustCompile(`\$\{[^}]*\}|\$\([^)]*\)|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-]`)
+	valueExpansion = regexp.MustCompile(`\$\{(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+|[@*])(?::?[-=+])([^}]*)\}`)
+	pathToken      = regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
 )
 
 // tempExpansion is a plain or braced expansion of a name and the literal path
@@ -1579,6 +1586,7 @@ func pathTokens(parsed script, temp map[string]bool, test, utilities, listings b
 				return " "
 			})
 		}
+		text = valueExpansion.ReplaceAllString(text, " $1 ")
 		for _, token := range pathToken.FindAllString(expansion.ReplaceAllString(text, " "), -1) {
 			if pathShaped(token) {
 				tokens[token] = true

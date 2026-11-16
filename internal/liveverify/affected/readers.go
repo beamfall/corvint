@@ -180,6 +180,9 @@ func (graph *Graph) globRead(id string, dirty []string) (dirtyPath, glob string,
 		}
 		parts := strings.Split(dirtyPath, "/")
 		for _, glob := range unit.PathGlobs {
+			if glob == driverTreeReadGlob && graph.declaredTreeReaderSkips(id, dirtyPath) {
+				continue
+			}
 			if globMatches(glob, parts) {
 				return dirtyPath, glob, true
 			}
