@@ -970,6 +970,9 @@
       "freezeContract": null,
       "operations": [
         "appmap",
+        "gaps",
+        "impact",
+        "status",
         "test-evidence"
       ],
       "nestedOperations": {},
@@ -983,6 +986,7 @@
       },
       "flags": [
         "--base",
+        "--evidence",
         "--explain",
         "--flows",
         "--format",
@@ -994,23 +998,40 @@
         "--manifest-repo",
         "--no-store",
         "--no-workspace",
+        "--provider",
+        "--record",
+        "--registry",
         "--repo",
         "--repo-revision",
         "--revision",
         "--test",
+        "--tool-profile",
         "--verify",
         "--workspace",
         "--worktree"
       ],
       "schemaIds": [
-        "application-flow-test-evidence/1"
+        "application-flow-gaps/1",
+        "application-flow-impact/1",
+        "application-flow-intent/1",
+        "application-flow-status/0",
+        "application-flow-test-evidence/1",
+        "test-run-evidence/0"
       ],
       "inputs": null,
       "outputs": null,
-      "exitCodesMentioned": [],
+      "exitCodesMentioned": [
+        2
+      ],
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
+        "status writes application-flow-status/0: per flow and variation, the attached tests (the targets of its reviewed test links; a stale, unreviewed or inferred link attaches none) and the last recorded result of each (passed, failed, flaky, timedOut, skipped, interrupted or not-run) or NOT_OBSERVED.",
+        "Results come only from two writers: the runs corvint test records and the test-run-evidence/0 documents flows ingest writes.",
+        "impact writes application-flow-impact/1: the flows, variations and test keys reached from base..HEAD changes, with the path of each hop, and last_results per flow when the store holds a record.",
+        "gaps writes application-flow-gaps/1; any gap makes a flow incomplete; --provider FILE also lists the unlinked E2E inventory tests and the inventory's state (AFU-V1-150).",
+        "A malformed, oversized or other-profile --evidence file refuses the whole report (invalid-arguments, exit 2), and so does a stored record that is not a document this build reads or whose tests the store cannot name (run-evidence-corrupt); a record edited after it was written that still parses is skipped and the tests it held show reason run-evidence-corrupt.",
+        "The reports write nothing.",
         "Writes nothing."
       ],
       "unknowns": [
@@ -1021,10 +1042,6 @@
         {
           "field": "outputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
         },
         {
           "field": "writes",
@@ -2980,8 +2997,8 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows gaps",
-      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "cliEquivalent": "corvint flows gaps",
+      "parityTest": "corvint TestMTTV1009NativeFlowReportToolsMatchCLI",
       "replaces": [
         "corvint.flows.gaps"
       ]
@@ -3012,8 +3029,8 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows impact",
-      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "cliEquivalent": "corvint flows impact",
+      "parityTest": "corvint TestMTTV1009NativeFlowReportToolsMatchCLI",
       "replaces": [
         "corvint.flows.impact"
       ]
@@ -3120,7 +3137,7 @@
       "inputs": [
         {
           "name": "base",
-          "description": "Optional full commit id of the base; only the flows base..HEAD reaches are reported."
+          "description": "Optional full commit id of the base; only the flows and variations base..HEAD reaches are reported."
         },
         {
           "name": "evidence",
@@ -3129,6 +3146,10 @@
         {
           "name": "flows",
           "description": "Repository-relative directory holding the flow intent files."
+        },
+        {
+          "name": "provider",
+          "description": "Repository-relative E2E selection provider file whose inventory gives the unassigned count."
         }
       ],
       "outputProfile": "application-flow-status/0",
@@ -3140,8 +3161,8 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows status",
-      "parityTest": "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
+      "cliEquivalent": "corvint flows status",
+      "parityTest": "corvint TestMTTV1009NativeFlowReportToolsMatchCLI",
       "replaces": [
         "corvint.flows.status"
       ]

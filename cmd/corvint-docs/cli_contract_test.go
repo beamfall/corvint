@@ -36,7 +36,7 @@ func TestDocsOptionValuesFollowArgparseOptionLikeClassification(t *testing.T) {
 			}
 			return docs("draft", "--source", v)
 		}},
-		{"docs-maintain", "missing docs maintain argument value: --page", func(v string, inline bool) error {
+		{"docs-maintain", "missing docs pages maintain argument value: --page", func(v string, inline bool) error {
 			if inline {
 				return maintain("--page=" + v)
 			}

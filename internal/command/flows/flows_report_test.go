@@ -252,11 +252,12 @@ func TestV15257StatusReportsAttachedTestsAndLastResults(t *testing.T) {
 	if want := []string{"checkout", "profile", "returns", "search", "wishlist"}; !slices.Equal(statusFlowIDs(report), want) {
 		t.Fatalf("flows %v", statusFlowIDs(report))
 	}
-	if report.Totals != (appflows.StatusTotals{Flows: 5, Variations: 6, Tests: 6}) {
+	// profile.view's test link is not reviewed, so it attaches no test (AFL-V1-001).
+	if report.Totals != (appflows.StatusTotals{Flows: 5, Variations: 6, Tests: 5}) {
 		t.Errorf("totals %+v", report.Totals)
 	}
 	happy := statusVariation(t, report, "checkout", "checkout.happy")
-	if len(happy.Tests) != 1 || happy.Code != "" || happy.Tests[0] != (appflows.StatusTest{TestKey: "checkout.spec.ts > pays", Project: "chromium", Result: "passed", SourceCommit: fx.head, SourceTree: shopGit(t, fx.root, "rev-parse", "HEAD^{tree}"), RunID: "run-1", Authority: appflows.AuthorityIngested}) {
+	if len(happy.Tests) != 1 || happy.Code != "" || happy.Tests[0] != (appflows.StatusTest{TestKey: "checkout.spec.ts > pays", Project: "chromium", Result: "passed", SourceCommit: fx.head, SourceTree: shopGit(t, fx.root, "rev-parse", "HEAD^{tree}"), RunID: "run-1", Authority: appflows.AuthorityIngested, Granularity: "test"}) {
 		t.Errorf("checkout.happy: %+v", happy)
 	}
 	basic := statusVariation(t, report, "search", "search.basic")
@@ -271,11 +272,8 @@ func TestV15257StatusReportsAttachedTestsAndLastResults(t *testing.T) {
 	if len(edit.Tests) != 1 || !edit.Tests[0].Stale || edit.Tests[0].Result != "passed" || edit.Tests[0].SourceCommit != fx.b || edit.Tests[0].Project != "" {
 		t.Errorf("profile.edit: %+v", edit.Tests)
 	}
-	view := statusVariation(t, report, "profile", "profile.view")
-	if len(view.Tests) != 1 || view.Tests[0] != (appflows.StatusTest{TestKey: "profile.spec.ts > views", Result: appflows.ResultNotObserved}) {
-		t.Errorf("profile.view (STATIC record never counts): %+v", view.Tests)
-	}
-	for _, name := range [][2]string{{"returns", "returns.basic"}, {"wishlist", "wishlist.add"}} {
+	// A STATIC record never counts (AFU-V1-014): TestAFUV1014StatusSkipsStaticRecord in appflows.
+	for _, name := range [][2]string{{"profile", "profile.view"}, {"returns", "returns.basic"}, {"wishlist", "wishlist.add"}} {
 		if v := statusVariation(t, report, name[0], name[1]); v.Code != appflows.GapNoTest || len(v.Tests) != 0 {
 			t.Errorf("%s: %+v", name[1], v)
 		}
@@ -355,23 +353,31 @@ func TestV15257StatusLimitedToChangeAndRefusals(t *testing.T) {
 // truncation marker and the full totals.
 func TestV15257StatusBound(t *testing.T) {
 	fx := newShopFixture(t)
-	projects, links := []string{}, []appflows.FlowLink{shopLink("fill", "declared", fx.head, appflows.LinkTarget{Type: "source", Path: "cart/cart.go"})}
+	projects := []string{}
 	for i := 0; i < 33; i++ {
 		projects = append(projects, fmt.Sprintf("p%02d", i))
 	}
-	for i := 0; i < 256; i++ {
-		links = append(links, shopLink("bulk.all", "declared", fx.head, appflows.LinkTarget{Type: "test", Path: "e2e/checkout.spec.ts", TestKey: fmt.Sprintf("checkout.spec.ts > bulk %03d", i)}))
+	// The bulk links are reviewed as the shop's are: committed unanchored at D, then anchored at D,
+	// since status attaches only reviewed links (AFL-V1-001).
+	bulk := func(anchor string) string {
+		links := []appflows.FlowLink{shopLink("fill", "declared", anchor, appflows.LinkTarget{Type: "source", Path: "cart/cart.go"})}
+		for i := 0; i < 256; i++ {
+			links = append(links, shopLink("bulk.all", "declared", anchor, appflows.LinkTarget{Type: "test", Path: "e2e/checkout.spec.ts", TestKey: fmt.Sprintf("checkout.spec.ts > bulk %03d", i)}))
+		}
+		intent := appflows.FlowIntent{Schema: appflows.FlowIntentSchema, FlowID: "bulk", Revision: 1, Kind: "ui", Actor: "shopper", Preconditions: []string{},
+			Steps: []appflows.FlowStep{{StepID: "fill", Action: "fill the cart"}}, Outcomes: []appflows.FlowOutcome{{OutcomeID: "full", Behavior: "cart full", Matcher: "toBeVisible", Locator: "#full", Value: "full"}},
+			Variations: []appflows.FlowVariation{{VariationID: "bulk.all", Preconditions: []string{}, Steps: []string{"fill"}, ObservableFacts: []string{}, Outcomes: []string{"full"}, Projects: projects}},
+			Links:      links}
+		raw, err := json.Marshal(intent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(raw)
 	}
-	intent := appflows.FlowIntent{Schema: appflows.FlowIntentSchema, FlowID: "bulk", Revision: 1, Kind: "ui", Actor: "shopper", Preconditions: []string{},
-		Steps: []appflows.FlowStep{{StepID: "fill", Action: "fill the cart"}}, Outcomes: []appflows.FlowOutcome{{OutcomeID: "full", Behavior: "cart full", Matcher: "toBeVisible", Locator: "#full", Value: "full"}},
-		Variations: []appflows.FlowVariation{{VariationID: "bulk.all", Preconditions: []string{}, Steps: []string{"fill"}, ObservableFacts: []string{}, Outcomes: []string{"full"}, Projects: projects}},
-		Links:      links}
-	raw, err := json.Marshal(intent)
-	if err != nil {
-		t.Fatal(err)
-	}
-	shopWrite(t, fx.root, map[string]string{"flows/bulk.json": string(raw)})
-	shopCommit(t, fx.root, "D: bulk flow")
+	shopWrite(t, fx.root, map[string]string{"flows/bulk.json": bulk("")})
+	d := shopCommit(t, fx.root, "D: bulk flow")
+	shopWrite(t, fx.root, map[string]string{"flows/bulk.json": bulk(d)})
+	shopCommit(t, fx.root, "E: review the bulk flow at D")
 	report, _ := decodeStatus(t, fx.root)
 	rows := 0
 	for _, f := range report.Flows {
@@ -379,7 +385,7 @@ func TestV15257StatusBound(t *testing.T) {
 			rows += len(v.Tests)
 		}
 	}
-	if !report.Truncated || rows != appflows.MaxStatusTests || report.Totals.Tests != 33*256+6 || report.Totals.Flows != 6 {
+	if !report.Truncated || rows != appflows.MaxStatusTests || report.Totals.Tests != 33*256+5 || report.Totals.Flows != 6 {
 		t.Fatalf("bound: truncated %v rows %d totals %+v", report.Truncated, rows, report.Totals)
 	}
 }
@@ -403,8 +409,11 @@ func TestV15255V15257FlowsToolsMatchCLIVerbs(t *testing.T) {
 	reportReceipt(t, fx.root, "e2e/discovery.json", fx.b, digest, "playwright-sources:sha256:"+digest)
 	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsGaps, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "provider": provider}, "gaps", "--flows", "flows", "--evidence", evidence, "--provider", provider)
 	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsGaps, map[string]any{"flows": "flows"}, "gaps", "--flows", "flows")
-	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}}, "status", "--flows", "flows", "--evidence", evidence)
-	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "base": fx.b}, "status", "--flows", "flows", "--evidence", evidence, "--base", fx.b)
+	// AFL-V1-002: status lists each source as the caller named it, so the command runs from the
+	// root with the same repository-relative name the tool takes.
+	t.Chdir(fx.root)
+	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}}, "status", "--flows", "flows", "--evidence", "runs/runs.jsonl")
+	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "base": fx.b}, "status", "--flows", "flows", "--evidence", "runs/runs.jsonl", "--base", fx.b)
 
 	result, callErr := registry.Call(t.Context(), bridge.ToolFlowsGaps, []byte(`{"flows":"flows","provider":"`+provider+`"}`))
 	if callErr != nil || result.Receipt["inventory"].(map[string]any)["state"] != appflows.InventoryStale {
@@ -426,5 +435,27 @@ func TestV15255V15257FlowsToolsMatchCLIVerbs(t *testing.T) {
 	}
 	if _, err := registry.Call(t.Context(), bridge.ToolFlowsStatus, []byte(`{"flows":"flows","base":"`+strings.Repeat("0", 40)+`"}`)); err == nil || err.Code != "flows-refused" {
 		t.Errorf("unknown base: %#v", err)
+	}
+}
+
+// AFL-V1-001: with a provider, status carries the E2E inventory's state and the unassigned count,
+// the number of inventory tests no variation links, which is gaps' unlinked total for the same
+// provider; corvint.flows_status returns the same body.
+func TestAFLV1001StatusUnassignedFromProvider_V15623(t *testing.T) {
+	fx := newShopFixture(t)
+	fx.root = resolvedRoot(t, fx.root)
+	provider := reportProvider(t, fx.root, "e2e/provider.json", "flows", "e2e/discovery.json",
+		inventoryTest("checkout.spec.ts > declines", "chromium", "e2e/checkout.spec.ts"),
+		inventoryTest("checkout.spec.ts > pays", "chromium", "e2e/checkout.spec.ts"),
+		inventoryTest("orders.spec.ts > lists", "chromium", "e2e/orders.spec.ts"))
+	digest := strings.Repeat("b", 64)
+	reportReceipt(t, fx.root, "e2e/discovery.json", fx.b, digest, "playwright-sources:sha256:"+digest)
+	report, _ := decodeStatus(t, fx.root, "--no-store", "--provider", provider)
+	gaps := decodeGaps(t, fx.root, "--no-store", "--provider", provider)
+	if report.Unassigned == nil || *report.Unassigned != 2 || *report.Unassigned != gaps.UnlinkedTotal || report.Inventory != gaps.Inventory {
+		t.Fatalf("unassigned %v inventory %+v; gaps unlinked %d inventory %+v", report.Unassigned, report.Inventory, gaps.UnlinkedTotal, gaps.Inventory)
+	}
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
+		assertFlowsParity(t, fx.root, flowsRegistry(t, fx.root), bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "provider": provider}, "status", "--flows", "flows", "--provider", provider)
 	}
 }
