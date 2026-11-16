@@ -1,24 +1,20 @@
 name: vscode-extension
 
 # VSC-V0-080 (docs/specs/vscode-extension-v0.md, V1-0437): run the extension's own lockfile
-# install, lint, typecheck and unit tests on every pull request that touches extensions/vscode or
-# the local CLI, MCP and live test-provider wire contracts it consumes (impact argv and JSON,
-# corvint-mcp tools, corvint-go-test-provider session frames). It is path-filtered, is not a
-# required check, and needs only the npm registry for the lockfile install; install scripts stay off.
+# install, lint, typecheck and unit tests, and the interactive-alpha process harness tests, on
+# every pull request that reaches extensions/vscode, the harness, or the local CLI, MCP and live
+# test-provider binaries the extension drives (impact argv and JSON, corvint-mcp tools,
+# corvint-go-test-provider session frames). It is not a required check, and needs only the npm
+# registry for the lockfile install; install scripts stay off.
+#
+# V1-5200: a hand-written path filter missed edits to the packages those binaries import, so
+# every pull request starts the select job. It runs the suite when the merge commit's diff
+# against its first parent touches a listed path, go.mod, or any main-module package in the
+# `go list -deps` closure of cmd/corvint, cmd/corvint-mcp and cmd/corvint-go-test-provider
+# (.github/consumers/gate.py). A failed or skipped select job, or any doubt in the gate, runs it.
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/vscode-extension.yml"
-      - "extensions/vscode/**"
-      - "conformance/vscode-extension-v0/**"
-      - "docs/specs/vscode-extension-v0.md"
-      - "cmd/corvint/main.go"
-      - "cmd/corvint/impact*.go"
-      - "cmd/corvint-mcp/**"
-      - "internal/mcp/**"
-      - "cmd/corvint-go-test-provider/**"
-      - "internal/liveverify/**"
   workflow_dispatch:
 
 concurrency:
@@ -29,7 +25,51 @@ permissions:
   contents: read
 
 jobs:
+  select:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Depth 2 keeps the merge commit's first parent for the diff.
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.4"
+      - name: Does the change reach the extension or the binaries it drives? (V1-5200)
+        id: gate
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            verdict="RUN: $GITHUB_EVENT_NAME runs every time"
+          else
+            verdict=$(python3 -I .github/consumers/gate.py \
+              --path .github/workflows/vscode-extension.yml --path .github/consumers/gate.py \
+              --path extensions/vscode --path conformance/vscode-extension-v0 \
+              --path conformance/interactive-alpha --path Makefile \
+              --path docs/specs/vscode-extension-v0.md --path internal/mcp --path internal/liveverify \
+              --go ./cmd/corvint --go ./cmd/corvint-mcp --go ./cmd/corvint-go-test-provider) ||
+              verdict="RUN: the consumer gate exited nonzero"
+          fi
+          echo "vscode-extension: $verdict" | tee -a "$GITHUB_STEP_SUMMARY"
+          case "$verdict" in
+            SKIP:*) echo 'run=SKIP' >> "$GITHUB_OUTPUT" ;;
+            *) echo 'run=RUN' >> "$GITHUB_OUTPUT" ;;
+          esac
+
   vscode-extension:
+    needs: select
+    # Fail closed: only a successful select job that printed SKIP skips the suite.
+    if: ${{ always() && !cancelled() && (needs.select.result != 'success' || needs.select.outputs.run != 'SKIP') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -50,3 +90,8 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: Interactive-alpha process harness tests (V1-5200)
+        # core-process.test.mjs, the harness's own node:test suite; it needs node and python3, and
+        # its browser cases skip without CORVINT_TEST_PLAYWRIGHT.
+        working-directory: .
+        run: make interactive-alpha-test
