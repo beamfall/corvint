@@ -2873,7 +2873,7 @@ func driverValueWordTokens(text string, depth int, add func(token string)) {
 		}
 	}
 	if depth == 0 {
-		addTokens(driverJoinedValueWords(text))
+		addTokens(driverJoinedValueWords(newDriverScanText(text)))
 		return
 	}
 	words, joined := ValueWords(text, depth)
@@ -2884,23 +2884,55 @@ func driverValueWordTokens(text string, depth int, add func(token string)) {
 	if joined != text {
 		addTokens(joined)
 	}
-	if driverUnjoinedValueForm(joined) {
-		addTokens(driverJoinedValueWords(text))
+	if driverUnjoinedValueForm(newDriverScanText(joined)) {
+		addTokens(driverJoinedValueWords(newDriverScanText(text)))
 	}
+}
+
+// driverScanText is a text the joined read scans left to right, with the
+// search for the `]` that ends a subscript. Asked at indexes that never
+// decrease, as those scans ask, the search reads each byte at most once
+// (scanned counts them), so a run of unclosed `${A[` openers costs one pass
+// over the text, not one pass each.
+type driverScanText struct {
+	text    string
+	from    int // the last index searched from
+	bracket int // the first `]` at or after from, or len(text) for none
+	scanned int
+}
+
+func newDriverScanText(text string) *driverScanText {
+	return &driverScanText{text: text, from: -1, bracket: -1}
+}
+
+// closingBracket returns the index of the first `]` at or after index, or -1.
+func (s *driverScanText) closingBracket(index int) int {
+	if index < s.from || s.bracket < index {
+		s.from, s.bracket = index, len(s.text)
+		if offset := strings.IndexByte(s.text[index:], ']'); offset >= 0 {
+			s.bracket = index + offset
+		}
+		s.scanned += min(s.bracket+1, len(s.text)) - index
+	}
+	if s.bracket == len(s.text) {
+		return -1
+	}
+	return s.bracket
 }
 
 // driverWideValueWordStart is valueWordStart for every parameter a shell
 // takes before a value operator, not only those ValueWords reads: an
 // indirect one (`${!N:-WORD}`), a special one (`${#:-WORD}`) and a
 // subscripted one (`${N[0]:-WORD}`). It returns the word's index, or -1.
-func driverWideValueWordStart(text string, index int) int {
+func driverWideValueWordStart(scan *driverScanText, index int) int {
+	text := scan.text
 	operator := func(index int) int {
 		if index < len(text) && text[index] == '[' {
-			closing := strings.IndexByte(text[index:], ']')
+			closing := scan.closingBracket(index)
 			if closing < 0 {
 				return -1
 			}
-			index += closing + 1
+			index = closing + 1
 		}
 		if index < len(text) && text[index] == ':' {
 			index++
@@ -2935,14 +2967,15 @@ func driverWideValueWordStart(text string, index int) int {
 // driverUnjoinedValueForm reports a `${` of text that opens a value-supplying
 // expansion (driverWideValueWordStart): in the text ValueWords joined, one it
 // left in place.
-func driverUnjoinedValueForm(text string) bool {
+func driverUnjoinedValueForm(scan *driverScanText) bool {
+	text := scan.text
 	for from := 0; ; {
 		offset := strings.Index(text[from:], "${")
 		if offset < 0 {
 			return false
 		}
 		from += offset + 2
-		if driverWideValueWordStart(text, from) >= 0 {
+		if driverWideValueWordStart(scan, from) >= 0 {
 			return true
 		}
 	}
@@ -2952,37 +2985,50 @@ func driverUnjoinedValueForm(text string) bool {
 // any depth and for every parameter a shell takes: each value-supplying
 // expansion (driverWideValueWordStart) is replaced by its word, its opener
 // through the operator and its closing `}` dropped, so `data/${!S:-x}.txt`
-// reads `data/x.txt`. Any other `${` opener is blanked and its `}` kept, a
-// separator. Braces match as in closingBrace: a `${` opens a level, a `}`
-// closes the innermost, and inside one a backslash escapes the byte after
-// it. An unclosed expansion's word runs to the end of text. It is the
-// widening read of a default ValueWords leaves unjoined; one pass, no depth
-// bound.
-func driverJoinedValueWords(text string) string {
+// reads `data/x.txt`. Any other braced expansion is blanked whole, its
+// opener through its matching `}`, so its word (a `?` form's message, a
+// pattern, a replacement) is never a token. A value form nested in one still
+// supplies its word, as ValueWords reads it, but alone: the blanked bytes
+// around it separate it from the other form's text. Braces match as in
+// closingBrace: a `${` opens a level, a `}` closes the innermost, and inside
+// one a backslash escapes the byte after it. An unclosed expansion runs to
+// the end of text. It is the widening read of a default ValueWords leaves
+// unjoined; one pass, no depth bound.
+func driverJoinedValueWords(scan *driverScanText) string {
+	text := scan.text
 	var out strings.Builder
 	out.Grow(len(text))
 	var value []bool // per open expansion: whether it supplies a value
+	write := func(bytes string) {
+		if len(value) == 0 || value[len(value)-1] {
+			out.WriteString(bytes)
+			return
+		}
+		for range len(bytes) {
+			out.WriteByte(' ')
+		}
+	}
 	for index := 0; index < len(text); index++ {
 		switch char := text[index]; {
 		case char == '\\' && len(value) > 0 && index+1 < len(text):
-			out.WriteString(text[index : index+2])
+			write(text[index : index+2])
 			index++
 		case char == '$' && index+1 < len(text) && text[index+1] == '{':
-			if word := driverWideValueWordStart(text, index+2); word >= 0 {
+			if word := driverWideValueWordStart(scan, index+2); word >= 0 {
 				value = append(value, true)
 				index = word - 1
 				continue
 			}
 			value = append(value, false)
-			out.WriteString("  ")
+			write("${")
 			index++
 		case char == '}' && len(value) > 0:
 			if !value[len(value)-1] {
-				out.WriteByte(char)
+				write("}")
 			}
 			value = value[:len(value)-1]
 		default:
-			out.WriteByte(char)
+			write(text[index : index+1])
 		}
 	}
 	return out.String()

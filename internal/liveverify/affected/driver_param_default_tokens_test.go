@@ -2,7 +2,9 @@ package affected
 
 import (
 	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 // AZU-V0-8927: the word of a value-supplying parameter expansion is a path
@@ -54,17 +56,74 @@ func TestDriverPathTokensReadValueWords_AZU_V0_8927(t *testing.T) {
 
 // AZU-V0-8927: `${N:?WORD}` is an error message and every other operator is
 // no value, so their words stay out of the tokens as in the shell plugin
-// (AZU-V0-8920): the rule adds the defaults and nothing else.
+// (AZU-V0-8920): the rule adds the defaults and nothing else. That holds
+// beside a default the shared lexer leaves unjoined, which turns on the
+// joined read, and a default nested in such a form is still read alone, as
+// the shared lexer reads it, never joined to the form's own text.
 func TestDriverPathTokensKeepNonValueFormsBlank_AZU_V0_8927(t *testing.T) {
-	for _, text := range []string{
-		"cat $${G:?d/seven.txt}",
-		"cat $${H#d/eight.txt}",
-		"cat $${H%d/nine.txt}",
-		"cat $${H/d/ten.txt}",
+	for _, c := range []struct {
+		text  string
+		added []string // the tokens after the blanked ones, in order
+	}{
+		{"cat $${G:?d/seven.txt}", nil},
+		{"cat $${H#d/eight.txt}", nil},
+		{"cat $${H%d/nine.txt}", nil},
+		{"cat $${H/d/ten.txt}", nil},
+		// Beside an unjoined default.
+		{"cat ${!S:-x} ${X:?data/msg.txt}", nil},
+		{"cat ${!S:-data/x.txt} ${G:?data/err.txt}", []string{"data/x.txt"}},
+		{"cat ${!S:-x} ${X%data/pct.txt}", nil},
+		{"cat ${!S:-x} ${X#data/hash.txt}", nil},
+		{"cat ${!S:-x} ${X/data/sub.txt}", nil},
+		{"cat ${!S:-x} ${X:?a/${Y}/msg.txt}", nil},
+		{"cat ${!S:-x} ${X%${Y:+data/b.txt}/c.txt} ${X%%x}", []string{"data/b.txt"}},
+		{"cat ${!S:-x} ${X:?unclosed data/msg.txt", nil},
+		// A default nested in a non-value form.
+		{"cat ${!S:-x} ${X%${Y:-data/a.txt}}", []string{"data/a.txt"}},
+		{"cat ${!S:-x} ${X%pre/${!Y:-a}.txt}", nil},
+		{"cat ${!S:-x} ${X%${!Y:-data/a.txt}}", []string{"data/a.txt"}},
+		{"cat ${!S:-data/${X#${Y:-p}q/r}.txt}", nil},
 	} {
-		if got, old := driverPathTokens(text), driverBlankedPathTokens(text); !slices.Equal(got, old) {
-			t.Errorf("driverPathTokens(%q) = %q, want the blanked tokens %q", text, got, old)
+		old := driverBlankedPathTokens(c.text)
+		want := slices.Clone(old)
+		for _, token := range c.added {
+			if !slices.Contains(want, token) {
+				want = append(want, token)
+			}
 		}
+		if got := driverPathTokens(c.text); !slices.Equal(got, want) {
+			t.Errorf("driverPathTokens(%q) = %q, want %q (the blanked tokens %q and the defaults)", c.text, got, want, old)
+		}
+	}
+}
+
+// AZU-V0-8927: the joined read is one pass. A run of unclosed subscripted
+// openers, each asking for the `]` that ends its subscript, reads each byte
+// of the text at most once for that search, where a search per opener read
+// the rest of the text each time.
+func TestDriverJoinedReadIsLinear_AZU_V0_8927(t *testing.T) {
+	for _, text := range []string{
+		strings.Repeat("${A[", 20000),
+		strings.Repeat("${A[", 20000) + "]",
+		"cat ${!S:-x} " + strings.Repeat("${A[x}", 20000),
+		"cat ${!S:-x} " + strings.Repeat("${!A[", 20000) + "data/x.txt",
+	} {
+		unjoined := newDriverScanText(text)
+		driverUnjoinedValueForm(unjoined)
+		joined := newDriverScanText(text)
+		driverJoinedValueWords(joined)
+		for name, scan := range map[string]*driverScanText{"driverUnjoinedValueForm": unjoined, "driverJoinedValueWords": joined} {
+			if scan.scanned > len(text) {
+				t.Errorf("%s read %d bytes for `]` in a text of %d", name, scan.scanned, len(text))
+			}
+		}
+	}
+	done := make(chan []string, 1)
+	go func() { done <- driverPathTokens("cat ${!S:-x} " + strings.Repeat("${A[", 20000)) }()
+	select {
+	case <-done:
+	case <-time.After(time.Minute):
+		t.Fatal("driverPathTokens took over a minute on 20000 unclosed `${A[` openers")
 	}
 }
 
