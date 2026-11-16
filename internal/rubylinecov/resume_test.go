@@ -231,3 +231,19 @@ func TestLiveCollectResume(t *testing.T) {
 		t.Fatal("parallel resumed index differs from the serial index")
 	}
 }
+
+// LPCV-V0-7609: merging the same shapes again adds nothing, so thousands of
+// isolated runs do not multiply the index's blocks.
+func TestMergeShapesOnce(t *testing.T) {
+	into := map[string]fileShape{}
+	one := map[string]fileShape{"lib/a.rb": {Lines: []int32{1, 2, 5}, Methods: []span{{2, 2, 4, 5}}}}
+	two := map[string]fileShape{"lib/a.rb": {Lines: []int32{5, 7}, Methods: []span{{2, 2, 4, 5}, {6, 2, 8, 5}}}}
+	for i := 0; i < 3; i++ {
+		mergeShapes(into, one)
+		mergeShapes(into, two)
+	}
+	got := into["lib/a.rb"]
+	if fmt.Sprint(got.Lines) != "[1 2 5 7]" || len(got.Methods) != 2 {
+		t.Fatalf("merged shape %+v", got)
+	}
+}
