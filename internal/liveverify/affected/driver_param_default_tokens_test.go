@@ -26,12 +26,20 @@ func TestDriverPathTokensReadValueWords_AZU_V0_8927(t *testing.T) {
 		{"suffix-joined", "cat $${DIR:-data}/x.txt", []string{"data/x.txt"}},
 		{"unclosed", "cat $${F:-data/x.txt", []string{"data/x.txt"}},
 		{"make-block", "check:\n\t@f=$${1:-data/x.txt}; \\\n\tcat \"$$f\" script/run.sh\n", []string{"script/run.sh", "data/x.txt"}},
-		// Parameters the shared lexer does not take are read flat: the
+		// Parameters the shared lexer does not take are joined in place: the
 		// default is kept, never dropped.
 		{"indirect", "cat ${!F:-data/x.txt}", []string{"data/x.txt"}},
 		{"subscript", "cat ${F[0]:-data/x.txt}", []string{"data/x.txt"}},
 		{"special", "cat ${#:-data/x.txt}", []string{"data/x.txt"}},
 		{"indirect-in-word", "cat ${F:-${!G:-data/y.txt}}", []string{"data/y.txt"}},
+		// A default the shared lexer does not take is joined into the path
+		// around it, as the shell reads it when the default applies.
+		{"indirect-in-path", "cat data/${!S:-x}.txt", []string{"data/x.txt"}},
+		{"subscript-in-path", "cat data/${A[0]:-x}.txt", []string{"data/x.txt"}},
+		{"indirect-around-nested", "cat ${!F:-data/${S:-x}.txt}", []string{"data/x.txt"}},
+		{"indirect-nested-in-path", "cat ${F:-data/${!S:-x}.txt}", []string{"data/x.txt"}},
+		{"make-indirect-in-path", "cat data/$${!S:-x}.txt", []string{"data/x.txt"}},
+		{"plain-in-path", "cat ${F:-data}/${G:-x}.txt", []string{"data/x.txt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			got := driverPathTokens(c.text)
@@ -60,15 +68,23 @@ func TestDriverPathTokensKeepNonValueFormsBlank_AZU_V0_8927(t *testing.T) {
 	}
 }
 
-// AZU-V0-8927: a default nested deeper than the shared lexer follows is read
-// flat, so it is still a token.
+// AZU-V0-8927: a default nested deeper than the shared lexer follows is
+// joined in place, so it is still a token, alone and composed with the text
+// after it.
 func TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927(t *testing.T) {
-	text := "data/deep.txt"
-	for level := 0; level < 3*MaxValueWordDepth; level++ {
-		text = "$${L" + string(rune('A'+level)) + ":-" + text + "}"
-	}
-	if got := driverPathTokens("cat " + text); !slices.Contains(got, "data/deep.txt") {
-		t.Fatalf("driverPathTokens dropped a default %d levels deep: %q", 3*MaxValueWordDepth, got)
+	for _, levels := range []int{MaxValueWordDepth + 2, 3 * MaxValueWordDepth} {
+		nest := func(word string) string {
+			for level := 0; level < levels; level++ {
+				word = "$${L" + string(rune('A'+level)) + ":-" + word + "}"
+			}
+			return word
+		}
+		if got := driverPathTokens("cat " + nest("data/deep.txt")); !slices.Contains(got, "data/deep.txt") {
+			t.Errorf("driverPathTokens dropped a default %d levels deep: %q", levels, got)
+		}
+		if got := driverPathTokens("cat " + nest("data") + "/deep.txt"); !slices.Contains(got, "data/deep.txt") {
+			t.Errorf("driverPathTokens dropped a default %d levels deep composed with its suffix: %q", levels, got)
+		}
 	}
 }
 

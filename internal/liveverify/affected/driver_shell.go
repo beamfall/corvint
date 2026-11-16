@@ -2857,34 +2857,35 @@ func driverPathTokens(text string) []string {
 // driverValueWordTokens calls add with the path tokens of the value words of
 // text (ValueWords), each word read the same way down to depth levels, and
 // with those of the text with its defaults joined in place, as the shell
-// plugin's lexValueWords does. Where that lexer does not read a default, a
+// plugin's lexValueWords does. Where that lexer leaves a default unjoined, a
 // word nested deeper than depth or one whose parameter it does not take
-// (driverUnreadValueForm), the text is read flat instead
-// (driverFlatValueWords): a default it cannot resolve widens the tokens and
-// is never dropped.
+// (driverUnjoinedValueForm), the text is also read with every default joined
+// in place at any depth (driverJoinedValueWords): a default it cannot resolve
+// widens the tokens and is never dropped, alone or composed with the text
+// around it.
 func driverValueWordTokens(text string, depth int, add func(token string)) {
 	if !strings.Contains(text, "${") {
 		return
 	}
-	if depth == 0 || driverUnreadValueForm(text) {
-		for _, token := range driverBlankedPathTokens(driverFlatValueWords(text)) {
+	addTokens := func(text string) {
+		for _, token := range driverBlankedPathTokens(text) {
 			add(token)
 		}
-		if depth == 0 {
-			return
-		}
+	}
+	if depth == 0 {
+		addTokens(driverJoinedValueWords(text))
+		return
 	}
 	words, joined := ValueWords(text, depth)
 	for _, word := range words {
-		for _, token := range driverBlankedPathTokens(word) {
-			add(token)
-		}
+		addTokens(word)
 		driverValueWordTokens(word, depth-1, add)
 	}
 	if joined != text {
-		for _, token := range driverBlankedPathTokens(joined) {
-			add(token)
-		}
+		addTokens(joined)
+	}
+	if driverUnjoinedValueForm(joined) {
+		addTokens(driverJoinedValueWords(text))
 	}
 }
 
@@ -2931,42 +2932,60 @@ func driverWideValueWordStart(text string, index int) int {
 	return -1
 }
 
-// driverUnreadValueForm reports a `${` of text that opens a value-supplying
-// expansion ValueWords does not read.
-func driverUnreadValueForm(text string) bool {
+// driverUnjoinedValueForm reports a `${` of text that opens a value-supplying
+// expansion (driverWideValueWordStart): in the text ValueWords joined, one it
+// left in place.
+func driverUnjoinedValueForm(text string) bool {
 	for from := 0; ; {
 		offset := strings.Index(text[from:], "${")
 		if offset < 0 {
 			return false
 		}
 		from += offset + 2
-		if valueWordStart(text, from) < 0 && driverWideValueWordStart(text, from) >= 0 {
+		if driverWideValueWordStart(text, from) >= 0 {
 			return true
 		}
 	}
 }
 
-// driverFlatValueWords is text with every `${` opener blanked, a
-// value-supplying one through its operator, so each word at any depth is
-// plain text up to its `}`: the widening read of a default ValueWords does
-// not resolve.
-func driverFlatValueWords(text string) string {
-	flat := []byte(text)
-	for from := 0; ; {
-		offset := strings.Index(text[from:], "${")
-		if offset < 0 {
-			return string(flat)
-		}
-		open := from + offset
-		from = open + 2
-		end := from
-		if word := driverWideValueWordStart(text, from); word >= 0 {
-			end = word
-		}
-		for index := open; index < end; index++ {
-			flat[index] = ' '
+// driverJoinedValueWords is text as it reads when every default applies, at
+// any depth and for every parameter a shell takes: each value-supplying
+// expansion (driverWideValueWordStart) is replaced by its word, its opener
+// through the operator and its closing `}` dropped, so `data/${!S:-x}.txt`
+// reads `data/x.txt`. Any other `${` opener is blanked and its `}` kept, a
+// separator. Braces match as in closingBrace: a `${` opens a level, a `}`
+// closes the innermost, and inside one a backslash escapes the byte after
+// it. An unclosed expansion's word runs to the end of text. It is the
+// widening read of a default ValueWords leaves unjoined; one pass, no depth
+// bound.
+func driverJoinedValueWords(text string) string {
+	var out strings.Builder
+	out.Grow(len(text))
+	var value []bool // per open expansion: whether it supplies a value
+	for index := 0; index < len(text); index++ {
+		switch char := text[index]; {
+		case char == '\\' && len(value) > 0 && index+1 < len(text):
+			out.WriteString(text[index : index+2])
+			index++
+		case char == '$' && index+1 < len(text) && text[index+1] == '{':
+			if word := driverWideValueWordStart(text, index+2); word >= 0 {
+				value = append(value, true)
+				index = word - 1
+				continue
+			}
+			value = append(value, false)
+			out.WriteString("  ")
+			index++
+		case char == '}' && len(value) > 0:
+			if !value[len(value)-1] {
+				out.WriteByte(char)
+			}
+			value = value[:len(value)-1]
+		default:
+			out.WriteByte(char)
 		}
 	}
+	return out.String()
 }
 
 // driverBlankedPathTokens is the path tokens of text with every expansion a
