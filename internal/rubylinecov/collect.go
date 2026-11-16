@@ -412,13 +412,33 @@ func (r *record) add(e event) {
 	}
 }
 
+// mergeShapes unions file shapes, keeping each line and method once in
+// first-seen order: every isolated run reports the same shapes again, and
+// a suite of thousands of tests must not multiply them (LPCV-V0-7609).
 func mergeShapes(into, from map[string]fileShape) {
 	for p, s := range from {
 		cur := into[p]
-		cur.Lines = append(cur.Lines, s.Lines...)
-		cur.Methods = append(cur.Methods, s.Methods...)
+		cur.Lines = appendNew(cur.Lines, s.Lines)
+		cur.Methods = appendNew(cur.Methods, s.Methods)
 		into[p] = cur
 	}
+}
+
+func appendNew[T comparable](cur, add []T) []T {
+	if len(add) == 0 {
+		return cur
+	}
+	seen := make(map[T]bool, len(cur)+len(add))
+	for _, v := range cur {
+		seen[v] = true
+	}
+	for _, v := range add {
+		if !seen[v] {
+			seen[v] = true
+			cur = append(cur, v)
+		}
+	}
+	return cur
 }
 
 // Index builds the linecov index of a run collected at commit. oids maps every
