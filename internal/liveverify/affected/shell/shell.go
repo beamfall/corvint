@@ -1376,10 +1376,119 @@ func unquote(word string) string {
 
 // Path tokens use the AFP-V0-012 lexicon after expansions are blanked; a token
 // is path-shaped when it carries a slash or a dot and is not a bare number.
+// The blanking is lexical: a braced expansion ends at the first `}`, so the
+// text after the inner brace of a nested expansion is still read.
 var (
 	expansion = regexp.MustCompile(`\$\{[^}]*\}|\$\([^)]*\)|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-]`)
 	pathToken = regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
 )
+
+// maxValueWordDepth bounds how deep valueWords follows a value word inside a
+// value word. A deeper word keeps the tokens of the blanked text only.
+const maxValueWordDepth = 8
+
+// valueWords finds, by brace matching, the value-supplying parameter
+// expansions of text: `${N:-WORD}`, `${N-WORD}`, `${N:=WORD}`, `${N=WORD}`,
+// `${N:+WORD}` and `${N+WORD}` for a name, a positional parameter, `@` or
+// `*`. WORD is the value the expansion takes when the parameter is unset,
+// empty or set, so a literal default such as
+// `file=${1:-conformance/register.md}` is a path the script reads
+// (AZU-V0-8920). The `?` form's word is an error message, not a value, and
+// every other operator is no value either.
+//
+// words lists each outermost expansion's word; a word may hold expansions
+// of its own (`${1:-${ROOT:-.}/conformance/register.md}`), which the caller
+// reads by passing the word back. A word whose closing brace is missing runs
+// to the end of text. joined is text with each closed expansion replaced by
+// its word, the words of that word replaced in turn down to depth: the text
+// as it reads when every default applies (`./conformance/register.md`).
+//
+// The caller adds the tokens of words and of joined to those of the blanked
+// text and never replaces them: a form this scan misreads loses no token.
+func valueWords(text string, depth int) (words []string, joined string) {
+	var out strings.Builder
+	from := 0
+	for {
+		offset := strings.Index(text[from:], "${")
+		if offset < 0 {
+			break
+		}
+		open := from + offset
+		word := valueWordStart(text, open+2)
+		if word < 0 {
+			// No value form: keep the opener and read on inside it.
+			out.WriteString(text[from : open+2])
+			from = open + 2
+			continue
+		}
+		end := closingBrace(text, word)
+		if end < 0 {
+			// Unbalanced: the word is the rest, and nothing is joined.
+			words = append(words, text[word:])
+			break
+		}
+		value := text[word:end]
+		words = append(words, value)
+		out.WriteString(text[from:open])
+		if depth > 0 {
+			_, value = valueWords(value, depth-1)
+		}
+		out.WriteString(value)
+		from = end + 1
+	}
+	out.WriteString(text[from:])
+	return words, out.String()
+}
+
+// valueWordStart returns the index of the word of a value-supplying
+// expansion whose parameter starts at index (just after `${`), or -1.
+func valueWordStart(text string, index int) int {
+	start := index
+	switch {
+	case index >= len(text):
+		return -1
+	case text[index] == '@' || text[index] == '*':
+		index++
+	case text[index] >= '0' && text[index] <= '9':
+		for index < len(text) && text[index] >= '0' && text[index] <= '9' {
+			index++
+		}
+	default:
+		for index < len(text) && nameByte(text[index]) {
+			index++
+		}
+	}
+	if index == start {
+		return -1
+	}
+	if index < len(text) && text[index] == ':' {
+		index++
+	}
+	if index >= len(text) || strings.IndexByte("-=+", text[index]) < 0 {
+		return -1
+	}
+	return index + 1
+}
+
+// closingBrace returns the index of the `}` that closes a braced expansion
+// whose content starts at index, or -1: a `${` inside opens another level,
+// and a backslash escapes the byte after it.
+func closingBrace(text string, index int) int {
+	for level := 1; index < len(text); index++ {
+		switch {
+		case text[index] == '\\':
+			index++
+		case text[index] == '$' && index+1 < len(text) && text[index+1] == '{':
+			level++
+			index++
+		case text[index] == '}':
+			if level--; level == 0 {
+				return index
+			}
+		}
+	}
+	return -1
+}
 
 // tempExpansion is a plain or braced expansion of a name and the literal path
 // that follows it.
@@ -1548,6 +1657,33 @@ func underTempRoot(value string, roots map[string]bool) bool {
 	return roots[groups[1]+groups[2]] && !slices.Contains(strings.Split(groups[3], "/"), "..")
 }
 
+// lexValueWords calls add with every path-shaped token of text: those of
+// the blanked text, which the lexicon gave before AZU-V0-8920 and which are
+// always kept, then those of each value word (valueWords), read the same way
+// down to depth levels, and those of the text with its defaults joined in
+// place. The rule only adds tokens: no text it rewrites replaces the text it
+// was given.
+func lexValueWords(text string, depth int, add func(token string)) {
+	blanked := func(text string) {
+		for _, token := range pathToken.FindAllString(expansion.ReplaceAllString(text, " "), -1) {
+			if pathShaped(token) {
+				add(token)
+			}
+		}
+	}
+	blanked(text)
+	if depth == 0 || !strings.Contains(text, "${") {
+		return
+	}
+	words, joined := valueWords(text, depth)
+	for _, word := range words {
+		lexValueWords(word, depth-1, add)
+	}
+	if joined != text {
+		blanked(joined)
+	}
+}
+
 // pathTokens lists a file's AFP-V0-012 path tokens. A literal path that
 // follows the expansion of a temp root (tempRoots) names a file below a
 // directory the script created, never a repository path, so it adds no
@@ -1579,12 +1715,10 @@ func pathTokens(parsed script, temp map[string]bool, test, utilities, listings b
 				return " "
 			})
 		}
-		for _, token := range pathToken.FindAllString(expansion.ReplaceAllString(text, " "), -1) {
-			if pathShaped(token) {
-				tokens[token] = true
-				held[token] = true
-			}
-		}
+		lexValueWords(text, maxValueWordDepth, func(token string) {
+			tokens[token] = true
+			held[token] = true
+		})
 	}
 	for index, cmd := range parsed.commands {
 		// An admitted name-only command with no glob among its words holds

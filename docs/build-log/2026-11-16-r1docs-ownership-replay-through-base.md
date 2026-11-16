@@ -55,6 +55,14 @@ What remains for criterion 3: a before/after pair able to plan rows 37 to 117
 (binaries that read those trees' declarations, or an owner ruling that the
 refused trees are outside the ownership rule's replay), plus the safety receipts.
 
+Follow-up: `2026-11-16-r1replay-ownership-replay-complete.md` supplies that pair. It is built
+from the lane base, and its "before" switches off only the ownership rule. It compares all 117
+rows, with zero dropped units. The safety receipts remain AZU-V0-009's own promotion condition,
+not V1-4685's criterion 3.
+Correction (2026-11-16, repair round 1): zero dropped baseline-selected units is not zero
+dropped readers. That entry's reader audit finds unselected readers of removed paths, so
+criterion 3 stays open and V1-4685 is `blocked`.
+
 ## Compared rows
 
 Unknown counts are plan `unknown` entries; selected counts are plan `selected`
