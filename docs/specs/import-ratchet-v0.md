@@ -136,7 +136,7 @@ reviewed change.
 - IRT-V0-020 does not see these Git spawns: `os.StartProcess`, `syscall.Exec` or another
   non-`os/exec` primitive; a dot import of `os/exec`; a program held in a name without `git`
   (at c9775bd90, for example, `executable` in `internal/contextindex/git.go` `gitRaw` and
-  `identity.path` in `internal/releasegate/git_unix.go` `runGitProcess`); a program returned by
+  `identity.path` in the since-retired `internal/releasegate/git_unix.go` `runGitProcess`); a program returned by
   any call other than `gitstatus.Executable()`; and a wrapper that builds the `exec.Cmd` elsewhere
   and receives the program from its caller. Spawns inside `internal/gitrun` are out of scope by
   design. A name that contains `git` but holds another program would be listed needlessly; the
