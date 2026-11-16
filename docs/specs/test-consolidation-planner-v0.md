@@ -5,6 +5,7 @@ Date: 2026-10-08
 Requirement prefix: `TCN-V0`
 Intent status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner request [issue 681](https://github.com/beamfall/corvint/issues/681)
 (native ticket V1-1023), `AGENTS.md` invariants 1, 2, 4, 7 and 8,
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/application-map-v0.md` (AMAP-V0 screens, element

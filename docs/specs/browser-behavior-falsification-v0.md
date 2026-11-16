@@ -1,5 +1,7 @@
 # Browser behavior falsification V0
 
+Health: KEEP
+
 - Owner: Russell Lewis
 - Date: 2026-09-21
 - Intent status: retired 2026-11-09 (decision 0593)

@@ -5,6 +5,7 @@ Frozen: 2026-10-27
 Requirement prefix: `WSD-V0`
 Intent status: accepted under the owner's standing lane auto-accept (2026-10-11; V1-2846; GitHub #1904)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/specs/application-map-v0.md` (aliased roots `AMAP-V0-017` to
 `AMAP-V0-020`, stated revisions `AMAP-V0-200`), `docs/specs/change-compiled-e2e-v0.md`
 (`corvint-test e2e` map verbs and their `--repo` roots), `internal/rootalias` (alias and root

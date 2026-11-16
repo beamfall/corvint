@@ -1,5 +1,7 @@
 # LSP Stdio Experiment V0
 
+Health: KEEP
+
 - Owner: Russell Lewis
 - Date: 2026-09-29
 - Intent status: retired 2026-11-09 (decision 0594)

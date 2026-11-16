@@ -7,6 +7,7 @@ cites the clause rather than asserting it.
 
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Health: RETIRE
 Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
 Retirement note: decision 0594 deleted the frontier and witness surfaces this reading aid cites (756d3670 is the last tree with them). It remains a historical reading aid and decides nothing.
 

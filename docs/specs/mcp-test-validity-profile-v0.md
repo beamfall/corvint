@@ -5,6 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `MTV-V0`
 Intent status: accepted (decision 0147, 2026-09-12)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: AGENTS.md invariants 2, 4, 7 and 8; `public-release-v0.md` `PUB-V0-006`;
 `live-proof-carrying-verification-v0.md` `LPCV-V0-047..054`; `mcp-server-2026-07-28-v0.md`
 `MCPV0-008`; `../decisions/0103-mcp-v0-stays-three-tools-2026-09-12.md`;

@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-30
 Intent status: retired 2026-11-06 (V1-4747 AC3)
 Delivery status: retired
+Health: RETIRE
 Retirement note: V1-4747 AC3 deleted the isolated `internal/proofabstraction` library, which had no
 importer and never ran its hostile corpus, sealed trial or replication (044058f1 is the last tree
 with it). The body below is historical and its requirement IDs stay for traceability.

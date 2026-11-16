@@ -5,6 +5,7 @@ Date: 2026-09-29
 Requirement prefix: `UPD-V0`
 Intent status: proposed technical contract under owner-requested V1-0505 outcome
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner instructions of 2026-09-29 to use current Corvint/Core/Tasks machine-wide
 and implement V1-0505; `../../AGENTS.md` invariants 4 and 7; `../INSTALL.md` upgrade/rollback contract.
 

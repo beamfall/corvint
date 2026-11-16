@@ -5,6 +5,7 @@ Date: 2026-09-29
 Requirement prefix: `GCS-V0`
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Health: RETIRE
 Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `AGENTS.md`, `docs/specs/external-evidence-provider-v0.md`; owner direction for V1-0479, Go/gopls agent enrichment and optional editor companion. This bounded prototype implements part of the proposed LQP-V0-007..009 adapter profile; it does not qualify or promote any exact platform profile.

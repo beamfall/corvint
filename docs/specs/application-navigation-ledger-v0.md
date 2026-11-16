@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: accepted (decision 0518)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1163, V1-1166, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1164 (issues #776/#777), V1-1135 (issue #777), V1-1137 (issue #779); issue #814; V1-1159; V1-1160; V1-1161; V1-1165; `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 

@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-20
 Intent status: accepted
 Delivery status: `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175
+Health: KEEP
 Profiles: `corvint-playwright-external/0`, `corvint-playwright-external/1`, `corvint-playwright-external/2`, `corvint-playwright-external/3`.
 Inputs: GitHub issues #19, #39, #43, #49, #50, #56, #665; AGENTS.md invariants 1–8; decision 0179.
 Owner acceptance: in the 2026-09-20 issue-resolution task, the owner explicitly approved accepting

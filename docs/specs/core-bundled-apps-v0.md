@@ -5,6 +5,7 @@ Date: 2026-11-06
 Requirement prefix: `CMS-V0`
 Intent status: accepted (owner, 2026-11-06)
 Delivery status: in-progress (docs edges cut and flows commands forwarded, 2026-11-09)
+Health: KEEP
 Authoritative inputs:
 - decision 0591;
 - `AGENTS.md` invariant 7 as amended by 0591;

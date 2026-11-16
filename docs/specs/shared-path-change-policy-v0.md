@@ -5,6 +5,7 @@ Date: 2026-10-17
 Requirement prefix: `SPC-V0`
 Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1591); SPC-V0-013/014 accepted under the owner's standing auto-accept (2026-10-11; V1-1723); SPC-V0-015 accepted under the owner's standing auto-accept (2026-10-11; V1-1726)
 Delivery status: experimental
+Health: MERGE
 Authoritative inputs: V1-1591 / GitHub #1034 owner request; `../../AGENTS.md` invariants 2, 4, 7 and 8; `../DOGFOOD.md`.
 
 ## Agent digest

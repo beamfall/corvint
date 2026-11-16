@@ -5,6 +5,7 @@ Date: 2026-09-05
 Status: accepted
 Intent status: retired 2026-11-11 (decision 0597)
 Delivery status: retired
+Health: RETIRE
 Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
 Moved requirements: `LTA-V0-004` and `LTA-V0-014` to `LTA-V0-017`, `LTA-V0-019` and `LTA-V0-020` moved to `secret-screen-writer-v0.md` on 2026-11-11 (decision 0597), because `internal/secretscreen` is still live code; their rows are deleted here.
 Retirement note: decision 0597 (context proven only) deleted the trace packages; Corvint 1.0 learns nothing from use (decision 0596) (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.

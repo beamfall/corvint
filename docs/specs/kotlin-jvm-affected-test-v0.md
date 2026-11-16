@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-29
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `AGENTS.md`, `docs/specs/live-proof-carrying-verification-v0.md`, and the
 operator-approved Kotlin/JVM adapter task of 2026-08-29
 

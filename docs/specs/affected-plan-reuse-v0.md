@@ -5,6 +5,7 @@ Date: 2026-11-03
 Requirement prefix: `AFP-V0`
 Intent status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: AFP-V0-013, AFP-V0-023,
 AFP-V0-024, AFP-V0-028, AFP-V0-041, AFP-V0-047, AFP-V0-080, AFP-V0-163, AFP-V0-170, AFP-V0-590 and
 AFP-V0-591), `.github/testconfine` (the confinement that bounds a declared package's reads),

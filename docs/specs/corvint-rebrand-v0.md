@@ -5,6 +5,7 @@ Date: 2026-09-15
 Requirement prefix: `CRB-V0`  
 Intent status: accepted  
 Delivery status: experimental foundation
+Health: KEEP
 Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-dashboard-snapshot`; requirements
 naming it are retired.
 

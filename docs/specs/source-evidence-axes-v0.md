@@ -5,6 +5,7 @@ Date: 2026-09-08
 Requirement prefix: `SEA-V0`
 Intent status: proposed
 Delivery status: not-started
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariants 1–4 and 8,
 `../SPEC-DRIVEN-DEVELOPMENT.md`, `local-admin-console-v0.md` (`LAC-V0-006..011`),
 `local-observability-dashboard-v0.md` (Independent truth axes), and

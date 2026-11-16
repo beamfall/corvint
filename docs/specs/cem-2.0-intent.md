@@ -5,6 +5,7 @@ Date: 2026-11-01
 Requirement prefix: `CEM2-V0`
 Intent status: proposed
 Delivery status: not-started; codec prototype retired 2026-11-06 (V1-4747 AC3)
+Health: KEEP
 Authoritative inputs: the CEM 2.0 counterfactual-receipt plan of 2026-10-24, recorded in full in
 V1-2600 to V1-2609 (umbrella V1-2609); `AGENTS.md` invariants 1, 2, 3, 4, 7 and 8;
 `docs/specs/cem-stable-v1.md` (the accepted cem/1.0 contract, unchanged here); V1-3759 (no extension

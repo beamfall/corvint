@@ -5,6 +5,7 @@ Date: 2026-09-13
 Requirement prefix: `RGV-V0`
 Intent status: accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995); RGV-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-2053)
 Delivery status: experimental
+Health: KEEP
 
 ## Agent digest
 - Claim: One advisory command, `review`, gives affected advice and local branch overlap hints for an immutable range (`features` and `overview` cut, decision 0597).

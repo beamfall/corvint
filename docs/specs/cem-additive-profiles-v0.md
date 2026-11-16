@@ -5,6 +5,7 @@ Date: 2026-10-28
 Intent status: experimental under the standing lane auto-accept
 Decision: `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-cem-additive-profiles.md`
 Delivery status: experimental
+Health: KEEP
 Retirement note: decision 0594 (2026-11-09) deleted `corvint prove`, `corvint witness` and
 `internal/attest`, so `CAX-V0-001` and `CAX-V0-034` are retired; the binary no longer installs the
 data-reader lookup, so a `CAX-V0-064` data row from `corvint cem` reads `data-reader-not-produced`.

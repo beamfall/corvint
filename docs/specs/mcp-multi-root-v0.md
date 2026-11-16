@@ -5,6 +5,7 @@ Date: 2026-10-07
 Requirement prefix: `MMR-V0`
 Intent status: accepted (decision 0441); MMR-V0-009 accepted (decision 0519; V1-1173); MMR-V0-010 and MMR-V0-011 experimental under the standing lane auto-accept (V1-3116); MMR-V0-012 to MMR-V0-017 experimental under the standing lane auto-accept (V1-3117)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: AGENTS.md invariants 2, 3, 4, 7 and 8; `mcp-server-2026-07-28-v0.md`
 `MCPV0-001`, `MCPV0-015`, `MCPV0-039` to `MCPV0-041`, `MCPV0-114`; native tickets `V1-0938`, `V1-3116`, `V1-3117`.
 

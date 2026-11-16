@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-06
 Intent status: accepted bounded repair scope (owner follow-up 2026-09-06)
 Delivery status: experimental
+Health: KEEP
 Retirement note: decision 0594 (2026-11-09) deleted the `prove` command group
 (`cmd/corvint/prove_checkpoint.go`); requirements naming it are retired.
 Requirement prefix: `EAF-V0`

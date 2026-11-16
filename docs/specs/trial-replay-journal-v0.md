@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-08
 Intent status: retired 2026-11-11 (decision 0597)
 Delivery status: retired
+Health: RETIRE
 Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
 Retirement note: decision 0597 (context proven only) retired this never-started journal, which served only the retired trials (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `confidently-wrong-trial-v0.md` (CWT-V0-004), `cem-reviewer-trial-v0.md`

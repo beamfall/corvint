@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-10
 Intent status: proposed; its two product requirements are accepted by the owner (decision 0596; 2026-11-10)
 Delivery status: experimental; path form built, ticket form not started
+Health: KEEP
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-INT-030, PROD-INT-032), decision 0596, and the change folder
 `docs/specs/openspec/changes/ticket-brief-context/` (the proposal, design and spec delta this file
