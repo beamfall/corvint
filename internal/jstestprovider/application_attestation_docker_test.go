@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"os"
 	"os/exec"
@@ -317,7 +318,7 @@ func dockerExpectation(t *testing.T, ctx context.Context, git, docker, repositor
 func dockerQualificationConfig(repository string, providerArgv []string, configPath, readyURL, runnerVersion string) E2EConfig {
 	config := filepath.Join(repository, "playwright.config.cjs")
 	test := filepath.Join(repository, "application.spec.cjs")
-	return E2EConfig{
+	return E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config:         Config{Dir: repository, ConfigFile: config, TestFiles: []string{test}, RunnerName: "playwright", RunnerVersion: runnerVersion, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_RUN_STARTED"}, Timeout: 45 * time.Second},
 		ExternalServer: true, ServerReadyURL: readyURL, ServerReadyLimit: 15 * time.Second, TestArgv: []string{"application.spec.cjs", "--project=chromium"},
 		ApplicationAttestation: &ApplicationAttestationProvider{Argv: providerArgv, ConfigFile: configPath, Timeout: 10 * time.Second},

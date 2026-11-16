@@ -18,7 +18,7 @@ import (
 	// The live external runs probe readiness through the client the E2E
 	// binaries link (MTV-V0-950); without it every probe fails closed with
 	// server-not-ready before Playwright starts (V1-2390).
-	_ "github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 )
 
 // TestExternalLiveLinksLoopbackClient runs no Playwright and starts no
@@ -40,7 +40,7 @@ func TestExternalLiveLinksLoopbackClient(t *testing.T) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer server.Close()
-	receipt, err := jstestprovider.RunE2E(context.Background(), jstestprovider.E2EConfig{
+	receipt, err := jstestprovider.RunE2E(context.Background(), jstestprovider.E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config: jstestprovider.Config{
 			Dir: root, ConfigFile: config, TestFiles: []string{spec},
 			RunnerName: "playwright", RunnerVersion: "1.64.0", Timeout: 10 * time.Second,

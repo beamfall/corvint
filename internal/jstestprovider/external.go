@@ -112,7 +112,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if readyLimit <= 0 {
 		readyLimit = 15 * time.Second
 	}
-	if err := externalReady(ctx, cfg.ServerReadyURL, readyLimit); err != nil {
+	if err := externalReady(ctx, cfg.ServerReadyURL, readyLimit, cfg.LoopbackGet); err != nil {
 		r.Infrastructure = &InfrastructureFailure{Reason: "server-not-ready", Detail: err.Error()}
 		r.Cancelled = ctx.Err() != nil
 		return r, nil
@@ -122,7 +122,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		// A failed preflight is infrastructure before tests: the runner never
 		// starts, so the receipt carries no test verdicts (PWP-V0-091).
 		var failure *InfrastructureFailure
-		r.Preflight, failure = runPreflight(ctx, cfg.Preflight, cfg.Dir)
+		r.Preflight, failure = runPreflight(ctx, cfg.Preflight, cfg.Dir, cfg.LoopbackGet)
 		if failure != nil {
 			r.Infrastructure = failure
 			r.Cancelled = ctx.Err() != nil
@@ -160,7 +160,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	// The caller may already be cancelled. A separate bounded observation checks
 	// survival without extending ownership to the external service.
 	postCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-	lifecycle.ReadyAtPublish = externalReady(postCtx, cfg.ServerReadyURL, time.Second) == nil
+	lifecycle.ReadyAtPublish = externalReady(postCtx, cfg.ServerReadyURL, time.Second, cfg.LoopbackGet) == nil
 	cancel()
 	r.AppBuildAtPublish, err = DigestAppBuildDir(cfg.AppBuildDir)
 	if err != nil {
@@ -491,10 +491,10 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 	return config, argv, reportPath, nil
 }
 
-func externalReady(ctx context.Context, address string, limit time.Duration) error {
+func externalReady(ctx context.Context, address string, limit time.Duration, loopbackGet LoopbackGet) error {
 	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
-	if err := probeAddress(address); err != nil {
+	if err := probeAddress(address, loopbackGet); err != nil {
 		return err
 	}
 	for {

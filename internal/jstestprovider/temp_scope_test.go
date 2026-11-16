@@ -3,6 +3,7 @@ package jstestprovider
 import (
 	"context"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -71,7 +72,7 @@ func TestNEAV0010NativeTempScope(t *testing.T) {
 		w.Write([]byte("ready"))
 	}))
 	defer server.Close()
-	cfg := E2EConfig{Config: Config{Dir: repo, TestFiles: []string{filepath.Join(repo, "test.js")}, ConfigFile: filepath.Join(repo, "config.js"), PackageJSON: filepath.Join(repo, "package.json"), Lockfile: filepath.Join(repo, "lock.json"), RunnerName: "playwright", RunnerVersion: "1.60.0", Timeout: time.Second}, ExternalServer: true, AppIdentity: "fixture", ScopedTempOutput: true, ServerReadyURL: server.URL, ServerReadyLimit: time.Second}
+	cfg := E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{Dir: repo, TestFiles: []string{filepath.Join(repo, "test.js")}, ConfigFile: filepath.Join(repo, "config.js"), PackageJSON: filepath.Join(repo, "package.json"), Lockfile: filepath.Join(repo, "lock.json"), RunnerName: "playwright", RunnerVersion: "1.60.0", Timeout: time.Second}, ExternalServer: true, AppIdentity: "fixture", ScopedTempOutput: true, ServerReadyURL: server.URL, ServerReadyLimit: time.Second}
 	_, err = RunE2E(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +96,7 @@ func TestNEAV0010NativeTempScope(t *testing.T) {
 func TestNEAV0010NativeOutputSelection(t *testing.T) {
 	for _, scoped := range []bool{false, true} {
 		scratch := t.TempDir()
-		_, argv, _, err := externalCommand(E2EConfig{Config: Config{ConfigFile: "/repo/config.js"}, ScopedTempOutput: scoped}, scratch)
+		_, argv, _, err := externalCommand(E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{ConfigFile: "/repo/config.js"}, ScopedTempOutput: scoped}, scratch)
 		if err != nil {
 			t.Fatal(err)
 		}

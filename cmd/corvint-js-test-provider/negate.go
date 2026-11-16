@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"io"
 	"path/filepath"
 	"strings"
@@ -158,7 +159,7 @@ func parseNegate(args []string) (jstestprovider.NegateConfig, error) {
 		attestation = &jstestprovider.ApplicationAttestationProvider{Argv: command, ConfigFile: attestationConfig, Timeout: *appAttestationTimeout}
 	}
 	return jstestprovider.NegateConfig{
-		E2E: jstestprovider.E2EConfig{
+		E2E: jstestprovider.E2EConfig{LoopbackGet: loopbackhttp.Get,
 			Config: jstestprovider.Config{
 				Dir:             resolvedDir,
 				TestFiles:       resolvedTestFiles,

@@ -40,7 +40,7 @@ func NormalizedCodeLines(name string, data []byte) ([]NormalizedLine, bool) {
 		return nil, false
 	}
 	text := normalizeLineEndings(string(data))
-	region, ok := dialect.LookupRegion(SymbolRegionLanguage(name))
+	region, ok := dialects.LookupRegion(SymbolRegionLanguage(name))
 	if !ok {
 		return nil, false
 	}

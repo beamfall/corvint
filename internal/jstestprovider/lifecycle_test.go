@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -155,7 +156,7 @@ func TestRunE2E_ServerDescendantsGoneAfterRun(t *testing.T) {
 	}
 	waitThenReport := fmt.Sprintf("while [ ! -s '%s' ]; do sleep 0.01; done; cat '%s'", pidfile, report)
 
-	receipt, err := RunE2E(context.Background(), E2EConfig{
+	receipt, err := RunE2E(context.Background(), E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config:     Config{Dir: filepath.Dir(script), RunnerName: "playwright", Timeout: 20 * time.Second},
 		ServerArgv: []string{script},
 		TestArgv:   []string{"/bin/sh", "-c", waitThenReport},
@@ -197,7 +198,7 @@ func TestRunE2E_ServerDescendantsGoneAfterRun(t *testing.T) {
 func TestRunE2E_ServerNotReadyRecordsTeardown(t *testing.T) {
 	for _, limit := range []time.Duration{500 * time.Millisecond, 2 * time.Second, 8 * time.Second} {
 		script, pidfile := serverFixture(t)
-		receipt, err := RunE2E(context.Background(), E2EConfig{
+		receipt, err := RunE2E(context.Background(), E2EConfig{LoopbackGet: loopbackhttp.Get,
 			Config:           Config{Dir: filepath.Dir(script), RunnerName: "playwright", Timeout: 20 * time.Second},
 			ServerArgv:       []string{script},
 			ServerReadyURL:   "http://" + testsupport.RefusedLoopbackAddr(t) + "/",
@@ -233,7 +234,7 @@ func TestRunE2E_CancelledDuringReadinessWait(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	time.AfterFunc(200*time.Millisecond, cancel)
-	receipt, err := RunE2E(ctx, E2EConfig{
+	receipt, err := RunE2E(ctx, E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config:           Config{Dir: t.TempDir(), RunnerName: "playwright", Timeout: 20 * time.Second},
 		ServerArgv:       []string{"/bin/sleep", "60"},
 		ServerReadyURL:   "http://" + testsupport.RefusedLoopbackAddr(t) + "/",

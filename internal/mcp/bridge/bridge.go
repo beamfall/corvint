@@ -221,12 +221,13 @@ func (failure *Error) Error() string { return failure.Code }
 
 // Registry binds every call to one canonical local repository root.
 type Registry struct {
-	root         string
-	callerRoot   string
-	rootIdentity os.FileInfo
-	git          *rootbind.Binding
-	operations   repositoryOperations
-	flows        bool
+	swiftPMReader contextindex.SwiftPMReader
+	root          string
+	callerRoot    string
+	rootIdentity  os.FileInfo
+	git           *rootbind.Binding
+	operations    repositoryOperations
+	flows         bool
 }
 
 // New binds the default V0 registry: exactly help, impact, and status.
@@ -248,6 +249,15 @@ func New(root string) (*Registry, error) {
 	}
 	registry := &Registry{root: resolved, callerRoot: root, rootIdentity: rootIdentity, git: git, operations: productionRepositoryOperations()}
 	return registry, nil
+}
+
+// NewWithSwiftPMReader binds a registry with an explicitly supplied Swift reader.
+func NewWithSwiftPMReader(root string, reader contextindex.SwiftPMReader) (*Registry, error) {
+	registry, err := New(root)
+	if err == nil {
+		registry.swiftPMReader = reader
+	}
+	return registry, err
 }
 
 // Profile names one registry profile's tool surface without a root.
@@ -403,7 +413,7 @@ func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Res
 		return Result{}, bridgeErr
 	}
 	budget, _ := optionalBytes(input.BudgetBytes, contextindex.MinPacketBytes, contextindex.MaxPacketBytes)
-	receipt, err := contextindex.PathImpactSyntax(snapshot.index, input.Paths, input.Limit, budget)
+	receipt, err := contextindex.PathImpactSyntax(snapshot.index.WithSwiftPMReader(registry.swiftPMReader), input.Paths, input.Limit, budget)
 	if err != nil {
 		if isUnsupported(err, "unsupported-impact-") {
 			return abstained(ToolImpact, abstentionReason(err), &snapshot.binding), nil

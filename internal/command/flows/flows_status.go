@@ -10,8 +10,6 @@ import (
 	"github.com/Beamfall/corvint/internal/appflows"
 )
 
-func init() { flowSubcommands["status"] = runFlowsStatus }
-
 // runFlowsStatus is `flows status`: one report of each flow, its variations, the tests attached to
 // each and the last recorded result of each test, optionally limited to the flows a change reaches
 // (AFU-V1-160 to AFU-V1-165). It reads intents at HEAD, the run evidence store unless --no-store

@@ -122,7 +122,8 @@ func runFlows(ctx context.Context, root string, args []string, out, diagnostic i
 
 type flowSubcommand func(ctx context.Context, root string, args []string, out, diag io.Writer) error
 
-var flowSubcommands = map[string]flowSubcommand{"export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
+var flowSubcommands = map[string]flowSubcommand{
+	"appmap": runFlowsAppmap, "navigate": runFlowsNavigate, "request-path": runFlowsRequestPath, "status": runFlowsStatus, "export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
 	"gaps": runFlowsGaps, "impact": runFlowsImpact, "ingest": runFlowsIngest, "docs": runFlowsDocs,
 	"stability": runFlowsStability, "ingest-coverage": runFlowsIngestCoverage, "test-evidence": refuseFlowsTestEvidence}
 
