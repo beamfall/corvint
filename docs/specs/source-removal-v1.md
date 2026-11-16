@@ -286,10 +286,14 @@ the sql-native ratchet, `cmd/corvint-go-toolchain-receipt` with `internal/toolch
 `internal/liveverify/pymutate` and `internal/liveverify/rbmutate`. It SHALL keep the shell provider
 and Go. It SHALL also keep the Swift and Kotlin providers under `internal/liveverify/affected`,
 `internal/swiftimpact` with its links in `cmd/corvint` and `cmd/corvint-mcp`,
-`internal/testrunner/swiftselection`, and every file of `internal/nativelinecov`,
-`internal/testrunner/mobile`, `internal/testrunner/native` and the registry `jvm_*.go` files that
-a kept Swift or Kotlin package still imports (decision 0600, 2026-11-16, amending G26); the
-batch's build log SHALL name each such kept file and its user. The Swift and Kotlin analyzers are
+`internal/testrunner/swiftselection`, and the packages `internal/nativelinecov`,
+`internal/testrunner/mobile` and `internal/testrunner/native` whole wherever `go list -deps` of a
+kept Swift or Kotlin package or of `cmd/corvint` after the removal still lists them (transitive
+imports count), and each registry `jvm_*.go` file that declares a symbol the kept Kotlin runner
+path references (decision 0600, 2026-11-16, amending G26). A kept package or file SHALL be proven
+by that `go list -deps` output or symbol reference, and by the existing Swift and Kotlin selection
+tests passing after the removal; the batch's build log SHALL record both for each one. A package
+or `jvm_*.go` file with neither proof SHALL be removed. The Swift and Kotlin analyzers are
 among the 16 removed binaries. B5 SHALL also delete the `analyzers` area from `tools/import-ratchet/areas.json`, leaving
 four layers (shared; tests and docs; release), and rewrite the manifest's rule string to match
 (companion decision item 8, amending decision 0594 item 8).
