@@ -93,12 +93,28 @@ delivery; they stand until the owner amends them.
 - Bounds. The store and the named `--evidence` files are bounded separately, as `RunEvidenceFor`
   bounds them: the store keeps its newest 8192 records (`run_evidence.truncated`), and the named
   files together hold at most 8192 (`run-evidence-record-bound`).
-- Unknown reach (APK-V0-010). A changed path with no owning unit in the impact graph that no link
-  targets, other than the flow declaration and the intent files, has unknown reach. `flows impact`
-  then lists those paths in `reach_unknown`, sets the graph scope `UNKNOWN`, and names every flow
-  with all its variations and their test keys and `reason: reach-unknown` (keeping any resolved
-  hits); `flows status --base` keeps every flow and variation with the same reason. Both members are
-  omitted when every path resolved, so earlier reports keep their bytes.
+- Unknown reach (APK-V0-010). Reach is resolved only through owning units of the impact graph, so
+  it is unknown in two cases. (1) A changed path with no owning unit, whether or not a link targets
+  it: a link that targets it resolves that one link, not what else imports the path (second review,
+  B1). (2) A link target with no owning unit, because its language has no adapter or the file no
+  longer exists: what it imports is unknown, so every changed path's reach is unknown and the
+  graph's `unknown` names each such target as `LINK_TARGET_UNOWNED: PATH` (second review, B2).
+  `flows impact` then lists the paths in `reach_unknown`, sets the graph scope `UNKNOWN`, and names
+  every flow with all its variations and their test keys and `reason: reach-unknown` (keeping any
+  resolved hits); `flows status --base` keeps every flow and variation with the same reason and the
+  same graph. Left out as flow inputs, not application code: the flow declaration and the `.json`
+  files directly in the intents directory (intents, `retired.json`, `origins.json`); any other
+  file under that directory is under the rule, and a change of flow inputs alone names nothing.
+  Both members are omitted when every path resolved, so earlier reports keep their bytes.
+  Not covered, and unchanged from before this change: reach through a file that has no adapter
+  and is neither changed nor a link target. With an owned `src/search.ts` (a link target)
+  importing `Cart.vue`, which imports an owned `src/lib/price.ts`, a change of `price.ts` alone
+  resolves as not reaching the flow, because the static import graph holds no edge through
+  `Cart.vue`; every changed path and link target has an owning unit, so none of APK-V0-010's three
+  cases applies, and the graph's `unknown` does not name the import. Likewise a planner unknown or
+  a dirty worktree (AFU-V1-163) sets the scope `UNKNOWN` and leaves the list as resolved. Closing
+  either needs the graph to give the units whose imports it could not resolve, and a ruling on
+  AFU-V1-017's narrowing; both are for the owner.
 
 ## Docs command group names (AFL-V1-008)
 
