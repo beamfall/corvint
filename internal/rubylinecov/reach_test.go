@@ -249,38 +249,43 @@ func TestAnalyzeLinesBoundedReach(t *testing.T) {
 // LPCV-V0-7605: the whole-statement and binding rules, line by line.
 func TestLineReachRules(t *testing.T) {
 	source := strings.Join([]string{
-		"foo(1)",              // 1 whole
-		"x = a + b",           // 2 whole
-		"reset!",              // 3 whole: ! is the method's suffix
-		"v.empty?",            // 4 whole
-		"self.class.new(1)",   // 5 whole: .class is a method
-		"xs.each { |i| p i }", // 6 whole
-		"when 1 then :one",    // 7 keyword
-		"foo if bar",          // 8 keyword
-		"a +",                 // 9 continues
-		"  b",                 // 10 continued
-		"v.to_s",              // 11 continued by the next line
-		"  .upcase",           // 12 leads
-		"list = [",            // 13 opens a bracket
-		"  1,",                // 14 inside a bracket
-		"]",                   // 15 closes a bracket
-		"text = <<~T",         // 16 opens a heredoc
-		"  body",              // 17 heredoc body
-		"T",                   // 18 heredoc terminator
-		"a; b",                // 19 two statements
-		"# note",              // 20 comment
-		"",                    // 21 blank
-		"foo unless",          // 22 keyword
-		"  bar",               // 23 continued
-		"cond ?",              // 24 continues
-		"  1 : 2",             // 25 continued
-		"puts \"a #{b}\"",     // 26 whole
-		"x.nil? ? 1 : 2",      // 27 whole
-		"p :done",             // 28 whole
+		"foo(1)",                 // 1 whole
+		"x = a + b",              // 2 whole
+		"reset!",                 // 3 whole: ! is the method's suffix
+		"v.empty?",               // 4 whole
+		"self.class.new(1)",      // 5 whole: .class is a method
+		"xs.each { |i| p i }",    // 6 whole
+		"when 1 then :one",       // 7 keyword
+		"foo if bar",             // 8 keyword
+		"a +",                    // 9 continues
+		"  b",                    // 10 continued
+		"v.to_s",                 // 11 continued by the next line
+		"  .upcase",              // 12 leads
+		"list = [",               // 13 opens a bracket
+		"  1,",                   // 14 inside a bracket
+		"]",                      // 15 closes a bracket
+		"text = <<~T",            // 16 opens a heredoc
+		"  body",                 // 17 heredoc body
+		"T",                      // 18 heredoc terminator
+		"a; b",                   // 19 two statements
+		"# note",                 // 20 comment
+		"",                       // 21 blank
+		"foo unless",             // 22 keyword
+		"  bar",                  // 23 continued
+		"cond ?",                 // 24 continues
+		"  1 : 2",                // 25 continued
+		"puts \"a #{b}\"",        // 26 whole
+		"x.nil? ? 1 : 2",         // 27 whole
+		"p :done",                // 28 whole
+		"raise E, \"no blocks\"", // 29 whole: the trailing comma precedes a literal
+		"\"abc\".upcase",         // 30 whole: the leading dot follows a literal
+		"s =~ /re/",              // 31 whole
+		"t = \"a\" +",            // 32 continues
+		"  \"b\"",                // 33 continued
 	}, "\n")
 	s := readSide(source)
-	whole := map[int]bool{1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 26: true, 27: true, 28: true}
-	for n := 1; n <= 28; n++ {
+	whole := map[int]bool{1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 26: true, 27: true, 28: true, 29: true, 30: true, 31: true}
+	for n := 1; n <= 33; n++ {
 		if why := s.whole(n); (why == "") != whole[n] {
 			t.Errorf("line %d %q: whole says %q, want whole=%v", n, s.raw[n-1], why, whole[n])
 		}
