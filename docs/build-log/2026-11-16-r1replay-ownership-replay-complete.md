@@ -6,13 +6,14 @@ a before/after pair that differs only in the ownership rule, and with every row 
 117, zero baseline-selected units dropped. It supersedes the "81 trees not compared" result of
 `2026-11-16-r1docs-ownership-replay-through-base.md`, whose 36 historical comparisons it keeps.
 
-**Corrected conclusion (2026-11-16, repair round 1): V1-4685 criterion 3 is not met, and the
-ticket is `blocked`.** A zero baseline-minus-candidate difference cannot see a reader that the
-"before" plan covered only through the path's `UNOWNED_DIRTY_PATH` unknown. The reader audit in
-"Correction 2026-11-16: reader audit of all 220 removed paths" below finds readers and executors
-of removed paths that the path alone does not select, at the historical merges and still at this
-lane's head; two of the miss classes cannot be fixed by an ownership declaration. The tables
-below are kept as they were measured.
+**Conclusion (2026-11-16, repair round 2): V1-4685 criterion 3 is met at head, and the ticket
+is `delivered`.** Repair round 1 found, by a reader audit, 730 (merge, path, unit) readers and
+executors of removed paths that the path alone did not select (classes N1, N2, W and G below);
+a zero baseline-minus-candidate difference could not see them. Round 2 changed the planner and
+its declarations so that every one of the 730 is selected at head when its path changes alone
+("Repair round 2 2026-11-16" below). That is a head proof, not a replay row: the historical rows
+stay recorded as misses of the rule as it stood at each merge. The tables below are kept as they
+were measured.
 
 ## Why a new pair
 
@@ -833,7 +834,7 @@ blocked state below), and the repair instruction says to stop there.
 
 ### Blocked state
 
-V1-4685 ends `blocked`. Blocker: merge `b54ac564d8983e40597eb753a5c49ea092287984`
+Round 1 state, superseded by "Repair round 2 2026-11-16" below. V1-4685 ended round 1 `blocked`. Blocker: merge `b54ac564d8983e40597eb753a5c49ea092287984`
 (row 71), path `conformance/divergence-register.md`, unit
 `driver:make:Makefile#dr-numbers-check`, which runs `script/check-dr-numbers.sh`, the reader of
 that path. A second, wider blocker (class W) first appears at merge
@@ -1307,3 +1308,150 @@ Under `/home/russell/lanes/r1replay-evidence/audit/` (not committed). SHA-256:
   `per-path.tsv`: `eead096f58edba2ec30f9b02a1ce381d03c27be90bdc466012431e15f323af5d`.
 - Head plans `head/*.json` and `head/summary.json`:
   `dd9c493d862efd1b334350834fe4efa7e8ee881bf05c2e8894eff4ba11c9b90e`.
+
+## Repair round 2 2026-11-16: the readers selected at head
+
+The orchestrator widened the lane to change the planner, its declarations, their spec and
+tests (no `.github` edit). Requirements AZU-V0-8920 to AZU-V0-8926 in
+`docs/specs/affected-zero-unknown-v0.md`. Goal: for every path the ownership rule takes out of
+`unknown`, every unit that reads, runs, imports or embeds it is selected when that path changes
+alone, or the path stays unknown.
+
+### Design per class
+
+- **N2, shell rule (AZU-V0-8920).** The smallest general mechanism is a shell reader rule, not
+  owners that name drivers. A testless script that reads a path already carries the read to the
+  drivers that run it (AFP-V0-2992). It missed only because the shell lexicon blanked
+  `${1:-conformance/divergence-register.md}`. The rule keeps the word of the six
+  value-supplying expansion forms as tokens; `?` and the other operators still blank. It only
+  adds tokens. It also covers a second reader of the same class that the round 2 guard found:
+  `script/check-legal-file-pins.sh` reads `conformance/release-artifact-v0/manifest.json`.
+- **W, declared whole-tree readers (AZU-V0-8921, AZU-V0-8922).** Whether a script reads every
+  tracked file cannot be decided from text: `script/check-eol-policy.sh` enumerates inside a
+  perl heredoc. So `.corvint/test-selection.json` names the readers in a new `treeReaders`
+  member: 19 files, each with its reason. Every driver that runs a declared file gets the
+  AFP-V0-9401 tree-read glob, so it is a `PATH_GLOB_READER` of every dirty path and its driver
+  dependents follow (AFP-V0-9402). Selection is conservative: a script's exclusions live in its
+  code, so every path selects it. There are two bounds:
+  - A wildcard-only edge (`go vet ./...` imports every owner) runs no script, so it is not
+    followed.
+  - Paths the project already declares no unbounded reader reads (AFP-V0-772: the CEM sidecar
+    and sealed CEMs) do not select a declared reader. Without that bound,
+    `TestSealOnlyCEMDeltaStaysBounded_V13571` failed; those paths are runtime-readers entries,
+    not ownership-rule paths.
+
+  Beyond the round 1 three (eol, license headers, long lines), the guard classified 16 more:
+  - read the content or the name of every tracked path: `changed-checks`, `check-bash32`,
+    `check-binary-blobs`, `check-line-citations`, `check-stray-backups`,
+    `requirement-ids-free`, `tracked-ignored-check`;
+  - read every Go file, and fixture and nested-module Go files are ownership-rule paths:
+    `.github/ci-cadence/classify.sh`, `batch-precheck`, `check-error-code-ownership`,
+    `check-fixed-tmp-paths`, `check-go-format`, `check-goos-filenames`,
+    `check-mkfifo-build-tags`, `check-requirement-definitions`, `check-traceability-tests`.
+- **N1 and G, by declaration (AZU-V0-8925).**
+  - The `.github/cishards/**` owner now names `.github/macos/shard_test.py` and
+    `tools/ci-reuse-replay/replay_test.py`.
+  - The `go.mod` owner names the 11 top-level directories that hold root-module Go tests, so
+    `go.mod` alone selects all 291 Go test units. That is the honest answer: `go.mod` sets the
+    module path, the language version and every dependency, and every Go unit compiles from
+    it. Leaving `go.mod` unknown would instead force the whole suite.
+  - Friction item 4 is not fixed in the analyzer. The Python plugin carries no path tokens at
+    all, so a literal reader rule would be a new reader class, not a small fix. The owners are
+    the fix.
+
+### Declaration format and an older binary
+
+`treeReaders` is valid only under the new profile `corvint-test-selection/2` (/1 is the
+runner's selection-expectation version, TRE-V0-021). A /0 file reads exactly as before, so the
+CMP-V1-003 file contract is unchanged. A binary built from origin/main `df315e350` (SHA-256
+`fd097449674b4fbc3d8412a0d15f700d23b74d320341c32040951a07d056a975`) refuses this tree; it never
+plans without the new semantics:
+- `affected --no-cache --full --path benchmarks/README.md` exits 2 with `unsupported-affected-graph`
+  (`.corvint/test-selection.json: ... unknown object member name "treeReaders"`).
+- `affected --no-cache --full --base 92bcaa8a1...` refuses the same way.
+- `--ownership-audit` exits 2 with `internal-error` and the same message.
+
+`make declaration-compat-check` passes, because the profile changed. The CI planner pins
+(`CORVINT_PR_TOOL_SOURCE` and `CORVINT_TEST_SHADOW_SOURCE`, `8daec98ce`) therefore refuse this
+tree and stop narrowing until they are moved to a commit that carries this change; that is a
+`.github` edit left to the owner.
+
+### Guards and regressions
+
+- `TestDriverRunWholeTreeScriptsAreDeclared_AZU_V0_8923` covers every testless file a runnable,
+  uncovered driver runs that matches the whole-tree marker. Each one must be declared or carry a
+  reasoned exception: 17 exceptions. An exception with a scope fails if any tracked path in its
+  scope is an ownership-rule path. That check is what moved the nine Go-file scripts into
+  `treeReaders`.
+- `TestOwnedPathNamersAreReached_AZU_V0_8924` checks every tracked test or driver-run script
+  that spells an ownership-rule path outside comments. Its unit must be reached, or every
+  runnable driver that runs it selected. It covers 122 (file, path) pairs over 55 paths, with
+  10 reasoned exceptions, each a fixture or plan input of a temporary tree.
+- `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925` and `TestOwnershipReaderMissClasses_AZU_V0_8926`
+  are the regressions, one per class: N1 `package-costs.json` and `test-split-allow.json`, N2,
+  W on `internal/mcp/cli/testdata/tools-list-default.golden.jsonl` and `benchmarks/README.md`,
+  and G.
+- Mutation check, each guard against its class:
+
+| Mutation | Fails |
+|---|---|
+| N1 owner reverted | 8924 and 8926 |
+| N2 shell rule reverted | 8924 (at `check-dr-numbers.sh` and `check-legal-file-pins.sh`) and 8926 |
+| `check-bash32.sh` undeclared | 8923 |
+| `go.mod` owner reverted | 8925 (199 findings) |
+
+The first guard head missed the N2 revert. Its lexicon read `-PATH`, and the fix is commit
+`82c556c78`.
+
+### Head proof (not a replay row)
+
+`cmd/corvint` was built at `82c556c78c76f3849aad6178f28badb75783cc20` (SHA-256
+`767b7ffd4b6e919bf4f51e82a8bb7c82c0fb469e44f0a0fed1b09a9c4eb78af8`). It planned each of the 160
+missed paths alone at that clean head:
+`corvint-head --root LANE affected --full --no-cache --path P`, at most 4 at once under `nice`
+(`nproc` 32).
+
+- All 160 plans exit 0, in 6.6 s to 7.8 s each.
+- **All 730 (merge, path, unit) reader classes are selected at head**: 0 left to an unknown
+  path, 0 missed, 0 units absent.
+- The five round 1 head checks are among them, and all of them are now selected. `go.mod`
+  selects 291 of 291 Go test units.
+- Later commits change only documentation.
+
+This proves the rule at head. It is not a replay row: rows 1 to 117 above stay recorded as the
+rule measured at each merge.
+
+### Selection cost
+
+- **The 117 replay merges re-planned with the head binary**, against the round 1 "after"
+  binary (`corvint-own-after`, source `c7dbf717e`), same argv and the stale retry: 117 of 117
+  exit 0.
+  - Growth per row: min 0, median 0, max 4, 27 in total (47899 to 47926 units).
+  - Units removed: 0.
+  - The historical trees carry /0 declarations, so this measures the shell rule alone.
+- **At head, the declarations' cost**: the head binary planned the 160 paths alone, once on
+  the round 1 tree `92bcaa8a1` and once on `82c556c78`.
+  - Growth per path: min 15, median 17, max 19 without `go.mod`; `go.mod` grows by 339.
+  - Units removed: 0.
+  - Added units by kind, summed over the 160 paths: 2711 driver, 199 Go and 129 other.
+
+### Evidence bindings (round 2)
+
+Under `/home/russell/lanes/r1replay-evidence/round2/` (not committed). SHA-256:
+
+- `headproof.py`: `49d2d0fbf3be1cdaa77c44d0a6f62acebdf50cee89501ba97894648994242451`;
+  `headproof-check.py`: `d6c143fa96f8fb7f9a68c66e1defbeb76990b198019f89231bdd95c65fd2eb6b`;
+  head plans `headproof/*.json`, concatenated:
+  `bc13dc8ca5c3a8cfdbe8070f315993eb5405eb02085ff3fd255b8d5b60d24829`;
+  `headproof-classes.tsv` (730 rows):
+  `e48eb2ff130163051f508b38c9a2d1bad624350faba0239f920b64368bf2b9a8`.
+- `headproof-basetree.py`: `cf528070fb6ab1151fe3e7880c55dc00894c21b86677b3d59ef2729d1e8e85da`;
+  base-tree plans, concatenated:
+  `023697dce5b6b248b27a2810860d995c232e651817ab2854610380cc6251b5d3`;
+  `selection-cost-head.txt`: `252d017e625e7ac9b0b5cb2b882d360c4564722b153a35f5dce7550c7ecbbb40`.
+- `replay-r2.py`: `4116570169e504536040ebfc101f42396a14c6bcda05487f54dff99507e3161f`;
+  head replay stdout, concatenated:
+  `7cf272b263a4b5fce47ff29dd6197f950626e1ab45ae270f7bd94bee3c96644e`;
+  `selection-cost.tsv`: `725627eb798aa879972d7840d5d6393b200d516f774203abb70a297aea1ff703`.
+- The older-binary outputs are in `oldbin/`, the mutation logs in `mutations/`, and the test
+  logs in `tests/`.
