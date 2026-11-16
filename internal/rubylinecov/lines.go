@@ -141,10 +141,13 @@ type side struct {
 	// the depth goes negative or does not return to zero.
 	depth    []int
 	balanced bool
+	// blankDelimited is true when the side may hold a percent literal
+	// delimited by a space or tab (see holdsBlankDelimited).
+	blankDelimited bool
 }
 
 func readSide(src string) side {
-	s := side{raw: strings.Split(src, "\n"), state: rubydialect.LineStates(src), balanced: true}
+	s := side{raw: strings.Split(src, "\n"), state: rubydialect.LineStates(src), balanced: true, blankDelimited: holdsBlankDelimited(src)}
 	s.depth = make([]int, len(s.state)+1)
 	depth := 0
 	for i, st := range s.state {
@@ -310,7 +313,7 @@ func continues(code string) bool {
 		return false
 	}
 	for _, keyword := range operandKeywords {
-		if word == keyword || numberLed(word) && strings.HasSuffix(word, keyword) {
+		if word == keyword || numberLed(word) && strings.HasSuffix(afterNumber(word), keyword) {
 			return true
 		}
 	}
@@ -329,11 +332,12 @@ func numberLed(word string) bool { return word != "" && word[0] >= '0' && word[0
 // when the line itself never executes.
 func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, int) {
 	var oldBinds, newBinds []string
+	exact := oldSide.blankDelimited || newSide.blankDelimited
 	for n := oldHunk.Start; n <= oldHunk.End; n++ {
 		if why := oldSide.whole(n); why != "" {
 			return why, n
 		}
-		sig, ok := binding(oldSide.raw[n-1], oldSide.state[n-1].Code)
+		sig, ok := binding(oldSide.raw[n-1], oldSide.state[n-1].Code, exact)
 		if !ok {
 			return "a line that may bind a block parameter or a capture", n
 		}
@@ -345,7 +349,7 @@ func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, in
 		if why := newSide.whole(n); why != "" {
 			return why + " on the new side", oldHunk.Start
 		}
-		sig, ok := binding(newSide.raw[n-1], newSide.state[n-1].Code)
+		sig, ok := binding(newSide.raw[n-1], newSide.state[n-1].Code, exact)
 		if !ok {
 			return "a line that may bind a block parameter or a capture on the new side", oldHunk.Start
 		}
@@ -363,15 +367,25 @@ func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, in
 // from the line's own text so that nothing which tells two lines apart is
 // dropped: "" when the line has no assignment and no `=>`; its text through
 // the last assignment operator when it assigns; and its whole text when it
-// holds `=>`, whose target follows the operator. The text is the raw line
-// with each run of spaces and tabs squeezed to one space. A sigil, a dot, a
-// bracket, a comma, a number, a comment mark and a byte Ruby reads as part
-// of a name (a no-break space) all stay as written, because each decides
-// what a line declares: `x = h`, `@x = h`, `foo.x = h`, `foo x = h` and
-// `foo # x = h` differ, as do `foo 1 => x` and `foo => x`, and `foo [1] => x`
-// and `foo[1] => x`. Two lines so share a signature only when their text
-// through the operator, or all of it on a `=>` line, is the same, and then
-// they declare the same names.
+// holds `=>`, whose target follows the operator. A sigil, a dot, a bracket,
+// a comma, a number, a comment mark and a byte Ruby reads as part of a name
+// (a no-break space) all stay as written, because each decides what a line
+// declares: `x = h`, `@x = h`, `foo.x = h`, `foo x = h` and `foo # x = h`
+// differ, as do `foo 1 => x` and `foo => x`, and `foo [1] => x` and
+// `foo[1] => x`.
+//
+// With exact, the text is the raw line exactly as written, indentation and
+// every blank included. The caller sets it when either side of the file may
+// hold a percent literal delimited by a space or tab: Ruby closes such a
+// literal at the next blank, so the length of a run decides where the
+// literal ends and what follows it (`%  =>x ` declares x, `% =>x ` is a
+// string), and the literal may open on an earlier line and run into this
+// one's indentation. Without exact, the blanks at either end are cut and
+// each other run of spaces and tabs is read as one space; in a file with no such
+// literal a run only separates tokens or sits inside a string, regexp or
+// comment body, where its length changes a value but never a name. Two lines
+// so share a signature only when their text through the operator, or all of
+// it on a `=>` line, is the same, and then they declare the same names.
 //
 // Operators are found in the raw line, so an assignment inside an
 // interpolation counts, and one inside a string or a comment only makes the
@@ -379,7 +393,7 @@ func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, in
 // `#`, and never read as code. ok is false for a line that can bind without
 // an operator the signature would show: a named capture in either spelling,
 // or a numbered or implicit block parameter in its code or an interpolation.
-func binding(raw, code string) (sig string, ok bool) {
+func binding(raw, code string, exact bool) (sig string, ok bool) {
 	if strings.Contains(raw, "(?<") || strings.Contains(raw, "(?'") {
 		return "", false
 	}
@@ -423,13 +437,41 @@ func binding(raw, code string) (sig string, ok bool) {
 			last = i
 		}
 	}
+	text := squeeze
+	if exact {
+		text = func(s string) string { return s }
+	}
 	switch {
 	case rocket:
-		return squeeze(raw), true
+		return text(raw), true
 	case last >= 0:
-		return squeeze(raw[:last+1]), true
+		return text(raw[:last+1]), true
 	}
 	return "", true
+}
+
+// holdsBlankDelimited reports whether src may hold a percent literal
+// delimited by a space or tab: a `%`, at most one letter, then a space or
+// tab. Ruby 3.3.8 accepts that delimiter for a bare, q, Q, s, r and x
+// literal; any letter is matched, and so is text in a string or a comment,
+// because the lexer does not read such a literal and so cannot tell code
+// from text around it.
+func holdsBlankDelimited(src string) bool {
+	for i := strings.IndexByte(src, '%'); i >= 0; {
+		j := i + 1
+		if j < len(src) && ('a' <= src[j]|0x20 && src[j]|0x20 <= 'z') {
+			j++
+		}
+		if j < len(src) && (src[j] == ' ' || src[j] == '\t') {
+			return true
+		}
+		next := strings.IndexByte(src[i+1:], '%')
+		if next < 0 {
+			break
+		}
+		i += 1 + next
+	}
+	return false
 }
 
 // squeeze trims text and puts one space for each run of spaces and tabs
@@ -524,19 +566,50 @@ var structureKeywords = map[string]bool{
 }
 
 // blockKeyword reports whether word is a block keyword or a number with one
-// glued to its end (`1if`, `2do`).
+// glued to its end (`1if`, `2do`, `0x1fif`).
 func blockKeyword(word string) bool {
 	if structureKeywords[word] {
 		return true
 	}
 	if numberLed(word) {
+		rest := afterNumber(word)
 		for keyword := range structureKeywords {
-			if strings.HasSuffix(word, keyword) {
+			if strings.HasSuffix(rest, keyword) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// afterNumber is the part of a number-led word that follows a number with a
+// radix prefix (0x, 0b, 0o, 0d in either case): Ruby takes that radix's
+// digits and underscores as far as they go, so `0xdef` is one number and
+// `0x1fif` is 0x1f and `if`. A word without a radix prefix is returned
+// whole, so a keyword is looked for at its end; that may read a decimal
+// number's exponent as part of a keyword, which only refuses more lines.
+func afterNumber(word string) string {
+	if len(word) < 2 || word[0] != '0' {
+		return word
+	}
+	var digit func(c byte) bool
+	switch word[1] | 0x20 {
+	case 'x':
+		digit = func(c byte) bool { return '0' <= c && c <= '9' || 'a' <= c|0x20 && c|0x20 <= 'f' }
+	case 'b':
+		digit = func(c byte) bool { return c == '0' || c == '1' }
+	case 'o':
+		digit = func(c byte) bool { return '0' <= c && c <= '7' }
+	case 'd':
+		digit = func(c byte) bool { return '0' <= c && c <= '9' }
+	default:
+		return word
+	}
+	i := 2
+	for i < len(word) && (digit(word[i]) || word[i] == '_') {
+		i++
+	}
+	return word[i:]
 }
 
 // structureTokens lists one code line's block keywords and brackets in

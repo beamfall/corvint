@@ -77,6 +77,10 @@ var guarded = []struct{ name, old, returns string }{
 	{"index", "puts [1] => x", ":method"},
 	{"capture", "/(?'w'.)/ =~ 'a'", ":method"},
 	{"space", "puts x = 1", "nil"},
+	{"percent", "%  =>x ", "nil"},
+	{"tabpercent", "[%\t\t,x=1\t]", "nil"},
+	{"qpercent", "[%q  ,x=1 ]", "nil"},
+	{"tabqpercent", "%Q\t\t=>x\t", "nil"},
 }
 
 // guardedStart is the line of the first guarded method's def; each takes
@@ -131,8 +135,9 @@ class RTest < Minitest::Test
 // result: Ruby evaluates the `when` condition, the literal's key, the
 // local's declaration and the block's parameter list without counting the
 // line. The guarded edits each change which names a line declares while
-// keeping its words: a sigil, a dot, a comment mark, a number, a blank or a
-// capture's name decides whether the later x is a local or a call of R#x.
+// keeping its words: a sigil, a dot, a comment mark, a number, a blank, the
+// length of a blank run that delimits a percent literal or a capture's name
+// decides whether the later x is a local or a call of R#x.
 // An edit marked guard also changes the line's brackets, so the structure
 // guard keeps the static plan before the reach rule reads it.
 var reachEdits = []struct {
@@ -154,6 +159,12 @@ var reachEdits = []struct {
 	{"array argument to indexed pattern by dropping a blank", "      puts[1] => x", "RTest#test_index", guardedLine("index"), false},
 	{"quoted named capture renamed", "      /(?'x'.)/ =~ 'a'", "RTest#test_capture", guardedLine("capture"), false},
 	{"no-break space joins the assigned name to the command", "      puts\u00a0x = 1", "RTest#test_space", guardedLine("space"), false},
+	// A percent literal delimited by a blank closes at the next blank, so the
+	// length of a blank run decides where the literal ends and what follows.
+	{"space-delimited percent literal swallows a rightward pattern", "      % =>x ", "RTest#test_percent", guardedLine("percent"), false},
+	{"tab-delimited percent literal swallows an assignment", "      [%\t,x=1\t]", "RTest#test_tabpercent", guardedLine("tabpercent"), false},
+	{"space-delimited %q literal swallows an assignment", "      [%q ,x=1 ]", "RTest#test_qpercent", guardedLine("qpercent"), false},
+	{"tab-delimited %Q literal swallows a rightward pattern", "      %Q\t=>x\t", "RTest#test_tabqpercent", guardedLine("tabqpercent"), false},
 }
 
 // reachIndex is the measured coverage of reachSource under one test a
@@ -330,6 +341,89 @@ func TestLiveLineReach(t *testing.T) {
 	}
 }
 
+// bodySource is lib/s.rb of the string-body fixture: a run of blanks inside
+// a string, as an assigned value and as a pattern, on lines a test hits and
+// on a line no test hits.
+const bodySource = `class S
+  def text
+    s = "a  b"
+    s
+  end
+
+  def pair
+    ["a  b", 1] => ["a  b", y]
+    y
+  end
+
+  def unused(flag)
+    if flag
+      t = "a  b"
+    end
+    t
+  end
+end
+`
+
+// LPCV-V0-7605: measured end to end. Squeezing a run of blanks inside a
+// string body changes a value, never a binding, so an edit of the run is
+// harmless on a line no test hits and selected by its hits on a line a test
+// hits: the suite at the edited head fails exactly the tests the plan keeps.
+func TestLiveBlankRunInStringBody(t *testing.T) {
+	requireRuby(t, "minitest")
+	tests := `require 'minitest/autorun'
+require_relative '../lib/s'
+class STest < Minitest::Test
+  def test_text; assert_equal "a  b", S.new.text; end
+  def test_pair; assert_equal 1, S.new.pair; end
+  def test_unused; assert_nil S.new.unused(false); end
+end
+`
+	root := laneProject(t, tests, "lib/s.rb", bodySource)
+	ctx := context.Background()
+	base := git(t, root, "rev-parse", "HEAD")
+	argv := []string{"ruby", "test/case_test.rb"}
+	_, ix := collect(t, root, base, Options{Argv: argv})
+	for _, c := range []struct {
+		name, with, hits, breaks string
+		line                     int
+	}{
+		{"assigned string on a hit line", `    s = "a b"`, "STest#test_text", "STest#test_text", 3},
+		{"pattern string on a hit line", `    ["a  b", 1] => ["a b", y]`, "STest#test_pair", "STest#test_pair", 8},
+		{"assigned string on a line no test hits", `      t = "a b"`, "", "", 14},
+	} {
+		if got := lineTests(ix, "lib/s.rb", c.line); got != c.hits {
+			t.Fatalf("%s: lib/s.rb:%d was hit by %q, want %q", c.name, c.line, got, c.hits)
+		}
+		if err := os.WriteFile(filepath.Join(root, "lib", "s.rb"), []byte(replaceLine(bodySource, c.line, c.with)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		git(t, root, "commit", "-qam", c.name)
+		head := git(t, root, "rev-parse", "HEAD")
+		diffs, err := linecov.Diff(ctx, root, base, head)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e := AnalyzeLines(ix, diffs, Sources{Old: linecov.Reader(ctx, root, base), New: linecov.Reader(ctx, root, head), Check: rubyCheck})
+		if got := selected(ix, e); got != c.breaks {
+			t.Errorf("%s: lib/s.rb:%d selects %q, want %q", c.name, c.line, got, c.breaks)
+		}
+		run, err := Collect(ctx, Options{Root: root, Work: t.TempDir(), Argv: argv, Timeout: 2 * time.Minute})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var failing []string
+		for _, o := range run.Outcomes {
+			if o.Status == "failed" {
+				failing = append(failing, o.Name)
+			}
+		}
+		if strings.Join(failing, " ") != c.breaks {
+			t.Errorf("%s: the edit fails %v, want %q", c.name, failing, c.breaks)
+		}
+		git(t, root, "reset", "-q", "--hard", base)
+	}
+}
+
 // LPCV-V0-7605: an edit that keeps a whole statement's bindings narrows to
 // the line's hits, and to none on a line no test hit.
 func TestAnalyzeLinesBoundedReach(t *testing.T) {
@@ -347,6 +441,9 @@ func TestAnalyzeLinesBoundedReach(t *testing.T) {
 		{"statement ending in a literal", "    raise E, \"no\"", "RTest#test_local", 21},
 		{"statement continued onto the next line", "    x +", "fallback: edit changes Ruby block structure lib/r.rb: keywords, brackets or continuations differ at line 21", 21},
 		{"when body moved off its condition stays with the method", "    when 1 then :uno", "RTest#test_kind3", 4},
+		// lib/r.rb may hold a percent literal delimited by a blank, so a line is
+		// compared exactly as written and re-indenting it is not bounded.
+		{"re-indented local in a file with a blank-delimited literal", "    x = 1", "RTest#test_local", 19},
 	} {
 		newSource := replaceLine(reachSource, c.line, c.with)
 		d := linecov.FileDiff{Path: "lib/r.rb", OldOID: "old", NewOID: "new", Hunks: []linecov.Hunk{{Start: c.line, End: c.line}}, NewHunks: []linecov.Hunk{{Start: c.line, End: c.line}}}
@@ -406,10 +503,17 @@ func TestLineReachRules(t *testing.T) {
 		"w.not",                  // 40 whole: .not is a method
 		"q = 0x1f",               // 41 whole
 		"order(v)",               // 42 whole: order is not the keyword or
+		"q = 0xdef",              // 43 whole: the hex digits d, e and f are not the keyword def
+		"q = 0xabcdef",           // 44 whole
+		"r = 0x1fif v",           // 45 keyword: Ruby ends the hex number at the i
+		"r = 0b1_0if v",          // 46 keyword after a binary number
+		"q = 0xdeend",            // 47 whole: the hex number takes the second e, so nd is a name
+		"r = 0o17if v",           // 48 keyword after an octal number
+		"r = 0d9if v",            // 49 keyword after a decimal-prefixed number
 	}, "\n")
 	s := readSide(source)
-	whole := map[int]bool{1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 26: true, 27: true, 28: true, 29: true, 30: true, 31: true, 40: true, 41: true, 42: true}
-	for n := 1; n <= 42; n++ {
+	whole := map[int]bool{1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 26: true, 27: true, 28: true, 29: true, 30: true, 31: true, 40: true, 41: true, 42: true, 43: true, 44: true, 47: true}
+	for n := 1; n <= len(s.raw); n++ {
 		if why := s.whole(n); (why == "") != whole[n] {
 			t.Errorf("line %d %q: whole says %q, want whole=%v", n, s.raw[n-1], why, whole[n])
 		}
@@ -447,7 +551,7 @@ func TestLineReachRules(t *testing.T) {
 		{`puts "#{it}"`, "", false},
 	} {
 		code := rubydialectCode(c.raw)
-		if sig, ok := binding(c.raw, code); sig != c.sig || ok != c.ok {
+		if sig, ok := binding(c.raw, code, holdsBlankDelimited(c.raw)); sig != c.sig || ok != c.ok {
 			t.Errorf("binding(%q) = %q, %v; want %q, %v", c.raw, sig, ok, c.sig, c.ok)
 		}
 	}
@@ -462,8 +566,9 @@ func rubydialectCode(raw string) string { return readSide(raw).state[0].Code }
 // on Ruby 3.3.8: one line of the pair declares a local the other does not.
 func TestBindingSignatureKeepsLineText(t *testing.T) {
 	differ := func(a, b string) bool {
-		sa, oka := binding(a, rubydialectCode(a))
-		sb, okb := binding(b, rubydialectCode(b))
+		exact := holdsBlankDelimited(a) || holdsBlankDelimited(b)
+		sa, oka := binding(a, rubydialectCode(a), exact)
+		sb, okb := binding(b, rubydialectCode(b), exact)
 		return !oka || !okb || sa != sb
 	}
 	for _, c := range [][2]string{
@@ -486,9 +591,19 @@ func TestBindingSignatureKeepsLineText(t *testing.T) {
 		{"puts x = 1", "puts\u00a0x = 1"},
 		{"/(?'w'.)/ =~ s", "/(?'x'.)/ =~ s"},
 		{"/(?<w>.)/ =~ s", "/(?<x>.)/ =~ s"},
+		// The length of a blank run that delimits a percent literal.
+		{"%  =>x ", "% =>x "},
+		{"%\t\t=>x\t", "%\t=>x\t"},
+		{"%q  =>x ", "%q =>x "},
+		{"%Q\t\t=>x\t", "%Q\t=>x\t"},
+		{"[%  ,x=1 ]", "[% ,x=1 ]"},
+		{"[%\t\t,x=1\t]", "[%\t,x=1\t]"},
+		{"[%q  ,x=1 ]", "[%q ,x=1 ]"},
+		{"puts %s\t\t,x=1\t", "puts %s\t,x=1\t"},
+		{"puts %q  ,x=1 ", "puts %q ,x=1 "},
 	} {
 		if !differ(c[0], c[1]) {
-			sig, _ := binding(c[0], rubydialectCode(c[0]))
+			sig, _ := binding(c[0], rubydialectCode(c[0]), holdsBlankDelimited(c[0]) || holdsBlankDelimited(c[1]))
 			t.Errorf("%q and %q declare different names and share the signature %q", c[0], c[1], sig)
 		}
 	}
@@ -504,6 +619,46 @@ func TestBindingSignatureKeepsLineText(t *testing.T) {
 		if differ(c[0], c[1]) {
 			t.Errorf("%q and %q declare the same names and differ in signature", c[0], c[1])
 		}
+	}
+}
+
+// LPCV-V0-7605: a percent literal delimited by a blank may open on an
+// earlier line, so a file that may hold one compares every line exactly,
+// indentation included. Measured on Ruby 3.3.8: after `p 1, % a`, the
+// line `    ,y=1 , x = 2` declares y and x, because the first blank of its
+// indentation closes the literal, and `\t\t,y=1 , x = 2` declares only x,
+// because the literal runs to the blank after `y=1`.
+func TestBlankDelimitedFileComparesExactText(t *testing.T) {
+	for _, c := range []struct {
+		src  string
+		want bool
+	}{
+		{"% =>x ", true}, {"%\t=>x", true}, {"%q x ", true}, {"%Q\tx", true}, {"%s x ", true}, {"x = %w[a]", false},
+		{"a % b", true}, {"\"%d items\" % n", true}, {"x %= 2", false}, {"%(a b)", false}, {"100%", false}, {"", false},
+	} {
+		if got := holdsBlankDelimited(c.src); got != c.want {
+			t.Errorf("holdsBlankDelimited(%q) = %v, want %v", c.src, got, c.want)
+		}
+	}
+	reach := func(oldSrc, newSrc string, line int) string {
+		why, _ := unbounded(readSide(oldSrc), readSide(newSrc), linecov.Hunk{Start: line, End: line}, linecov.Hunk{Start: line, End: line})
+		return why
+	}
+	// method is a method whose fourth line is body after the third, call.
+	method := func(call, body string) string {
+		return "def m(flag)\n  if flag\n    " + call + "\n" + body + "\n  end\nend\n"
+	}
+	if why := reach(method("p 1, % a", "    ,y=1 , x = 2"), method("p 1, % a", "\t\t,y=1 , x = 2"), 4); why != "a line whose bindings change" {
+		t.Errorf("an indentation edit after an open blank-delimited literal is bounded: %q", why)
+	}
+	// Without such a literal anywhere, indentation and blank runs keep the
+	// signature, so the edit stays bounded by the line's hits.
+	if why := reach(method("p 1, 2", "    x  = 2"), method("p 1, 2", "\t\tx = 2"), 4); why != "" {
+		t.Errorf("a blank-only edit in a file without a blank-delimited literal is unbounded: %q", why)
+	}
+	// The literal on either side makes the comparison exact.
+	if why := reach(method("p 1, 2", "    x  = 2"), method("p 1, % a", "    x = 2"), 4); why != "a line whose bindings change" {
+		t.Errorf("a blank-only edit beside a new blank-delimited literal is bounded: %q", why)
 	}
 }
 
@@ -548,6 +703,9 @@ func TestLiveBindingSignatureAgreesWithRuby(t *testing.T) {
 	values := []string{
 		"1", "2", "x", "y", "{:a => 1}", "{:a => 2}", "{a => b}", "{a: 1}", "{a:}", "[a, b]", "[1, b]", "foo(y = 1)", `"s"`, `"#{y = 1}"`,
 		"y # z = 1", "z => y", "z = {y => 1}", "->(y) { y }", "foo { |y| y }", "y.z = 1", "@y = 1",
+		// Percent literals delimited by a blank: the run's length decides
+		// whether y is assigned.
+		"[%  ,y=1 ]", "[% ,y=1 ]", "[%\t\t,y=1\t]", "[%\t,y=1\t]", "[%q  ,y=1 ]", "[%q ,y=1 ]",
 	}
 	var lines []string
 	for _, target := range targets {
@@ -558,33 +716,42 @@ func TestLiveBindingSignatureAgreesWithRuby(t *testing.T) {
 		}
 	}
 	tables := localTables(t, lines)
-	type group struct{ line, table string }
-	groups := map[string]group{"": {"foo(1)", "flag"}}
-	parsed, bounded := 0, 0
-	for i, line := range lines {
-		if tables[i] == "!" {
-			continue
+	// A diff compares both sides exactly when either may hold a percent
+	// literal delimited by a blank, so lines are grouped twice: squeezed,
+	// among the lines a file without such a literal can hold, and exact,
+	// among all lines.
+	for _, exact := range []bool{false, true} {
+		type group struct{ line, table string }
+		groups := map[string]group{"": {"foo(1)", "flag"}}
+		parsed, bounded := 0, 0
+		for i, line := range lines {
+			if tables[i] == "!" {
+				continue
+			}
+			parsed++
+			side := readSide(line)
+			if side.blankDelimited && !exact {
+				continue
+			}
+			sig, ok := binding(line, side.state[0].Code, exact)
+			if !ok || side.whole(1) != "" {
+				continue
+			}
+			bounded++
+			first, seen := groups[sig]
+			if !seen {
+				groups[sig] = group{line, tables[i]}
+				continue
+			}
+			if first.table != tables[i] {
+				t.Errorf("exact %v: %q declares %s and %q declares %s, but both have the signature %q", exact, first.line, first.table, line, tables[i], sig)
+			}
 		}
-		parsed++
-		side := readSide(line)
-		sig, ok := binding(line, side.state[0].Code)
-		if !ok || side.whole(1) != "" {
-			continue
+		// The comparison is not vacuous: most combinations parse, and some
+		// signatures are shared.
+		if parsed < len(lines)/2 || bounded < parsed/2 || len(groups) >= bounded {
+			t.Fatalf("exact %v: %d lines, %d parse, %d bounded, %d signatures", exact, len(lines), parsed, bounded, len(groups))
 		}
-		bounded++
-		first, seen := groups[sig]
-		if !seen {
-			groups[sig] = group{line, tables[i]}
-			continue
-		}
-		if first.table != tables[i] {
-			t.Errorf("%q declares %s and %q declares %s, but both have the signature %q", first.line, first.table, line, tables[i], sig)
-		}
+		t.Logf("exact %v: %d lines, %d parse, %d bounded, %d signatures", exact, len(lines), parsed, bounded, len(groups))
 	}
-	// The comparison is not vacuous: most combinations parse, and some
-	// signatures are shared.
-	if parsed < len(lines)/2 || bounded < parsed/2 || len(groups) >= bounded {
-		t.Fatalf("%d lines, %d parse, %d bounded, %d signatures", len(lines), parsed, bounded, len(groups))
-	}
-	t.Logf("%d lines, %d parse, %d bounded, %d signatures", len(lines), parsed, bounded, len(groups))
 }
