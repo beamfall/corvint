@@ -21,7 +21,7 @@
 // after it. A log is refused when any test, subtest or package fails, or when a
 // package or test is missing, repeated or unterminated:
 //
-//	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 16] [--log-shards N] [--target 0] LOG...
+//	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 16] [--log-shards N] [--parallel N] [--target 0] LOG...
 //	ci-test-slices replay [--root DIR] [--shards 16] [--log-shards N] [--costs FILE] [--slices FILE] [--parallel N] [--compile-link DURATION] LOG...
 //
 // --shards sets the output partition; --log-shards declares the complete source
@@ -42,11 +42,13 @@
 // cancellation interrupts and, after ten seconds, kills, and Windows stops only
 // the immediate process. The file-level source is checked before any work, so a file the
 // partition would reject is never written, even when nothing splits. A package splits only
-// when its observed time exceeds the target (default: the ideal shard share). Its
-// named slices are contiguous runs of its sorted test names that minimise the
-// largest slice, weighted by the observed time of each top-level test, or by
-// count when the run has none; names the run lacks take the package median.
-// Whatever cannot be enumerated stays whole.
+// when its observed time exceeds the target (default: cishards.SliceTarget, one execution
+// slot's share at the source run's --parallel, raised to the longest whole package and capped
+// at the wall budget), into cishards.SliceCount slices cut by cishards.SliceTests: contiguous
+// runs of its sorted test names that minimise the largest slice, weighted by the observed
+// time of each top-level test, or by count when the run has none; names the run lacks take
+// the package median. Whatever cannot be enumerated stays whole. --parallel is the go test
+// -p the logs ran at; above 1 the file records it as its source parallel (V1-5086).
 //
 // replay places the observed run with and without the --slices file and prints the
 // predicted per-shard sums of package time by default. With --parallel it uses
@@ -125,14 +127,14 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 	target := fs.Duration("target", 0, "generate: split packages slower than this (0: the ideal shard share)")
 	costs := fs.String("costs", "", "replay: placement cost table (default: the observed run)")
 	slices := fs.String("slices", "", "replay: slice file (default: ROOT/"+slicesPath+")")
-	parallel := fs.Int("parallel", 1, "replay: shard go test -p value, 1..64; e.g. replay --parallel 4 shard-*.log")
+	parallel := fs.Int("parallel", 1, "shard go test -p value, 1..64 (generate: the -p the logs ran at); e.g. replay --parallel 4 shard-*.log")
 	compileLink := fs.Duration("compile-link", 0, "replay: explicit common per-shard compile/link allowance; e.g. 6m (prediction only)")
 	if err := fs.Parse(args); err != nil {
 		return 2, nil
 	}
 	if (mode != "generate" && mode != "replay") || fs.NArg() == 0 || *shards < 2 || *shards > cishards.MaxShards || *target < 0 ||
 		*parallel < 1 || *parallel > cishards.MaxParallel || *compileLink < 0 ||
-		(mode == "generate" && (*parallel != 1 || *compileLink != 0)) {
+		(mode == "generate" && *compileLink != 0) {
 		return 2, errors.New("usage: ci-test-slices generate|replay [flags] LOG...")
 	}
 	if *logShards == 0 {
@@ -149,7 +151,7 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 		return 2, err
 	}
 	if mode == "generate" {
-		return generate(ctx, obs, *root, *revision, *runURL, *shards, *target, notes)
+		return generate(ctx, obs, *root, *revision, *runURL, *shards, *parallel, *target, notes)
 	}
 	// Round the allowance upward too: a positive sub-millisecond estimate must
 	// not silently disappear from the predicted wall.
@@ -436,8 +438,7 @@ func (o *observation) total() int64 {
 }
 
 var (
-	listed   = regexp.MustCompile(`^(Test|Example|Fuzz|Benchmark)[\p{L}\p{Nd}_]*$`)
-	nameable = regexp.MustCompile(`^(Test|Example|Fuzz)[A-Za-z0-9_]*$`)
+	listed = regexp.MustCompile(`^(Test|Example|Fuzz|Benchmark)[\p{L}\p{Nd}_]*$`)
 )
 
 // goList enumerates with the race-enabled test binary CI runs, outside any
@@ -480,15 +481,10 @@ func parseList(raw []byte, pkg string) ([]string, error) {
 	return names, nil
 }
 
-type namedSlice struct {
-	Milliseconds int64    `json:"milliseconds"`
-	Tests        []string `json:"tests"`
-}
-
-type split struct {
-	Named            []namedSlice `json:"named"`
-	RestMilliseconds int64        `json:"restMilliseconds"`
-}
+type (
+	namedSlice = cishards.NamedSlice
+	split      = cishards.TestSplit
+)
 
 type sliceFile struct {
 	Profile string `json:"profile"`
@@ -496,6 +492,7 @@ type sliceFile struct {
 		Revision  string `json:"revision"`
 		RunURL    string `json:"runURL"`
 		GoVersion string `json:"goVersion"`
+		Parallel  int    `json:"parallel,omitempty"`
 	} `json:"source"`
 	Packages map[string]split `json:"packages"`
 }
@@ -506,10 +503,13 @@ type sliceFile struct {
 // version, so any other toolchain is refused (decision 0522).
 var sourceGoVersion = runtime.Version()
 
-func generate(ctx context.Context, obs *observation, root, revision, runURL string, shards int, target time.Duration, notes io.Writer) (int, error) {
+func generate(ctx context.Context, obs *observation, root, revision, runURL string, shards, parallel int, target time.Duration, notes io.Writer) (int, error) {
 	var f sliceFile
 	f.Profile = "corvint-ci-test-slices/0"
 	f.Source.Revision, f.Source.RunURL, f.Source.GoVersion = revision, runURL, sourceGoVersion
+	if parallel > 1 {
+		f.Source.Parallel = parallel
+	}
 	f.Packages = map[string]split{}
 	// The source is checked before any work and whatever splits, so an empty
 	// generation cannot write a file the partition would reject.
@@ -538,7 +538,7 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 	}
 	limit := target.Milliseconds()
 	if limit == 0 {
-		limit = max(1, obs.total()/int64(shards))
+		limit = cishards.SliceTarget(obs.packages, allowed, shards, parallel)
 	}
 	pkgs := make([]string, 0, len(allowed))
 	for p := range allowed {
@@ -551,7 +551,7 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 			fmt.Fprintf(notes, "whole %s: no observed outcome\n", p)
 			continue
 		}
-		k := int(min(int64(cishards.MaxSlices), int64(shards), (elapsed+limit-1)/limit))
+		k := cishards.SliceCount(elapsed, limit, shards)
 		if k < 2 {
 			fmt.Fprintf(notes, "whole %s: %dms within the %dms target\n", p, elapsed, limit)
 			continue
@@ -561,7 +561,7 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 			fmt.Fprintf(notes, "whole %s: %v\n", p, err)
 			continue
 		}
-		s, ok := slice(names, obs.tests[p], elapsed, k)
+		s, ok := cishards.SliceTests(names, obs.tests[p], elapsed, k)
 		if !ok {
 			fmt.Fprintf(notes, "whole %s: too few nameable tests for %d slices\n", p, k)
 			continue
@@ -637,111 +637,6 @@ func checkout(ctx context.Context, root, revision string) (string, error) {
 		}
 	}
 	return dir, nil
-}
-
-// slice splits one package into k slices: k-1 named runs of its sorted nameable
-// tests and a catch-all holding the rest of them plus every test it cannot name.
-func slice(names []string, observed map[string]int64, elapsed int64, k int) (split, bool) {
-	var named []string
-	for _, n := range names {
-		if nameable.MatchString(n) {
-			named = append(named, n)
-		}
-	}
-	sort.Strings(named)
-	if len(named) < k-1 {
-		return split{}, false
-	}
-	weight := func(string) int64 { return 1 }
-	var rest int64
-	if len(observed) != 0 {
-		values := make([]int64, 0, len(observed))
-		for _, ms := range observed {
-			values = append(values, ms)
-		}
-		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
-		median := values[len(values)/2]
-		weight = func(n string) int64 {
-			if ms, ok := observed[n]; ok {
-				return ms
-			}
-			return median
-		}
-		in := map[string]bool{}
-		for _, n := range named {
-			in[n] = true
-		}
-		for n, ms := range observed {
-			if !in[n] {
-				rest += ms
-			}
-		}
-	}
-	costs := make([]int64, len(named)+1)
-	var sum int64
-	for i, n := range named {
-		costs[i] = weight(n)
-		sum += costs[i]
-	}
-	costs[len(named)] = rest
-	sum += rest
-	cuts := minMaxCuts(costs, k)
-	scale := func(from, to int) int64 {
-		var c int64
-		for _, x := range costs[from:to] {
-			c += x
-		}
-		ms := elapsed
-		if sum > 0 {
-			ms = int64(math.Round(float64(elapsed) * float64(c) / float64(sum)))
-		}
-		return min(3000000, max(1, ms))
-	}
-	var s split
-	for i := 0; i < k-1; i++ {
-		s.Named = append(s.Named, namedSlice{Milliseconds: scale(cuts[i], cuts[i+1]), Tests: named[cuts[i]:cuts[i+1]]})
-	}
-	s.RestMilliseconds = scale(cuts[k-1], len(costs))
-	return s, true
-}
-
-// minMaxCuts returns the k group starts of the contiguous partition of costs
-// that minimises the largest group, every group non-empty, preferring earlier cuts.
-func minMaxCuts(costs []int64, k int) []int {
-	n := len(costs)
-	prefix := make([]int64, n+1)
-	for i, c := range costs {
-		prefix[i+1] = prefix[i] + c
-	}
-	const inf = math.MaxInt64
-	best := make([][]int64, k+1)
-	from := make([][]int, k+1)
-	for g := range best {
-		best[g] = make([]int64, n+1)
-		from[g] = make([]int, n+1)
-		for i := range best[g] {
-			best[g][i] = inf
-		}
-	}
-	best[0][0] = 0
-	for g := 1; g <= k; g++ {
-		for i := g; i <= n; i++ {
-			for j := g - 1; j < i; j++ {
-				if best[g-1][j] == inf {
-					continue
-				}
-				if v := max(best[g-1][j], prefix[i]-prefix[j]); v < best[g][i] {
-					best[g][i], from[g][i] = v, j
-				}
-			}
-		}
-	}
-	cuts := make([]int, k)
-	for g, i := k, n; g > 0; g-- {
-		cuts[g-1] = from[g][i]
-		i = from[g][i]
-	}
-	return cuts
 }
 
 // replace writes through a sibling temporary file so an interrupted run cannot

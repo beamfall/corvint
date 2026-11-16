@@ -217,6 +217,19 @@ func TestAFPV0421SelfHostedGitConfigIsPerRunner(t *testing.T) {
 	}
 }
 
+// V1-5086 (AFP-V0-540): a pull request's hosted full shard keeps its -p 4 outcomes for a -p 4
+// cost refresh, under a name the drift report's pattern does not fetch.
+func TestV15086PullRequestOutcomesAreKeptApartFromTheDriftReport(t *testing.T) {
+	ci := readWorkflow(t, "ci.yml")
+	step := stepBlock(t, jobBlock(t, ci, "go-product-shard"), "Retain -p 4 package outcomes for a -p 4 cost refresh (AFP-V0-540, V1-5086)")
+	wantLine(t, "pull-request retention", step, "        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted' && github.event_name == 'pull_request'")
+	wantLine(t, "pull-request retention", step, "          name: ci-pr-shard-costs-${{ strategy.job-index }}")
+	wantLine(t, "drift download", jobBlock(t, ci, "ci-shard-cost-drift"), "          pattern: ci-shard-costs-*")
+	if strings.HasPrefix("ci-pr-shard-costs-0", "ci-shard-costs-") {
+		t.Fatal("the drift report would fetch pull-request outcomes")
+	}
+}
+
 // AFP-V0-422: a self-hosted shard keeps a marker instead of its timing stream, and the drift
 // report abstains with the runner as its reason rather than comparing box timings with the table.
 func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
