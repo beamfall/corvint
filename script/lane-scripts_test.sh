@@ -3462,12 +3462,42 @@ if [ "$1 $2" = "ticket delivery-screen" ]; then
     malformed) echo '{}'; exit 0 ;;
     missing) echo '{"outcome":"OK","items":[{"profile":"taskman-delivery-screen/0","tickets":[]}]}'; exit 0 ;;
   esac
+  ref=''
+  prev=''
+  for arg in "$@"; do
+    [ "$prev" != --ref ] || ref=$arg
+    prev=$arg
+  done
+  binding=$ref
+  profile=taskman-delivery-screen/0
+  extra=''
+  verdict=${LD_SCREEN:-CLEAR}
+  case $verdict in
+    minimal-binding|missing-binding|wrong-commit|unknown-binding|unknown-profile|unknown-field|missing-scan) verdict=CLEAR ;;
+  esac
+  case ${LD_SCREEN:-CLEAR} in
+    wrong-commit) binding=0000000000000000000000000000000000000000 ;;
+    unknown-profile) profile=taskman-delivery-screen/future ;;
+    unknown-field) extra=',"futureAuthority":true' ;;
+  esac
+  if [ "${LD_SCREEN:-CLEAR}" = minimal-binding ]; then
+    printf '{"outcome":"OK","items":[{"profile":"%s"' "$profile"
+  else
+  printf '{"outcome":"OK","items":[{"profile":"%s","ref":"%s"' "$profile" "$ref"
+  case ${LD_SCREEN:-CLEAR} in
+    missing-binding) ;;
+    unknown-binding) printf ',"refCommit":{"future":"%s"}' "$binding" ;;
+    *) printf ',"refCommit":"%s"' "$binding" ;;
+  esac
+  [ "${LD_SCREEN:-CLEAR}" = missing-scan ] || printf ',"scanTruncated":false'
+  printf '%s' ',"commitsScanned":"1","github":"NOT_OBSERVED","prsExported":"0","human":[],"mutationAuthority":false,"laneHeads":[],"laneScanTruncated":false'
+  fi
+  printf '%s,"tickets":[' "$extra"
   shift 2
-  printf '%s' '{"outcome":"OK","items":[{"profile":"taskman-delivery-screen/0","tickets":['
   sep=''
   for id in "$@"; do
     case $id in --*) break ;; esac
-    printf '%s{"local":"%s","verdict":"%s"}' "$sep" "$id" "${LD_SCREEN:-CLEAR}"
+    printf '%s{"local":"%s","verdict":"%s"}' "$sep" "$id" "$verdict"
     sep=,
   done
   printf '%s\n' ']}]}'
@@ -3491,7 +3521,7 @@ out=$(ldi --out "$ld/in" V1-0001 V1-0002 2> "$ld/err")
   grep -qxF "Before the first commit: script/lane-dispatch.sh base-check --base $lbase --fresh" "$ld/in/brief-header.md" ||
   fail "lane-dispatch inputs: $out $(cat "$ld/err" "$ld/in/lane.env" 2> /dev/null)"
 # ASD-V0-2201: delivery classifications block before lane.env or host publication.
-for verdict in DELIVERED DELIVERED_ON_LANE COMPLETED HELD IN_FLIGHT TRUNCATED FUTURE_VERDICT fail malformed missing; do
+for verdict in DELIVERED DELIVERED_ON_LANE COMPLETED HELD IN_FLIGHT TRUNCATED FUTURE_VERDICT fail malformed missing minimal-binding missing-binding wrong-commit unknown-binding unknown-profile unknown-field missing-scan; do
   out=$(LD_SCREEN=$verdict ldi --out "$ld/screen-$verdict" V1-0001 V1-0002 2>&1)
   [[ $? == 2 && $out == *'lane-dispatch: REFUSE screen findings'* && ! -e $ld/screen-$verdict/lane.env ]] ||
     fail "delivery screen admitted $verdict: $out"

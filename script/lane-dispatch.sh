@@ -152,12 +152,29 @@ inputs() {
   # delivery-screen reads Git, not the snapshot; Tasks rejects it in snapshot mode.
   (cd "$repo" && unset CORVINT_TASKS_SNAPSHOT && "${LANE_DISPATCH_TASKS:-corvint-tasks}" ticket delivery-screen $tickets --lane-refs --ref "$sha" --json ${unaudited[@]+"${unaudited[@]}"}) > "$delivery" 2> "$dir/delivery-screen.err" || delivery_status=$?
   if ((delivery_status > 1)) || ! perl -MJSON::PP -e '
-    my ($file,@wanted)=@ARGV;
+    my ($file,$sha,@wanted)=@ARGV;
     -f $file && -s $file <= 4*1024*1024 or exit 1;
     open my $fh,"<",$file or exit 1; local $/;
     my $r=eval { decode_json(<$fh>) }; $@ and exit 1;
     ref($r) eq "HASH" && ($r->{outcome}//"") eq "OK" && ref($r->{items}) eq "ARRAY" && @{$r->{items}} == 1 or exit 1;
     my $s=$r->{items}[0]; ref($s) eq "HASH" && ($s->{profile}//"") eq "taskman-delivery-screen/0" && ref($s->{tickets}) eq "ARRAY" or exit 1;
+    # Admit only the understood screen profile and pinned, complete scan form.
+    my %fields=map { $_=>1 } qw(profile ref refCommit commitsScanned scanTruncated github prsExported tickets human mutationAuthority laneHeads laneScanTruncated audited ticketState);
+    exists($fields{$_}) or exit 1 for keys %$s;
+    for my $key (qw(ref refCommit)) {
+      defined($s->{$key}) && !ref($s->{$key}) && $s->{$key} eq $sha or exit 1;
+    }
+    for my $key (qw(mutationAuthority scanTruncated laneScanTruncated)) {
+      JSON::PP::is_bool($s->{$key}) && !$s->{$key} or exit 1;
+    }
+    for my $key (qw(commitsScanned prsExported)) {
+      defined($s->{$key}) && !ref($s->{$key}) && encode_json($s->{$key}) =~ /\A"(?:0|[1-9][0-9]*)"\z/ or exit 1;
+    }
+    ($s->{github}//"") =~ /\A(?:OBSERVED|NOT_OBSERVED)\z/ or exit 1;
+    ref($s->{human}) eq "ARRAY" && ref($s->{laneHeads}) eq "ARRAY" or exit 1;
+    if (exists($s->{audited}) || exists($s->{ticketState})) {
+      JSON::PP::is_bool($s->{audited}) && !$s->{audited} && ($s->{ticketState}//"") eq "NOT_OBSERVED" or exit 1;
+    }
     my %wanted=map { $_=>1 } @wanted;
     for my $row (@{$s->{tickets}}) {
       ref($row) eq "HASH" or exit 1;
@@ -166,7 +183,7 @@ inputs() {
       ($row->{verdict}//"") =~ /\A(?:CLEAR|NOT_OBSERVED|MENTIONED)\z/ or exit 1;
     }
     exit(keys(%wanted) ? 1 : 0);
-  ' "$delivery" $tickets; then
+  ' "$delivery" "$sha" $tickets; then
     head -c 4096 "$delivery"
     refuse 'screen findings (fix: resolve all findings, or explicitly --override ID for a retained ticket finding)'
   fi
