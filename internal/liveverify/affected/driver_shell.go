@@ -2826,8 +2826,153 @@ func driverNumeric(value string) bool {
 
 // driverPathTokens is the path-shaped tokens of text, as the other plugins
 // record string literals: a run of path characters with a slash or an
-// extension, with any expansion treated as a separator.
+// extension, with any expansion treated as a separator
+// (driverBlankedPathTokens), and then the tokens of every value-supplying
+// parameter expansion's word (AZU-V0-8927), read as the shell plugin reads
+// them (AZU-V0-8920): `cat ${F:-data/x.txt}` reads data/x.txt when F is
+// unset, so the recipe or step is a reader of it.
+//
+// The rule only adds tokens: the blanked tokens come first and unchanged, so
+// no form the value-word scan misreads loses a token or a selection. Raw
+// make text spells the shell's `$` as `$$`; the scan reads it unescaped, and
+// every `${` of the text is still one of the unescaped text.
 func driverPathTokens(text string) []string {
+	tokens := driverBlankedPathTokens(text)
+	if !strings.Contains(text, "${") {
+		return tokens
+	}
+	seen := make(map[string]bool, len(tokens))
+	for _, token := range tokens {
+		seen[token] = true
+	}
+	driverValueWordTokens(strings.ReplaceAll(text, "$$", "$"), MaxValueWordDepth, func(token string) {
+		if !seen[token] {
+			seen[token] = true
+			tokens = append(tokens, token)
+		}
+	})
+	return tokens
+}
+
+// driverValueWordTokens calls add with the path tokens of the value words of
+// text (ValueWords), each word read the same way down to depth levels, and
+// with those of the text with its defaults joined in place, as the shell
+// plugin's lexValueWords does. Where that lexer does not read a default, a
+// word nested deeper than depth or one whose parameter it does not take
+// (driverUnreadValueForm), the text is read flat instead
+// (driverFlatValueWords): a default it cannot resolve widens the tokens and
+// is never dropped.
+func driverValueWordTokens(text string, depth int, add func(token string)) {
+	if !strings.Contains(text, "${") {
+		return
+	}
+	if depth == 0 || driverUnreadValueForm(text) {
+		for _, token := range driverBlankedPathTokens(driverFlatValueWords(text)) {
+			add(token)
+		}
+		if depth == 0 {
+			return
+		}
+	}
+	words, joined := ValueWords(text, depth)
+	for _, word := range words {
+		for _, token := range driverBlankedPathTokens(word) {
+			add(token)
+		}
+		driverValueWordTokens(word, depth-1, add)
+	}
+	if joined != text {
+		for _, token := range driverBlankedPathTokens(joined) {
+			add(token)
+		}
+	}
+}
+
+// driverWideValueWordStart is valueWordStart for every parameter a shell
+// takes before a value operator, not only those ValueWords reads: an
+// indirect one (`${!N:-WORD}`), a special one (`${#:-WORD}`) and a
+// subscripted one (`${N[0]:-WORD}`). It returns the word's index, or -1.
+func driverWideValueWordStart(text string, index int) int {
+	operator := func(index int) int {
+		if index < len(text) && text[index] == '[' {
+			closing := strings.IndexByte(text[index:], ']')
+			if closing < 0 {
+				return -1
+			}
+			index += closing + 1
+		}
+		if index < len(text) && text[index] == ':' {
+			index++
+		}
+		if index >= len(text) || strings.IndexByte("-=+", text[index]) < 0 {
+			return -1
+		}
+		return index + 1
+	}
+	parameter := func(index int) int {
+		start := index
+		for index < len(text) && isDriverNameByte(text[index]) {
+			index++
+		}
+		if index == start && index < len(text) && strings.IndexByte("@*#?$!-", text[index]) >= 0 {
+			index++
+		}
+		if index == start {
+			return -1
+		}
+		return operator(index)
+	}
+	if word := parameter(index); word >= 0 {
+		return word
+	}
+	if index < len(text) && text[index] == '!' {
+		return parameter(index + 1)
+	}
+	return -1
+}
+
+// driverUnreadValueForm reports a `${` of text that opens a value-supplying
+// expansion ValueWords does not read.
+func driverUnreadValueForm(text string) bool {
+	for from := 0; ; {
+		offset := strings.Index(text[from:], "${")
+		if offset < 0 {
+			return false
+		}
+		from += offset + 2
+		if valueWordStart(text, from) < 0 && driverWideValueWordStart(text, from) >= 0 {
+			return true
+		}
+	}
+}
+
+// driverFlatValueWords is text with every `${` opener blanked, a
+// value-supplying one through its operator, so each word at any depth is
+// plain text up to its `}`: the widening read of a default ValueWords does
+// not resolve.
+func driverFlatValueWords(text string) string {
+	flat := []byte(text)
+	for from := 0; ; {
+		offset := strings.Index(text[from:], "${")
+		if offset < 0 {
+			return string(flat)
+		}
+		open := from + offset
+		from = open + 2
+		end := from
+		if word := driverWideValueWordStart(text, from); word >= 0 {
+			end = word
+		}
+		for index := open; index < end; index++ {
+			flat[index] = ' '
+		}
+	}
+}
+
+// driverBlankedPathTokens is the path tokens of text with every expansion a
+// separator and a braced one ended at its first `}`: the driver's lexicon
+// before AZU-V0-8927, which driverPathTokens always keeps.
+func driverBlankedPathTokens(text string) []string {
 	seen := map[string]bool{}
 	tokens := make([]string, 0)
 	isPathByte := func(char byte) bool {

@@ -1012,6 +1012,32 @@ tree reader, a tested wrapper is followed, and the guard's marker is a tested li
   `internal/mcp/cli/testdata/tools-list-default.golden.jsonl` and `benchmarks/README.md` the
   whole-tree content checks (W), and `go.mod` every Go test unit (G). Evidence:
   `TestOwnershipReaderMissClasses_AZU_V0_8926`, `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925`.
+- **AZU-V0-8927: Parameter-default paths are driver reads.** The driver's path tokens SHALL
+  include the word of a value-supplying parameter expansion, in every text the driver tokenizes
+  (a make rule block and its recipe lines, a workflow step, a script the driver scans), read by
+  the lexer of AZU-V0-8920: the same six forms, brace matching, each level's word and the text
+  with every closed default joined in place, to a depth of 8. Make spells the shell's `$` as
+  `$$`, so the recipe line `cat $${F:-data/x.txt}` makes its target's driver a reader of
+  `data/x.txt` (V1-5628: the driver skipped the whole braced expansion and the target was not
+  selected for an edit of the default). Where that lexer reads no default, a word deeper than
+  the depth bound or one whose parameter is indirect (`${!N:-WORD}`), subscripted
+  (`${N[0]:-WORD}`) or special, the driver SHALL read the text with every `${` opener blanked
+  through its value operator, so the default is still a token: a default it cannot resolve
+  widens the tokens and is never dropped. The `?` forms and every other operator supply no
+  word. The rule SHALL only add tokens: the tokens of the text with every expansion blanked, as
+  the driver read them before the rule, come first and unchanged, so no driver unit loses a
+  reader and no selection narrows. Evidence: `TestDriverRecipeParameterDefaultIsRead_V1_5628`
+  (the six forms, a nested default, a quoted, a positional and an unclosed one, each selecting
+  the make target for an edit of the default alone),
+  `TestDriverPathTokensReadValueWords_AZU_V0_8927`,
+  `TestDriverPathTokensKeepNonValueFormsBlank_AZU_V0_8927`,
+  `TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927`,
+  `TestDriverPathTokensOnlyAdd_AZU_V0_8927` (475255 texts, each keeping the tokens read before
+  the rule as a prefix of those read now); a replay over this repository at `964535021` left
+  all 250 driver units (195 of the Makefile) and the driver readers of 10540 tracked paths
+  unchanged. Rollback:
+  have `driverPathTokens` in `internal/liveverify/affected/driver_shell.go` return
+  `driverBlankedPathTokens(text)`; the blanked tokens stay.
 
 ## Non-goals
 
@@ -1281,6 +1307,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
 | AZU-V0-8920 to AZU-V0-8926 | V1-4685 | `TestParameterDefaultFormsAreTokens_AZU_V0_8920`, `TestNestedParameterDefaultsAreTokens_AZU_V0_8920`, `TestParameterDefaultPathSelectsItsMakeTarget_AZU_V0_8920`, `TestNestedParameterDefaultSelectsItsMakeTarget_AZU_V0_8920`, `TestValueWordsOnlyAddTokens_AZU_V0_8920`, `TestValueWordsMatchBraces_AZU_V0_8920`, `TestTreeReaderDeclarationRefusals_AZU_V0_8921`, `TestCMPV1004TestSelectionProfilesAcrossReaders`, `TestDeclaredTreeReaderSelectsItsDrivers_AZU_V0_8922`, `TestDeclaredTreeReaderReadsExcludedPaths_AZU_V0_8922`, `TestTreeReaderFollowsTestedWrapper_AZU_V0_8922`, `TestNewChangeEvidenceSelectsTreeReaders_AZU_V0_8922`, `TestDriverRunWholeTreeScriptsAreDeclared_AZU_V0_8923`, `TestWholeTreeMarkerForms_AZU_V0_8923`, `TestOwnedPathNamersAreReached_AZU_V0_8924`, `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925`, `TestOwnershipReaderMissClasses_AZU_V0_8926`; head proof over the 160 audited paths in `docs/build-log/2026-11-16-r1replay-ownership-replay-complete.md` |
+| AZU-V0-8927 | V1-5628 | `TestDriverRecipeParameterDefaultIsRead_V1_5628`, `TestDriverPathTokensReadValueWords_AZU_V0_8927`, `TestDriverPathTokensKeepNonValueFormsBlank_AZU_V0_8927`, `TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927`, `TestDriverPathTokensOnlyAdd_AZU_V0_8927`; replay over this repository at `964535021`: 250 driver units (195 of the Makefile) and the driver readers of 10540 tracked paths unchanged |
 | AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
 | AZU-V0-003 | V1-4686 | AZU-V0-212: `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`, `TestFrontierSiteRecordIsComplete_TJAA_V0_1161` (frontierSites count equals the recorded sites), `TestFrontierDirections_TJAA_V0_1161`; one-file TypeScript probe in `docs/build-log/2026-11-09-frontier.md` |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestRawStringJoinRetainsUnknown_AZU_V0_8901`, `TestConstructedDirectoryRetainsUnknown_AZU_V0_8901` (raw formatted paths, split separators, trailing-slash joins and backticks without format markers), `TestConstructedBasenameSpellings_AZU_V0_8901` (shared root/nested substitution, quote, format, concatenation and join matrix; known callers remain selected), `TestNormalizedJoinRetainsUnknown_AZU_V0_8901` (normalized literal components and unresolved suffixes retain UNKNOWN), `TestTraversalJoinRetainsUnknown_AZU_V0_8901` (an unresolved intermediate ancestor operand cancels an unrelated prefix; integrated selection retains UNKNOWN and known callers), `TestTraversalJoinSuffixBounds_AZU_V0_8901` (only a fixed non-shell suffix proves exclusion; shell suffixes, partial suffixes and cleaned components retain uncertainty, grouped or not, and a suffix on one branch of a conditional or boolean expression proves nothing), `TestGroupedSuffixJoinRetainsUnknown_AZU_V0_8901` (an undeclared `name + (".sh")` caller retains UNKNOWN), `TestNormalizedJoinBounds_AZU_V0_8901`, `TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901` (two declared scripts share a directory; embedded Python with an escaped basename retains UNKNOWN and known caller selection), `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904`, `TestInboundRevisionRejectsInvalidSnapshots_AZU_V0_8904` (invalid base with valid HEAD and invalid HEAD retain changed-declaration uncertainty) |
