@@ -2556,3 +2556,11 @@ documents, `--static` is refused as an unknown option, and every other member is
 retained document or receipt format changes.
 
 | LPCV-V0-7705 | `internal/testvaliditydoc.unrecognizedProvider` | `TestLPCVV07705PlainPlaywrightReceiptGuidance` |
+
+## Pinned qualification ledger (2026-11-16)
+
+`docs/build-log/2026-11-16-r1docs-line-qualification.md` records the LPCV-V0-963
+family states, exact Beamfall corpus pins, the public Ruby corpus identity/license,
+and the current binding limit of the historical Go qualification. An UNQUALIFIED
+family retains its static plan. This ledger changes no admission rule or wire format;
+Swift and Kotlin/JVM remain in 1.0 under decision 0600.
