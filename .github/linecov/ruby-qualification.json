@@ -4,7 +4,7 @@
   "runner": "",
   "indexCommit": "f90fd503000279076c02269299067e08bf1ca1ee",
   "report": {
-    "digest": "sha256:0a9ad3efc2f7e5a0af09de3edb5ad1b9be9e92c59139a1ad68b1a2bb006bc312",
+    "digest": "sha256:d2445c4c8c2e341d40a56fae6a1cc70da56d7177eb9dffc3daa07f648ab99eb0",
     "seed": 20261116,
     "sites": 21,
     "mutants": 40,
@@ -140,10 +140,10 @@
     "internal/rubylinecov/collect.go": "b7300ab56762d668b9f1bc8621014124bb62d8c3",
     "internal/rubylinecov/isolate.go": "148b7d31445b0c5dc7225db8c09ab2d979ab3530",
     "internal/rubylinecov/linecov.rb": "33b5b27136a9a7c2e3889d38a0f23d5ad873295a",
-    "internal/rubylinecov/lines.go": "7bf0616284a740e6a203f68569ced683651e06cc",
+    "internal/rubylinecov/lines.go": "98ae6075d3cc77472a4e7ee4235582ce488ca48b",
     "internal/rubylinecov/select.go": "71a2b3481cb748d31fbd2147a9ae30af607a2697",
     "internal/rubylinecov/selection.go": "dcf5455145df7428df13acc1655925d971ed564b",
-    "tools/linecov/languages.go": "7cba12dcc1500c3a6e75b53f4a2c308de1b50728",
+    "tools/linecov/languages.go": "2ea9c980f091a49194f9bb2a8842118e078eeff1",
     "tools/linecov/main.go": "42b11f7e9d0a125d86922c95629c9cc9d9b2b7c6",
     "tools/linecov/rubyqualify.go": "136cfed2697e774e83f862ff4ba92b5647bf0af7"
   },
