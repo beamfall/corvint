@@ -774,10 +774,15 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   `TestRubyQualificationRecordPresent`.
 - `LPCV-V0-7609`: (accepted, decision 0601 (owner 2026-11-16); V1-4365) `linecov ruby-collect
   -state DIR` keeps the ordinary-order run and each isolated run's dumps and terminal result
-  under DIR, bound to the root, commit, argv and deadlines, and resumes from them; `-parallel N`
+  under DIR, bound to the collector script digest, root, commit, argv and deadlines, and resumes
+  from them; `-parallel N`
   runs N isolated tests at once and `-budget D` stops launching runs after D, exiting 3 with the
   retained count. The merged index is byte-identical to a serial run over the same retained
-  ordinary-order run. Witness: `TestIsolatedParallelResume`, `TestLiveCollectResume`.
+  ordinary-order run. Each required file outside the root compiles without coverage (unless Ruby
+  lacks the `coverage_enabled` compile option or another `load_iseq` hook is installed), so a
+  per-test `Coverage.result` copies only the counters the dump keeps. Witness:
+  `TestIsolatedParallelResume`, `TestIsolatedRetention`, `TestLiveCollectResume`,
+  `TestCollectorSkipsOutsideFiles`.
 - `LPCV-V0-7606`: (accepted under standing implementation authority, V1-4421) The explicit
   `linecov js-collect` and `js-select` commands collect JavaScript/TypeScript indexes through
   the shared builder and validated `linecov.Decode` (`Load` is Open + Decode), apply `jslinecov.Analyze`, and report recorded

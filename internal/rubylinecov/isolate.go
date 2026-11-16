@@ -3,6 +3,7 @@ package rubylinecov
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ func (e *IncompleteError) Error() string {
 // stateBinding names the one collection a state directory may hold.
 type stateBinding struct {
 	Profile         string   `json:"profile"`
+	Collector       string   `json:"collectorSha256"`
 	Root            string   `json:"root"`
 	Commit          string   `json:"commit"`
 	Argv            []string `json:"argv"`
@@ -209,12 +211,12 @@ func bindState(ctx context.Context, state string, o Options) error {
 	if err != nil {
 		return err
 	}
-	want := stateBinding{Profile: "rubylinecov-state/1", Root: root, Commit: strings.TrimSpace(string(head)), Argv: o.Argv, Timeout: int64(o.Timeout), IsolatedTimeout: int64(o.IsolatedTimeout)}
+	want := stateBinding{Profile: "rubylinecov-state/1", Collector: fmt.Sprintf("%x", sha256.Sum256(script)), Root: root, Commit: strings.TrimSpace(string(head)), Argv: o.Argv, Timeout: int64(o.Timeout), IsolatedTimeout: int64(o.IsolatedTimeout)}
 	file := filepath.Join(state, "state.json")
 	if data, err := os.ReadFile(file); err == nil {
 		var got stateBinding
 		if err := json.Unmarshal(data, &got); err != nil || !reflect.DeepEqual(got, want) {
-			return fmt.Errorf("rubylinecov: state %s belongs to another collection (root, commit, argv or deadlines differ)", state)
+			return fmt.Errorf("rubylinecov: state %s belongs to another collection (collector, root, commit, argv or deadlines differ)", state)
 		}
 		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
