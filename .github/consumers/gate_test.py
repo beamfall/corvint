@@ -26,7 +26,17 @@ BASE = {
 }
 
 
-@unittest.skipUnless(shutil.which("go") and shutil.which("git"), "needs go and git")
+TOOLS = bool(shutil.which("go") and shutil.which("git"))
+
+
+class Tools(unittest.TestCase):
+    def test_ci_has_go_and_git(self):
+        # Outside CI a missing tool skips Gate; in CI (CI set) it fails here instead of skipping.
+        if os.environ.get("CI") and not TOOLS:
+            self.fail("CI is set but go or git is missing, so the consumer gate tests cannot run")
+
+
+@unittest.skipUnless(TOOLS, "needs go and git")
 class Gate(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
