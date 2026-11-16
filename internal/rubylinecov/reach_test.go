@@ -231,6 +231,11 @@ func TestAnalyzeLinesBoundedReach(t *testing.T) {
 		{"same local, other value, unexecuted", "      x = 2", "", 19},
 		{"executed read", "    x.to_s", "RTest#test_local", 21},
 		{"executed call", "    f.arity + 0", "RTest#test_numbered", 28},
+		// A method name's ! suffix and a comma before a string literal are not
+		// continuations, so neither edit changes the block structure.
+		{"statement ending in a method suffix", "    fail!", "RTest#test_local", 21},
+		{"statement ending in a literal", "    raise E, \"no\"", "RTest#test_local", 21},
+		{"statement continued onto the next line", "    x +", "fallback: edit changes Ruby block structure lib/r.rb: keywords, brackets or continuations differ at line 21", 21},
 		{"when body moved off its condition stays with the method", "    when 1 then :uno", "RTest#test_kind3", 4},
 	} {
 		newSource := replaceLine(reachSource, c.line, c.with)
