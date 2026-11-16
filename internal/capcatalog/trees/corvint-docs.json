@@ -2766,7 +2766,7 @@
         "gaps"
       ],
       "command": "corvint-docs flows gaps",
-      "summary": "",
+      "summary": "moved to corvint, where it joins flows with test results; this verb refuses with exit 2: run corvint flows gaps",
       "usage": [
         "corvint-docs [--root PATH] flows gaps ..."
       ],
@@ -2783,7 +2783,7 @@
         "impact"
       ],
       "command": "corvint-docs flows impact",
-      "summary": "",
+      "summary": "moved to corvint, where it joins flows with test results; this verb refuses with exit 2: run corvint flows impact",
       "usage": [
         "corvint-docs [--root PATH] flows impact ..."
       ],
@@ -3019,7 +3019,7 @@
         "status"
       ],
       "command": "corvint-docs flows status",
-      "summary": "",
+      "summary": "moved to corvint, where it joins flows with test results; this verb refuses with exit 2: run corvint flows status",
       "usage": [
         "corvint-docs [--root PATH] flows status ..."
       ],

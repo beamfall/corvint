@@ -45,8 +45,9 @@ func aliasNotice(old, renamed string) string {
 // resolveDocsPages maps `[--root PATH] docs pages VERB ...` onto the handler's own words, and
 // prints the alias notice for an old spelling (`docs flows ...`, `flows docs [maintain] ...`,
 // `docs maintain ...`) before it runs unchanged. A `docs pages` help request is returned as given
-// for the help parser; `docs pages` with no verb, or an unknown one, is refused. Every other
-// invocation is returned as given.
+// for the help parser; `docs pages` with no verb, or an unknown one (help requested or not), and
+// a positional word after `docs pages flow` are refused. Every other invocation is returned as
+// given.
 func resolveDocsPages(arguments []string, stderr io.Writer) ([]string, error) {
 	position := commandPositionAfterRoots(arguments)
 	if position < 0 {
@@ -54,6 +55,16 @@ func resolveDocsPages(arguments []string, stderr io.Writer) ([]string, error) {
 	}
 	rest := arguments[position:]
 	if len(rest) >= 2 && rest[0] == "docs" && rest[1] == "pages" {
+		// An unknown verb is refused before help, so `docs pages bogus --help` names the verbs
+		// instead of reaching a parser that has none.
+		if len(rest) > 2 && !argparseOptionLike(rest[2]) && !slices.Contains(pageVerbs(), rest[2]) {
+			return nil, argumentError("docs pages requires one of " + strings.Join(pageVerbs(), ", ") + "; got " + rest[2])
+		}
+		// `docs pages flow` takes options only. Its handler is the old `flows docs`, which reads a
+		// leading maintain as flow-maintain, whose --apply writes, so a positional is refused.
+		if len(rest) > 3 && rest[2] == "flow" && !argparseOptionLike(rest[3]) {
+			return nil, argumentError("docs pages flow takes no positional argument: " + rest[3] + "; flow-maintain is docs pages flow-maintain")
+		}
 		if helpTokenBeforeEnd(rest[2:]) {
 			return arguments, nil // the help parser names the docs pages topic
 		}
