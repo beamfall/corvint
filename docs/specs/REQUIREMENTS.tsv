@@ -783,6 +783,13 @@ AZU-V0-211	docs/specs/affected-zero-unknown-v0.md	Hosted fixture sites close thr
 AZU-V0-212	docs/specs/affected-zero-unknown-v0.md	Outbound site closure.** (experimental under the owner's standing lane auto-acce	unrecorded	-
 AZU-V0-213	docs/specs/affected-zero-unknown-v0.md	Package-runnable sites.** (experimental under the owner's standing lane auto-acc	unrecorded	-
 AZU-V0-10031	docs/specs/affected-zero-unknown-v0.md	Replay accepts a stale candidate.** (experimental under the owner's standing lan	unrecorded	-
+AZU-V0-8920	docs/specs/affected-zero-unknown-v0.md	Parameter-default paths are shell reads.** The shell plugin SHALL keep, as path	unrecorded	-
+AZU-V0-8921	docs/specs/affected-zero-unknown-v0.md	Declared whole-tree readers.** `.corvint/test-selection.json` MAY carry	unrecorded	-
+AZU-V0-8922	docs/specs/affected-zero-unknown-v0.md	Whole-tree reader drivers.** Every driver unit that runs a declared file, direct	unrecorded	-
+AZU-V0-8923	docs/specs/affected-zero-unknown-v0.md	Whole-tree script guard.** A repository test SHALL fail when a testless file tha	unrecorded	-
+AZU-V0-8924	docs/specs/affected-zero-unknown-v0.md	Ownership-rule namer guard.** A repository test SHALL fail when a tracked test o	unrecorded	-
+AZU-V0-8925	docs/specs/affected-zero-unknown-v0.md	`go.mod` owns every Go test unit.** The `go.mod` owner SHALL name every top-leve	unrecorded	-
+AZU-V0-8926	docs/specs/affected-zero-unknown-v0.md	Miss-class regressions.** The plan of each audited path alone SHALL select its	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-

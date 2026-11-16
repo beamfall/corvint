@@ -1,0 +1,1655 @@
+# 2026-11-16: ownership replay complete through the lane base (V1-4685)
+
+Requirements: AZU-V0-002, AZU-V0-8900 (the rule replayed), AZU-V0-009 (replay retention).
+It replays all 117 required merge trees through `df315e35056d15c7933b5ff97c605cedf5ef4919` with
+a before/after pair that differs only in the ownership rule, and with every row compared: 117 of
+117, zero baseline-selected units dropped. It supersedes the "81 trees not compared" result of
+`2026-11-16-r1docs-ownership-replay-through-base.md`, whose 36 historical comparisons it keeps.
+
+**Conclusion (2026-11-16, repair round 2): V1-4685 criterion 3 is met at head, and the ticket
+is `delivered`.** Repair round 1 found, by a reader audit, 730 (merge, path, unit) readers and
+executors of removed paths that the path alone did not select (classes N1, N2, W and G below);
+a zero baseline-minus-candidate difference could not see them. Round 2 changed the planner and
+its declarations so that every one of the 730 is selected at head when its path changes alone
+("Repair round 2 2026-11-16" below). That is a head proof, not a replay row: the historical rows
+stay recorded as misses of the rule as it stood at each merge. The tables below are kept as they
+were measured.
+
+## Why a new pair
+
+The historical pair (source `8e2c13aa9` before, `2eaaf9fba` after) refuses rows 37 to 117 with
+`unsupported-affected-graph`: those trees carry declarations it cannot read. It also measures
+more than the ownership rule. The range `8e2c13aa9..2eaaf9fba` adds the driver claimant
+(AZU-V0-001, V1-4684), inbound caller closure (AZU-V0-004 and AZU-V0-8902, V1-4687) and the
+ownership rule together, and its historical baseline already has the test-selection owner
+mechanism, so that pair never switched that mechanism off.
+
+The ownership rule entered selection in two places:
+
+- `71b1c2f98` (AZU-V0-002) added `graph.nonSourcePaths` to `selectPlan`. It reclassifies an
+  `UNOWNED_DIRTY_PATH` held by `.corvint/non-source-paths.json` as `DECLARED_NON_SOURCE`. It
+  also added `NonSourcePathsPath` to `declarationPath`, so that declaration file is classified
+  as a Corvint declaration.
+- `29db5f084` (AZU-V0-8900) assigned the remaining tracked data verification owners in
+  `.corvint/test-selection.json` (first added to the tree there). They go through the existing
+  owner matching: `ownersOf` adds the owner's tests, `ownedPaths` reclassifies the path as
+  `DECLARED_TEST_OWNER`, and `declaredOwnersOf` reports it. `2eaaf9fba` only adds a prefix
+  fast path to `ownerPatternMatches`, with the same result.
+
+## Pair design and the evidence-only patch
+
+- **after**: `corvint` built from this lane's base `c7dbf717e2b2d25dd83b3f26fb7ac7def95587b6`,
+  unmodified.
+- **before**: the same source, plus the patch below, which switches those five call sites off.
+  The patch is not committed to product code. It is stored as
+  `r1replay-evidence/ownership-rule-off.patch`, SHA-256
+  `9d3a56e64426948d8ad107b9aa7034ef520d7e7bf739eef9bc04c097e3989f20`.
+
+Each source was extracted with `git archive c7dbf717e2b2d25dd83b3f26fb7ac7def95587b6` into its
+own scratch tree under `/home/russell/lanes/r1replay-evidence/` (`src-after`, `src-before`;
+the patch was applied to `src-before` only). Each was built with
+`GOTOOLCHAIN=local script/heavy.sh go -C SRC build -buildvcs=false -o BINARY ./cmd/corvint`,
+go1.27.4 linux/amd64. Both builds exited 0.
+
+| Binary | Source | SHA-256 |
+|---|---|---|
+| `corvint-own-after` | `c7dbf717e` unmodified | `b1d286f8852c496e2d98b31e3e97a9ab3b58f3b0c1bf08cff8457ca6e1eea9b9` |
+| `corvint-own-before` | `c7dbf717e` + patch | `a6c98bf8ba2fa8d8c8ff32dac908209d8cabcb1249525cd97ac090018a869239` |
+| `corvint-ctlpre` (control) | `800b844cb4a2964c1980417d55e934b53483d0ae` (`71b1c2f98^`) | `67a036c79809d17b4adfad8f3570df8ff44c60318433fd59f860d7a45450d5ad` |
+| `corvint-ctlrule` (control) | `71b1c2f9843564277d36ab72452b6148805bd13a` | `ea1677e761f295fee6171219260b94818a01d148dc7b501d32932ac6e2e84f88` |
+| `corvint-azu-base` (historical) | `8e2c13aa9` | `90ce2940aaf7b6db53856c31d31db84a95cf05fe96fc4e52c967596b311e6f24` |
+| `corvint-azu-candidate` (historical) | `2eaaf9fba` | `5e77baf05a3d8678b3d45996c3567e0bde7e7a089b1f2c3d797a024b7477b5c6` |
+
+The control binaries were built the same way from `git archive` of their commits.
+
+```diff
+diff --git src-after/internal/liveverify/affected/documentation.go src-before/internal/liveverify/affected/documentation.go
+index 72ebdac..e50b78a 100644
+--- src-after/internal/liveverify/affected/documentation.go
++++ src-before/internal/liveverify/affected/documentation.go
+@@ -157,7 +157,7 @@ func (graph *Graph) documentationPaths(unknown []Unknown) ([]NonSource, []Unknow
+ func (graph *Graph) declarationPath(unknown []Unknown) ([]NonSource, []Unknown) {
+ 	var paths []string
+ 	kept := unknown
+-	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, NonSourcePathsPath, UnboundedReaderExclusionsPath, DeclaredSelectionPath} {
++	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, UnboundedReaderExclusionsPath, DeclaredSelectionPath} { // r1replay evidence-only "before": NonSourcePathsPath removed (AZU-V0-002)
+ 		index := slices.IndexFunc(kept, func(entry Unknown) bool {
+ 			return entry.Reason == UnknownUnownedDirtyPath && entry.Detail == declaration
+ 		})
+diff --git src-after/internal/liveverify/affected/non_source_paths.go src-before/internal/liveverify/affected/non_source_paths.go
+index 80ab693..dce7745 100644
+--- src-after/internal/liveverify/affected/non_source_paths.go
++++ src-before/internal/liveverify/affected/non_source_paths.go
+@@ -147,6 +147,8 @@ func (graph *Graph) declaredUnindexedOutput(path string) bool {
+ // kept out of the frontier rules' non-source set,
+ // so a declared path still bears the AFP-V0-511 cascade like an unowned one.
+ func (graph *Graph) nonSourcePaths(unknown []Unknown) ([]NonSource, []Unknown) {
++	// r1replay evidence-only "before": the AZU-V0-002/AZU-V0-8900 ownership rule is off.
++	return nil, unknown
+ 	if len(graph.nonSource) == 0 {
+ 		return nil, unknown
+ 	}
+diff --git src-after/internal/liveverify/affected/testselection.go src-before/internal/liveverify/affected/testselection.go
+index b8176cf..cad380c 100644
+--- src-after/internal/liveverify/affected/testselection.go
++++ src-before/internal/liveverify/affected/testselection.go
+@@ -338,6 +338,8 @@ func fixtureTest(test string) bool {
+ // of that owner not already reached, witnessed by the first such dirty path
+ // (AFP-V0-2482). It is terminal: nothing is traversed from the unit.
+ func (graph *Graph) ownersOf(reached map[string]Witness, dirty []string) {
++	// r1replay evidence-only "before": the AZU-V0-002/AZU-V0-8900 ownership rule is off.
++	return
+ 	if graph.testSelection.empty() {
+ 		return
+ 	}
+@@ -360,6 +362,8 @@ func (graph *Graph) ownersOf(reached map[string]Witness, dirty []string) {
+ // those paths, in dirty-path order, as one ClassDeclaredTestOwner group
+ // (AFP-V0-2482). No other unknown is ever removed.
+ func (graph *Graph) ownedPaths(unknown []Unknown) ([]NonSource, []Unknown) {
++	// r1replay evidence-only "before": the AZU-V0-002/AZU-V0-8900 ownership rule is off.
++	return nil, unknown
+ 	if graph.testSelection.empty() {
+ 		return nil, unknown
+ 	}
+@@ -407,6 +411,8 @@ func (graph *Graph) mustRunOf(reached map[string]Witness, dirty []string) []Must
+ // dirty path, sorted by unit and then pattern; nil when there is none
+ // (AFP-V0-2489).
+ func (graph *Graph) declaredOwnersOf(dirty []string) []DeclaredOwner {
++	// r1replay evidence-only "before": the AZU-V0-002/AZU-V0-8900 ownership rule is off.
++	return nil
+ 	if graph.testSelection.empty() {
+ 		return nil
+ 	}
+```
+
+**What the patch disables**: non-source reclassification and the non-source declaration's own
+`declarationPath` classification (AZU-V0-002), plus owner selection, owner reclassification
+and the `declaredOwners` report (AZU-V0-8900). Every other step of `c7dbf717e` runs unchanged
+in both binaries.
+
+**What it cannot isolate, stated plainly**:
+
+- The owner switch turns off the whole `corvint-test-selection/0` owner mechanism
+  (AFP-V0-2482 to AFP-V0-2489), not only the owners AZU-V0-8900 added. In this repository the
+  two coincide: `.corvint/test-selection.json` first enters the tree in `29db5f084`. It is absent
+  from rows 1 to 29 and present in rows 30 to 117. Every owner entry a replayed tree holds was
+  therefore written under the AZU-V0-8900 ownership regime. The file's `mustRun` entries stay
+  on in both binaries.
+- Three later consumers of the same declarations stay on in both binaries:
+  - AZU-V0-9921 still uses `.corvint/non-source-paths.json` during graph construction and in
+    `claimantsOf`, `unownedUnknown` and `GoPackageFile`: declared hidden Go output is not
+    indexed, and declared output is not claimed by a suffix. No replayed row changes a
+    source-shaped path under a non-source declaration, so its effect is `NOT_OBSERVED` (see the
+    correction below);
+  - AZU-V0-8910 (V1-3480) still admits control declarations as runtime readers;
+  - AZU-V0-9900 (V1-4729) still selects the ownership ratchet test.
+
+  These are separate requirements, and they change the graph or add a selection. They are not
+  the ownership matching this criterion asks about.
+- `.corvint/non-source-paths.json` is absent from rows 1 to 9 and present from row 10 on.
+  Rows 1 to 9 hold neither declaration, so the rule cannot act on them in any binary.
+
+## Self-consistency check (rows 1 to 8, then 9 to 36)
+
+Corrected label (2026-11-16, repair round 1): this is a self-consistency check, not an
+independent validation. Rows 1 to 8 hold neither declaration, so no binary can differ there.
+The owner half of the patch has no independent control: both control binaries, and both
+historical binaries, have the owner mechanism on, so its deltas are attributed only by the
+"after" plan's own classes and witnesses.
+
+For validation, a historical control pair isolates the same rule in the original history:
+`71b1c2f98^` (pre-rule) against `71b1c2f98` (the AZU-V0-002 commit). It ran with the same
+planner argv on rows 1 to 36.
+
+- **Rows 1 to 8**: the control pair shows zero delta on every row (no removed or added unknown,
+  no growth, no drop), and so does the new pair. They agree. The historical pair's rows 1 to 8
+  delta (3 to 13 removed entries, 77 to 224 added units) has none of its removals in an
+  ownership class and none of its growth witnessed `DECLARED_TEST_OWNER`, judged by the
+  candidate plan's own `nonSource` classes and witnesses. Its removals are `LANGUAGE_FRONTIER`
+  entries, one `NO_SELECTABLE_TEST` (row 3), and `UNOWNED_DIRTY_PATH` for `Makefile` and
+  `.github/workflows/*.yml`, which the driver claimant now owns. The rows 1 to 8 decomposition
+  places all of it outside the ownership commit:
+  - `8e2c13aa9` to `71b1c2f98^` (driver claimant): 0 to 78 removed, 74 to 222 added units;
+  - `71b1c2f98^` to `71b1c2f98` (the ownership rule): 0 removed, 0 added units on all 8 rows;
+  - `71b1c2f98` to `2eaaf9fba` (inbound closure and repairs): 1 to 4 added units.
+
+  So the new "before" behaves as a pre-rule planner on rows 1 to 8. The historical pair's delta
+  there belongs to V1-4684 and V1-4687, which are on in both new binaries. No patch fix was
+  needed.
+- **Rows 9 to 36, where the rule acts**: on rows 17, 34 and 36 the control pair removes 4, 1 and
+  20 `UNOWNED_DIRTY_PATH` entries (`DECLARED_NON_SOURCE`). The new pair removes exactly those
+  entries, with no control-only entry. The new pair also removes entries the control pair does
+  not on five rows: rows 30, 31, 33, 35 and 36, with 3, 1, 2, 2 and 1 entries. It also adds
+  selections on rows 30, 32, 33 and 36 (19, 19, 21 and 27 units). Every one of those removals is
+  `DECLARED_TEST_OWNER`, and every added unit is witnessed `DECLARED_TEST_OWNER`. Both control
+  binaries and both historical binaries already had the owner mechanism. Their plans classify
+  those same paths `DECLARED_TEST_OWNER` on both sides, so none of those comparisons measures
+  the mechanism; only the new "before" switches it off.
+- The historical baseline was rerun on rows 1 to 36 to get its wall-clock, which the harness
+  did not retain. Each rerun plan has the same selected set and the same `(reason, detail)`
+  unknown set as the retained plan.
+
+| # | Control removed / added / growth / dropped | New pair removed / added / growth / dropped | New-pair-only entries |
+|---:|---|---|---|
+| 1 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 2 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 3 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 4 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 5 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 6 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 7 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 8 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 9 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 10 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 11 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 12 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 13 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 14 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 15 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 16 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 17 | 4 / 0 / 0 / 0 | 4 / 0 / 0 / 0 | none |
+| 18 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 19 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 20 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 21 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 22 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 23 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 24 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 25 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 26 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 27 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 28 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 29 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | none |
+| 30 | 0 / 0 / 0 / 0 | 3 / 0 / 19 / 0 | 3 DECLARED_TEST_OWNER |
+| 31 | 0 / 0 / 0 / 0 | 1 / 0 / 0 / 0 | 1 DECLARED_TEST_OWNER |
+| 32 | 0 / 0 / 0 / 0 | 0 / 0 / 19 / 0 | none |
+| 33 | 0 / 0 / 0 / 0 | 2 / 0 / 21 / 0 | 2 DECLARED_TEST_OWNER |
+| 34 | 1 / 0 / 0 / 0 | 1 / 0 / 0 / 0 | none |
+| 35 | 0 / 0 / 0 / 0 | 2 / 0 / 0 / 0 | 2 DECLARED_TEST_OWNER |
+| 36 | 20 / 0 / 0 / 0 | 21 / 0 / 27 / 0 | 1 DECLARED_TEST_OWNER |
+
+## Replay method
+
+- Required merges: the 8 lines of `script/affected-zero-unknown-merges.txt` (SHA-256
+  `23e52a095a97042e9480d7e0c5b537a8e3507771d3b353bff45125d83abc5264`), then
+  `git rev-list --first-parent --merges --reverse 8e2c13aa926fcaf1731fae71b27c41c41c8f09af..df315e35056d15c7933b5ff97c605cedf5ef4919`
+  (109 merges), 117 distinct merges in all. Each is planned against its first parent.
+- Planner argv, as `invokePlanner` in `tools/affected-zero-unknown-replay` runs it:
+  `nice BINARY --root SNAPSHOT affected --no-cache --full --base FIRST_PARENT`. A
+  `self-binary-stale` refusal gets one `--accept-stale-binary` retry; no retry occurred, and the
+  wall time is that of the accepted invocation. A plan counts only when `ok` is true and its
+  `selected`, `unknown` and `excluded` are arrays. Unknown entries are compared as
+  `(reason, detail)` and selections by unit ID.
+- SNAPSHOT is one of four standalone clones
+  (`git clone --no-local --no-checkout --single-branch --branch claude/r1replay`, no
+  alternates), checked out detached at the merge with a clean status. Each worker runs every
+  side of one merge in turn, so at most 4 planners ran at once. Host: `nproc` 32; the 1-minute
+  load average was between 3.25 and 13.92 during the runs (other lanes were active).
+- The resumable script `replay-r1.py` and its fold `fold-r1.py` retain every raw stdout, stderr
+  and per-plan meta record (exit, wall ms, argv, binary digest, load average): 1026 files.
+
+## Result
+
+- **117 of 117 rows compared** by the new pair; every plan on both sides exited 0, with no
+  refusal and no stale retry. Rows 1 to 36 are also compared by the historical pair. Rows 37 to
+  117 have no historical comparison: both historical binaries refuse them with
+  `unsupported-affected-graph`, on `.corvint/runtime-edges.json` for rows 37 to 61 and on
+  `.corvint/runtime-readers.json` for rows 62 to 117. Those refusals are retained, not counted.
+- **Dropped baseline-selected units: 0 on all 117 rows** for the new pair, and 0 on rows 1 to 36
+  for the historical pair. Corrected (2026-11-16): this does not show that no reader is dropped.
+  "Dropped" is baseline-selected minus candidate-selected, so it cannot see a reader that
+  "before" covered only through the unknown it removes. The reader audit below does that
+  analysis and finds misses.
+- **Scope never changes**: 116 rows are `UNKNOWN` on both sides and row 79 is `BOUNDED` on both
+  sides. The replay never observes the rule turning a fail-closed plan into a bounded one.
+- **Removed unknown entries: 297 on 40 rows (220 distinct)**. Every one is an
+  `UNOWNED_DIRTY_PATH` that "after" reclassifies: 32 distinct as `DECLARED_NON_SOURCE` and 188 as
+  `DECLARED_TEST_OWNER`. No `LANGUAGE_FRONTIER` or other reason is removed, as AZU-V0-8900
+  requires.
+- **Selection growth: 0 to 36 units per row**, 396 in all, on 25 rows. Every added unit is
+  witnessed `DECLARED_TEST_OWNER`. Historical pair, rows 1 to 36: 77 to 235 per row (mostly the
+  driver claimant, as validated above).
+- **Added unknown entries: 6**, on rows 109 and 117 (3 each): `LANGUAGE_FRONTIER`
+  `python:absolute-import-unresolved:+22`, `python:conditional-import` and
+  `python:dynamic-import`. The owner-selected Python tests under `.github/forward-rows/` make
+  Python a participating plugin (`frontierBearers` via `PARTICIPATING_PLUGIN`), so its
+  frontier now bears. That is more uncertainty, never a dropped selection.
+- Wall-clock per plan: 6.0 s to 49.5 s (row 71: 49.5 s before and 45.5 s after). The two sides
+  totalled 1059.3 s and 1048.1 s. This shared host is not a performance qualification.
+- `accepted` stays **false** for AZU-V0-009: every row still has unknowns, and the historical
+  full-suite and changed-line mutation receipts are unavailable (`NOT_PRODUCED`). That is
+  AZU-V0-009's own promotion condition. V1-4685 criterion 3 asks for the before/after replay,
+  retained with removed unknowns and selection growth named and no reader, executor, importer or
+  embedder dropped. Corrected (2026-11-16): the replay and its naming are retained, but the
+  "no reader dropped" half is not met; see the reader audit below.
+
+## All 117 rows (new pair)
+
+Reason codes: LF `LANGUAGE_FRONTIER`, UDP `UNOWNED_DIRTY_PATH`, NST `NO_SELECTABLE_TEST`, UBC
+`UNSELECTED_BINARY_CONSUMER`, USP `UNINDEXED_SOURCE_PATH`, E2E `E2E_UNMAPPED_CHANGE`. "=" means
+the two sides have the same count for every reason. "Removed" and "Added unknown" count the
+`(reason, detail)` set differences.
+
+| # | Exact merge | First parent | Compared by | Selected before / after | Growth | Dropped | Unknown before / after | Unknown by reason, before → after | Removed | Added unknown | Wall ms before / after |
+|---:|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|
+| 1 | `8e2c13aa926fcaf1731fae71b27c41c41c8f09af` | `39c031980` | new, historical | 594 / 594 | 0 | 0 | 79 / 79 | = LF 73 NST 2 UDP 2 UBC 2 | 0 | 0 | 9904 / 9539 |
+| 2 | `39c03198086681fb24f509fbd00b34696d3268c4` | `d436dff76` | new, historical | 401 / 401 | 0 | 0 | 7 / 7 | = LF 6 NST 1 | 0 | 0 | 7542 / 7227 |
+| 3 | `d436dff76de1b8e75c427069ae7f80003ae99bc2` | `6c33df33b` | new, historical | 561 / 561 | 0 | 0 | 76 / 76 | = LF 59 NST 10 UDP 5 UBC 2 | 0 | 0 | 10729 / 10290 |
+| 4 | `6c33df33bc5670131482f5263b410cb980580657` | `ea770fa17` | new, historical | 527 / 527 | 0 | 0 | 58 / 58 | = LF 55 UDP 1 UBC 2 | 0 | 0 | 9313 / 8826 |
+| 5 | `ea770fa17992b970aeda570ed74686a16dbc441e` | `24d8c04f9` | new, historical | 331 / 331 | 0 | 0 | 62 / 62 | = LF 59 UDP 3 | 0 | 0 | 6807 / 7047 |
+| 6 | `24d8c04f9f5ffaaed86759951e520cb775dc2eff` | `f13f52b16` | new, historical | 259 / 259 | 0 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 6852 / 6917 |
+| 7 | `f13f52b1607222033b089144a744fedae0d35239` | `9fdc2f02e` | new, historical | 276 / 276 | 0 | 0 | 77 / 77 | = LF 71 NST 4 UDP 2 | 0 | 0 | 7289 / 7108 |
+| 8 | `9fdc2f02efc11ce9ed582d8529b63fe0478fcad2` | `6f12f4704` | new, historical | 256 / 256 | 0 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 6838 / 6913 |
+| 9 | `cdeed7ee6396a8d6bf6225eb5b2b4cb4d601b419` | `8e2c13aa9` | new, historical | 576 / 576 | 0 | 0 | 201 / 201 | = LF 87 NST 4 USP 7 UDP 101 UBC 2 | 0 | 0 | 11637 / 11604 |
+| 10 | `28a3ff86a2c3d17662765da12cc9251c06466f5f` | `cdeed7ee6` | new, historical | 607 / 607 | 0 | 0 | 83 / 83 | = LF 73 NST 3 UDP 5 UBC 2 | 0 | 0 | 12416 / 12451 |
+| 11 | `c5379b4cf039fa8dd2df2aa4ee6e5b7b897cf514` | `28a3ff86a` | new, historical | 416 / 416 | 0 | 0 | 4 / 4 | = LF 4 | 0 | 0 | 7202 / 7375 |
+| 12 | `9db7a94169821d9b28701eaa88866aee2fec1083` | `c5379b4cf` | new, historical | 382 / 382 | 0 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 7080 / 7154 |
+| 13 | `9208cc7e25bb82503ef9d61b0ce6a5f02039e649` | `9db7a9416` | new, historical | 558 / 558 | 0 | 0 | 59 / 59 | = LF 56 UDP 1 UBC 2 | 0 | 0 | 8720 / 8608 |
+| 14 | `dba1f4d6c9a33098470ccf57794fb66f989f03c8` | `9208cc7e2` | new, historical | 432 / 432 | 0 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 7228 / 7238 |
+| 15 | `f50a0e3447a2bbadbfadbe7f8cc1019ae1636ac5` | `dba1f4d6c` | new, historical | 435 / 435 | 0 | 0 | 79 / 79 | = LF 75 NST 2 USP 1 UDP 1 | 0 | 0 | 7724 / 7450 |
+| 16 | `36e2da4e800ff1f35c3931c50f01ea020cbec1db` | `f50a0e344` | new, historical | 416 / 416 | 0 | 0 | 6 / 6 | = LF 6 | 0 | 0 | 7158 / 7507 |
+| 17 | `8fc0cf37642e7012f4c26671c9ed97a8706d6e09` | `36e2da4e8` | new, historical | 564 / 564 | 0 | 0 | 73 / 69 | LF 64 UDP 7 UBC 2 → LF 64 UDP 3 UBC 2 | 4 | 0 | 11075 / 10784 |
+| 18 | `d886ec70adaf7e4aa7494b72212a8288d8e5cc8a` | `8fc0cf376` | new, historical | 499 / 499 | 0 | 0 | 6 / 6 | = LF 6 | 0 | 0 | 7853 / 7913 |
+| 19 | `9d0c56665c039876b78eb71b877122f86c4ccd25` | `d886ec70a` | new, historical | 521 / 521 | 0 | 0 | 6 / 6 | = LF 6 | 0 | 0 | 8123 / 8022 |
+| 20 | `7fd70eab2f6475074dd1c85c62a43cb5a6a7ff0e` | `9d0c56665` | new, historical | 463 / 463 | 0 | 0 | 6 / 6 | = LF 6 | 0 | 0 | 7663 / 7254 |
+| 21 | `654df5053cc3a5f36aa4ecb48af36c5eaea0a86c` | `7fd70eab2` | new, historical | 499 / 499 | 0 | 0 | 6 / 6 | = LF 6 | 0 | 0 | 7825 / 7740 |
+| 22 | `044058f1bde98a27be3819c5aa9193951b241d24` | `654df5053` | new, historical | 427 / 427 | 0 | 0 | 8 / 8 | = LF 6 NST 2 | 0 | 0 | 7420 / 7251 |
+| 23 | `093750bb2247c49237f3cf8ba69485224791f482` | `044058f1b` | new, historical | 597 / 597 | 0 | 0 | 8 / 8 | = LF 6 UBC 2 | 0 | 0 | 8350 / 8488 |
+| 24 | `670559b9ec3ffbcd59aa6c6d02029ec0cb206a93` | `093750bb2` | new, historical | 517 / 517 | 0 | 0 | 83 / 83 | = LF 78 NST 4 UDP 1 | 0 | 0 | 9605 / 9332 |
+| 25 | `13342d85f6245f897c58023891824212617fe0a7` | `670559b9e` | new, historical | 576 / 576 | 0 | 0 | 71 / 71 | = LF 63 UDP 6 UBC 2 | 0 | 0 | 9262 / 9426 |
+| 26 | `000d4c56c725f0f963b84bf503196f897239dddb` | `13342d85f` | new, historical | 419 / 419 | 0 | 0 | 5 / 5 | = LF 5 | 0 | 0 | 7199 / 7505 |
+| 27 | `539b55331ab2c10a35963e324428b30746fb4b85` | `000d4c56c` | new, historical | 426 / 426 | 0 | 0 | 63 / 63 | = LF 62 UDP 1 | 0 | 0 | 7496 / 7470 |
+| 28 | `d74f54b2783b77d6e46d204b7c7164430dc3cf4e` | `539b55331` | new, historical | 405 / 405 | 0 | 0 | 6 / 6 | = LF 5 NST 1 | 0 | 0 | 7652 / 7339 |
+| 29 | `1a401eb5ee68ff4a0541534b33a5d6538793e9ea` | `d74f54b27` | new, historical | 429 / 429 | 0 | 0 | 75 / 75 | = LF 74 UDP 1 | 0 | 0 | 7278 / 7268 |
+| 30 | `b75053a5b23cb0a4737a593d1fc1912aa3b79436` | `1a401eb5e` | new, historical | 582 / 601 | 19 | 0 | 70 / 67 | LF 62 NST 1 UDP 5 UBC 2 → LF 62 NST 1 UDP 2 UBC 2 | 3 | 0 | 10368 / 10669 |
+| 31 | `4052b8540b5fff818a819db37b55371ea5428c2c` | `b75053a5b` | new, historical | 403 / 403 | 0 | 0 | 66 / 65 | LF 65 UDP 1 → LF 65 | 1 | 0 | 7909 / 8158 |
+| 32 | `538e823f4a1d220a3fb5b12c0529248f18924823` | `4052b8540` | new, historical | 558 / 577 | 19 | 0 | 8 / 8 | = LF 6 UBC 2 | 0 | 0 | 8785 / 8843 |
+| 33 | `59b31f12ed984802627f3ef44fa918f3022045cd` | `538e823f4` | new, historical | 564 / 585 | 21 | 0 | 76 / 74 | LF 74 UDP 2 → LF 74 | 2 | 0 | 9045 / 9054 |
+| 34 | `fe73dc77d169b79bf0d1b2791bda50cb9ca077fe` | `59b31f12e` | new, historical | 474 / 474 | 0 | 0 | 63 / 62 | LF 61 UDP 2 → LF 61 UDP 1 | 1 | 0 | 9154 / 9107 |
+| 35 | `cb403735903b1e54a8469373489960c0b2b89d99` | `fe73dc77d` | new, historical | 555 / 555 | 0 | 0 | 81 / 79 | LF 73 NST 4 UDP 2 UBC 2 → LF 73 NST 4 UBC 2 | 2 | 0 | 9023 / 9037 |
+| 36 | `c3b29cbb54d31c8526d3cce4ad74356b6fb9b943` | `cb4037359` | new, historical | 620 / 647 | 27 | 0 | 88 / 67 | LF 62 NST 3 UDP 21 UBC 2 → LF 62 NST 3 UBC 2 | 21 | 0 | 14374 / 13893 |
+| 37 | `e19823d919cfa653ee0ed05708d03f5fd12ca929` | `c3b29cbb5` | new (historical refused) | 731 / 755 | 24 | 0 | 120 / 85 | LF 66 NST 17 UDP 37 → LF 66 NST 17 UDP 2 | 35 | 0 | 14944 / 14613 |
+| 38 | `b0ee3282035edd255e97364b3b0b06f759d40186` | `e19823d91` | new (historical refused) | 465 / 465 | 0 | 0 | 5 / 5 | = LF 5 | 0 | 0 | 8568 / 8718 |
+| 39 | `131363c695f4278126bc2f79b48bd65b0aca71c9` | `b0ee32820` | new (historical refused) | 505 / 508 | 3 | 0 | 4 / 4 | = LF 4 | 0 | 0 | 8653 / 8715 |
+| 40 | `857f3b46c147074781d256e9f5f3a075ef80fd51` | `131363c69` | new (historical refused) | 425 / 428 | 3 | 0 | 5 / 5 | = LF 5 | 0 | 0 | 8072 / 8167 |
+| 41 | `ae20b398c260933a152e6285de9cfc385a2580c7` | `857f3b46c` | new (historical refused) | 463 / 463 | 0 | 0 | 4 / 4 | = LF 4 | 0 | 0 | 8803 / 8634 |
+| 42 | `e4f095d2b4d45bdd558b0e2fd460b59a60600791` | `ae20b398c` | new (historical refused) | 566 / 566 | 0 | 0 | 77 / 76 | LF 73 NST 1 UDP 1 UBC 2 → LF 73 NST 1 UBC 2 | 1 | 0 | 8761 / 8380 |
+| 43 | `c6b6cbb0a862c36d3e2d3c28b0bd0dc0da800175` | `e4f095d2b` | new (historical refused) | 427 / 460 | 33 | 0 | 65 / 64 | LF 64 UDP 1 → LF 64 | 1 | 0 | 8014 / 7809 |
+| 44 | `a7d38e73236cea3a237ce972f3bd50e11e723c29` | `c6b6cbb0a` | new (historical refused) | 587 / 587 | 0 | 0 | 5 / 5 | = LF 5 | 0 | 0 | 9186 / 9523 |
+| 45 | `8b80e6020d8a78b65ca0b05d8f3d829a1ecb4734` | `a7d38e732` | new (historical refused) | 407 / 407 | 0 | 0 | 4 / 4 | = LF 4 | 0 | 0 | 8038 / 8308 |
+| 46 | `9761ea1f459c0d3b3c963953e24a76eaeda16370` | `8b80e6020` | new (historical refused) | 576 / 576 | 0 | 0 | 5 / 5 | = LF 5 | 0 | 0 | 9584 / 10238 |
+| 47 | `6339f980e13e36c8ff51a593568da3d935ffae77` | `9761ea1f4` | new (historical refused) | 311 / 311 | 0 | 0 | 4 / 4 | = LF 4 | 0 | 0 | 8186 / 8548 |
+| 48 | `16ba0021ab0aa92d244ad1b8d54b607d12bc4ed3` | `6339f980e` | new (historical refused) | 505 / 505 | 0 | 0 | 5 / 5 | = LF 5 | 0 | 0 | 9720 / 9772 |
+| 49 | `b76d89e80d7df5f0deb4dd7d134d9358106d5dbc` | `16ba0021a` | new (historical refused) | 268 / 268 | 0 | 0 | 4 / 4 | = LF 4 | 0 | 0 | 8134 / 8082 |
+| 50 | `b9b2b878569b1bd3b52d30992d7cda1216f2d72a` | `b76d89e80` | new (historical refused) | 574 / 598 | 24 | 0 | 91 / 85 | LF 75 NST 8 UDP 8 → LF 75 NST 8 UDP 2 | 6 | 0 | 14741 / 15033 |
+| 51 | `817817272f8b34a5753e1d5424f8c917ba31fcc4` | `b9b2b8785` | new (historical refused) | 311 / 311 | 0 | 0 | 69 / 68 | LF 67 NST 1 UDP 1 → LF 67 NST 1 | 1 | 0 | 8342 / 8441 |
+| 52 | `8a1935c528bc314057d15e7db7c92f7c36384e01` | `817817272` | new (historical refused) | 548 / 548 | 0 | 0 | 62 / 60 | LF 60 UDP 2 → LF 60 | 2 | 0 | 10568 / 10381 |
+| 53 | `5fb19e9efc7149de90ec919209a0047d0aafdd7c` | `8a1935c52` | new (historical refused) | 665 / 685 | 20 | 0 | 70 / 68 | LF 65 NST 2 UDP 3 → LF 65 NST 2 UDP 1 | 2 | 0 | 11592 / 11129 |
+| 54 | `19c5a0111d667a11fd3a82ebcc8920f8a848260c` | `5fb19e9ef` | new (historical refused) | 484 / 484 | 0 | 0 | 5 / 5 | = LF 5 | 0 | 0 | 9109 / 8903 |
+| 55 | `447bdcbd5963683f5f2b4934a45b8f48fc6742a3` | `19c5a0111` | new (historical refused) | 610 / 610 | 0 | 0 | 61 / 61 | = LF 60 UDP 1 | 0 | 0 | 9864 / 9659 |
+| 56 | `1ccefe7c37a6dcbd202029d8b0958c45eb03f1c6` | `447bdcbd5` | new (historical refused) | 481 / 481 | 0 | 0 | 5 / 5 | = LF 5 | 0 | 0 | 9029 / 9040 |
+| 57 | `fc47f142487e1506b863131ec301e9c10445dd89` | `1ccefe7c3` | new (historical refused) | 437 / 466 | 29 | 0 | 78 / 76 | LF 75 UDP 3 → LF 75 UDP 1 | 2 | 0 | 10511 / 10882 |
+| 58 | `01c7e608617243c4ce7c4c2f88c6255169fb6e53` | `fc47f1424` | new (historical refused) | 650 / 676 | 26 | 0 | 69 / 67 | LF 64 UDP 5 → LF 64 UDP 3 | 2 | 0 | 11356 / 11968 |
+| 59 | `8db85461894457c4cfd2f197ad23afb7c7e7808a` | `01c7e6086` | new (historical refused) | 371 / 372 | 1 | 0 | 65 / 64 | LF 64 UDP 1 → LF 64 | 1 | 0 | 10183 / 10038 |
+| 60 | `64f6257da673b35b21cc3a29563bcfa6f823aa73` | `8db854618` | new (historical refused) | 263 / 263 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 9225 / 9195 |
+| 61 | `b1a117eb129687f9555fa0c826fadfa0627afe3b` | `64f6257da` | new (historical refused) | 354 / 390 | 36 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 9772 / 9353 |
+| 62 | `cb6322613a7b3b99f7ea3d2351e8ffd880735d9d` | `b1a117eb1` | new (historical refused) | 463 / 463 | 0 | 0 | 61 / 60 | LF 60 UDP 1 → LF 60 | 1 | 0 | 9496 / 9807 |
+| 63 | `fea1de8587085a4538484b97d216c32511ff3928` | `cb6322613` | new (historical refused) | 656 / 664 | 8 | 0 | 108 / 102 | LF 75 NST 1 USP 6 UDP 26 → LF 75 NST 1 USP 6 UDP 20 | 6 | 0 | 14471 / 14978 |
+| 64 | `568f962f973b89e553e20ce27db2779d965a7a5d` | `fea1de858` | new (historical refused) | 279 / 279 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 8985 / 9264 |
+| 65 | `9684e632e49bb54584a00ab44f3a7a27454d67c5` | `568f962f9` | new (historical refused) | 421 / 421 | 0 | 0 | 74 / 71 | LF 71 UDP 3 → LF 71 | 3 | 0 | 9609 / 9498 |
+| 66 | `1d1f0670616654a19cbeedbb1e0c3bfcdae86601` | `9684e632e` | new (historical refused) | 570 / 570 | 0 | 0 | 31 / 31 | = LF 29 UBC 2 | 0 | 0 | 16581 / 16298 |
+| 67 | `7bf7ffe8de371f29d4a3e4b0c03857732e4c8d45` | `1d1f06706` | new (historical refused) | 236 / 236 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 9022 / 9352 |
+| 68 | `15248276816ad89f62ee22edaa2b93c9e2218855` | `7bf7ffe8d` | new (historical refused) | 277 / 277 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 9623 / 9377 |
+| 69 | `f2fdae7e8fe3c111d3f075a2c6e91af150f224c9` | `152482768` | new (historical refused) | 287 / 287 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 9463 / 9532 |
+| 70 | `b6fda75b7dd0c133cf829b2efa0f3732367c429d` | `f2fdae7e8` | new (historical refused) | 240 / 240 | 0 | 0 | 65 / 64 | LF 64 UDP 1 → LF 64 | 1 | 0 | 9440 / 9301 |
+| 71 | `b54ac564d8983e40597eb753a5c49ea092287984` | `b6fda75b7` | new (historical refused) | 550 / 560 | 10 | 0 | 562 / 491 | LF 73 NST 7 USP 94 UDP 388 → LF 73 NST 7 USP 94 UDP 317 | 71 | 0 | 49480 / 45457 |
+| 72 | `2913fdc7e73d9e73524ef30f5ef03a69c371cc86` | `b54ac564d` | new (historical refused) | 182 / 182 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 6181 / 6052 |
+| 73 | `867ff4991ec88203f858b37e82bfadbf4f6d3396` | `2913fdc7e` | new (historical refused) | 318 / 348 | 30 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 6148 / 6463 |
+| 74 | `a761ad43be18b4bb03de425a1b0b1f6073a8bb8c` | `867ff4991` | new (historical refused) | 323 / 355 | 32 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 6544 / 6492 |
+| 75 | `4c2e6b6a24ea251ee33a74410fd9436e7394a767` | `a761ad43b` | new (historical refused) | 206 / 206 | 0 | 0 | 1 / 1 | = LF 1 | 0 | 0 | 6123 / 6215 |
+| 76 | `f6be4233cf209f251d7a039515c3e832cdad8c33` | `4c2e6b6a2` | new (historical refused) | 196 / 196 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 6196 / 6039 |
+| 77 | `dc84799051004a22992185e61c54c26a28bb9c4d` | `f6be4233c` | new (historical refused) | 530 / 530 | 0 | 0 | 79 / 64 | LF 53 NST 9 UDP 15 UBC 2 → LF 53 NST 9 UBC 2 | 15 | 0 | 12601 / 12337 |
+| 78 | `02c66d0e263a5437f5c4745c64f3b4bd25188b4f` | `dc8479905` | new (historical refused) | 219 / 220 | 1 | 0 | 57 / 55 | LF 55 UDP 2 → LF 55 | 2 | 0 | 6749 / 6502 |
+| 79 | `d318e8d4a5154c50f204323af5f8d29c834edaf5` | `02c66d0e2` | new (historical refused) | 185 / 185 | 0 | 0 | 0 / 0 | = none | 0 | 0 | 6280 / 6243 |
+| 80 | `993c60eba4d4cfeba7cdb3f7b3f21130596e4247` | `d318e8d4a` | new (historical refused) | 190 / 190 | 0 | 0 | 1 / 1 | = LF 1 | 0 | 0 | 6327 / 6460 |
+| 81 | `7b28ab461c057777dadda21580115b92e713b84b` | `993c60eba` | new (historical refused) | 441 / 441 | 0 | 0 | 6 / 6 | = LF 4 UBC 2 | 0 | 0 | 6815 / 7086 |
+| 82 | `b13c6fe4c58bc4f075d8790f59400f41ed94cf93` | `7b28ab461` | new (historical refused) | 237 / 237 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 6659 / 6630 |
+| 83 | `87e291a98f659dfcf5bd62ba1132c7972dc9dab5` | `b13c6fe4c` | new (historical refused) | 386 / 386 | 0 | 0 | 19 / 19 | = E2E 12 LF 4 NST 1 UBC 2 | 0 | 0 | 7576 / 7769 |
+| 84 | `4c3c203336a6cc4a9772af39b1a771f34236138e` | `87e291a98` | new (historical refused) | 190 / 190 | 0 | 0 | 1 / 1 | = LF 1 | 0 | 0 | 6614 / 6491 |
+| 85 | `b55635262788687c3eea9a08a94378e4ab8856a4` | `4c3c20333` | new (historical refused) | 331 / 331 | 0 | 0 | 77 / 71 | LF 64 NST 7 UDP 6 → LF 64 NST 7 | 6 | 0 | 7135 / 6936 |
+| 86 | `af393f1b1e20f59d536663276f30469bea688f6a` | `b55635262` | new (historical refused) | 375 / 375 | 0 | 0 | 60 / 60 | = LF 58 UBC 2 | 0 | 0 | 8211 / 7822 |
+| 87 | `87c57df657cbe6fe132f2cc8ed31b37824991ac0` | `af393f1b1` | new (historical refused) | 226 / 226 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 6671 / 6561 |
+| 88 | `c863c43c3ca93d9815afdad64843005928cc6ca5` | `87c57df65` | new (historical refused) | 509 / 509 | 0 | 0 | 72 / 70 | LF 68 UDP 2 UBC 2 → LF 68 UBC 2 | 2 | 0 | 10171 / 9941 |
+| 89 | `79755fb78d5bffca05f42ad2fcb5640966efe3f5` | `c863c43c3` | new (historical refused) | 550 / 552 | 2 | 0 | 169 / 119 | LF 68 NST 3 USP 3 UDP 93 UBC 2 → LF 68 NST 3 USP 3 UDP 43 UBC 2 | 50 | 0 | 15890 / 15724 |
+| 90 | `0727600418e1520bb051732eca25250a2fb785e6` | `79755fb78` | new (historical refused) | 518 / 518 | 0 | 0 | 82 / 59 | LF 53 NST 4 UDP 23 UBC 2 → LF 53 NST 4 UBC 2 | 23 | 0 | 13333 / 12973 |
+| 91 | `94e8edd9e334c6df3191f918746b0ae109b589c5` | `072760041` | new (historical refused) | 350 / 350 | 0 | 0 | 6 / 6 | = E2E 2 LF 2 UBC 2 | 0 | 0 | 8606 / 8387 |
+| 92 | `4482b164ff0e291eddecdf4faf7df8f5604cfe1d` | `94e8edd9e` | new (historical refused) | 255 / 255 | 0 | 0 | 58 / 58 | = LF 58 | 0 | 0 | 6797 / 6991 |
+| 93 | `3091c834ba8c86d2c39ed8abc2a52a8521f1cc78` | `4482b164f` | new (historical refused) | 321 / 321 | 0 | 0 | 65 / 64 | LF 64 UDP 1 → LF 64 | 1 | 0 | 6804 / 6551 |
+| 94 | `366408098f741126468695245f461cb4fa9dbf8b` | `3091c834b` | new (historical refused) | 426 / 438 | 12 | 0 | 89 / 76 | LF 72 NST 2 UDP 13 UBC 2 → LF 72 NST 2 UBC 2 | 13 | 0 | 8636 / 9065 |
+| 95 | `6c17e38889a275097f01ebb3533027ac8592b2eb` | `366408098` | new (historical refused) | 238 / 238 | 0 | 0 | 4 / 4 | = LF 2 UBC 2 | 0 | 0 | 6776 / 7119 |
+| 96 | `9c2bd0fa26c089825984cab3938c62dcb064facd` | `6c17e3888` | new (historical refused) | 291 / 291 | 0 | 0 | 71 / 68 | LF 67 NST 1 UDP 3 → LF 67 NST 1 | 3 | 0 | 6833 / 7085 |
+| 97 | `94a0f567c7c1a9f0992d45a511ffc027358c27ba` | `9c2bd0fa2` | new (historical refused) | 296 / 296 | 0 | 0 | 4 / 4 | = LF 2 UBC 2 | 0 | 0 | 7323 / 7145 |
+| 98 | `1c837facaee3a0f3bc6ac638e1548b58b03ac733` | `94a0f567c` | new (historical refused) | 455 / 455 | 0 | 0 | 57 / 55 | LF 53 UDP 2 UBC 2 → LF 53 UBC 2 | 2 | 0 | 9045 / 9057 |
+| 99 | `294a23b3b580ac902920894143231c2e02883f63` | `1c837faca` | new (historical refused) | 213 / 218 | 5 | 0 | 60 / 59 | LF 58 NST 1 UDP 1 → LF 58 NST 1 | 1 | 0 | 6804 / 6816 |
+| 100 | `f19ecc1db4340a66992d64e91724b26e5dc5440c` | `294a23b3b` | new (historical refused) | 345 / 345 | 0 | 0 | 58 / 57 | LF 55 UDP 1 UBC 2 → LF 55 UBC 2 | 1 | 0 | 8063 / 8160 |
+| 101 | `39050561619ca426f28ee4699bde87a156abeead` | `f19ecc1db` | new (historical refused) | 296 / 296 | 0 | 0 | 4 / 4 | = LF 2 UBC 2 | 0 | 0 | 7387 / 7335 |
+| 102 | `e7dea64795b0ac573b0542c72fadbf7e76b9c031` | `390505616` | new (historical refused) | 496 / 496 | 0 | 0 | 71 / 67 | LF 63 NST 2 UDP 4 UBC 2 → LF 63 NST 2 UBC 2 | 4 | 0 | 9908 / 9659 |
+| 103 | `814647cf0e55fcb8f810e3708387dad5a2224cf7` | `e7dea6479` | new (historical refused) | 503 / 503 | 0 | 0 | 4 / 4 | = LF 2 UBC 2 | 0 | 0 | 8738 / 8879 |
+| 104 | `ee2dd4e341e2e26e7ecdc7ab7732f93b8d59bcf9` | `814647cf0` | new (historical refused) | 421 / 421 | 0 | 0 | 6 / 6 | = LF 4 UBC 2 | 0 | 0 | 8160 / 8250 |
+| 105 | `603a2780782a674fa38f8ea944608547cffefd40` | `ee2dd4e34` | new (historical refused) | 256 / 256 | 0 | 0 | 2 / 2 | = LF 2 | 0 | 0 | 6882 / 7008 |
+| 106 | `33954a914b1c48c6427db15bdade5ef6fceee7ec` | `603a27807` | new (historical refused) | 378 / 378 | 0 | 0 | 57 / 56 | LF 54 UDP 1 UBC 2 → LF 54 UBC 2 | 1 | 0 | 9027 / 8390 |
+| 107 | `29bd615fdf93d55e7012377d2eac52ad5183fb86` | `33954a914` | new (historical refused) | 210 / 210 | 0 | 0 | 1 / 1 | = LF 1 | 0 | 0 | 7767 / 7151 |
+| 108 | `babe97abb110feb735fef9098e0e91765c102e46` | `29bd615fd` | new (historical refused) | 192 / 192 | 0 | 0 | 1 / 1 | = LF 1 | 0 | 0 | 7817 / 7005 |
+| 109 | `1a02c5f39ce333278987900d1afacf6324ebab25` | `babe97abb` | new (historical refused) | 196 / 200 | 4 | 0 | 57 / 59 | LF 55 NST 1 UDP 1 → LF 58 NST 1 | 1 | 3 | 8116 / 7041 |
+| 110 | `2fcf093a6910c2cc070b2db69b9e2d6693f8f8af` | `1a02c5f39` | new (historical refused) | 247 / 247 | 0 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 6990 / 6723 |
+| 111 | `bedd33a6becdaef3d3355fe0d7f39d03ba214418` | `2fcf093a6` | new (historical refused) | 323 / 323 | 0 | 0 | 4 / 4 | = LF 4 | 0 | 0 | 8082 / 7711 |
+| 112 | `f43eb7c0132df31962265e9d6ce0d78df70b6ac2` | `bedd33a6b` | new (historical refused) | 187 / 187 | 0 | 0 | 57 / 56 | LF 56 UDP 1 → LF 56 | 1 | 0 | 6860 / 6765 |
+| 113 | `bf67be4ea7feae49a46105eec375309f3babae24` | `f43eb7c01` | new (historical refused) | 469 / 469 | 0 | 0 | 4 / 4 | = LF 2 UBC 2 | 0 | 0 | 7869 / 7866 |
+| 114 | `469d5fa03bf937125f10e65e4c7af29b1194fa01` | `bf67be4ea` | new (historical refused) | 342 / 342 | 0 | 0 | 58 / 57 | LF 55 UDP 1 UBC 2 → LF 55 UBC 2 | 1 | 0 | 8237 / 7827 |
+| 115 | `1cee3c23d51ca632f474816cb6450191893de524` | `469d5fa03` | new (historical refused) | 190 / 190 | 0 | 0 | 1 / 1 | = LF 1 | 0 | 0 | 6836 / 6720 |
+| 116 | `4e984cc8591e58dfda172d2d3901b592122053b5` | `1cee3c23d` | new (historical refused) | 211 / 214 | 3 | 0 | 3 / 3 | = LF 3 | 0 | 0 | 6888 / 6467 |
+| 117 | `df315e35056d15c7933b5ff97c605cedf5ef4919` | `4e984cc85` | new (historical refused) | 196 / 200 | 4 | 0 | 56 / 58 | LF 55 UDP 1 → LF 58 | 1 | 3 | 6837 / 6017 |
+
+## Rows 1 to 36 (historical pair): unknown by reason and wall-clock
+
+This adds the per-reason and wall-clock columns that the through-base entry's table lacks. The
+candidate's wall time is the r1docs harness run's `wallMillis`. The baseline's was not retained,
+so that row was rerun with the same binary and argv here; the rerun plans match the retained
+ones exactly.
+
+Corrected (2026-11-16): the two wall-clock columns are **not comparable**. The candidate column
+comes from the r1docs harness run on another host; the base column is a rerun on this host.
+
+| # | Unknown by reason, base → candidate | Selected base / candidate | Growth | Dropped | Wall ms base (rerun) / candidate (harness) |
+|---:|---|---:|---:|---:|---:|
+| 1 | LF 81 NST 2 USP 2 UDP 5 UBC 2 → LF 79 NST 2 USP 2 UDP 2 UBC 2 | 266 / 490 | 224 | 0 | 5440 / 9344 |
+| 2 | LF 81 USP 2 UDP 1 → LF 71 USP 2 | 66 / 181 | 115 | 0 | 3681 / 6990 |
+| 3 | LF 81 NST 10 UDP 6 UBC 2 → LF 79 NST 9 UDP 5 UBC 2 | 233 / 442 | 209 | 0 | 6182 / 9222 |
+| 4 | LF 79 UDP 2 UBC 2 → LF 77 UDP 1 UBC 2 | 183 / 388 | 205 | 0 | 5178 / 8091 |
+| 5 | LF 60 UDP 3 → LF 75 UDP 3 | 75 / 181 | 106 | 0 | 3185 / 6641 |
+| 6 | LF 78 UDP 1 → LF 68 | 38 / 118 | 80 | 0 | 3157 / 9790 |
+| 7 | LF 78 NST 4 UDP 4 → LF 76 NST 4 UDP 2 | 46 / 131 | 85 | 0 | 3239 / 6990 |
+| 8 | LF 78 UDP 1 → LF 68 NST 1 | 36 / 113 | 77 | 0 | 3106 / 6843 |
+| 9 | LF 93 NST 4 USP 7 UDP 102 UBC 2 → LF 92 NST 4 USP 7 UDP 101 UBC 2 | 267 / 485 | 218 | 0 | 6266 / 12035 |
+| 10 | LF 80 NST 3 UDP 6 UBC 2 → LF 79 NST 3 UDP 5 UBC 2 | 248 / 465 | 217 | 0 | 7949 / 17006 |
+| 11 | LF 79 UDP 1 → LF 69 | 81 / 193 | 112 | 0 | 3332 / 7943 |
+| 12 | LF 78 UDP 1 → LF 68 | 43 / 133 | 90 | 0 | 3192 / 12268 |
+| 13 | LF 79 UDP 1 UBC 2 → LF 77 UDP 1 UBC 2 | 188 / 411 | 223 | 0 | 4187 / 7810 |
+| 14 | LF 1 → LF 67 | 89 / 306 | 217 | 0 | 3185 / 7213 |
+| 15 | LF 81 USP 5 UDP 3 → LF 79 NST 1 USP 5 UDP 1 | 80 / 315 | 235 | 0 | 3491 / 7462 |
+| 16 | LF 2 → LF 68 | 73 / 174 | 101 | 0 | 3214 / 7196 |
+| 17 | LF 83 UDP 7 UBC 2 → LF 82 UDP 3 UBC 2 | 199 / 336 | 137 | 0 | 5951 / 11135 |
+| 18 | LF 79 UDP 1 → LF 69 | 94 / 313 | 219 | 0 | 3513 / 8861 |
+| 19 | LF 2 → LF 68 | 170 / 271 | 101 | 0 | 3700 / 11802 |
+| 20 | LF 2 → LF 68 | 114 / 232 | 118 | 0 | 3374 / 11358 |
+| 21 | LF 3 → LF 69 | 113 / 230 | 117 | 0 | 3959 / 12220 |
+| 22 | LF 79 NST 2 UDP 4 → LF 69 NST 3 | 83 / 209 | 126 | 0 | 3483 / 11363 |
+| 23 | LF 71 → LF 69 | 127 / 244 | 117 | 0 | 4072 / 12864 |
+| 24 | LF 82 NST 4 USP 29 UDP 1 → LF 80 NST 4 USP 29 UDP 1 | 147 / 283 | 136 | 0 | 5188 / 16001 |
+| 25 | LF 79 UDP 7 UBC 2 → LF 77 UDP 6 UBC 2 | 205 / 339 | 134 | 0 | 4947 / 14841 |
+| 26 | LF 1 USP 1 → LF 67 USP 1 | 84 / 203 | 119 | 0 | 3177 / 8157 |
+| 27 | LF 78 UDP 1 → LF 76 UDP 1 | 92 / 208 | 116 | 0 | 3545 / 12484 |
+| 28 | LF 80 USP 2 UDP 1 → LF 69 USP 2 | 60 / 181 | 121 | 0 | 3376 / 12286 |
+| 29 | LF 78 UDP 2 → LF 75 UDP 1 | 82 / 205 | 123 | 0 | 3411 / 21825 |
+| 30 | LF 81 NST 1 UDP 2 UBC 2 → LF 78 NST 1 UDP 2 UBC 2 | 198 / 323 | 125 | 0 | 5905 / 23957 |
+| 31 | LF 79 → LF 76 | 83 / 203 | 120 | 0 | 3743 / 21021 |
+| 32 | LF 81 UDP 1 UBC 2 → LF 70 UBC 2 | 181 / 401 | 220 | 0 | 4162 / 21306 |
+| 33 | LF 80 USP 2 UDP 3 → LF 77 USP 2 | 216 / 345 | 129 | 0 | 4130 / 20605 |
+| 34 | LF 79 UDP 2 → LF 76 UDP 1 | 106 / 200 | 94 | 0 | 4626 / 21977 |
+| 35 | LF 80 NST 3 USP 5 UDP 2 → LF 77 NST 3 USP 5 | 108 / 244 | 136 | 0 | 3760 / 20465 |
+| 36 | LF 81 NST 3 UDP 21 UBC 2 → LF 78 NST 3 UBC 2 | 234 / 467 | 233 | 0 | 8141 / 29533 |
+
+## Every removed and added unknown entry (new pair)
+
+Each distinct `(reason, detail)` set difference, with the class "after" gives the path and the
+rows (numbered as above). Backticks inside details are escaped.
+
+- UNOWNED_DIRTY_PATH: .agent-evidence/cx-affected-ci-failures.json → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/cx-affected-selection-replay.json → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/cx-affected-verification.json → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/docs-mcp-hardening/docs-check-corvint.json → DECLARED_NON_SOURCE (rows 90)
+- UNOWNED_DIRTY_PATH: .agent-evidence/docs-mcp-hardening/live-reload.txt → DECLARED_NON_SOURCE (rows 90)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/collisions-test.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/completion-checks.json → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/fanout-completion.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/fanout-fault.json → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/fanout-fault.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/fanout-final.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/fanout-race.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/fixtures-final.json → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/go-measurements.json → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/lane-scripts-test.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/line-citations-final-test.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/measure.txt → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/measurements-final.json → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/pi-namespace-fault.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/pi-scratch-test.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/prechange-final-test.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lanetools/reservations-test.log → DECLARED_NON_SOURCE (rows 36)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lineidx-pr-measurement.json → DECLARED_NON_SOURCE (rows 52)
+- UNOWNED_DIRTY_PATH: .agent-evidence/lineidx-qualification-blocked.json → DECLARED_NON_SOURCE (rows 52)
+- UNOWNED_DIRTY_PATH: .agent-evidence/pk-affected-fix-round-1.json → DECLARED_NON_SOURCE (rows 17)
+- UNOWNED_DIRTY_PATH: .agent-evidence/pk-affected-verification.json → DECLARED_NON_SOURCE (rows 17)
+- UNOWNED_DIRTY_PATH: .claude/skills/corvint-lane-flow/SKILL.md → DECLARED_TEST_OWNER (rows 71,89)
+- UNOWNED_DIRTY_PATH: .corvint/.gitignore → DECLARED_NON_SOURCE (rows 34)
+- UNOWNED_DIRTY_PATH: .gitattributes → DECLARED_TEST_OWNER (rows 53)
+- UNOWNED_DIRTY_PATH: .github/cishards/package-costs.json → DECLARED_TEST_OWNER (rows 33,65)
+- UNOWNED_DIRTY_PATH: .github/cishards/test-slices.json → DECLARED_TEST_OWNER (rows 33,65,96)
+- UNOWNED_DIRTY_PATH: .github/cishards/test-split-allow.json → DECLARED_TEST_OWNER (rows 65)
+- UNOWNED_DIRTY_PATH: .github/forward-rows/bar.jq → DECLARED_TEST_OWNER (rows 85,117)
+- UNOWNED_DIRTY_PATH: .github/forward-rows/infra-reclassified.txt → DECLARED_TEST_OWNER (rows 70)
+- UNOWNED_DIRTY_PATH: .github/forward-rows/known-flakes.tsv → DECLARED_TEST_OWNER (rows 96,109)
+- UNOWNED_DIRTY_PATH: .github/forward-rows/mainmiss.jq → DECLARED_TEST_OWNER (rows 85)
+- UNOWNED_DIRTY_PATH: .github/forward-rows/narrow.jq → DECLARED_TEST_OWNER (rows 35,51,85)
+- UNOWNED_DIRTY_PATH: .github/forward-rows/row.jq → DECLARED_TEST_OWNER (rows 35,42,71,85)
+- UNOWNED_DIRTY_PATH: .github/linecov/qualification.json → DECLARED_TEST_OWNER (rows 57,85)
+- UNOWNED_DIRTY_PATH: .gitignore → DECLARED_TEST_OWNER (rows 37,71,77,89)
+- UNOWNED_DIRTY_PATH: README.md → DECLARED_TEST_OWNER (rows 31,71,89,94)
+- UNOWNED_DIRTY_PATH: benchmarks/README.md → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v2-manifest.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v2/beamfall.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v2/cobra.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v2/execa.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v2/flask.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v2/zod.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v3-manifest.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v3/beamfall.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v3/cobra.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v3/execa.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v3/flask.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v3/zod.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v4-manifest.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v4/beamfall.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v4/cobra.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v4/execa.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v4/flask.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v4/zod.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v6-dev/cobra.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v6-dev/flask.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v6-dev/manifest.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/blind-v7/pool.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/cases/cobra.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/cases/execa.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/cases/flask.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/cases/zod.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/daily-loop-v0/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: benchmarks/eval-split-v0.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/lsp-quality/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: benchmarks/lsp-quality/public-v0.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: benchmarks/lsp-quality/qualification-freeze-v0.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: benchmarks/manifest.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: benchmarks/results/2026-11-04-ranking-frozen-summary.json → DECLARED_TEST_OWNER (rows 37,89)
+- UNOWNED_DIRTY_PATH: benchmarks/runner/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: benchmarks/selection-baseline/changes.json → DECLARED_TEST_OWNER (rows 59,62,90,98)
+- UNOWNED_DIRTY_PATH: benchmarks/snapshot-reader/go.mod → DECLARED_TEST_OWNER (rows 94)
+- UNOWNED_DIRTY_PATH: benchmarks/ticket-brief-task-set/task-set.json → DECLARED_TEST_OWNER (rows 78)
+- UNOWNED_DIRTY_PATH: benchmarks/ticket-brief-task-set/task-set.json.sha256 → DECLARED_TEST_OWNER (rows 78)
+- UNOWNED_DIRTY_PATH: benchmarks/untouched-repository-v1/README.md → DECLARED_TEST_OWNER (rows 71,89)
+- UNOWNED_DIRTY_PATH: cmd/corvint-web-flows/help.json → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: conformance/cli-errors-v0/README.md → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: conformance/cli-parity-v0/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: conformance/cli-parity-v0/manifest.json → DECLARED_TEST_OWNER (rows 71,89)
+- UNOWNED_DIRTY_PATH: conformance/divergence-register.md → DECLARED_TEST_OWNER (rows 71,100)
+- UNOWNED_DIRTY_PATH: conformance/interactive-alpha/README.md → DECLARED_TEST_OWNER (rows 77)
+- UNOWNED_DIRTY_PATH: conformance/interactive-alpha/fixture/go.mod → DECLARED_TEST_OWNER (rows 94)
+- UNOWNED_DIRTY_PATH: conformance/mcp-2026-07-28/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: conformance/mcp-2026-07-28/cases-task-review.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: conformance/mcp-2026-07-28/cases.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: conformance/release-artifact-v0/README.md → DECLARED_TEST_OWNER (rows 94)
+- UNOWNED_DIRTY_PATH: conformance/release-artifact-v0/archive-report-v2.schema.json → DECLARED_TEST_OWNER (rows 94)
+- UNOWNED_DIRTY_PATH: conformance/release-artifact-v0/archive-report.schema.json → DECLARED_TEST_OWNER (rows 94)
+- UNOWNED_DIRTY_PATH: conformance/release-artifact-v0/manifest.json → DECLARED_TEST_OWNER (rows 71,89,94)
+- UNOWNED_DIRTY_PATH: conformance/use-cases-v0/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: conformance/vscode-extension-v0/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: conformance/vscode-extension-v0/cases.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: docs/E2E-ADOPTION.md → DECLARED_TEST_OWNER (rows 63)
+- UNOWNED_DIRTY_PATH: docs/EXTERNAL-APP-ACCEPTANCE.md → DECLARED_TEST_OWNER (rows 63)
+- UNOWNED_DIRTY_PATH: docs/LSP.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: docs/TASKS-BARRIER-2026-10-30.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: docs/TASKS-EXTERNAL-AGENTS.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: docs/TASKS-SUPERVISION.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: docs/post-merge-workflow/replay.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: examples/evidence-provider/v0/README.md → DECLARED_TEST_OWNER (rows 94)
+- UNOWNED_DIRTY_PATH: extensions/vscode/CHANGELOG.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: extensions/vscode/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: extensions/vscode/package.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: flows/installed-go-live-tests.json → DECLARED_TEST_OWNER (rows 77,89,94)
+- UNOWNED_DIRTY_PATH: flows/installed-js-live-tests.json → DECLARED_TEST_OWNER (rows 77,89-90,94)
+- UNOWNED_DIRTY_PATH: flows/installed-test-validity-mcp.json → DECLARED_TEST_OWNER (rows 77,89-90,94,102)
+- UNOWNED_DIRTY_PATH: flows/web-flows-browser-gate.json → DECLARED_TEST_OWNER (rows 77,99)
+- UNOWNED_DIRTY_PATH: go.mod → DECLARED_TEST_OWNER (rows 94)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/.claude-plugin/marketplace.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/.mcp.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/compatibility.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/hooks/hooks.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/skills/affected/SKILL.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/skills/context/SKILL.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/skills/done/SKILL.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/skills/impact/SKILL.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/skills/index/SKILL.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/skills/review/SKILL.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/claude-code/plugins/corvint/skills/status/SKILL.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/.codex-plugin/plugin.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/.mcp.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/compatibility.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/hooks/authority-hooks.proposed.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/hooks/hooks.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/hooks/qualified-direct-hooks.proposed.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/hooks/qualified-hooks.proposed.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/scripts/authority-hook.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: integrations/codex/plugins/corvint/skills/corvint/SKILL.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/capcatalog/AGENT-GUIDE.md → DECLARED_TEST_OWNER (rows 63,71,77,89,102)
+- UNOWNED_DIRTY_PATH: internal/capcatalog/CLI-RATCHET.tsv → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/contextindex/testdata/context-recipe-default-golden.json → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: internal/contextindex/testdata/role-summary-golden.tsv → DECLARED_TEST_OWNER (rows 89)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/g/g.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/g/g_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/go.mod → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/lib/lib.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/p/p.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/p/p_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/q/q.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/q/q_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/r/r.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/r/r_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/s/s.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/s/s_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/t3/t3.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/t3/t3_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/t4/t4.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/t4/t4_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/t5/t5.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/t5/t5_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/t6/t6.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/t6/t6_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/w/w.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/golang/typedreach/testdata/mod/w/w_test.go → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/liverepo/testdata/ownership-audit-baseline.txt → DECLARED_TEST_OWNER (rows 77)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/testdata/boundary-scanner.go.txt → DECLARED_TEST_OWNER (rows 77)
+- UNOWNED_DIRTY_PATH: internal/liveverify/affected/testdata/ownership-audit-baseline.txt → DECLARED_TEST_OWNER (rows 30,77)
+- UNOWNED_DIRTY_PATH: internal/mcp/cli/testdata/tools-list-default.golden.jsonl → DECLARED_TEST_OWNER (rows 50,71,77,89-90)
+- UNOWNED_DIRTY_PATH: internal/mcp/cli/testdata/tools-list-flows.golden.jsonl → DECLARED_TEST_OWNER (rows 50,71,77,89-90,102)
+- UNOWNED_DIRTY_PATH: internal/mcp/cli/testdata/tools-list-groups.golden.jsonl → DECLARED_TEST_OWNER (rows 50,71,77,89-90,102)
+- UNOWNED_DIRTY_PATH: internal/mcp/cli/testdata/tools-list-import-graph.golden.jsonl → DECLARED_TEST_OWNER (rows 50,71)
+- UNOWNED_DIRTY_PATH: internal/mcp/cli/testdata/tools-list-task-review-lsp.golden.jsonl → DECLARED_TEST_OWNER (rows 50,71)
+- UNOWNED_DIRTY_PATH: internal/mcp/cli/testdata/tools-list-task-review.golden.jsonl → DECLARED_TEST_OWNER (rows 50,71)
+- UNOWNED_DIRTY_PATH: internal/nativelinecov/testdata/live/CMakeLists.txt → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/nativelinecov/testdata/live/dotnet/Probe.csproj → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/nativelinecov/testdata/live/rust/Cargo.toml → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/nativelinecov/testdata/live/swift/Package.swift → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: internal/perfbudget/budgets.json → DECLARED_TEST_OWNER (rows 71,77,89)
+- UNOWNED_DIRTY_PATH: internal/sessiontest/testdata/corvint-test-run-0.contract.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/sessiontest/testdata/receipt-before-testid.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/sessiontest/testdata/receipt-with-testid.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/taskman/testdata/audit.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/taskman/testdata/cal-v0-099-prerequisite-refusals.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/taskman/testdata/issue502-optional-keys-record.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/taskman/testdata/policy.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/taskman/testdata/queue.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/taskman/testdata/status.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/taskman/testdata/tickets.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/taskman/testdata/verdict-paths-record.json → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: internal/testid/testdata/go-test.jsonl → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/testid/testdata/jest.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/testid/testdata/minitest.jsonl → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/testid/testdata/playwright-mixed.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/testid/testdata/playwright-projects.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/testid/testdata/pytest.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/testid/testdata/rspec.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/testid/testdata/vitest-mixed.json → DECLARED_TEST_OWNER (rows 90)
+- UNOWNED_DIRTY_PATH: internal/testvaliditydoc/testdata/recorded/preserves.head.json → DECLARED_TEST_OWNER (rows 63)
+- UNOWNED_DIRTY_PATH: internal/testvaliditydoc/testdata/recorded/regression.head.json → DECLARED_TEST_OWNER (rows 63)
+- UNOWNED_DIRTY_PATH: interop/spec-toolchains/speckit/requirements.txt → DECLARED_TEST_OWNER (rows 112)
+- UNOWNED_DIRTY_PATH: llms.txt → DECLARED_TEST_OWNER (rows 37,53,63,71)
+- UNOWNED_DIRTY_PATH: script/affected-zero-unknown-merges.txt → DECLARED_TEST_OWNER (rows 30)
+- UNOWNED_DIRTY_PATH: script/ci-least-privilege-exceptions.tsv → DECLARED_TEST_OWNER (rows 57,85,93,96)
+- UNOWNED_DIRTY_PATH: script/diagnostic-coverage.count → DECLARED_TEST_OWNER (rows 71,77,89,114)
+- UNOWNED_DIRTY_PATH: script/lane-screen_test.pl → DECLARED_TEST_OWNER (rows 36,43)
+- UNOWNED_DIRTY_PATH: script/line-citation-drift-waivers.txt → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: script/line-citation-legacy-documents.txt → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: script/requirement-citations-allowlist.tsv → DECLARED_TEST_OWNER (rows 88-90,98)
+- UNOWNED_DIRTY_PATH: script/requirement-citations-undefined.txt → DECLARED_TEST_OWNER (rows 88-89)
+- UNOWNED_DIRTY_PATH: tests/README.md → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: tools/affected-edit-oracle/README.md → DECLARED_TEST_OWNER (rows 58)
+- UNOWNED_DIRTY_PATH: tools/affected-edit-oracle/testdata/corpus.json → DECLARED_NON_SOURCE (rows 58,89)
+- UNOWNED_DIRTY_PATH: tools/affected-zero-unknown-replay/README.md → DECLARED_TEST_OWNER (rows 30)
+- UNOWNED_DIRTY_PATH: tools/ci-test-slices/testdata/README.md → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: tools/ci-test-slices/testdata/run-42106672783-costs.json → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: tools/ci-test-slices/testdata/run-42106672783-p1.golden → DECLARED_TEST_OWNER (rows 37)
+- UNOWNED_DIRTY_PATH: tools/corvint-pr-tests/README.md → DECLARED_TEST_OWNER (rows 94)
+- UNOWNED_DIRTY_PATH: tools/fault-harness/README.md → DECLARED_TEST_OWNER (rows 90,106)
+- UNOWNED_DIRTY_PATH: tools/fault-harness/revert-rule.json → DECLARED_NON_SOURCE (rows 90)
+- UNOWNED_DIRTY_PATH: tools/fault-harness/revert-rule.json.sha256 → DECLARED_NON_SOURCE (rows 90)
+- UNOWNED_DIRTY_PATH: tools/flow-guide-check/unhinted-refusals.tsv → DECLARED_TEST_OWNER (rows 71)
+- UNOWNED_DIRTY_PATH: tools/str-parity/testdata/local-default.txt → DECLARED_NON_SOURCE (rows 17)
+- UNOWNED_DIRTY_PATH: tools/str-parity/testdata/local-full.json → DECLARED_NON_SOURCE (rows 17)
+
+- added LANGUAGE_FRONTIER: python:absolute-import-unresolved:+22 (rows 109,117)
+- added LANGUAGE_FRONTIER: python:conditional-import (rows 109,117)
+- added LANGUAGE_FRONTIER: python:dynamic-import (rows 109,117)
+
+## Evidence bindings
+
+Raw plans, logs, scripts and the folded report are under `/home/russell/lanes/r1replay-evidence/`
+(not committed). SHA-256:
+
+- `ownership-rule-off.patch`: `9d3a56e64426948d8ad107b9aa7034ef520d7e7bf739eef9bc04c097e3989f20`.
+- `report.json` (117 rows): `c359f05d7d5a4211a96798c6c614f396b7f9ad9be7c046a79ffea99e10a0b141`.
+- `validation.json`: `085fffdafc8e868217a07561ac113180150c5096d7ac7dde9f88ae6a36c6d774`.
+- `replay-r1.py`: `525d6bee77d6464ee92cebf13e5a72c7be9fb80227e7dcc8978873cf3fe86d25`.
+- `fold-r1.py`: `12eb1038ae19a747691e50cd80afdadc46d97e105ae137b61fbb82e3b9dbb517`.
+- `gen-md.py`: `2f491ef4229a753c8ba83831f1885f9202846db5ccbb8a37af677c55147f8dd0`.
+- `replay-pair.log`: `5a01b4eefa32c1efefcac23d7afdc48b40ce7af1178b3130b0b1ffd3a288bff8`.
+- `replay-histbase.log`: `b24cba77eb7ac48c80950d59f8d9669e359d5ada79c7c85f90022e196db67ff9`.
+- `replay-control.log`: `e13d353901205dc2d59c937f4adafd7e5454d13b608aaa85567758f5a4f5e415`.
+- Historical raw plans, rows 1 to 36: `r1docs-evidence/ownership-replay-review/` (its
+  `report.json` `737beeb80649221ceeaaf65b5abd7c74867aa468de87440db8deae9797e14916`).
+  Historical refusals: `r1docs-evidence/ownership-replay-all/` (its `report.json`
+  `028d9e446a0857778aca14ad3beb89c13657e53420201cd1534306393c2d8a24`).
+
+## Correction 2026-11-16: package-costs.json on rows 33 and 65 (review P1a)
+
+Found by the independent review of this lane and confirmed here from the retained plans and
+trees.
+
+- Rows 33 (`59b31f12ed984802627f3ef44fa918f3022045cd`) and 65
+  (`9684e632e49bb54584a00ab44f3a7a27454d67c5`) change `.github/cishards/package-costs.json`.
+- At both merges, `.github/macos/shard_test.py` asserts
+  `m.costs(".github/cishards/package-costs.json")`, and `costs` in `.github/macos/shard.py`
+  reads that repository file. The `go-macos-shard` job of `.github/workflows/go-macos.yml` runs
+  `python3 -B .github/macos/shard_test.py`.
+- `python:.github.macos.shard_test` is `excluded` with `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT` in the
+  before and the after plan of both rows. Nothing selects it: no import edge reaches it, the
+  Python literal in an assertion argument is no path-literal witness, and the only owner of the
+  path, `.github/cishards/**`, names `internal/liveverify/affected/ownership_completeness_test.go`
+  alone at both merges.
+- "Before" keeps `UNOWNED_DIRTY_PATH` for the path; "after" removes it as
+  `DECLARED_TEST_OWNER`. The owner adds no unit for this path alone (its unit is already reached).
+- The `go-macos-shard` CI job is selected on both sides. In the row plans its witness names a
+  co-changed workflow (row 33: `DIRECT_SOURCE_CHANGE` of `.github/workflows/go-macos.yml`;
+  row 65: `DIRECT_SOURCE_CHANGE` of `.github/workflows/ci.yml`). Planned alone (`--by-path`, see
+  the method below), `package-costs.json` also selects that job (`DEPENDENCY_PATH`, chain length
+  2) on both rows. So the CI executor of the test is selected by the path alone; the planner's
+  own Python test unit is not. That unit is a reader the rule leaves unselected: a miss.
+
+## Correction 2026-11-16: reader audit of all 220 removed paths (review P1b)
+
+Charter step 5, done for every removed path instead of only for dropped units.
+
+### Method
+
+All scripts, inputs and outputs are under `/home/russell/lanes/r1replay-evidence/audit/` (digests
+at the end of this section).
+
+1. **The path's own selection.** For each of the 40 rows with removed entries, the "after"
+   binary planned every removed path of that row alone at the merge tree:
+   `nice corvint-own-after --root SNAPSHOT affected --by-path --no-cache --path P ...` on a
+   standalone clone detached at the merge (`bypath-r1.py`, 4 clones, all 40 plans exit 0,
+   5.7 s to 10.0 s each). A path's selection is the shared unbounded readers plus that path's
+   additions. A unit selected in the row plan only through another dirty path is therefore
+   unselected here.
+2. **Naming search, independent of the planner's classes** (`audit-readers.py`,
+   `classify2-r1.py`). For each removed path P at its merge, `git grep` over every tracked code or
+   driver file (Go, Python, shell, Perl, JavaScript, TypeScript, Ruby, jq, PowerShell, workflow
+   YAML, Makefiles and extensionless `script/` files; `docs/`, `.agent-evidence/`,
+   `.corvint/changes/`, `.taskman/` and `evidence/` excluded) keeps every line with a token
+   that names P: the repository-relative path; a path that resolves to P from the file's own
+   directory (`../` climbs included); a suffix of two or more segments; the basename with every
+   directory segment on the same line (a path join); the bare basename in P's own directory, or
+   anywhere when at most 3 tracked files share it; an ancestor directory of two or more segments;
+   a top-level ancestor on a line with a directory walk; or the first segment below an ancestor
+   in a file of that ancestor (a relative `testdata` read). Files under `testdata`, `fixture` or
+   `fixtures` directories are fixture data, not readers. 141754 candidate lines, 9211 naming
+   lines, 5114 (row, path, file) groups over 1152 files.
+3. **Unit of each naming file**: a Go file's package unit, a Python or shell test's own unit, a
+   workflow line's job, a Makefile line's target; a file that is no unit (a helper script or
+   library) maps to the units that run it, judged by hand.
+4. **Triage** (`triage-r1.py`, `manual-verdicts.tsv`, 223 verdict lines with reasons):
+   `SELECTED` when the path alone selects the unit (3487 groups); `NOT_READER` when the file
+   names P without depending on its content (1571: 291 by the rule that a bare root-level name
+   in a Go file that never locates the repository root resolves in the package directory or a
+   temporary root, 8 by the repository's `//corvint:fixture-path` marker, the rest by hand:
+   temporary or fixture trees, path-name classifiers, pathspec exclusions, comments, another
+   package's own copy); `READER_COVERED` when P is read and the units that execute the reader
+   are selected by P alone (47); `READER_GOMOD` for the three scripts that read `go.mod`, folded
+   into the go.mod class; `MISS` (6).
+5. **Whole-tree readers** name no path. `walkers-r1.py` lists every line that walks a root or
+   runs `git ls-files` without a narrowing pathspec (49127 row-path pairs, 101 units; 157 lines
+   unselected). Read by hand, those 157 lines walk temporary or fixture roots, list names only,
+   filter to `.go` or `.py` files, or run in a product against the root it is given; none reads
+   a removed path of this repository at test time. `walkers2-r1.py` covers the non-test scripts
+   that read every tracked file and are run only by a make target: `script/check-eol-policy.sh`
+   (`git ls-files --eol`, every path), `script/check-license-headers.sh` (`git grep` over every
+   path but its exclusions, which include `*.md`) and `script/long-lines-check.sh` (every text
+   path but the `.corvint/agent-grep-exclude` globs). Excluded paths are not readers.
+6. **go.mod** is read by the Go command for every package of the module (module path, `go`
+   directive, requirements). Its readers are every Go unit, whatever names it.
+
+Limits, stated plainly: the naming search finds readers that name the path, its directory or an
+ancestor; a reader that builds the path from parts on separate lines, or reads it through a
+variable set elsewhere, is found only where its caller names it. The whole-tree search is a
+pattern over `git ls-files` and walk calls. The executor of a non-unit script was judged by hand
+from the make targets, workflow jobs and tests that run it.
+
+### Result
+
+**Misses: 730 (merge, path, unit) entries on 160 of the 220 paths**, in four classes (every one
+is listed in `misses.tsv`; the per-path table below names them):
+
+| Class | Rows | Paths | Missed units | Fixable by an ownership declaration |
+|---|---|---|---|---|
+| N1 Python test reading the path | 33, 65 | `.github/cishards/package-costs.json`, `.github/cishards/test-split-allow.json` | `python:.github.macos.shard_test` (rows 33, 65); `python:tools.ci-reuse-replay.replay_test` (row 65: `run_tests` loads both files through `../../.github/cishards/`) | yes: owners naming those test files |
+| N2 make-only executor of a script reading the path | 71, 100 | `conformance/divergence-register.md` | `driver:make:Makefile#dr-numbers-check` (`script/check-dr-numbers.sh` reads `${1:-conformance/divergence-register.md}`; `batch-precheck` reaches it only by `FRONTIER_SITE`) | **no**: an owner names test files, and a make target holds none |
+| W whole-tree content checks run by make targets | 50 to 117 (30 rows) | 160 paths, 226 (row, path) pairs | `driver:make:Makefile#eol-policy-check` (225), `#license-headers-check` (179), `#long-lines-check` (127) | **no**: same reason; no declaration names a make target as a reader |
+| G go.mod toolchain readers | 94 | `go.mod` (the `go 1.27.3` to `1.27.4` change) | 193 of 285 Go units (listed below) | yes, conservatively: owners naming every top-level directory that holds Go tests |
+
+Every other naming reader is selected by the path alone or covered by its selected executors.
+No `DECLARED_NON_SOURCE` path has a naming-reader miss; 7 of the 32 have a class W miss.
+
+Historical merges cannot change: every miss above stays recorded as a miss of the rule as it
+stood at that merge.
+
+### Head check (not a replay row)
+
+The lane's head (`5f3c75477c224e63a1a383fc888bb2d674197e88`, planner source identical to the lane
+base `c7dbf717e`) was planned with `corvint-own-after` on one synthetic single-path change per
+class: `corvint --root WORKTREE affected --full --no-cache --path P`. Every plan exits 0, is
+`UNKNOWN` and carries no `UNOWNED_DIRTY_PATH`:
+
+- `.github/cishards/package-costs.json`: `python:.github.macos.shard_test` and
+  `python:tools.ci-reuse-replay.replay_test` unselected; `eol-policy-check`,
+  `license-headers-check` and `long-lines-check` unselected.
+- `.github/cishards/test-split-allow.json`: `python:tools.ci-reuse-replay.replay_test`
+  unselected.
+- `conformance/divergence-register.md`: `dr-numbers-check`, `eol-policy-check` and
+  `long-lines-check` unselected.
+- `benchmarks/README.md`: `eol-policy-check` unselected (`long-lines-check` excludes
+  `benchmarks/**` at head).
+- `go.mod`: 92 of 291 Go units selected.
+
+So every class still misses at head. This is a head check of the unchanged rule, not a head
+proof of a fix: no fix was made, because classes N2 and W need a planner design change (see the
+blocked state below), and the repair instruction says to stop there.
+
+### Blocked state
+
+Round 1 state, superseded by "Repair round 2 2026-11-16" below. V1-4685 ended round 1 `blocked`. Blocker: merge `b54ac564d8983e40597eb753a5c49ea092287984`
+(row 71), path `conformance/divergence-register.md`, unit
+`driver:make:Makefile#dr-numbers-check`, which runs `script/check-dr-numbers.sh`, the reader of
+that path. A second, wider blocker (class W) first appears at merge
+`b9b2b878569b1bd3b52d30992d7cda1216f2d72a` (row 50), path
+`internal/mcp/cli/testdata/tools-list-default.golden.jsonl`, unit
+`driver:make:Makefile#eol-policy-check`. An owner in
+`.corvint/test-selection.json` can select only units that hold test files, and make targets
+hold none; `.corvint/non-source-paths.json` and `.corvint/runtime-readers.json` take paths, not
+readers. Closing them needs a planner change: owners that may name driver units, a shell reader rule for parameter defaults such as
+`${1:-PATH}`, or a whole-tree reader rule for scripts that read every tracked file.
+Classes N1 and G are declaration-fixable and are left for the round that makes that change, so
+one guard can cover all four.
+
+### Every removed path
+
+"Naming files" counts distinct files that name the path at any of its rows; Selected, Not a
+reader and Reader covered split them. Whole-tree miss: EOL `eol-policy-check`, LH
+`license-headers-check`, LL `long-lines-check`, each with the rows where the path alone does not
+select it and the script reads the path.
+
+| # | Removed path | Rows | Naming files | Selected | Not a reader | Reader covered | Naming-reader miss | Whole-tree check miss (rows) |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `.agent-evidence/cx-affected-ci-failures.json` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 2 | `.agent-evidence/cx-affected-selection-replay.json` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 3 | `.agent-evidence/cx-affected-verification.json` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 4 | `.agent-evidence/docs-mcp-hardening/docs-check-corvint.json` | 90 | 0 | 0 | 0 | 0 | - | EOL 90; LH 90 |
+| 5 | `.agent-evidence/docs-mcp-hardening/live-reload.txt` | 90 | 0 | 0 | 0 | 0 | - | EOL 90; LH 90 |
+| 6 | `.agent-evidence/lanetools/collisions-test.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 7 | `.agent-evidence/lanetools/completion-checks.json` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 8 | `.agent-evidence/lanetools/fanout-completion.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 9 | `.agent-evidence/lanetools/fanout-fault.json` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 10 | `.agent-evidence/lanetools/fanout-fault.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 11 | `.agent-evidence/lanetools/fanout-final.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 12 | `.agent-evidence/lanetools/fanout-race.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 13 | `.agent-evidence/lanetools/fixtures-final.json` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 14 | `.agent-evidence/lanetools/go-measurements.json` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 15 | `.agent-evidence/lanetools/lane-scripts-test.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 16 | `.agent-evidence/lanetools/line-citations-final-test.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 17 | `.agent-evidence/lanetools/measure.txt` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 18 | `.agent-evidence/lanetools/measurements-final.json` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 19 | `.agent-evidence/lanetools/pi-namespace-fault.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 20 | `.agent-evidence/lanetools/pi-scratch-test.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 21 | `.agent-evidence/lanetools/prechange-final-test.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 22 | `.agent-evidence/lanetools/reservations-test.log` | 36 | 1 | 0 | 1 | 0 | - | - |
+| 23 | `.agent-evidence/lineidx-pr-measurement.json` | 52 | 1 | 0 | 1 | 0 | - | EOL 52; LH 52 |
+| 24 | `.agent-evidence/lineidx-qualification-blocked.json` | 52 | 1 | 0 | 1 | 0 | - | EOL 52; LH 52 |
+| 25 | `.agent-evidence/pk-affected-fix-round-1.json` | 17 | 1 | 0 | 1 | 0 | - | - |
+| 26 | `.agent-evidence/pk-affected-verification.json` | 17 | 1 | 0 | 1 | 0 | - | - |
+| 27 | `.claude/skills/corvint-lane-flow/SKILL.md` | 71,89 | 2 | 2 | 0 | 0 | - | EOL 71,89; LL 71,89 |
+| 28 | `.corvint/.gitignore` | 34 | 66 | 45 | 21 | 0 | - | - |
+| 29 | `.gitattributes` | 53 | 51 | 25 | 26 | 0 | - | LH 53; LL 53 |
+| 30 | `.github/cishards/package-costs.json` | 33,65 | 46 | 41 | 3 | 3 | `.github/macos/shard_test.py`, `tools/ci-reuse-replay/replay.py` | EOL 65; LH 65; LL 65 |
+| 31 | `.github/cishards/test-slices.json` | 33,65,96 | 32 | 31 | 3 | 0 | - | EOL 65,96; LH 65,96; LL 65,96 |
+| 32 | `.github/cishards/test-split-allow.json` | 65 | 32 | 29 | 2 | 0 | `tools/ci-reuse-replay/replay.py` | EOL 65; LH 65; LL 65 |
+| 33 | `.github/forward-rows/bar.jq` | 85,117 | 34 | 25 | 8 | 1 | - | EOL 85,117; LH 85,117; LL 85,117 |
+| 34 | `.github/forward-rows/infra-reclassified.txt` | 70 | 23 | 17 | 6 | 0 | - | EOL 70; LH 70; LL 70 |
+| 35 | `.github/forward-rows/known-flakes.tsv` | 96,109 | 23 | 18 | 5 | 0 | - | EOL 96,109; LH 96,109; LL 96,109 |
+| 36 | `.github/forward-rows/mainmiss.jq` | 85 | 23 | 18 | 5 | 0 | - | EOL 85; LH 85; LL 85 |
+| 37 | `.github/forward-rows/narrow.jq` | 35,51,85 | 28 | 26 | 5 | 1 | - | EOL 51,85; LH 51,85; LL 51,85 |
+| 38 | `.github/forward-rows/row.jq` | 35,42,71,85 | 25 | 23 | 5 | 0 | - | EOL 71,85; LH 71,85; LL 71,85 |
+| 39 | `.github/linecov/qualification.json` | 57,85 | 18 | 8 | 10 | 0 | - | EOL 57,85; LH 57,85; LL 57,85 |
+| 40 | `.gitignore` | 37,71,77,89 | 151 | 116 | 41 | 0 | - | EOL 71,77,89; LH 71,77,89; LL 71,77,89 |
+| 41 | `README.md` | 31,71,89,94 | 178 | 93 | 102 | 1 | - | EOL 71,89,94; LL 71,89,94 |
+| 42 | `benchmarks/README.md` | 89 | 5 | 2 | 3 | 0 | - | EOL 89 |
+| 43 | `benchmarks/blind-v2-manifest.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 44 | `benchmarks/blind-v2/beamfall.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 45 | `benchmarks/blind-v2/cobra.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 46 | `benchmarks/blind-v2/execa.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 47 | `benchmarks/blind-v2/flask.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 48 | `benchmarks/blind-v2/zod.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 49 | `benchmarks/blind-v3-manifest.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 50 | `benchmarks/blind-v3/beamfall.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 51 | `benchmarks/blind-v3/cobra.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 52 | `benchmarks/blind-v3/execa.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 53 | `benchmarks/blind-v3/flask.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 54 | `benchmarks/blind-v3/zod.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 55 | `benchmarks/blind-v4-manifest.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 56 | `benchmarks/blind-v4/beamfall.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 57 | `benchmarks/blind-v4/cobra.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 58 | `benchmarks/blind-v4/execa.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 59 | `benchmarks/blind-v4/flask.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 60 | `benchmarks/blind-v4/zod.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 61 | `benchmarks/blind-v6-dev/cobra.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 62 | `benchmarks/blind-v6-dev/flask.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 63 | `benchmarks/blind-v6-dev/manifest.json` | 89 | 9 | 0 | 9 | 0 | - | EOL 89; LH 89 |
+| 64 | `benchmarks/blind-v7/pool.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 65 | `benchmarks/cases/cobra.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 66 | `benchmarks/cases/execa.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 67 | `benchmarks/cases/flask.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 68 | `benchmarks/cases/zod.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 69 | `benchmarks/daily-loop-v0/README.md` | 71 | 5 | 2 | 3 | 0 | - | EOL 71 |
+| 70 | `benchmarks/eval-split-v0.json` | 89 | 0 | 0 | 0 | 0 | - | EOL 89; LH 89 |
+| 71 | `benchmarks/lsp-quality/README.md` | 71 | 4 | 2 | 2 | 0 | - | EOL 71 |
+| 72 | `benchmarks/lsp-quality/public-v0.json` | 71 | 2 | 0 | 2 | 0 | - | EOL 71; LH 71 |
+| 73 | `benchmarks/lsp-quality/qualification-freeze-v0.json` | 71 | 1 | 0 | 1 | 0 | - | EOL 71; LH 71 |
+| 74 | `benchmarks/manifest.json` | 89 | 9 | 0 | 9 | 0 | - | EOL 89; LH 89 |
+| 75 | `benchmarks/results/2026-11-04-ranking-frozen-summary.json` | 37,89 | 5 | 4 | 1 | 0 | - | EOL 89; LH 89 |
+| 76 | `benchmarks/runner/README.md` | 71 | 6 | 3 | 3 | 0 | - | EOL 71 |
+| 77 | `benchmarks/selection-baseline/changes.json` | 59,62,90,98 | 17 | 12 | 5 | 0 | - | EOL 59,62,90,98; LH 59,62,90,98 |
+| 78 | `benchmarks/snapshot-reader/go.mod` | 94 | 10 | 4 | 6 | 0 | - | EOL 94; LH 94 |
+| 79 | `benchmarks/ticket-brief-task-set/task-set.json` | 78 | 1 | 0 | 1 | 0 | - | EOL 78; LH 78 |
+| 80 | `benchmarks/ticket-brief-task-set/task-set.json.sha256` | 78 | 1 | 0 | 1 | 0 | - | EOL 78; LH 78 |
+| 81 | `benchmarks/untouched-repository-v1/README.md` | 71,89 | 6 | 2 | 4 | 0 | - | EOL 71,89 |
+| 82 | `cmd/corvint-web-flows/help.json` | 37 | 14 | 11 | 2 | 1 | - | - |
+| 83 | `conformance/cli-errors-v0/README.md` | 37 | 8 | 4 | 4 | 0 | - | - |
+| 84 | `conformance/cli-parity-v0/README.md` | 71 | 6 | 5 | 1 | 0 | - | EOL 71; LL 71 |
+| 85 | `conformance/cli-parity-v0/manifest.json` | 71,89 | 16 | 7 | 9 | 0 | - | EOL 71,89; LH 71,89; LL 71,89 |
+| 86 | `conformance/divergence-register.md` | 71,100 | 3 | 1 | 0 | 1 | `script/check-dr-numbers.sh` | EOL 71,100; LL 71,100 |
+| 87 | `conformance/interactive-alpha/README.md` | 77 | 4 | 2 | 2 | 0 | - | EOL 77; LL 77 |
+| 88 | `conformance/interactive-alpha/fixture/go.mod` | 94 | 13 | 5 | 8 | 0 | - | EOL 94; LH 94; LL 94 |
+| 89 | `conformance/mcp-2026-07-28/README.md` | 71 | 4 | 2 | 2 | 0 | - | EOL 71; LL 71 |
+| 90 | `conformance/mcp-2026-07-28/cases-task-review.json` | 71 | 1 | 0 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 91 | `conformance/mcp-2026-07-28/cases.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 92 | `conformance/release-artifact-v0/README.md` | 94 | 19 | 10 | 6 | 3 | - | EOL 94; LL 94 |
+| 93 | `conformance/release-artifact-v0/archive-report-v2.schema.json` | 94 | 13 | 7 | 3 | 3 | - | EOL 94; LH 94; LL 94 |
+| 94 | `conformance/release-artifact-v0/archive-report.schema.json` | 94 | 13 | 7 | 3 | 3 | - | EOL 94; LH 94; LL 94 |
+| 95 | `conformance/release-artifact-v0/manifest.json` | 71,89,94 | 33 | 18 | 12 | 3 | - | EOL 71,89,94; LH 71,89,94; LL 71,89,94 |
+| 96 | `conformance/use-cases-v0/README.md` | 71 | 14 | 9 | 4 | 1 | - | EOL 71; LL 71 |
+| 97 | `conformance/vscode-extension-v0/README.md` | 71 | 4 | 3 | 1 | 0 | - | EOL 71; LL 71 |
+| 98 | `conformance/vscode-extension-v0/cases.json` | 71 | 4 | 4 | 0 | 0 | - | EOL 71; LH 71; LL 71 |
+| 99 | `docs/E2E-ADOPTION.md` | 63 | 17 | 4 | 13 | 0 | - | EOL 63; LL 63 |
+| 100 | `docs/EXTERNAL-APP-ACCEPTANCE.md` | 63 | 17 | 4 | 13 | 0 | - | EOL 63; LL 63 |
+| 101 | `docs/LSP.md` | 71 | 15 | 4 | 11 | 0 | - | EOL 71; LL 71 |
+| 102 | `docs/TASKS-BARRIER-2026-10-30.md` | 71 | 15 | 4 | 11 | 0 | - | EOL 71; LL 71 |
+| 103 | `docs/TASKS-EXTERNAL-AGENTS.md` | 71 | 15 | 4 | 11 | 0 | - | EOL 71; LL 71 |
+| 104 | `docs/TASKS-SUPERVISION.md` | 71 | 15 | 4 | 11 | 0 | - | EOL 71; LL 71 |
+| 105 | `docs/post-merge-workflow/replay.md` | 71 | 15 | 4 | 11 | 0 | - | EOL 71; LL 71 |
+| 106 | `examples/evidence-provider/v0/README.md` | 94 | 10 | 5 | 5 | 0 | - | EOL 94; LL 94 |
+| 107 | `extensions/vscode/CHANGELOG.md` | 71 | 5 | 4 | 1 | 0 | - | EOL 71; LL 71 |
+| 108 | `extensions/vscode/README.md` | 71 | 8 | 6 | 2 | 0 | - | EOL 71; LL 71 |
+| 109 | `extensions/vscode/package.json` | 71 | 10 | 6 | 4 | 0 | - | EOL 71; LH 71; LL 71 |
+| 110 | `flows/installed-go-live-tests.json` | 77,89,94 | 11 | 3 | 8 | 0 | - | EOL 77,89,94; LH 77,89,94; LL 77,89,94 |
+| 111 | `flows/installed-js-live-tests.json` | 77,89,90,94 | 11 | 3 | 8 | 0 | - | EOL 77,89,90,94; LH 77,89,90,94; LL 77,89,90,94 |
+| 112 | `flows/installed-test-validity-mcp.json` | 77,89,90,94,102 | 11 | 3 | 8 | 0 | - | EOL 77,89,90,94,102; LH 77,89,90,94,102; LL 77,89,90,94,102 |
+| 113 | `flows/web-flows-browser-gate.json` | 77,99 | 11 | 3 | 8 | 0 | - | EOL 77,99; LH 77,99; LL 77,99 |
+| 114 | `go.mod` | 94 | 455 | 285 | 167 | 3 | 193 Go units (toolchain; listed below) | EOL 94; LH 94; LL 94 |
+| 115 | `integrations/claude-code/.claude-plugin/marketplace.json` | 71 | 7 | 4 | 3 | 0 | - | EOL 71; LH 71; LL 71 |
+| 116 | `integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json` | 71 | 5 | 4 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 117 | `integrations/claude-code/plugins/corvint/.mcp.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 118 | `integrations/claude-code/plugins/corvint/compatibility.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 119 | `integrations/claude-code/plugins/corvint/hooks/hooks.json` | 71 | 4 | 2 | 2 | 0 | - | EOL 71; LH 71; LL 71 |
+| 120 | `integrations/claude-code/plugins/corvint/skills/affected/SKILL.md` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LL 71 |
+| 121 | `integrations/claude-code/plugins/corvint/skills/context/SKILL.md` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LL 71 |
+| 122 | `integrations/claude-code/plugins/corvint/skills/done/SKILL.md` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LL 71 |
+| 123 | `integrations/claude-code/plugins/corvint/skills/impact/SKILL.md` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LL 71 |
+| 124 | `integrations/claude-code/plugins/corvint/skills/index/SKILL.md` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LL 71 |
+| 125 | `integrations/claude-code/plugins/corvint/skills/review/SKILL.md` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LL 71 |
+| 126 | `integrations/claude-code/plugins/corvint/skills/status/SKILL.md` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LL 71 |
+| 127 | `integrations/codex/plugins/corvint/.codex-plugin/plugin.json` | 71 | 5 | 4 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 128 | `integrations/codex/plugins/corvint/.mcp.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 129 | `integrations/codex/plugins/corvint/compatibility.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 130 | `integrations/codex/plugins/corvint/hooks/authority-hooks.proposed.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 131 | `integrations/codex/plugins/corvint/hooks/hooks.json` | 71 | 4 | 2 | 2 | 0 | - | EOL 71; LH 71; LL 71 |
+| 132 | `integrations/codex/plugins/corvint/hooks/qualified-direct-hooks.proposed.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 133 | `integrations/codex/plugins/corvint/hooks/qualified-hooks.proposed.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 134 | `integrations/codex/plugins/corvint/scripts/authority-hook.json` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LH 71; LL 71 |
+| 135 | `integrations/codex/plugins/corvint/skills/corvint/SKILL.md` | 71 | 2 | 1 | 1 | 0 | - | EOL 71; LL 71 |
+| 136 | `internal/capcatalog/AGENT-GUIDE.md` | 63,71,77,89,102 | 20 | 19 | 2 | 0 | - | EOL 63,71,77,89,102; LL 63,71,77,89,102 |
+| 137 | `internal/capcatalog/CLI-RATCHET.tsv` | 37 | 17 | 15 | 2 | 0 | - | - |
+| 138 | `internal/contextindex/testdata/context-recipe-default-golden.json` | 89 | 32 | 20 | 12 | 0 | - | EOL 89; LH 89 |
+| 139 | `internal/contextindex/testdata/role-summary-golden.tsv` | 89 | 32 | 20 | 12 | 0 | - | EOL 89; LH 89 |
+| 140 | `internal/liveverify/affected/golang/typedreach/testdata/mod/g/g.go` | 37 | 34 | 31 | 3 | 0 | - | - |
+| 141 | `internal/liveverify/affected/golang/typedreach/testdata/mod/g/g_test.go` | 37 | 33 | 31 | 2 | 0 | - | - |
+| 142 | `internal/liveverify/affected/golang/typedreach/testdata/mod/go.mod` | 37 | 42 | 34 | 8 | 0 | - | - |
+| 143 | `internal/liveverify/affected/golang/typedreach/testdata/mod/lib/lib.go` | 37 | 51 | 49 | 2 | 0 | - | - |
+| 144 | `internal/liveverify/affected/golang/typedreach/testdata/mod/p/p.go` | 37 | 58 | 50 | 8 | 0 | - | - |
+| 145 | `internal/liveverify/affected/golang/typedreach/testdata/mod/p/p_test.go` | 37 | 50 | 45 | 5 | 0 | - | - |
+| 146 | `internal/liveverify/affected/golang/typedreach/testdata/mod/q/q.go` | 37 | 39 | 34 | 5 | 0 | - | - |
+| 147 | `internal/liveverify/affected/golang/typedreach/testdata/mod/q/q_test.go` | 37 | 37 | 32 | 5 | 0 | - | - |
+| 148 | `internal/liveverify/affected/golang/typedreach/testdata/mod/r/r.go` | 37 | 38 | 35 | 3 | 0 | - | - |
+| 149 | `internal/liveverify/affected/golang/typedreach/testdata/mod/r/r_test.go` | 37 | 35 | 33 | 2 | 0 | - | - |
+| 150 | `internal/liveverify/affected/golang/typedreach/testdata/mod/s/s.go` | 37 | 38 | 35 | 3 | 0 | - | - |
+| 151 | `internal/liveverify/affected/golang/typedreach/testdata/mod/s/s_test.go` | 37 | 33 | 31 | 2 | 0 | - | - |
+| 152 | `internal/liveverify/affected/golang/typedreach/testdata/mod/t3/t3.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 153 | `internal/liveverify/affected/golang/typedreach/testdata/mod/t3/t3_test.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 154 | `internal/liveverify/affected/golang/typedreach/testdata/mod/t4/t4.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 155 | `internal/liveverify/affected/golang/typedreach/testdata/mod/t4/t4_test.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 156 | `internal/liveverify/affected/golang/typedreach/testdata/mod/t5/t5.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 157 | `internal/liveverify/affected/golang/typedreach/testdata/mod/t5/t5_test.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 158 | `internal/liveverify/affected/golang/typedreach/testdata/mod/t6/t6.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 159 | `internal/liveverify/affected/golang/typedreach/testdata/mod/t6/t6_test.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 160 | `internal/liveverify/affected/golang/typedreach/testdata/mod/w/w.go` | 37 | 37 | 34 | 3 | 0 | - | - |
+| 161 | `internal/liveverify/affected/golang/typedreach/testdata/mod/w/w_test.go` | 37 | 32 | 30 | 2 | 0 | - | - |
+| 162 | `internal/liveverify/affected/liverepo/testdata/ownership-audit-baseline.txt` | 77 | 23 | 22 | 1 | 0 | - | EOL 77; LH 77 |
+| 163 | `internal/liveverify/affected/testdata/boundary-scanner.go.txt` | 77 | 39 | 38 | 1 | 0 | - | EOL 77; LH 77 |
+| 164 | `internal/liveverify/affected/testdata/ownership-audit-baseline.txt` | 30,77 | 48 | 47 | 2 | 0 | - | EOL 77; LH 77 |
+| 165 | `internal/mcp/cli/testdata/tools-list-default.golden.jsonl` | 50,71,77,89,90 | 23 | 21 | 2 | 0 | - | EOL 50,71,77,89,90; LH 50,71,77,89,90 |
+| 166 | `internal/mcp/cli/testdata/tools-list-flows.golden.jsonl` | 50,71,77,89,90,102 | 23 | 21 | 2 | 0 | - | EOL 50,71,77,89,90,102; LH 50,71,77,89,90,102 |
+| 167 | `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` | 50,71,77,89,90,102 | 24 | 22 | 2 | 0 | - | EOL 50,71,77,89,90,102; LH 50,71,77,89,90,102 |
+| 168 | `internal/mcp/cli/testdata/tools-list-import-graph.golden.jsonl` | 50,71 | 22 | 20 | 2 | 0 | - | EOL 50,71; LH 50,71 |
+| 169 | `internal/mcp/cli/testdata/tools-list-task-review-lsp.golden.jsonl` | 50,71 | 22 | 20 | 2 | 0 | - | EOL 50,71; LH 50,71 |
+| 170 | `internal/mcp/cli/testdata/tools-list-task-review.golden.jsonl` | 50,71 | 22 | 20 | 2 | 0 | - | EOL 50,71; LH 50,71 |
+| 171 | `internal/nativelinecov/testdata/live/CMakeLists.txt` | 37 | 14 | 9 | 5 | 0 | - | - |
+| 172 | `internal/nativelinecov/testdata/live/dotnet/Probe.csproj` | 37 | 11 | 9 | 2 | 0 | - | - |
+| 173 | `internal/nativelinecov/testdata/live/rust/Cargo.toml` | 37 | 11 | 9 | 2 | 0 | - | - |
+| 174 | `internal/nativelinecov/testdata/live/swift/Package.swift` | 37 | 31 | 18 | 13 | 0 | - | - |
+| 175 | `internal/perfbudget/budgets.json` | 71,77,89 | 23 | 22 | 1 | 0 | - | EOL 71,77,89; LH 71,77,89; LL 71,77,89 |
+| 176 | `internal/sessiontest/testdata/corvint-test-run-0.contract.json` | 90 | 19 | 15 | 4 | 0 | - | EOL 90; LH 90 |
+| 177 | `internal/sessiontest/testdata/receipt-before-testid.json` | 90 | 19 | 15 | 4 | 0 | - | EOL 90; LH 90 |
+| 178 | `internal/sessiontest/testdata/receipt-with-testid.json` | 90 | 19 | 15 | 4 | 0 | - | EOL 90; LH 90 |
+| 179 | `internal/taskman/testdata/audit.json` | 71 | 9 | 6 | 3 | 0 | - | EOL 71; LH 71 |
+| 180 | `internal/taskman/testdata/cal-v0-099-prerequisite-refusals.json` | 71 | 8 | 6 | 2 | 0 | - | EOL 71; LH 71 |
+| 181 | `internal/taskman/testdata/issue502-optional-keys-record.json` | 71 | 8 | 6 | 2 | 0 | - | EOL 71; LH 71 |
+| 182 | `internal/taskman/testdata/policy.json` | 71 | 16 | 12 | 4 | 0 | - | EOL 71; LH 71 |
+| 183 | `internal/taskman/testdata/queue.json` | 71 | 11 | 9 | 2 | 0 | - | EOL 71; LH 71 |
+| 184 | `internal/taskman/testdata/status.json` | 71 | 8 | 6 | 2 | 0 | - | EOL 71; LH 71 |
+| 185 | `internal/taskman/testdata/tickets.json` | 71 | 9 | 6 | 3 | 0 | - | EOL 71; LH 71 |
+| 186 | `internal/taskman/testdata/verdict-paths-record.json` | 71 | 8 | 6 | 2 | 0 | - | EOL 71; LH 71 |
+| 187 | `internal/testid/testdata/go-test.jsonl` | 90 | 9 | 8 | 1 | 0 | - | EOL 90; LH 90 |
+| 188 | `internal/testid/testdata/jest.json` | 90 | 12 | 9 | 3 | 0 | - | EOL 90; LH 90 |
+| 189 | `internal/testid/testdata/minitest.jsonl` | 90 | 9 | 8 | 1 | 0 | - | EOL 90; LH 90 |
+| 190 | `internal/testid/testdata/playwright-mixed.json` | 90 | 12 | 8 | 4 | 0 | - | EOL 90; LH 90 |
+| 191 | `internal/testid/testdata/playwright-projects.json` | 90 | 9 | 8 | 1 | 0 | - | EOL 90; LH 90 |
+| 192 | `internal/testid/testdata/pytest.json` | 90 | 9 | 8 | 1 | 0 | - | EOL 90; LH 90 |
+| 193 | `internal/testid/testdata/rspec.json` | 90 | 16 | 9 | 7 | 0 | - | EOL 90; LH 90 |
+| 194 | `internal/testid/testdata/vitest-mixed.json` | 90 | 12 | 8 | 4 | 0 | - | EOL 90; LH 90 |
+| 195 | `internal/testvaliditydoc/testdata/recorded/preserves.head.json` | 63 | 11 | 9 | 2 | 0 | - | EOL 63; LH 63 |
+| 196 | `internal/testvaliditydoc/testdata/recorded/regression.head.json` | 63 | 11 | 9 | 2 | 0 | - | EOL 63; LH 63 |
+| 197 | `interop/spec-toolchains/speckit/requirements.txt` | 112 | 13 | 8 | 4 | 1 | - | EOL 112; LH 112; LL 112 |
+| 198 | `llms.txt` | 37,53,63,71 | 4 | 2 | 2 | 0 | - | EOL 53,63,71; LH 53,63,71; LL 53,63,71 |
+| 199 | `script/affected-zero-unknown-merges.txt` | 30 | 8 | 6 | 2 | 0 | - | - |
+| 200 | `script/ci-least-privilege-exceptions.tsv` | 57,85,93,96 | 20 | 11 | 11 | 0 | - | EOL 57,85,93,96; LH 57,85,93,96; LL 57,85,93,96 |
+| 201 | `script/diagnostic-coverage.count` | 71,77,89,114 | 19 | 9 | 11 | 1 | - | EOL 71,77,89,114; LH 71,77,89,114; LL 71,77,89,114 |
+| 202 | `script/lane-screen_test.pl` | 36,43 | 9 | 7 | 2 | 0 | - | - |
+| 203 | `script/line-citation-drift-waivers.txt` | 71 | 10 | 7 | 2 | 1 | - | EOL 71; LH 71; LL 71 |
+| 204 | `script/line-citation-legacy-documents.txt` | 71 | 11 | 8 | 2 | 1 | - | EOL 71; LH 71; LL 71 |
+| 205 | `script/requirement-citations-allowlist.tsv` | 88,89,90,98 | 18 | 6 | 11 | 1 | - | EOL 88,89,90,98; LH 88,89,90,98; LL 88,89,90,98 |
+| 206 | `script/requirement-citations-undefined.txt` | 88,89 | 15 | 6 | 8 | 1 | - | EOL 88,89; LH 88,89; LL 88,89 |
+| 207 | `tests/README.md` | 71 | 64 | 9 | 55 | 0 | - | EOL 71; LL 71 |
+| 208 | `tools/affected-edit-oracle/README.md` | 58 | 8 | 5 | 3 | 0 | - | EOL 58; LL 58 |
+| 209 | `tools/affected-edit-oracle/testdata/corpus.json` | 58,89 | 7 | 5 | 3 | 0 | - | EOL 58,89; LH 58,89 |
+| 210 | `tools/affected-zero-unknown-replay/README.md` | 30 | 7 | 5 | 2 | 0 | - | - |
+| 211 | `tools/ci-test-slices/testdata/README.md` | 37 | 8 | 5 | 3 | 0 | - | - |
+| 212 | `tools/ci-test-slices/testdata/run-42106672783-costs.json` | 37 | 4 | 3 | 1 | 0 | - | - |
+| 213 | `tools/ci-test-slices/testdata/run-42106672783-p1.golden` | 37 | 4 | 3 | 1 | 0 | - | - |
+| 214 | `tools/corvint-pr-tests/README.md` | 94 | 16 | 10 | 6 | 0 | - | EOL 94; LL 94 |
+| 215 | `tools/fault-harness/README.md` | 90,106 | 9 | 4 | 5 | 0 | - | EOL 90,106; LL 90,106 |
+| 216 | `tools/fault-harness/revert-rule.json` | 90 | 5 | 3 | 2 | 0 | - | EOL 90; LH 90; LL 90 |
+| 217 | `tools/fault-harness/revert-rule.json.sha256` | 90 | 3 | 1 | 2 | 0 | - | EOL 90; LH 90; LL 90 |
+| 218 | `tools/flow-guide-check/unhinted-refusals.tsv` | 71 | 7 | 4 | 3 | 0 | - | EOL 71; LH 71; LL 71 |
+| 219 | `tools/str-parity/testdata/local-default.txt` | 17 | 5 | 4 | 1 | 0 | - | - |
+| 220 | `tools/str-parity/testdata/local-full.json` | 17 | 5 | 4 | 1 | 0 | - | - |
+
+### go.mod class: the 193 Go units not selected by go.mod alone (row 94)
+
+- `.github/testconfine/cmd`
+- `cmd/corvint-analyzer-dotnet`
+- `cmd/corvint-analyzer-kotlin-android`
+- `cmd/corvint-analyzer-ruby`
+- `cmd/corvint-analyzer-sql-native`
+- `cmd/corvint-go-toolchain-receipt`
+- `cmd/corvint-js-test-provider`
+- `cmd/corvint-readiness-record`
+- `cmd/corvint-ruby-test-provider`
+- `cmd/corvint-test-runner`
+- `cmd/corvint-test-validity-mcp`
+- `cmd/corvint-update`
+- `cmd/corvint-web-flows`
+- `conformance/human-documentation-compiler-v0`
+- `conformance/perf-v0`
+- `conformance/release-artifact-v0/archive-verifier`
+- `conformance/release-artifact-v0/archivebuild`
+- `conformance/release-artifact-v0/archiveverify`
+- `conformance/use-cases-v0`
+- `conformance/work-queue-v0`
+- `examples/evidence-provider/v0`
+- `examples/evidence-provider/v0/check`
+- `experimental/analyzers/sqlnative`
+- `internal/analyzerenvelope`
+- `internal/analyzerjs`
+- `internal/analyzerrust`
+- `internal/analyzershader`
+- `internal/appflows`
+- `internal/appflows/e2erunner`
+- `internal/appflows/flowsreaderscan`
+- `internal/appmap`
+- `internal/archivepath`
+- `internal/browsercov`
+- `internal/capcatalog`
+- `internal/cem/gitauth`
+- `internal/cem/patch`
+- `internal/cem/publish`
+- `internal/cem/sim`
+- `internal/cem/verify`
+- `internal/cem/wire`
+- `internal/cem/witnesspaths`
+- `internal/cem/workflow`
+- `internal/cemcode`
+- `internal/cliapp`
+- `internal/clierror`
+- `internal/cliprofile`
+- `internal/clitree`
+- `internal/command/flows`
+- `internal/companioncli`
+- `internal/corerelease`
+- `internal/diagnostic`
+- `internal/doccompiler`
+- `internal/doccorpus`
+- `internal/docmaintain`
+- `internal/docsenvelope`
+- `internal/execfile`
+- `internal/flowcoverage`
+- `internal/flowdocs`
+- `internal/gateselect`
+- `internal/genesis`
+- `internal/gitancestry`
+- `internal/gitprobe`
+- `internal/gokernel`
+- `internal/gotestrun`
+- `internal/jobinputs`
+- `internal/jslinecov`
+- `internal/jsonend`
+- `internal/jstestprovider/externallive`
+- `internal/langplugin/dialect`
+- `internal/langplugin/runnernames`
+- `internal/linecov/v8`
+- `internal/liveverify/affected`
+- `internal/liveverify/affected/cfamily`
+- `internal/liveverify/affected/dotnet`
+- `internal/liveverify/affected/kotlin`
+- `internal/liveverify/affected/languages`
+- `internal/liveverify/affected/python`
+- `internal/liveverify/affected/ruby`
+- `internal/liveverify/affected/rust`
+- `internal/liveverify/affected/shell`
+- `internal/liveverify/affected/swift`
+- `internal/liveverify/affected/typescript`
+- `internal/liveverify/godiscovery`
+- `internal/liveverify/gorunner`
+- `internal/liveverify/gotest`
+- `internal/liveverify/jsresolve`
+- `internal/liveverify/parentverify`
+- `internal/liveverify/provider`
+- `internal/liveverify/pyresolve`
+- `internal/liveverify/rbmutate`
+- `internal/liveverify/session`
+- `internal/mcp/bridge`
+- `internal/mcp/corpusbridge`
+- `internal/mcp/docsbridge`
+- `internal/mcp/protocol`
+- `internal/mcp/server`
+- `internal/mcp/testvaliditybridge`
+- `internal/mcp/toolgroup`
+- `internal/mergedrivers`
+- `internal/nativelinecov`
+- `internal/noncodemap`
+- `internal/observations`
+- `internal/pathbrief`
+- `internal/perfbudget/cmd/perf-budget`
+- `internal/pinnedread`
+- `internal/plansnapshot`
+- `internal/playwrightruns`
+- `internal/procprofile`
+- `internal/projectpath`
+- `internal/projectprofile`
+- `internal/pythongrammar`
+- `internal/pythonsyntax`
+- `internal/releasecandidate`
+- `internal/repoenvelope`
+- `internal/repopath`
+- `internal/requestpath`
+- `internal/rubyautoload`
+- `internal/rubydialect`
+- `internal/rubylinecov`
+- `internal/rubyprofile`
+- `internal/rubytestprovider`
+- `internal/runnerpolicy`
+- `internal/runnerprotocol`
+- `internal/runnerqualification`
+- `internal/runnerselection`
+- `internal/secretscreen`
+- `internal/sessiontest`
+- `internal/shaderdialect`
+- `internal/specindex`
+- `internal/stepnegation`
+- `internal/taskprojection`
+- `internal/tcq`
+- `internal/testevidence`
+- `internal/testevidencedoc`
+- `internal/testid`
+- `internal/testplan`
+- `internal/testplatform`
+- `internal/testreuse`
+- `internal/testrunner`
+- `internal/testrunner/dynamic`
+- `internal/testrunner/golang`
+- `internal/testrunner/mobile`
+- `internal/testrunner/native`
+- `internal/testrunner/platform`
+- `internal/testrunner/registry`
+- `internal/testrunner/sql`
+- `internal/testrunner/swiftselection`
+- `internal/testsource`
+- `internal/testvalidity`
+- `internal/testvaliditydoc`
+- `internal/testvaliditydoc/externalorigins`
+- `internal/toolchainreceipt`
+- `internal/versionline`
+- `internal/webdialect`
+- `internal/workflowshell`
+- `internal/workqueue`
+- `internal/workspace`
+- `protocol/integrations`
+- `script/spec-coverage-audit`
+- `tools/affected-edit-oracle`
+- `tools/beamfall-shadow/wrapper`
+- `tools/cem-release-suites`
+- `tools/cem-stable-regen`
+- `tools/cli-discovery-gen`
+- `tools/compatibility-table`
+- `tools/conflict-markers-check`
+- `tools/deadcode-ratchet`
+- `tools/declaration-compat-check`
+- `tools/fixture-maintenance-check`
+- `tools/flow-guide-check`
+- `tools/flows-smoke`
+- `tools/gate-affected-select`
+- `tools/gate-ledger`
+- `tools/gotest-evidence`
+- `tools/linecov`
+- `tools/live-test-run`
+- `tools/merge-drivers`
+- `tools/openspec-check`
+- `tools/plan-delta`
+- `tools/plugin-dirs`
+- `tools/py-signal-lint`
+- `tools/requirement-id-collisions`
+- `tools/run-measure`
+- `tools/runner-plugin`
+- `tools/runner-qualification`
+- `tools/shell-test-select`
+- `tools/str-parity`
+- `tools/test-commands-check`
+- `tools/test-commands-run`
+- `tools/test-shards`
+- `tools/tiers-replay`
+- `tools/unbounded-readers`
+- `tools/walk-skipdir-check`
+
+## Correction 2026-11-16: AZU-V0-9921 (review P2)
+
+`declaredUnindexedOutput` changes a plan only for a dirty path that a
+`.corvint/non-source-paths.json` entry holds, that no indexed unit owns and that a plugin would
+otherwise claim by its suffix (a source-shaped name). Across the 117 rows, 108 trees carry the
+declaration and 35 dirty paths fall under it; none is source-shaped. No replayed row can exercise
+it, so its effect on this replay is `NOT_OBSERVED`. It stays on in both binaries; no second
+patch was built, because no row could show a difference.
+
+## Correction 2026-11-16: evidence bindings for the corrections
+
+Under `/home/russell/lanes/r1replay-evidence/audit/` (not committed). SHA-256:
+
+- `bypath-r1.py`: `0d19473b647ecd020a295dee80bd892b04980a67f08cf22720b9b0553002ec1e`
+  (raw plans `bypath/MERGE.stdout`, `.stderr`, `.meta.json`, 40 rows).
+- `audit-readers.py`: `e7b932f909cff7012caa8eb996e750e1fcc98379da2c578f9cb5781c24de8027`;
+  `hits.json`: `42e7fdedb2f0809d85c62a71586b6e7e01968b47633a7b1a44c66ac1524288c1`.
+- `common_r1.py`: `f4984a2dc0e01a5f691f7e51acadbd4c1080decebd61f8a87c511db75cacadd7`;
+  `classify-r1.py`: `37828f8f83015c103a393dc11edb680fed02dd6fa30d40f5d1295fc1623a2d70`;
+  `classify2-r1.py`: `eb416edaa0e7decef37ad58c0cc65fb3228d6a65f3b895cf00de692364aebb18`;
+  `naming.json`: `f95e05e10220a9b244b8be0229d98526e78e38e94a5cc5c50af56637f84a5860`.
+- `triage-r1.py`: `ec7f4ad12356979622ccb01fae2e5ceafe84c59acdb510dd85c559acd5660f29`;
+  `manual-verdicts.tsv`: `51084c36b0ebec5d3197151421563938afc05dab4e64bdb2659673180bbad559`;
+  `triage.json`: `73d831e97ec5be3ee6fa94b27bd50c408f184d3169f078ddb70fb2a4c6dcda5f`.
+- `walkers-r1.py`: `4c226d53dfaaf30b7c231d84138b883182ba5edeb18f062a82a73c3e840ac41f`;
+  `walkers.json`: `434b3181ad28c96c03d45e8eadae71bd334d84b321f9759433db158fb203a052`;
+  `walkers2-r1.py`: `74902dad828e4b1d3def80246ffb010ddc86c5d83613c61b95b9249046c45f94`;
+  `walkers2.json`: `573c7e1388a6b1eda814e831a46823a5caff8f930559b64ae285521296213e82`.
+- `gomod-row94.json`: `2f2990a9d5d898b9ebcb4016f19cf82fb21378ce9abd1d31487c82a2eeb8a896`.
+- `final-r1.py`: `6857a468fc424ac76374cfe4bbbe758527e6434c5b268c70be961a04726bb491`;
+  `misses.tsv` (730 rows): `298708acdb3224fc37dd16dd1191549a6b62ff75715402633bec5a76648c466a`;
+  `per-path.tsv`: `eead096f58edba2ec30f9b02a1ce381d03c27be90bdc466012431e15f323af5d`.
+- Head plans `head/*.json` and `head/summary.json`:
+  `dd9c493d862efd1b334350834fe4efa7e8ee881bf05c2e8894eff4ba11c9b90e`.
+
+## Repair round 2 2026-11-16: the readers selected at head
+
+The orchestrator widened the lane to change the planner, its declarations, their spec and
+tests (no `.github` edit). Requirements AZU-V0-8920 to AZU-V0-8926 in
+`docs/specs/affected-zero-unknown-v0.md`. Goal: for every path the ownership rule takes out of
+`unknown`, every unit that reads, runs, imports or embeds it is selected when that path changes
+alone, or the path stays unknown.
+
+### Design per class
+
+- **N2, shell rule (AZU-V0-8920).** The smallest general mechanism is a shell reader rule, not
+  owners that name drivers. A testless script that reads a path already carries the read to the
+  drivers that run it (AFP-V0-2992). It missed only because the shell lexicon blanked
+  `${1:-conformance/divergence-register.md}`. The rule keeps the word of the six
+  value-supplying expansion forms as tokens; `?` and the other operators still blank. It only
+  adds tokens. It also covers a second reader of the same class that the round 2 guard found:
+  `script/check-legal-file-pins.sh` reads `conformance/release-artifact-v0/manifest.json`.
+- **W, declared whole-tree readers (AZU-V0-8921, AZU-V0-8922).** Whether a script reads every
+  tracked file cannot be decided from text: `script/check-eol-policy.sh` enumerates inside a
+  perl heredoc. So `.corvint/test-selection.json` names the readers in a new `treeReaders`
+  member: 19 files, each with its reason. Every driver that runs a declared file gets the
+  AFP-V0-9401 tree-read glob, so it is a `PATH_GLOB_READER` of every dirty path and its driver
+  dependents follow (AFP-V0-9402). Selection is conservative: a script's exclusions live in its
+  code, so every path selects it. There are two bounds:
+  - A wildcard-only edge (`go vet ./...` imports every owner) runs no script, so it is not
+    followed.
+  - Paths the project already declares no unbounded reader reads (AFP-V0-772: the CEM sidecar
+    and sealed CEMs) do not select a declared reader. Without that bound,
+    `TestSealOnlyCEMDeltaStaysBounded_V13571` failed; those paths are runtime-readers entries,
+    not ownership-rule paths.
+
+  Beyond the round 1 three (eol, license headers, long lines), the guard classified 16 more:
+  - read the content or the name of every tracked path: `changed-checks`, `check-bash32`,
+    `check-binary-blobs`, `check-line-citations`, `check-stray-backups`,
+    `requirement-ids-free`, `tracked-ignored-check`;
+  - read every Go file, and fixture and nested-module Go files are ownership-rule paths:
+    `.github/ci-cadence/classify.sh`, `batch-precheck`, `check-error-code-ownership`,
+    `check-fixed-tmp-paths`, `check-go-format`, `check-goos-filenames`,
+    `check-mkfifo-build-tags`, `check-requirement-definitions`, `check-traceability-tests`.
+- **N1 and G, by declaration (AZU-V0-8925).**
+  - The `.github/cishards/**` owner now names `.github/macos/shard_test.py` and
+    `tools/ci-reuse-replay/replay_test.py`.
+  - The `go.mod` owner names the 11 top-level directories that hold root-module Go tests, so
+    `go.mod` alone selects all 291 Go test units. That is the honest answer: `go.mod` sets the
+    module path, the language version and every dependency, and every Go unit compiles from
+    it. Leaving `go.mod` unknown would instead force the whole suite.
+  - Friction item 4 is not fixed in the analyzer. The Python plugin carries no path tokens at
+    all, so a literal reader rule would be a new reader class, not a small fix. The owners are
+    the fix.
+
+### Declaration format and an older binary
+
+`treeReaders` is valid only under the new profile `corvint-test-selection/2` (/1 is the
+runner's selection-expectation version, TRE-V0-021). A /0 file reads exactly as before, so the
+CMP-V1-003 file contract is unchanged. A binary built from origin/main `df315e350` (SHA-256
+`fd097449674b4fbc3d8412a0d15f700d23b74d320341c32040951a07d056a975`) refuses this tree; it never
+plans without the new semantics:
+- `affected --no-cache --full --path benchmarks/README.md` exits 2 with `unsupported-affected-graph`
+  (`.corvint/test-selection.json: ... unknown object member name "treeReaders"`).
+- `affected --no-cache --full --base 92bcaa8a1...` refuses the same way.
+- `--ownership-audit` exits 2 with `internal-error` and the same message.
+
+`make declaration-compat-check` passes, because the profile changed. The CI planner pins
+(`CORVINT_PR_TOOL_SOURCE` and `CORVINT_TEST_SHADOW_SOURCE`, `8daec98ce`) therefore refuse this
+tree and stop narrowing until they are moved to a commit that carries this change; that is a
+`.github` edit left to the owner.
+
+### Guards and regressions
+
+- `TestDriverRunWholeTreeScriptsAreDeclared_AZU_V0_8923` covers every testless file a runnable,
+  uncovered driver runs that matches the whole-tree marker. Each one must be declared or carry a
+  reasoned exception: 17 exceptions. An exception with a scope fails if any tracked path in its
+  scope is an ownership-rule path. That check is what moved the nine Go-file scripts into
+  `treeReaders`.
+- `TestOwnedPathNamersAreReached_AZU_V0_8924` checks every tracked test or driver-run script
+  that spells an ownership-rule path outside comments. Its unit must be reached, or every
+  runnable driver that runs it selected. It covers 122 (file, path) pairs over 55 paths, with
+  10 reasoned exceptions, each a fixture or plan input of a temporary tree.
+- `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925` and `TestOwnershipReaderMissClasses_AZU_V0_8926`
+  are the regressions, one per class: N1 `package-costs.json` and `test-split-allow.json`, N2,
+  W on `internal/mcp/cli/testdata/tools-list-default.golden.jsonl` and `benchmarks/README.md`,
+  and G.
+- Mutation check, each guard against its class:
+
+| Mutation | Fails |
+|---|---|
+| N1 owner reverted | 8924 and 8926 |
+| N2 shell rule reverted | 8924 (at `check-dr-numbers.sh` and `check-legal-file-pins.sh`) and 8926 |
+| `check-bash32.sh` undeclared | 8923 |
+| `go.mod` owner reverted | 8925 (199 findings) |
+
+The first guard head missed the N2 revert. Its lexicon read `-PATH`, and the fix is commit
+`82c556c78`.
+
+### Head proof (not a replay row)
+
+`cmd/corvint` was built at `82c556c78c76f3849aad6178f28badb75783cc20` (SHA-256
+`767b7ffd4b6e919bf4f51e82a8bb7c82c0fb469e44f0a0fed1b09a9c4eb78af8`). It planned each of the 160
+missed paths alone at that clean head:
+`corvint-head --root LANE affected --full --no-cache --path P`, at most 4 at once under `nice`
+(`nproc` 32).
+
+- All 160 plans exit 0, in 6.6 s to 7.8 s each.
+- **All 730 (merge, path, unit) reader classes are selected at head**: 0 left to an unknown
+  path, 0 missed, 0 units absent.
+- The five round 1 head checks are among them, and all of them are now selected. `go.mod`
+  selects 291 of 291 Go test units.
+- Later commits change only documentation.
+
+This proves the rule at head. It is not a replay row: rows 1 to 117 above stay recorded as the
+rule measured at each merge.
+
+### Selection cost
+
+- **The 117 replay merges re-planned with the head binary**, against the round 1 "after"
+  binary (`corvint-own-after`, source `c7dbf717e`), same argv and the stale retry: 117 of 117
+  exit 0.
+  - Growth per row: min 0, median 0, max 4, 27 in total (47899 to 47926 units).
+  - Units removed: 0.
+  - The historical trees carry /0 declarations, so this measures the shell rule alone.
+- **At head, the declarations' cost**: the head binary planned the 160 paths alone, once on
+  the round 1 tree `92bcaa8a1` and once on `82c556c78`.
+  - Growth per path: min 15, median 17, max 19 without `go.mod`; `go.mod` grows by 339.
+  - Units removed: 0.
+  - Added units by kind, summed over the 160 paths: 2711 driver, 199 Go and 129 other.
+
+### Evidence bindings (round 2)
+
+Under `/home/russell/lanes/r1replay-evidence/round2/` (not committed). SHA-256:
+
+- `headproof.py`: `49d2d0fbf3be1cdaa77c44d0a6f62acebdf50cee89501ba97894648994242451`;
+  `headproof-check.py`: `d6c143fa96f8fb7f9a68c66e1defbeb76990b198019f89231bdd95c65fd2eb6b`;
+  head plans `headproof/*.json`, concatenated:
+  `bc13dc8ca5c3a8cfdbe8070f315993eb5405eb02085ff3fd255b8d5b60d24829`;
+  `headproof-classes.tsv` (730 rows):
+  `e48eb2ff130163051f508b38c9a2d1bad624350faba0239f920b64368bf2b9a8`.
+- `headproof-basetree.py`: `cf528070fb6ab1151fe3e7880c55dc00894c21b86677b3d59ef2729d1e8e85da`;
+  base-tree plans, concatenated:
+  `023697dce5b6b248b27a2810860d995c232e651817ab2854610380cc6251b5d3`;
+  `selection-cost-head.txt`: `252d017e625e7ac9b0b5cb2b882d360c4564722b153a35f5dce7550c7ecbbb40`.
+- `replay-r2.py`: `4116570169e504536040ebfc101f42396a14c6bcda05487f54dff99507e3161f`;
+  head replay stdout, concatenated:
+  `7cf272b263a4b5fce47ff29dd6197f950626e1ab45ae270f7bd94bee3c96644e`;
+  `selection-cost.tsv`: `725627eb798aa879972d7840d5d6393b200d516f774203abb70a297aea1ff703`.
+- The older-binary outputs are in `oldbin/`, the mutation logs in `mutations/`, and the test
+  logs in `tests/`.
+
+## Repair round 3 2026-11-16: the review of the round 2 head
+
+The independent review of `a937ad18e` returned CHANGES_REQUIRED with six findings. The owner
+allowed this third and last round. Each code finding has a test that was written first and run
+against the round 2 code; the failing outputs are retained under `r3/`. Commits `c22c02272`
+(the frozen contract), `806101a7f` (the planner, declarations, guards and spec) and `52b6f4f8f`
+(two test literals, so that `make changed-checks` passes).
+
+### Findings and repairs
+
+1. **P1, the shell rule dropped a selection the base planner made.** The first version of
+   AZU-V0-8920 rewrote `${N:-WORD}` at the first `}` and blanked the result. For
+   `file=${1:-${ROOT:-.}/conformance/register.md}` that blanked the token
+   `/conformance/register.md`, which the lexicon had kept before the rule, so the make target
+   running the script was left out, BOUNDED, with no unknown.
+   - Repair: the word is found by brace matching. Each level's word is read the same way to a
+     depth of 8, the text with every closed default joined in place is read too, and a word
+     with no closing brace runs to the end of the text.
+   - The tokens of the blanked text are always kept, so the rule only adds tokens. A form the
+     scan misreads loses nothing; a unit over the token bound is reported unknown, as before.
+   - `TestValueWordsOnlyAddTokens_AZU_V0_8920` holds this over 346201 generated texts, balanced
+     or not. The first version of the rule fails that property on the review's own form.
+   - `TestNestedParameterDefaultsAreTokens_AZU_V0_8920` covers a nested default, a default
+     nested in the middle of a path, two levels, a nested set form, three unbalanced forms and
+     a command substitution in the word, each as a command word and in a here-document.
+   - `TestNestedParameterDefaultSelectsItsMakeTarget_AZU_V0_8920` is the review's case at the
+     planner.
+2. **P2, declared tree readers were skipped for paths they read.** `declaredTreeReaderSkips`
+   kept every path of `.corvint/unbounded-reader-exclusions.json` from the declared drivers, so
+   a new `.corvint/changes/zz.cem.json` selected none of them.
+   - Repair: the skip is removed, with no per-entry skip kept. A whole-tree reader lists every
+     tracked file, and AFP-V0-772 excludes change evidence only from the tests that locate the
+     root at run time.
+   - `TestDeclaredTreeReaderReadsExcludedPaths_AZU_V0_8922` (synthetic) and
+     `TestNewChangeEvidenceSelectsTreeReaders_AZU_V0_8922` (this repository) cover the new
+     file, a `.bak` name and the bind path.
+   - `TestSealOnlyCEMDeltaStaysBounded_V13571` kept its BOUNDED and no-unknown assertions
+     unchanged. Its list of admitted witnesses gained one case: a make target or CI job that
+     the declaration made a whole-tree reader. That is the behaviour this finding requires, not
+     an assertion bent to broken output.
+3. **P2, the frozen declaration contract described `/0` alone.** AFP-V0-2480, the
+   `corvint-dir-files` row of the compatibility table, its contract test and the refusal text
+   now agree with the code: the file has two profiles, `corvint-test-selection/0` and
+   `corvint-test-selection/2`, which differ in `treeReaders` only.
+   - A reader of /2 reads a /0 file exactly as before and refuses `treeReaders` under /0.
+   - A reader that knows only /0 refuses every /2 file, by the unknown member or by the
+     profile.
+   - `TestCMPV1003TestSelectionFileContract` covers every member of both profiles;
+     `TestCMPV1004TestSelectionProfilesAcrossReaders` tests both directions against a frozen
+     copy of the /0 reader.
+   - `docs/COMPATIBILITY.md` was regenerated with `make compatibility-table`; the capability
+     row of `corvint affected` names `treeReaders`. `make spec-requirements` reported no change.
+   - No user guide documents any member of this file; AFP-V0-2480 and the capability row are
+     the documentation (friction 3 of the round 3 handback).
+4. **P2, trailers.** The round 2 commits `16ca3bcf4`, `c394d0b1f` and `82c556c78` carry no
+   `Corvint-Ticket:` trailer and are not rewritten. The last commit of this round names them.
+5. **P3, a tested wrapper was a leaf.** `driversRunning` now follows a wrapper that has tests:
+   the dependents relation holds production edges, so its production file runs the reader.
+   Only a unit made of test files alone is a leaf.
+   - The review found no live instance. There is one: `tools/docs-ci-plan` (a Go package with
+     tests) runs `script/check-line-citations.sh`, and the `docs-plan` job of `ci.yml` runs it.
+     That job and three jobs the graph follows from it are now tree reader drivers.
+   - Following test-only units as well would mark 22 more drivers, the `*-test` targets that
+     run a checker's own shell test. The seven checker tests sampled show no run of their
+     checker on this tree, only on a temporary fixture, so test-only units stay leaves. A test
+     that does run a reader over the tree needs its own `treeReaders` entry.
+   - `TestTreeReaderFollowsTestedWrapper_AZU_V0_8922`.
+6. **P3, the whole-tree marker was narrow.** The marker is now the list `wholeTreeForms`, each
+   form held to an example by `TestWholeTreeMarkerForms_AZU_V0_8923`. It adds `git ls-tree`,
+   changed-name listings (`--name-only`, `--name-status`), recursive `grep` and `ls`, a shell
+   globstar, `os.scandir`, `os.listdir`, `glob`, `iterdir`, `fs.WalkDir`, `os.ReadDir` and
+   `Glob`. The same test lists the forms the guard cannot see, with the rule that covers each.
+   - The wider marker flagged ten more driver-run scripts. Two are now declared tree readers:
+     `script/check-host-package-versions.sh` (its scope holds ownership-rule paths) and
+     `script/github-split-check.sh` (it judges the name of every changed path).
+   - Eight are reasoned exceptions: a listing that only prints a note or a hint, a merge or
+     review-range report, a single-directory test, and one scoped to `docs/specs/**`.
+   - The guard now reads the declaration itself. Before, a declared file whose drivers an
+     earlier entry had already marked was reported undeclared.
+
+Counts at `806101a7f`: 21 declared tree readers (19 before), 54 drivers marked by the
+declaration (49 before: 4 through the tested wrapper, 1 for the host package check), 25
+guard exceptions (17 before).
+
+### Replay at the round 3 head
+
+`cmd/corvint` was built at `806101a7f02f5276c913501e44ba664cd55d6efc` with
+`GOTOOLCHAIN=local script/heavy.sh go build -o corvint-head ./cmd/corvint` (go1.27.4
+linux/amd64), SHA-256 `4c83808f08e50216812a1627fb2185ee6fa4b98e486fffdee3523fe19ff24358`.
+Planners ran at most 4 at once under `nice`; `nproc` 32, load average 0.7 at the start of the
+117 rows and 13.7 at the start of the head proof. The commits after `806101a7f` change two
+test literals and documentation only, so the binary is the planner of the final head.
+
+**The review's two cases, base against head.** Base is `corvint-own-after` (source
+`c7dbf717e`, the lane base).
+
+| Case | Binary and tree | Scope | Selected |
+|---|---|---|---|
+| 1 | base, scratch repository | BOUNDED | `Makefile#check`, `Makefile#register-check`, `shell:script/register_test.sh` |
+| 1 | round 2 head `82c556c78` | BOUNDED | `shell:script/register_test.sh` only: 2 dropped |
+| 1 | round 3 head `806101a7f` | BOUNDED | the same 3 units as base: 0 dropped, 0 added |
+| 2 | base on tree `c7dbf717e` | BOUNDED | 136 units |
+| 2 | round 2 head on tree `a937ad18e` | BOUNDED | the same 136 units |
+| 2 | round 3 head on tree `806101a7f` | BOUNDED | 154 units: 0 dropped, 18 added |
+
+- Case 1 is a scratch repository: a make target runs a script that reads
+  `${1:-${ROOT:-.}/conformance/register.md}`, an owner covers `conformance/**`, and
+  `conformance/register.md` is planned alone with `affected --no-cache --full --path`.
+- Case 2 plans a new `.corvint/changes/zz.cem.json` alone. The 18 added units are the declared
+  tree reader drivers, among them `eol-policy-check`, `binary-blobs-check`,
+  `stray-backups-check` and `tracked-ignored-check`.
+- In both cases the head selection now equals the base selection or is wider.
+
+**The 117 replay merges.** Same argv and stale retry as before, round 3 head binary against the
+"after" binary and against the round 2 head binary.
+
+- 117 of 117 exit 0; wall-clock per plan 5.1 s to 50.4 s, median 8.0 s.
+- Against base: growth per row min 0, median 0, max 4, 27 in total (47899 to 47926 units);
+  units removed 0; no row's unknown entries differ.
+- Against the round 2 head: growth 0 on every row; units removed 0. The historical trees carry
+  /0 declarations and no nested default, so the two heads plan them alike.
+
+**Head proof (not a replay row).** The 160 audited paths planned alone at the clean head
+`806101a7f`.
+
+- All 160 plans exit 0, in 6.6 s to 9.0 s each.
+- All 730 (merge, path, unit) reader classes are selected: 0 left to an unknown path, 0
+  missed, 0 units absent.
+- Against the round 2 head plans: units removed 0; growth per path min 0, median 1, max 4,
+  142 in total. 139 of the 142 are `host-package-versions-check`; the other three are
+  `agent-preflight-test`, `go-vet` and `shell-test` on one path, explained next.
+
+**Base against head on the 160 audited paths.** The base binary planned each audited path
+alone on the base tree `c7dbf717e` (160 of 160 exit 0), and each plan was compared with the
+head plans of the same path.
+
+- Units the base selected and the round 3 head does not: 0, over all 160 paths.
+- Units the base selected and the round 2 head did not: 3, on one path. For
+  `.claude/skills/corvint-lane-flow/SKILL.md` the round 2 head had dropped
+  `agent-preflight-test`, `go-vet` and `shell-test`. `script/agent-preflight.sh` reads
+  `${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}`, the same nested default as finding 1, so this was
+  a second, live instance of that defect. The round 3 head selects all three again, with the
+  script's `shell:foreign-invocation-unmodelled` unknown that the base plan also carried.
+- Growth from base to the round 3 head per path: min 16, max 340 (`go.mod`), 3314 in total.
+  This is the cost of the declarations and of the shell rule together.
+
+**An older binary.** The base binary refuses the round 3 tree: `affected --no-cache --full
+--path .corvint/changes/zz.cem.json` exits 2 with `unsupported-affected-graph`
+(`unknown object member name "treeReaders"`). It never plans without the tree readers.
+
+### Result of round 3
+
+No unit the base planner selected is dropped at head, on the 117 merges, on the 160 audited
+paths or on the review's two cases. The historical rows stay recorded as the rule measured at
+each merge. The AZU-V0-009 overall acceptance flag still stays false while the historical
+full-suite and mutation safety receipts are unavailable; that is AZU-V0-009's own promotion
+condition, not V1-4685's criterion.
+
+The CI planner pins (`CORVINT_PR_TOOL_SOURCE`, `CORVINT_TEST_SHADOW_SOURCE`) still refuse this
+tree until they move to a commit that contains the final head of this round. That `.github`
+edit is the orchestrator's, after landing.
+
+### Evidence bindings (round 3)
+
+Under `/home/russell/lanes/r1replay-evidence/r3/` (not committed). SHA-256:
+
+- `replay-r3.py`: `eded2b80deff00638b421c39dd03b0b4c98a880b3df5aff3e647c0efb61e5c0a`;
+  `compare-r3.py`: `b6fcf87e345ca3ed297e36b3d9417e9c51a150c03b6e4984bb40d0c99f777740`;
+  head replay stdout (`raw/*.head.stdout`), concatenated:
+  `baa6cd71ff948730bdff4877e21f6560ce4a171eb132e148512112272f1a105c`;
+  `selection-cost-r3.tsv` (117 rows):
+  `4c344d9d673fed3fac2f707f2c2fa5d077711c79399bb2b2af01d3ec42acb441`.
+- `headproof-r3.py`: `459cfa5bacc56d12132d030064dcf5e9bcce66b42d9e81413b4006b5c31b82e1`;
+  `headproof-check-r3.py`: `af045a9c0199c92bb8a5b39c24e3232555972886f60392f88970988289b59cf9`;
+  `headproof-compare-r3.py`: `c83715a06b785d8ad72b74202d6384728fa3fb8f8f909fcfa68f39b9121aa77e`;
+  head plans `headproof/*.json`, concatenated:
+  `92f36661e21bb903e94e88b1b409670fea66ec7612eaae20d2e36b8dbb9de942`;
+  `headproof-classes.tsv` (730 rows, byte-identical to round 2):
+  `e48eb2ff130163051f508b38c9a2d1bad624350faba0239f920b64368bf2b9a8`.
+- Case 1 plans `case1/base.json`, `case1/round2.json`, `case1/round3.json`:
+  `8a940033bca567ed9c766cbc97138f1317fef2453f30bbd57888d6697122d6d7`,
+  `d75ed86fe4c0e82188387c27a33baaa8845e814fbd0d81cbb0e6a849e3942e62`,
+  `f8c872f8e741fb2bad0e6a55be705082f28420ed6ae3b36e946682d42d6fd9d0`.
+- Case 2 plans `case2/base-on-base-tree.json`, `case2/round2-on-round2-tree.json`,
+  `case2/round3-on-round3-tree.json`:
+  `87bab1094a925ed13c89d8a125e436aeedaccbc3858a02b4251364f86929044a`,
+  `bf0409778c281e289b2413dc445d169c99dbd8b311d5ffbfe66f174f9864a6a5`,
+  `85f0799fbad3fc768c00919f715803fbe454b92092f3f7472c8a5ef282606f51`;
+  the older-binary refusal `case2/base-on-round3-tree.err`:
+  `5f6c8b751f88be71b681c3e89e1046311f0c91843c1a696197e678f81693d8a0`.
+- `baseproof-r3.py`: `b942ab42dc0dc6bf254deb5a7e2fa991d04c673eb564bb50946754dbab0bcce5`;
+  `baseproof-compare-r3.py`: `31dfa231a03c8da7ad355fa7f6820e9290971b0fefbe904d92242bba9cdcea79`;
+  base plans `baseproof/*.json`, concatenated:
+  `8443f6e670ede03305535d1946db8bbf7a967cff5d1a55af7cdb4f9d0f201f9d`;
+  `baseproof-compare.txt`: `09e440faadf4ccdc810585ec1064b552aedb6c36d0a29d3b2ee37f93c02dee0f`.
+- The failing-first outputs are `f1-`, `f2-`, `f3-`, `f5-` and `f6-*.log`; the whole-package
+  test logs are in `tests/`.
