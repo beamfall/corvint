@@ -48,7 +48,7 @@
         "type": "source",
         "path": "cmd/corvint-js-test-provider/main.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "235f75655a6347bdb3e4ee83e5e9a3bd0257a2da"
     },
     {
       "from": "js-session",

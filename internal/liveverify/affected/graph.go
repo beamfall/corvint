@@ -122,6 +122,9 @@ type Graph struct {
 	testSelection *testSelection
 	ownerUnits    map[string][]string
 	mustRun       []MustRun
+	// treeReaderDrivers maps each driver unit a declared whole-tree reader
+	// made one to the first declared file it runs (AZU-V0-8922).
+	treeReaderDrivers map[string]string
 	// unobserved maps each plugin to the directories it owns but builds no
 	// unit for (AFP-V0-191), each list sorted.
 	unobserved map[string][]string

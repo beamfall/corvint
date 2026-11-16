@@ -68,11 +68,18 @@ func run(arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return runContext(context.Background(), arguments, stdin, stdout, stderr)
 }
 
-// runContext dispatches one invocation. The corpus join runs first because its
-// `--corpus=FILE` precedes the core read's own verb; help next, so a `--help`
-// anywhere after the verb is never parsed as an option; then each docs parser
-// claims its verb exactly as the core's dispatcher did.
+// runContext dispatches one invocation. After the docs pages names resolve, the corpus join
+// runs first because its `--corpus=FILE` precedes the core read's own verb; help next, so a
+// `--help` anywhere after the verb is never parsed as an option; then each docs parser claims
+// its verb exactly as the core's dispatcher did.
 func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	// AFL-V1-008: `docs pages VERB` runs the handler its old spelling names, and an old spelling
+	// prints its alias notice and runs unchanged.
+	arguments, err := resolveDocsPages(arguments, stderr)
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
 	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {
 		return exit
 	}

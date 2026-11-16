@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
-	"github.com/Beamfall/corvint/internal/diagnostic"
 )
 
 // flowsHelp is the `flows` topic: the application-flow group this binary took over from corvint
@@ -28,20 +27,10 @@ The separate corvint-web-flows companion parses JS/TS and optionally observes an
 explicitly trusted local app. Its proposed execution profile remains experimental.
 record explicitly writes one screened private evidence file and refuses overwrite;
 it does not update ranking or accept inferred intent. No automatic ledger is written.
-` + flowscmd.IntentHelp + flowscmd.NavigateHelp + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp + flowscmd.RequestPathHelp + flowscmd.TestEvidenceHelp
+` + flowscmd.IntentHelp + flowscmd.NavigateHelp + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp + flowscmd.RequestPathHelp + flowscmd.TestEvidenceHelp + flowscmd.MovedReportsHelp
 
-// flowsEnv hands the flows handlers this binary's JSON error envelope and the affected-revision
-// refusal corvint gives a --base that names no commit.
-var flowsEnv = flowscmd.Env{EmitError: emitError, BaseRefusal: affectedBaseRefusal}
-
-// affectedBaseRefusal is corvint's refusal of the same name, byte for byte, so `flows impact
-// --base` refuses identically through either binary (CMS-V0-912).
-func affectedBaseRefusal(base string) error {
-	return refused("unsupported-affected-revision", "base "+base+" is not a commit in this repository", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "value", Value: base},
-		SupportedFixes: []string{"affected.use-commit-base", "affected.omit-base"},
-	})
-}
+// flowsEnv hands the flows handlers this binary's JSON error envelope.
+var flowsEnv = flowscmd.Env{EmitError: emitError}
 
 // flowInvocation claims `[--root PATH] flows ARGS` and `[--root PATH] how ARGS`, returning the
 // root and the flows arguments; `how` is `flows appmap how` (SKH-V0-810).

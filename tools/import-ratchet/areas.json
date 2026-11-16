@@ -138,6 +138,7 @@
         "internal/appflows/e2erunner",
         "internal/browsercov",
         "internal/csharpregions",
+        "internal/flowreports",
         "internal/gateselect",
         "internal/gotestrun",
         "internal/jobinputs",

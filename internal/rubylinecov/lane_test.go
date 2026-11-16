@@ -153,3 +153,57 @@ func TestLoadedEvalAndNewTestFallback(t *testing.T) {
 		t.Fatal("new head test omitted")
 	}
 }
+
+// LPCV-V0-7609: a required file outside the root is compiled without
+// coverage, so a test sees no counters of the framework it loaded, while the
+// repository's own lines are still recorded.
+func TestCollectorSkipsOutsideFiles(t *testing.T) {
+	requireRuby(t, "minitest")
+	root := laneProject(t, "require 'minitest/autorun'\nrequire_relative '../lib/helper'\nclass LaneTest < Minitest::Test\n def test_outside; assert_equal 1, helper; assert Coverage.peek_result.keys.none? { |k| k.include?('/minitest') }, Coverage.peek_result.keys.grep(/minitest/).first(3).inspect; end\nend\n", "lib/helper.rb", "def helper\n  1\nend\n")
+	run, err := Collect(context.Background(), Options{Root: root, Work: t.TempDir(), Argv: []string{"ruby", "test/case_test.rb"}, Timeout: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Outcomes) != 1 || !run.Outcomes[0].Recorded {
+		t.Fatalf("outcomes %+v", run.Outcomes)
+	}
+	head := git(t, root, "rev-parse", "HEAD")
+	oids, err := linecov.OIDs(context.Background(), root, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix, err := Index(".", head, run, oids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := lineTests(ix, "lib/helper.rb", 2); got != "LaneTest#test_outside" {
+		t.Fatalf("repository line recorded for %q", got)
+	}
+}
+
+// LPCV-V0-7609: a fork whose child completes its dump is observed: the test
+// keeps its record and gains the child's reach; an abrupt child stays
+// uninstrumented (TestIsolationAndChildren).
+func TestObservedFork(t *testing.T) {
+	requireRuby(t, "minitest")
+	root := laneProject(t, "require 'minitest/autorun'\nrequire_relative '../lib/helper'\nclass LaneTest < Minitest::Test\n def test_fork; pid = fork { helper }; Process.wait(pid); assert $?.success?; end\nend\n", "lib/helper.rb", "def helper\n  1\nend\n")
+	run, err := Collect(context.Background(), Options{Root: root, Work: t.TempDir(), Argv: []string{"ruby", "test/case_test.rb"}, Timeout: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Outcomes) != 1 || !run.Outcomes[0].Recorded {
+		t.Fatalf("outcomes %+v", run.Outcomes)
+	}
+	head := git(t, root, "rev-parse", "HEAD")
+	oids, err := linecov.OIDs(context.Background(), root, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix, err := Index(".", head, run, oids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := lineTests(ix, "lib/helper.rb", 2); got != "LaneTest#test_fork" {
+		t.Fatalf("the child's line is recorded for %q", got)
+	}
+}

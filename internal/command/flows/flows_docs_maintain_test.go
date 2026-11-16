@@ -272,7 +272,7 @@ func TestFlowDocMaintenanceCLIGuards(t *testing.T) {
 	shopWrite(t, fx.root, map[string]string{"docs/guide.md": "# Authored companion\n"})
 	shopCommit(t, fx.root, "companion")
 	page := filepath.Join(fx.root, "docs/flows.md")
-	const mode = "flows docs maintain needs --preview or --apply --expected-proposal SHA256"
+	const mode = "docs pages flow-maintain needs --preview or --apply --expected-proposal SHA256"
 	for _, extra := range [][]string{{"--preview", "--apply"}, {"--apply"}, {"--preview", "--check"}, {"--preview", "--check", "--waivers", "w.json"}, {"--preview", "--expected-proposal", strings.Repeat("0", 64)}} {
 		if code, _, diagnostic := runFlowsCLI(fx.root, append(maintenanceArgs(), extra...)...); code == 0 || !strings.Contains(diagnostic, mode) {
 			t.Fatalf("maintain %v accepted %d %q", extra, code, diagnostic)
@@ -281,7 +281,7 @@ func TestFlowDocMaintenanceCLIGuards(t *testing.T) {
 	plain := []string{"docs", "--flows", "flows", "--page", "docs/flows.md", "--claims", "docs/claims.json"}
 	for _, extra := range [][]string{{"--preview"}, {"--apply"}, {"--expected-proposal", strings.Repeat("0", 64)}, {"--receipt", "docs/receipt.json"}, {"--adopt"}} {
 		code, _, diagnostic := runFlowsCLI(fx.root, append(slices.Clone(plain), extra...)...)
-		if code == 0 || !strings.Contains(diagnostic, "maintenance flags require flows docs maintain") {
+		if code == 0 || !strings.Contains(diagnostic, "maintenance flags require docs pages flow-maintain") {
 			t.Fatalf("plain docs %v accepted %d %q", extra, code, diagnostic)
 		}
 		if _, err := os.Lstat(page); !os.IsNotExist(err) {

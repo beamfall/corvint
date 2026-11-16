@@ -210,6 +210,10 @@
           "name": "TestCMPV1003TestSelectionFileContract"
         },
         {
+          "package": "./internal/liveverify/affected",
+          "name": "TestCMPV1004TestSelectionProfilesAcrossReaders"
+        },
+        {
           "package": "./internal/jobinputs",
           "name": "TestCMPV1003CIJobInputsFileContract"
         },
@@ -218,7 +222,7 @@
           "name": "TestCMPV1003WorkspaceFileContract"
         }
       ],
-      "notes": "The project files the user guides document: `test-selection.json` (`corvint-test-selection/0`), `ci-job-inputs.json` (`corvint-ci-job-inputs/0`) and `workspace.json` (`corvint-workspace/0`); `flows.json` has its own row. Change evidence maps follow the CEM specs, and the index, the ledgers and this repository's own development declarations have no row."
+      "notes": "The project files the user guides document: `test-selection.json` (`corvint-test-selection/0`, or `corvint-test-selection/2` when it also declares `treeReaders`; AFP-V0-2480 says what a reader of each does with the other), `ci-job-inputs.json` (`corvint-ci-job-inputs/0`) and `workspace.json` (`corvint-workspace/0`); `flows.json` has its own row. Change evidence maps follow the CEM specs, and the index, the ledgers and this repository's own development declarations have no row."
     },
     {
       "id": "tasks-store-files",

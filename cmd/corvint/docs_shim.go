@@ -31,10 +31,11 @@ tools its MCP server serves in process. This group and a --corpus=FILE [--corpus
 option before impact, affected, context or test-validity run the corvint-docs executable
 beside corvint or on PATH with the same arguments, pass it no authority, and print its
 bytes. When it is absent the shim refuses with code not-installed and names the
-NOT_INSTALLED gap. The subcommands (nav, draft, consume, citations, corpus, maintain,
-flows), their options and their help are corvint-docs's own: see corvint-docs help docs
-and corvint-docs help --json. corvint-docs docs SUBCOMMAND... --help prints one subcommand's
-usage and flags, for example corvint-docs docs flows generate --help (AFU-V1-111).
+NOT_INSTALLED gap. The subcommands (nav, draft, consume, citations, corpus, pages, and the
+old spellings maintain and flows), their options and their help are corvint-docs's own: see
+corvint-docs help docs and corvint-docs help --json. corvint-docs docs SUBCOMMAND... --help
+prints one subcommand's usage and flags, for example corvint-docs docs pages generate --help
+(AFU-V1-111, AFL-V1-008).
 Maturity: experimental.
 
 Example:

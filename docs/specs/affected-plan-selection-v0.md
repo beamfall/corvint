@@ -788,9 +788,11 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   the cone (AFP-V0-821), and in a `--path` plan, whose paths are probes rather than changes; the
   compact form carries the same list. Selection is unchanged.
 - **AFP-V0-2480:** (experimental under the owner's standing lane auto-accept (2026-10-11);
-  V1-2662, V1-1184) A repository MAY declare test ownership in `.corvint/test-selection.json`, a
-  closed JSON object of at most 64 KiB with profile `corvint-test-selection/0`, an optional
-  `owners` list and an optional `mustRun` list. An owner is `{"paths": PATTERN, "tests": [TEST,
+  V1-2662, V1-1184; the second profile added by V1-4685, 2026-11-16) A repository MAY declare
+  test ownership in `.corvint/test-selection.json`, a closed JSON object of at most 64 KiB whose
+  profile is `corvint-test-selection/0` or `corvint-test-selection/2`, with an optional `owners`
+  list, an optional `mustRun` list and, under `corvint-test-selection/2` only, an optional
+  `treeReaders` list (AZU-V0-8921). An owner is `{"paths": PATTERN, "tests": [TEST,
   ...]}` with 1 to 16 tests; a must-run entry is `{"tests": TEST, "reason": TEXT}`. There are at
   most 256 owners and 256 must-run entries; owners are strictly ascending by `paths`, each owner's
   tests strictly ascending, and must-run entries strictly ascending by `tests`. A TEST is a
@@ -803,6 +805,25 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   member. Its entries are part of the graph digest only when present, so graphs without it keep
   their digest, and of the graph cache entry. When the declaration itself is a dirty path no unit
   names, it is a `CORVINT_DECLARATION` (AFP-V0-443).
+  The two profiles differ in `treeReaders` and in nothing else. A `corvint-test-selection/2` file
+  without `treeReaders` declares what the `corvint-test-selection/0` file with the same owners
+  and must-run entries declares, to the same graph digest. What each reader does with the other
+  profile's file:
+  - A reader that knows `corvint-test-selection/2` (this requirement as amended) SHALL read a
+    `corvint-test-selection/0` file exactly as a reader that knows only that profile reads it.
+    It SHALL refuse a `corvint-test-selection/0` file that carries `treeReaders`, even an empty
+    list, saying that the member needs `corvint-test-selection/2`.
+  - A reader that knows only `corvint-test-selection/0` (every planner built before the second
+    profile) refuses every `corvint-test-selection/2` file: one with `treeReaders` by its
+    unknown member, one without by its profile. `corvint affected` then exits 2 with
+    `unsupported-affected-graph`, so that planner never plans a tree as if its declaration named
+    no whole-tree reader.
+  - Either reader refuses any other profile; the reader of both names both in the refusal.
+  A project therefore moves its file to `corvint-test-selection/2` only when it declares tree
+  readers, and only once every planner that reads the tree, a pinned CI planner included, reads
+  that profile. This is a change by addition under CMP-V1-004: no `corvint-test-selection/0`
+  file changes its meaning, and CMP-V1-006 holds because no label is renamed. The value skips
+  `/1`, the version of the runner's selection expectation (TRE-V0-021), a different object.
 - **AFP-V0-2481:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-2662) An owner's PATTERN is at most 256 bytes of `/`-separated segments, with no leading or
   trailing `/` and no empty, `.` or `..` segment. A segment that is exactly `**` matches zero or
@@ -4289,7 +4310,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-2246 | Withdrawn: canonicalization helpers removed; `tempRoots` and `pathTokens` in `internal/liveverify/affected/shell/shell.go` retain the pre-canonicalization rule | `TestTempRootPathsAreNoTokens_AFPV02204` (all canonical cases kept; literal temp-root controls unchanged); `TestCanonicalizationCounterexamplesStaySelected_AFPV02246` (all five review classes and sub-cases, standalone `set -T`, direct and assigned derived paths, shell variants) |
 | AFP-V0-2247 | `Impact` and `StaticLoad` in `internal/webdialect/webdialect.go`; `flowWebCodeLines` in `internal/contextindex/flowlexical.go` and the registration in `dialect_hooks.go`; the TypeScript plugin's paths in `internal/langplugin` and `internal/langplugin/decl`; the Tasks export prefix in `internal/companionrelease/export.go` | `TestImpactProfileIsUnchanged_AFPV02247` in `internal/webdialect/webdialect_test.go`; the unchanged `internal/contextindex` and `internal/langplugin` suites; the contextindex replay in the build log |
 | AFP-V0-10329 | `exercisingUnits`, `fixtureSegments` and `fixtureTest` in `resolveTestSelection`, `internal/liveverify/affected/testselection.go`; `OwnerPatternMatches`; the rows of `.corvint/test-selection.json` that name their exercising tests (`extensions/vscode/**`, `tools/web-flows/**`, the Go conformance suites, `.github/cishards/**`, `benchmarks/**`, `internal/capcatalog/**`) and the split `script/*` and `conformance/ruby-profile-v0/*` rows | `TestOwnerSelectsExercisingTests_AFPV010329` in `internal/liveverify/affected/testselection_test.go`; `TestRepositoryOwnerRowsNameExercisingTests_AFPV010329` in `internal/liveverify/affected/ownership_rows_repo_test.go`; probe plans in `docs/build-log/2026-11-09-e2ejoin.md` |
-| AFP-V0-2480 | `DeclaredSelectionPath`, `readTestSelection`, `validTestSelectionReason` in `internal/liveverify/affected/testselection.go`; the `testSelection` member of `declarations`, `digestBody` and `Canonical` (`graph.go`) and of `cacheEntry` (`graphcache.go`); the declaration list of `declarationPath` (`documentation.go`) | `TestTestSelectionDeclarationGrammar_AFPV02480` in `internal/liveverify/affected/testselection_test.go` |
+| AFP-V0-2480 | `DeclaredSelectionPath`, `readTestSelection`, `validTestSelectionReason` in `internal/liveverify/affected/testselection.go`; the `testSelection` member of `declarations`, `digestBody` and `Canonical` (`graph.go`) and of `cacheEntry` (`graphcache.go`); the declaration list of `declarationPath` (`documentation.go`) | `TestTestSelectionDeclarationGrammar_AFPV02480` in `internal/liveverify/affected/testselection_test.go`; both profiles and both reader directions: `TestCMPV1003TestSelectionFileContract`, `TestCMPV1004TestSelectionProfilesAcrossReaders` in `internal/liveverify/affected/testselection_contract_test.go` |
 | AFP-V0-2481 | `validOwnerPattern`, `ownerPatternMatches` in `internal/liveverify/affected/testselection.go` | `TestOwnerPatternGrammar_AFPV02481` |
 | AFP-V0-2482 | `ownersOf` (called at the end of `reach`), `ownedPaths` (called in `selectPlan`), `WitnessDeclaredTestOwner`, `ClassDeclaredTestOwner`; `terminalWitness` in `select.go` | `TestDeclaredOwnerSelectsItsTests_AFPV02482` (the `docs/contracts/**/*.json` example; negative controls: an unmatched path, an `UNINDEXED_SOURCE_PATH`); `TestDeclaredTestOwnersWithoutDeclaration_AFPV02482` |
 | AFP-V0-2488 | `frontierNonSource` in `selectPlan` (`select.go`), which passes `frontierUnknowns` the `nonSource` groups without the `DECLARED_TEST_OWNER` group | `TestOwnerKeepsFrontierUnknowns_AFPV02488` in `internal/liveverify/affected/testselection_test.go` (two frontier-bearing plugins; negative control without an owner; fault injection: passing the owned group makes the plan `BOUNDED` with the ts frontier excluded) |

@@ -1,12 +1,13 @@
 # Source-derived application flow documentation
 
-`docs flows` generates source observations with `generated` trust. It does not execute an application
+`docs pages generate` (formerly `docs flows generate`, an alias until the next release; AFL-V1-008)
+generates source observations with `generated` trust. It does not execute an application
 or accept intent. Existing accepted-outcome AFU documentation keeps its separate PROVEN/UNPROVEN rules.
 
 ```sh
-corvint --root /path/to/repo docs flows generate \
+corvint --root /path/to/repo docs pages generate \
   --revision FULL_SOURCE_SHA --scope app --output-dir /existing/parent/fresh-output
-corvint --root /path/to/repo docs flows check \
+corvint --root /path/to/repo docs pages check \
   --revision FULL_LATER_SHA --previous /existing/parent/fresh-output/generation.json \
   --output-dir /existing/parent/fresh-output
 ```
@@ -67,7 +68,7 @@ Generate at immutable source commit A. Explicitly retain `provider.json` in the 
 it at B under the project's normal approval policy. Do not rewrite its source anchors to B.
 
 ```sh
-corvint --root /path/to/repo docs flows finalize \
+corvint --root /path/to/repo docs pages finalize \
   --previous /existing/parent/fresh-output/generation.json \
   --provider-revision FULL_PROVIDER_SHA --provider-path evidence/flowdocs-provider.json \
   > /existing/parent/corpus-manifest.json

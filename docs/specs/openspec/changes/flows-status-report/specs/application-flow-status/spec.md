@@ -64,7 +64,10 @@ MUST write nothing, and MUST be byte-identical for identical inputs.
 ### Requirement: AFL-V1-006 Invalid input is refused whole
 
 Source: G5, invariant 2. A malformed, oversized or unknown-profile flow file, receipt or evidence
-file MUST produce a typed refusal with exit 2 and MUST NOT produce a partial report.
+file the command names MUST produce a typed refusal with exit 2 and MUST NOT produce a partial
+report. A record read from the run evidence store is not such input: whatever its bytes, a stored
+record the report cannot read is skipped and named under RVD-V1-010, and the report exits 0 (owner
+ruling 2026-11-16).
 
 #### Scenario: Unknown flow file version
 

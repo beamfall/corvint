@@ -2,16 +2,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/jslinecov"
@@ -26,7 +30,10 @@ func languageCollect(language string, args []string) error {
 	root := fs.String("root", ".", "clean repository root (required)")
 	out := fs.String("out", "", "output index (required)")
 	command := fs.String("command", "", "Ruby suite argv as a JSON array (required for ruby)")
-	parallel := fs.Int("parallel", 1, "parallel isolated JavaScript runs")
+	parallel := fs.Int("parallel", 1, "parallel isolated runs (JavaScript and Ruby)")
+	state := fs.String("state", "", "Ruby: persistent collection directory a rerun resumes from (LPCV-V0-7609)")
+	budget := fs.Duration("budget", 0, "Ruby: stop launching isolated runs after this; exit 3 with the retained count")
+	env := fs.String("env", "", "Ruby: comma-separated environment variables the suite depends on (NO_CONNECTION); -state binds their values beside the Ruby and gem environment and refuses a resume under another")
 	family := fs.String("runner", "node-test", "JavaScript runner family")
 	exe := fs.String("executable", "", "absolute JavaScript runner executable (required for js)")
 	files := fs.String("files", "", "comma-separated JavaScript test files (required for js)")
@@ -34,7 +41,7 @@ func languageCollect(language string, args []string) error {
 	timeout := fs.Duration("timeout", 2*time.Minute, "isolated process deadline")
 	suite := fs.Duration("suite-timeout", 10*time.Minute, "in-order suite deadline")
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "Usage: linecov %s-collect -root DIR -out INDEX [flags]\nExample: linecov ruby-collect -root . -out /tmp/ruby.idx -command '[\"ruby\",\"-Itest\",\"test/all.rb\"]'\nExample: linecov js-collect -root . -out /tmp/js.idx -runner node-test -executable /usr/bin/node -files test/a.test.js\n", language)
+		fmt.Fprintf(fs.Output(), "Usage: linecov %s-collect -root DIR -out INDEX [flags]\nExample: linecov ruby-collect -root . -out /tmp/ruby.idx -command '[\"ruby\",\"-Itest\",\"test/all.rb\"]'\nExample: linecov ruby-collect -root . -out /tmp/ruby.idx -state /tmp/ruby-state -parallel 4 -budget 8m -env NO_CONNECTION -command '[\"bundle\",\"exec\",\"rspec\"]'\nExample: linecov js-collect -root . -out /tmp/js.idx -runner node-test -executable /usr/bin/node -files test/a.test.js\n", language)
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -72,7 +79,7 @@ func languageCollect(language string, args []string) error {
 		if err = json.Unmarshal([]byte(*command), &argv); err != nil || len(argv) == 0 {
 			return errors.New("ruby-collect: -command must be a nonempty JSON argv array")
 		}
-		run, err := rubylinecov.Collect(ctx, rubylinecov.Options{Root: *root, Work: work, Argv: argv, Timeout: *suite, IsolatedTimeout: *timeout})
+		run, err := rubylinecov.Collect(ctx, rubylinecov.Options{Root: *root, Work: work, Argv: argv, Timeout: *suite, IsolatedTimeout: *timeout, State: *state, Parallel: *parallel, Budget: *budget, Env: split(*env)})
 		if err != nil {
 			return err
 		}
@@ -128,14 +135,22 @@ func languageCollect(language string, args []string) error {
 }
 
 // LanguagePlan retains both the candidate and effective decisions. Until the
-// runner's external fault qualification is admitted, candidate exclusions are
-// shadow observations; effective execution always keeps the static files.
+// runner's fault qualification is admitted, candidate exclusions are shadow
+// observations and effective execution keeps the static files; an admitted
+// Ruby family executes its line-level candidate (LPCV-V0-7605, LPCV-V0-7608).
 type LanguagePlan struct {
-	RecordedTests                              map[string][]string
-	Index, Base, Head, Language                string
-	Scope                                      string
-	GateEligible                               bool
-	Reason                                     string
+	RecordedTests               map[string][]string
+	Index, Base, Head, Language string
+	Runner                      string // the index runner identity admission checks
+	// Unordered names the files the index keeps whole whatever the change
+	// (a test without an isolated record, LPCV-V0-962).
+	Unordered    []string
+	Scope        string
+	GateEligible bool
+	Reason       string
+	// Admission is the Ruby admission outcome: "admitted" or the refusal.
+	// Fallback is the candidate's static-fallback reason, if any.
+	Admission, Fallback                        string `json:",omitempty"`
 	Candidate, Effective                       map[string]linecov.PackagePlan
 	CoverageSelected, StaticFallback, Excluded int
 	ElapsedMS                                  int64
@@ -147,8 +162,11 @@ func languageSelect(language string, args []string) error {
 	index := fs.String("index", "", "collected index (required)")
 	base := fs.String("base", "", "full change base commit (required)")
 	files := fs.String("files", "", "comma-separated static test files (default tracked test files)")
+	var opts selectOptions
+	fs.StringVar(&opts.selectorRoot, "selector-root", "", "Ruby: Corvint checkout holding this executable's revision and its Ruby qualification record (LPCV-V0-7608)")
+	fs.StringVar(&opts.ruby, "ruby", "ruby", "Ruby: interpreter of the index's Ruby version for the syntax check of changed files")
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "Usage: linecov %s-select -root DIR -index INDEX -base FULL_SHA [-files a,b]\nExample: linecov %s-select -root . -index /tmp/tests.idx -base FULL_SHA\nOutput: user-scoped candidate and full static effective plan; unqualified exclusions never close a gate.\n", language, language)
+		fmt.Fprintf(fs.Output(), "Usage: linecov %s-select -root DIR -index INDEX -base FULL_SHA [-files a,b] [-selector-root CORVINT_DIR] [-ruby PATH]\nExample: linecov %s-select -root . -index /tmp/tests.idx -base FULL_SHA\nExample: linecov ruby-select -root . -index /tmp/ruby.idx -base FULL_SHA -selector-root ~/corvint\nOutput: user-scoped candidate and effective plan; the effective plan stays the static suite unless a passing Ruby qualification record admits the family.\n", language, language)
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -166,7 +184,7 @@ func languageSelect(language string, args []string) error {
 	if err != nil {
 		return err
 	}
-	p, err := languageDecide(context.Background(), *root, ix, language, *base, split(*files))
+	p, err := languageDecide(context.Background(), *root, ix, language, *base, split(*files), opts)
 	if err != nil {
 		return err
 	}
@@ -175,13 +193,71 @@ func languageSelect(language string, args []string) error {
 	return enc.Encode(p)
 }
 
-func languageDecide(ctx context.Context, root string, ix *linecov.Index, language, base string, static []string) (LanguagePlan, error) {
+// selectOptions configures Ruby admission and its syntax check.
+type selectOptions struct {
+	selectorRoot, ruby string
+}
+
+// rubyAdmit is the LPCV-V0-7608 admission of this executable; tests replace it.
+var rubyAdmit = func(ctx context.Context, selectorRoot, runner string) error {
+	info, _ := debug.ReadBuildInfo()
+	return linecov.CheckRubyQualification(ctx, selectorRoot, runner, info)
+}
+
+// rubySyntax returns the check that a changed source parses under the
+// index's Ruby (`ruby -c`), or nil without an interpreter. An interpreter of
+// another version than the index runner's fails every check.
+func rubySyntax(ctx context.Context, ruby, runner string) func(string, []byte) error {
+	if ruby == "" {
+		return nil
+	}
+	var once sync.Once
+	var versionErr error
+	env := withoutRubyCollector(os.Environ())
+	return func(path string, src []byte) error {
+		once.Do(func() {
+			cmd := exec.CommandContext(ctx, ruby, "-e", "print RUBY_VERSION")
+			cmd.Env = env
+			out, err := cmd.Output()
+			want := strings.Fields(runner)
+			switch {
+			case err != nil:
+				versionErr = fmt.Errorf("ruby %s unavailable: %v", ruby, err)
+			case len(want) < 2 || want[0] != "ruby" || want[1] != string(out):
+				versionErr = fmt.Errorf("syntax checker runs Ruby %s, the index runner is %q", out, runner)
+			}
+		})
+		if versionErr != nil {
+			return versionErr
+		}
+		cmd := exec.CommandContext(ctx, ruby, "-c", "-")
+		cmd.Env = env
+		cmd.Stdin = bytes.NewReader(src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("%s", firstLine(strings.TrimSpace(string(out))))
+		}
+		return nil
+	}
+}
+
+func withoutRubyCollector(env []string) []string {
+	var out []string
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, "RUBYOPT=") && !strings.HasPrefix(kv, "CORVINT_LINECOV_") {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+func languageDecide(ctx context.Context, root string, ix *linecov.Index, language, base string, static []string, opts selectOptions) (LanguagePlan, error) {
 	start := time.Now()
 	head, err := output(root, "git", "rev-parse", "HEAD")
 	if err != nil {
 		return LanguagePlan{}, err
 	}
-	p := LanguagePlan{Index: ix.Commit, Base: base, Head: head, Language: language, Scope: "user", Reason: "coverage-collector-unqualified", Effective: map[string]linecov.PackagePlan{}}
+	p := LanguagePlan{Index: ix.Commit, Base: base, Head: head, Language: language, Runner: ix.Runner, Unordered: ix.Unordered, Scope: "user", Reason: "coverage-collector-unqualified", Effective: map[string]linecov.PackagePlan{}}
 	if static == nil {
 		tracked, err := output(root, "git", "ls-files")
 		if err != nil {
@@ -210,8 +286,9 @@ func languageDecide(ctx context.Context, root string, ix *linecov.Index, languag
 	var drift, change linecov.Effect
 	switch language {
 	case "ruby":
-		drift = rubylinecov.Analyze(ix, driftDiff)
-		change = rubylinecov.Analyze(ix, diff)
+		check := rubySyntax(ctx, opts.ruby, ix.Runner)
+		drift = rubylinecov.AnalyzeLines(ix, driftDiff, rubylinecov.Sources{Old: linecov.Reader(ctx, root, ix.Commit), New: linecov.Reader(ctx, root, base), Check: check})
+		change = rubylinecov.AnalyzeLines(ix, diff, rubylinecov.Sources{Old: linecov.Reader(ctx, root, base), New: linecov.Reader(ctx, root, head), Check: check})
 	case "js":
 		drift = jslinecov.Analyze(ix, driftDiff, linecov.Reader(ctx, root, ix.Commit))
 		change = jslinecov.Analyze(ix, diff, linecov.Reader(ctx, root, base))
@@ -235,7 +312,18 @@ func languageDecide(ctx context.Context, root string, ix *linecov.Index, languag
 		change.Fallback = "checkout is not clean"
 	}
 	p.RecordedTests = heads
-	p.Candidate, _ = ix.Narrow(nil, static, heads, drift, change) // a candidate: no environment binding
+	p.Candidate, p.Fallback = ix.Narrow(nil, static, heads, drift, change) // a candidate: no environment binding
+	admitted := false
+	if language == "ruby" {
+		// The family is admitted only by a passing record for this executable
+		// and the index's runner; any refusal keeps the static plan.
+		if err := rubyAdmit(ctx, opts.selectorRoot, ix.Runner); err != nil {
+			p.Admission = err.Error()
+		} else {
+			admitted, p.Admission = true, "admitted"
+			p.Reason, p.GateEligible = "coverage-qualified", true
+		}
+	}
 	for _, f := range static {
 		pp := p.Candidate[f]
 		if len(heads[f]) == 0 {
@@ -244,6 +332,9 @@ func languageDecide(ctx context.Context, root string, ix *linecov.Index, languag
 		}
 		countDecision(&p, pp, heads[f])
 		p.Effective[f] = linecov.PackagePlan{Mode: linecov.Whole}
+		if admitted {
+			p.Effective[f] = pp
+		}
 	}
 	p.ElapsedMS = time.Since(start).Milliseconds()
 	return p, nil

@@ -402,7 +402,7 @@ func Open(ctx context.Context, root string, raw []byte) (*Result, error) {
 		return nil, fail("invalid closed generation manifest")
 	}
 	if m.Schema == Schema && predecessorVersions[m.Version] {
-		return nil, &doccorpus.Error{Code: StaleGeneratorCode, Message: "generation manifest was written by flow-docs generator version " + m.Version + "; regenerate it with docs flows generate (generator version " + Version + ") before check or finalize"}
+		return nil, &doccorpus.Error{Code: StaleGeneratorCode, Message: "generation manifest was written by flow-docs generator version " + m.Version + "; regenerate it with docs pages generate (generator version " + Version + ") before check or finalize"}
 	}
 	if m.Schema != Schema || m.Version != Version {
 		return nil, fail("unsupported generator version")

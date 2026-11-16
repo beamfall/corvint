@@ -624,6 +624,7 @@
       "internal/extevidence/",
       "internal/flowcoverage/",
       "internal/flowdocs/",
+      "internal/flowreports/",
       "internal/gateselect/",
       "internal/genesis/",
       "internal/gitancestry/",
@@ -969,6 +970,7 @@
       "internal/extevidence/",
       "internal/flowcoverage/",
       "internal/flowdocs/",
+      "internal/flowreports/",
       "internal/gateselect/",
       "internal/genesis/",
       "internal/gitancestry/",
@@ -1426,6 +1428,7 @@
     ],
     "internal/flowcoverage": [],
     "internal/flowdocs": [],
+    "internal/flowreports": [],
     "internal/gateselect": [],
     "internal/genesis": [],
     "internal/gitprobe": [],
@@ -1515,6 +1518,7 @@
       "internal/extevidence/",
       "internal/flowcoverage/",
       "internal/flowdocs/",
+      "internal/flowreports/",
       "internal/gateselect/",
       "internal/genesis/",
       "internal/gitancestry/",
@@ -1761,6 +1765,7 @@
       "internal/extevidence/",
       "internal/flowcoverage/",
       "internal/flowdocs/",
+      "internal/flowreports/",
       "internal/gateselect/",
       "internal/genesis/",
       "internal/gitancestry/",
@@ -2204,6 +2209,7 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/linecov": [
+      ".github/linecov/ruby-qualification.json",
       ".github/workflows/ci.yml"
     ],
     "tools/merge-drivers": [
