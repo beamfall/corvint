@@ -152,7 +152,7 @@ func TestAFPV0170RecordNeedsEveryShardFullUnderAMetVerdict(t *testing.T) {
 	}
 	var all []string
 	for i, o := range outs {
-		want := fmt.Sprintf("${{ strategy.job-index == %d && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}", i)
+		want := fmt.Sprintf("${{ strategy.job-index == %d && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}", i)
 		if o[1] != fmt.Sprintf("full%d", i) || o[2] != want {
 			t.Errorf("output %s: %s, want full%d: %s", o[1], o[2], i, want)
 		}
