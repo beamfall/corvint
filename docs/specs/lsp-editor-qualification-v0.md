@@ -1,5 +1,7 @@
 # LSP editor qualification tooling V0
 
+Health: KEEP
+
 - Owner: Russell Lewis
 - Date: 2026-09-29
 - Intent status: proposed experimental tooling; owner selected VS Code and Neovim

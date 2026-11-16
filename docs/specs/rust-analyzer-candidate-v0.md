@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-29
 Intent status: accepted
 Delivery status: deferred
+Health: KEEP
 Disposition: deferred by decision 0132; return only with an accepted qualification-and-launch profile.
 Authoritative inputs: `AGENTS.md`, `docs/specs/analyzer-capability-contract-v0.md`, and `docs/specs/analyzer-candidate-profiles.md`.
 

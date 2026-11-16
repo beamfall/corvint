@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: retired 2026-11-11 (decision 0597)
 Delivery status: retired
+Health: RETIRE
 Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
 Retirement note: decision 0597 (context proven only) deleted the cut packet and bench tools this program evolved (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Document kind: hypothesis catalog plus one accepting slice. The five hypotheses are prose intent

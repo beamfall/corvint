@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); LPCV-V0-290..292 accepted under the owner's standing auto-accept (2026-10-11) (V1-2015, V1-2090, V1-2091)
 Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191); LPCV-V0-290..292 experimental (V1-2015, V1-2090, V1-2091)
+Health: KEEP
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
@@ -2555,3 +2556,24 @@ documents, `--static` is refused as an unknown option, and every other member is
 retained document or receipt format changes.
 
 | LPCV-V0-7705 | `internal/testvaliditydoc.unrecognizedProvider` | `TestLPCVV07705PlainPlaywrightReceiptGuidance` |
+
+## Pinned qualification ledger (2026-11-16)
+
+`docs/build-log/2026-11-16-r1docs-line-qualification.md` records the LPCV-V0-963
+family states, exact Beamfall corpus pins, the public Ruby corpus identity/license,
+and the current binding limit of the historical Go qualification. An UNQUALIFIED
+family retains its static plan. This ledger changes no admission rule or wire format;
+Swift and Kotlin/JVM remain in 1.0 under decision 0600.
+
+The independent-review rerun in that record repairs the public Ruby environment:
+WebMock at the same pin passes its complete upstream offline RSpec baseline
+(4,846 examples, 0 failures; upstream `NO_CONNECTION=1` excludes 344 network
+examples) and Minitest baseline (23 tests, 0 failures). Seed 20261116's seven
+faults kill 5/7 in Minitest and 6/7 in RSpec; the shared zero-hit control kills
+none in either complete suite. Minitest selection retains all 23 tests for every
+fault and the control (0 misses; each candidate is a load-time or uncalled-method
+fallback, the latter required by LPCV-V0-7605), and no RSpec index was produced
+(about 7.9 hours of serial isolated runs). No Ruby admission check exists: only a
+Go record is read. Ruby therefore remains **UNQUALIFIED / static** under
+LPCV-V0-963. These measured baselines and kills do not establish Ruby admission
+or current Go qualification.

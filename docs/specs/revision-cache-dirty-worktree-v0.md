@@ -3,6 +3,7 @@
 Owner: Russell Lewis
 Intent status: proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141); DIRTY-CACHE-016 accepted (decision 0519; V1-1174); DIRTY-CACHE-017 accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068); DIRTY-CACHE-018 accepted under the owner's standing auto-accept (2026-10-11; V1-2218); DIRTY-CACHE-019 accepted under the owner's standing auto-accept (2026-10-11; V1-2880)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/DOGFOOD.md`
 
 ## Agent digest

@@ -20,7 +20,8 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
@@ -32,7 +33,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/affected-plan-v0.md",
@@ -55,7 +57,8 @@
       "tools/corvint-pr-tests",
       ".github/cishards",
       ".github/testconfine"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/agent-harness-integration-v0.md",
@@ -73,7 +76,8 @@
       "cmd/corvint",
       "internal/gokernel",
       "internal/repoenvelope"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/agent-instruction-doctor-v0.md",
@@ -91,7 +95,8 @@
       "internal/contextindex/instruction_loadset.go",
       "cmd/corvint/taskcontext.go",
       "integrations/instruction-profiles.json"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/analyzer-candidate-profiles.md",
@@ -116,7 +121,8 @@
       "internal/analyzershell",
       "internal/analyzerstructured",
       "internal/analyzerswift"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/analyzer-capability-contract-v0.md",
@@ -130,7 +136,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/analyzer-python-native-candidate.md",
@@ -145,7 +152,8 @@
     "implementation": [
       "internal/analyzerpython",
       "cmd/corvint-analyzer-python"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/application-flow-understanding-v0.md",
@@ -164,7 +172,8 @@
       "internal/appflows",
       "cmd/corvint-web-flows",
       "tools/web-flows"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/application-flow-understanding-v1.md",
@@ -188,7 +197,8 @@
       "internal/doccorpus",
       "internal/extevidence",
       "internal/jstestprovider"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/application-map-scenario-planner-v0.md",
@@ -206,7 +216,8 @@
     "implementation": [
       "internal/appmap",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/change-compiled-e2e-v0.md",
@@ -227,7 +238,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/test-consolidation-planner-v0.md",
@@ -247,7 +259,8 @@
     "implementation": [
       "internal/testplan",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/application-navigation-ledger-v0.md",
@@ -265,7 +278,8 @@
     "implementation": [
       "internal/appmap",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/application-map-v0.md",
@@ -283,7 +297,8 @@
     "implementation": [
       "internal/appmap",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/applied-intelligence-breakthroughs-v0.md",
@@ -297,7 +312,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/authoring-step-scope-v0.md",
@@ -313,7 +329,8 @@
     "closableToday": false,
     "implementation": [
       "protocol/step"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/authority-trigger-index-v0.md",
@@ -328,7 +345,8 @@
     ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/beamfall-shadow-dogfood-v1.md",
@@ -342,7 +360,8 @@
     ],
     "supersededBy": "docs/specs/analyzer-capability-contract-v0.md",
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/browser-behavior-falsification-v0.md",
@@ -357,7 +376,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cem-0.2-canonical-binding.md",
@@ -373,7 +393,8 @@
     ],
     "supersededBy": "docs/specs/cem-stable-v1.md",
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/cem-0.3-structural-mechanical.md",
@@ -388,7 +409,8 @@
     ],
     "supersededBy": "docs/specs/cem-stable-v1.md",
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/cem-criterion-experiments-v0.md",
@@ -404,7 +426,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cem-external-interop-v0.md",
@@ -419,7 +442,8 @@
     ],
     "supersededBy": "docs/specs/cem-stable-v1.md",
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/cem-go-portability-probe.md",
@@ -434,7 +458,8 @@
     ],
     "supersededBy": "docs/specs/cem-stable-v1.md",
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/cem-pilot-kit.md",
@@ -449,7 +474,8 @@
     "implementation": [
       "internal/cem",
       "interop/cem01-go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/cem-reviewer-trial-v0.md",
@@ -465,7 +491,8 @@
     "closableToday": false,
     "implementation": [
       "internal/procgroup"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/change-frontier-profile-1.md",
@@ -482,7 +509,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/change-frontier-v0.md",
@@ -499,7 +527,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/change-witness-relation-v0.md",
@@ -516,7 +545,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/compaction-kernel-v0.md",
@@ -530,7 +560,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/compat-replay-runner-v0.md",
@@ -546,7 +577,8 @@
     "closableToday": false,
     "implementation": [
       "tools/compat-trial"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/compat-trial-v0.md",
@@ -558,7 +590,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/confidently-wrong-trial-v0.md",
@@ -575,7 +608,8 @@
     "implementation": [
       "tools/cw-trial",
       "internal/procgroup"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/context-evolution-program-v0.md",
@@ -594,7 +628,8 @@
       "internal/gokernel",
       "tools/retrieval-bench",
       "tools/cw-trial"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/correlated-witness-collapse-x0.md",
@@ -606,7 +641,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-1.0-product-and-release-v1.md",
@@ -627,7 +663,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-rebrand-v0.md",
@@ -654,7 +691,8 @@
       "integrations",
       "extensions/vscode",
       "extensions/vscode/media/corvint.svg"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-self-development-v0.md",
@@ -673,7 +711,8 @@
       "docs/SELF-DEVELOPMENT.md",
       "integrations/codex/plugins/corvint/skills/corvint/SKILL.md",
       "cmd/corvint/help.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
@@ -687,7 +726,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-attempt-runner-v0.md",
@@ -703,7 +743,8 @@
     "closableToday": false,
     "implementation": [
       "internal/groupreap"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
@@ -717,7 +758,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-escalations-v0.md",
@@ -731,7 +773,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-operator-notes-v0.md",
@@ -745,7 +788,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-evidence-attachments-v0.md",
@@ -760,7 +804,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-know-how-notes-v0.md",
@@ -775,7 +820,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-doctor-v0.md",
@@ -792,7 +838,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-obligation-ledger-v0.md",
@@ -811,7 +858,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-external-reviews-v0.md",
@@ -825,7 +873,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-intent-worktree-v0.md",
@@ -839,7 +888,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-pending-unpause-recovery-v0.md",
@@ -854,7 +904,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-store-init-v0.md",
@@ -866,7 +917,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-witness-v0.md",
@@ -880,7 +932,8 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cross-audience-truth-nondivergence-v0.md",
@@ -897,7 +950,8 @@
     "closableToday": false,
     "implementation": [
       "internal/docviews"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cross-repository-breakage-map-v0.md",
@@ -914,7 +968,8 @@
     "closableToday": false,
     "implementation": [
       "internal/breakagemap"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/daily-change-evidence-workflow-v0.md",
@@ -933,7 +988,8 @@
     "implementation": [
       "conformance/use-cases-v0",
       "cmd/corvint"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/decision-number-gate-v0.md",
@@ -949,7 +1005,8 @@
     "closableToday": true,
     "implementation": [
       "script/check-decision-numbers.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/dependency-source-evidence-v0.md",
@@ -963,7 +1020,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/deployment-neutral-index-platform-v0.md",
@@ -983,7 +1041,8 @@
     "closableToday": false,
     "implementation": [
       "internal/contextindex"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/diagnostic-repair-contract-v0.md",
@@ -1000,7 +1059,8 @@
     "implementation": [
       "internal/diagnostic",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/direct-native-cli-authority-v0.md",
@@ -1018,7 +1078,8 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/documentation-ci-v0.md",
@@ -1035,7 +1096,8 @@
     "implementation": [
       "tools/docs-ci-plan",
       ".github/workflows/ci.yml"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/documentation-citation-gate-v0.md",
@@ -1052,7 +1114,8 @@
     "implementation": [
       "script/check-line-citations.sh",
       "script/check-line-citations_test.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corpus-republish-v0.md",
@@ -1069,7 +1132,8 @@
     "closableToday": false,
     "implementation": [
       "internal/doccorpus"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/documentation-corpus-v1.md",
@@ -1089,7 +1153,8 @@
       "internal/doccorpus",
       "cmd/corvint",
       "internal/mcp/corpusbridge"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/dogfood-query-abstention-v0.md",
@@ -1104,7 +1169,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/dotnet-affected-selection-v0.md",
@@ -1120,7 +1186,8 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/dotnet"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/eol-policy-gate-v0.md",
@@ -1137,7 +1204,8 @@
     "implementation": [
       "script/check-eol-policy.sh",
       "script/check-eol-policy_test.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/error-code-ownership-gate-v0.md",
@@ -1155,7 +1223,8 @@
     "implementation": [
       "script/check-error-code-ownership.sh",
       "script/check-error-code-ownership_test.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/expanded-range-impact-v0.md",
@@ -1174,7 +1243,8 @@
     "implementation": [
       "cmd/corvint",
       "internal/contextindex/range_impact.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/experimental-source-views-v0.md",
@@ -1188,7 +1258,8 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint/source_handoff.go"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/expert-audit-followup-v0.md",
@@ -1207,7 +1278,8 @@
     "implementation": [
       "internal/secretscreen",
       "internal/liveverify/mutate"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/external-evidence-provider-mcp-v0.md",
@@ -1224,7 +1296,8 @@
     "implementation": [
       "internal/extevidence/mcp.go",
       "internal/procgroup"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/external-evidence-provider-remote-v0.md",
@@ -1238,7 +1311,8 @@
     ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/external-evidence-provider-transports-v0.md",
@@ -1257,7 +1331,8 @@
     "implementation": [
       "cmd/corvint",
       "internal/extevidence"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/immutable-delta-v0.md",
@@ -1275,7 +1350,8 @@
     "closableToday": false,
     "implementation": [
       "protocol/delta"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/external-evidence-provider-v0.md",
@@ -1295,7 +1371,8 @@
       "cmd/corvint",
       "examples/evidence-provider/v0",
       "internal/extevidence"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/external-evidence-provider-v1.md",
@@ -1312,7 +1389,8 @@
     "implementation": [
       "cmd/corvint",
       "internal/extevidence"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/external-evidence-provider-v2.md",
@@ -1330,7 +1408,8 @@
     "implementation": [
       "cmd/corvint",
       "internal/extevidence"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/external-frontier-obligations-v0.md",
@@ -1348,7 +1427,8 @@
     "implementation": [
       "cmd/corvint",
       "internal/extevidence"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/external-test-selection-v0.md",
@@ -1366,7 +1446,8 @@
     "implementation": [
       "cmd/corvint",
       "internal/extevidence"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/external-test-selection-v1.md",
@@ -1384,7 +1465,8 @@
     "implementation": [
       "cmd/corvint",
       "internal/extevidence"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/falsifiable-packet-v0.md",
@@ -1400,7 +1482,8 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/flow-document-maintenance-v0.md",
@@ -1418,7 +1501,8 @@
       "internal/appflows/docs_maintain.go",
       "internal/doccorpus/apply_pair.go",
       "internal/command/flows/flows_docs.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/gate-ledger-v0.md",
@@ -1439,7 +1523,8 @@
       "tools/gate-affected-select/main.go",
       "internal/gateselect/readers.go",
       "internal/gateselect/select.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/genesis-backfill.md",
@@ -1454,7 +1539,8 @@
     "implementation": [
       "internal/genesis",
       "cmd/corvint/init_adopt.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/go-archive-gate-v0.md",
@@ -1473,7 +1559,8 @@
       "script/go-archive-gate",
       "script/go-archive-gate_test.sh",
       "script/go-archive-gate-injection_test.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/go-format-gate-v0.md",
@@ -1490,7 +1577,8 @@
     "implementation": [
       "script/check-go-format.sh",
       "script/check-go-format_test.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/go-live-test-provider-v0.md",
@@ -1505,7 +1593,8 @@
     "implementation": [
       "internal/liveverify",
       "cmd/corvint-go-test-provider"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/go-only-cutover-v0.md",
@@ -1524,7 +1613,8 @@
       "cmd/corvint",
       "conformance/cli-parity-v0",
       "conformance/release-artifact-v0"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/go-production-kernel-migration-v0.md",
@@ -1547,7 +1637,8 @@
       "internal/gokernel",
       "conformance/cli-parity-v0",
       "interop/cem01-go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/gopls-client-session-v0.md",
@@ -1561,7 +1652,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/harness-authority-relation-v0.md",
@@ -1573,7 +1665,8 @@
     "dependsOn": [],
     "supersededBy": "docs/decisions/0009-harness-authority-boundary.md",
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/heading-navigation-experiment-v0.md",
@@ -1590,7 +1683,8 @@
     "closableToday": false,
     "implementation": [
       "tools/heading-nav-bench"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/host-lifecycle-qualification-v1.md",
@@ -1606,7 +1700,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/human-documentation-compiler-v0.md",
@@ -1624,7 +1719,8 @@
     "implementation": [
       "internal/doccompiler",
       "conformance/human-documentation-compiler-v0"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/index-snapshot-v0.md",
@@ -1643,7 +1739,8 @@
     "implementation": [
       "internal/contextindex",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/new-e2e-test-acceptance-v0.md",
@@ -1660,7 +1757,8 @@
     "closableToday": false,
     "implementation": [
       "internal/procgroup"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/js-live-test-provider-v0.md",
@@ -1677,7 +1775,8 @@
     "implementation": [
       "internal/jstestprovider",
       "cmd/corvint-js-test-provider"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/kotlin-android-candidate-v0.md",
@@ -1692,7 +1791,8 @@
     "implementation": [
       "internal/analyzerkotlinandroid",
       "cmd/corvint-analyzer-kotlin-android"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/kotlin-jvm-affected-test-v0.md",
@@ -1708,7 +1808,8 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/kotlin"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/learned-trace-admission-v0.md",
@@ -1729,7 +1830,8 @@
       "internal/secretscreen",
       "internal/contextindex",
       "cmd/corvint"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/lexical-relevance-floor-v0.md",
@@ -1744,7 +1846,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/live-proof-carrying-verification-v0.md",
@@ -1762,7 +1865,8 @@
     "implementation": [
       "internal/liveverify",
       "cmd/corvint-go-test-provider"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/local-admin-console-v0.md",
@@ -1777,7 +1881,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/local-completion-policy-v0.md",
@@ -1792,7 +1897,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/local-observability-dashboard-v0.md",
@@ -1809,7 +1915,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/local-trace-producer-migration-v0.md",
@@ -1827,7 +1934,8 @@
       "internal/trace",
       "internal/tracerecordrepo",
       "cmd/corvint"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/lsp-editor-context-v0.md",
@@ -1845,7 +1953,8 @@
     "closableToday": false,
     "implementation": [
       "internal/gitstatus"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/lsp-editor-definition-v0.md",
@@ -1861,7 +1970,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/lsp-editor-qualification-v0.md",
@@ -1876,7 +1986,8 @@
     "implementation": [
       "script/qualify-lsp-editors.py",
       "tools/lsp-editors"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/lsp-quality-platform-v0.md",
@@ -1894,7 +2005,8 @@
     "closableToday": false,
     "implementation": [
       "script/measure-lsp-quality.py"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/lsp-snapshot-overlay-v0.md",
@@ -1906,7 +2018,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/lsp-stdio-experiment-v0.md",
@@ -1918,7 +2031,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/mcp-server-2026-07-28-v0.md",
@@ -1936,7 +2050,8 @@
       "cmd/corvint-mcp",
       "internal/mcp",
       "conformance/mcp-2026-07-28"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/mcp-multi-root-v0.md",
@@ -1953,7 +2068,8 @@
     "implementation": [
       "cmd/corvint-mcp",
       "internal/mcp/bridge"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/mcp-test-validity-profile-v0.md",
@@ -1973,7 +2089,8 @@
       "internal/mcp/testvaliditybridge",
       "internal/testvaliditydoc",
       "conformance/mcp-test-validity-v0"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/migration-evidence-ratchet-v0.md",
@@ -1987,7 +2104,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/native-cem-adapter.md",
@@ -2001,7 +2119,8 @@
     "closableToday": false,
     "implementation": [
       "internal/cem"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/native-jvm-bridge-analyzer-candidates-v0.md",
@@ -2020,7 +2139,8 @@
       "cmd/corvint-analyzer-c-jni",
       "cmd/corvint-analyzer-objective-c",
       "cmd/corvint-analyzer-java"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/native-observer-prearm-v0.md",
@@ -2035,7 +2155,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/native-taskman-planning-v0.md",
@@ -2049,7 +2170,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/necessity-labels-v0.md",
@@ -2063,7 +2185,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/observation-corpus-authority-v0.md",
@@ -2075,7 +2198,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/ocm-intent-forms-v0.md",
@@ -2089,7 +2213,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/ocm-v0-dogfood.md",
@@ -2104,7 +2229,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/operator-update-v0.md",
@@ -2121,7 +2247,8 @@
     "implementation": [
       "cmd/corvint-update",
       "internal/update"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/optional-artifact-check-scripts-v0.md",
@@ -2141,7 +2268,8 @@
       "script/check-analyzer-python-offline-build.sh",
       "script/check-analyzer-python-ratchets.sh",
       "script/check-release-artifact-reproducibility.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/outcome-calibration-v0.md",
@@ -2155,7 +2283,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/pi-workflow-v0.md",
@@ -2172,7 +2301,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/playwright-external-provider-v0.md",
@@ -2190,7 +2320,8 @@
       "internal/jstestprovider",
       "cmd/corvint-js-test-provider",
       "internal/testvaliditydoc"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/playwright-per-test-freshness-v0.md",
@@ -2207,7 +2338,8 @@
     "closableToday": false,
     "implementation": [
       "internal/jstestprovider"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
@@ -2222,7 +2354,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/postmerge-ci-host-v0.md",
@@ -2237,7 +2370,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/postmerge-connectors-v0.md",
@@ -2251,7 +2385,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/postmerge-replay-v0.md",
@@ -2265,7 +2400,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/postmerge-runtime-v1.md",
@@ -2280,7 +2416,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/postmerge-runtime-v2.md",
@@ -2296,7 +2433,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/postmerge-metrics-v0.md",
@@ -2310,7 +2448,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/proof-carrying-context-optimization-v0.md",
@@ -2328,7 +2467,8 @@
     "implementation": [
       "benchmarks/daily-loop-v0/harness.py",
       "benchmarks/daily-loop-v1/harness.py"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/proof-preserving-abstraction-v0.md",
@@ -2342,7 +2482,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/proof-tour-v0.md",
@@ -2359,7 +2500,8 @@
     "implementation": [
       "script/proof-tour.sh",
       "script/proof-tour-test.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/protected-local-execution-v0.md",
@@ -2374,7 +2516,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/protected-pi-runtime-v0.md",
@@ -2390,7 +2533,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/public-release-v0.md",
@@ -2405,7 +2549,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/pulse-snapshot-lease-v0.md",
@@ -2420,7 +2565,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/qualified-lifecycle-v0.md",
@@ -2436,7 +2582,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/receipt-bundle-v0.md",
@@ -2453,7 +2600,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/release-artifact-integrity-v0.md",
@@ -2472,7 +2620,8 @@
       "conformance/release-artifact-v0/archivebuild",
       "conformance/release-artifact-v0/archiveverify",
       "conformance/release-artifact-v0/archivewire"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/repository-guidance-v0.md",
@@ -2489,7 +2638,8 @@
     "implementation": [
       "internal/genesis/guidance.go",
       "cmd/corvint/repository_guidance.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/requirement-definition-gate-v0.md",
@@ -2505,7 +2655,8 @@
     "closableToday": true,
     "implementation": [
       "script/check-requirement-definitions.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/retrieval-bench-diagnostics-v0.md",
@@ -2521,7 +2672,8 @@
     "closableToday": false,
     "implementation": [
       "tools/retrieval-bench"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/retrieval-eval-comparability-v0.md",
@@ -2535,7 +2687,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/retriever-disagreement-v0.md",
@@ -2549,7 +2702,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/revision-cache-dirty-worktree-v0.md",
@@ -2563,7 +2717,8 @@
     "closableToday": false,
     "implementation": [
       "internal/contextindex"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/ruby-affected-test-adapter-v0.md",
@@ -2579,7 +2734,8 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/ruby"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/native-shell-affected-test-v0.md",
@@ -2597,7 +2753,8 @@
     "implementation": [
       "internal/liveverify/affected/cfamily",
       "internal/liveverify/affected/shell"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/java-affected-test-v0.md",
@@ -2614,7 +2771,8 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/java"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/run-verified-navigation-v0.md",
@@ -2633,7 +2791,8 @@
     "implementation": [
       "internal/appmap",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/rust-affected-test-understanding-v0.md",
@@ -2649,7 +2808,8 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/rust"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/rust-analyzer-candidate-v0.md",
@@ -2667,7 +2827,8 @@
     "implementation": [
       "internal/analyzerrust",
       "cmd/corvint-analyzer-rust"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/scope-lease-v0.md",
@@ -2683,7 +2844,8 @@
     "closableToday": false,
     "implementation": [
       "internal/scopelease"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/self-observation-ledger-v0.md",
@@ -2700,7 +2862,8 @@
     "implementation": [
       "internal/observations",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/semantic-escalation-gate-v0.md",
@@ -2714,7 +2877,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/session-context-dividend-v0.md",
@@ -2728,7 +2892,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/shader-glsl-metal-analyzer-candidate-v0.md",
@@ -2746,7 +2911,8 @@
     "implementation": [
       "internal/analyzershader",
       "cmd/corvint-analyzer-shader"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/snapshot-batch-v0.md",
@@ -2764,7 +2930,8 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/source-documentation-draft-v0.md",
@@ -2781,7 +2948,8 @@
       "cmd/corvint-docs/docs.go",
       "internal/docmaintain",
       "cmd/corvint-docs/docs_maintain.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/source-evidence-axes-v0.md",
@@ -2797,7 +2965,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/spec-requirement-index-generator-v0.md",
@@ -2815,7 +2984,8 @@
     "implementation": [
       "script/gen-spec-requirements.sh",
       "script/spec-acceptance-audit.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/sql-native-ratchet-gate-v0.md",
@@ -2831,7 +3001,8 @@
     "closableToday": true,
     "implementation": [
       "script/check-sql-native-ratchets.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/stable-operations-v0.md",
@@ -2854,7 +3025,8 @@
       "script/check-hostile-regressions_test.sh",
       "internal/contextindex/hostile_operations_test.go",
       "docs/RELEASE-RUNBOOK.md"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/stable-readiness-record-v1.md",
@@ -2875,7 +3047,8 @@
     "closableToday": false,
     "implementation": [
       "internal/releasecandidate"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/structured-data-analyzer-candidate-v1.md",
@@ -2890,7 +3063,8 @@
     "implementation": [
       "internal/analyzerstructured",
       "cmd/corvint-analyzer-structured-data"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/swift-affected-test-understanding-v0.md",
@@ -2906,7 +3080,8 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/swift"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/swift-apple-analyzer-candidate-v0.md",
@@ -2924,7 +3099,8 @@
     "implementation": [
       "internal/analyzerswift",
       "cmd/corvint-analyzer-swift"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/task-context-packet-v0.md",
@@ -2942,7 +3118,8 @@
     "implementation": [
       "internal/contextindex",
       "cmd/corvint"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/technical-brain-dogfood.md",
@@ -2954,7 +3131,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/test-attack-v0.md",
@@ -2970,7 +3148,8 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/mutate"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/test-claim-qualification-v0.md",
@@ -2988,7 +3167,8 @@
     "closableToday": false,
     "implementation": [
       "internal/tcq"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/touch-set-surprise-v0.md",
@@ -3002,7 +3182,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/traceability-test-gate-v0.md",
@@ -3018,7 +3199,8 @@
     "closableToday": true,
     "implementation": [
       "script/check-traceability-tests.sh"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/trusted-project-navigation-v0.md",
@@ -3035,7 +3217,8 @@
     "implementation": [
       "internal/doccompiler/trusted_nav.go",
       "cmd/corvint-docs/docs.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/typescript-javascript-affected-adapter-v0.md",
@@ -3051,7 +3234,8 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/typescript"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/unplanned-read-events-v0.md",
@@ -3067,7 +3251,8 @@
     "closableToday": false,
     "implementation": [
       "internal/unplannedread"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/use-case-conformance-v0.md",
@@ -3084,7 +3269,8 @@
     "closableToday": false,
     "implementation": [
       "conformance/use-cases-v0"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/verification-planner-observer-v0.md",
@@ -3098,7 +3284,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/verified-absence-frontier-v0.md",
@@ -3112,7 +3299,8 @@
     ],
     "supersededBy": "docs/specs/change-frontier-v0.md",
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/vscode-extension-v0.md",
@@ -3131,7 +3319,8 @@
     "implementation": [
       "extensions/vscode",
       "conformance/vscode-extension-v0"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/work-queue-observation-v0.md",
@@ -3148,7 +3337,8 @@
       "cmd/corvint",
       "internal/worklistadapter",
       "conformance/work-queue-v0"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/closed-vocabulary-intake-v0.md",
@@ -3160,7 +3350,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/non-go-impact-v0.md",
@@ -3184,7 +3375,8 @@
       "internal/appmap/manifest.go",
       "internal/mcp/bridge/bridge.go",
       "cmd/corvint/help.go"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/aggregate-local-outcome-v0.md",
@@ -3205,7 +3397,8 @@
       "internal/contextindex",
       "internal/groupreap",
       "cmd/corvint"
-    ]
+    ],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/process-group-owner-v0.md",
@@ -3219,7 +3412,8 @@
     "closableToday": false,
     "implementation": [
       "internal/groupreap"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-user-service-v0.md",
@@ -3233,7 +3427,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/tasks-criterion-binding-v0.md",
@@ -3248,7 +3443,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/test-runner-execution-v0.md",
@@ -3263,7 +3459,8 @@
     "implementation": [
       "internal/testrunner",
       "cmd/corvint-test-runner"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/cem-stable-v1.md",
@@ -3284,7 +3481,8 @@
       "internal/groupreap",
       "interop/cem01-go",
       "protocol/cem-1.0"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/application-flow-navigation-execution-v0.md",
@@ -3302,7 +3500,8 @@
       "internal/appflows/navigation_execution.go",
       "cmd/corvint-web-flows",
       "tools/web-flows/navigation.mjs"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/trial-replay-journal-v0.md",
@@ -3317,7 +3516,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/upgrade-checklist-v0.md",
@@ -3331,7 +3531,8 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/playwright-run-evidence-v0.md",
@@ -3346,7 +3547,8 @@
     "implementation": [
       "internal/playwrightruns",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/session-test-runner-v0.md",
@@ -3368,7 +3570,8 @@
       "tools/str-parity",
       "tools/test-commands-check",
       "tools/test-commands-run"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-defect-register-v0.md",
@@ -3380,7 +3583,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-ticket-worktrees-v0.md",
@@ -3392,7 +3596,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-closeout-debt-v0.md",
@@ -3404,7 +3609,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/test-source-analysis-v0.md",
@@ -3416,7 +3622,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-journal-retention-v0.md",
@@ -3428,7 +3635,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/shared-path-change-policy-v0.md",
@@ -3440,7 +3648,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/spec-toolchain-adapters-v0.md",
@@ -3452,7 +3661,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/site-knowledge-howto-v0.md",
@@ -3475,7 +3685,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-source-containment-v0.md",
@@ -3490,7 +3701,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/capability-catalog-v0.md",
@@ -3505,7 +3717,8 @@
     "implementation": [
       "docs/CAPABILITIES.md",
       "tools/capabilities-check"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/adoption-setup-report-v0.md",
@@ -3517,7 +3730,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-journal-segments-v0.md",
@@ -3529,7 +3743,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-store-relocation-v0.md",
@@ -3541,7 +3756,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-test-fold-v0.md",
@@ -3553,7 +3769,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/performance-profiling-and-read-budget-v0.md",
@@ -3576,7 +3793,8 @@
       "cmd/corvint-test-validity-mcp",
       "internal/perfbudget",
       "internal/procprofile"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/documentation-corpus-search-ranking-v1.md",
@@ -3593,7 +3811,8 @@
     "implementation": [
       "internal/doccorpus",
       "internal/mcp/corpusbridge"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/documentation-corpus-verified-reads-v1.md",
@@ -3611,7 +3830,8 @@
       "internal/doccorpus",
       "internal/contextindex",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/documentation-corpus-extraction-delta-v1.md",
@@ -3630,7 +3850,8 @@
       "internal/testsource",
       "internal/cem/gitauth",
       "cmd/corvint"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-lease-gate-latency-v0.md",
@@ -3642,7 +3863,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cem-stable-bundle-v0.md",
@@ -3656,7 +3878,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/lsp-wrapped-backends-v0.md",
@@ -3668,7 +3891,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-dispatch-signals-v0.md",
@@ -3680,7 +3904,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-create-payload-v0.md",
@@ -3692,7 +3917,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/observed-ui-evidence-v0.md",
@@ -3704,7 +3930,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/gate-verdict-agreement-v0.md",
@@ -3716,7 +3943,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/reproduction-bundle-v0.md",
@@ -3728,7 +3956,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/workspace-declaration-v0.md",
@@ -3740,7 +3969,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/cem-completeness-profile-v0.md",
@@ -3752,7 +3982,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/cem-additive-profiles-v0.md",
@@ -3764,7 +3995,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/documentation-corpus-inventory-v1.md",
@@ -3776,7 +4008,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/additive-narrowing-v0.md",
@@ -3788,7 +4021,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-release-membership-and-resume-v0.md",
@@ -3800,7 +4034,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-basic-stability-v1.md",
@@ -3812,7 +4047,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-cli-v0.md",
@@ -3824,7 +4060,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/ci-narrowing-v0.md",
@@ -3836,7 +4073,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/test-selection-precision-v0.md",
@@ -3848,7 +4086,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/affected-plan-python-playwright-v0.md",
@@ -3860,7 +4099,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-closed-ticket-index-v0.md",
@@ -3872,7 +4112,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-lane-flow-v0.md",
@@ -3884,7 +4125,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/go-test-evidence-v0.md",
@@ -3896,7 +4138,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/tasks-mcp-read-profile-v0.md",
@@ -3908,7 +4151,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/affected-cli-consistency-v0.md",
@@ -3920,7 +4164,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-delivery-lifecycle-v0.md",
@@ -3932,7 +4177,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cem-2.0-intent.md",
@@ -3944,7 +4190,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/local-model-gateway-v0.md",
@@ -3956,7 +4203,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cem-content-keyed-claims-v0.md",
@@ -3968,7 +4216,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/incremental-closeout-v0.md",
@@ -3980,7 +4229,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cem2-discovery-replay-v0.md",
@@ -3992,7 +4242,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/context-ranking-v0.md",
@@ -4004,7 +4255,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/corvint-tasks-agent-workflow-v0.md",
@@ -4016,7 +4268,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/dogfood-retroactive-binding-v0.md",
@@ -4028,7 +4281,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/affected-plan-selection-v0.md",
@@ -4040,7 +4294,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/daily-change-evidence-workflow-companion-v0.md",
@@ -4052,7 +4307,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/dogfood-citation-plan-precheck-v0.md",
@@ -4064,7 +4320,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/windows-test-portability-v0.md",
@@ -4083,7 +4340,8 @@
     "implementation": [
       "internal/jstestprovider",
       "cmd/corvint-js-test-provider"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/lane-shell-portability-v0.md",
@@ -4099,7 +4357,8 @@
     "closableToday": false,
     "implementation": [
       "script"
-    ]
+    ],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/map-coverage-join-v0.md",
@@ -4118,7 +4377,8 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/language-plugins-v0.md",
@@ -4130,7 +4390,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/batch-integration-checks-v0.md",
@@ -4142,7 +4403,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/corvint-self-development-selection-v0.md",
@@ -4154,7 +4416,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/lane-dogfood-tooling-v0.md",
@@ -4166,7 +4429,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/corvint-self-development-companion-v0.md",
@@ -4178,7 +4442,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/affected-zero-unknown-v0.md",
@@ -4190,7 +4455,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/affected-edit-oracle-v0.md",
@@ -4207,7 +4473,8 @@
     "closableToday": false,
     "implementation": [
       "tools/affected-edit-oracle"
-    ]
+    ],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/affected-reader-precision-v0.md",
@@ -4219,7 +4486,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/import-ratchet-v0.md",
@@ -4231,7 +4499,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/greptile-gate-v0.md",
@@ -4243,7 +4512,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/core-bundled-apps-v0.md",
@@ -4255,7 +4525,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/corvint-tasks-lane-ticket-read-v0.md",
@@ -4267,7 +4538,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/dogfood-lane-friction-v0.md",
@@ -4279,7 +4551,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/lane-verification-tooling-v0.md",
@@ -4291,7 +4564,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/corvint-self-development-gates-v0.md",
@@ -4303,7 +4577,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/lane-check-tooling-v0.md",
@@ -4315,7 +4590,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/affected-plan-reuse-v0.md",
@@ -4327,7 +4603,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/runner-selection-plugins-v0.md",
@@ -4339,7 +4616,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/go-line-selection-v0.md",
@@ -4351,7 +4629,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/ci-control-plane-early-post-v0.md",
@@ -4363,7 +4642,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "MERGE"
   },
   {
     "path": "docs/specs/PRODUCT-PLAN-1.0.md",
@@ -4375,7 +4655,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/SPEC-HEALTH-2026-11-09.md",
@@ -4387,7 +4668,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/acceptance-record-v1.md",
@@ -4399,7 +4681,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/affected-plan-kinds-v0.md",
@@ -4411,7 +4694,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/source-removal-v1.md",
@@ -4423,7 +4707,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/release-process-v1.md",
@@ -4435,7 +4720,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/tasks-policy-v15.md",
@@ -4447,7 +4733,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/ticket-brief-v1.md",
@@ -4459,7 +4746,8 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [],
+    "health": "KEEP"
   },
   {
     "path": "docs/specs/openspec-check-v1.md",

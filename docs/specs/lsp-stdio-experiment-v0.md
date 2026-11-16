@@ -1,9 +1,11 @@
 # LSP Stdio Experiment V0
 
+Delivery status: retired
+Health: RETIRE
+
 - Owner: Russell Lewis
 - Date: 2026-09-29
 - Intent status: retired 2026-11-09 (decision 0594)
-- Delivery status: retired
 - Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 - Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 - Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, official LSP 3.18 lifecycle and base protocol; owner requested optional editor companion under V1-0481.

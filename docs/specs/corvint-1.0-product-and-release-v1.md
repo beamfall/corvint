@@ -6,6 +6,7 @@ Requirement prefix: `PRS-V1`
 Status: accepted (decision 0373, 2026-09-23; scope expanded by decision 0426, 2026-09-28)
 Intent status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0); PRS-V1-840 experimental under the owner's standing lane auto-accept (2026-10-31; V1-2487))
 Delivery status: partial; expanded 1.0 qualification pending
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariants 1-8, `public-release-v0.md` (the 0.6 local-workflow
 scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 `../decisions/0332-verified-local-workflow-scope-2026-09-22.md`, `daily-change-evidence-workflow-v0.md`,

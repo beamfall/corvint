@@ -1,5 +1,7 @@
 # JS/TS Live-Test Provider V0
 
+Health: KEEP
+
 **Owner:** Russell Lewis
 **Date:** 2026-09-11
 **Intent status:** proposed

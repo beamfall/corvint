@@ -2,6 +2,7 @@
 
 Intent status: accepted (owner approval, 2026-09-28)
 Delivery status: experimental
+Health: KEEP
 
 ## Agent digest
 - Claim: Explicitly trusted pinned MkDocs validates exact navigation proposals in an isolated committed-source copy.

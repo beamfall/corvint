@@ -2,6 +2,7 @@
 
 Intent status: proposed
 Delivery status: deferred
+Health: KEEP
 Disposition: deferred by decision 0132; return only with an accepted qualification-and-launch profile.
 
 Status: proposed candidate, deferred by decision 0132. It is unregistered, unselected,

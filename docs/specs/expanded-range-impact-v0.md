@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-09
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Retirement note: decision 0594 (2026-11-09) deleted `script/dogfood-change.sh`; the dogfood caller
 of range impact is retired, the `impact` command stays.
 Authoritative inputs: the owner's instruction to reach full protected-runner support;

@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-30
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner-requested GitHub issue #390 (native V1-0537), and the
 2026-09-30 instruction to implement it. This technical contract proposes concrete
 semantics; issue intent does not accept generated implementation detail.

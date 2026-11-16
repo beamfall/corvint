@@ -5,6 +5,7 @@ Date: 2026-10-29
 Requirement prefix: `ADN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3123, V1-3129, V1-3138); ADN-V0-009 amends AFP-V0-094
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: native tickets V1-3123 (related V1-0417), V1-3129 (related V1-2450) and
 V1-3138. These requirements narrow the selection of the [affected plan](affected-plan-v0.md)
 and of `corvint test`; they live here to keep that spec's Requirements section under the

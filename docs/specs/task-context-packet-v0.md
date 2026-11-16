@@ -5,6 +5,7 @@ Date: 2026-09-02
 Requirement prefix: `TCP-V0`
 Intent status: retired 2026-11-11 (decision 0597)
 Delivery status: retired
+Health: RETIRE
 Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
 Retirement note: decision 0597 (context proven only) deleted `corvint context --task` and its ranked packet; the 2026-11-10 replay found the packet named fewer changed files than a term grep (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` (the bet), `docs/decisions/0024-task-context-packet-2026-09-02.md`

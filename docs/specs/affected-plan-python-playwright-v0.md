@@ -5,6 +5,7 @@ Date: 2026-10-31
 Requirement prefix: `AFP-V0`
 Intent status: per requirement and unchanged by the split; AFP-V0-181 to AFP-V0-189, AFP-V0-382 to AFP-V0-389, AFP-V0-404 to AFP-V0-414, AFP-V0-417 to AFP-V0-419 and AFP-V0-423 to AFP-V0-426 accepted under the owner's standing auto-accept (2026-10-11); AFP-V0-442, AFP-V0-443 and AFP-V0-472 to AFP-V0-477 accepted under the standing lane auto-accept (2026-10-11); AFP-V0-680 to AFP-V0-682 experimental under it (2026-10-28); AFP-V0-960 and AFP-V0-961 experimental under it (2026-10-31)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority,
 failure codes and acceptance gates), `internal/liveverify/affected/python`,
 `internal/liveverify/affected` Playwright discovery, `AGENTS.md` invariants 2, 4 and 8. Split

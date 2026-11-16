@@ -5,6 +5,7 @@ Date: 2026-09-07
 Requirement prefix: `GFG-V0`
 Intent status: accepted (owner instruction 2026-09-07)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariant 8 and its Verify block, the owner ruling of
 2026-09-07 that repository gate tooling is in scope for that invariant, and
 `documentation-citation-gate-v0.md` as the shape a gate spec takes here.

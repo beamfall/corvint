@@ -5,6 +5,7 @@ Date: 2026-11-04
 Requirement prefix: `AZU-V0`
 Intent status: experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority, AFP-V0-511
 frontier bearing, AFP-V0-560 terminal rule, AFP-V0-601/602 data readers),
 `docs/specs/affected-plan-selection-v0.md` (AFP-V0-2405 driver-input hint, AFP-V0-2440 fixture-only

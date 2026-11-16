@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-22
 Intent status: accepted
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/PRODUCT.md`, `docs/CHANGE-EVIDENCE-MAP.md`, independent product,
 onboarding, security, and wire-contract reviews recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`
 

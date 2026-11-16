@@ -14,7 +14,7 @@ R37, R41, H9, H12 and H13), and the change folder `docs/specs/openspec/changes/o
 - Claim: A Go check enforces the OpenSpec change-folder layout, the propose, apply and archive stages, one OpenSpec root and spec health classes.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-5399) / experimental
 - Exists: `tools/openspec-check` and its baseline; `make openspec-check`, `focused-docs` and `openspec-validate`; the Health projection.
-- Blocked on: `Health:` lines (spec-set-cleanup); the pinned `openspec` run; the CI install step and range.
+- Blocked on: The separate CI install step and range; native Tasks completion.
 - Read next: Requirements; Decisions; Failure modes; Acceptance evidence.
 
 ## User and measurable job
@@ -248,7 +248,7 @@ Non-goals:
 | OSC-V1-009 | `TestOSCV1009AcceptanceLink` | fixture-tested |
 | OSC-V1-010 | `script/gen-spec-requirements_test.sh` cases 6, 7 and 8 (SRG-V0-009, 010, 012); `TestRequirementsAcceptanceColumns`; `make spec-requirements-check` | carried over, delivered |
 | OSC-V1-011 | `TestOSCV1011Baseline`; `TestOSCV1011BaselinePerFinding`; `TestOSCV1011BaselineGrowthGitErrors`; `TestOSCV1011GitAbsentVersusFailure`; `TestOSCV1011HistoryUnavailable`; `TestOSCV1011StaleRequirements`; a depth-1 clone of the repository refused with `history-unavailable` | fixture-tested; the repository passes with 353 baselined findings in 29 change folders and 288 specs (2026-11-13), each block of the baseline with its reason; the CI range is not wired |
-| OSC-V1-012 | `script/openspec-validate_test.sh` (its real-command case runs when `openspec` 1.17.0 is installed); `make openspec-validate` | fake-command paths tested; the pinned run on the repository and the real-command case `NOT_RUN` on hosts without the command |
+| OSC-V1-012 | `script/openspec-validate_test.sh` (its real-command case runs when `openspec` 1.17.0 is installed); `make openspec-validate` | pinned 1.17.0 repository run and absent-command behavior: `docs/build-log/2026-11-16-r1docs-openspec-health.md`; absent hosts retain `NOT_RUN` |
 
 ## Rollback
 

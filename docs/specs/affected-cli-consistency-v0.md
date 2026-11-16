@@ -5,6 +5,7 @@ Date: 2026-11-01
 Requirement prefix: `ACX-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: native tickets V1-3583, V1-3327, V1-3578, V1-3726, V1-3727, V1-3045,
 V1-2907, V1-3734, V1-3731, V1-3736 and V1-3878; lane aff-w42 (2026-11-02) adds V1-4214, V1-4039,
 V1-4008 and the orchestrator's NEW-C1 and NEW-C3 items. These requirements refine the

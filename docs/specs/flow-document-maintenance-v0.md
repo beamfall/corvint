@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Drafted: 2026-09-28
 Intent status: accepted (decision 0451; V1-0465)
 Delivery status: experimental
+Health: KEEP
 Implementation: `internal/appflows/docs_maintain.go`, `internal/doccorpus/apply_pair.go`, `internal/command/flows/flows_docs.go`
 Authoritative inputs: `docs/specs/application-flow-understanding-v1.md` AFU-V1-030..033 and AFU-V1-036..038; owner-approved V1-0465 bounded maintenance plan.
 

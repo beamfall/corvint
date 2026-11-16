@@ -1,5 +1,7 @@
 # LSP quality platform V0
 
+Health: KEEP
+
 - Owner: Russell Lewis
 - Date: 2026-09-29
 - Intent status: accepted technical contract (owner approval 2026-09-29; PR 360)

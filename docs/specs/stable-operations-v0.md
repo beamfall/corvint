@@ -5,6 +5,7 @@ Date: 2026-09-22
 Requirement prefix: `SOP-V0`
 Intent status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23; `SOP-V0-013` accepted under the owner's standing auto-accept, 2026-10-11, V1-1114)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `../decisions/0341-stable-operations-qualification-2026-09-22.md`,
 `../decisions/0360-cross-version-lifecycle-and-memory-rows-2026-09-23.md`,
 `public-release-v0.md` (`PUB-V0-025`/`PUB-V0-026` install lifecycle and hostile store),

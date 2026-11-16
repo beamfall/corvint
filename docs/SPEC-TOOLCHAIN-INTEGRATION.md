@@ -27,7 +27,7 @@ That is a genuine complement rather than an overlap, and it is the whole opportu
 This is not caution. Corvint's arithmetic refuses it, and the refusal is already written down.
 
 A caller's own report of what it executed is `CALLER_REPORTED`, and `CF-V0-014`
-(`docs/specs/change-frontier-v0.md:193-197@c291e702`) states that signatures, clean-target statements,
+(`docs/specs/change-frontier-v0.md:194-198@c291e702`) states that signatures, clean-target statements,
 passing rows, and exit zero **cannot upgrade that authority**. If Corvint drives spec -> code -> tested,
 Corvint *is* the caller. Every test it ran to satisfy an obligation it generated from a spec it parsed
 would enter its own ledger at the weakest authority class and close nothing. Corvint would produce a
@@ -40,13 +40,13 @@ code, the tests, and the execution, and no second party is left to witness any o
 
 The proposition is also already a stated non-goal, three times over: **autonomous code editing** and
 **a new specification language** are both listed at `docs/PRODUCT.md:377-379@27e81383`, and
-`docs/specs/live-proof-carrying-verification-v0.md:1270-1271@38b12d34` forbids "generating tests, weakening
+`docs/specs/live-proof-carrying-verification-v0.md:1271-1272@38b12d34` forbids "generating tests, weakening
 assertions, rewriting product code … auto-fixing failures, merging, deploying, or publishing".
 
 One apparent counterexample is not one: `internal/liveverify/gorunner/` really does run `go test`.
 But LPCV positions Corvint as owning "identity, composition, conservative scope, provenance, and honest
 uncertainty" while "runtime providers remain the authority for what executed"
-(`docs/specs/live-proof-carrying-verification-v0.md:53-55@bf0b8fa7`). Corvint executes as an instrument
+(`docs/specs/live-proof-carrying-verification-v0.md:54-56@bf0b8fa7`). Corvint executes as an instrument
 under an owning verifier's authority. That is the precedent, and it is the opposite of owning the
 build.
 
@@ -57,7 +57,7 @@ build.
 The harness authors, plans, writes, and runs. Corvint says what was known, what is cited, and what
 remains unwitnessed — sitting on *both* sides of someone else's edit: the minimum witness before,
 the frontier after. SpecKit and OpenSpec are adapted as **intent sources**, never replaced; the
-adapter contract already exists at `docs/specs/verified-absence-frontier-v0.md:183-185@76be4742`, which
+adapter contract already exists at `docs/specs/verified-absence-frontier-v0.md:184-186@76be4742`, which
 requires preserving native requirement IDs and lifecycle state.
 
 The translation boundary is one line: `native requirement ID -> ocmIntent{path, blobOID, span,
@@ -102,7 +102,7 @@ qualified host closing decision has no implementation to integrate with.
 ## Staged adoption
 
 1. **Observe only.** Wire an OpenSpec change to a pinned intent scope; emit a read-only frontier
-   report on agent-authored PRs. Block nothing. `docs/specs/verified-absence-frontier-v0.md:149-165@00c1286c` already
+   report on agent-authored PRs. Block nothing. `docs/specs/verified-absence-frontier-v0.md:150-166@00c1286c` already
    preregisters this experiment's success and kill thresholds — reuse them rather than inventing new
    ones.
 2. **First real gate: build and parity, not tests.** Already runs in CI, and its soundness is
@@ -118,7 +118,7 @@ qualified host closing decision has no implementation to integrate with.
 
 `authorityClass` currently carries three incompatible value sets — in the MCP bridge
 (`internal/mcp/bridge/bridge.go:638@982aa756`), in the frontier spec
-(`docs/specs/change-frontier-v0.md:244-245@20d8f7d1`), and as a
+(`docs/specs/change-frontier-v0.md:245-246@20d8f7d1`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fourth. One ordered lattice, one
 casing, one owner — before the adapter, not after.

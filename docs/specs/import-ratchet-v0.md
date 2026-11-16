@@ -5,6 +5,7 @@ Date: 2026-11-06
 Requirement prefix: `IRT-V0`
 Intent status: experimental
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel restructuring plan); decision 0397 (the existing Tasks import-direction rule, which this contract does not change); decision 0594 item 8 and ticket V1-5233 (the manifest keyed to the five layers shared, analyzers, tests, docs and release).
 
 ## Agent digest

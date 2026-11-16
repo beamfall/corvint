@@ -5,6 +5,7 @@ Date: 2026-09-08
 Requirement prefix: `OACS-V0`
 Intent status: accepted (decision 0105 second amendment 2026-09-12)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md`,
 `analyzer-python-native-candidate.md`, `go-production-kernel-migration-v0.md`, and
 `release-artifact-integrity-v0.md`. The owner instruction recorded under "Gate tooling is in
