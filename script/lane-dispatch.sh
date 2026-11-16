@@ -145,6 +145,30 @@ inputs() {
   packet=$(perl "$(dirname "$0")/lane-screen.pl" screen --repo "$repo" --base "$sha" ${screen_args[@]+"${screen_args[@]}"} ${screen_tickets[@]+"${screen_tickets[@]}"} ${ticket_files[@]+"${ticket_files[@]}"}) ||
     { printf '%s\n' "$packet"; refuse 'ticket screen findings (fix: resolve the retained findings or explicitly --override ID)'; }
   [[ $packet != *OVERRIDDEN* ]] || printf '%s\n' "$packet"
+  # V1-3496: consume the Tasks classification, not just a reminder in the brief.
+  # Unobserved PR evidence stays visible; malformed or delivered evidence refuses.
+  local delivery=$dir/delivery-screen.json delivery_status=0 unaudited=()
+  [[ -z ${CORVINT_TASKS_SNAPSHOT:-} ]] || unaudited=(--unaudited)
+  (cd "$repo" && "${LANE_DISPATCH_TASKS:-corvint-tasks}" ticket delivery-screen $tickets --lane-refs --ref "$sha" --json ${unaudited[@]+"${unaudited[@]}"}) > "$delivery" 2> "$dir/delivery-screen.err" || delivery_status=$?
+  if ((delivery_status > 1)) || ! perl -MJSON::PP -e '
+    my ($file,@wanted)=@ARGV;
+    -f $file && -s $file <= 4*1024*1024 or exit 1;
+    open my $fh,"<",$file or exit 1; local $/;
+    my $r=eval { decode_json(<$fh>) }; $@ and exit 1;
+    ref($r) eq "HASH" && ($r->{outcome}//"") eq "OK" && ref($r->{items}) eq "ARRAY" && @{$r->{items}} == 1 or exit 1;
+    my $s=$r->{items}[0]; ref($s) eq "HASH" && ($s->{profile}//"") eq "taskman-delivery-screen/0" && ref($s->{tickets}) eq "ARRAY" or exit 1;
+    my %wanted=map { $_=>1 } @wanted;
+    for my $row (@{$s->{tickets}}) {
+      ref($row) eq "HASH" or exit 1;
+      my $id=$row->{local}//"";
+      delete($wanted{$id}) or exit 1;
+      ($row->{verdict}//"") =~ /\A(?:CLEAR|NOT_OBSERVED|MENTIONED)\z/ or exit 1;
+    }
+    exit(keys(%wanted) ? 1 : 0);
+  ' "$delivery" $tickets; then
+    head -c 4096 "$delivery"
+    refuse 'screen findings (fix: resolve all findings, or explicitly --override ID for a retained ticket finding)'
+  fi
   # Publish only after every ticket screens, then verify all declared refs on every host.
   if [[ -n $charter ]]; then
     perl "$(dirname "$0")/lane-screen.pl" refs --repo "$repo" --base "$sha" --charter "$charter" ${host_args[@]+"${host_args[@]}"} ${publish:+--publish} ||
