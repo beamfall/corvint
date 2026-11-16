@@ -242,12 +242,15 @@ func maintainReceiptObject(result *docmaintain.Result) map[string]any {
 const docsMaintainHelp = `Experimental automatic maintenance of one human documentation page
 
 Usage:
-  corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply)
+  corvint-docs [--root PATH] docs pages maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply)
     [--max-writes N] [--max-wall-clock DURATION] [--watch]
-  corvint-docs [--root PATH] docs maintain --check --page PATH [--source PATH --package DIRECTORY]
+  corvint-docs [--root PATH] docs pages maintain --check --page PATH [--source PATH --package DIRECTORY]
 
 Example:
-  corvint-docs docs maintain --check --page docs/guide.md
+  corvint-docs docs pages maintain --check --page docs/guide.md
+
+docs maintain is the old spelling (AFL-V1-008): an alias that prints a notice naming docs pages
+maintain and runs the same command until the next release.
 
 An explicitly enabled, bounded local session that refreshes exactly one
 generated block of PATH, delimited by "<!-- corvint:docmaintain begin ... -->"

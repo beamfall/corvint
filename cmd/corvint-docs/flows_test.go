@@ -123,7 +123,7 @@ func TestAFLV1007MovedReportsNameCorvint_V15623(t *testing.T) {
 			t.Fatalf("flows %s: %d %q %s", verb, code, out, diag)
 		}
 	}
-	if code, out, _ := runCLI(t, "help", "flows"); code != 0 || !strings.Contains(out, "flows status|impact|gaps") || strings.Contains(out, "corvint-docs [--root PATH] flows status") {
+	if code, out, _ := runCLI(t, "help", "flows"); code != 0 || !strings.Contains(out, "flows status|impact|gaps") || strings.Contains(out, "flows status --flows") {
 		t.Fatalf("flows help still documents the moved reports: %d %s", code, out)
 	}
 }
