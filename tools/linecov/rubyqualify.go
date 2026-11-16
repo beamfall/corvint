@@ -94,10 +94,12 @@ type rubyFaultResult struct {
 // the index keeps whole whatever the change. A run qualifies its runner only
 // when a killed fault kept fewer tests than the suite and every control kept
 // no test at all: a run whose control kept tests the index keeps whatever
-// the change has no control (GLS-V0-032) and is restated as unqualified.
-// With -record it writes the Ruby qualification record, naming the
-// qualifying runners, bound to the RubyQualifiedSources blobs at -root's
-// HEAD, which must equal those of the report's selector revision.
+// the change, or whose index keeps any file whole whatever the change, has
+// no control (GLS-V0-032) and is restated as unqualified. With -record it
+// writes the Ruby qualification record, naming the qualifying runners, bound
+// to the RubyQualifiedSources blobs at -root's HEAD, which must equal those
+// of the report's selector revision. It writes only a record that
+// linecov.Qualified.RubyAdmits accepts for each runner it names.
 func rubyQualify(args []string) error {
 	fs := flag.NewFlagSet("ruby-qualify", flag.ContinueOnError)
 	reportFile := fs.String("report", "", "Ruby fault-run report (required)")
@@ -175,12 +177,19 @@ func rubyQualify(args []string) error {
 		}
 		q.Sources[p] = head
 	}
+	for _, runner := range q.Runners {
+		if err := q.RubyAdmits(runner); err != nil {
+			return fmt.Errorf("ruby-qualify: admission would refuse this record for %q: %w", runner, err)
+		}
+	}
 	return writeJSON(*record, q)
 }
 
 // foldRubyReport checks a report and restates each runner's run, with why
 // it does not qualify its runner when it does not. It fails on a miss, a
-// failed control, an incomplete run, or when no run qualifies its runner.
+// failed control, an incomplete run, a run with no fault, or when no run
+// qualifies its runner. A run qualifies its runner here only if admission
+// would accept it: CheckRubyQualification refuses the same runs.
 func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResult, error) {
 	if rep.Profile != RubyQualificationProfile {
 		return nil, nil, fmt.Errorf("ruby-qualify: profile %q", rep.Profile)
@@ -260,12 +269,19 @@ func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResu
 			}
 			verdicts = append(verdicts, v)
 		}
+		if run.Faults == 0 {
+			problems = append(problems, fmt.Sprintf("%s: no fault ran", r.Family))
+		}
 		var why []string
 		switch {
 		case run.Controls == 0:
 			why = append(why, "no control ran")
 		case kept > 0 || run.KeptRegardless > 0:
 			why = append(why, fmt.Sprintf("no control: the index keeps the %d tests of %d files whatever the change (a test of each has no isolated record), so its control kept %v tests instead of none", run.KeptRegardless, run.Unordered, run.ControlsKept))
+		case run.Unordered > 0:
+			// Admission refuses such an index even when the baseline holds
+			// no test of those files: nothing bounds what they keep.
+			why = append(why, fmt.Sprintf("no control: the index keeps %d files whole whatever the change", run.Unordered))
 		}
 		if run.Narrowed == 0 {
 			why = append(why, fmt.Sprintf("no killed fault narrowed the suite: each of the %d killed faults kept all %d tests", run.Killed, b.Tests))

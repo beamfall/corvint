@@ -194,6 +194,17 @@ func CheckRubyQualification(ctx context.Context, selectorRoot, runner string, in
 	if err := json.Unmarshal(data, &q); err != nil {
 		return fmt.Errorf("ruby qualification record invalid: %w", err)
 	}
+	if err := q.RubyAdmits(runner); err != nil {
+		return err
+	}
+	return q.bound(ctx, selectorRoot, RubyQualifiedSources, rev)
+}
+
+// RubyAdmits reports why the Ruby record q does not qualify runner, or nil
+// when it does. It is every check of CheckRubyQualification that reads the
+// record alone, so the command that writes a record refuses one admission
+// would reject (LPCV-V0-7608).
+func (q Qualified) RubyAdmits(runner string) error {
 	if !q.passing("ruby") || q.Corpus == nil || q.Corpus.Commit == "" || len(q.Report.Runs) == 0 {
 		return fmt.Errorf("ruby qualification is not a passing record")
 	}
@@ -240,7 +251,7 @@ func CheckRubyQualification(ctx context.Context, selectorRoot, runner string, in
 	if !slices.Contains(qualified, runner) {
 		return fmt.Errorf("ruby qualification names no runner %q", runner)
 	}
-	return q.bound(ctx, selectorRoot, RubyQualifiedSources, rev)
+	return nil
 }
 
 // passing reports whether q is a passing record of family.
