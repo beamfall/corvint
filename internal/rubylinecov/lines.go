@@ -233,7 +233,7 @@ func (s side) whole(n int) string {
 			}
 			// A word after one dot is a method name (x.class), not a keyword.
 			called := i > 0 && code[i-1] == '.' && (i < 2 || code[i-2] != '.')
-			if structureKeywords[word] && !called {
+			if blockKeyword(word) && !called {
 				return "a line with a block keyword"
 			}
 			i = next
@@ -268,19 +268,28 @@ func (s side) leads(n int) bool { return !s.state[n-1].StartsLiteral && leads(s.
 
 func (s side) continues(n int) bool { return !s.state[n-1].EndsLiteral && continues(s.code(n)) }
 
-// leads reports whether trimmed code continues the previous line.
+// leads reports whether trimmed code continues the previous line: it starts
+// with a dot, a logical operator or the word `and` or `or`.
 func leads(code string) bool {
-	for _, prefix := range []string{".", "&.", "&&", "||", "and ", "or "} {
+	for _, prefix := range []string{".", "&.", "&&", "||"} {
 		if strings.HasPrefix(code, prefix) {
 			return true
 		}
 	}
-	return false
+	word, _ := rubydialect.Word(code, 0)
+	return word == "and" || word == "or"
 }
+
+// operandKeywords take an operand after them, so a line ending in one
+// continues onto the next.
+var operandKeywords = []string{"and", "or", "not", "if", "unless", "while", "until", "in", "when", "case", "elsif", "rescue"}
 
 // continues reports whether trimmed code continues onto the next line: it
 // ends with an operator, a backslash or a keyword that takes an operand. A
-// trailing `?` or `!` directly after a word is a method name's suffix.
+// trailing `?` or `!` directly after a word is a method name's suffix. The
+// keyword is the line's last word whatever precedes it: Ruby needs no blank
+// between a bracket or a number and a keyword (`f(1)and`, `1or`). A word
+// after one dot is a method name (x.in).
 func continues(code string) bool {
 	if code == "" {
 		return false
@@ -292,13 +301,25 @@ func continues(code string) bool {
 	if strings.ContainsRune(`\,.+-*/%&|^=<>:(~`, rune(last)) {
 		return true
 	}
-	for _, word := range []string{"and", "or", "not", "if", "unless", "while", "until", "in", "when", "case", "elsif"} {
-		if code == word || strings.HasSuffix(code, " "+word) {
+	start := len(code)
+	for start > 0 && rubydialect.WordByte(code[start-1]) {
+		start--
+	}
+	word := code[start:]
+	if start > 0 && code[start-1] == '.' && (start < 2 || code[start-2] != '.') {
+		return false
+	}
+	for _, keyword := range operandKeywords {
+		if word == keyword || numberLed(word) && strings.HasSuffix(word, keyword) {
 			return true
 		}
 	}
-	return strings.HasSuffix(code, " rescue")
+	return false
 }
+
+// numberLed reports whether a word starts with a digit. Ruby ends a number
+// where a keyword starts, so `1if` is the number 1 and the keyword `if`.
+func numberLed(word string) bool { return word != "" && word[0] >= '0' && word[0] <= '9' }
 
 // unbounded reports why the hits of a replaced hunk's old lines do not bound
 // the edit's reach, and the line, or "" when they do: every old and new line
@@ -338,16 +359,28 @@ func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, in
 	return "", 0
 }
 
-// binding is the signature of the names one source line can bind: "" when
-// it has no assignment; its text through the last assignment operator when
-// it assigns; and its whole word and operator sequence when it holds `=>`,
-// whose target follows the operator. Operators are read from the raw line,
-// so an assignment inside an interpolation counts and one inside a string or
-// comment only makes the comparison stricter. ok is false for a line that
-// can bind without an operator the signature would show: a named capture, or
-// a numbered or implicit block parameter in its code or an interpolation.
+// binding is the signature of the names one source line can bind, taken
+// from the line's own text so that nothing which tells two lines apart is
+// dropped: "" when the line has no assignment and no `=>`; its text through
+// the last assignment operator when it assigns; and its whole text when it
+// holds `=>`, whose target follows the operator. The text is the raw line
+// with each run of spaces and tabs squeezed to one space. A sigil, a dot, a
+// bracket, a comma, a number, a comment mark and a byte Ruby reads as part
+// of a name (a no-break space) all stay as written, because each decides
+// what a line declares: `x = h`, `@x = h`, `foo.x = h`, `foo x = h` and
+// `foo # x = h` differ, as do `foo 1 => x` and `foo => x`, and `foo [1] => x`
+// and `foo[1] => x`. Two lines so share a signature only when their text
+// through the operator, or all of it on a `=>` line, is the same, and then
+// they declare the same names.
+//
+// Operators are found in the raw line, so an assignment inside an
+// interpolation counts, and one inside a string or a comment only makes the
+// comparison stricter: such text is compared as written, behind its quote or
+// `#`, and never read as code. ok is false for a line that can bind without
+// an operator the signature would show: a named capture in either spelling,
+// or a numbered or implicit block parameter in its code or an interpolation.
 func binding(raw, code string) (sig string, ok bool) {
-	if strings.Contains(raw, "(?<") {
+	if strings.Contains(raw, "(?<") || strings.Contains(raw, "(?'") {
 		return "", false
 	}
 	params := []string{code}
@@ -367,7 +400,6 @@ func binding(raw, code string) (sig string, ok bool) {
 			i = next
 		}
 	}
-	var tokens []string
 	last, rocket := -1, false
 	at := func(i int) byte {
 		if i < 0 || i >= len(raw) {
@@ -375,45 +407,36 @@ func binding(raw, code string) (sig string, ok bool) {
 		}
 		return raw[i]
 	}
-	for i := 0; i < len(raw); {
-		c := raw[i]
+	for i := 0; i < len(raw); i++ {
+		if raw[i] != '=' {
+			continue
+		}
+		prev, next := at(i-1), at(i+1)
 		switch {
-		case rubydialect.WordByte(c):
-			word, next := rubydialect.Word(raw, i)
-			if next <= i {
-				next = i + 1
-			}
-			if c < '0' || c > '9' {
-				tokens = append(tokens, word)
-			}
-			i = next
-		case c == '=':
-			prev, next := at(i-1), at(i+1)
-			switch {
-			case next == '>':
-				rocket = true
-				tokens = append(tokens, "=>")
-				i++
-			case next == '=' || next == '~' || prev == '=' || prev == '!':
-				// ==, ===, =~ and != compare.
-			case (prev == '<' || prev == '>') && at(i-2) != prev:
-				// <= and >= compare; <<= and >>= assign.
-			default:
-				last = i
-				tokens = append(tokens, "=")
-			}
-			i++
+		case next == '>':
+			rocket = true
+		case next == '=' || next == '~' || prev == '=' || prev == '!':
+			// ==, ===, =~ and != compare.
+		case (prev == '<' || prev == '>') && at(i-2) != prev:
+			// <= and >= compare; <<= and >>= assign.
 		default:
-			i++
+			last = i
 		}
 	}
 	switch {
 	case rocket:
-		return strings.Join(tokens, " "), true
+		return squeeze(raw), true
 	case last >= 0:
-		return strings.Join(strings.Fields(raw[:last+1]), " "), true
+		return squeeze(raw[:last+1]), true
 	}
 	return "", true
+}
+
+// squeeze trims text and puts one space for each run of spaces and tabs
+// inside it. Every other byte is kept: Ruby reads a no-break space, like any
+// byte above ASCII, as part of a name.
+func squeeze(text string) string {
+	return strings.Join(strings.FieldsFunc(text, func(r rune) bool { return r == ' ' || r == '\t' }), " ")
 }
 
 // lineBlock is the executable-line block of path:line, if Ruby counts it.
@@ -500,6 +523,22 @@ var structureKeywords = map[string]bool{
 	"rescue": true, "then": true, "unless": true, "until": true, "when": true, "while": true,
 }
 
+// blockKeyword reports whether word is a block keyword or a number with one
+// glued to its end (`1if`, `2do`).
+func blockKeyword(word string) bool {
+	if structureKeywords[word] {
+		return true
+	}
+	if numberLed(word) {
+		for keyword := range structureKeywords {
+			if strings.HasSuffix(word, keyword) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // structureTokens lists one code line's block keywords and brackets in
 // order.
 func structureTokens(code string) []string {
@@ -514,7 +553,7 @@ func structureTokens(code string) []string {
 			}
 			// A method call or symbol named like a keyword (x.class, :end) is
 			// still listed: the comparison only needs to be conservative.
-			if structureKeywords[word] {
+			if blockKeyword(word) {
 				tokens = append(tokens, word)
 			}
 			i = next
