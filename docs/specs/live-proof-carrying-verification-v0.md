@@ -2684,7 +2684,9 @@ supersedes the Ruby state above and the first record of
 line rule unsound and the record unproven.
 `docs/build-log/2026-11-16-r1ruby-binding-signature-repair.md` records the second repair (the
 binding signature of a `=>` line) and the rerun that rebinds the record: the same faults, the
-same selected-set sizes and 0 misses, so the state below stands. Line-level selection (`LPCV-V0-7605` as amended), the
+same selected-set sizes and 0 misses, so the state below stands.
+`docs/build-log/2026-11-16-r1ruby-blank-literal-repair.md` records the third (a blank run that
+delimits a percent literal) and a second rerun with the same faults, selected sets and 0 misses. Line-level selection (`LPCV-V0-7605` as amended), the
 `LPCV-V0-7608` record and the resumable collector (`LPCV-V0-7609`) produced complete WebMock
 indexes for Minitest (23 isolated tests, every one recorded) and RSpec (4,846 isolated runs; 11
 files kept whole by 2,930 unrecorded outcomes). The seed-20261116 rerun has 20 faults and one
