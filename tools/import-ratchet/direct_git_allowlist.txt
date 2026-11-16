@@ -30,6 +30,7 @@ internal/mergedrivers/append.go:Append: merge-file exit codes 1 to 127 mean conf
 internal/perfbudget/fixture.go:gitCommand: returns the *exec.Cmd for outputContained and other callers to wire and run
 internal/releasecandidate/candidate.go:runSourceGit: fixed release environment with HOME in scratch and unbounded stdout; returns exec's error unchanged
 internal/rubylinecov/collect.go:collectOnce: inherits the environment with no output bound; the error wraps exec's error text
+internal/rubylinecov/isolate.go:bindState: rev-parse HEAD inheriting the environment with no output bound; the error wraps exec's error text
 internal/runnerprotocol/snapshot.go:repositorySnapshot: own contained runner: groupreap.Contain, bounded buffers, WaitDelay and PATH limited to the Git directory
 tools/affected-zero-unknown-replay/main.go:git: CombinedOutput with the inherited environment and no timeout
 tools/beamfall-shadow/main.go:gitLimitedBytes: fixed minimal environment with its own byte limits and git output limit exceeded error text
