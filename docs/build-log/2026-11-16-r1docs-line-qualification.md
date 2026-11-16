@@ -164,15 +164,19 @@ configuration changed. These limits prevent a delivered ticket claim.
 ## Self-review repair: delivery marker
 
 The `delivered` trailer in `0c897512c888154fceb1b0680d078c9b525fd36c`
-was incorrect and is superseded by this repair's `Corvint-Ticket-State: partial`.
+was incorrect. The attempted `Corvint-Ticket-State: partial` repair was invalid:
+native `worktrail.ValidState` accepts only `started`, `delivered`, and `blocked`.
+`latestByTicket` skips malformed transitions, so that attempted repair did not
+supersede delivery. The independent-review repair appends a valid `blocked`
+transition with a reason; only that valid transition cancels the earlier delivery.
 V1-4365 must stay open: the 467 RSpec baseline failures, unrun full RSpec mutation
 qualification, and 23-test static fallback for the unexecuted-line control leave
 the acceptance criteria unmet (`GateEligible: false`). No new qualification is
 claimed under LPCV-V0-950 through LPCV-V0-955, LPCV-V0-963 or GLS-V0-030 through
 GLS-V0-034.
 
-History is retained under the no-amend rule. The external lane trailer checker
-counts any historical delivered block and does not cancel it on a later partial
-block. Its pass cannot authorize closing this ticket. Integration must exclude
-V1-4365 from automatic completion until qualification succeeds; task-store writes
-and changes to the host integration tooling are outside this repair's authority.
+History is retained under the no-amend rule. A trailer-presence checker is not
+native ingestion evidence. The final V1-4365 transition must remain `blocked`:
+criterion 4 requires fresh Go qualification and a `.github/` change reserved to
+the orchestrator. The native ingestion check is read-only (`close-merged
+--dry-run`); this lane does not write the task store.
