@@ -73,7 +73,7 @@ func commit(t *testing.T, root, message string) string {
 	return git(t, root, "rev-parse", "HEAD")
 }
 
-func intents(t *testing.T, anchor string) map[string]string {
+func intents(t *testing.T, anchor string, edits ...func(*appflows.FlowIntent)) map[string]string {
 	t.Helper()
 	flow := func(id, step, source string, variations ...appflows.FlowVariation) appflows.FlowIntent {
 		intent := appflows.FlowIntent{Schema: appflows.FlowIntentSchema, FlowID: id, Revision: 1, Kind: "ui", Actor: "shopper", Preconditions: []string{},
@@ -95,6 +95,9 @@ func intents(t *testing.T, anchor string) map[string]string {
 	search.Links = append(search.Links, testLink("search.basic", "e2e/search.spec.ts", searchKey))
 	out := map[string]string{}
 	for _, intent := range []appflows.FlowIntent{checkout, search} {
+		for _, edit := range edits {
+			edit(&intent)
+		}
 		raw, err := json.Marshal(intent)
 		if err != nil {
 			t.Fatal(err)
@@ -104,7 +107,7 @@ func intents(t *testing.T, anchor string) map[string]string {
 	return out
 }
 
-func newShop(t *testing.T) shop {
+func newShop(t *testing.T, edits ...func(*appflows.FlowIntent)) shop {
 	t.Helper()
 	root := t.TempDir()
 	git(t, root, "init", "-q")
@@ -115,10 +118,10 @@ func newShop(t *testing.T) shop {
 		"src/search.ts":               "export function find(q: string): string {\n  return q;\n}\n",
 		appflows.FlowsDeclarationPath: `{"profile":"` + appflows.FlowsProfile(appflows.FlowsWriteVersion()) + `","flows":"flows"}` + "\n",
 	})
-	write(t, root, intents(t, ""))
+	write(t, root, intents(t, "", edits...))
 	fx := shop{root: root}
 	fx.a = commit(t, root, "A: shop")
-	write(t, root, intents(t, fx.a))
+	write(t, root, intents(t, fx.a, edits...))
 	fx.b = commit(t, root, "B: review at A")
 	write(t, root, map[string]string{"src/checkout.ts": "export function pay(n: number): number {\n  return n + 1;\n}\n"})
 	fx.head = commit(t, root, "C: change checkout")

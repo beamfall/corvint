@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -24,6 +26,11 @@ type RunEvidenceRead struct {
 	CorruptTests   []string `json:"corrupt_tests,omitempty"`
 	Truncated      bool     `json:"truncated,omitempty"`
 	Reasons        []string `json:"reasons"`
+	// unreportable lists the skipped records a flows status report refuses whole (AFL-V1-006):
+	// each is input no writer of this build stores (runevidence.Corrupt.Invalid, or a stored
+	// test-run-evidence/0 document this package cannot decode), or a record whose tests the
+	// store cannot name, so no test could be marked run-evidence-corrupt (RVD-V1-010).
+	unreportable []string
 }
 
 // RunEvidenceStore is the run evidence store of the repository at root:
@@ -52,6 +59,9 @@ func ReadStoredRunEvidence(ctx context.Context, root string) ([]TestRunEvidence,
 	}
 	read := &RunEvidenceRead{LogUnreadable: snapshot.LogUnreadable, Reasons: slices.Clone(snapshot.Reasons)}
 	corrupt := func(c runevidence.Corrupt) {
+		if c.Invalid || len(c.Tests) == 0 {
+			read.unreportable = append(read.unreportable, c.ID)
+		}
 		read.CorruptRecords = append(read.CorruptRecords, c.ID)
 		read.CorruptTests = append(read.CorruptTests, c.Tests...)
 		if !slices.Contains(read.Reasons, runevidence.ReasonCorrupt) {
@@ -67,7 +77,7 @@ func ReadStoredRunEvidence(ctx context.Context, root string) ([]TestRunEvidence,
 		record := snapshot.Records[index]
 		converted, err := storedRecords(record)
 		if err != nil {
-			corrupt(runevidence.Corrupt{ID: record.Entry.ID, Tests: record.Entry.Tests})
+			corrupt(runevidence.Corrupt{ID: record.Entry.ID, Tests: record.Entry.Tests, Invalid: true})
 			continue
 		}
 		if total+len(converted) > maxRunRecords {
@@ -126,17 +136,34 @@ func WithStoredRunEvidence(ctx context.Context, root string, records []TestRunEv
 	return append(stored, records...), read, nil
 }
 
-// corruptKey reports whether a test and project pair was held by a record the read skipped.
-func (r *RunEvidenceRead) corruptKey(key, project string) bool {
+// corruptTarget reports whether a skipped record held a result for the target under project: its
+// own test key, or a file-level ID of the target's test file, which is how a corvint test receipt
+// names it (RVD-V1-010, AFL-V1-002).
+func (r *RunEvidenceRead) corruptTarget(target testTarget, project string) bool {
 	if r == nil {
 		return false
 	}
-	want := key
-	if project != "" {
-		want = key + " @" + project
+	for _, held := range r.CorruptTests {
+		key, heldProject, _ := strings.Cut(held, " @")
+		if heldProject != "" && project != "" && heldProject != project {
+			continue
+		}
+		probe := TestRunEvidence{TestKey: key, Project: heldProject, granularity: runevidence.GranularityFile}
+		if _, ok := matchesTarget(&probe, target, project, false); ok {
+			return true
+		}
 	}
-	_, found := slices.BinarySearch(r.CorruptTests, want)
-	return found
+	return false
+}
+
+// refusal is the error a flows status report ends with when the store read skipped a record it
+// must refuse whole (AFL-V1-006), or nil.
+func (r *RunEvidenceRead) refusal() error {
+	if r == nil || len(r.unreportable) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s: the run evidence store holds %d record(s) this build cannot report, first %s: not a %s receipt or %s document it reads, or a record whose tests the store cannot name; no partial report is given (AFL-V1-006); remove the record from %s or run with --no-store",
+		runevidence.ReasonCorrupt, len(r.unreportable), r.unreportable[0], runevidence.ProfileReceipt, runevidence.ProfileIngested, "<git-dir>/corvint/evidence/records")
 }
 
 // present reports whether the read is worth printing in a report.
@@ -214,7 +241,12 @@ type Results struct {
 // (RVD-V1-005), normalised by the store's one receipt reader (RVD-V1-006), then each named
 // test-run-evidence/0 file. It opens no receipt file itself: STR-V0-011 admits no other receipt
 // reader. A named file that is missing, malformed, oversized or not test-run-evidence/0 refuses
-// the whole read (AFL-V1-006). Nothing is written (RVD-V1-012).
+// the whole read (AFL-V1-006), and so does a stored record that is intact but not a document this
+// build reads, or one whose tests the store cannot name; a record damaged after it was written
+// whose tests the store names is skipped and named instead (RVD-V1-010). The store's records and
+// the named files are bounded separately, as RunEvidenceFor bounds them: the store keeps its newest
+// maxRunRecords records, and the named files together hold at most maxRunRecords. Nothing is
+// written (RVD-V1-012).
 func ReadResults(ctx context.Context, root string, in ResultInputs) (Results, error) {
 	var out Results
 	if in.NoStore {
@@ -224,9 +256,13 @@ func ReadResults(ctx context.Context, root string, in ResultInputs) (Results, er
 		if err != nil {
 			return Results{}, err
 		}
+		if err := read.refusal(); err != nil {
+			return Results{}, err
+		}
 		out.Store, out.Records = read, stored
 		out.Sources = append(out.Sources, ResultSource{Kind: SourceStore, State: SourceRead, Records: len(stored)})
 	}
+	named := 0
 	for _, name := range in.Evidence {
 		file := name
 		if in.Resolve != nil {
@@ -239,7 +275,7 @@ func ReadResults(ctx context.Context, root string, in ResultInputs) (Results, er
 		if err != nil {
 			return Results{}, err
 		}
-		if len(out.Records)+len(records) > maxRunRecords {
+		if named += len(records); named > maxRunRecords {
 			return Results{}, boundError(BoundRecords)
 		}
 		out.Records = append(out.Records, records...)
@@ -258,7 +294,7 @@ func rowRecords(id string, rows []runevidence.Row) []TestRunEvidence {
 			Runner:  RunRunner{Name: row.Instance, Version: row.RunnerVersion},
 			Source:  RunSource{Commit: row.Commit, Tree: row.Tree, Clean: row.Clean},
 			TestKey: row.TestID, Project: row.Project, Attempts: []RunAttempt{}, Cleanup: "not-declared",
-			NegativeControls: []NegativeControl{}, granularity: row.Granularity,
+			NegativeControls: []NegativeControl{}, granularity: row.Granularity, slice: row.Slice,
 		}
 		if row.Outcome != "not-run" {
 			attempt := RunAttempt{Ordinal: 1, Outcome: row.Outcome, AssertionAnchors: []RunAnchor{}, Attachments: []RunAttachment{}}
@@ -280,12 +316,14 @@ func rowRecords(id string, rows []runevidence.Row) []TestRunEvidence {
 // one, the test file.
 type testTarget struct{ key, path string }
 
-// declaredTestTargets is declaredTargets for test links, keeping each key's file path (the
-// smallest one when several links name the key) so a file-level result can be joined to it.
-func declaredTestTargets(links []EvaluatedLink, from string) []testTarget {
+// attachedTestTargets are the tests a flows status report attaches to a variation: the targets of
+// its test links whose review state is reviewed, so a stale, unreviewed, inferred or otherwise
+// unaccepted link attaches nothing (AFL-V1-001). Each key keeps its file path (the smallest one
+// when several links name the key) so a file-level result can be joined to it.
+func attachedTestTargets(links []EvaluatedLink, from string) []testTarget {
 	paths := map[string]string{}
 	for _, l := range links {
-		if l.ReviewState == ReviewInferred || l.Target.Type != "test" || l.From != from {
+		if l.ReviewState != ReviewReviewed || l.Target.Type != "test" || l.From != from {
 			continue
 		}
 		key := l.Target.TestKey + l.Target.Assertion
@@ -294,7 +332,7 @@ func declaredTestTargets(links []EvaluatedLink, from string) []testTarget {
 		}
 	}
 	targets := []testTarget{}
-	for _, key := range declaredTargets(links, "test", from) {
+	for _, key := range slices.Sorted(maps.Keys(paths)) {
 		targets = append(targets, testTarget{key: key, path: paths[key]})
 	}
 	return targets
@@ -303,10 +341,11 @@ func declaredTestTargets(links []EvaluatedLink, from string) []testTarget {
 // matchesTarget reports whether record r names target under project, and at which granularity:
 // test when the record's key is the target's own, file when a file-level record names the target's
 // test file (by path or by its canonical file-level test ID) or its key. A file-level record with
-// no project covers every project of the file (AFL-V1-002).
-func matchesTarget(r *TestRunEvidence, target testTarget, project string) (string, bool) {
+// no project (a corvint test receipt row) stands for the project only when the variation declares
+// at most one (multi false): with several, it cannot say which of them ran (AFL-V1-002).
+func matchesTarget(r *TestRunEvidence, target testTarget, project string, multi bool) (string, bool) {
 	file := r.granularity == runevidence.GranularityFile
-	projectOK := project == "" || r.Project == project || file && r.Project == ""
+	projectOK := project == "" || r.Project == project || file && r.Project == "" && !multi
 	if !projectOK {
 		return "", false
 	}

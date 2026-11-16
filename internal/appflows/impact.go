@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/gitstatus"
@@ -19,13 +20,20 @@ const ImpactSchema = "application-flow-impact/1"
 
 // ImpactReport names what the base..HEAD changed paths reach through links and the impact graph.
 type ImpactReport struct {
-	Schema       string       `json:"schema"`
-	Base         string       `json:"base"`
-	Revision     string       `json:"revision"`
-	ChangedPaths []string     `json:"changed_paths"`
-	Graph        ImpactGraph  `json:"graph"`
+	Schema       string      `json:"schema"`
+	Base         string      `json:"base"`
+	Revision     string      `json:"revision"`
+	ChangedPaths []string    `json:"changed_paths"`
+	Graph        ImpactGraph `json:"graph"`
+	// ReachUnknown lists the changed paths whose reach cannot be resolved (APK-V0-010); with any,
+	// every flow is named with reason reach-unknown (AFL-V1-007). Absent when every path resolved.
+	ReachUnknown []string     `json:"reach_unknown,omitempty"`
 	Flows        []ImpactFlow `json:"flows"`
 }
+
+// ReasonReachUnknown names a flow reported because a changed path's reach cannot be resolved, not
+// because a link was reached (APK-V0-010, AFL-V1-007).
+const ReasonReachUnknown = "reach-unknown"
 
 // ImpactGraph identifies the impact graph walked; an UNKNOWN scope means a hit list may be short.
 type ImpactGraph struct {
@@ -36,7 +44,10 @@ type ImpactGraph struct {
 
 // ImpactFlow is one reached flow with the variations and test keys its hit links reach.
 type ImpactFlow struct {
-	FlowID     string      `json:"flow_id"`
+	FlowID string `json:"flow_id"`
+	// Reason is reach-unknown when the flow is named because reach is unknown; then Variations
+	// and TestKeys are all of the flow's.
+	Reason     string      `json:"reason,omitempty"`
 	Variations []string    `json:"variations"`
 	TestKeys   []string    `json:"test_keys"`
 	Hits       []ImpactHit `json:"hits"`
@@ -119,6 +130,10 @@ func FlowImpact(ctx context.Context, root string, set IntentSet, base string, gr
 		report.Graph.Unknown = append(report.Graph.Unknown, u.Reason+": "+u.Detail)
 	}
 	changedBy := changedUnits(graph, plan.Dirty)
+	report.ReachUnknown = unresolvedReach(graph, plan.Dirty, set, links)
+	if len(report.ReachUnknown) != 0 {
+		report.Graph.Scope = affected.ScopeUnknown
+	}
 	for _, intent := range set.Flows {
 		hits := []ImpactHit{}
 		for _, l := range flowLinks(links, intent.FlowID) {
@@ -126,11 +141,52 @@ func FlowImpact(ctx context.Context, root string, set IntentSet, base string, gr
 				hits = append(hits, ImpactHit{From: l.From, Basis: l.Basis, ReviewState: l.ReviewState, Target: l.Target, Via: via})
 			}
 		}
-		if len(hits) != 0 {
+		switch {
+		case len(report.ReachUnknown) != 0:
+			report.Flows = append(report.Flows, reachUnknownFlow(intent, hits))
+		case len(hits) != 0:
 			report.Flows = append(report.Flows, impactFlow(intent, hits))
 		}
 	}
 	return doccorpus.Encode(report)
+}
+
+// unresolvedReach lists, sorted, the changed paths whose reach cannot be resolved (APK-V0-010):
+// a path with no owning unit in the impact graph that no link of the set targets. Such a path may
+// reach any flow through an edge the graph does not hold, so it is never dropped as unrelated. A
+// flow's own intent file and the flow declaration are flow inputs, not application code, and are
+// left out.
+func unresolvedReach(graph *affected.Graph, changed []string, set IntentSet, links []EvaluatedLink) []string {
+	targets := map[string]bool{}
+	for _, l := range links {
+		targets[l.Target.Path] = true
+	}
+	unknown := []string{}
+	for _, p := range changed {
+		if _, owned := graph.OwnerOf(p); owned || targets[p] || p == FlowsDeclarationPath || set.Dir != "" && strings.HasPrefix(p, set.Dir+"/") {
+			continue
+		}
+		unknown = append(unknown, p)
+	}
+	slices.Sort(unknown)
+	if len(unknown) == 0 {
+		return nil
+	}
+	return unknown
+}
+
+// reachUnknownFlow names a flow when reach is unknown (AFL-V1-007, APK-V0-010): every variation
+// and every variation's test keys, with the hits that did resolve and reason reach-unknown, so a
+// report limited by the change is never narrowed by a reach it could not compute.
+func reachUnknownFlow(intent FlowIntent, hits []ImpactHit) ImpactFlow {
+	flow := impactFlow(intent, hits)
+	variations, keys := slices.Clone(flow.Variations), slices.Clone(flow.TestKeys)
+	for _, v := range intent.Variations {
+		variations = append(variations, v.VariationID)
+		keys = append(keys, variationTests(intent, v.VariationID)...)
+	}
+	flow.Variations, flow.TestKeys, flow.Reason = sortedSet(variations), sortedSet(keys), ReasonReachUnknown
+	return flow
 }
 
 // changedUnits maps each unit owning a changed path to the first such path in sorted order.

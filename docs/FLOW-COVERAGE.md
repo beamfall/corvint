@@ -136,7 +136,8 @@ An absent, partial, stale or unverified inventory is never a complete answer. Th
 
 `corvint flows status --flows DIR [--evidence FILE]... [--provider FILE] [--no-store]
 [--base SHA]` writes `application-flow-status/0`: for each flow and each variation,
-the attached tests (non-inferred test links crossed with the variation's projects) and the last
+the attached tests (the targets of its `reviewed` test links crossed with the variation's
+projects; a stale, unreviewed or inferred link attaches none) and the last
 recorded result of each ([AFL-V1](specs/application-flow-status-v1.md)). It runs in `corvint`
 with no other executable installed; `corvint-docs flows status|impact|gaps` only name the
 `corvint` command (AFL-V1-001, AFL-V1-007). Results come only from two writers (AFL-V1-002):
@@ -150,16 +151,23 @@ the store's (RVD-V1-006). `result_sources` lists every source the report looked 
 missed. The newest record naming a test gives its result; it is `stale` with its
 `source_commit` unless bound to `HEAD`'s commit and tree from a clean worktree. A receipt names a
 test file or a Go package, never one title, so its outcome reaches a title link of that file with
-`granularity: file` and is never shown as a per-title result; an ingested record has
-`granularity: test`. `STATIC` records never count. A variation with no attached test carries the
+`granularity: file` and is never shown as a per-title result, with its `slice` when the run
+covered part of the file; an ingested record has `granularity: test`. A receipt names no
+Playwright project, so for a variation of several projects each test stays `NOT_OBSERVED` with
+reason `project-not-recorded`. `STATIC` records never count. A variation with no attached test carries the
 code `no-test`. `--provider FILE` adds the provider's `inventory` state and `unassigned`, the count
 of its E2E tests no variation links (the same number as gaps' `unlinked_total`); without it
 `unassigned` is `null`. `--base SHA` limits the report to exactly the flows and variations
 `corvint flows impact --base SHA` names and carries that report's `impact_graph` scope, so an
-`UNKNOWN` scope is visible (AFL-V1-004). The report holds at most 8192 test rows; past that, rows
+`UNKNOWN` scope is visible (AFL-V1-004). A changed path with no owning unit that no link targets
+has unknown reach (APK-V0-010): `flows impact` lists it in `reach_unknown` and names every flow,
+with every variation and `reason: reach-unknown`, so `--base` never narrows to nothing. The report holds at most 8192 test rows; past that, rows
 are dropped with `truncated` true and the full counts in `totals`. The MCP tool
 `corvint.flows_status` takes the same `flows`, `evidence`, `provider` and `base`
 inputs and returns the same report (AFL-V1-003). Both reports are read-only and byte-identical for
 identical inputs; a malformed flows directory, an unsupported flows schema, an unresolvable base,
 or a malformed, oversized or other-profile receipt or evidence file is refused whole with exit 2
-(AFL-V1-005, AFL-V1-006).
+(AFL-V1-005, AFL-V1-006). In the store, a record that is not a document this build reads, or whose
+tests the store cannot name, refuses the report the same way (`run-evidence-corrupt`); a record
+damaged after it was written is skipped and the tests it held show reason `run-evidence-corrupt`
+(RVD-V1-010). The store and the named files are bounded separately, 8192 records each.

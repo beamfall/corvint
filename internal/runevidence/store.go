@@ -485,6 +485,11 @@ type Record struct {
 type Corrupt struct {
 	ID    string   `json:"id"`
 	Tests []string `json:"tests"`
+	// Invalid is set when the record is not damaged storage but input no writer of this build
+	// stores: its bytes hash to its name yet do not parse (a malformed document or an unknown
+	// profile), or the file is larger than any record a writer keeps. A report that must refuse
+	// such input whole (AFL-V1-006) reads it here; RVD-V1-010 readers skip it like any other.
+	Invalid bool `json:"-"`
 }
 
 // Snapshot is what one read of the store found: the intact records in write order, the skipped
@@ -567,6 +572,7 @@ func (s Store) Read() (Snapshot, error) {
 		entry := entries[index]
 		data, seen := read[entry.ID]
 		var err error
+		invalid := false
 		if !seen {
 			name := filepath.Join(dir, entry.ID+".json")
 			info, statErr := os.Lstat(name)
@@ -576,7 +582,7 @@ func (s Store) Read() (Snapshot, error) {
 			if statErr == nil && info.Size() > MaxRecordBytes {
 				// No record the writer keeps is this large: skip it unread, so a damaged store of
 				// oversized files costs no bytes.
-				err = fmt.Errorf("%s exceeds %d bytes", entry.ID, int64(MaxRecordBytes))
+				err, invalid = fmt.Errorf("%s exceeds %d bytes", entry.ID, int64(MaxRecordBytes)), true
 			} else {
 				if budget <= 0 || (statErr == nil && info.Size() > budget) {
 					corrupt()
@@ -597,11 +603,12 @@ func (s Store) Read() (Snapshot, error) {
 		var parsed Parsed
 		if err == nil && ID(data) == entry.ID {
 			parsed, err = Parse(data)
+			invalid = err != nil
 		} else if err == nil {
 			err = errors.New("record bytes do not hash to the record's name")
 		}
 		if err != nil {
-			skipped = append(skipped, Corrupt{ID: entry.ID, Tests: nonNil(entry.Tests)})
+			skipped = append(skipped, Corrupt{ID: entry.ID, Tests: nonNil(entry.Tests), Invalid: invalid})
 			corrupt()
 			continue
 		}
