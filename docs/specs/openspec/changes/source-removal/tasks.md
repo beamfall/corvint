@@ -41,7 +41,8 @@ RMV-V1-004 (importers re-checked on the batch base), RMV-V1-005 (tests rewritten
    test, passing before B5 starts.
 - [ ] 9 B5, languages and analyzers (milestone). Requirements: RMV-V1-014 to RMV-V1-018. Proof:
    RMV-V1-003; `corvint affected` on a `.rs` change names the reason and `corvint test` runs all
-   tests; milestone checks.
+   tests; the Swift and Kotlin providers, `internal/swiftimpact` and
+   `internal/testrunner/swiftselection` stay and their tests pass (decision 0600); milestone checks.
 - [ ] 10 B6a, shared package move; then B6b, CEM, OCM and dogfood removal; close V1-0014 and V1-1344
     to V1-1348. The test milestone after B6b is accepted (decided 2026-11-09 under R42, N11);
     B6a runs compile and vet only. After B6, self-use is a progress note on the change's ticket

@@ -565,7 +565,8 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Open tickets: V1-5182. New tickets for line evidence of Vitest, Jest, RSpec and Minitest, and a
     1.0.x ticket for the Python line collector (R9).
   - Evidence today: `internal/linecov/`, `.github/linecov/qualification.json`.
-    `internal/nativelinecov/` is removed by G26.
+    `internal/nativelinecov/` stays as far as the kept Swift and Kotlin code reads it (decision
+    0600).
   - Acceptance evidence at 1.0: for Go, RSpec, Minitest, Vitest and Jest, line-level narrowing
     with PROD-TEST-014 passing; for pytest, file-level selection with the `file` tier and the
     release exception recorded in the acceptance record.
@@ -616,7 +617,11 @@ Also part of the bar (owner decisions of 2026-11-09).
     `corvint-analyzer-*` binaries; removal fails closed (an unowned path is UNKNOWN). Owner decision
     R32 (2026-11-09) makes an unowned change or a removed or unavailable runner run all tests with a
     named reason, and takes UNOWNED_DIRTY_PATH off the allowlist. R6 drops Cypress.
-  - Source: answer 2; G1; G26; R6; R32.
+  - Changed: (changed 2026-11-16, decision 0600) The Swift and Kotlin providers stay as additional,
+    non-blocking runners: selection and running keep working for them, they are not among the seven
+    blocking runners and are not part of this requirement's acceptance evidence. Their two analyzer
+    binaries are still removed. G26 still removes the C-family, .NET, Java and Rust providers.
+  - Source: answer 2; G1; G26; R6; R32; decision 0600.
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: an unsupported runner.
     - **WHEN** a repository uses a test runner that is not on the supported list
@@ -2018,7 +2023,7 @@ Panel file counts are estimates not yet checked by a build.
 | G23 | `internal/runnerprotocol`, `runnerpolicy`, `runnerqualification`, `tools/runner-*` | compiled-in `registry.RunnerPlugin`, `runnerselection`, `testrunner`; one compiled-in contract for seven runners | external-protocol part of 0592 (RSP-V0-025, RSP-V0-026) |
 | G24 | `corvint test-plan`, `tests lint`, `tests duplicates`, `internal/testplan`; `corvint runs`, `internal/playwrightruns`; `test-validity` and `tests validity`, `cmd/corvint-test-validity-mcp` (and its row in `tools/release-binary/binaries.json`), `internal/mcp/testvaliditybridge`, the `test-validity` MCP group, `internal/testsource/validity*.go`, tcq code unused outside tcq | `internal/testvalidity` projection types and state constants, tcq `Flaky` and result constants, the testvaliditydoc receipt decoder (`read.go` moves to `internal/pinnedread`), `internal/testevidence`, `corvint test-evidence`, `flows test-evidence` and its MCP group (preview) | 0594 Keeps line for these verbs |
 | G25 | context ranking files, the old impact engine, feature heuristics, the snapshot path if watch does not need it | revived verbs of PROD-INT-028 to 031, PROD-DOCS-013 | 0594 Keeps line |
-| G26 | all 16 `corvint-analyzer-*` binaries, analyzer packages, `analyzerenvelope`, `experimental/analyzers/sqlnative`; cfamily, dotnet, java, kotlin, rust, swift liveverify providers and their plugin files; swiftimpact, csharpregions, nativelinecov, rustsyntax, shaderdialect, the sql-native ratchet and toolchain receipt, pymutate, rbmutate | shell provider and Go; `testrunner/native` split keeping go-test; specs retired in place; `docs/CAPABILITIES.md` amended | 0594 Keeps line (needs a superseding decision). Accepted cost: beamfall-apple (Swift) and beamfall-android (Kotlin) run all tests until a provider is rebuilt after 1.0. Open: orphaned Go `liveverify/mutate` gets its own ticket |
+| G26 | all 16 `corvint-analyzer-*` binaries, analyzer packages, `analyzerenvelope`, `experimental/analyzers/sqlnative`; cfamily, dotnet, java, rust liveverify providers and their plugin files; csharpregions, rustsyntax, shaderdialect, the sql-native ratchet and toolchain receipt, pymutate, rbmutate | shell provider and Go; the Swift and Kotlin providers, swiftimpact, swiftselection and what they read of nativelinecov (decision 0600, 2026-11-16); `testrunner/native` split keeping go-test; specs retired in place; `docs/CAPABILITIES.md` amended | 0594 Keeps line (needs a superseding decision). Decision 0600 replaces the earlier accepted cost for beamfall-apple and beamfall-android: both keep test selection. Open: orphaned Go `liveverify/mutate` gets its own ticket |
 | G27 | about 13 lane-process lints; lane and batch steps out of CI now; lane scripts, `LANE-ORCHESTRATION.md` and the lane-flow skill after the layering branch merges; `gate-ledger`, `gate-receipt`, `go-archive-gate`, `adopter-ci-advisory` at the action cut-over | about 15 product-protecting lints; `goos-filenames`, `mkfifo-build-tags`, `windows-main` folded into cross-vet; perf-budget kept, enforced on a quiet host only | none named |
 | Answer 16 | native Windows vet and archive work from the 1.0 bar | WSL path | PRS-V1-004 wording |
 | R6 | Cypress as a 1.0 runner (no change folder) | listed post-1.0; Cypress projects run all tests with a named reason | answer 2 and G1 (Cypress conditional) |
