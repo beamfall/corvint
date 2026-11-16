@@ -31,8 +31,9 @@ names and carries its impact_graph. At most 8192 test rows, then truncated with 
 impact writes application-flow-impact/1: the flows, variations and test keys reached from
 base..HEAD changes, with the path of each hop, and last_results per flow when the store holds a
 record. A changed path with no owning unit in the impact graph that no link targets has unknown
-reach (APK-V0-010): it is listed in reach_unknown, and every flow is named with all its variations
-and reason reach-unknown, never an empty list; status --base then keeps every flow. gaps writes application-flow-gaps/1; any gap makes a flow incomplete; --provider FILE also
+reach: it is listed in reach_unknown, and every flow is named with all its variations and reason
+reach-unknown, never an empty list; status --base then keeps every flow. gaps writes
+application-flow-gaps/1; any gap makes a flow incomplete; --provider FILE also
 lists the unlinked E2E inventory tests and the inventory's state (AFU-V1-150).
 A malformed, oversized or other-profile --evidence file refuses the whole report
 (invalid-arguments, exit 2), and so does a stored record that is not a document this build reads or
