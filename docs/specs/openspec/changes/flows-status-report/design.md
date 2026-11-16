@@ -80,16 +80,16 @@ delivery; they stand until the owner amends them.
   their own rules.
 - Store records and AFL-V1-006. RVD-V1-010 (accepted) skips a corrupt store record and marks its
   tests `run-evidence-corrupt`; AFL-V1-006 refuses a malformed or unknown-profile receipt whole.
-  `flows status` reconciles them by what the store can say: a record edited after it was written
-  that still parses (its bytes no longer hash to its name) and whose tests the log names is skipped
-  and those tests are marked, as RVD-V1-010's "edited record" scenario says; a record whose bytes
-  do not parse (malformed, or a profile such as `corvint-test-run/9`) whatever its name, one larger
-  than any record a writer keeps, a stored document this build cannot decode, or a skipped record
-  whose tests the store cannot name refuses
-  the whole report (exit 2, `invalid-arguments`, message `run-evidence-corrupt: ...`), as a bad
-  `--evidence` file does. The other store readers (`flows map`, `flows gaps`, `flows impact`,
-  `corvint test-evidence`) keep RVD-V1-010 unchanged. A marked test is one the skipped record held
-  by its key or by a file-level ID of its test file.
+  By owner ruling (2026-11-16, V1-5658) RVD-V1-010 wins for the store and AFL-V1-006 covers only
+  input the command names: any stored record the report cannot read (edited, malformed, of a
+  profile such as `corvint-test-run/9`, or oversized) is skipped and named under `run_evidence`,
+  and the report exits 0; a bad `--evidence` file is still refused whole. A test the skipped record
+  held reads NOT_OBSERVED `run-evidence-corrupt` even over an older stored result, since the
+  skipped record may be newer; only a named file, read after the store, gives its result. A marked
+  test is one the skipped record held by its key or by a file-level ID of its test file; when the
+  store cannot name the record's tests (no readable log) every test is treated as held, so no
+  stored pass is reported. `flows impact` marks its `last_results` the same way; `flows map`,
+  `flows gaps` and `corvint test-evidence` keep their own RVD-V1-010 reading.
 - Bounds. The store and the named `--evidence` files are bounded separately, as `RunEvidenceFor`
   bounds them: the store keeps its newest 8192 records (`run_evidence.truncated`), and the named
   files together hold at most 8192 (`run-evidence-record-bound`).
