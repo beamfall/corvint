@@ -1,5 +1,10 @@
 # 2026-11-16: Ruby line selection, admission and WebMock qualification (V1-4365)
 
+> Superseded in part by `2026-11-16-r1ruby-review-repair.md`: the independent review found the
+> line rule below unsound, the record unproven (no fault narrowed) and the RSpec control not a
+> control. The line rule, the record and the Ruby family state there replace the ones in this
+> entry; RSpec is not qualified. The collector and corpus evidence below stands.
+
 Requirements: LPCV-V0-7605 (amended), LPCV-V0-7608, LPCV-V0-7609, LPCV-V0-963, GLS-V0-032.
 Decision: 0601 (owner, 2026-11-16: "Build Ruby admission"). Lane base:
 `c7dbf717e2b2d25dd83b3f26fb7ac7def95587b6`. This entry updates the Ruby row of the family ledger in
