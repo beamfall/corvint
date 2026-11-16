@@ -32,7 +32,7 @@ var firstValueExpansion = regexp.MustCompile(`\$\{(?:[A-Za-z_][A-Za-z0-9_]*|[0-9
 func TestValueWordsOnlyAddTokens_AZU_V0_8920(t *testing.T) {
 	pieces := []string{
 		"${1:-", "${ROOT:-.}", "${A:+", "${B=", "${C:?", "${D#", "${", "}", "}}",
-		"$(git rev-parse)", "$(", ")", "$tmp", "\\", "\\}", "\"", "'", " ", "\n",
+		"$(dirname $0)", "$(", ")", "$tmp", "\\", "\\}", "\"", "'", " ", "\n",
 		"/conformance/register.md", "docs/a.md", "x/y", ".", "-",
 	}
 	texts, refuted := 0, ""

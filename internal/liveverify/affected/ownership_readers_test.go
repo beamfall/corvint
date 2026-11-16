@@ -109,7 +109,7 @@ func TestNestedParameterDefaultsAreTokens_AZU_V0_8920(t *testing.T) {
 		"unbalanced, a brace over":    {"g=${H:-ub/seven.md}}", []string{"ub/seven.md"}},
 		// A command substitution in the word is still blanked, and the
 		// text after it is still read.
-		"substitution in the word": {"h=${I:-$(git rev-parse --show-toplevel)/cs/eight.md}", []string{"/cs/eight.md"}},
+		"substitution in the word": {"h=${I:-$(dirname $0)/cs/eight.md}", []string{"/cs/eight.md"}},
 	} {
 		// In a command word and in a here-document body alike.
 		for form, body := range map[string]string{
