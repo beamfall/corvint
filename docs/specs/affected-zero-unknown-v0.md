@@ -1026,12 +1026,24 @@ tree reader, a tested wrapper is followed, and the guard's marker is a tested li
   matching `}` dropped, so the default is still a token alone and composed with the text around
   it: `cat data/${!S:-x}.txt` reads `data/x.txt`, and so does a default nested past the bound
   and followed by a suffix. A default it cannot resolve widens the tokens and is never dropped.
-  Any other braced expansion is blanked there whole, its opener through its matching `}`, so
-  its word is no token beside a default that turns this read on (`cat ${!S:-x} ${X:?data/m.txt}`
-  reads no `data/m.txt`). A value-supplying expansion nested in such a form still supplies its
-  word, as the lexer of AZU-V0-8920 reads it, but alone, never joined to the blanked form's
-  text: `${X%${Y:-data/a.txt}}` reads `data/a.txt`, and `${X%pre/${!Y:-a}.txt}` reads no
-  `pre/a.txt`. This read scans the text once, so a run of unclosed `${A[` openers costs one pass.
+  Any other braced expansion with a matching `}` is blanked there whole, its opener through that
+  `}`, so its word is no token beside a default that turns this read on (`cat ${!S:-x}
+  ${X:?data/m.txt}` reads no `data/m.txt`), and a `/` right after it is blanked with it, as the
+  blanked tokens drop the directory of `${D}/` (`cat ${D}/${!S:-x}.txt` reads `x.txt`). A
+  value-supplying expansion nested in such a form still supplies its word, as the lexer of
+  AZU-V0-8920 reads it, but alone, never joined to the blanked form's text:
+  `${X%${Y:-data/a.txt}}` reads `data/a.txt`, and `${X%pre/${!Y:-a}.txt}` reads no
+  `pre/a.txt`. A form is a `${` followed by a parameter's first byte (a name, a special
+  parameter, `!` or `#`); its matching `}` is found by one stack pass, a form opening a level, a
+  `}` closing the innermost and a backslash inside a level escaping the next byte. A form with no
+  matching `}` and a `${` that opens no parameter (`echo '${'`, `# a ${ here`, `s/\${/{/`)
+  blank only their two opener bytes and keep every byte after them, so a literal `${` never
+  hides a default after it (`echo '${'; cat data/${!S:-x}.txt` reads `data/x.txt`); an unclosed
+  value-supplying expansion still supplies its word. A subscript's `]` counts only before its
+  form's matching `}` (`cat ${!S:-x} ${A[x} ${X:?a]-data/c.txt}` reads no `data/c.txt`). A
+  quoted literal that does open a parameter (`'${X%'`) and a later `}` that closes no expansion
+  still form a closed expansion and are blanked whole. This read scans the text in two linear
+  passes, so a run of unclosed `${A[` openers costs two passes over the text, not one per opener.
   The `?` forms and every other operator supply no word. The rule SHALL only add tokens: the tokens of the text with every
   expansion blanked, as the driver read them before the rule, come first and unchanged, so no
   driver unit loses a reader and no selection narrows. Evidence: `TestDriverRecipeParameterDefaultIsRead_V1_5628`
@@ -1042,6 +1054,11 @@ tree reader, a tested wrapper is followed, and the guard's marker is a tested li
   an unjoined default, and with a default nested in it),
   `TestDriverJoinedReadIsLinear_AZU_V0_8927` (20000 unclosed `${A[` openers, the `]` search
   reading each byte at most once),
+  `TestDriverJoinedReadKeepsTextAfterAnUnclosedOpener_AZU_V0_8927` (quoted, commented, escaped,
+  repeated and trailing literal openers, unclosed forms alone and nested, a stray later `}`, a
+  subscript past its form and a `${D}/` directory),
+  `TestDriverJoinedReadIgnoresAnEarlierLiteralOpener_AZU_V0_8927` (20000 random texts, each
+  read the same after six literal-opener lines),
   `TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927` (a bare and a suffixed default 10
   and 24 levels deep),
   `TestDriverPathTokensOnlyAdd_AZU_V0_8927` (475255 texts, each keeping the tokens read before
@@ -1320,7 +1337,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
 | AZU-V0-8920 to AZU-V0-8926 | V1-4685 | `TestParameterDefaultFormsAreTokens_AZU_V0_8920`, `TestNestedParameterDefaultsAreTokens_AZU_V0_8920`, `TestParameterDefaultPathSelectsItsMakeTarget_AZU_V0_8920`, `TestNestedParameterDefaultSelectsItsMakeTarget_AZU_V0_8920`, `TestValueWordsOnlyAddTokens_AZU_V0_8920`, `TestValueWordsMatchBraces_AZU_V0_8920`, `TestTreeReaderDeclarationRefusals_AZU_V0_8921`, `TestCMPV1004TestSelectionProfilesAcrossReaders`, `TestDeclaredTreeReaderSelectsItsDrivers_AZU_V0_8922`, `TestDeclaredTreeReaderReadsExcludedPaths_AZU_V0_8922`, `TestTreeReaderFollowsTestedWrapper_AZU_V0_8922`, `TestNewChangeEvidenceSelectsTreeReaders_AZU_V0_8922`, `TestDriverRunWholeTreeScriptsAreDeclared_AZU_V0_8923`, `TestWholeTreeMarkerForms_AZU_V0_8923`, `TestOwnedPathNamersAreReached_AZU_V0_8924`, `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925`, `TestOwnershipReaderMissClasses_AZU_V0_8926`; head proof over the 160 audited paths in `docs/build-log/2026-11-16-r1replay-ownership-replay-complete.md` |
-| AZU-V0-8927 | V1-5628 | `TestDriverRecipeParameterDefaultIsRead_V1_5628`, `TestDriverPathTokensReadValueWords_AZU_V0_8927`, `TestDriverPathTokensKeepNonValueFormsBlank_AZU_V0_8927`, `TestDriverJoinedReadIsLinear_AZU_V0_8927`, `TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927`, `TestDriverPathTokensOnlyAdd_AZU_V0_8927`; replay over this repository at `964535021`: 250 driver units (195 of the Makefile) and the driver readers of 10540 tracked paths unchanged |
+| AZU-V0-8927 | V1-5628 | `TestDriverRecipeParameterDefaultIsRead_V1_5628`, `TestDriverPathTokensReadValueWords_AZU_V0_8927`, `TestDriverPathTokensKeepNonValueFormsBlank_AZU_V0_8927`, `TestDriverJoinedReadIsLinear_AZU_V0_8927`, `TestDriverJoinedReadKeepsTextAfterAnUnclosedOpener_AZU_V0_8927`, `TestDriverJoinedReadIgnoresAnEarlierLiteralOpener_AZU_V0_8927`, `TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927`, `TestDriverPathTokensOnlyAdd_AZU_V0_8927`; replay over this repository at `964535021`: 250 driver units (195 of the Makefile) and the driver readers of 10540 tracked paths unchanged |
 | AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
 | AZU-V0-003 | V1-4686 | AZU-V0-212: `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`, `TestFrontierSiteRecordIsComplete_TJAA_V0_1161` (frontierSites count equals the recorded sites), `TestFrontierDirections_TJAA_V0_1161`; one-file TypeScript probe in `docs/build-log/2026-11-09-frontier.md` |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestRawStringJoinRetainsUnknown_AZU_V0_8901`, `TestConstructedDirectoryRetainsUnknown_AZU_V0_8901` (raw formatted paths, split separators, trailing-slash joins and backticks without format markers), `TestConstructedBasenameSpellings_AZU_V0_8901` (shared root/nested substitution, quote, format, concatenation and join matrix; known callers remain selected), `TestNormalizedJoinRetainsUnknown_AZU_V0_8901` (normalized literal components and unresolved suffixes retain UNKNOWN), `TestTraversalJoinRetainsUnknown_AZU_V0_8901` (an unresolved intermediate ancestor operand cancels an unrelated prefix; integrated selection retains UNKNOWN and known callers), `TestTraversalJoinSuffixBounds_AZU_V0_8901` (only a fixed non-shell suffix proves exclusion; shell suffixes, partial suffixes and cleaned components retain uncertainty, grouped or not, and a suffix on one branch of a conditional or boolean expression proves nothing), `TestGroupedSuffixJoinRetainsUnknown_AZU_V0_8901` (an undeclared `name + (".sh")` caller retains UNKNOWN), `TestNormalizedJoinBounds_AZU_V0_8901`, `TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901` (two declared scripts share a directory; embedded Python with an escaped basename retains UNKNOWN and known caller selection), `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904`, `TestInboundRevisionRejectsInvalidSnapshots_AZU_V0_8904` (invalid base with valid HEAD and invalid HEAD retain changed-declaration uncertainty) |

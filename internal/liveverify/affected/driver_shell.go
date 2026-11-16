@@ -2924,12 +2924,14 @@ func (s *driverScanText) closingBracket(index int) int {
 // takes before a value operator, not only those ValueWords reads: an
 // indirect one (`${!N:-WORD}`), a special one (`${#:-WORD}`) and a
 // subscripted one (`${N[0]:-WORD}`). It returns the word's index, or -1.
-func driverWideValueWordStart(scan *driverScanText, index int) int {
+// close is the index of the form's matching `}`, or -1 when it is not known
+// or there is none; a subscript's `]` must come before it.
+func driverWideValueWordStart(scan *driverScanText, index, close int) int {
 	text := scan.text
 	operator := func(index int) int {
 		if index < len(text) && text[index] == '[' {
 			closing := scan.closingBracket(index)
-			if closing < 0 {
+			if closing < 0 || close >= 0 && closing > close {
 				return -1
 			}
 			index = closing + 1
@@ -2975,7 +2977,7 @@ func driverUnjoinedValueForm(scan *driverScanText) bool {
 			return false
 		}
 		from += offset + 2
-		if driverWideValueWordStart(scan, from) >= 0 {
+		if driverWideValueWordStart(scan, from, -1) >= 0 {
 			return true
 		}
 	}
@@ -2985,53 +2987,112 @@ func driverUnjoinedValueForm(scan *driverScanText) bool {
 // any depth and for every parameter a shell takes: each value-supplying
 // expansion (driverWideValueWordStart) is replaced by its word, its opener
 // through the operator and its closing `}` dropped, so `data/${!S:-x}.txt`
-// reads `data/x.txt`. Any other braced expansion is blanked whole, its
-// opener through its matching `}`, so its word (a `?` form's message, a
-// pattern, a replacement) is never a token. A value form nested in one still
-// supplies its word, as ValueWords reads it, but alone: the blanked bytes
-// around it separate it from the other form's text. Braces match as in
-// closingBrace: a `${` opens a level, a `}` closes the innermost, and inside
-// one a backslash escapes the byte after it. An unclosed expansion runs to
-// the end of text. It is the widening read of a default ValueWords leaves
-// unjoined; one pass, no depth bound.
+// reads `data/x.txt`. Any other braced expansion with a matching `}` is
+// blanked whole, its opener through that `}`, so its word (a `?` form's
+// message, a pattern, a replacement) is never a token, and a `/` right after
+// it is blanked too, as the blanked tokens drop the directory `${D}/`. A
+// value form nested in one still supplies its word, as ValueWords reads it,
+// but alone: the blanked bytes around it separate it from the other form's
+// text. Braces match as in closingBrace (driverFormCloses). A form with no
+// matching `}`, and a `${` that opens no parameter (`'${'`, `# ${ x`,
+// `s/\${/`), blank only their two opener bytes and keep the text after them,
+// so a literal `${` never hides a later default. It is the widening read of
+// a default ValueWords leaves unjoined; two linear passes, no depth bound.
 func driverJoinedValueWords(scan *driverScanText) string {
 	text := scan.text
+	closes := driverFormCloses(text)
 	var out strings.Builder
 	out.Grow(len(text))
-	var value []bool // per open expansion: whether it supplies a value
-	write := func(bytes string) {
-		if len(value) == 0 || value[len(value)-1] {
+	const (
+		valueForm    = iota // supplies its word
+		blankForm           // blanked through its matching `}`
+		unclosedForm        // kept: only its opener is blanked
+	)
+	var levels []byte // the open forms, innermost last
+	form := 0         // the next entry of closes
+	skip := 0         // a value form's opener through its operator ends here
+	write := func(index int, bytes string) {
+		if index < skip {
+			return
+		}
+		if len(levels) == 0 || levels[len(levels)-1] != blankForm {
 			out.WriteString(bytes)
 			return
 		}
-		for range len(bytes) {
-			out.WriteByte(' ')
+		out.WriteString(strings.Repeat(" ", len(bytes)))
+	}
+	blank := func(index, width int) {
+		if index >= skip {
+			out.WriteString(strings.Repeat(" ", width))
 		}
 	}
 	for index := 0; index < len(text); index++ {
 		switch char := text[index]; {
-		case char == '\\' && len(value) > 0 && index+1 < len(text):
-			write(text[index : index+2])
+		case char == '\\' && len(levels) > 0 && index+1 < len(text):
+			write(index, text[index:index+2])
+			index++
+		case driverFormOpens(text, index):
+			close := closes[form]
+			form++
+			if word := driverWideValueWordStart(scan, index+2, close); word >= 0 {
+				levels = append(levels, valueForm)
+				skip = max(skip, word)
+			} else if close >= 0 {
+				levels = append(levels, blankForm)
+				blank(index, 2)
+			} else {
+				levels = append(levels, unclosedForm)
+				blank(index, 2)
+			}
 			index++
 		case char == '$' && index+1 < len(text) && text[index+1] == '{':
-			if word := driverWideValueWordStart(scan, index+2); word >= 0 {
-				value = append(value, true)
-				index = word - 1
-				continue
-			}
-			value = append(value, false)
-			write("${")
+			blank(index, 2)
 			index++
-		case char == '}' && len(value) > 0:
-			if !value[len(value)-1] {
-				write("}")
+		case char == '}' && len(levels) > 0:
+			kind := levels[len(levels)-1]
+			if kind != valueForm {
+				write(index, "}")
 			}
-			value = value[:len(value)-1]
+			levels = levels[:len(levels)-1]
+			if kind == blankForm && index+1 < len(text) && text[index+1] == '/' {
+				index++
+				blank(index, 1)
+			}
 		default:
-			write(text[index : index+1])
+			write(index, text[index:index+1])
 		}
 	}
 	return out.String()
+}
+
+// driverFormOpens reports a `${` at index of text followed by a parameter's
+// first byte: a name, a special parameter, or the `!` or `#` before one.
+func driverFormOpens(text string, index int) bool {
+	return index+2 < len(text) && text[index] == '$' && text[index+1] == '{' &&
+		(isDriverNameByte(text[index+2]) || strings.IndexByte("@*#?$!-", text[index+2]) >= 0)
+}
+
+// driverFormCloses is the index of the matching `}` of each form of text
+// (driverFormOpens), in order, or -1 for one that never closes. Braces match
+// as in closingBrace: a form opens a level, a `}` closes the innermost, and
+// inside one a backslash escapes the byte after it. It is one stack pass, the
+// same walk driverJoinedValueWords makes, so both see the same levels.
+func driverFormCloses(text string) []int {
+	var closes, open []int
+	for index := 0; index < len(text); index++ {
+		switch {
+		case text[index] == '\\' && len(open) > 0 && index+1 < len(text):
+			index++
+		case driverFormOpens(text, index):
+			open = append(open, len(closes))
+			closes = append(closes, -1)
+			index++
+		case text[index] == '}' && len(open) > 0:
+			closes[open[len(open)-1]] = index
+			open = open[:len(open)-1]
+		}
+	}
+	return closes
 }
 
 // driverBlankedPathTokens is the path tokens of text with every expansion a

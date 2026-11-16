@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"math/rand/v2"
 	"slices"
 	"strings"
 	"testing"
@@ -124,6 +125,74 @@ func TestDriverJoinedReadIsLinear_AZU_V0_8927(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Minute):
 		t.Fatal("driverPathTokens took over a minute on 20000 unclosed `${A[` openers")
+	}
+}
+
+// AZU-V0-8927: a `${` that opens no parameter (a quoted, commented or
+// escaped literal) or whose form never closes blanks only its own two bytes
+// in the joined read, so the defaults after it are still read composed with
+// their text, as the direct form is. A form blanked whole needs a parameter
+// after its opener and a matching `}`.
+func TestDriverJoinedReadKeepsTextAfterAnUnclosedOpener_AZU_V0_8927(t *testing.T) {
+	for _, c := range []struct {
+		text string
+		want []string
+	}{
+		{"echo '${'; cat data/${!S:-x}.txt", []string{"data/x.txt"}},
+		{"# a literal ${ here\ncat data/${!S:-x}.txt", []string{"data/x.txt"}},
+		{"echo '${'; cat data/${A[0]:-x}.txt", []string{"data/x.txt"}},
+		{"sed 's/\\${/{/' in.txt\ncat data/${!S:-x}.txt", []string{"data/x.txt"}},
+		{"echo '${'; cat data/${S:-x}.txt", []string{"data/x.txt"}},
+		{"echo \"${\"; cat data/${!S:-x}.txt", []string{"data/x.txt"}},
+		{"echo \\${; cat data/${!S:-x}.txt", []string{"data/x.txt"}},
+		{"echo '${' '${'\ncat data/${!S:-x}.txt", []string{"data/x.txt"}},
+		{"echo '${X%'; cat data/${!S:-x}.txt", []string{"data/x.txt"}},
+		{"cat data/${!S:-x}.txt; echo ${", []string{"data/x.txt"}},
+		{"cat ${!S:-'${'}; cat data/${!T:-y}.txt", []string{"data/y.txt"}},
+		{"cat ${!S:-data/${X%a}}; cat data/${!T:-y}.txt", []string{"data/y.txt"}},
+		// A literal `${` and a later `}` that closes no expansion.
+		{"echo '${'; cat data/${!S:-x}.txt; f() { :; }", []string{"data/x.txt"}},
+		{"# a ${ b\ncat data/${!S:-x}.txt\nawk '{print}' f", []string{"data/x.txt"}},
+		// A subscript inside a form, and a directory form before a default.
+		{"cat ${!S:-x} ${A[${i}]:-data/y.txt}", []string{"data/y.txt"}},
+		{"cat ${D}/${!S:-x}.txt", []string{"x.txt"}},
+	} {
+		got := driverPathTokens(c.text)
+		for _, token := range c.want {
+			if !slices.Contains(got, token) {
+				t.Errorf("driverPathTokens(%q) = %q, want %q in it", c.text, got, token)
+			}
+		}
+	}
+	// The `]` of a subscript is searched for inside its own form only.
+	if got := driverPathTokens("cat ${!S:-x} ${A[x} ${X:?a]-data/cross.txt}"); slices.Contains(got, "data/cross.txt") {
+		t.Errorf("driverPathTokens read a subscript past its form's `}`: %q", got)
+	}
+}
+
+// AZU-V0-8927: a line with a literal `${` before a text never takes a token
+// from the text's joined read: the joined read of the lines after it is the
+// text's own, byte for byte. (The blanked tokens the driver read before the
+// rule end a braced expansion at its first `}`, unclosed or not, and stay as
+// they were.)
+func TestDriverJoinedReadIgnoresAnEarlierLiteralOpener_AZU_V0_8927(t *testing.T) {
+	random := rand.New(rand.NewPCG(8927, 5628))
+	pieces := []string{
+		"${F:-", "${!E:-", "${G[0]:-", "${X%", "${X:?", "${D}/", "${", "}", "\\", "'", "\"", " ", "\n", ";",
+		"data/", "x.txt", "${!S:-x}", "${A[0]:-y}", "data/${!S:-x}.txt", "f() { :; }",
+	}
+	prefixes := []string{"${\n", "echo '${'\n", "# a literal ${ here\n", "sed 's/\\${/{/' in.txt\n", "echo \\${; ", "echo '${' '${'\n"}
+	for range 20000 {
+		var text strings.Builder
+		for range 1 + random.IntN(8) {
+			text.WriteString(pieces[random.IntN(len(pieces))])
+		}
+		alone := driverJoinedValueWords(newDriverScanText(text.String()))
+		for _, prefix := range prefixes {
+			if got := driverJoinedValueWords(newDriverScanText(prefix + text.String())); !strings.HasSuffix(got, alone) {
+				t.Fatalf("the joined read of %q is %q, which does not end with the text's own %q", prefix+text.String(), got, alone)
+			}
+		}
 	}
 }
 
