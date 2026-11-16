@@ -159,9 +159,13 @@ code `no-test`. `--provider FILE` adds the provider's `inventory` state and `una
 of its E2E tests no variation links (the same number as gaps' `unlinked_total`); without it
 `unassigned` is `null`. `--base SHA` limits the report to exactly the flows and variations
 `corvint flows impact --base SHA` names and carries that report's `impact_graph` scope, so an
-`UNKNOWN` scope is visible (AFL-V1-004). A changed path with no owning unit that no link targets
-has unknown reach (APK-V0-010): `flows impact` lists it in `reach_unknown` and names every flow,
-with every variation and `reason: reach-unknown`, so `--base` never narrows to nothing. The report holds at most 8192 test rows; past that, rows
+`UNKNOWN` scope is visible (AFL-V1-004). A changed path with no owning unit in the impact graph
+has unknown reach (APK-V0-010), whether or not a link targets it: `flows impact` lists it in
+`reach_unknown` and names every flow, with every variation and `reason: reach-unknown`, so `--base`
+never narrows to nothing. A link target with no owning unit (a language with no adapter, or a file
+that no longer exists) leaves every changed path's reach unknown in the same way, and the graph's
+`unknown` names it as `LINK_TARGET_UNOWNED: PATH`. Only the flow declaration and the `.json` files
+directly in the intents directory are left out, as flow inputs. The report holds at most 8192 test rows; past that, rows
 are dropped with `truncated` true and the full counts in `totals`. The MCP tool
 `corvint.flows_status` takes the same `flows`, `evidence`, `provider` and `base`
 inputs and returns the same report (AFL-V1-003). Both reports are read-only and byte-identical for
