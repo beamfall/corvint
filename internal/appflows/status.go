@@ -34,13 +34,23 @@ type StatusReport struct {
 	// RunEvidence is what the run evidence store gave the report; absent when the store was not read
 	// (--no-store) or held nothing (RVD-V1-007, RVD-V1-010).
 	RunEvidence *RunEvidenceRead `json:"run_evidence,omitempty"`
+	// ResultSources lists every place the report looked for results, read or not, so a report
+	// whose results are all NOT_OBSERVED names the sources it missed (AFL-V1-002).
+	ResultSources []ResultSource `json:"result_sources"`
+	// Inventory is the E2E inventory the unassigned count was taken from; absent without a
+	// provider, and then Unassigned is null, never zero (AFL-V1-001, AFU-V1-150).
+	Inventory  InventoryState `json:"inventory"`
+	Unassigned *int           `json:"unassigned"`
 }
 
 // StatusFlow is one flow in intent order; the report computes no complete/incomplete status, which
 // needs the run registry (`flows gaps`).
 type StatusFlow struct {
-	FlowID     string            `json:"flow_id"`
-	Proposed   bool              `json:"proposed"`
+	FlowID   string `json:"flow_id"`
+	Proposed bool   `json:"proposed"`
+	// Reason is flows impact's for the flow under --base: reach-unknown when no changed path's
+	// reach could be resolved for it, so every variation is listed (AFL-V1-004, AFL-V1-007).
+	Reason     string            `json:"reason,omitempty"`
 	Variations []StatusVariation `json:"variations"`
 }
 
@@ -69,7 +79,19 @@ type StatusTest struct {
 	// Reason is run-evidence-corrupt when the result is NOT_OBSERVED and a skipped store record held
 	// the test (RVD-V1-010).
 	Reason string `json:"reason,omitempty"`
+	// Granularity is test when the result names this test, or file when it is the outcome of the
+	// test's file or package that the runner reported only together; absent for NOT_OBSERVED
+	// (AFL-V1-002).
+	Granularity string `json:"granularity,omitempty"`
+	// Slice is the receipt unit's slice when the runner ran only part of the file ("<index>/<count>"
+	// or "selected"); absent for a whole unit or a per-test record (RVD-V1-006).
+	Slice string `json:"slice,omitempty"`
 }
+
+// ReasonProjectNotRecorded is the reason of a NOT_OBSERVED result of a variation with several
+// projects when the only record naming the test is a receipt row, which names no project: it
+// cannot say which project ran (AFL-V1-002, invariant 2).
+const ReasonProjectNotRecorded = "project-not-recorded"
 
 // StatusTotals counts everything the report describes, dropped rows included.
 type StatusTotals struct {
@@ -78,22 +100,29 @@ type StatusTotals struct {
 	Tests      int `json:"tests"`
 }
 
-// FlowStatus reports each flow, variation, attached test and last result at the set's revision
-// (AFU-V1-160). A non-empty base limits the flows to those FlowImpactAt names for it (AFU-V1-163).
-// Test rows past MaxStatusTests are dropped in report order with Truncated set (AFU-V1-164).
-func FlowStatus(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, base string) ([]byte, error) {
-	return FlowStatusFrom(ctx, root, set, evidence, base, nil)
+// StatusOptions are a flows status report's inputs besides the intents: the base that limits it to
+// the flows a change reaches, the results ReadResults read, and the E2E inventory provider whose
+// tests no variation links are counted as unassigned.
+type StatusOptions struct {
+	Base      string
+	Results   Results
+	Inventory *InventoryProvider
 }
 
-// FlowStatusFrom is FlowStatus over evidence that includes the run evidence store's records, with
-// what the store read gave (RVD-V1-007): the report carries the read, and a test with no result
-// that a skipped record held names run-evidence-corrupt (RVD-V1-010).
-func FlowStatusFrom(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, base string, store *RunEvidenceRead) ([]byte, error) {
-	report := StatusReport{Schema: StatusSchema, Flows: []StatusFlow{}}
+// FlowStatus reports each flow, variation, attached test and last result at the set's revision
+// (AFL-V1-001, AFU-V1-160). A non-empty base limits the report to exactly the flows and variations
+// FlowImpactAt names for it (AFL-V1-004). Test rows past MaxStatusTests are dropped in report order
+// with Truncated set (AFL-V1-005). The store read, if any, is carried, and a test with no result
+// that a skipped store record held names run-evidence-corrupt (RVD-V1-010).
+func FlowStatus(ctx context.Context, root string, set IntentSet, options StatusOptions) ([]byte, error) {
+	evidence, store, base := options.Results.Records, options.Results.Store, options.Base
+	report := StatusReport{Schema: StatusSchema, Flows: []StatusFlow{}, ResultSources: nonNilSources(options.Results.Sources), Inventory: absentInventory()}
 	if store.present() {
 		report.RunEvidence = store
 	}
 	flows := set.Flows
+	var touched map[string]bool
+	reasons := map[string]string{}
 	if base != "" {
 		raw, err := FlowImpactAt(ctx, root, set, base)
 		if err != nil {
@@ -104,8 +133,15 @@ func FlowStatusFrom(ctx context.Context, root string, set IntentSet, evidence []
 			return nil, errors.New("flows impact produced an unreadable report")
 		}
 		reached := map[string]bool{}
+		touched = map[string]bool{}
 		for _, f := range impact.Flows {
 			reached[f.FlowID] = true
+			if f.Reason != "" {
+				reasons[f.FlowID] = f.Reason
+			}
+			for _, v := range f.Variations {
+				touched[f.FlowID+"\x00"+v] = true
+			}
 		}
 		flows = slices.DeleteFunc(slices.Clone(set.Flows), func(intent FlowIntent) bool { return !reached[intent.FlowID] })
 		graph := impact.Graph
@@ -116,30 +152,39 @@ func FlowStatusFrom(ctx context.Context, root string, set IntentSet, evidence []
 		return nil, err
 	}
 	report.Revision = at.commit
+	if options.Inventory != nil {
+		report.Inventory = options.Inventory.state(root, at)
+		_, unassigned := unlinkedTests(set, links, options.Inventory.Provider.Inventory)
+		report.Unassigned = &unassigned
+	}
 	for _, intent := range flows {
 		own := flowLinks(links, intent.FlowID)
-		flow := StatusFlow{FlowID: intent.FlowID, Proposed: intent.Proposed, Variations: []StatusVariation{}}
+		flow := StatusFlow{FlowID: intent.FlowID, Proposed: intent.Proposed, Reason: reasons[intent.FlowID], Variations: []StatusVariation{}}
 		for _, v := range intent.Variations {
+			if touched != nil && !touched[intent.FlowID+"\x00"+v.VariationID] {
+				continue
+			}
 			variation := StatusVariation{VariationID: v.VariationID, Projects: nonNil(v.Projects), Tests: []StatusTest{}}
 			projects := v.Projects
 			if len(projects) == 0 {
 				projects = []string{""}
 			}
-			for _, key := range declaredTargets(own, "test", v.VariationID) {
+			targets := attachedTestTargets(own, v.VariationID)
+			for _, target := range targets {
 				for _, project := range projects {
 					report.Totals.Tests++
 					if report.Totals.Tests > MaxStatusTests {
 						report.Truncated = true
 						continue
 					}
-					result := lastResult(evidence, key, project, at)
-					if result.Result == ResultNotObserved && store.corruptKey(key, project) {
+					result := lastResultFor(evidence, target, project, len(v.Projects) > 1, at)
+					if result.Result == ResultNotObserved && store.corruptTarget(target, project) {
 						result.Reason = "run-evidence-corrupt"
 					}
 					variation.Tests = append(variation.Tests, result)
 				}
 			}
-			if len(declaredTargets(own, "test", v.VariationID)) == 0 {
+			if len(targets) == 0 {
 				variation.Code = GapNoTest
 			}
 			slices.SortFunc(variation.Tests, func(a, b StatusTest) int {
@@ -157,27 +202,51 @@ func FlowStatusFrom(ctx context.Context, root string, set IntentSet, evidence []
 	return doccorpus.Encode(report)
 }
 
-// lastResult picks the newest record that names the pair, the last in evidence order (the store's
-// records in append order, then the --evidence files), whatever its tree (RVD-V1-007): a newer
-// failing run is never hidden behind an older passing one. Freshness is reported separately: the
-// result is stale, with its commit and tree, unless the record is bound to the evaluated commit and
-// tree from a clean worktree. STATIC records never count (AFU-V1-014); with no record the result
-// is NOT_OBSERVED (AFU-V1-161).
+// lastResult is lastResultFor a target known only by its key.
 func lastResult(evidence []TestRunEvidence, key, project string, at head) StatusTest {
-	t := StatusTest{TestKey: key, Project: project, Result: ResultNotObserved}
+	return lastResultFor(evidence, testTarget{key: key}, project, false, at)
+}
+
+// lastResultFor picks the newest record that names the pair, the last in evidence order (the
+// store's records in append order, then the named receipts and --evidence files), whatever its
+// tree (RVD-V1-007): a newer failing run is never hidden behind an older passing one. A record
+// names the pair when its key is the target's, or when it is a file-level receipt row for the
+// target's test file; the result then carries granularity file and is never presented as a
+// per-title result (AFL-V1-002). Freshness is reported separately: the result is stale, with its
+// commit and tree, unless the record is bound to the evaluated commit and tree from a clean
+// worktree. STATIC records never count (AFU-V1-014); with no record the result is NOT_OBSERVED.
+// multi is set for a variation with several projects: a receipt row, which names no project, then
+// stands for none of them, and the result is NOT_OBSERVED with reason project-not-recorded when
+// such a row is the only record naming the test (AFL-V1-002).
+func lastResultFor(evidence []TestRunEvidence, target testTarget, project string, multi bool, at head) StatusTest {
+	t := StatusTest{TestKey: target.key, Project: project, Result: ResultNotObserved}
 	var pick *TestRunEvidence
+	granularity := ""
 	for i := range evidence {
 		r := &evidence[i]
-		if r.Authority == AuthorityStatic || r.TestKey != key || (project != "" && r.Project != project) {
+		if r.Authority == AuthorityStatic {
 			continue
 		}
-		pick = r
+		if g, ok := matchesTarget(r, target, project, multi); ok {
+			pick, granularity = r, g
+		} else if _, named := matchesTarget(r, target, "", false); named && multi && r.Project == "" {
+			t.Reason = ReasonProjectNotRecorded
+		}
 	}
 	if pick == nil {
 		return t
 	}
+	t.Reason = ""
 	stale := pick.Source != (RunSource{Commit: at.commit, Tree: at.tree, Clean: true})
 	t.Result, t.Stale, t.SourceCommit, t.RunID, t.Authority = Classify(pick.Attempts), stale, pick.Source.Commit, pick.RunID, pick.Authority
-	t.SourceTree = pick.Source.Tree
+	t.SourceTree, t.Granularity, t.Slice = pick.Source.Tree, granularity, pick.slice
 	return t
+}
+
+// nonNilSources keeps the result_sources member an array.
+func nonNilSources(sources []ResultSource) []ResultSource {
+	if sources == nil {
+		return []ResultSource{}
+	}
+	return sources
 }

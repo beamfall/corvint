@@ -22,7 +22,7 @@ import (
 // rvdJUnit is a JUnit report from another system whose one case is the shop fixture's
 // profile.view test, keyed "profile.spec.ts > views" by the classname > name rule.
 const rvdJUnit = `<?xml version="1.0" encoding="UTF-8"?>
-<testsuites><testsuite name="e2e" tests="1" failures="0"><testcase classname="profile.spec.ts" name="views" time="0.25"></testcase></testsuite></testsuites>
+<testsuites><testsuite name="e2e" tests="2" failures="0"><testcase classname="profile.spec.ts" name="views" time="0.25"></testcase><testcase classname="profile.spec.ts" name="edits" time="0.25"></testcase></testsuite></testsuites>
 `
 
 func rvdIngestArgs(t *testing.T, fx shopFixture, report string, extra ...string) []string {
@@ -96,11 +96,12 @@ func TestRVDV1005IngestRecord(t *testing.T) {
 		snapshot.Records[0].Entry.Profile != runevidence.ProfileIngested {
 		t.Fatalf("store %+v %v", snapshot, err)
 	}
+	// Status attaches only reviewed links (AFL-V1-001): profile.edit's, not profile.view's.
 	report2, _ := decodeStatus(t, fx.root)
-	view := statusVariation(t, report2, "profile", "profile.view")
-	if len(view.Tests) != 1 || view.Tests[0].Result != "passed" || view.Tests[0].Stale || view.Tests[0].RunID != "ci-1" ||
-		view.Tests[0].SourceTree != shopGit(t, fx.root, "rev-parse", "HEAD^{tree}") || report2.RunEvidence == nil || report2.RunEvidence.Records != 1 {
-		t.Fatalf("profile.view from the store: %+v %+v", view.Tests, report2.RunEvidence)
+	edit := statusVariation(t, report2, "profile", "profile.edit")
+	if len(edit.Tests) != 1 || edit.Tests[0].Result != "passed" || edit.Tests[0].Stale || edit.Tests[0].RunID != "ci-1" ||
+		edit.Tests[0].SourceTree != shopGit(t, fx.root, "rev-parse", "HEAD^{tree}") || report2.RunEvidence == nil || report2.RunEvidence.Records != 1 {
+		t.Fatalf("profile.edit from the store: %+v %+v", edit.Tests, report2.RunEvidence)
 	}
 	// A failed append exits 2 with run-evidence-write-failed and prints nothing.
 	if runtime.GOOS != "windows" && os.Geteuid() != 0 {
@@ -133,28 +134,36 @@ func TestRVDV1007FlowsReadersUseStore(t *testing.T) {
 		t.Fatalf("ingest --record %d %s", code, diagnostic)
 	}
 	failing := filepath.Join(t.TempDir(), "failing.xml")
-	if err := os.WriteFile(failing, []byte(strings.Replace(rvdJUnit, `time="0.25"></testcase>`, `time="0.25"><failure message="boom"/></testcase>`, 1)), 0o600); err != nil {
+	if err := os.WriteFile(failing, []byte(strings.ReplaceAll(rvdJUnit, `time="0.25"></testcase>`, `time="0.25"><failure message="boom"/></testcase>`)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if code, _, diagnostic := runFlowsCLI(fx.root, append(rvdIngestArgs(t, fx, failing, "--record"), "--run-id", "ci-2")...); code != 0 {
 		t.Fatalf("second ingest --record %d %s", code, diagnostic)
 	}
 	before := rvdStoreDigest(t, fx.root)
+	// Status attaches only reviewed links (AFL-V1-001), so its checks read profile.edit; the map
+	// checks below read profile.view, whose link is not reviewed.
 	stored, _ := decodeStatus(t, fx.root)
-	if view := statusVariation(t, stored, "profile", "profile.view"); len(view.Tests) != 1 || view.Tests[0].Result != "failed" || view.Tests[0].RunID != "ci-2" {
-		t.Fatalf("the newest record does not give the result: %+v", view.Tests)
+	if edit := statusVariation(t, stored, "profile", "profile.edit"); len(edit.Tests) != 1 || edit.Tests[0].Result != "failed" || edit.Tests[0].RunID != "ci-2" {
+		t.Fatalf("the newest record does not give the result: %+v", edit.Tests)
 	}
-	// --evidence adds: the file's checkout result joins the store's profile result.
-	both, _ := decodeStatus(t, fx.root, "--evidence", fx.evidence)
+	// --evidence adds: a file's checkout result joins the store's profile result.
+	checkoutOnly := filepath.Join(t.TempDir(), "checkout.jsonl")
+	if lines, err := os.ReadFile(fx.evidence); err != nil {
+		t.Fatal(err)
+	} else if err := os.WriteFile(checkoutOnly, lines[:bytes.IndexByte(lines, '\n')+1], 0o600); err != nil {
+		t.Fatal(err)
+	}
+	both, _ := decodeStatus(t, fx.root, "--evidence", checkoutOnly)
 	if v := statusVariation(t, both, "checkout", "checkout.happy"); v.Tests[0].Result != "passed" {
 		t.Fatalf("--evidence did not add: %+v", v.Tests)
 	}
-	if v := statusVariation(t, both, "profile", "profile.view"); v.Tests[0].Result != "failed" {
+	if v := statusVariation(t, both, "profile", "profile.edit"); v.Tests[0].Result != "failed" || v.Tests[0].RunID != "ci-2" {
 		t.Fatalf("--evidence replaced the store: %+v", v.Tests)
 	}
-	// --no-store reads only the named files.
+	// --no-store reads only the named files: profile.edit's result is the file's run at B.
 	only, _ := decodeStatus(t, fx.root, "--no-store", "--evidence", fx.evidence)
-	if v := statusVariation(t, only, "profile", "profile.view"); v.Tests[0].Result != appflows.ResultNotObserved || only.RunEvidence != nil {
+	if v := statusVariation(t, only, "profile", "profile.edit"); v.Tests[0].RunID == "ci-2" || v.Tests[0].SourceCommit != fx.b || only.RunEvidence != nil {
 		t.Fatalf("--no-store read the store: %+v %+v", v.Tests, only.RunEvidence)
 	}
 	// map sees the stored runs of profile.view; with --no-store its evidence is missing again. gaps
@@ -211,14 +220,15 @@ func TestRVDV1010StatusNamesCorruptRecord(t *testing.T) {
 	if err := os.WriteFile(name, bytes.Replace([]byte(out), []byte(`"passed"`), []byte(`"failed"`), 1), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// Status attaches only reviewed links (AFL-V1-001): profile.edit is the held test it shows.
 	status, _ := decodeStatus(t, fx.root)
-	view := statusVariation(t, status, "profile", "profile.view")
-	if len(view.Tests) != 1 || view.Tests[0].Result != appflows.ResultNotObserved || view.Tests[0].Reason != runevidence.ReasonCorrupt ||
+	edit := statusVariation(t, status, "profile", "profile.edit")
+	if len(edit.Tests) != 1 || edit.Tests[0].Result != appflows.ResultNotObserved || edit.Tests[0].Reason != runevidence.ReasonCorrupt ||
 		status.RunEvidence == nil || !slices.Equal(status.RunEvidence.CorruptRecords, []string{id}) || !slices.Equal(status.RunEvidence.Reasons, []string{runevidence.ReasonCorrupt}) {
-		t.Fatalf("corrupt record: %+v %+v", view.Tests, status.RunEvidence)
+		t.Fatalf("corrupt record: %+v %+v", edit.Tests, status.RunEvidence)
 	}
-	if edit := statusVariation(t, status, "profile", "profile.edit"); edit.Tests[0].Reason != "" {
-		t.Fatalf("a test the corrupt record never held is marked: %+v", edit.Tests)
+	if happy := statusVariation(t, status, "checkout", "checkout.happy"); happy.Tests[0].Reason != "" {
+		t.Fatalf("a test the corrupt record never held is marked: %+v", happy.Tests)
 	}
 }
 

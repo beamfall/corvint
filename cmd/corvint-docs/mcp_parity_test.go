@@ -73,21 +73,19 @@ func flowsToolRecord(t *testing.T, root, tool, arguments string) map[string]any 
 	return record
 }
 
-// MTT-V1-009 (PROD-TEST-009): each corvint mcp flow-report tool returns, as
-// its receipt, the record `corvint-docs flows VERB` prints on the same
-// fixture and inputs.
+// MTT-V1-009 (PROD-TEST-009): each corvint mcp flow-report tool whose verb
+// corvint-docs serves returns, as its receipt, the record `corvint-docs flows
+// VERB` prints on the same fixture and inputs. The gaps, impact and status
+// tools match `corvint flows VERB` instead (AFL-V1-003, AFL-V1-007; corvint's
+// TestMTTV1009NativeFlowReportToolsMatchCLI).
 func TestMTTV1009FlowsToolsMatchCLI(t *testing.T) {
 	root := flowsParityRepository(t)
-	head := strings.TrimSpace(cemGit(t, root, "rev-parse", "HEAD"))
 	for _, tc := range []struct {
 		tool, arguments string
 		cli             []string
 	}{
 		{bridge.ToolFlowsMap, `{"flows":"flows"}`, []string{"map", "--flows", "flows"}},
-		{bridge.ToolFlowsGaps, `{"flows":"flows"}`, []string{"gaps", "--flows", "flows"}},
-		{bridge.ToolFlowsImpact, `{"flows":"flows","base":"` + head + `"}`, []string{"impact", "--flows", "flows", "--base", head}},
 		{bridge.ToolFlowsNavigate, `{"flows":"flows"}`, []string{"navigate", "--flows", "flows"}},
-		{bridge.ToolFlowsStatus, `{"flows":"flows"}`, []string{"status", "--flows", "flows"}},
 	} {
 		t.Run(tc.tool, func(t *testing.T) {
 			if tool, cli := flowsToolRecord(t, root, tc.tool, tc.arguments), flowsCLIRecord(t, root, tc.cli...); !reflect.DeepEqual(tool, cli) {

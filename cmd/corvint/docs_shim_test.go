@@ -268,6 +268,7 @@ func TestDocsShimForwardsToSiblingAtThisVersion(t *testing.T) {
 func TestAFUV1111DocsSubcommandHelpPointsAtRealFlags(t *testing.T) {
 	for _, args := range [][]string{
 		{"docs", "flows", "generate", "--help"},
+		{"docs", "pages", "generate", "--help"},
 		{"--root", ".", "docs", "flows", "check", "-h"},
 		{"docs", "--help"},
 	} {
@@ -275,7 +276,7 @@ func TestAFUV1111DocsSubcommandHelpPointsAtRealFlags(t *testing.T) {
 		if code := run(args, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.String() != helpText("docs") {
 			t.Errorf("%q: exit %d stdout %q stderr %q", args, code, stdout.String(), &stderr)
 		}
-		if !strings.Contains(stdout.String(), "corvint-docs docs SUBCOMMAND... --help prints one subcommand's\nusage and flags, for example corvint-docs docs flows generate --help") {
+		if !strings.Contains(stdout.String(), "corvint-docs docs SUBCOMMAND... --help\nprints one subcommand's usage and flags, for example corvint-docs docs pages generate --help") {
 			t.Errorf("%q: docs help does not point at the subcommand flags:\n%s", args, stdout.String())
 		}
 	}

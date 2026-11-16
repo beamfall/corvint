@@ -42,3 +42,19 @@ func TestRVDV1007NewestStoredResultWins(t *testing.T) {
 		t.Fatalf("another commit only: %+v", got)
 	}
 }
+
+// AFU-V1-014, AFL-V1-002: a STATIC record never gives a status result, even when it is the newest
+// record naming the test; the older ingested run does, and with only the STATIC record the result
+// is NOT_OBSERVED.
+func TestAFUV1014StatusSkipsStaticRecord(t *testing.T) {
+	at := head{commit: "c1", tree: "t1"}
+	ingested := TestRunEvidence{Schema: RunEvidenceSchema, Authority: AuthorityIngested, RunID: "run-1", TestKey: "k",
+		Source: RunSource{Commit: "c1", Tree: "t1", Clean: true}, Attempts: []RunAttempt{{Ordinal: 1, Outcome: "passed"}}}
+	static := TestRunEvidence{Schema: RunEvidenceSchema, Authority: AuthorityStatic, RunID: "static", TestKey: "k", Attempts: []RunAttempt{}}
+	if got := lastResult([]TestRunEvidence{ingested, static}, "k", "", at); got.Result != "passed" || got.RunID != "run-1" {
+		t.Fatalf("a newer STATIC record counted: %+v", got)
+	}
+	if got := lastResult([]TestRunEvidence{static}, "k", "", at); got.Result != ResultNotObserved || got.RunID != "" {
+		t.Fatalf("a STATIC record alone gave %+v", got)
+	}
+}
