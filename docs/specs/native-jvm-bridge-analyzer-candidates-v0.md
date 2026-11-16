@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-25
 Intent status: proposed
 Delivery status: deferred
+Health: KEEP
 Disposition: 12 real target files and three CLIs leave three of the five ACP-009 binaries at zero
 headroom; reallocate their byte budget to Python. Return only with a general extractor.
 Authority: this profile document, `analyzer-capability-contract-v0.md`, and the direct owner task.

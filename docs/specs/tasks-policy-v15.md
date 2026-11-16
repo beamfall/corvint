@@ -5,6 +5,7 @@ Owner: Russell Lewis
 Date: 2026-11-10
 Intent status: proposed
 Delivery status: not-started
+Health: KEEP
 Authoritative inputs: owner decision R3 (2026-11-09), change folder
 `docs/specs/openspec/changes/tasks-policy-v15/`, milestone M0 in `docs/specs/PRODUCT-PLAN-1.0.md`,
 `.taskman/policy.json` line 1 (integ 9ec3a29d0), REL-V1-001 in `release-process-v1.md`.

@@ -5,6 +5,7 @@ Date: 2026-09-07
 Requirement prefix: `SNR-V0`
 Intent status: accepted (owner instruction 2026-09-07)
 Delivery status: partial
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md`,
 `analyzer-candidate-profiles.md` requirement `ACP-009` (proposed, not accepted — source of the
 65,536-byte base source ceiling, the 6,291,456-byte base binary ceiling, and the sql-native

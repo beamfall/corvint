@@ -5,6 +5,7 @@ Date: 2026-10-31
 Requirement prefix: `GTE-V0`
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: ticket V1-0819 (idea reviewed 2026-10-05; clean-room, no third-party code, text or tests); `AGENTS.md` invariants 2, 4, 5 and 6; `gate-ledger-v0.md` (V1-0245) for the gate's own per-package pass memory, which this ledger does not replace.
 
 ## Agent digest

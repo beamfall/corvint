@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-25
 Intent status: proposed
 Delivery status: deferred
+Health: KEEP
 Disposition: return only with a general extractor rather than a byte-pinned fixed-input fixture.
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `analyzer-capability-contract-v0.md`, and `analyzer-candidate-profiles.md`.

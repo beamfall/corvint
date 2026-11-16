@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-10
 Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-5272)
 Delivery status: experimental; partially delivered
+Health: KEEP
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/PRODUCT-PLAN-1.0.md`, decision 0596, decision 0433, and the change folder
 `docs/specs/openspec/changes/acceptance-record/` (the proposal, design and spec delta this file

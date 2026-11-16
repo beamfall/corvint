@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: accepted (decision 0047, 2026-09-04)
 Delivery status: not-started
+Health: KEEP
 Document kind: hypothesis catalog (prose intent only; no numbered requirement clauses, so OCM
 must abstain rather than invent coverage). Decision 0179 (2026-09-13) holds this catalog
 prose-only permanently; a hypothesis gains `PREFIX-NNN` clauses only via a separate accepting

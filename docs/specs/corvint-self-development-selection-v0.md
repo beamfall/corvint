@@ -5,6 +5,7 @@ Date: 2026-11-03
 Requirement prefix: `ASD-V0`
 Intent status: per requirement, each experimental under the standing lane auto-accept (2026-11-03)
 Delivery status: experimental
+Health: MERGE
 Authoritative inputs: `docs/specs/corvint-self-development-v0.md` (parent contract: lane flow,
 `script/heavy.sh` and `script/batch-precheck.sh`), native tickets V1-3968, V1-4358, V1-3804 and
 V1-4245, `AGENTS.md` invariants 2 and 8. The parent's Requirements section holds 254 of the

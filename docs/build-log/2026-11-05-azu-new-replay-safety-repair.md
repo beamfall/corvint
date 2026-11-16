@@ -107,3 +107,11 @@ rows: the inherited bold title form and the lane's em-dash form were not executa
 leaders. The spec now uses the existing `- **ID:**` grammar throughout, retaining every ID and
 clause body, and regenerates the requirement index before binding. This repairs evidence
 enumeration rather than changing acceptance or promoting the experimental spec.
+
+## Retained follow-up replay
+
+`docs/build-log/2026-11-16-r1docs-ownership-replay.md` retains a fresh eight-merge
+before/after replay of the exact historical baseline and candidate, including every
+removed unknown entry and measured selection growth. Its Linux Go 1.27.4 results
+are distinct from the dated numbers above. No baseline-selected unit drops;
+historical full-suite/mutation qualification remains NOT_PRODUCED.

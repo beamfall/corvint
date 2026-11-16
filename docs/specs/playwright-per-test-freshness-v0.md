@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-02
 Intent status: proposed technical contract; owner approved the implementation plan
 Delivery status: experimental
+Health: MERGE
 Profiles: `corvint-playwright-freshness/0`; `corvint-new-e2e-request/1`;
 `corvint-new-e2e-assessment/1`.
 Authoritative inputs: human GitHub issue https://github.com/beamfall/corvint/issues/394;

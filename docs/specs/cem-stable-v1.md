@@ -2,6 +2,7 @@
 
 Intent status: owner scope accepted; technical contract accepted (decision 0546, 2026-10-20)
 Delivery status: implemented and produced on main (decision 0525, CEM-V1-140..152, V1-1276); not promoted; qualification bounded
+Health: KEEP
 Retirement note: decision 0594 (2026-11-09) deleted `internal/cemcandidate`,
 `cmd/corvint-cem-candidate`, `internal/cemchain` and `internal/cemdiscriminate`. A narrow `cem` command
 group stays on `internal/cem/{cli,workflow,mdreport,publish,witnesspaths}`: `begin`, `prepare`, `cite`,

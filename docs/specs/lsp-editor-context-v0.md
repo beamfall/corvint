@@ -1,5 +1,7 @@
 # LSP Editor Context V0
 
+Health: KEEP
+
 - Owner: Russell Lewis
 - Date: 2026-09-29
 - Intent status: proposed

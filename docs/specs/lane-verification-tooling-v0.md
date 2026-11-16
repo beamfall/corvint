@@ -5,6 +5,7 @@ Date: 2026-11-03
 Requirement prefix: `LVT-V0`
 Intent status: accepted under the owner's standing lane auto-accept (2026-10-11)
 Delivery status: experimental
+Health: MERGE
 Authoritative inputs: owner lanetools charter (2026-11-03), V1-4046, V1-4252, V1-3570,
 V1-4319; `AGENTS.md`; `daily-change-evidence-workflow-v0.md`; `corvint-self-development-v0.md`.
 

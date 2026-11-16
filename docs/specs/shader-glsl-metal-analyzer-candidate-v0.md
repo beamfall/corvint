@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-25
 Intent status: proposed
 Delivery status: deferred
+Health: KEEP
 Disposition: leaf assets provide no routing value; do not advance this candidate without a new
 authority-backed use case.
 Authoritative inputs: `AGENTS.md`, `docs/specs/analyzer-capability-contract-v0.md`, and `docs/specs/analyzer-candidate-profiles.md`.

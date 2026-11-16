@@ -5,6 +5,7 @@ Date: 2026-11-09
 Requirement prefix: `APK-V0`
 Intent status: proposed (2026-11-09; V1-5251; from the owner's testing product target and OpenSpec change `affected-plan-kinds`)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-TEST-003, PROD-TEST-004),
 `docs/specs/affected-plan-v0.md` (the plan this spec adds members to; AFP-V0-930 one planning
 tail), `docs/specs/application-flow-understanding-v1.md` (AFU-V1-017 flow impact, AFU-V1-019 to

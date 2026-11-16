@@ -5,6 +5,7 @@ Date: 2026-09-07
 Requirement prefix: `TTG-V0`
 Intent status: accepted (owner instruction 2026-09-07)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md` "Required
 capability-spec shape" (item 9, the requirement-to-implementation traceability table), and
 `documentation-citation-gate-v0.md` as the shape and tone template this spec follows.

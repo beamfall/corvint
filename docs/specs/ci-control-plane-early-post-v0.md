@@ -5,6 +5,7 @@ Date: 2026-11-08
 Requirement prefix: `CCEP-V0`
 Intent status: proposed (owner instruction 2026-11-08: ci related tickets should be fixed asap, always; V1-5102)
 Delivery status: experimental
+Health: MERGE
 
 ## Agent digest
 - Claim: Post the required CI control-plane status on trusted PR activity without waiting for CI completion.

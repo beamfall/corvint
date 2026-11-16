@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-07
 Intent status: accepted
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner request [issue 657](https://github.com/beamfall/corvint/issues/657)
 (native ticket V1-0956), `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/application-flow-understanding-v1.md` (AFU-V1 flow intents and navigation blocks),

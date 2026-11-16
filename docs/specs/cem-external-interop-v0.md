@@ -3,6 +3,7 @@
 Owner: Russell Lewis
 Intent status: retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`
 Delivery status: superseded
+Health: KEEP
 Retirement note: V1-1278 S3 (`CEM-V1-220`, `CEM-V1-223`, `CEM-V1-225`) deleted `interop/cem-0.1` and
 `tools/cem-interop-runner`; the body below is historical and its requirement IDs stay for traceability.
 Authoritative successor: `docs/specs/cem-stable-v1.md`

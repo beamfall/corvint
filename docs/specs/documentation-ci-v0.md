@@ -5,6 +5,7 @@ Date: 2026-09-29
 Requirement prefix: `DCI-V0`
 Intent status: accepted direction (owner request, 2026-09-29); bounded admission requires reviewed qualification
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: the owner's request to fix full CI for the README change; `AGENTS.md`
 invariants 1, 2 and 8; `docs/specs/affected-plan-v0.md` AFP-V0-013/014/016; V1-0470.
 

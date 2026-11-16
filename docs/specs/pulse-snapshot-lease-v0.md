@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: retired 2026-11-06 (V1-4747 AC3)
 Delivery status: retired
+Health: RETIRE
 Retirement note: V1-4747 AC3 deleted the P0-A prototype (cmd/corvint-pulse, internal/pulse and
 conformance/pulse-snapshot-v0; 044058f1 is the last tree with them). It had no caller and never
 reached its dogfood keep-or-kill evidence. The body below is historical and its requirement IDs

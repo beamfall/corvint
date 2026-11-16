@@ -34,14 +34,24 @@ Ticket V1-5399 exists (filed by the orchestrator on 2026-11-11).
       rows to SRG-V0-009, 010 and 012 and their existing tests.
 - [x] 2.9 Make target, `doc-gates` and `focused-docs` wiring, baseline file, history refusal.
       Requirements: OSC-V1-011. Proof: a shallow-clone run refuses with `history-unavailable`.
-- [ ] 2.10 Make target `openspec-validate` with the pinned OpenSpec command version and telemetry
+- [x] 2.10 Make target `openspec-validate` with the pinned OpenSpec command version and telemetry
       off. Requirements: OSC-V1-012. Proof: the target passes on the repository, fails on a fixture
       folder with a requirement that has no scenario, and reports NOT_RUN when the command is absent
-      outside CI.
+      outside CI. Pinned run and real-command fixture: see
+      `docs/build-log/2026-11-16-r1docs-openspec-health.md`.
+- [x] 3.1 Run on the repository once the health class lines are written; shrink the baseline.
+      Requirements: all. Proof: `make openspec-check` passes with zero health findings;
+      `docs/build-log/2026-11-16-r1docs-openspec-health.md` retains counts and digests.
+- [ ] 3.2 Build-log entry; complete the ticket through the Tasks gate. Requirements: all. Proof:
+      `corvint-tasks ticket show` and `receipt audit`. Build-log portion is retained in
+      `docs/build-log/2026-11-16-r1docs-openspec-health.md`; native completion remains for
+      the orchestrator because this build-only lane cannot write the task store.
+
+## Separate CI follow-up
+
+Task 2.11 is scheduled after the repository run: V1-5549 explicitly excludes its separate
+`.github` pull request. Its ID and proof are unchanged.
+
 - [ ] 2.11 CI step that installs the pinned OpenSpec command and runs `make openspec-validate`, in
       its own `.github` pull request. Requirements: OSC-V1-012. Proof: the job fails when the
       command is absent or at another version.
-- [ ] 3.1 Run on the repository once the health class lines are written; shrink the baseline.
-      Requirements: all. Proof: check output.
-- [ ] 3.2 Build-log entry; complete the ticket through the Tasks gate. Requirements: all. Proof:
-      `corvint-tasks ticket show` and `receipt audit`.
