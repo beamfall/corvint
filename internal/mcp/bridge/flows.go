@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/flowcoverage"
 )
 
@@ -55,7 +56,12 @@ var flowsSchemas = map[string][]string{
 // NewFlows binds the opt-in flows descendant profile, which adds the six read-only flows tools
 // (coverage, map, gaps, impact, navigate, status) to the V0 three (AFU-V1-034, AFU-V1-162, amending MCPV0-026).
 func NewFlows(root string) (*Registry, error) {
-	registry, err := New(root)
+	return NewFlowsWithSwiftPMReader(root, nil)
+}
+
+// NewFlowsWithSwiftPMReader binds the flows profile with an explicit Swift reader.
+func NewFlowsWithSwiftPMReader(root string, reader contextindex.SwiftPMReader) (*Registry, error) {
+	registry, err := NewWithSwiftPMReader(root, reader)
 	if err != nil {
 		return nil, err
 	}

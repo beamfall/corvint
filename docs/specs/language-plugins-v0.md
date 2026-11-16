@@ -240,10 +240,12 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   to `E2EConfig`; dialect registries copy their input maps and probe slices; flows and manifest
   tables are complete initializer values. Construction and invocation order MUST NOT change
   another request's hooks. Missing Swift/HTTP readers retain their existing refusals and
-  uncertainty. Swift and Kotlin remain supported. No wire, help, stderr or exit-code change is
-  authorized. Evidence: `TestExplicitWiringHasNoInitHooks`, `TestExplicitRegistryOrderAndIsolation`,
-  `TestSwiftReaderWiringIsRequestLocal`, `TestExplicitProbeClientsAreIndependent` and the existing
-  package suites. Non-goals: adding plugins, altering algorithms or removing languages. Rollback:
+  uncertainty. Both default and flows MCP profiles explicitly supply the Swift reader without
+  widening MCP path admission. Swift and Kotlin remain supported. No wire, help, stderr or
+  exit-code change is authorized. Evidence: `TestExplicitWiringHasNoInitHooks`, `TestExplicitRegistryOrderAndIsolation`,
+  `TestSwiftReaderWiringIsRequestLocal`, `TestSwiftImpactThroughProfileConstructors`,
+  `TestProfileImpactRetainsClosedLanguageSet`, `TestExplicitProbeClientsAreIndependent` and the
+  existing package suites. Non-goals: adding plugins, altering algorithms or removing languages. Rollback:
   revert the wiring and corresponding spec amendment together.
 
 ## Failure modes
@@ -322,7 +324,7 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-025 | `internal/rubydialect` | `rubydialect_test.go`, existing Ruby impact and symbol tests |
 | LGP-V0-026 | `non_go_impact.go`, `rubysymbols.go`, `ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` (removed) |
 | LGP-V0-027 | `contextindex/dialect_hooks.go`, ratchet | `TestCoreNameLiterals_LGPV0009`, existing tests |
-| LGP-V0-8600 | Explicit constructors and per-request readers | `TestExplicitWiringHasNoInitHooks`, `TestExplicitRegistryOrderAndIsolation`, `TestSwiftReaderWiringIsRequestLocal`, `TestExplicitProbeClientsAreIndependent` |
+| LGP-V0-8600 | Explicit constructors and per-request readers | `TestExplicitWiringHasNoInitHooks`, `TestExplicitRegistryOrderAndIsolation`, `TestSwiftReaderWiringIsRequestLocal`, `TestSwiftImpactThroughProfileConstructors`, `TestExplicitProbeClientsAreIndependent` |
 | AFP-V0-9985 | `Family.SelectionRunners` and `Family.Selection` in `internal/testrunner/registry/registry.go`, `SelectionPlugin` in `runner_plugin.go`, `dynamic.RubySelectionRunners` | `TestSelectionPluginParity_AFPV09985`, `TestRSPV0048RubyGloballyRegistered` and the other Ruby registry tests unchanged |
 | AFP-V0-9986 | `internal/testrunner/registry/family_branch_test.go` | `TestRegistryChoosesNoPluginByRunnerName_AFPV09986` (empty baseline; the `5bfe17dc6` fixture is reported) |
 
