@@ -92,6 +92,7 @@
       "mentions": [
         "internal/appmap/fixture_seed_test.go",
         "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/liverepo/ownership_readers_repo_test.go",
         "internal/liveverify/affected/shell/callers_constructed_test.go",
         "internal/releasecandidate/version_test.go",
         "script/check-ci-least-privilege.sh",
@@ -893,6 +894,7 @@
       "mentions": [
         "internal/appmap/fixture_seed_test.go",
         "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/liverepo/ownership_readers_repo_test.go",
         "internal/liveverify/affected/shell/callers_constructed_test.go",
         "internal/releasecandidate/version_test.go",
         "script/check-ci-least-privilege.sh",

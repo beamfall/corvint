@@ -86,6 +86,73 @@ func TestParameterDefaultFormsAreTokens_AZU_V0_8920(t *testing.T) {
 	}
 }
 
+// AZU-V0-8920: a value word may itself hold an expansion. The word is found
+// by brace matching, every level's word is a token source, and the tokens the
+// lexicon gave before the rule (the first `}` ends the expansion) are always
+// kept, so a form the rule cannot parse never loses a token it had.
+func TestNestedParameterDefaultsAreTokens_AZU_V0_8920(t *testing.T) {
+	for label, tc := range map[string]struct {
+		line string
+		want []string
+	}{
+		// The review's form: the lexicon before the rule left
+		// `/nd/one.md` after the first brace; the rule adds the default.
+		"nested default": {"a=${1:-${ROOT:-.}/nd/one.md}", []string{"/nd/one.md", "./nd/one.md"}},
+		// The defaults joined in place name the whole path.
+		"nested in the middle of a path": {"b=mid/${SUB:-${KIND:-specs}/v0}/two.md", []string{"mid/", "/two.md", "mid/specs/v0/two.md"}},
+		"two levels":                     {"c=${A:-${B:-${C:-tl/three.md}}}", []string{"tl/three.md"}},
+		"nested set form":                {"d=${D:+${E:=sf/four.md}}", []string{"sf/four.md"}},
+		// A word with no closing brace runs to the end of the text.
+		"unbalanced, a brace short": {"e=${F:-${G:-ub/five.md}", []string{"ub/five.md"}},
+		// The token the old lexicon kept after the first brace stays.
+		"unbalanced, outer left open": {"f=${1:-${ROOT:-.}/ub/six.md", []string{"/ub/six.md"}},
+		"unbalanced, a brace over":    {"g=${H:-ub/seven.md}}", []string{"ub/seven.md"}},
+		// A command substitution in the word is still blanked, and the
+		// text after it is still read.
+		"substitution in the word": {"h=${I:-$(git rev-parse --show-toplevel)/cs/eight.md}", []string{"/cs/eight.md"}},
+	} {
+		// In a command word and in a here-document body alike.
+		for form, body := range map[string]string{
+			"word":          "#!/bin/sh\n" + tc.line + "\n",
+			"here-document": "#!/bin/sh\ncat <<EOF\n" + tc.line + "\nEOF\n",
+		} {
+			root := t.TempDir()
+			writeFiles(t, root, map[string]string{"script/nested.sh": body})
+			graph, err := affected.Build(context.Background(), root, shell.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			unit, _ := graph.Unit("shell:script/nested.sh")
+			for _, token := range tc.want {
+				if !slices.Contains(unit.PathTokens, token) {
+					t.Errorf("%s (%s): %s is no token of %q: %v", label, form, token, tc.line, unit.PathTokens)
+				}
+			}
+		}
+	}
+}
+
+// AZU-V0-8920 (the independent review of round 2): the register script reads
+// its path as a default nested in a default. The lexicon before the rule
+// kept `/conformance/register.md` and so selected the make targets; the
+// first version of the rule rewrote the text so that the whole remainder
+// was blanked, and the plan was BOUNDED with only the owner's test.
+func TestNestedParameterDefaultSelectsItsMakeTarget_AZU_V0_8920(t *testing.T) {
+	root := t.TempDir()
+	files := ownershipReaderFiles(`{"profile":"corvint-test-selection/0",` + ownershipReaderOwners + `}`)
+	files["script/check-register.sh"] = "#!/usr/bin/env bash\nfile=${1:-${ROOT:-.}/conformance/register.md}\nawk '/^# R-/ { n++ } END { print n }' \"$file\"\n"
+	writeFiles(t, root, files)
+	graph, err := affected.Build(context.Background(), root, shell.New(), affected.RegisteredDriver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"conformance/register.md"})
+	if slices.ContainsFunc(plan.Unknown, func(entry affected.Unknown) bool { return entry.Reason == affected.UnknownUnownedDirtyPath }) {
+		t.Fatalf("owner left the path unknown: %+v", plan.Unknown)
+	}
+	wantDriverSelection(t, driverSelections(plan), []string{"driver:make:Makefile#register-check", "driver:make:Makefile#check"}, []string{"driver:make:Makefile#tree-check"})
+}
+
 // AZU-V0-8921, AZU-V0-8922 (class W): a declared whole-tree reader makes
 // every driver that runs it a PATH_GLOB_READER of every dirty path, and the
 // drivers that depend on it follow; without the declaration the target is
@@ -114,6 +181,79 @@ func TestDeclaredTreeReaderSelectsItsDrivers_AZU_V0_8922(t *testing.T) {
 			t.Errorf("%s: witness %+v", dirty, witness)
 		}
 	}
+}
+
+// AZU-V0-8922 (the independent review of round 2): a whole-tree reader reads
+// every tracked path, so a path the project keeps from its unbounded readers
+// (AFP-V0-772: change evidence) still selects the declared reader's drivers.
+// A new `.corvint/changes/zz.cem.json` with a CRLF ending or a `.bak` name
+// fails the content checks like any other file.
+func TestDeclaredTreeReaderReadsExcludedPaths_AZU_V0_8922(t *testing.T) {
+	root := t.TempDir()
+	files := ownershipReaderFiles(`{"profile":"corvint-test-selection/2",` + ownershipReaderOwners +
+		`,"treeReaders":[{"runs":"script/tree-check.sh","reason":"perl lists every tracked path"}]}`)
+	files[".corvint/runtime-readers.json"] = `{"profile":"corvint-runtime-readers/0","entries":[{"path":".corvint/change.cem.json","reason":"the bind path"},{"path":".corvint/changes/","reason":"sealed maps"}]}`
+	files[".corvint/unbounded-reader-exclusions.json"] = `{"profile":"corvint-unbounded-reader-exclusions/0","paths":[".corvint/change.cem.json",".corvint/changes/"]}`
+	writeFiles(t, root, files)
+	graph, err := affected.Build(context.Background(), root, shell.New(), affected.RegisteredDriver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dirty := range []string{".corvint/changes/zz.cem.json", ".corvint/change.cem.json", ".corvint/changes/zz.cem.json.bak"} {
+		selected := driverSelections(affected.Select(graph, []string{dirty}))
+		wantDriverSelection(t, selected, []string{"driver:make:Makefile#tree-check", "driver:make:Makefile#check"}, nil)
+		if witness := selected["driver:make:Makefile#tree-check"].Witness; witness.Kind != affected.WitnessPathGlobReader || witness.Glob != "/*" || witness.DirtyPath != dirty {
+			t.Errorf("%s: witness %+v", dirty, witness)
+		}
+	}
+}
+
+// wrapperLanguage owns the tool/ files of the wrapper fixture: a wrapper
+// whose production file runs the declared tree reader and that has a test
+// of its own, and a unit that is a test file alone and runs the reader too.
+type wrapperLanguage struct{}
+
+func (wrapperLanguage) Name() string          { return "tool" }
+func (wrapperLanguage) Owns(path string) bool { return strings.HasPrefix(path, "tool/") }
+func (wrapperLanguage) Units(context.Context, string) (affected.Result, error) {
+	return affected.Result{Units: []affected.Unit{
+		{ID: "tool:wrap", Sources: []string{"tool/wrap.x"}, Tests: []string{"tool/wrap_test.x"}, Imports: []string{"shell:script/tree-check.sh"}},
+		{ID: "tool:probe_test", Tests: []string{"tool/probe_test.x"}, Imports: []string{"shell:script/tree-check.sh"}},
+	}}, nil
+}
+
+// AZU-V0-8922 (the independent review of round 2): a wrapper that has tests
+// still runs the declared reader from its production file, so the driver
+// that runs the wrapper is a whole-tree reader driver. Only a unit made of
+// test files alone is a leaf: its edge is the test's, and a test runs the
+// reader on its fixture.
+func TestTreeReaderFollowsTestedWrapper_AZU_V0_8922(t *testing.T) {
+	root := t.TempDir()
+	files := ownershipReaderFiles(`{"profile":"corvint-test-selection/2",` + ownershipReaderOwners +
+		`,"treeReaders":[{"runs":"script/tree-check.sh","reason":"perl lists every tracked path"}]}`)
+	// No target runs the reader directly: the wrapper is the only way.
+	files["Makefile"] = "wrap-check:\n\t@tool/wrap.x\n\nprobe-test:\n\t@tool/probe_test.x\n\nall: wrap-check probe-test\n"
+	files["tool/wrap.x"] = "run script/tree-check.sh\n"
+	files["tool/wrap_test.x"] = "test wrap\n"
+	files["tool/probe_test.x"] = "test script/tree-check.sh on a fixture\n"
+	writeFiles(t, root, files)
+	graph, err := affected.Build(context.Background(), root, shell.New(), wrapperLanguage{}, affected.RegisteredDriver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := graph.DriversRunning("tool/wrap.x"); !slices.Equal(got, []string{"driver:make:Makefile#all", "driver:make:Makefile#wrap-check"}) {
+		t.Fatalf("drivers running the wrapper = %v", got)
+	}
+	want := []string{"driver:make:Makefile#all", "driver:make:Makefile#wrap-check"}
+	if got := graph.DriversRunning("script/tree-check.sh"); !slices.Equal(got, want) {
+		t.Fatalf("drivers running the reader = %v, want %v through the tested wrapper", got, want)
+	}
+	marked := graph.TreeReaderDrivers()
+	if len(marked) != 2 || marked["driver:make:Makefile#wrap-check"] != "script/tree-check.sh" || marked["driver:make:Makefile#all"] != "script/tree-check.sh" {
+		t.Fatalf("tree reader drivers = %v", marked)
+	}
+	selected := driverSelections(affected.Select(graph, []string{"data/README.md"}))
+	wantDriverSelection(t, selected, want, []string{"driver:make:Makefile#probe-test"})
 }
 
 // AZU-V0-8921: treeReaders exists only under corvint-test-selection/2, and a
