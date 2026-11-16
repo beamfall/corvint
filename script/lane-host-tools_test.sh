@@ -3,7 +3,7 @@
 # lane-scratch.sh (ASD-V0-765), lane-host-heavy.sh (ASD-V0-766), lane-host-check.sh (ASD-V0-767, 704),
 # lane-remote-edit.sh (ASD-V0-768), ssh-heredoc-check.sh (ASD-V0-769),
 # lane-inflight-branches.sh (ASD-V0-770), capability-screen.sh (ASD-V0-771) and
-# lane-base-check.sh (ASD-V0-772). Fixtures are temporary Git repositories; ssh is a local stub and
+# lane-base-check.sh (ASD-V0-772), and lane-host-tt-verify.sh (V1-5650). Fixtures are temporary Git repositories; ssh is a local stub and
 # no network or Go build runs.
 set -uo pipefail
 export LC_ALL=C
@@ -208,6 +208,71 @@ expect 2 'is not a commit' -- "$script/lane-base-check.sh" nope "$tmp/good"
 git -C "$tmp/h" commit -q --allow-empty -m unrelated && ahead=$(git -C "$tmp/h" rev-parse HEAD)
 git -C "$tmp/h" -c core.logAllRefUpdates=false worktree add -q "$tmp/noref" -b lane-noref "$ahead"
 expect 1 'REFUSE no-reflog' -- "$script/lane-base-check.sh" "$base" "$tmp/noref"
+
+# V1-5650: lane-host-tt-verify.sh runs `make verify` for one corvint-tasks commit in its own
+# worktree, prints one verdict line, keeps a log named by commit and removes the worktree. The
+# fixture's verify target replays canned go test output; `go` is a stub reporting the pinned version.
+tt=$tmp/tt && mkdir -p "$tt/lanes" "$tt/bin" && git init -q -b main "$tt/repo"
+printf 'WANT_GO := go9.9.9\nverify:\n\t@cat out.txt; exit $$(cat rc.txt)\n' > "$tt/repo/Makefile"
+ttcommit() { # ttcommit RC OUTPUT: print the commit whose verify exits RC after printing OUTPUT
+  printf '%s\n' "$1" > "$tt/repo/rc.txt" && printf '%b' "$2" > "$tt/repo/out.txt"
+  git -C "$tt/repo" add -A && git -C "$tt/repo" commit -q -m "rc $1" && git -C "$tt/repo" rev-parse HEAD
+}
+printf '#!/bin/sh\necho go9.9.9\n' > "$tt/bin/go" && chmod +x "$tt/bin/go"
+# macOS has no flock; a stub that always acquires lets every case but the live-run refusal run there.
+real_flock=1
+command -v flock > /dev/null || { real_flock=0; printf '#!/bin/sh\nexit 0\n' > "$tt/bin/flock"; chmod +x "$tt/bin/flock"; }
+ttrun() { TT_REPO=$tt/repo TT_LANES=$tt/lanes PATH=$tt/bin:$PATH "$script/lane-host-tt-verify.sh" "$@"; }
+expect 2 'usage: tt-verify.sh COMMIT' -- ttrun
+expect 2 'is not a commit' -- ttrun nope
+good=$(ttcommit 0 'ok  \texample/a\t1.0s\nok  \texample/b\t2.0s\n')
+out=$(ttrun "$good" 2>&1); rc=$?
+short=$(git -C "$tt/repo" rev-parse --short=12 "$good")
+last=${out##*$'\n'}
+[[ $rc == 0 && $last == "tt-verify commit=$short rc=0 secs="*" ok=2 fail=none timeout=none log=$tt/lanes/tt-verify-$short-"*.log ]] || fail "tt-verify pass verdict rc=$rc: $out"
+[[ -s ${last##*log=} ]] || fail "tt-verify log not kept: $last"
+[[ ! -e $tt/lanes/tt-verify-$short.wt ]] || fail 'tt-verify left its worktree'
+[[ $(git -C "$tt/repo" worktree list | wc -l) -eq 1 ]] || fail 'tt-verify left a worktree registration'
+# An ordinary failure and a timeout kill are reported apart, each naming its package.
+bad=$(ttcommit 1 'ok  \texample/a\t1.0s\n--- FAIL: TestX (0.01s)\nFAIL\texample/b\t2.0s\npanic: test timed out after 10m0s\n\trunning tests:\nFAIL\texample/store\t600.0s\nFAIL\n')
+out=$(ttrun "$bad" 2>&1); rc=$?
+[[ $rc == 1 && ${out##*$'\n'} == *" rc=2 "*" ok=1 fail=example/b timeout=example/store log="* ]] || fail "tt-verify fail verdict rc=$rc: $out"
+[[ $out == *'--- FAIL: TestX'* ]] || fail "tt-verify does not show the failing test: $out"
+[[ $(ls "$tt/lanes"/tt-verify-*.log | wc -l) -eq 2 ]] || fail 'tt-verify did not keep one log per run'
+# go test's outer kill of a test binary counts as a timeout too.
+quit=$(ttcommit 1 'ok  \texample/a\t1.0s\n*** Test killed with quit: ran too long (11m0s).\nFAIL\texample/store\t660.0s\nFAIL\n')
+out=$(ttrun "$quit" 2>&1); rc=$?
+[[ $rc == 1 && ${out##*$'\n'} == *" fail=none timeout=example/store log="* ]] || fail "tt-verify quit-kill verdict rc=$rc: $out"
+# A registration whose tree is already gone does not block the next run for that commit.
+git -C "$tt/repo" worktree add -q --detach "$tt/lanes/tt-verify-$short.wt" "$good" && /bin/rm -r "$tt/lanes/tt-verify-$short.wt"
+expect 0 "commit=$short rc=0" -- ttrun "$good"
+# A host without the pinned toolchain is refused before make runs.
+printf '#!/bin/sh\necho go1.0.0\n' > "$tt/bin/go"
+expect 5 'the Makefile wants go9.9.9' -- ttrun "$good"
+mkdir -p "$HOME/sdk/go9.9.9/bin" && printf '#!/bin/sh\necho go9.9.9\n' > "$HOME/sdk/go9.9.9/bin/go" && chmod +x "$HOME/sdk/go9.9.9/bin/go"
+expect 0 'go=go9.9.9' -- ttrun "$good"
+# A second run while one is live refuses and leaves the first run's tree alone.
+if ((real_flock)); then
+  printf 'WANT_GO := go9.9.9\nverify:\n\t@touch "$(TT_LANES)/started"; while [ ! -e "$(TT_LANES)/release" ]; do sleep 0.1; done; cat out.txt\n' > "$tt/repo/Makefile"
+  slow=$(ttcommit 0 'ok  \texample/a\t1.0s\n')
+  sshort=$(git -C "$tt/repo" rev-parse --short=12 "$slow")
+  (ttrun "$slow" > "$tt/first.out" 2>&1; echo $? > "$tt/first.rc") &
+  for _ in $(seq 100); do [[ -e $tt/lanes/started ]] && break; sleep 0.1; done
+  [[ -e $tt/lanes/started ]] || fail 'tt-verify first run never started'
+  expect 6 'another run is live on this host' -- ttrun "$slow"
+  expect 6 "commit=$sshort" -- ttrun "$good"
+  [[ -d $tt/lanes/tt-verify-$sshort.wt && $(git -C "$tt/lanes/tt-verify-$sshort.wt" rev-parse HEAD) == "$slow" ]] || fail 'the refused run disturbed the live tree'
+  touch "$tt/lanes/release"; wait
+  [[ $(cat "$tt/first.rc") == 0 ]] || fail "tt-verify first run rc $(cat "$tt/first.rc"): $(cat "$tt/first.out")"
+  [[ ! -e $tt/lanes/tt-verify-$sshort.wt ]] || fail 'tt-verify first run left its worktree'
+  # A process the verify leaves running does not keep the host locked after the run ends.
+  printf 'WANT_GO := go9.9.9\nverify:\n\t@(sleep 5 > /dev/null 2>&1 &); cat out.txt\n' > "$tt/repo/Makefile"
+  leak=$(ttcommit 0 'ok  \texample/a\t1.0s\n')
+  expect 0 ' rc=0 ' -- ttrun "$leak"
+  expect 0 ' rc=0 ' -- ttrun "$leak"
+else
+  expect 5 'flock is not installed' -- env PATH=/usr/bin:/bin TT_REPO="$tt/repo" TT_LANES="$tt/lanes" "$script/lane-host-tt-verify.sh" "$good"
+fi
 
 if ((fails)); then printf 'lane-host-tools_test: %d failures\n' "$fails" >&2; exit 1; fi
 printf 'lane-host-tools_test: PASS\n'
