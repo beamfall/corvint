@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -132,6 +133,20 @@ func TestPlanLayers_AFPV02790(t *testing.T) {
 		{name: "wrong-way import", changed: []string{"zz/docs/d/x.go"},
 			edit: func(f *layerFixture) { f.pkgs[0].Imports = []string{"zz/docs/d"} },
 			mode: LayerModeFull, reason: "against the layer direction"},
+		{name: "baselined upward edge narrows", changed: []string{"zz/release/e/x.go"},
+			edit: func(f *layerFixture) {
+				f.pkgs[8].Imports = append(f.pkgs[8].Imports, "zz/release/e")
+				f.edges = []string{"zz/docs/d -> zz/release/e"}
+			},
+			mode: LayerModeLayers, areas: []string{"docs", "release"},
+			packages: []string{"zz/docs/d", "zz/release/e", "zz/tests/imports-release"}},
+		{name: "import of an unmapped directory", changed: []string{"zz/docs/d/x.go"},
+			edit: func(f *layerFixture) { f.pkgs[8].Imports = append(f.pkgs[8].Imports, "zz/nowhere/q") },
+			mode: LayerModeFull, reason: "imports zz/nowhere/q, which has no layer"},
+		{name: "nested prefix: a skipped area's package directory holds the change", changed: []string{"zz/analyzers/b/docs/notes.md"},
+			edit: func(f *layerFixture) { f.areas[3].Prefixes = append(f.areas[3].Prefixes, "zz/analyzers/b/docs") },
+			mode: LayerModeLayers, areas: []string{"docs", "release"},
+			packages: []string{"zz/analyzers/b", "zz/docs/d", "zz/release/e", "zz/tests/imports-release"}},
 		{name: "universe package unknown", changed: []string{"zz/docs/d/x.go"}, universe: layerPaths("zz/docs/d", "zz/elsewhere"),
 			mode: LayerModeFull, reason: "not in the scanned tree"},
 		{name: "universe known", changed: []string{"zz/docs/d/x.go"}, universe: layerPaths("zz/docs/d", "zz/shared/a"),
@@ -254,6 +269,11 @@ func TestLayerDrift_AFPV02792(t *testing.T) {
 			}},
 		{name: "wrong-way import", wants: []string{"WRONG_WAY zz/shared/a (shared) imports zz/docs/d (docs)"},
 			edit: func(f *layerFixture, _, _, _, _ *[]byte) { f.pkgs[0].Imports = []string{"zz/docs/d"} }},
+		{name: "baselined wrong-way import",
+			edit: func(f *layerFixture, _, _, _, _ *[]byte) {
+				f.pkgs[8].Imports = append(f.pkgs[8].Imports, "zz/release/e")
+				f.edges = []string{"zz/docs/d -> zz/release/e"}
+			}},
 		{name: "unreadable cost table", wants: []string{"SHARD_DATA " + LayerCostsFile + ` has no readable "milliseconds" object`},
 			edit: func(_ *layerFixture, costs, _, _, _ *[]byte) { *costs = []byte(`{"milliseconds": []}`) }},
 		{name: "cost key outside the module", wants: []string{"SHARD_DATA " + LayerCostsFile + " names example.com/other/x, which is not a package of"},
@@ -304,6 +324,59 @@ func TestLayerDrift_AFPV02792(t *testing.T) {
 				t.Fatalf("problems %q,\nwant prefixes %q", problems, c.wants)
 			}
 		})
+	}
+}
+
+// TestScanLayerPackages_AFPV02790 holds the scan on a tracked tree: testdata, vendor,
+// node_modules, "_" directories, nested modules and untracked files hold no package, and each
+// package keeps its module imports, test imports, test literal paths and test-only state.
+func TestScanLayerPackages_AFPV02790(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"go.mod":               "module " + LayerModule + "\n",
+		"a/a.go":               "package a\n\nimport (\n\t\"fmt\"\n\n\t\"" + LayerModule + "/b\"\n)\n\nvar _ = fmt.Sprint\n",
+		"a/a_test.go":          "package a\n\nvar _ = \"testdata/in.txt\"\n",
+		"b/b.go":               "package b\n",
+		"d/d_test.go":          "package d\n\nimport _ \"" + LayerModule + "/b\"\n",
+		"a/testdata/t.go":      "package t\n",
+		"b/testdata/deep/y.go": "package y\n",
+		"_x/x.go":              "package x\n",
+		"vendor/v/v.go":        "package v\n",
+		"node_modules/n/n.go":  "package n\n",
+		"nested/go.mod":        "module example.com/nested\n",
+		"nested/n.go":          "package nested\n",
+		"nested/inner/i.go":    "package inner\n",
+	}
+	for name, body := range files {
+		full := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}} {
+		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "untracked.go"), []byte("package corvint\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := ScanLayerPackages(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	none := []string{}
+	want := []LayerPackage{
+		{Dir: "a", Imports: []string{"b"}, TestImports: none, Refs: []string{"a/testdata/in.txt", "testdata/in.txt"}},
+		{Dir: "b", Imports: none, TestImports: none, Refs: none},
+		{Dir: "d", TestOnly: true, Imports: none, TestImports: []string{"b"},
+			Refs: []string{"d/" + LayerModule + "/b", LayerModule + "/b"}},
+	}
+	if !reflect.DeepEqual(pkgs, want) {
+		t.Fatalf("scanned %+v,\nwant %+v", pkgs, want)
 	}
 }
 
