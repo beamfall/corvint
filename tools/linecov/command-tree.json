@@ -248,7 +248,7 @@
       "summary": "Collect an immutable Ruby per-test index",
       "usage": [
         "linecov ruby-collect -root DIR -out INDEX -command '[\"ruby\",\"test/all.rb\"]'",
-        "linecov ruby-collect -root DIR -out INDEX -state DIR -parallel N -budget 8m -command '[\"bundle\",\"exec\",\"rspec\"]'"
+        "linecov ruby-collect -root DIR -out INDEX -state DIR -parallel N -budget 8m -env NAME,NAME -command '[\"bundle\",\"exec\",\"rspec\"]'"
       ],
       "flags": [
         "-root",
@@ -261,6 +261,7 @@
         "-parallel",
         "-state",
         "-budget",
+        "-env",
         "-timeout",
         "-suite-timeout"
       ],

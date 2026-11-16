@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -20,11 +21,12 @@ import (
 // fakeSuite writes the collector's dump vocabulary without Ruby: four
 // passing tests, each reaching one line of lib/a.rb; an isolated run
 // (CORVINT_LINECOV_ONLY set) reports only its test, after a short pause.
+// FAKE_RUBY replaces the Ruby version it reports.
 const fakeSuite = `#!/bin/sh
 out="$CORVINT_LINECOV_DIR/suite.jsonl"
 only="$CORVINT_LINECOV_ONLY"
 : > "$out"
-printf '%s\n' '{"kind":"start","ruby":"3.3.8","test":"load"}' >> "$out"
+printf '{"kind":"start","ruby":"%s","test":"load"}\n' "${FAKE_RUBY:-3.3.8}" >> "$out"
 printf '%s\n' '{"kind":"load","lines":{"lib/a.rb":[1,5]}}' >> "$out"
 n=0
 for t in 1 2 3 4; do
@@ -245,5 +247,76 @@ func TestMergeShapesOnce(t *testing.T) {
 	got := into["lib/a.rb"]
 	if fmt.Sprint(got.Lines) != "[1 2 5 7]" || len(got.Methods) != 2 {
 		t.Fatalf("merged shape %+v", got)
+	}
+}
+
+// LPCV-V0-7609: a state directory belongs to one environment and one
+// runner. A chunk resumed under another gem environment, or whose isolated
+// runs report another runner than the retained ordinary-order run, is
+// refused instead of merged.
+func TestResumeBindsEnvironment(t *testing.T) {
+	root, _ := fakeProject(t)
+	begin := func(t *testing.T, declared ...string) Options {
+		t.Helper()
+		o := Options{Root: root, Argv: []string{"sh", "suite.sh"}, Timeout: time.Minute, Parallel: 2, Budget: time.Millisecond, Env: declared}
+		o.State = filepath.Join(t.TempDir(), "state")
+		var incomplete *IncompleteError
+		if _, err := Collect(context.Background(), o); !errors.As(err, &incomplete) || incomplete.Done >= incomplete.Total {
+			t.Fatalf("the first chunk was not interrupted: %v", err)
+		}
+		o.Budget = 0
+		return o
+	}
+	t.Run("gem environment", func(t *testing.T) {
+		t.Setenv("GEM_PATH", "/gems/a")
+		o := begin(t)
+		t.Setenv("GEM_PATH", "/gems/b")
+		if _, err := Collect(context.Background(), o); err == nil || !strings.Contains(err.Error(), "GEM_PATH") {
+			t.Fatalf("a chunk under another GEM_PATH resumed: %v", err)
+		}
+		t.Setenv("GEM_PATH", "/gems/a")
+		if _, err := Collect(context.Background(), o); err != nil {
+			t.Fatalf("the original environment did not resume: %v", err)
+		}
+	})
+	t.Run("declared variable", func(t *testing.T) {
+		t.Setenv("NO_CONNECTION", "1")
+		t.Setenv("UNDECLARED", "a")
+		o := begin(t, "NO_CONNECTION")
+		t.Setenv("NO_CONNECTION", "")
+		if _, err := Collect(context.Background(), o); err == nil || !strings.Contains(err.Error(), "NO_CONNECTION") {
+			t.Fatalf("a chunk under another NO_CONNECTION resumed: %v", err)
+		}
+		undeclared := o
+		undeclared.Env = nil
+		t.Setenv("NO_CONNECTION", "1")
+		if _, err := Collect(context.Background(), undeclared); err == nil || !strings.Contains(err.Error(), "NO_CONNECTION") {
+			t.Fatalf("a chunk that no longer declares NO_CONNECTION resumed: %v", err)
+		}
+		t.Setenv("UNDECLARED", "b")
+		if _, err := Collect(context.Background(), o); err != nil {
+			t.Fatalf("an undeclared variable refused the resume: %v", err)
+		}
+	})
+	t.Run("runner identity", func(t *testing.T) {
+		o := begin(t)
+		t.Setenv("FAKE_RUBY", "3.4.1")
+		if _, err := Collect(context.Background(), o); err == nil || !strings.Contains(err.Error(), "runner") {
+			t.Fatalf("isolated runs under another Ruby merged: %v", err)
+		}
+		// The foreign run was not retained: the collection's own runner resumes.
+		t.Setenv("FAKE_RUBY", "3.3.8")
+		if _, err := Collect(context.Background(), o); err != nil {
+			t.Fatalf("the original runner did not resume: %v", err)
+		}
+	})
+	bound := boundEnvironment([]string{"PATH=/bin", "GEM_HOME=/g", "BUNDLE_GEMFILE=/f", "RUBYOPT=-w", "HOME=/h", "CORVINT_LINECOV_DIR=/x"}, []string{"NO_CONNECTION"})
+	var names []string
+	for name, value := range bound {
+		names = append(names, name+"="+value[:5])
+	}
+	sort.Strings(names)
+	if got := strings.Join(names, " "); got != "BUNDLE_GEMFILE=sha25 GEM_HOME=sha25 NO_CONNECTION=unset PATH=sha25 RUBYLIB=unset RUBYOPT=sha25" {
+		t.Fatalf("bound environment %s", got)
 	}
 }
