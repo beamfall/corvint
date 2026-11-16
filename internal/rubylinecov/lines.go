@@ -198,7 +198,7 @@ func (s side) whole(n int) string {
 		return "a blank, comment or data line"
 	case s.depth[n-1] != 0 || s.depth[n] != 0:
 		return "a line inside or opening a multi-line bracket"
-	case leads(code) || continues(code):
+	case s.leads(n) || s.continues(n):
 		return "a line of a multi-line statement"
 	}
 	for i := 0; i < len(code); {
@@ -221,16 +221,16 @@ func (s side) whole(n int) string {
 		}
 	}
 	for m := n - 1; m >= 1; m-- {
-		if prev := s.code(m); prev != "" {
-			if continues(prev) {
+		if s.code(m) != "" || s.state[m-1].EndsLiteral {
+			if s.continues(m) {
 				return "a line of a multi-line statement"
 			}
 			break
 		}
 	}
 	for m := n + 1; m <= len(s.state); m++ {
-		if next := s.code(m); next != "" {
-			if leads(next) {
+		if s.code(m) != "" || s.state[m-1].StartsLiteral {
+			if s.leads(m) {
 				return "a line of a multi-line statement"
 			}
 			break
@@ -238,6 +238,12 @@ func (s side) whole(n int) string {
 	}
 	return ""
 }
+
+// leads and continues apply to a line whose first or last code byte is not
+// a blanked literal: a literal there is a value, whatever precedes it.
+func (s side) leads(n int) bool { return !s.state[n-1].StartsLiteral && leads(s.code(n)) }
+
+func (s side) continues(n int) bool { return !s.state[n-1].EndsLiteral && continues(s.code(n)) }
 
 // leads reports whether trimmed code continues the previous line.
 func leads(code string) bool {
