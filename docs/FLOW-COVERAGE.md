@@ -169,5 +169,6 @@ identical inputs; a malformed flows directory, an unsupported flows schema, an u
 or a malformed, oversized or other-profile receipt or evidence file is refused whole with exit 2
 (AFL-V1-005, AFL-V1-006). In the store, a record that is not a document this build reads, or whose
 tests the store cannot name, refuses the report the same way (`run-evidence-corrupt`); a record
-damaged after it was written is skipped and the tests it held show reason `run-evidence-corrupt`
+edited after it was written that still parses is skipped and the tests it held show reason
+`run-evidence-corrupt`
 (RVD-V1-010). The store and the named files are bounded separately, 8192 records each.

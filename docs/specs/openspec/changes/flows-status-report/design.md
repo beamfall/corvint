@@ -80,11 +80,12 @@ delivery; they stand until the owner amends them.
   their own rules.
 - Store records and AFL-V1-006. RVD-V1-010 (accepted) skips a corrupt store record and marks its
   tests `run-evidence-corrupt`; AFL-V1-006 refuses a malformed or unknown-profile receipt whole.
-  `flows status` reconciles them by what the store can say: a record damaged after it was written
-  (its bytes no longer hash to its name) whose tests the log names is skipped and those tests are
-  marked, as RVD-V1-010 says; a record whose bytes hash to its name but do not parse (malformed, or
-  a profile such as `corvint-test-run/9`), one larger than any record a writer keeps, a stored
-  document this build cannot decode, or a skipped record whose tests the store cannot name refuses
+  `flows status` reconciles them by what the store can say: a record edited after it was written
+  that still parses (its bytes no longer hash to its name) and whose tests the log names is skipped
+  and those tests are marked, as RVD-V1-010's "edited record" scenario says; a record whose bytes
+  do not parse (malformed, or a profile such as `corvint-test-run/9`) whatever its name, one larger
+  than any record a writer keeps, a stored document this build cannot decode, or a skipped record
+  whose tests the store cannot name refuses
   the whole report (exit 2, `invalid-arguments`, message `run-evidence-corrupt: ...`), as a bad
   `--evidence` file does. The other store readers (`flows map`, `flows gaps`, `flows impact`,
   `corvint test-evidence`) keep RVD-V1-010 unchanged. A marked test is one the skipped record held

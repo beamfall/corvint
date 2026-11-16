@@ -11,10 +11,10 @@ The intent of `docs/specs/application-flow-status-v1.md` stays `proposed`.
   (`corvint-test-run/9`) or one that does not parse gave exit 0 and `NOT_OBSERVED` everywhere.
   RVD-V1-010 (accepted) skips a corrupt record and marks its tests; AFL-V1-006 refuses a bad
   receipt whole. `flows status` now refuses whole (`run-evidence-corrupt: ...`, exit 2) when a
-  record is intact but not a document this build reads, larger than any record a writer keeps, or
-  held tests the store cannot name; a record damaged after writing whose tests the log names stays
-  the RVD-V1-010 case. `runevidence.Corrupt.Invalid` (not encoded) carries the distinction; the
-  other store readers are unchanged. This is a builder reconciliation of two requirements and is
+  record does not parse (malformed or of an unknown profile, whatever its name), is larger than any
+  record a writer keeps, or held tests the store cannot name; a hand-edited record that still
+  parses and whose tests the log names stays the RVD-V1-010 case. `runevidence.Corrupt.Invalid`
+  (not encoded) carries the distinction; the other store readers are unchanged. This is a builder reconciliation of two requirements and is
   for the owner to confirm.
 - AFL-V1-001. Only `reviewed` test links attach a test; stale and unreviewed links attach none.
   AFU-V1-160 (the first version of the block) is reconciled to that. Fixtures of
