@@ -33,9 +33,9 @@ An archived spec SHALL stay at its path and carry a `Health: RETIRE` or `Health:
 SHALL be listed only under "Archived" in `docs/README.md`.
 
 #### Scenario: a spec whose code a batch removes
-- **GIVEN** removal batch B5 deletes the Swift provider
+- **GIVEN** removal batch B5 deletes the Rust provider
 - **WHEN** B5 merges
-- **THEN** `swift-affected-test-understanding-v0.md` carries the archive lines in the same merge
+- **THEN** `rust-affected-test-understanding-v0.md` carries the archive lines in the same merge
   commit and its body is unchanged
 
 #### Scenario: an archived doc

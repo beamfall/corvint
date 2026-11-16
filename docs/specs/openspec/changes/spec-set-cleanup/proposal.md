@@ -115,7 +115,7 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 
 - `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `AGENTS.md`, `docs/README.md`, `docs/AGENT-ROUTES.md`,
   `docs/SELF-DEVELOPMENT.md`, `docs/PRODUCT.md` and `docs/specs/openspec/README.md` are rewritten.
-- 168 specs are archived in place (those already retired gain only the `Health:` line) and 9 docs
+- 166 specs are archived in place (those already retired gain only the `Health:` line) and 9 docs
   are archived; 6 docs are deleted, each in the batch that removes its last reader; 37 Tasks specs
   are deleted in B10; 1 spec row (`test-attack-v0.md`) and 1 doc row
   (`tcq-0.schema.json`) stay undetermined; the other rows were decided 2026-11-09 under R42, E8.
