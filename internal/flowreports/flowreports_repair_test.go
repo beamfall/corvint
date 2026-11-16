@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/runevidence"
 )
 
@@ -53,55 +54,140 @@ func plant(t *testing.T, root, name string, data []byte, tests []string) {
 	}
 }
 
-// AFL-V1-006 over the run evidence store: a stored record that is not a receipt or
-// test-run-evidence/0 document this build reads (malformed, or an unknown profile such as
-// corvint-test-run/9), whatever its name, or a skipped record whose tests the store cannot name,
-// refuses the whole report with exit 2 and nothing on stdout, as a bad --evidence file does. A record
-// edited by hand that still parses (its bytes no longer hash to its name) and whose tests the log
-// names stays the RVD-V1-010 case: skipped, and the tests it held are marked run-evidence-corrupt.
-func TestAFLV1006StoreRecordRefusedWhole_V15623(t *testing.T) {
+// wantCorrupt checks one test row is NOT_OBSERVED with reason run-evidence-corrupt.
+func wantCorrupt(t *testing.T, what string, got []appflows.StatusTest) {
+	t.Helper()
+	if len(got) != 1 || got[0].Result != appflows.ResultNotObserved || got[0].Reason != runevidence.ReasonCorrupt {
+		t.Fatalf("%s: %+v, want NOT_OBSERVED run-evidence-corrupt", what, got)
+	}
+}
+
+// impactResults is flows impact's last_results of one flow.
+func impactResults(t *testing.T, root, base, flow string) []appflows.StatusTest {
+	t.Helper()
+	for _, f := range impactOf(t, root, base).Flows {
+		if f.FlowID == flow {
+			return f.LastResults
+		}
+	}
+	t.Fatalf("flows impact does not name %s", flow)
+	return nil
+}
+
+// RVD-V1-010 over a stored record that does not parse (owner ruling 2026-11-16): a stored record
+// that is not a receipt or test-run-evidence/0 document this build reads (malformed, or an unknown
+// profile such as corvint-test-run/9), whatever its name, is skipped and named like a damaged one,
+// not refused (AFL-V1-006 refuses only input the caller names). flows status and flows impact exit
+// 0, name the record under run_evidence, and no test the record held reads as passing, even with
+// an older stored pass: the skipped record may be newer and hold a failure. A skipped record whose
+// tests the store cannot name (no log) may have held any test, so every stored result reads
+// NOT_OBSERVED run-evidence-corrupt; a named --evidence file is read after the store, so its result
+// stands. A bad --evidence file is still refused whole.
+func TestRVDV1010UnparsableStoreRecordSkippedAndMarked_V15658(t *testing.T) {
 	checkoutFile := []string{"playwright:e2e/checkout.spec.ts"}
 	unknown := []byte(`{"profile":"corvint-test-run/9","source":{"head":"h","tree":"t"}}` + "\n")
 	malformed := []byte("{not json\n")
-	for name, plantIt := range map[string]func(t *testing.T, fx shop){
-		"unknown profile named in the log": func(t *testing.T, fx shop) { plant(t, fx.root, runevidence.ID(unknown), unknown, checkoutFile) },
-		"malformed record named in the log": func(t *testing.T, fx shop) {
-			plant(t, fx.root, runevidence.ID(malformed), malformed, checkoutFile)
-		},
-		"unknown profile with no log": func(t *testing.T, fx shop) { plant(t, fx.root, runevidence.ID(unknown), unknown, nil) },
-		"damaged record with no log": func(t *testing.T, fx shop) {
-			plant(t, fx.root, strings.Repeat("b", 64), receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"), nil)
-		},
-		"malformed bytes under another record's name": func(t *testing.T, fx shop) {
-			plant(t, fx.root, strings.Repeat("d", 64), malformed, checkoutFile)
-		},
-		"bad record beside a valid one": func(t *testing.T, fx shop) {
-			record(t, fx.root, receipt(t, fx.head, fx.tree, "PASS", "e2e/search.spec.ts"))
+	// passes stores intact passing results for both tests, older than the planted record: a receipt
+	// row per file, and a per-title pass that flows impact, which reads results by test key, sees.
+	passes := func(t *testing.T, fx shop) {
+		record(t, fx.root, ingested(t, checkoutKey, fx.head, fx.tree, "passed"))
+		record(t, fx.root, receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"))
+		record(t, fx.root, receipt(t, fx.head, fx.tree, "PASS", "e2e/search.spec.ts"))
+	}
+	for name, c := range map[string]struct {
+		id    string
+		plant func(t *testing.T, fx shop)
+		// unnamed is set when the store cannot name the record's tests.
+		unnamed bool
+	}{
+		"unknown profile named in the log": {id: runevidence.ID(unknown), plant: func(t *testing.T, fx shop) {
 			plant(t, fx.root, runevidence.ID(unknown), unknown, checkoutFile)
-		},
+		}},
+		"malformed record named in the log": {id: runevidence.ID(malformed), plant: func(t *testing.T, fx shop) {
+			plant(t, fx.root, runevidence.ID(malformed), malformed, checkoutFile)
+		}},
+		"malformed bytes under another record's name": {id: strings.Repeat("d", 64), plant: func(t *testing.T, fx shop) {
+			plant(t, fx.root, strings.Repeat("d", 64), malformed, checkoutFile)
+		}},
+		"damaged record whose tests the log names": {id: strings.Repeat("c", 64), plant: func(t *testing.T, fx shop) {
+			plant(t, fx.root, strings.Repeat("c", 64), receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"), checkoutFile)
+		}},
+		"unknown profile with no log": {id: runevidence.ID(unknown), unnamed: true, plant: func(t *testing.T, fx shop) {
+			plant(t, fx.root, runevidence.ID(unknown), unknown, nil)
+		}},
+		"damaged record with no log": {id: strings.Repeat("b", 64), unnamed: true, plant: func(t *testing.T, fx shop) {
+			plant(t, fx.root, strings.Repeat("b", 64), receipt(t, fx.head, fx.tree, "FAIL", "e2e/checkout.spec.ts"), nil)
+		}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			fx := newShop(t)
-			plantIt(t, fx)
-			code, out, diagnostic := report(t, fx.root, "status", "--flows", "flows")
-			if code != 2 || out != "" || !strings.Contains(diagnostic, `"code":"invalid-arguments"`) || !strings.Contains(diagnostic, runevidence.ReasonCorrupt) {
-				t.Fatalf("status over the store: %d %q %s", code, out, diagnostic)
+			passes(t, fx)
+			c.plant(t, fx)
+			if c.unnamed {
+				// Without a log the store lists records by file and cannot name a skipped one's tests.
+				if err := os.Remove(filepath.Join(storeDir(t, fx.root), "log.jsonl")); err != nil {
+					t.Fatal(err)
+				}
 			}
-			status(t, fx.root, "--no-store") // the refusal is the store's, not the repository's
+			r, _ := status(t, fx.root)
+			if r.RunEvidence == nil || !slices.Equal(r.RunEvidence.CorruptRecords, []string{c.id}) || !slices.Contains(r.RunEvidence.Reasons, runevidence.ReasonCorrupt) {
+				t.Fatalf("run_evidence %+v does not name %s", r.RunEvidence, c.id)
+			}
+			wantCorrupt(t, "the held test, despite an older stored pass", row(t, r, "checkout", "checkout.basic"))
+			wantCorrupt(t, "flows impact's held test", impactResults(t, fx.root, fx.b, "checkout"))
+			search := row(t, r, "search", "search.basic")
+			if c.unnamed {
+				wantCorrupt(t, "a stored result a record of unnamed tests may supersede", search)
+				named := file(t, "runs.jsonl", ingested(t, searchKey, fx.head, fx.tree, "passed"))
+				r, _ = status(t, fx.root, "--evidence", named)
+				if got := row(t, r, "search", "search.basic"); got[0].Result != "passed" || got[0].Reason != "" {
+					t.Fatalf("a named --evidence result, newer than any stored record: %+v", got)
+				}
+				wantCorrupt(t, "the stored result beside a named file", row(t, r, "checkout", "checkout.basic"))
+			} else if search[0].Result != "passed" || search[0].Reason != "" {
+				t.Fatalf("a test the skipped record never held: %+v", search)
+			}
+			bad := file(t, "bad.jsonl", malformed)
+			if code, out, diagnostic := report(t, fx.root, "status", "--flows", "flows", "--evidence", bad); code != 2 || out != "" || !strings.Contains(diagnostic, `"code":"invalid-arguments"`) {
+				t.Fatalf("a malformed --evidence file beside the skipped record: %d %q %s", code, out, diagnostic)
+			}
 		})
 	}
-	t.Run("damaged record whose tests the log names", func(t *testing.T) {
+	t.Run("the MCP tools give the command's report", func(t *testing.T) {
 		fx := newShop(t)
-		plant(t, fx.root, strings.Repeat("c", 64), receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"), checkoutFile)
-		r, _ := status(t, fx.root)
-		if got := row(t, r, "checkout", "checkout.basic"); got[0].Result != appflows.ResultNotObserved || got[0].Reason != runevidence.ReasonCorrupt {
-			t.Fatalf("the test the damaged file-level record held: %+v", got)
+		passes(t, fx)
+		plant(t, fx.root, runevidence.ID(unknown), unknown, checkoutFile)
+		registry, err := bridge.NewFlows(fx.root)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if got := row(t, r, "search", "search.basic"); got[0].Reason != "" {
-			t.Fatalf("a test the damaged record never held is marked: %+v", got)
-		}
-		if r.RunEvidence == nil || !slices.Equal(r.RunEvidence.CorruptRecords, []string{strings.Repeat("c", 64)}) {
-			t.Fatalf("run_evidence %+v", r.RunEvidence)
+		for tool, args := range map[string][]string{
+			bridge.ToolFlowsStatus: {"status", "--flows", "flows"},
+			bridge.ToolFlowsImpact: {"impact", "--flows", "flows", "--base", fx.b},
+		} {
+			code, out, diagnostic := report(t, fx.root, args[0], args[1:]...)
+			if code != 0 || !strings.Contains(out, runevidence.ReasonCorrupt) {
+				t.Fatalf("flows %s: %d %s %s", args[0], code, out, diagnostic)
+			}
+			arguments := map[string]any{"flows": "flows"}
+			if tool == bridge.ToolFlowsImpact {
+				arguments["base"] = fx.b
+			}
+			raw, err := json.Marshal(arguments)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, callErr := registry.Call(context.Background(), tool, raw)
+			if callErr != nil || result.State != "READY" {
+				t.Fatalf("%s: %#v %#v", tool, callErr, result.Abstention)
+			}
+			got, err := json.Marshal(result.Receipt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(canonical(t, got), canonical(t, []byte(out))) {
+				t.Fatalf("%s differs from flows %s:\n%s\n%s", tool, args[0], got, out)
+			}
 		}
 	})
 }

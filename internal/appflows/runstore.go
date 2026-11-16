@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -26,11 +25,11 @@ type RunEvidenceRead struct {
 	CorruptTests   []string `json:"corrupt_tests,omitempty"`
 	Truncated      bool     `json:"truncated,omitempty"`
 	Reasons        []string `json:"reasons"`
-	// unreportable lists the skipped records a flows status report refuses whole (AFL-V1-006):
-	// each is input no writer of this build stores (runevidence.Corrupt.Invalid, or a stored
-	// test-run-evidence/0 document this package cannot decode), or a record whose tests the
-	// store cannot name, so no test could be marked run-evidence-corrupt (RVD-V1-010).
-	unreportable []string
+	// unnamed is set when a skipped record's tests cannot be named (the log is unreadable): it may
+	// have held any test, so every test counts as held (RVD-V1-010).
+	unnamed bool
+	// stored is how many records the store gave; they come first in the records a report reads.
+	stored int
 }
 
 // RunEvidenceStore is the run evidence store of the repository at root:
@@ -59,8 +58,8 @@ func ReadStoredRunEvidence(ctx context.Context, root string) ([]TestRunEvidence,
 	}
 	read := &RunEvidenceRead{LogUnreadable: snapshot.LogUnreadable, Reasons: slices.Clone(snapshot.Reasons)}
 	corrupt := func(c runevidence.Corrupt) {
-		if c.Invalid || len(c.Tests) == 0 {
-			read.unreportable = append(read.unreportable, c.ID)
+		if len(c.Tests) == 0 {
+			read.unnamed = true
 		}
 		read.CorruptRecords = append(read.CorruptRecords, c.ID)
 		read.CorruptTests = append(read.CorruptTests, c.Tests...)
@@ -77,7 +76,7 @@ func ReadStoredRunEvidence(ctx context.Context, root string) ([]TestRunEvidence,
 		record := snapshot.Records[index]
 		converted, err := storedRecords(record)
 		if err != nil {
-			corrupt(runevidence.Corrupt{ID: record.Entry.ID, Tests: record.Entry.Tests, Invalid: true})
+			corrupt(runevidence.Corrupt{ID: record.Entry.ID, Tests: record.Entry.Tests})
 			continue
 		}
 		if total+len(converted) > maxRunRecords {
@@ -92,6 +91,7 @@ func ReadStoredRunEvidence(ctx context.Context, root string) ([]TestRunEvidence,
 	for index := len(batches) - 1; index >= 0; index-- {
 		records = append(records, batches[index]...)
 	}
+	read.stored = total
 	slices.Sort(read.CorruptTests)
 	read.CorruptTests = slices.Compact(read.CorruptTests)
 	if read.Reasons == nil {
@@ -140,10 +140,14 @@ func WithStoredRunEvidence(ctx context.Context, root string, records []TestRunEv
 // own test key, or a file-level ID of the target's test file, which is how a corvint test receipt
 // names it (RVD-V1-010, AFL-V1-002). The store names a held test as its key, then " @" and the
 // project when the record has one; a key may itself hold " @" (a tag in a test title), so each
-// name is read both ways: whole as a key with no project, and split at its last " @".
+// name is read both ways: whole as a key with no project, and split at its last " @". A skipped
+// record whose tests the store cannot name may have held any target.
 func (r *RunEvidenceRead) corruptTarget(target testTarget, project string) bool {
 	if r == nil {
 		return false
+	}
+	if r.unnamed {
+		return true
 	}
 	held := func(key, heldProject string) bool {
 		if heldProject != "" && project != "" && heldProject != project {
@@ -164,14 +168,19 @@ func (r *RunEvidenceRead) corruptTarget(target testTarget, project string) bool 
 	return false
 }
 
-// refusal is the error a flows status report ends with when the store read skipped a record it
-// must refuse whole (AFL-V1-006), or nil.
-func (r *RunEvidenceRead) refusal() error {
-	if r == nil || len(r.unreportable) == 0 {
-		return nil
+// settle applies RVD-V1-010 to result, the lastResultFor of the target over evidence, whose first
+// records are the ones this read gave: a target a skipped record held reads NOT_OBSERVED with
+// reason run-evidence-corrupt unless a named file, read after every stored record, gives its
+// result. The skipped record may be newer than any stored result and hold a failure, so a stored
+// result never stands for it, a pass included.
+func (r *RunEvidenceRead) settle(result StatusTest, evidence []TestRunEvidence, target testTarget, project string, multi bool, at head) StatusTest {
+	if !r.corruptTarget(target, project) {
+		return result
 	}
-	return fmt.Errorf("%s: the run evidence store holds %d record(s) this build cannot report, first %s: not a %s receipt or %s document it reads, or a record whose tests the store cannot name; no partial report is given (AFL-V1-006); remove the record from %s or run with --no-store",
-		runevidence.ReasonCorrupt, len(r.unreportable), r.unreportable[0], runevidence.ProfileReceipt, runevidence.ProfileIngested, "<git-dir>/corvint/evidence/records")
+	if named := lastResultFor(evidence[r.stored:], target, project, multi, at); named.Result != ResultNotObserved {
+		return named
+	}
+	return StatusTest{TestKey: result.TestKey, Project: result.Project, Result: ResultNotObserved, Reason: runevidence.ReasonCorrupt}
 }
 
 // present reports whether the read is worth printing in a report.
@@ -180,11 +189,14 @@ func (r *RunEvidenceRead) present() bool {
 }
 
 // FlowImpactResults is FlowImpactAt with each reached flow's last result per test key when evidence
-// holds a record (RVD-V1-007): the stored result, its tree and whether that tree is HEAD's. With no
-// evidence the report is FlowImpactAt's, byte for byte.
-func FlowImpactResults(ctx context.Context, root string, set IntentSet, base string, evidence []TestRunEvidence) ([]byte, error) {
+// holds a record or store skipped one (RVD-V1-007): the stored result, its tree and whether that
+// tree is HEAD's, or NOT_OBSERVED run-evidence-corrupt for a test a skipped record held
+// (RVD-V1-010), the test's declared file included, so a record held by file name marks it too.
+// store is the read that gave evidence, nil with none. With neither the report is FlowImpactAt's,
+// byte for byte.
+func FlowImpactResults(ctx context.Context, root string, set IntentSet, base string, evidence []TestRunEvidence, store *RunEvidenceRead) ([]byte, error) {
 	data, err := FlowImpactAt(ctx, root, set, base)
-	if err != nil || len(evidence) == 0 {
+	if err != nil || (len(evidence) == 0 && (store == nil || len(store.CorruptRecords) == 0)) {
 		return data, err
 	}
 	var report ImpactReport
@@ -196,13 +208,30 @@ func FlowImpactResults(ctx context.Context, root string, set IntentSet, base str
 		return nil, errors.New("evaluated revision has no tree")
 	}
 	at := head{commit: report.Revision, tree: strings.TrimSpace(string(tree))}
+	paths := testPaths(set)
 	for index := range report.Flows {
 		flow := &report.Flows[index]
 		for _, key := range flow.TestKeys {
-			flow.LastResults = append(flow.LastResults, lastResult(evidence, key, "", at))
+			target := testTarget{key: key, path: paths[flow.FlowID+"\x00"+key]}
+			flow.LastResults = append(flow.LastResults, store.settle(lastResult(evidence, key, "", at), evidence, target, "", false, at))
 		}
 	}
 	return doccorpus.Encode(report)
+}
+
+// testPaths is the declared file of each flow's test key, keyed flow ID, NUL, key: the smallest
+// path when several links name the key, as attachedTestTargets chooses.
+func testPaths(set IntentSet) map[string]string {
+	paths := map[string]string{}
+	for _, intent := range set.Flows {
+		for _, l := range intent.Links {
+			key := intent.FlowID + "\x00" + l.Target.TestKey
+			if old, seen := paths[key]; l.Target.Type == "test" && (!seen || old == "" || (l.Target.Path != "" && l.Target.Path < old)) {
+				paths[key] = l.Target.Path
+			}
+		}
+	}
+	return paths
 }
 
 // The kinds and states of one result source a flows status report read (AFL-V1-002).
@@ -249,9 +278,9 @@ type Results struct {
 // (RVD-V1-005), normalised by the store's one receipt reader (RVD-V1-006), then each named
 // test-run-evidence/0 file. It opens no receipt file itself: STR-V0-011 admits no other receipt
 // reader. A named file that is missing, malformed, oversized or not test-run-evidence/0 refuses
-// the whole read (AFL-V1-006), and so does a stored record that is not a document this build reads,
-// or one whose tests the store cannot name; a record edited after it was written that still parses
-// and whose tests the store names is skipped and named instead (RVD-V1-010). The store's records and
+// the whole read (AFL-V1-006); a stored record that cannot be read, does not parse, is of an
+// unknown profile or no longer hashes to its name is skipped and named instead (RVD-V1-010), and
+// FlowStatus reports no stored result for a test it held. The store's records and
 // the named files are bounded separately, as RunEvidenceFor bounds them: the store keeps its newest
 // maxRunRecords records, and the named files together hold at most maxRunRecords. Nothing is
 // written (RVD-V1-012).
@@ -262,9 +291,6 @@ func ReadResults(ctx context.Context, root string, in ResultInputs) (Results, er
 	} else {
 		stored, read, err := ReadStoredRunEvidence(ctx, root)
 		if err != nil {
-			return Results{}, err
-		}
-		if err := read.refusal(); err != nil {
 			return Results{}, err
 		}
 		out.Store, out.Records = read, stored

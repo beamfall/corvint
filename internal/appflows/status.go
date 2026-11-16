@@ -112,8 +112,9 @@ type StatusOptions struct {
 // FlowStatus reports each flow, variation, attached test and last result at the set's revision
 // (AFL-V1-001, AFU-V1-160). A non-empty base limits the report to exactly the flows and variations
 // FlowImpactAt names for it (AFL-V1-004). Test rows past MaxStatusTests are dropped in report order
-// with Truncated set (AFL-V1-005). The store read, if any, is carried, and a test with no result
-// that a skipped store record held names run-evidence-corrupt (RVD-V1-010).
+// with Truncated set (AFL-V1-005). The store read, if any, is carried, and a test a skipped store
+// record held reads NOT_OBSERVED with reason run-evidence-corrupt unless a named file gives its
+// result (RVD-V1-010).
 func FlowStatus(ctx context.Context, root string, set IntentSet, options StatusOptions) ([]byte, error) {
 	evidence, store, base := options.Results.Records, options.Results.Store, options.Base
 	report := StatusReport{Schema: StatusSchema, Flows: []StatusFlow{}, ResultSources: nonNilSources(options.Results.Sources), Inventory: absentInventory()}
@@ -177,10 +178,8 @@ func FlowStatus(ctx context.Context, root string, set IntentSet, options StatusO
 						report.Truncated = true
 						continue
 					}
-					result := lastResultFor(evidence, target, project, len(v.Projects) > 1, at)
-					if result.Result == ResultNotObserved && store.corruptTarget(target, project) {
-						result.Reason = "run-evidence-corrupt"
-					}
+					multi := len(v.Projects) > 1
+					result := store.settle(lastResultFor(evidence, target, project, multi, at), evidence, target, project, multi, at)
 					variation.Tests = append(variation.Tests, result)
 				}
 			}
