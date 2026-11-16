@@ -60,16 +60,18 @@ decision keeps what exists; it claims no accuracy figure.
 | `internal/swiftimpact`, `cmd/corvint/swift_impact.go`, `cmd/corvint-mcp/swift_impact.go` | KEEP | the package and both links | `cmd/corvint-test-validity-mcp/swift_impact.go` goes with its binary in B2, as before |
 | Swift and Kotlin entries in `internal/langplugin/langplugin.go` and `internal/langplugin/decl/decl.go` | KEEP, reduced | provider, runner names, coverage, the paths that stay | the `Analyzers` entry and the analyzer paths |
 | `internal/testrunner/swiftselection` | KEEP | the package | nothing |
-| `internal/nativelinecov` | KEEP if reached (rule below) | the whole package | whatever only the removed .NET, JVM and Rust files reached |
+| `internal/nativelinecov` | KEEP if reached (rule below) | the package | files that only the removed .NET, JVM and Rust files reached |
 | Swift and Kotlin runner names and argv in `internal/testrunner/platform`; `internal/testrunner/mobile` | KEEP as far as reached | what the Swift and Kotlin runners listed above need | runner names of removed languages |
 | JVM registry files (`internal/testrunner/registry/jvm_*.go`) | KEEP only if reached | the parts a Kotlin runner needs, named in the B5 build log | the Java-only parts |
 | Specs SATS-V0 and KAT-V0 | KEEP active | both specs | they leave the B5 retirement table |
 | `corvint-analyzer-swift`, `corvint-analyzer-kotlin-android`, `internal/analyzerswift`, `internal/analyzerkotlinandroid`, specs SAC and KA-V0 | CUT (unchanged) | nothing | the binaries, packages and specs, in B5 |
 | C-family, .NET, Java and Rust providers; the other 14 analyzers | CUT (unchanged) | nothing | as in decision 0596 G26 |
 
-Rule for shared code: "reached" is tested, not judged. A package B5 named for removal stays whole
+Rule for shared code: "reached" is tested, not judged. A package B5 named for removal stays
 when `go list -deps` of a kept Swift or Kotlin package, or of `cmd/corvint` after the removal,
-still lists it (transitive imports count). A registry `jvm_*.go` file stays when it declares a
+still lists it (transitive imports count). Inside a kept package B5 deletes only a file whose
+every declared symbol has no remaining reference after the removal (the orphan rule, RMV-V1-031);
+this is how the `nativelinecov` parts and the `native` split in the B5 design are decided. A registry `jvm_*.go` file stays when it declares a
 symbol the kept Kotlin runner path references. The existing Swift and Kotlin selection tests must
 pass after the removal, and the B5 build log records the `go list -deps` output or symbol
 reference for each kept package or file. Anything with neither proof is removed.
