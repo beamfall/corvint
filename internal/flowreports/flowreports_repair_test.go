@@ -156,7 +156,7 @@ func TestAFLV1001OnlyReviewedLinksAttachTests_V15623(t *testing.T) {
 	}
 }
 
-// AFL-V1-007, APK-V0-010: a commit that changes only paths whose reach cannot be resolved (no
+// AFL-V1-007 (reach-unknown): a commit that changes only paths whose reach cannot be resolved (no
 // owning unit in the impact graph, no link targets them) names every flow and every variation with
 // reason reach-unknown, never an empty list; status --base keeps exactly those flows and variations.
 func TestAFLV1007UnknownReachNamesEveryFlow_V15623(t *testing.T) {
