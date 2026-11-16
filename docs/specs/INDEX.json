@@ -377,7 +377,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [],
-    "health": "KEEP"
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/cem-0.2-canonical-binding.md",
@@ -1971,7 +1971,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [],
-    "health": "KEEP"
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/lsp-editor-qualification-v0.md",
@@ -2032,7 +2032,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [],
-    "health": "KEEP"
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/mcp-server-2026-07-28-v0.md",
@@ -3338,7 +3338,7 @@
       "internal/worklistadapter",
       "conformance/work-queue-v0"
     ],
-    "health": "KEEP"
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/closed-vocabulary-intake-v0.md",

@@ -6,8 +6,8 @@ Base: `df315e35056d15c7933b5ff97c605cedf5ef4919`.
 ## Decision and changes
 
 The owner authorizes the missing health headers in this lane. Add only the missing
-headers: 121 RETIRE for already-retired delivery headers, 18 MERGE for the cleanup
-inventory's merge rows, and 149 KEEP for the remaining live/pending flat documents.
+headers: 125 RETIRE for already-retired delivery headers, 18 MERGE for the cleanup
+inventory's merge rows, and 145 KEEP for the remaining live/pending flat documents.
 Existing Health lines are unchanged. KEEP preserves the present document; it does not
 promote delivery or override a pending removal decision. MERGE does not perform a
 merge. No delivery header, requirement body or acceptance marker is changed. The
