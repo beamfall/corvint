@@ -31,6 +31,9 @@ on:
       previous_release_oid:
         description: Exact 40-hex direct tag OID (commit OID for a lightweight tag)
         required: false
+      candidate_sums_sha256:
+        description: Optional sha256 of the release candidate's SHA256SUMS; linux-core then qualifies exactly those bytes and refuses others
+        required: false
 
 permissions:
   contents: read
@@ -46,6 +49,7 @@ env:
   RELEASE: ${{ inputs.release || 'nightly' }}
   PREVIOUS_RELEASE_TAG: ${{ inputs.previous_release_tag }}
   PREVIOUS_RELEASE_OID: ${{ inputs.previous_release_oid }}
+  CANDIDATE_SUMS_SHA256: ${{ inputs.candidate_sums_sha256 }}
 
 jobs:
   gate:
@@ -94,6 +98,11 @@ jobs:
         run: |
           printf '%s\n' "$SHA" | grep -Eqx '[0-9a-f]{40}' || { echo "sha must be a full 40-hex commit" >&2; exit 2; }
           printf '%s\n' "$RELEASE" | grep -Eqx '[0-9A-Za-z._-]{1,64}' || { echo "release must match [0-9A-Za-z._-]{1,64}" >&2; exit 2; }
+          case $CANDIDATE_SUMS_SHA256 in
+            "") ;;
+            *[!0-9a-f]*) echo "candidate_sums_sha256 must be 64 lowercase hex" >&2; exit 2 ;;
+            *) [ "${#CANDIDATE_SUMS_SHA256}" -eq 64 ] || { echo "candidate_sums_sha256 must be 64 lowercase hex" >&2; exit 2; } ;;
+          esac
       - &checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -198,6 +207,8 @@ jobs:
   # linux/amd64 Core platform evidence (decision 0420 item 2, PRS-V1-004, PRS-V1-006): release
   # runbook steps 5, 6 and 8, run natively on this sha's own
   # linux/amd64 archive. The setup steps are the gate job's, by YAML alias.
+  # Dispatched with candidate_sums_sha256, it qualifies exactly the candidate's bytes and refuses
+  # any other; every retained log is indexed under that identity (PRS-V1-1900, V1-0374).
   linux-core:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -228,6 +239,19 @@ jobs:
             sha256sum corvint
             sha256sum -c SHA256SUMS
             ./corvint --version'
+      - name: Bind the archives to the release candidate's bytes (PRS-V1-1900)
+        id: bind
+        # Decision 0420 item 2 qualifies linux/amd64 on the candidate bytes. The archive build is
+        # reproducible (GOC-V0-006), so with candidate_sums_sha256 the rebuilt SHA256SUMS must have
+        # exactly that digest: every archive below is then the candidate's, and any other digest
+        # fails the job. Without it (the nightly) the record says SOURCE_ONLY and qualifies nothing.
+        if: ${{ !cancelled() && steps.candidate.outcome == 'success' }}
+        run: |
+          code=0
+          "$RUNNER_TEMP/run-gate" candidate-identity script/release-candidate-bytes.sh --sums "$RUNNER_TEMP/release/core/SHA256SUMS" --binary "$RUNNER_TEMP/current/corvint" ${CANDIDATE_SUMS_SHA256:+--expect "$CANDIDATE_SUMS_SHA256"} || code=$?
+          verdict=$(grep '^verdict=' "$RUNNER_TEMP/evidence/candidate-identity-$RELEASE-$RUNNER_LABEL.log" || echo "verdict=REFUSED see the candidate-identity log")
+          echo "- linux-core $verdict" >>"$GITHUB_STEP_SUMMARY"
+          exit "$code"
       - name: Fetch the previous release's published linux/amd64 archive (N-1)
         id: n1
         # The operator may pin a preserved nonancestor tag for SOP-V0-003 lifecycle evidence.
@@ -286,6 +310,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           "$RUNNER_TEMP/run-gate" hostile-regressions script/check-hostile-regressions.sh
+      - name: Index the retained reports under the candidate identity (PRS-V1-1900)
+        # One record binds every retained log, by sha256, to the commit, tree, archive, binary and
+        # runner; its verdict repeats the bind step's.
+        if: ${{ always() && steps.bind.outcome != 'skipped' }}
+        run: |
+          reports=()
+          for report in "$RUNNER_TEMP"/evidence/*.log; do
+            [ -f "$report" ] && reports+=(--report "$report")
+          done
+          "$RUNNER_TEMP/run-gate" report-index script/release-candidate-bytes.sh --sums "$RUNNER_TEMP/release/core/SHA256SUMS" --binary "$RUNNER_TEMP/current/corvint" ${CANDIDATE_SUMS_SHA256:+--expect "$CANDIDATE_SUMS_SHA256"} "${reports[@]}"
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
