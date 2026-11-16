@@ -1455,3 +1455,182 @@ Under `/home/russell/lanes/r1replay-evidence/round2/` (not committed). SHA-256:
   `selection-cost.tsv`: `725627eb798aa879972d7840d5d6393b200d516f774203abb70a297aea1ff703`.
 - The older-binary outputs are in `oldbin/`, the mutation logs in `mutations/`, and the test
   logs in `tests/`.
+
+## Repair round 3 2026-11-16: the review of the round 2 head
+
+The independent review of `a937ad18e` returned CHANGES_REQUIRED with six findings. The owner
+allowed this third and last round. Each code finding has a test that was written first and run
+against the round 2 code; the failing outputs are retained under `r3/`. Commits `c22c02272`
+(the frozen contract), `806101a7f` (the planner, declarations, guards and spec) and `52b6f4f8f`
+(two test literals, so that `make changed-checks` passes).
+
+### Findings and repairs
+
+1. **P1, the shell rule dropped a selection the base planner made.** The first version of
+   AZU-V0-8920 rewrote `${N:-WORD}` at the first `}` and blanked the result. For
+   `file=${1:-${ROOT:-.}/conformance/register.md}` that blanked the token
+   `/conformance/register.md`, which the lexicon had kept before the rule, so the make target
+   running the script was left out, BOUNDED, with no unknown.
+   - Repair: the word is found by brace matching. Each level's word is read the same way to a
+     depth of 8, the text with every closed default joined in place is read too, and a word
+     with no closing brace runs to the end of the text.
+   - The tokens of the blanked text are always kept, so the rule only adds tokens. A form the
+     scan misreads loses nothing; a unit over the token bound is reported unknown, as before.
+   - `TestValueWordsOnlyAddTokens_AZU_V0_8920` holds this over 346201 generated texts, balanced
+     or not. The first version of the rule fails that property on the review's own form.
+   - `TestNestedParameterDefaultsAreTokens_AZU_V0_8920` covers a nested default, a default
+     nested in the middle of a path, two levels, a nested set form, three unbalanced forms and
+     a command substitution in the word, each as a command word and in a here-document.
+   - `TestNestedParameterDefaultSelectsItsMakeTarget_AZU_V0_8920` is the review's case at the
+     planner.
+2. **P2, declared tree readers were skipped for paths they read.** `declaredTreeReaderSkips`
+   kept every path of `.corvint/unbounded-reader-exclusions.json` from the declared drivers, so
+   a new `.corvint/changes/zz.cem.json` selected none of them.
+   - Repair: the skip is removed, with no per-entry skip kept. A whole-tree reader lists every
+     tracked file, and AFP-V0-772 excludes change evidence only from the tests that locate the
+     root at run time.
+   - `TestDeclaredTreeReaderReadsExcludedPaths_AZU_V0_8922` (synthetic) and
+     `TestNewChangeEvidenceSelectsTreeReaders_AZU_V0_8922` (this repository) cover the new
+     file, a `.bak` name and the bind path.
+   - `TestSealOnlyCEMDeltaStaysBounded_V13571` kept its BOUNDED and no-unknown assertions
+     unchanged. Its list of admitted witnesses gained one case: a make target or CI job that
+     the declaration made a whole-tree reader. That is the behaviour this finding requires, not
+     an assertion bent to broken output.
+3. **P2, the frozen declaration contract described `/0` alone.** AFP-V0-2480, the
+   `corvint-dir-files` row of the compatibility table, its contract test and the refusal text
+   now agree with the code: the file has two profiles, `corvint-test-selection/0` and
+   `corvint-test-selection/2`, which differ in `treeReaders` only.
+   - A reader of /2 reads a /0 file exactly as before and refuses `treeReaders` under /0.
+   - A reader that knows only /0 refuses every /2 file, by the unknown member or by the
+     profile.
+   - `TestCMPV1003TestSelectionFileContract` covers every member of both profiles;
+     `TestCMPV1004TestSelectionProfilesAcrossReaders` tests both directions against a frozen
+     copy of the /0 reader.
+   - `docs/COMPATIBILITY.md` was regenerated with `make compatibility-table`; the capability
+     row of `corvint affected` names `treeReaders`. `make spec-requirements` reported no change.
+   - No user guide documents any member of this file; AFP-V0-2480 and the capability row are
+     the documentation (friction 3 of the round 3 handback).
+4. **P2, trailers.** The round 2 commits `16ca3bcf4`, `c394d0b1f` and `82c556c78` carry no
+   `Corvint-Ticket:` trailer and are not rewritten. The last commit of this round names them.
+5. **P3, a tested wrapper was a leaf.** `driversRunning` now follows a wrapper that has tests:
+   the dependents relation holds production edges, so its production file runs the reader.
+   Only a unit made of test files alone is a leaf.
+   - The review found no live instance. There is one: `tools/docs-ci-plan` (a Go package with
+     tests) runs `script/check-line-citations.sh`, and the `docs-plan` job of `ci.yml` runs it.
+     That job and three jobs the graph follows from it are now tree reader drivers.
+   - Following test-only units as well would mark 22 more drivers, the `*-test` targets that
+     run a checker's own shell test. The seven checker tests sampled show no run of their
+     checker on this tree, only on a temporary fixture, so test-only units stay leaves. A test
+     that does run a reader over the tree needs its own `treeReaders` entry.
+   - `TestTreeReaderFollowsTestedWrapper_AZU_V0_8922`.
+6. **P3, the whole-tree marker was narrow.** The marker is now the list `wholeTreeForms`, each
+   form held to an example by `TestWholeTreeMarkerForms_AZU_V0_8923`. It adds `git ls-tree`,
+   changed-name listings (`--name-only`, `--name-status`), recursive `grep` and `ls`, a shell
+   globstar, `os.scandir`, `os.listdir`, `glob`, `iterdir`, `fs.WalkDir`, `os.ReadDir` and
+   `Glob`. The same test lists the forms the guard cannot see, with the rule that covers each.
+   - The wider marker flagged ten more driver-run scripts. Two are now declared tree readers:
+     `script/check-host-package-versions.sh` (its scope holds ownership-rule paths) and
+     `script/github-split-check.sh` (it judges the name of every changed path).
+   - Eight are reasoned exceptions: a listing that only prints a note or a hint, a merge or
+     review-range report, a single-directory test, and one scoped to `docs/specs/**`.
+   - The guard now reads the declaration itself. Before, a declared file whose drivers an
+     earlier entry had already marked was reported undeclared.
+
+Counts at `806101a7f`: 21 declared tree readers (19 before), 54 drivers marked by the
+declaration (49 before: 4 through the tested wrapper, 1 for the host package check), 25
+guard exceptions (17 before).
+
+### Replay at the round 3 head
+
+`cmd/corvint` was built at `806101a7f02f5276c913501e44ba664cd55d6efc` with
+`GOTOOLCHAIN=local script/heavy.sh go build -o corvint-head ./cmd/corvint` (go1.27.4
+linux/amd64), SHA-256 `4c83808f08e50216812a1627fb2185ee6fa4b98e486fffdee3523fe19ff24358`.
+Planners ran at most 4 at once under `nice`; `nproc` 32, load average 0.7 at the start of the
+117 rows and 13.7 at the start of the head proof. The commits after `806101a7f` change two
+test literals and documentation only, so the binary is the planner of the final head.
+
+**The review's two cases, base against head.** Base is `corvint-own-after` (source
+`c7dbf717e`, the lane base).
+
+| Case | Binary and tree | Scope | Selected |
+|---|---|---|---|
+| 1 | base, scratch repository | BOUNDED | `Makefile#check`, `Makefile#register-check`, `shell:script/register_test.sh` |
+| 1 | round 2 head `82c556c78` | BOUNDED | `shell:script/register_test.sh` only: 2 dropped |
+| 1 | round 3 head `806101a7f` | BOUNDED | the same 3 units as base: 0 dropped, 0 added |
+| 2 | base on tree `c7dbf717e` | BOUNDED | 136 units |
+| 2 | round 2 head on tree `a937ad18e` | BOUNDED | the same 136 units |
+| 2 | round 3 head on tree `806101a7f` | BOUNDED | 154 units: 0 dropped, 18 added |
+
+- Case 1 is a scratch repository: a make target runs a script that reads
+  `${1:-${ROOT:-.}/conformance/register.md}`, an owner covers `conformance/**`, and
+  `conformance/register.md` is planned alone with `affected --no-cache --full --path`.
+- Case 2 plans a new `.corvint/changes/zz.cem.json` alone. The 18 added units are the declared
+  tree reader drivers, among them `eol-policy-check`, `binary-blobs-check`,
+  `stray-backups-check` and `tracked-ignored-check`.
+- In both cases the head selection now equals the base selection or is wider.
+
+**The 117 replay merges.** Same argv and stale retry as before, round 3 head binary against the
+"after" binary and against the round 2 head binary.
+
+- 117 of 117 exit 0; wall-clock per plan 5.1 s to 50.4 s, median 8.0 s.
+- Against base: growth per row min 0, median 0, max 4, 27 in total (47899 to 47926 units);
+  units removed 0; no row's unknown entries differ.
+- Against the round 2 head: growth 0 on every row; units removed 0. The historical trees carry
+  /0 declarations and no nested default, so the two heads plan them alike.
+
+**Head proof (not a replay row).** The 160 audited paths planned alone at the clean head
+`806101a7f`.
+
+- All 160 plans exit 0, in 6.6 s to 9.0 s each.
+- All 730 (merge, path, unit) reader classes are selected: 0 left to an unknown path, 0
+  missed, 0 units absent.
+- Against the round 2 head plans: units removed 0; growth per path min 0, median 1, max 4,
+  142 in total. 139 of the 142 are `host-package-versions-check`; the others are
+  `agent-preflight-test`, `go-vet` and `shell-test`, one path each.
+
+**An older binary.** The base binary refuses the round 3 tree: `affected --no-cache --full
+--path .corvint/changes/zz.cem.json` exits 2 with `unsupported-affected-graph`
+(`unknown object member name "treeReaders"`). It never plans without the tree readers.
+
+### Result of round 3
+
+No unit the base planner selected is dropped at head, on the 117 merges, on the 160 audited
+paths or on the review's two cases. The historical rows stay recorded as the rule measured at
+each merge. The AZU-V0-009 overall acceptance flag still stays false while the historical
+full-suite and mutation safety receipts are unavailable; that is AZU-V0-009's own promotion
+condition, not V1-4685's criterion.
+
+The CI planner pins (`CORVINT_PR_TOOL_SOURCE`, `CORVINT_TEST_SHADOW_SOURCE`) still refuse this
+tree until they move to a commit that contains the final head of this round. That `.github`
+edit is the orchestrator's, after landing.
+
+### Evidence bindings (round 3)
+
+Under `/home/russell/lanes/r1replay-evidence/r3/` (not committed). SHA-256:
+
+- `replay-r3.py`: `eded2b80deff00638b421c39dd03b0b4c98a880b3df5aff3e647c0efb61e5c0a`;
+  `compare-r3.py`: `b6fcf87e345ca3ed297e36b3d9417e9c51a150c03b6e4984bb40d0c99f777740`;
+  head replay stdout (`raw/*.head.stdout`), concatenated:
+  `baa6cd71ff948730bdff4877e21f6560ce4a171eb132e148512112272f1a105c`;
+  `selection-cost-r3.tsv` (117 rows):
+  `4c344d9d673fed3fac2f707f2c2fa5d077711c79399bb2b2af01d3ec42acb441`.
+- `headproof-r3.py`: `459cfa5bacc56d12132d030064dcf5e9bcce66b42d9e81413b4006b5c31b82e1`;
+  `headproof-check-r3.py`: `af045a9c0199c92bb8a5b39c24e3232555972886f60392f88970988289b59cf9`;
+  `headproof-compare-r3.py`: `c83715a06b785d8ad72b74202d6384728fa3fb8f8f909fcfa68f39b9121aa77e`;
+  head plans `headproof/*.json`, concatenated:
+  `92f36661e21bb903e94e88b1b409670fea66ec7612eaae20d2e36b8dbb9de942`;
+  `headproof-classes.tsv` (730 rows, byte-identical to round 2):
+  `e48eb2ff130163051f508b38c9a2d1bad624350faba0239f920b64368bf2b9a8`.
+- Case 1 plans `case1/base.json`, `case1/round2.json`, `case1/round3.json`:
+  `8a940033bca567ed9c766cbc97138f1317fef2453f30bbd57888d6697122d6d7`,
+  `d75ed86fe4c0e82188387c27a33baaa8845e814fbd0d81cbb0e6a849e3942e62`,
+  `f8c872f8e741fb2bad0e6a55be705082f28420ed6ae3b36e946682d42d6fd9d0`.
+- Case 2 plans `case2/base-on-base-tree.json`, `case2/round2-on-round2-tree.json`,
+  `case2/round3-on-round3-tree.json`:
+  `87bab1094a925ed13c89d8a125e436aeedaccbc3858a02b4251364f86929044a`,
+  `bf0409778c281e289b2413dc445d169c99dbd8b311d5ffbfe66f174f9864a6a5`,
+  `85f0799fbad3fc768c00919f715803fbe454b92092f3f7472c8a5ef282606f51`;
+  the older-binary refusal `case2/base-on-round3-tree.err`:
+  `5f6c8b751f88be71b681c3e89e1046311f0c91843c1a696197e678f81693d8a0`.
+- The failing-first outputs are `f1-`, `f2-`, `f3-`, `f5-` and `f6-*.log`; the whole-package
+  test logs are in `tests/`.
