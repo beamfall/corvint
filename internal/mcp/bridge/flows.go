@@ -262,11 +262,11 @@ func (registry *Registry) callFlowsImpact(ctx context.Context, arguments []byte)
 		if err != nil {
 			return nil, err
 		}
-		records, _, err := flowRunEvidence(ctx, root, nil)
+		records, read, err := flowRunEvidence(ctx, root, nil)
 		if err != nil {
 			return nil, err
 		}
-		return appflows.FlowImpactResults(ctx, root, set, resolved, records)
+		return appflows.FlowImpactResults(ctx, root, set, resolved, records, read)
 	})
 }
 
