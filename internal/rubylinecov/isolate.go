@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +38,38 @@ type stateBinding struct {
 	Argv            []string `json:"argv"`
 	Timeout         int64    `json:"timeoutNanos"`
 	IsolatedTimeout int64    `json:"isolatedTimeoutNanos"`
+	// Env is the digest of each bound environment variable, "unset" for a
+	// declared one that is not set (see boundEnvironment).
+	Env map[string]string `json:"env"`
+}
+
+// boundNames and boundPrefixes are the variables that choose the Ruby
+// interpreter and its gems: a state directory resumes only under the values
+// its first chunk ran with.
+var (
+	boundNames    = []string{"PATH", "RUBYOPT", "RUBYLIB"}
+	boundPrefixes = []string{"GEM_", "BUNDLE_", "RUBY", "RBENV_", "RVM_", "CHRUBY_", "ASDF_RUBY"}
+)
+
+// boundEnvironment digests the Ruby and gem variables of environ and every
+// declared variable. Values are digested because a declared variable may
+// hold a secret.
+func boundEnvironment(environ, declared []string) map[string]string {
+	bound := map[string]string{}
+	for _, name := range append(append([]string{}, boundNames...), declared...) {
+		bound[name] = "unset"
+	}
+	for _, kv := range environ {
+		name, value, _ := strings.Cut(kv, "=")
+		_, named := bound[name]
+		for _, prefix := range boundPrefixes {
+			named = named || strings.HasPrefix(name, prefix)
+		}
+		if named {
+			bound[name] = fmt.Sprintf("sha256:%x", sha256.Sum256([]byte(value)))
+		}
+	}
+	return bound
 }
 
 // retainedResult is one finished run's terminal result beside its dumps.
@@ -72,6 +105,13 @@ func Collect(ctx context.Context, o Options) (*Run, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Every isolated run must report the ordinary-order run's runner: a
+	// chunk resumed under another Ruby or framework is refused, and its run
+	// is not retained.
+	var (
+		mu      sync.Mutex
+		foreign error
+	)
 	isolatedRun := func(i int, out Outcome) (*Run, error) {
 		one := o
 		if o.IsolatedTimeout > 0 {
@@ -79,19 +119,40 @@ func Collect(ctx context.Context, o Options) (*Run, error) {
 		}
 		one.Work = filepath.Join(o.Work, fmt.Sprintf("isolated-%d", i))
 		one.onlyName, one.onlyPackage = out.Name, out.Package
-		return retained(ctx, one.Work, true, "result.json", func() (*Run, error) { return collectOnce(ctx, one) })
+		isolated, err := retained(ctx, one.Work, true, "result.json", func() (*Run, error) { return collectOnce(ctx, one) })
+		if err == nil && isolated != nil && isolated.Runner != run.Runner {
+			_ = os.Remove(filepath.Join(one.Work, "result.json"))
+			mu.Lock()
+			defer mu.Unlock()
+			if foreign == nil {
+				foreign = fmt.Errorf("rubylinecov: isolated run %d of %s ran under runner %q, the ordinary-order run under %q; rerun under the collection's own Ruby and gems", i, out.Name, isolated.Runner, run.Runner)
+			}
+			return nil, foreign
+		}
+		return isolated, err
+	}
+	refused := func() error {
+		mu.Lock()
+		defer mu.Unlock()
+		return foreign
 	}
 	if err := runIsolated(ctx, run.Outcomes, o, func(i int, out Outcome) error {
 		_, err := isolatedRun(i, out)
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		_ = err // a failed isolated run is a retained divergent result
-		return nil
+		// A failed isolated run is a retained divergent result; a run under
+		// another runner stops the collection.
+		_ = err
+		return refused()
 	}); err != nil {
 		return nil, err
 	}
-	return isolateArtifacts(run, isolatedRun), nil
+	merged := isolateArtifacts(run, isolatedRun)
+	if err := refused(); err != nil {
+		return nil, err
+	}
+	return merged, nil
 }
 
 // runIsolated launches each non-pending outcome's isolated run, up to
@@ -211,12 +272,18 @@ func bindState(ctx context.Context, state string, o Options) error {
 	if err != nil {
 		return err
 	}
-	want := stateBinding{Profile: "rubylinecov-state/1", Collector: fmt.Sprintf("%x", sha256.Sum256(script)), Root: root, Commit: strings.TrimSpace(string(head)), Argv: o.Argv, Timeout: int64(o.Timeout), IsolatedTimeout: int64(o.IsolatedTimeout)}
+	want := stateBinding{Profile: "rubylinecov-state/2", Collector: fmt.Sprintf("%x", sha256.Sum256(script)), Root: root, Commit: strings.TrimSpace(string(head)), Argv: o.Argv, Timeout: int64(o.Timeout), IsolatedTimeout: int64(o.IsolatedTimeout), Env: boundEnvironment(os.Environ(), o.Env)}
 	file := filepath.Join(state, "state.json")
 	if data, err := os.ReadFile(file); err == nil {
 		var got stateBinding
-		if err := json.Unmarshal(data, &got); err != nil || !reflect.DeepEqual(got, want) {
-			return fmt.Errorf("rubylinecov: state %s belongs to another collection (collector, root, commit, argv or deadlines differ)", state)
+		if err := json.Unmarshal(data, &got); err != nil {
+			return fmt.Errorf("rubylinecov: state %s belongs to another collection (unreadable binding: %v)", state, err)
+		}
+		if differ := environmentDiffers(got.Env, want.Env); len(differ) > 0 && got.Profile == want.Profile {
+			return fmt.Errorf("rubylinecov: state %s belongs to another collection: its environment differs in %s; resume under the environment its first chunk ran with", state, strings.Join(differ, ", "))
+		}
+		if !reflect.DeepEqual(got, want) {
+			return fmt.Errorf("rubylinecov: state %s belongs to another collection (state profile, collector, root, commit, argv, deadlines or declared environment differ)", state)
 		}
 		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -237,6 +304,23 @@ func bindState(ctx context.Context, state string, o Options) error {
 		return err
 	}
 	return os.WriteFile(file, append(data, '\n'), 0o644)
+}
+
+// environmentDiffers names the variables whose binding differs.
+func environmentDiffers(got, want map[string]string) []string {
+	var names []string
+	for name, value := range want {
+		if got[name] != value {
+			names = append(names, name)
+		}
+	}
+	for name := range got {
+		if _, ok := want[name]; !ok {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 // isolateArtifacts shares the same comparison for live and core-captured runs.
