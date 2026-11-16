@@ -33,6 +33,40 @@ until the owner amends them.
   unlinked test and is never a complete answer. A flow's own `status` stays `complete` or
   `incomplete`.
 
+Builder decisions (2026-11-16, V1-5623), recorded while building the native reports; they stand
+until the owner amends them.
+
+- Home of the code. The command handlers of `flows status`, `flows impact` and `flows gaps` moved
+  from `internal/command/flows` (docs layer) to the new tests-layer package
+  `internal/flowreports`, which `corvint flows` dispatches. `flows gaps` moved too: PROD-DOCS-011
+  lists it with status, impact and test-evidence as a test-joining report, and FSV-V1-007's smoke
+  runs it with `corvint` alone. Each `corvint-docs` copy is a refusal naming `corvint flows VERB`
+  (exit 2, `invalid-arguments`).
+- The join stays shared. The joins themselves (`FlowStatus`, `FlowImpactResults`, `FlowGaps`) stay
+  in `internal/appflows`, where they already were, because the `corvint mcp` flow tools in the
+  shared `internal/mcp/bridge` call them; moving them into the tests layer would make the shared
+  bridge import upward. The tests layer owns the commands; the shared layer keeps one copy of each
+  report, so the command and the tool cannot diverge (AFL-V1-003).
+- Result sources. `appflows.ReadResults` reads the run evidence store, then each
+  `--evidence FILE`. The receipt reader is the store's (RVD-V1-006): `corvint test` appends every
+  receipt it writes to the store (RVD-V1-004), so the report sees each run without opening a
+  receipt file. A direct `--receipt FILE` or default-receipt read was built and withdrawn:
+  `TestSTRV0011ReceiptsHaveNoOtherReader` admits no receipt reader without an accepted
+  requirement, and this change is `pending-owner` in `docs/specs/openspec/acceptance-log.tsv`. A
+  receipt whose store append failed (`run-evidence-write-failed`) is therefore not reported.
+  `result_sources` lists each source, `read` or `not-read`, with its record count, printing a
+  named file as the caller named it, so the command and the tool print the same bytes for the
+  same names.
+- Granularity. A `corvint-test-run/0` row is file level (RVD-V1-006). It reaches a title link when
+  its key is the link's key, its key is the link's test file, or it is the canonical file-level
+  test ID of that file; a project-less file row covers every project. The row carries
+  `granularity: file`; an ingested record carries `granularity: test`.
+- Unassigned. `--provider FILE` (and the tool's `provider`) reuses the gaps inventory reader:
+  `inventory` and `unassigned` equal gaps' `inventory` and `unlinked_total`; without a provider
+  `unassigned` is `null`, never 0.
+- `--base`. The report keeps exactly the flows and the variations `flows impact` names, where it
+  used to keep every variation of a reached flow.
+
 ## Docs command group names (AFL-V1-008)
 
 Builder decision (2026-11-16, V1-5623), recorded before the rename commit as AFL-V1-008 requires;

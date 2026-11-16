@@ -113,10 +113,10 @@ func flowsToolDescriptors() []ToolDescriptor {
 		},
 		{
 			Name:        ToolFlowsStatus,
-			Description: "Report each flow at HEAD, its variations, the tests attached to each and the last recorded result of each test from corvint test receipts and ingested run evidence, or NOT_OBSERVED, optionally only the flows and variations the base..HEAD change reaches (application-flow-status/0).",
+			Description: "Report each flow at HEAD, its variations, the tests attached to each and the last recorded result of each test from corvint test runs and ingested run evidence, or NOT_OBSERVED, optionally only the flows and variations the base..HEAD change reaches (application-flow-status/0).",
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
-				"flows": relative, "evidence": files, "receipts": files, "provider": relative,
+				"flows": relative, "evidence": files, "provider": relative,
 				"base": map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
 			}, []any{"flows"}),
 		},
@@ -158,7 +158,6 @@ type flowsGapsInput struct {
 type flowsStatusInput struct {
 	Flows    string   `json:"flows"`
 	Evidence []string `json:"evidence"`
-	Receipts []string `json:"receipts"`
 	Provider *string  `json:"provider"`
 	Base     *string  `json:"base"`
 }
@@ -222,7 +221,7 @@ func (registry *Registry) callFlowsGaps(ctx context.Context, arguments []byte) (
 // runs between the same repository probes.
 func (registry *Registry) callFlowsStatus(ctx context.Context, arguments []byte) (Result, *Error) {
 	var input flowsStatusInput
-	if decodeClosed(arguments, &input) != nil || !validFlowFiles(input.Flows, append(slices.Clone(input.Evidence), input.Receipts...)) ||
+	if decodeClosed(arguments, &input) != nil || !validFlowFiles(input.Flows, input.Evidence) ||
 		(input.Base != nil && !fullObjectID(*input.Base)) || (input.Provider != nil && !validFlowPath(*input.Provider)) {
 		return Result{}, failure("invalid-arguments")
 	}
@@ -231,7 +230,7 @@ func (registry *Registry) callFlowsStatus(ctx context.Context, arguments []byte)
 		defer flowsImpactSerial.Unlock()
 	}
 	return registry.runFlows(ctx, ToolFlowsStatus, input.Flows, func(ctx context.Context, root string, set appflows.IntentSet) ([]byte, error) {
-		results, err := appflows.ReadResults(ctx, root, appflows.ResultInputs{Evidence: input.Evidence, Receipts: input.Receipts,
+		results, err := appflows.ReadResults(ctx, root, appflows.ResultInputs{Evidence: input.Evidence,
 			Resolve: func(file string) (string, error) { return resolveFlowInput(root, file) }})
 		if err != nil {
 			return nil, err

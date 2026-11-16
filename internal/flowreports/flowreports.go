@@ -108,19 +108,18 @@ func newFlags(name string) *flag.FlagSet {
 // runStatus is `flows status`: one report of each flow, its variations, the tests attached to each
 // and the last recorded result of each test, optionally limited to the flows and variations a
 // change reaches (AFL-V1-001 to AFL-V1-006). It reads intents at HEAD and the results of the two
-// named writers only: the run evidence store and the default `corvint test` receipt unless
-// --no-store, each --receipt FILE and each --evidence FILE (AFL-V1-002). It writes nothing
-// (AFL-V1-005, RVD-V1-012).
+// named writers only: the run evidence store, which holds every `corvint test` receipt and every
+// recorded `flows ingest` document, unless --no-store, and each --evidence FILE (AFL-V1-002). It
+// writes nothing (AFL-V1-005, RVD-V1-012).
 func runStatus(ctx context.Context, root string, args []string, out io.Writer) error {
 	f := newFlags("flows status")
 	dir := f.String("flows", "", "intent directory inside the root")
 	evidence := repeatable(f, "evidence", "test-run-evidence/0 JSONL file written by flows ingest")
-	receipts := repeatable(f, "receipt", "corvint-test-run/0 receipt written by corvint test")
 	provider := f.String("provider", "", "repository-relative application-flow-selection-provider/1 file whose E2E inventory gives the unassigned count")
 	base := f.String("base", "", "base commit that limits the report to the flows and variations the change reaches")
-	noStore := f.Bool("no-store", false, "read only the named --receipt and --evidence files, not the run evidence store or the default receipt")
+	noStore := f.Bool("no-store", false, "read only the named --evidence files, not the run evidence store")
 	if f.Parse(args) != nil || *dir == "" || f.NArg() != 0 {
-		return errors.New("flows status requires --flows DIR, optional repeatable --receipt FILE and --evidence FILE, optional --provider FILE, --no-store and --base SHA")
+		return errors.New("flows status requires --flows DIR, optional repeatable --evidence FILE, optional --provider FILE, --no-store and --base SHA")
 	}
 	if err := refuseUnreadableFlows(root); err != nil {
 		return err
@@ -129,7 +128,7 @@ func runStatus(ctx context.Context, root string, args []string, out io.Writer) e
 	if err != nil {
 		return err
 	}
-	results, err := appflows.ReadResults(ctx, root, appflows.ResultInputs{Evidence: *evidence, Receipts: *receipts, NoStore: *noStore})
+	results, err := appflows.ReadResults(ctx, root, appflows.ResultInputs{Evidence: *evidence, NoStore: *noStore})
 	if err != nil {
 		return err
 	}

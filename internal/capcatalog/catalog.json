@@ -999,7 +999,7 @@
         "--no-store",
         "--no-workspace",
         "--provider",
-        "--receipt",
+        "--record",
         "--registry",
         "--repo",
         "--repo-revision",
@@ -1016,7 +1016,6 @@
         "application-flow-intent/1",
         "application-flow-status/0",
         "application-flow-test-evidence/1",
-        "corvint-test-run/0",
         "test-run-evidence/0"
       ],
       "inputs": null,
@@ -1028,6 +1027,7 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "status writes application-flow-status/0: per flow and variation, the attached tests and the last recorded result of each (passed, failed, flaky, timedOut, skipped, interrupted or not-run) or NOT_OBSERVED.",
+        "Results come only from two writers: the runs corvint test records and the test-run-evidence/0 documents flows ingest writes.",
         "impact writes application-flow-impact/1: the flows, variations and test keys reached from base..HEAD changes, with the path of each hop, and last_results per flow when the store holds a record.",
         "gaps writes application-flow-gaps/1; any gap makes a flow incomplete; --provider FILE also lists the unlinked E2E inventory tests and the inventory's state (AFU-V1-150).",
         "The reports write nothing.",
@@ -3149,10 +3149,6 @@
         {
           "name": "provider",
           "description": "Repository-relative E2E selection provider file whose inventory gives the unassigned count."
-        },
-        {
-          "name": "receipts",
-          "description": "Repository-relative corvint-test-run/0 receipts written by corvint test."
         }
       ],
       "outputProfile": "application-flow-status/0",

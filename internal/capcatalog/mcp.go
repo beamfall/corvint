@@ -419,7 +419,6 @@ func mcpToolRows() []MCPTool {
 			in("base", "Optional full commit id of the base; only the flows and variations base..HEAD reaches are reported."),
 			flowsEvidence, flowsDir,
 			in("provider", "Repository-relative E2E selection provider file whose inventory gives the unassigned count."),
-			in("receipts", "Repository-relative corvint-test-run/0 receipts written by corvint test."),
 		),
 
 		// corvint-docs mcp: the documentation tools (MTT-V1-004).
