@@ -186,7 +186,7 @@ func TestRubyQualificationAdmission(t *testing.T) {
 	}
 	const mini, rspec = "ruby 3.3.8 minitest 5.27.0 coverage=lines,methods", "ruby 3.3.8 rspec 3.13.7 coverage=lines,methods"
 	run := func(runner string) QualifiedRun {
-		return QualifiedRun{Runner: runner, IndexDigest: "sha256:ix", Tests: 23, Faults: 7, Killed: 5, Selected: []int{1, 2, 3, 4, 5, 6, 7}, Controls: 1}
+		return QualifiedRun{Runner: runner, IndexDigest: "sha256:ix", Tests: 23, Faults: 7, Killed: 5, Selected: []int{1, 2, 3, 4, 5, 6, 7}, Controls: 1, ControlsKept: []int{0}}
 	}
 	q := Qualified{Profile: "linecov-qualified/1", Family: "ruby", IndexCommit: "corpus", Runners: []string{mini, rspec},
 		Corpus:  &QualifiedCorpus{URL: "https://example.invalid/webmock", Commit: "corpus", License: "MIT", LicenseSHA256: "x"},
@@ -229,6 +229,9 @@ func TestRubyQualificationAdmission(t *testing.T) {
 		{"no control", func(q *Qualified) { q.Report.Runs[0].Controls = 0 }, mini, false, root, false},
 		{"no kill", func(q *Qualified) { q.Report.Runs[0].Killed = 0 }, mini, false, root, false},
 		{"missing selected sizes", func(q *Qualified) { q.Report.Runs[0].Selected = q.Report.Runs[0].Selected[:3] }, mini, false, root, false},
+		{"control kept by coverage", func(q *Qualified) { q.Report.Runs[1].ControlsKept = []int{3} }, mini, false, root, false},
+		{"control kept regardless", func(q *Qualified) { q.Report.Runs[1].ControlsKept = []int{3}; q.Report.Runs[1].KeptRegardless = 3 }, rspec, false, root, true},
+		{"missing control sizes", func(q *Qualified) { q.Report.Runs[0].ControlsKept = nil }, mini, false, root, false},
 		{"go family", func(q *Qualified) { q.Family = "go" }, mini, false, root, false},
 		{"no corpus", func(q *Qualified) { q.Corpus = nil }, mini, false, root, false},
 		{"stale binding", func(q *Qualified) { q.Sources["internal/rubylinecov/lines.go"] = "0000" }, mini, false, root, false},
@@ -238,6 +241,9 @@ func TestRubyQualificationAdmission(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			record := q
 			record.Report.Runs = append([]QualifiedRun(nil), q.Report.Runs...)
+			for i := range record.Report.Runs {
+				record.Report.Runs[i].ControlsKept = append([]int(nil), q.Report.Runs[i].ControlsKept...)
+			}
 			record.Sources = map[string]string{}
 			for k, v := range q.Sources {
 				record.Sources[k] = v
