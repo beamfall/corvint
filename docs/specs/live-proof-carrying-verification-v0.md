@@ -780,9 +780,12 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   retained count. The merged index is byte-identical to a serial run over the same retained
   ordinary-order run. Each required file outside the root compiles without coverage (unless Ruby
   lacks the `coverage_enabled` compile option or another `load_iseq` hook is installed), so a
-  per-test `Coverage.result` copies only the counters the dump keeps. Witness:
+  per-test `Coverage.result` copies only the counters the dump keeps. A fork carries a launch
+  token like spawn and system: a child that completes its own dump joins it (its reach goes to the
+  test running at fork, or the load bucket), and a child that ends abruptly leaves the record
+  incomplete; popen and backtick children stay unobserved. Witness:
   `TestIsolatedParallelResume`, `TestIsolatedRetention`, `TestLiveCollectResume`,
-  `TestCollectorSkipsOutsideFiles`.
+  `TestCollectorSkipsOutsideFiles`, `TestObservedFork`, `TestIsolationAndChildren`.
 - `LPCV-V0-7606`: (accepted under standing implementation authority, V1-4421) The explicit
   `linecov js-collect` and `js-select` commands collect JavaScript/TypeScript indexes through
   the shared builder and validated `linecov.Decode` (`Load` is Open + Decode), apply `jslinecov.Analyze`, and report recorded

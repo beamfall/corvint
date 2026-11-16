@@ -180,3 +180,30 @@ func TestCollectorSkipsOutsideFiles(t *testing.T) {
 		t.Fatalf("repository line recorded for %q", got)
 	}
 }
+
+// LPCV-V0-7609: a fork whose child completes its dump is observed: the test
+// keeps its record and gains the child's reach; an abrupt child stays
+// uninstrumented (TestIsolationAndChildren).
+func TestObservedFork(t *testing.T) {
+	requireRuby(t, "minitest")
+	root := laneProject(t, "require 'minitest/autorun'\nrequire_relative '../lib/helper'\nclass LaneTest < Minitest::Test\n def test_fork; pid = fork { helper }; Process.wait(pid); assert $?.success?; end\nend\n", "lib/helper.rb", "def helper\n  1\nend\n")
+	run, err := Collect(context.Background(), Options{Root: root, Work: t.TempDir(), Argv: []string{"ruby", "test/case_test.rb"}, Timeout: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Outcomes) != 1 || !run.Outcomes[0].Recorded {
+		t.Fatalf("outcomes %+v", run.Outcomes)
+	}
+	head := git(t, root, "rev-parse", "HEAD")
+	oids, err := linecov.OIDs(context.Background(), root, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix, err := Index(".", head, run, oids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := lineTests(ix, "lib/helper.rb", 2); got != "LaneTest#test_fork" {
+		t.Fatalf("the child's line is recorded for %q", got)
+	}
+}
