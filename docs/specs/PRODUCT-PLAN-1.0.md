@@ -609,9 +609,12 @@ Also part of the bar (owner decisions of 2026-11-09).
     repository, shown equal, with results that came from PROD-TEST-020's writer.
 
 - `PROD-TEST-011`: (accepted, decision 0596; V1-5272) The supported runners MUST be exactly the
-  seven blocking runners plus the two additional, non-blocking runners Swift and Kotlin (decision
-  0600). For each supported runner, selection and running work; a release is blocked only by the
-  seven. Any other runner (Cypress included), any path no runner owns, and any path whose runner
+  seven blocking runners plus the additional, non-blocking runners that the kept Swift and Kotlin
+  providers supply (decision 0600): `swift-testing`, `swift-xctest` and `xcode-xctest`; and
+  `android-junit`, `appium`, `appium-uiautomator2-wdio`, `espresso`, `kotest`, `kotlin-test`,
+  `robolectric` and `uiautomator`. For each supported runner, selection and running work. A defect
+  in one of the seven blocks a release; a defect in an additional runner blocks a release only
+  when it is a silent miss (a change that should run a test and runs none). Any other runner (Cypress included), any path no runner owns, and any path whose runner
   was removed or is unavailable, gets a full run of all tests with a named reason.
   - Changed: (changed 2026-11-09, answer 2, G1, G26) The list was an open owner decision. G1 fixes
     it. G26 removes the C-family, .NET, Java, Kotlin, Rust and Swift providers and all 16
@@ -631,7 +634,8 @@ Also part of the bar (owner decisions of 2026-11-09).
     - **WHEN** a repository changes a `.swift` or `.kt` file that the Swift or Kotlin provider owns
     - **THEN** the plan selects tests through that provider, and falls back to a wider or full run
       only where that provider's own contract requires it (SATS-V0-761, KAT-V0-007)
-    - **AND** a failure of that provider does not block the release
+    - **AND** a failure of that provider does not block the release, unless the failure is a
+      silent miss (a change that should run a test and runs none)
   - Implemented by: RSP-V0-001 to RSP-V0-003 (external-protocol parts superseded by G23),
     TJAA-V0-015 to TJAA-V0-021.
   - Open tickets: V1-5256. New: a ticket for the removed-runner full run and the allowlist change
