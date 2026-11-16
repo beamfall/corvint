@@ -285,13 +285,15 @@ jobs:
             sha256sum -c SHA256SUMS
             ./corvint --version' sh
       - name: Install lifecycle on this sha's archive (runbook step 8)
-        if: ${{ !cancelled() && steps.candidate.outcome == 'success' }}
+        # This step, N-1 and the hostile matrix run only on archives the bind step admitted, so a
+        # refused candidate retains no lifecycle evidence that could be read as its own.
+        if: ${{ !cancelled() && steps.bind.outcome == 'success' }}
         env:
           CORVINT_LIFECYCLE_ARCHIVE: ${{ runner.temp }}/release/core/corvint_linux_amd64.tar.gz
         run: |
           "$RUNNER_TEMP/run-gate" install-lifecycle script/check-install-lifecycle.sh
       - name: N-1 install lifecycle upgraded to this sha's corvint (runbook step 8)
-        if: ${{ !cancelled() && steps.n1.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.bind.outcome == 'success' && steps.n1.outcome == 'success' }}
         env:
           CORVINT_LIFECYCLE_ARCHIVE: ${{ runner.temp }}/n1/corvint_linux_amd64.tar.gz
           CORVINT_LIFECYCLE_UPGRADE_BINARY: ${{ runner.temp }}/current/corvint
@@ -307,7 +309,7 @@ jobs:
           test "$FIRST_RELEASE" = false
           "$RUNNER_TEMP/run-gate" install-lifecycle-n1 script/check-install-lifecycle.sh
       - name: Hostile regression matrix (runbook step 8)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.bind.outcome == 'success' }}
         run: |
           "$RUNNER_TEMP/run-gate" hostile-regressions script/check-hostile-regressions.sh
       - name: Index the retained reports under the candidate identity (PRS-V1-1900)
