@@ -28,7 +28,8 @@ TMPDIR=/home/agent/lanes/r1docs.tmp script/affected-zero-unknown-replay.sh \
 ```
 
 The through revision deliberately reproduces the historical eight-merge scope. It
-does not include later merges through current main. The harness compares the same
+does not include later merges through current main; AZU-V0-009 requires them, and
+`2026-11-16-r1docs-ownership-replay-through-base.md` replays all 117 through the lane base. The harness compares the same
 unchanged historical tree with both binaries. No declaration is transplanted.
 
 ## Measured result
