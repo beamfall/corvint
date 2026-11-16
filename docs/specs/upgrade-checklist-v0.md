@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: accepted (decision 0518; V1-1142)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: V1-1142 / GitHub #784 owner request; AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest

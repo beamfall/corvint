@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-07
 Intent status: accepted (decision 0592: owner 2026-11-07 for its §1-§2; §3-§7 orchestrator-made under the 2026-11-02 delegation, owner may override)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner chat of 2026-11-07 (always run only the required minimum tests, "it
 should be perfect"; Go, other languages and E2E, "beamfall support basically"; "each langauge and
 runner should be a plugin so other langauges and runners can be easily added"; "Yes, both forms":

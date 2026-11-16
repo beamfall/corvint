@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Accepted: 2026-08-23
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Health: RETIRE
 Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
 Retirement note: decision 0594 (2026-11-09) deleted the `migrate` command group and
 `internal/tracemigraterepo`; trace migration requirements are retired.

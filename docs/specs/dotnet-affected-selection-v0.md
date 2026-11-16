@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-29
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/specs/live-proof-carrying-verification-v0.md`, the operator's
 2026-08-29 .NET framework requirements, `internal/liveverify/affected/unit.go`
 

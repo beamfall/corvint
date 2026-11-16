@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: proposed
 Delivery status: implementation-candidate; promotion evidence NOT_RUN
+Health: KEEP
 Freeze note: the 60-edge labelled corpus and reporter-compatibility runs are deferred until a WP6
 authority root is specified; absent that root, the corpus would measure a relation nobody may act on.
 Authoritative inputs: `docs/specs/ocm-v0-dogfood.md`,

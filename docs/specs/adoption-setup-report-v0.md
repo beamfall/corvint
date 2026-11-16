@@ -5,6 +5,7 @@ Date: 2026-10-20
 Requirement prefix: `ADS-V0`
 Intent status: accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2052)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: V1-2052; `AGENTS.md` invariants 4 and 7; `cmd/corvint/init_adopt.go`
 (the `adopt` adoption inventory verb this extends).
 

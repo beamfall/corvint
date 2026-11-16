@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-03
 Intent status: accepted
 Delivery status: experimental
+Health: MERGE
 Authoritative inputs: owner lane win-w59 request for V1-2491 and V1-2492;
 `AGENTS.md`; decision 0559; `docs/SPEC-DRIVEN-DEVELOPMENT.md`.
 

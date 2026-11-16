@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-29
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: operator request of 2026-08-29,
 `docs/specs/live-proof-carrying-verification-v0.md`, `docs/DOGFOOD.md`, and the
 `internal/liveverify/affected.Language` contract

@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-24
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 
 Authoritative inputs: native ticket V1-2525 and GitHub issues
 [#1598](https://github.com/beamfall/corvint/issues/1598),

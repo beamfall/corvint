@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-03
 Intent status: accepted
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner request of 2026-11-03 (each language acts as a plugin, each testing and
 coverage tool as a plugin of that language, so Corvint core stays language-agnostic and only uses
 the plugins); tickets V1-4404 and V1-4405 (owner, 2026-11-03: the other language-specific interactions belong in the plugins too, and a language and its tooling should be testable apart from the rest of Corvint); `affected-plan-v0.md` (the `affected.Language` seam);

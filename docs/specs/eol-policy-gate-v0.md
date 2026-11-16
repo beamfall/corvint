@@ -5,6 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `EPG-V0`
 Intent status: accepted (decision 0150, owner instruction 2026-09-12)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariants 1, 2 and 8,
 `../SPEC-DRIVEN-DEVELOPMENT.md` "Required capability-spec shape",
 `../decisions/0061-windows-is-a-deferred-target-and-gitattributes-is-repository-wide-2026-09-05.md`,

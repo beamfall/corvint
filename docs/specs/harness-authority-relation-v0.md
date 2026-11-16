@@ -7,6 +7,7 @@ what would have to change first.
 Date: 2026-08-29
 Intent status: superseded by accepted decision 0009 option 2 (local non-authority workflow policy)
 Delivery status: superseded
+Health: KEEP
 Successor (option 2 accepted 2026-09-06): `docs/decisions/0009-harness-authority-boundary.md`
 
 ## Agent digest

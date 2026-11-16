@@ -4,6 +4,7 @@ Owner: Russell Lewis (repository owner). This report proposes classes. It change
 Date: 2026-11-09
 Intent status: proposed
 Delivery status: not-started
+Health: KEEP
 
 ## Agent digest
 - Claim: Each of the 168 surviving specs gets a proposed class of keep, merge, retire or outside 1.0, with its acceptance and test-citation gaps.

@@ -1,5 +1,7 @@
 # Work Queue Observation V0
 
+Health: KEEP
+
 **Owner:** Russell Lewis  
 **Date:** 2026-08-23  
 **Intent status:** retired 2026-11-09 (decision 0594)  

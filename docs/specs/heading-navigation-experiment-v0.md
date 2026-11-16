@@ -5,6 +5,7 @@ Date: 2026-09-29
 Requirement prefix: `HNE-V0`
 Intent status: retired 2026-11-11 (decision 0597)
 Delivery status: retired
+Health: RETIRE
 Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
 Retirement note: decision 0597 (context proven only) deleted `tools/heading-nav-bench` with the context benchmarks (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner request to implement the PageIndex-inspired comparison on 2026-09-29;

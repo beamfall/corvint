@@ -5,6 +5,7 @@ Date: 2026-09-07
 Requirement prefix: `DNG-V0`
 Intent status: accepted (owner instruction 2026-09-07); DNG-V0-009 accepted 2026-10-24 (V1-0332)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md` "Required
 capability-spec shape", `../decisions/0048-four-owner-calls-2026-09-04.md` (which names the
 grandfathered pair and makes this check a `make gate` prerequisite), `../decisions/README.md`

@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-22  
 Intent status: proposed  
 Delivery status: experimental  
+Health: MERGE
 Repository baseline: `cd9fec9ae5ed8199ee3c844884ca4212d3e4031c`
 
 ## Agent digest

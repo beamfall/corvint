@@ -1,5 +1,7 @@
 # Observed UI Evidence V0
 
+Health: KEEP
+
 **Owner:** Russell Lewis  
 **Date:** 2026-10-25  
 **Intent status:** proposed  

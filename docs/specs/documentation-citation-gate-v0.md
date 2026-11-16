@@ -5,6 +5,7 @@ Date: 2026-09-07
 Requirement prefix: `DCG-V0`
 Intent status: accepted (owner instruction 2026-09-07); DCG-V0-048 experimental under the standing lane auto-accept (V1-3228); DCG-V0-800/801 experimental under the standing lane auto-accept (V1-3384)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariants 1, 2 and 8, `../SPEC-DRIVEN-DEVELOPMENT.md`,
 `../DOGFOOD.md` §4, `falsifiable-packet-v0.md` FPK-V0-004 (the packet-side citation check this
 gate mirrors for prose), `../decisions/0136-extensionless-root-line-citations-2026-09-12.md`,

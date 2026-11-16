@@ -3,6 +3,7 @@
 Owner: Russell Lewis
 Intent status: proposed
 Delivery status: deferred
+Health: KEEP
 Disposition: return only with a general extractor; retain this candidate's fact matrix as the model.
 
 ## Agent digest

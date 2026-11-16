@@ -5,6 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `SRG-V0`
 Intent status: accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md` "Required
 capability-spec shape", `decision-number-gate-v0.md` (whose drift rule pins that a gate must
 measure what a fresh clone contains), `requirement-definition-gate-v0.md` (the consumer that

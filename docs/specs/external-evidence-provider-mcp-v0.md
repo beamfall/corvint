@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-20
 Intent status: accepted (decision 0324)
 Delivery status: implemented
+Health: MERGE
 Authoritative inputs: issue 11 and the owner's direction to resolve it; decision 0317;
 `docs/specs/external-evidence-provider-transports-v0.md`.
 

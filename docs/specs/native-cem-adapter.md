@@ -2,6 +2,7 @@
 
 Intent status: proposed
 Delivery status: experimental (checked by `TestCEMSeamsDependOnlyOnStdlibAndGit`)
+Health: KEEP
 
 ## Agent digest
 - Claim: CEM seams depend only on the Go standard library, `internal/groupreap` and local Git, not kernel, provider, analyzer, or network surfaces.

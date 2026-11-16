@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-23  
 Intent status: accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)  
 Delivery status: implemented (stdio companion profile, official-schema receipt 2026-10-20)  
+Health: KEEP
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/agent-harness-integration-v0.md`, the
 [MCP 2026-07-28 specification](https://modelcontextprotocol.io/specification/2026-07-28), and its

@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); UCV0-018 experimental under the standing lane auto-accept (2026-10-27; V1-2828); UCV0-019 experimental under the standing lane auto-accept (2026-10-29; V1-3124); UCV0-020 experimental under the standing lane auto-accept (2026-10-30; V1-3229)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/agent-harness-integration-v0.md`

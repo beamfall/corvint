@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-22
 Intent status: superseded by `docs/specs/change-frontier-v0.md`
 Delivery status: superseded
+Health: KEEP
 Supersession note: its Stop-hook and acknowledgement-under-policy language contradicts
 `CF-V0-005` and `CF-V0-027` and is not ported. Decision 0012 withdraws its imported
 `0.70`/`0.50`/`0.25` outcome gates from the successor; the numbers below are historical only.
