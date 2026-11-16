@@ -3439,12 +3439,12 @@ if [ -n "$CORVINT_TASKS_SNAPSHOT" ]; then
   case "$1 $2" in
     "queue status") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" || { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; exit 2; }
       printf '%s\n' '{"outcome":"OK","items":[]}'; exit 0 ;;
-    "queue snapshot") printf '%s\n' '{"outcome":"ERROR","codes":["UNSUPPORTED"]}'; exit 2 ;;
     # ticket show verifies the bundle first (readSnapshotBundle), so a missing or unverifiable
     # file fails the read; LD_SHOWLOG records which file each read was served from.
     "ticket show") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" 2> /dev/null ||
         { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; echo "snapshot unreadable: $CORVINT_TASKS_SNAPSHOT" >&2; exit 2; }
       [ -z "$LD_SHOWLOG" ] || printf '%s %s\n' "$3" "$CORVINT_TASKS_SNAPSHOT" >> "$LD_SHOWLOG" ;;
+    *) printf '%s\n' '{"outcome":"ERROR","codes":["UNSUPPORTED"]}'; exit 2 ;;
   esac
 fi
 if [ "$1 $2 $3" = "queue snapshot --out" ]; then
@@ -3491,7 +3491,7 @@ out=$(ldi --out "$ld/in" V1-0001 V1-0002 2> "$ld/err")
   grep -qxF "Before the first commit: script/lane-dispatch.sh base-check --base $lbase --fresh" "$ld/in/brief-header.md" ||
   fail "lane-dispatch inputs: $out $(cat "$ld/err" "$ld/in/lane.env" 2> /dev/null)"
 # ASD-V0-2201: delivery classifications block before lane.env or host publication.
-for verdict in DELIVERED DELIVERED_ON_LANE COMPLETED HELD IN_FLIGHT TRUNCATED fail malformed missing; do
+for verdict in DELIVERED DELIVERED_ON_LANE COMPLETED HELD IN_FLIGHT TRUNCATED FUTURE_VERDICT fail malformed missing; do
   out=$(LD_SCREEN=$verdict ldi --out "$ld/screen-$verdict" V1-0001 V1-0002 2>&1)
   [[ $? == 2 && $out == *'lane-dispatch: REFUSE screen findings'* && ! -e $ld/screen-$verdict/lane.env ]] ||
     fail "delivery screen admitted $verdict: $out"
@@ -3515,12 +3515,22 @@ done
 # On a snapshot host (CORVINT_TASKS_SNAPSHOT set, queue snapshot refused) the named file is copied
 # and verified; an absent or unverifiable one is refused queue-snapshot-failed.
 printf '%s\n' '{"profile":"stub-snapshot","host":"journal"}' > "$ld/staged.json"
-out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json LD_SHOWLOG=$ld/showlog ldi --out "$ld/snap-host" V1-0001 V1-0002 2>&1)
+# Snapshot refusal precedes command dispatch, even for --unaudited. The fixture
+# admits only its implemented snapshot reads and refuses every other command.
+for verb in delivery-screen future-command; do
+  out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json "$ld/bin/tasks" ticket "$verb" V1-0001 --unaudited)
+  [[ $? == 2 && $out == '{"outcome":"ERROR","codes":["UNSUPPORTED"]}' ]] ||
+    fail "snapshot fixture admitted $verb: $out"
+done
+out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json LD_SCREEN_LOG=$ld/snap-screen-args LD_SHOWLOG=$ld/showlog ldi --out "$ld/snap-host" V1-0001 V1-0002 2>&1)
 rc=$? sh_snap=$(cd "$ld/snap-host/ticket-bodies-abc-w1" 2> /dev/null && pwd -P)/queue-snapshot.json
 [[ $rc == 0 && $(cat "$ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot","host":"journal"}' &&
   ! -e $ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.out &&
   $(cat "$ld/showlog") == "V1-0001 $sh_snap"$'\n'"V1-0002 $sh_snap" ]] ||
   fail "lane-dispatch on a snapshot host (ticket reads must come from the verified copy): $out $(cat "$ld/showlog" 2> /dev/null)"
+[[ -s $ld/snap-host/lane.env ]] &&
+  grep -qxF "ticket delivery-screen V1-0001 V1-0002 --lane-refs --ref $lbase --json --unaudited" "$ld/snap-screen-args" ||
+  fail "snapshot dispatch lost unaudited Git screening or lane.env: $out"
 # A relative CORVINT_TASKS_SNAPSHOT resolves in REPO, not the caller's directory.
 printf '%s\n' '{"profile":"stub-snapshot","host":"rel"}' > "$ld/repo/rel-staged.json"
 out=$(cd "$ld" && CORVINT_TASKS_SNAPSHOT=rel-staged.json LANE_DISPATCH_TASKS=$ld/bin/tasks LANE_DISPATCH_SSH=$ld/bin/ssh "$script/lane-dispatch.sh" inputs \

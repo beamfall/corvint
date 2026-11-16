@@ -278,7 +278,9 @@ func belowToplevel(declared, toplevel string) string {
 var profileRegistries = map[string]func(string) (*bridge.Registry, error){
 	"": func(root string) (*bridge.Registry, error) {
 		return bridge.NewWithSwiftPMReader(root, swiftimpact.Reader{})
-	}, toolProfileFlows: bridge.NewFlows,
+	}, toolProfileFlows: func(root string) (*bridge.Registry, error) {
+		return bridge.NewFlowsWithSwiftPMReader(root, swiftimpact.Reader{})
+	},
 }
 
 // extractToolProfile removes the optional, closed descendant-profile selector

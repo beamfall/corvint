@@ -149,7 +149,8 @@ inputs() {
   # Unobserved PR evidence stays visible; malformed or delivered evidence refuses.
   local delivery=$dir/delivery-screen.json delivery_status=0 unaudited=()
   [[ -z ${CORVINT_TASKS_SNAPSHOT:-} ]] || unaudited=(--unaudited)
-  (cd "$repo" && "${LANE_DISPATCH_TASKS:-corvint-tasks}" ticket delivery-screen $tickets --lane-refs --ref "$sha" --json ${unaudited[@]+"${unaudited[@]}"}) > "$delivery" 2> "$dir/delivery-screen.err" || delivery_status=$?
+  # delivery-screen reads Git, not the snapshot; Tasks rejects it in snapshot mode.
+  (cd "$repo" && unset CORVINT_TASKS_SNAPSHOT && "${LANE_DISPATCH_TASKS:-corvint-tasks}" ticket delivery-screen $tickets --lane-refs --ref "$sha" --json ${unaudited[@]+"${unaudited[@]}"}) > "$delivery" 2> "$dir/delivery-screen.err" || delivery_status=$?
   if ((delivery_status > 1)) || ! perl -MJSON::PP -e '
     my ($file,@wanted)=@ARGV;
     -f $file && -s $file <= 4*1024*1024 or exit 1;
