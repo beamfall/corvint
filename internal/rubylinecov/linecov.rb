@@ -51,6 +51,7 @@ module CorvintLinecov
       @out.sync = true
       @pid = Process.pid
       emit('kind' => 'start', 'ruby' => RUBY_VERSION, 'pid' => Process.pid, 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => ENV['CORVINT_LINECOV_LAUNCH'])
+      skip_outside
       Coverage.start(lines: true, methods: true)
       at_exit { finish }
       [Object, Kernel.singleton_class, Process.singleton_class, IO.singleton_class].each { |m| m.prepend(ExecHook) }
@@ -61,6 +62,19 @@ module CorvintLinecov
       end
       @loads.enable
       watch if SUITE
+    end
+
+    # skip_outside compiles each required file outside the root without
+    # coverage, so every per-test Coverage.result copies only the counters a
+    # dump keeps (relative drops the others): the result is unchanged and a
+    # suite loading many gems is not slowed by them (LPCV-V0-7609). It stays
+    # off when Ruby lacks the compile option or another load_iseq hook (a
+    # compile cache) is already installed.
+    def skip_outside
+      return unless defined?(RubyVM::InstructionSequence) && RubyVM::InstructionSequence.compile_option.key?(:coverage_enabled)
+      return if RubyVM::InstructionSequence.respond_to?(:load_iseq)
+
+      RubyVM::InstructionSequence.singleton_class.prepend(SkipOutside)
     end
 
     # watch hooks the first framework base class that opens.
@@ -227,6 +241,18 @@ module CorvintLinecov
     def string(s)
       s = s.encode('UTF-8', invalid: :replace, undef: :replace)
       +'"' << s.gsub(/["\\\u0000-\u001f]/) { |c| format('\\u%04x', c.ord) } << '"'
+    end
+  end
+
+  # SkipOutside never defers to a later load_iseq hook: a cached
+  # instruction sequence of a repository file would carry no coverage.
+  module SkipOutside
+    def load_iseq(path)
+      return nil if CorvintLinecov.relative(path)
+
+      compile_file(path, coverage_enabled: false)
+    rescue SyntaxError
+      nil
     end
   end
 
