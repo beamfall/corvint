@@ -48,3 +48,14 @@ reports.
 Example: corvint flows status --flows flows --evidence runs/runs.jsonl
 Example: corvint flows impact --flows flows --base "$(git merge-base HEAD origin/main)"
 `
+
+// StatusDescription is the `flows status` node page's description: which results count and what
+// NOT_OBSERVED means, as Help states them (CAP-V0-976, V1-5635).
+const StatusDescription = `Reports each flow and variation with its attached tests (the targets of reviewed test links) and
+the last recorded result of each. Results come only from two sources: the run evidence store at
+<git-dir>/corvint/evidence, which holds every corvint test run and every flows ingest --record
+document (not read with --no-store), and each --evidence FILE, a test-run-evidence/0 document
+flows ingest writes. The newest record naming a test gives its result, stale unless it ran on the
+reported commit and tree from a clean worktree; a STATIC record never counts. A test that no
+record of a read source names is NOT_OBSERVED. result_sources lists every source, read or
+not-read, with its record count.`

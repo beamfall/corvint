@@ -549,3 +549,35 @@ func TestCAPV07701PulseRequiredPreamble(t *testing.T) {
 		t.Fatalf("required preamble: %+v %v", n, ok)
 	}
 }
+
+// TestCAPV0976NodePageDescriptionOrParentTopic is CAP-V0-976 (V1-5635): a node page prints the
+// node's description under its title when the tree has one, and otherwise ends by naming the help
+// topic of the nearest enclosing node that has a summary; a node with no such ancestor names none.
+func TestCAPV0976NodePageDescriptionOrParentTopic(t *testing.T) {
+	builder := NewBuilder("demo")
+	builder.Declare([]string{"group"}, "Run the group")
+	builder.AddText("demo group run --dir DIR\ndemo group run deep --dir DIR\ndemo group check\ndemo solo\n", "")
+	builder.Describe([]string{"group", "check"}, "Checks every\nmember of the group.")
+	tree := builder.Tree("demo help --json", "test", []string{"cmd/demo"}, nil, nil)
+	page := func(words ...string) string {
+		node, ok := tree.Find(words)
+		if !ok || len(node.Path) != len(words) {
+			t.Fatalf("%v: no node", words)
+		}
+		return Render(tree, node)
+	}
+	if got := page("group", "check"); !strings.HasPrefix(got, "demo group check\n\nChecks every\nmember of the group.\n\nUsage:\n") || strings.Contains(got, "Full topic:") {
+		t.Fatalf("described node:\n%s", got)
+	}
+	for _, words := range [][]string{{"group", "run"}, {"group", "run", "deep"}} {
+		if got := page(words...); !strings.HasSuffix(got, "Every command of demo: demo help --json\nFull topic: demo help group\n") {
+			t.Fatalf("%v names no parent topic:\n%s", words, got)
+		}
+	}
+	if got := page("solo"); strings.Contains(got, "Full topic:") {
+		t.Fatalf("top-level node names a parent topic:\n%s", got)
+	}
+	if check, _ := tree.Find([]string{"group", "check"}); check.Description != "Checks every\nmember of the group." {
+		t.Fatalf("description not on the node: %q", check.Description)
+	}
+}

@@ -20,16 +20,19 @@ import (
 // Schema names the tree document.
 const Schema = "corvint-command-tree/0"
 
-// Node is one subcommand at any depth. Path holds the words after the binary.
+// Node is one subcommand at any depth. Path holds the words after the binary. Description is
+// the prose its node page prints under the title; without one the page names the parent help
+// topic instead (CAP-V0-976).
 type Node struct {
-	Path     []string `json:"path"`
-	Command  string   `json:"command"`
-	Summary  string   `json:"summary"`
-	Usage    []string `json:"usage"`
-	Flags    []string `json:"flags"`
-	Required []string `json:"required"`
-	Example  string   `json:"example"`
-	Help     string   `json:"help"`
+	Path        []string `json:"path"`
+	Command     string   `json:"command"`
+	Summary     string   `json:"summary"`
+	Description string   `json:"description,omitempty"`
+	Usage       []string `json:"usage"`
+	Flags       []string `json:"flags"`
+	Required    []string `json:"required"`
+	Example     string   `json:"example"`
+	Help        string   `json:"help"`
 }
 
 // Internal is a dispatched word that is an internal entry point (a worker the
@@ -90,17 +93,18 @@ func OperationWord(word string) bool {
 
 // Builder accumulates usage forms into nodes.
 type Builder struct {
-	binary   string
-	forms    map[string][]string
-	summary  map[string]string
-	example  map[string]string
-	declared map[string]bool
+	binary      string
+	forms       map[string][]string
+	summary     map[string]string
+	description map[string]string
+	example     map[string]string
+	declared    map[string]bool
 }
 
 // NewBuilder starts a tree for binary.
 func NewBuilder(binary string) *Builder {
 	return &Builder{binary: binary, forms: map[string][]string{}, summary: map[string]string{},
-		example: map[string]string{}, declared: map[string]bool{}}
+		description: map[string]string{}, example: map[string]string{}, declared: map[string]bool{}}
 }
 
 // Declare adds a node for path even when no usage form names it yet; Problems
@@ -116,6 +120,11 @@ func (b *Builder) Declare(path []string, summary string) {
 // Example sets the example of the node at path instead of the derived one.
 func (b *Builder) Example(path []string, example string) {
 	b.example[strings.Join(path, " ")] = example
+}
+
+// Describe sets the description the node page at path prints under its title (CAP-V0-976).
+func (b *Builder) Describe(path []string, description string) {
+	b.description[strings.Join(path, " ")] = description
 }
 
 // AddText adds every synopsis line of text: a line whose first token is the
@@ -347,7 +356,7 @@ func (b *Builder) Tree(helpJSON, source string, sources, global []string, intern
 				}
 			}
 		}
-		node := Node{Path: path, Command: b.binary + " " + key, Summary: b.summary[key], Usage: usage,
+		node := Node{Path: path, Command: b.binary + " " + key, Summary: b.summary[key], Description: b.description[key], Usage: usage,
 			Flags: Flags(usage), Required: required(b.binary, own, len(path)), Example: b.example[key],
 			Help: b.binary + " " + key + " --help"}
 		if node.Usage == nil {
@@ -536,13 +545,17 @@ func LeadingWords(args []string, preamble map[string]bool) []string {
 	return words
 }
 
-// Render is a node's own help: its summary, synopses, flags, required inputs
-// and example, and where the machine-readable tree is.
+// Render is a node's own help: its summary, description, synopses, flags, required inputs
+// and example, and where the machine-readable tree is. A node without a description ends by
+// naming its parent help topic, so a subcommand's page still leads to its prose (CAP-V0-976).
 func Render(tree Tree, node Node) string {
 	var text strings.Builder
 	text.WriteString(node.Command)
 	if node.Summary != "" {
 		text.WriteString(": " + node.Summary)
+	}
+	if node.Description != "" {
+		text.WriteString("\n\n" + strings.TrimSpace(node.Description))
 	}
 	text.WriteString("\n\nUsage:\n")
 	for _, form := range node.Usage {
@@ -554,7 +567,23 @@ func Render(tree Tree, node Node) string {
 	if tree.HelpJSON != "" {
 		text.WriteString("\nEvery command of " + tree.Binary + ": " + tree.HelpJSON + "\n")
 	}
+	if parent, ok := parentTopic(tree, node); ok && node.Description == "" {
+		text.WriteString("Full topic: " + tree.Binary + " help " + strings.Join(parent.Path, " ") + "\n")
+	}
 	return text.String()
+}
+
+// parentTopic is the nearest node enclosing node that has a summary: the authored topic whose
+// help documents the command's group in prose.
+func parentTopic(tree Tree, node Node) (Node, bool) {
+	best, found := Node{}, false
+	for _, candidate := range tree.Nodes {
+		if candidate.Summary != "" && len(candidate.Path) > 0 && len(candidate.Path) < len(node.Path) &&
+			len(candidate.Path) > len(best.Path) && slices.Equal(candidate.Path, node.Path[:len(candidate.Path)]) {
+			best, found = candidate, true
+		}
+	}
+	return best, found
 }
 
 func listOrNone(items []string) string {
