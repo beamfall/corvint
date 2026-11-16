@@ -286,9 +286,14 @@ func languageDecide(ctx context.Context, root string, ix *linecov.Index, languag
 	var drift, change linecov.Effect
 	switch language {
 	case "ruby":
-		check := rubySyntax(ctx, opts.ruby, ix.Runner)
-		drift = rubylinecov.AnalyzeLines(ix, driftDiff, rubylinecov.Sources{Old: linecov.Reader(ctx, root, ix.Commit), New: linecov.Reader(ctx, root, base), Check: check})
-		change = rubylinecov.AnalyzeLines(ix, diff, rubylinecov.Sources{Old: linecov.Reader(ctx, root, base), New: linecov.Reader(ctx, root, head), Check: check})
+		// Check runs before Lex for each file, so the lexer is asked only once
+		// the interpreter is known to be the index's Ruby.
+		check, lex := rubySyntax(ctx, opts.ruby, ix.Runner), rubylinecov.RubyLexer(ctx, opts.ruby, withoutRubyCollector(os.Environ()))
+		if check == nil {
+			lex = nil
+		}
+		drift = rubylinecov.AnalyzeLines(ix, driftDiff, rubylinecov.Sources{Old: linecov.Reader(ctx, root, ix.Commit), New: linecov.Reader(ctx, root, base), Check: check, Lex: lex})
+		change = rubylinecov.AnalyzeLines(ix, diff, rubylinecov.Sources{Old: linecov.Reader(ctx, root, base), New: linecov.Reader(ctx, root, head), Check: check, Lex: lex})
 	case "js":
 		drift = jslinecov.Analyze(ix, driftDiff, linecov.Reader(ctx, root, ix.Commit))
 		change = jslinecov.Analyze(ix, diff, linecov.Reader(ctx, root, base))
