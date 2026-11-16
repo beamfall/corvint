@@ -2564,3 +2564,16 @@ family states, exact Beamfall corpus pins, the public Ruby corpus identity/licen
 and the current binding limit of the historical Go qualification. An UNQUALIFIED
 family retains its static plan. This ledger changes no admission rule or wire format;
 Swift and Kotlin/JVM remain in 1.0 under decision 0600.
+
+The independent-review rerun in that record repairs the public Ruby environment:
+WebMock at the same pin passes its complete upstream offline RSpec baseline
+(4,846 examples, 0 failures; upstream `NO_CONNECTION=1` excludes 344 network
+examples) and Minitest baseline (23 tests, 0 failures). Seed 20261116's seven
+faults kill 5/7 in Minitest and 6/7 in RSpec; the shared zero-hit control kills
+none in either complete suite. Minitest selection retains all 23 tests for every
+fault and the control (0 misses; each candidate is a load-time or uncalled-method
+fallback, the latter required by LPCV-V0-7605), and no RSpec index was produced
+(about 7.9 hours of serial isolated runs). No Ruby admission check exists: only a
+Go record is read. Ruby therefore remains **UNQUALIFIED / static** under
+LPCV-V0-963. These measured baselines and kills do not establish Ruby admission
+or current Go qualification.

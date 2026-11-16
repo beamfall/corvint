@@ -180,3 +180,190 @@ native ingestion evidence. The final V1-4365 transition must remain `blocked`:
 criterion 4 requires fresh Go qualification and a `.github/` change reserved to
 the orchestrator. The native ingestion check is read-only (`close-merged
 --dry-run`); this lane does not write the task store.
+
+## Independent review: external baseline repair
+
+The earlier 467-failure RSpec run remains a failed measurement. Its failures were
+partitioned by the observed exception or response and retained by original failure
+number in `rspec-failure-counts.json`; complete example excerpts remain in
+`rspec-failure-groups.json`. These groups total exactly 467; no failed example was
+removed from the corpus or relabelled passing.
+
+| Observed cause | Failures |
+|---|---:|
+| external connection reset | 7 |
+| external HTTP redirect (301 versus expected 200) | 30 |
+| Async protocol headers / EOF incompatibility | 18 |
+| external empty response | 42 |
+| external TLS failure | 34 |
+| external server closed connection | 7 |
+| HTTP.rb 6 API incompatibility | 320 |
+| Patron 1.1 file API incompatibility | 2 |
+| external Typhoeus response mismatch | 7 |
+
+The pinned upstream CI (`.github/workflows/CI.yml` at the corpus commit) runs a
+Ruby matrix of 2.6 to 3.4 plus head (3.3 included), installs `libcurl4-openssl-dev`,
+and runs `bundle exec rake`, whose default task runs `spec`,
+`spec_http_without_webmock`, `test` and `minitest` online. It does not
+pin a dependency lockfile, so this lane cannot reconstruct the exact historical
+CI gem resolution. Ruby 3.3.8 and the previously built native libraries were kept.
+The external `Webmock-review.Gemfile` additionally pins HTTP.rb 5.2.x,
+protocol-http 0.49.x, Rack 2.2.x, and Patron 0.13.3.x. The lockfile retains every
+resolved version; these are a measured compatible tuple, not a claimed historical
+CI lockfile. No upstream test, tag, assertion or source file was edited.
+
+Environment repair was attempted first: the full online suite then ran 5,190
+examples with 139 failures (56.74 s). The corpus's own `NO_CONNECTION=1` switch,
+defined in `spec/spec_helper.rb` by `filter_run_excluding net_connect: true`, was
+then used. It removes 344 examples, yielding the complete 4,846-example offline
+suite. The first offline run still had two Patron file-API failures; after pinning
+Patron 0.13.3, the same complete offline suite passed: **4,846 examples, 0 failures,
+0 pending, 0 outside-example errors**, 8.60994335 s. The latest complete Minitest
+baseline also passed: **23 tests, 50 assertions, 0 failures/errors/skips**. The
+original public corpus, commit and licence binding are unchanged.
+
+Commands, with the external `ruby-env` wrapper and `BUNDLE_GEMFILE` naming the
+retained review Gemfile:
+
+```sh
+bundle install
+timeout 600 bundle exec rake spec
+NO_CONNECTION=1 timeout 600 bundle exec rspec --pattern 'spec/**/*_spec.rb' \
+  --require ./spec/spec_helper.rb --format json --out EXTERNAL_REPORT
+timeout 600 bundle exec rake minitest
+```
+
+The initial offline report and the final one are both retained. The apparent real
+HTTP fetch in Patron's `get_file` test was itself a Patron adapter incompatibility:
+that test stubs its request, and passes unchanged with Patron 0.13.3. It was not
+filtered out. No replacement public corpus was needed. The separate upstream
+`spec_http_without_webmock` task (`bundle exec rake spec_http_without_webmock`,
+online, its own `real_net_http_spec.rb` helper) also passed in this round: **38
+examples, 0 failures**.
+
+### Full-suite fault runs
+
+`qualify-ruby-review.py` freezes seed **20261116**, seven fault sites covering the
+three mutation operators plus case expressions, else-if, a loop header and a
+closure, and one negative control. Each fault runs all **23 Minitest tests** and
+all **4,846 offline RSpec examples**. Both seeded baselines pass before the first
+fault. Each fault is a separate commit descending directly from the pinned corpus;
+the disposable fault clone is distinct from the collector's clean clone.
+
+| Fault / source site | Minitest failing tests | RSpec failing examples |
+|---|---:|---:|
+| statement-delete: `lib/webmock/request_execution_verifier.rb` line 10 | 1 | 0 |
+| loop-header: `lib/webmock/util/query_mapper.rb` line 212 | 2 | 142 |
+| case-expression: `lib/webmock/util/query_mapper.rb` line 249 | 2 | 116 |
+| constant-change: `lib/webmock/request_execution_verifier.rb` line 70 | 0 | 224 |
+| else-if: `lib/webmock/request_execution_verifier.rb` line 21 | 14 | 1175 |
+| closure: `lib/webmock/util/query_mapper.rb` line 254 | 0 | 7 |
+| condition-negate: `lib/webmock/request_execution_verifier.rb` line 24 | 14 | 1105 |
+| negative-control: `lib/webmock/util/query_mapper.rb` line 107 | 0 | 0 |
+
+Kill counts: **5/7 Minitest**, **6/7 RSpec**. Both complete suites kill **0** tests
+for the control at `lib/webmock/util/query_mapper.rb` line 107. Separate complete
+baseline Coverage probes measure **0 hits** on that line in both runners; the
+control changes `array_value = false` to `array_value = true` inside the unused
+method. Surviving mutants remain in the record. The original three-fault sample
+and its failed control remain historical evidence; they have not been discarded.
+
+Fresh Minitest collection (the external `rubyprobe` calls `rubylinecov.Collect`
+and `rubylinecov.Index`, the functions `linecov ruby-collect` calls) records all
+**23/23** passing tests with successful isolation and no unordered file. The real
+`linecov ruby-select` then plans each fault head against the pinned base:
+
+| Fault | Candidate selected | Effective selected | Misses | Candidate fallback (`rubylinecov.Analyze`) |
+|---|---:|---:|---:|---|
+| statement-delete, line 10 | 23 | 23 | 0 | the change reaches load-time code |
+| loop-header, line 212 | 23 | 23 | 0 | the change reaches load-time code |
+| case-expression, line 249 | 23 | 23 | 0 | the change reaches load-time code |
+| constant-change, line 70 | 23 | 23 | 0 | the change reaches load-time code |
+| else-if, line 21 | 23 | 23 | 0 | the change reaches load-time code |
+| closure, line 254 | 23 | 23 | 0 | the change reaches load-time code |
+| condition-negate, line 24 | 23 | 23 | 0 | the change reaches load-time code |
+| negative-control, line 107 | 23 | 23 | 0 | edit outside a method body `lib/webmock/util/query_mapper.rb:107` |
+
+Every observed Minitest failure is selected (**0 misses**), but only because no
+site narrows: each plan is the whole static suite, `GateEligible` false,
+`coverage-collector-unqualified`. The zero-selection control **FAILS** (23
+selected). RSpec has no index (below), so its selected-set sizes and misses are
+**NOT_PRODUCED**.
+
+The harness initially stopped before mutation on a nullable Minitest `skipped`
+value, then stopped after five completed faults on a checked closure coordinate
+(255 named the closing bracket; the intended `val` is line 254). Both attempts are
+retained. The coordinate guard prevented mutation of the wrong statement, and the
+remaining intended faults resumed without rerunning or dropping completed rows.
+RSpec identities use the example ID's rerun path, matching the collector's
+`metadata[:rerun_file_path]`, rather than a shared example's definition file.
+
+### Criteria 3 and 6: where this lane stops
+
+The owner asked for criteria 3 and 6 to be finished in this round unless something
+cannot be done from this host. Three things stop them; each is stated with its
+command and output. The fault runs and baselines above stand; nothing is promoted.
+
+1. **No RSpec index (criterion 6).** The collector runs each test alone, serially,
+   after the ordinary run (`internal/rubylinecov/isolate.go`, `isolateArtifacts`),
+   and cannot resume. One isolated run of one example with the collector loaded,
+   exactly as `collectOnce` launches it (`RUBYOPT=-r corvint_linecov.rb`,
+   `CORVINT_LINECOV_ONLY` and `CORVINT_LINECOV_PACKAGE` naming
+   `./spec/acceptance/async_http_client/async_http_client_spec.rb[1:2]`,
+   `NO_CONNECTION=1 bundle exec rspec --pattern 'spec/**/*_spec.rb' --require ./spec/spec_helper.rb`),
+   printed `1 example, 0 failures` (process exit 1) and took **5,862 ms** and
+   **5,966 ms** (two runs; the suite load alone, `--dry-run`, took 2,780 ms). The 4,846 isolated
+   runs therefore need about 7.9 hours, serially. This lane may not start
+   background jobs and a foreground command ends after 10 minutes. Missing: a host
+   run of `linecov ruby-collect -root WEBMOCK -out rspec.idx -command
+   '["bundle","exec","rspec","--pattern","spec/**/*_spec.rb","--require","./spec/spec_helper.rb"]'`
+   with `NO_CONNECTION=1` and a multi-hour budget, or an accepted parallel or
+   resumable collector.
+2. **The accepted Ruby selector cannot select zero (criterion 3).** `Analyze`
+   maps an edit only inside a method body some recorded test called; an edit in a
+   method no test called is a fallback. That is accepted requirement
+   `LPCV-V0-7605` ("uncalled method edits and changed test files use static
+   fallback"), asserted by `TestUncalledMethodFallback` and by `checkCalc`'s
+   line-18 case in `internal/rubylinecov`. An edit in a called method selects at
+   least that method's tests. The control above therefore selects the full suite
+   by design. Selecting zero needs an owner amendment of `LPCV-V0-7605` and changes
+   to those assertions; this round forbids weakening an assertion, so no selector
+   code changed. The seven faults also fall back, because the Minitest load bucket
+   (`rubylinecov.Load`) reaches every faulted method.
+3. **No Ruby admission path exists.** `languageDecide` and `languageWorkingPlan`
+   (`tools/linecov/languages.go`) set every effective file whole with
+   `coverage-collector-unqualified` and never read a qualification.
+   `linecov.CheckQualification` (`internal/linecov/admission.go`) accepts only a
+   `family: "go"` record read from `.github/linecov/qualification.json`. "Qualifying
+   through the real admission path" would first need a specified Ruby record and
+   check, which is new capability, and a record location outside `.github/`
+   or a `.github/` change, which this lane may not make.
+
+Ruby stays **UNQUALIFIED / static**. Criterion 3: NOT_DONE (control selects 23
+Minitest tests; RSpec control selection NOT_PRODUCED; kills are 0 in both
+suites). Criterion 6: NOT_DONE (both complete baselines pass; all seven faults and
+the control ran against both complete suites; RSpec selection NOT_PRODUCED).
+
+### Baseline evidence bindings
+
+All paths below are under `/home/agent/lanes/r1docs-evidence/`; SHA-256:
+
+- `rspec-failure-counts.json`: `c7d7bc1045d4b076d1a3447efb46ef9969ac0840f9450a747822739e54786b86`.
+- `rspec-failure-groups.json`: `ee1693cf31d0fff43057835ae34e38d9282f77a9f4658009234118b31f442e88`.
+- `Webmock-review.Gemfile`: `1c03a224074a3e7cfdd72317a7d10b77dde07750bcc4a6216d3a992b60933c52`.
+- `Webmock-review.Gemfile.lock`: `c7b28a31fa528d0eb7fcd5c1a3d68d274681219875dc807789a0c6b4f8a57ff2`.
+- `webmock-review-online.log`: `98e57043691622e62a8cd3b31fe868b87aa245e5c566f75d0ef2e0520d3df6c3`.
+- `webmock-review-offline.json`: `d90ebb2cad45f3ca6d7b0333e92cc3dc7be44910f60dac9ab8051cbcb0c9dbe5`.
+- `webmock-review-offline-final.json`: `bb68fb9c43ccff71c974b350a9d983e3a2523a56f80b296e682fe1231b89f011`.
+- `webmock-review-minitest-baseline.log`: `1431498240d57f78fbc01b1130f9a091c30a39afbce18e1254fef54e21ad0db1`.
+- `minitest-review-collector.outcomes.json`: `f5b7651f917cead18e2000e3cce65b716c66f74690641049473c2854f7071587`.
+- `minitest-review-collector.idx`: `847a713142661fb684f90f67611c4945ebd33aed41229e15bf320020bb1a085c`.
+- `minitest-review-selection.log`: `065ac7fd2673c7d9754db6ddebb0161ef0c6bb3c9ec5c924e825f4485bf8c6a0`.
+- `minitest-review-hits.json`: `f71c63017a03507c4f600f0faa9f355c57d00b73d0d9d87adfeb1d056a338a22`.
+- `rspec-review-hits.json`: `e288c1a12e4e21e421e8d0c6b05d59a121e4a71e7b5bd27f837ef6b36e4f1a47`.
+- `ruby-review-faults.json` (seed, sites, fault heads, both suites' failing tests, Minitest plans): `50adb028fc6e34b256e62bfff23ed0587867920fc9d32ecdc168d7019563adbb`.
+- `qualify-ruby-review.py`: `bd9bf59adacbcfdd5afa718f6f3a8cce664ca632befbc8a8bae5a4bac1ec1d47`.
+- `select-ruby-review.py`: `c20e878b3ee6e65022af2991a54147c3959984339fd82f87dcd61eca0007ddff`.
+- `minitest-review-analyze-all.log` (candidate fallback per fault): `f4ff836540fdfde05bb17cc39619f0b193be9b420b0ef75313934e0ae97d4815`.
+- `webmock-review-without-webmock.log`: `991abee493927641d427ee71c759177ecf5c7ae4802ff36af4e1a766c1ab999e`.
+- `rspec-isolated-probe/run3.log`: `ad8ee8497c3feb4766c098aba4217eabbe1ed426146168c1c16b526ebc1f5778`; `run4.log`: `943cae4461ae93247a07c2b7b983abf429da636271c1affd1a24f8a1dc090f46`; `suite.jsonl` (run 4 dump, one test event): `f939948c87aca91e6b182d6f6954e13a711324f0d74ccec7f64f7188bda44321`. Runs 1 and 2 passed `./`-prefixed package paths, selected 0 examples and are not timing evidence.
