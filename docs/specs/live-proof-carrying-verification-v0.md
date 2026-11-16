@@ -2706,7 +2706,11 @@ line rule unsound and the record unproven.
 binding signature of a `=>` line) and the rerun that rebinds the record: the same faults, the
 same selected-set sizes and 0 misses, so the state below stands.
 `docs/build-log/2026-11-16-r1ruby-blank-literal-repair.md` records the third (a blank run that
-delimits a percent literal) and a second rerun with the same faults, selected sets and 0 misses. Line-level selection (`LPCV-V0-7605` as amended), the
+delimits a percent literal) and a second rerun with the same faults, selected sets and 0 misses.
+`docs/build-log/2026-11-16-r1ruby-lexer-comparison-repair.md` records the fourth (a file is
+narrowed only where Ruby's own lexer reads it as the lexer does, and a file that may hold a
+blank-delimited percent literal bounds no hunk) and a third rerun with the same faults, selected
+sets and 0 misses. Line-level selection (`LPCV-V0-7605` as amended), the
 `LPCV-V0-7608` record and the resumable collector (`LPCV-V0-7609`) produced complete WebMock
 indexes for Minitest (23 isolated tests, every one recorded) and RSpec (4,846 isolated runs; 11
 files kept whole by 2,930 unrecorded outcomes). The seed-20261116 rerun has 20 faults and one
