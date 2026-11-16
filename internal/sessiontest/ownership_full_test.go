@@ -12,7 +12,7 @@ import (
 // execution slices omit package slicing reasons, in both JSON and its digest.
 func TestOwnershipPartitionedContentOnlyBytes_AZU_V0_9900(t *testing.T) {
 	files, universe := repositoryPartition(t)
-	const pkg = "github.com/Beamfall/corvint/internal/liveverify/affected"
+	const pkg = "github.com/Beamfall/corvint/cmd/corvint"
 	plan, err := PlanShardsSliced(universe, 16, 1, []History{{Name: "committed", Raw: files.Costs}}, files.Allow, files.Slices)
 	if err != nil || plan.Fallback != "" {
 		t.Fatalf("measured partition: %v, fallback %q", err, plan.Fallback)
@@ -124,7 +124,7 @@ func TestOwnershipFullReasons_AZU_V0_9900(t *testing.T) {
 // slice, including the catch-all that executes the ownership ratchet.
 func TestOwnershipPartitionedReasons_AZU_V0_9900(t *testing.T) {
 	files, universe := repositoryPartition(t)
-	const pkg = "github.com/Beamfall/corvint/internal/liveverify/affected"
+	const pkg = "github.com/Beamfall/corvint/cmd/corvint"
 	const selected = "selected: TestOwnershipAuditRatchet_AZU_V0_002 via added.txt (AZU-V0-9900)"
 	const mustRun = "whole: MUST_RUN (TestOwnershipAuditRatchet_AZU_V0_002 via added.txt (AZU-V0-9900))"
 	plan, err := PlanShardsSliced(universe, 16, 1, []History{{Name: "committed", Raw: files.Costs}}, files.Allow, files.Slices)
