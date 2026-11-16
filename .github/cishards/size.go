@@ -20,7 +20,8 @@ const MinNarrowedShards = 2
 const DefaultWallBudgetMs = 400000
 
 // Size returns the fewest shards from min to max whose balanced placement of selected over
-// universe (SelectParallel) keeps every shard's predicted wall time, Wall over parallel, within
+// universe (SelectParallel) keeps every shard's predicted wall time, Wall over the priced
+// parallelism (PricedParallel: parallel, lowered to the -p the costs were measured at), within
 // budgetMs, or within the longest unit of the max-shard placement when that unit alone exceeds
 // budgetMs; max when no count does. A selection that names no package of the universe sizes to
 // min. Costs that Partition would discard (AFP-V0-022 lexical fallback) predict nothing, so the
@@ -51,6 +52,7 @@ func SizeFrom(universe, selected []string, min, max, parallel int, budgetMs int6
 	if err != nil {
 		return 0, err
 	}
+	priced := PricedParallel(parallel, costs, slicesRaw)
 	bound := budgetMs
 	placed := false
 	for _, s := range finest {
@@ -73,7 +75,7 @@ func SizeFrom(universe, selected []string, min, max, parallel int, budgetMs int6
 				return 0, err
 			}
 		}
-		if PredictedWallMs(plan, parallel, w, unknown) <= bound {
+		if PredictedWallMs(plan, priced, w, unknown) <= bound {
 			return total, nil
 		}
 	}
