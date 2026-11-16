@@ -3,19 +3,26 @@
 package rubylinecov
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/rubydialect"
 )
 
-// Sources gives the line-level analysis both immutable sides of a diff and
-// the Ruby syntax check of the new side. A nil member forbids narrowing.
+// Sources gives the line-level analysis both immutable sides of a diff, the
+// Ruby syntax check of the new side and Ruby's own reading of both. A nil
+// member forbids narrowing.
 type Sources struct {
 	Old, New func(path string) ([]byte, error)
 	// Check reports whether src parses under the index's Ruby.
 	Check func(path string, src []byte) error
+	// Lex is how the index's Ruby itself reads src, a line an entry: the
+	// Code, Inside and Open of rubydialect.LineStates (see RubyLexer).
+	Lex func(path string, src []byte) ([]rubydialect.LineState, error)
 }
 
 // AnalyzeLines maps a diff to the tests whose measured line coverage reached
@@ -24,13 +31,21 @@ type Sources struct {
 // other lines read, without counting it. So a hunk selects the tests that hit
 // its lines, and none when no test hit them, only when every old line is a
 // counted line holding one whole statement, every new line holds one whole
-// statement, and both sides bind the same names (see unbounded). Any other
-// hunk, and an insertion, selects every test of the enclosing called method
-// and its body lines, or falls back outside one. Load-time reach, a
-// block-structure change, a new side that does not parse or cannot be
-// checked, and every fallback of Analyze keep the static plan with the
-// reason reported. Callers apply it only to a qualified family's effective
-// plan.
+// statement, both sides bind the same names, and neither side of the file may
+// hold a percent literal a blank delimits (see unbounded). Any other hunk,
+// and an insertion, selects every test of the enclosing called method and
+// its body lines, or falls back outside one.
+//
+// Every one of those readings rests on the lexer of internal/rubydialect,
+// which is an approximation of Ruby: it reads a percent literal delimited by
+// a blank or a newline, two divisions on one line and a quote in `$'` as
+// code or as the wrong literal, and an edit of such text can change a method
+// the edit is not in. So a file is narrowed only when Ruby's own lexer reads
+// both of its sides as the lexer does, line by line (see misread). Load-time
+// reach, a block-structure change, a side Ruby reads differently, a new side
+// that does not parse or cannot be checked, and every fallback of Analyze
+// keep the static plan with the reason reported. Callers apply it only to a
+// qualified family's effective plan.
 func AnalyzeLines(ix *linecov.Index, diffs []linecov.FileDiff, src Sources) linecov.Effect {
 	e := linecov.Effect{Tests: map[int32]bool{}, Whole: map[string]bool{}, Touched: map[string]bool{}}
 	fail := func(format string, args ...any) linecov.Effect {
@@ -86,7 +101,16 @@ func AnalyzeLines(ix *linecov.Index, diffs []linecov.FileDiff, src Sources) line
 		if err := src.Check(d.Path, newSrc); err != nil {
 			return fail("the new side of %s does not parse: %v", d.Path, err)
 		}
+		if src.Lex == nil {
+			return fail("no Ruby lexer for %s", d.Path)
+		}
 		oldSide, newSide := readSide(string(oldSrc)), readSide(string(newSrc))
+		if why := oldSide.misread(src.Lex, d.Path, oldSrc); why != "" {
+			return fail("Ruby reads the old side of %s differently from the lexer: %s", d.Path, why)
+		}
+		if why := newSide.misread(src.Lex, d.Path, newSrc); why != "" {
+			return fail("Ruby reads the new side of %s differently from the lexer: %s", d.Path, why)
+		}
 		if why := sameStructure(oldSide, newSide, d.Hunks, d.NewHunks); why != "" {
 			return fail("edit changes Ruby block structure %s: %s", d.Path, why)
 		}
@@ -169,6 +193,138 @@ func readSide(src string) side {
 		s.balanced = false
 	}
 	return s
+}
+
+// misread reports where Ruby's own lexer reads src differently from the
+// side, or "" when both agree on every line: the same bytes are code, and the
+// line begins and ends inside a literal, a heredoc body or a block comment
+// for both. Blanks at a line's end are not compared, because a line that is
+// all literal text is empty for one reader and blank for the other. Each
+// literal or comment begins with a byte that is not a blank (a quote, a
+// percent sign, a slash, `?`, `<<`, `#`), so two readings that agree on a
+// line's text agree on which of its bytes are code.
+func (s side) misread(lex func(string, []byte) ([]rubydialect.LineState, error), path string, src []byte) string {
+	ruby, err := lex(path, src)
+	if err != nil {
+		return err.Error()
+	}
+	if len(ruby) != len(s.state) {
+		return fmt.Sprintf("%d lines against %d", len(ruby), len(s.state))
+	}
+	for i, ours := range s.state {
+		theirs := ruby[i]
+		if strings.TrimRight(ours.Code, " \t\r") != strings.TrimRight(theirs.Code, " \t\r") || ours.Inside != theirs.Inside || ours.Open != theirs.Open {
+			return fmt.Sprintf("line %d", i+1)
+		}
+	}
+	return ""
+}
+
+// lexScript prints how Ruby's own lexer (Ripper) reads the source on its
+// standard input, in the form rubydialect.LineStates gives: one output line a
+// source line, holding `I` or `-` (the line begins inside a literal, a heredoc
+// body or a block comment), `O` or `-` (it ends inside one or owes a heredoc
+// body), then the line with every comment, string, percent literal, regexp,
+// character literal and heredoc opener replaced by spaces, and empty when the
+// whole line is such text. It exits non-zero on a source Ruby does not lex to
+// the end, and on string content it finds outside every literal it tracked.
+const lexScript = `require 'ripper'
+src = STDIN.binmode.read
+lines = src.split("\n", -1)
+out = lines.map(&:dup)
+inside = Array.new(lines.size, false)
+open = Array.new(lines.size, false)
+carry = lambda do |l1, l2|
+  (l1...l2).each { |l| open[l - 1] = true if l <= lines.size }
+  (l1 + 1..l2).each { |l| inside[l - 1] = true if l <= lines.size }
+end
+blank = lambda do |l1, c1, l2, c2|
+  (l1..l2).each do |l|
+    line = out[l - 1] or next
+    from = l == l1 ? c1 : 0
+    to = l == l2 ? [c2, line.bytesize].min : line.bytesize
+    if l != l1 && l != l2
+      out[l - 1] = +''
+    elsif to > from
+      line[from...to] = ' ' * (to - from)
+    end
+  end
+  carry.(l1, l2)
+end
+whole = ->(l1, l2) { (l1..l2).each { |l| out[l - 1] = +'' if l <= lines.size } }
+tokens = Ripper.lex(src.dup.force_encoding('UTF-8'), '-', 1, raise_errors: true)
+depth, start, slash = 0, nil, false
+heredocs, body = 0, nil
+tokens.each do |(l, c), event, text, _|
+  text = text.b
+  case event
+  when :on_comment
+    blank.(l, c, l, c + text.chomp.bytesize) if depth == 0
+  when :on_embdoc_beg, :on_embdoc, :on_embdoc_end
+    whole.(l, l)
+    open[l - 1] = true unless event == :on_embdoc_end
+    inside[l - 1] = true unless event == :on_embdoc_beg
+  when :on_tstring_beg, :on_backtick, :on_qwords_beg, :on_words_beg, :on_qsymbols_beg, :on_symbols_beg, :on_regexp_beg, :on_symbeg
+    next if event == :on_symbeg && text == ':'
+    if depth == 0
+      start = [l, text.start_with?(':') ? c + 1 : c]
+      slash = text == '/'
+    end
+    depth += 1
+  when :on_tstring_end, :on_regexp_end, :on_label_end
+    depth -= 1
+    abort 'a literal ends that never began' if depth < 0
+    if depth == 0
+      width = event == :on_tstring_end || event == :on_regexp_end && slash ? text.bytesize : 1
+      blank.(start[0], start[1], l, c + width)
+    end
+  when :on_tstring_content, :on_embexpr_beg
+    abort "string content outside a literal at line #{l}" if depth == 0 && heredocs == 0
+  when :on_heredoc_beg
+    blank.(l, c, l, c + text.bytesize) if depth == 0
+    body ||= l + 1
+    heredocs += 1
+  when :on_heredoc_end
+    abort 'a heredoc ends that never began' if heredocs == 0
+    whole.(body, l)
+    carry.(body - 1, l)
+    heredocs -= 1
+    body = heredocs > 0 ? l + 1 : nil
+    open[l - 1] = true if heredocs > 0
+  when :on_CHAR
+    blank.(l, c, l, c + text.bytesize) if depth == 0
+  when :on___end__
+    whole.(l + 1, lines.size)
+  end
+end
+abort 'a literal or heredoc is left open' if depth != 0 || heredocs != 0
+STDOUT.binmode.write(out.each_with_index.map { |line, i| (inside[i] ? 'I' : '-') + (open[i] ? 'O' : '-') + line }.join("\n"))
+`
+
+// RubyLexer returns the Sources.Lex that asks the interpreter ruby, run with
+// env, how Ruby itself reads a source. The caller answers for ruby being the
+// index's Ruby.
+func RubyLexer(ctx context.Context, ruby string, env []string) func(path string, src []byte) ([]rubydialect.LineState, error) {
+	return func(path string, src []byte) ([]rubydialect.LineState, error) {
+		cmd := exec.CommandContext(ctx, ruby, "-W0", "-e", lexScript)
+		cmd.Env = env
+		cmd.Stdin = bytes.NewReader(src)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		if err := cmd.Run(); err != nil {
+			message, _, _ := strings.Cut(strings.TrimSpace(stderr.String()), "\n")
+			return nil, fmt.Errorf("Ruby does not lex %s: %v %s", path, err, message)
+		}
+		lines := strings.Split(stdout.String(), "\n")
+		states := make([]rubydialect.LineState, len(lines))
+		for i, line := range lines {
+			if len(line) < 2 {
+				return nil, fmt.Errorf("Ruby's reading of %s:%d is malformed", path, i+1)
+			}
+			states[i] = rubydialect.LineState{Code: line[2:], Inside: line[0] == 'I', Open: line[1] == 'O'}
+		}
+		return states, nil
+	}
 }
 
 // codes is every line's code text.
@@ -324,20 +480,30 @@ func continues(code string) bool {
 // where a keyword starts, so `1if` is the number 1 and the keyword `if`.
 func numberLed(word string) bool { return word != "" && word[0] >= '0' && word[0] <= '9' }
 
-// unbounded reports why the hits of a replaced hunk's old lines do not bound
-// the edit's reach, and the line, or "" when they do: every old and new line
-// is one whole statement and both sides bind the same names in the same
-// order. A name a line binds (an assigned local, a pattern or named capture,
-// a numbered block parameter) changes how other lines parse and run even
-// when the line itself never executes.
+// unbounded reports why the hits of a replaced or deleted hunk's old lines do
+// not bound the edit's reach, and the line, or "" when they do: neither side
+// of the file may hold a percent literal a blank delimits, every old and new
+// line is one whole statement, and both sides bind the same names in the
+// same order. A name a line binds (an assigned local, a pattern or named
+// capture, a numbered block parameter) changes how other lines parse and run
+// even when the line itself never executes.
+//
+// A file that may hold a blank-delimited percent literal (see
+// holdsBlankDelimited) bounds no hunk, whatever its lines say: Ruby closes
+// such a literal at the next blank, which may be the line's indentation, a
+// blank inside it or the blank at its end, so no part of a line's text tells
+// what the line declares (`p 1, % a ` ends the literal; `p 1, % a` runs it
+// onto the next line and swallows an assignment there).
 func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, int) {
+	if oldSide.blankDelimited || newSide.blankDelimited {
+		return "a line of a file that may hold a blank-delimited percent literal", oldHunk.Start
+	}
 	var oldBinds, newBinds []string
-	exact := oldSide.blankDelimited || newSide.blankDelimited
 	for n := oldHunk.Start; n <= oldHunk.End; n++ {
 		if why := oldSide.whole(n); why != "" {
 			return why, n
 		}
-		sig, ok := binding(oldSide.raw[n-1], oldSide.state[n-1].Code, exact)
+		sig, ok := binding(oldSide.raw[n-1], oldSide.state[n-1].Code)
 		if !ok {
 			return "a line that may bind a block parameter or a capture", n
 		}
@@ -349,7 +515,7 @@ func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, in
 		if why := newSide.whole(n); why != "" {
 			return why + " on the new side", oldHunk.Start
 		}
-		sig, ok := binding(newSide.raw[n-1], newSide.state[n-1].Code, exact)
+		sig, ok := binding(newSide.raw[n-1], newSide.state[n-1].Code)
 		if !ok {
 			return "a line that may bind a block parameter or a capture on the new side", oldHunk.Start
 		}
@@ -374,18 +540,15 @@ func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, in
 // differ, as do `foo 1 => x` and `foo => x`, and `foo [1] => x` and
 // `foo[1] => x`.
 //
-// With exact, the text is the raw line exactly as written, indentation and
-// every blank included. The caller sets it when either side of the file may
-// hold a percent literal delimited by a space or tab: Ruby closes such a
-// literal at the next blank, so the length of a run decides where the
-// literal ends and what follows it (`%  =>x ` declares x, `% =>x ` is a
-// string), and the literal may open on an earlier line and run into this
-// one's indentation. Without exact, the blanks at either end are cut and
-// each other run of spaces and tabs is read as one space; in a file with no such
-// literal a run only separates tokens or sits inside a string, regexp or
-// comment body, where its length changes a value but never a name. Two lines
-// so share a signature only when their text through the operator, or all of
-// it on a `=>` line, is the same, and then they declare the same names.
+// The text is squeezed: the blanks at either end are cut and each other run
+// of spaces and tabs is read as one space. That is the only comparison there
+// is, and unbounded calls it only for a file in which no side may hold a
+// percent literal a blank delimits; there a run only separates tokens or
+// sits inside a string, regexp or comment body, where its length changes a
+// value but never a name. Two lines so share a signature only when their
+// squeezed text through the operator, or all of it on a `=>` line, is the
+// same, and then they declare the same names. Text after the last assignment
+// operator, and a line with neither operator, is not compared at all.
 //
 // Operators are found in the raw line, so an assignment inside an
 // interpolation counts, and one inside a string or a comment only makes the
@@ -393,7 +556,7 @@ func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, in
 // `#`, and never read as code. ok is false for a line that can bind without
 // an operator the signature would show: a named capture in either spelling,
 // or a numbered or implicit block parameter in its code or an interpolation.
-func binding(raw, code string, exact bool) (sig string, ok bool) {
+func binding(raw, code string) (sig string, ok bool) {
 	if strings.Contains(raw, "(?<") || strings.Contains(raw, "(?'") {
 		return "", false
 	}
@@ -437,15 +600,11 @@ func binding(raw, code string, exact bool) (sig string, ok bool) {
 			last = i
 		}
 	}
-	text := squeeze
-	if exact {
-		text = func(s string) string { return s }
-	}
 	switch {
 	case rocket:
-		return text(raw), true
+		return squeeze(raw), true
 	case last >= 0:
-		return text(raw[:last+1]), true
+		return squeeze(raw[:last+1]), true
 	}
 	return "", true
 }
@@ -453,9 +612,11 @@ func binding(raw, code string, exact bool) (sig string, ok bool) {
 // holdsBlankDelimited reports whether src may hold a percent literal
 // delimited by a space or tab: a `%`, at most one letter, then a space or
 // tab. Ruby 3.3.8 accepts that delimiter for a bare, q, Q, s, r and x
-// literal; any letter is matched, and so is text in a string or a comment,
-// because the lexer does not read such a literal and so cannot tell code
-// from text around it.
+// literal; any letter is matched, and so is text in a string or a comment
+// and the modulo operator written with a blank after it, because the lexer
+// does not read such a literal and so cannot tell code from text around it.
+// Where Ruby does read such a literal, misread already keeps the static
+// plan; this rule is the one that holds without Ruby's reading.
 func holdsBlankDelimited(src string) bool {
 	for i := strings.IndexByte(src, '%'); i >= 0; {
 		j := i + 1
