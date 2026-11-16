@@ -43,6 +43,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/linecov/watch"
+	"github.com/Beamfall/corvint/internal/rubylinecov"
 )
 
 func main() {
@@ -81,6 +82,11 @@ func main() {
 	}
 	if errors.Is(err, flag.ErrHelp) {
 		return
+	}
+	var incomplete *rubylinecov.IncompleteError
+	if errors.As(err, &incomplete) {
+		fmt.Fprintln(os.Stderr, "linecov:", err)
+		os.Exit(3)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "linecov:", err)
