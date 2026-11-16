@@ -67,6 +67,31 @@ func CodeLines(text string) []string {
 	return lines
 }
 
+// LineState is one physical line's code-only text (as CodeLines gives it)
+// with the lexical state around it: Inside when the line begins within a
+// string, percent literal, heredoc body or block comment, and Open when it
+// ends within one or owes a heredoc body.
+type LineState struct {
+	Code         string
+	Inside, Open bool
+}
+
+// LineStates returns the LineState of every line of text.
+func LineStates(text string) []LineState {
+	scanner := rubyScanner{}
+	lines := strings.Split(text, "\n")
+	states := make([]LineState, len(lines))
+	carried := func() bool {
+		return scanner.inBlockComment || scanner.literal != nil || len(scanner.heredocs) > 0
+	}
+	for i, line := range lines {
+		states[i].Inside = carried()
+		states[i].Code = scanner.scanLine(line)
+		states[i].Open = carried()
+	}
+	return states
+}
+
 // StaticLoad recognizes only a complete quoted argument, parenthesized or
 // not. A quote-first expression can still concatenate or interpolate a
 // dynamic name, so a double-quoted `#{` is dynamic.
