@@ -1,7 +1,9 @@
 package cishards
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -52,7 +54,7 @@ func TestAFPV02723SizeIsTheFewestShardsWithinTheBudget_AFPV02723(t *testing.T) {
 		t.Fatal(err)
 	}
 	requireComplete(t, small, plan)
-	w, unknown, _ := weights(costs)
+	w, unknown, _ := placementWeights(costs)
 	if wall := PredictedWallMs(plan, 4, w, unknown); wall > 200000 {
 		t.Fatalf("the sized plan predicts %d ms of wall time, above the 200000 ms budget", wall)
 	}
@@ -134,5 +136,248 @@ func TestAFPV02723SizeRefusesOrKeepsTheMaximumWhenItCannotPrice_AFPV02723(t *tes
 	// default budget, since a full run needs every shard, and a one-package selection to the floor.
 	if n, err := Size([]string{"github.com/Beamfall/corvint/internal/projectpath"}, []string{"github.com/Beamfall/corvint/internal/projectpath"}, MinNarrowedShards, 16, 4, DefaultWallBudgetMs); err != nil || n != MinNarrowedShards {
 		t.Fatalf("one package sizes to %d (%v), want %d", n, err, MinNarrowedShards)
+	}
+}
+
+// TestV15086UnpricedPackagesSizeAtTheConservativePrice: a package the cost table has not measured
+// takes the table's 90th percentile, not its median, so a selection of new packages cannot be
+// sized onto shards it overruns. The table is seventeen 1 s entries and three 200 s entries: the
+// median is 1 s, the 90th percentile 200 s. Five unpriced packages at -p 1 within 400 s need three
+// shards (two packages, 400 s, each); at the median they would fit two, one predicting 600 s.
+func TestV15086UnpricedPackagesSizeAtTheConservativePrice(t *testing.T) {
+	ms := map[string]int64{}
+	var universe, selected []string
+	for i := 0; i < 20; i++ {
+		p := fmt.Sprintf("example.org/m/p%02d", i)
+		ms[p] = 1000
+		if i >= 17 {
+			ms[p] = 200000
+		}
+		universe = append(universe, p)
+	}
+	for i := 0; i < 5; i++ {
+		p := fmt.Sprintf("example.org/m/new%d", i)
+		universe = append(universe, p)
+		selected = append(selected, p)
+	}
+	costs := costsFile(ms)
+	if _, median, _ := weights(costs); median != 1000 {
+		t.Fatalf("fixture median %d, want 1000", median)
+	}
+	w, unknown, ok := Weights(costs)
+	if !ok || unknown != 200000 {
+		t.Fatalf("unpriced packages take %d ms (%v), want the 90th percentile 200000", unknown, ok)
+	}
+	n, err := SizeFrom(universe, selected, 2, 16, 1, 400000, costs, nil, nil)
+	if err != nil || n != 3 {
+		t.Fatalf("five unpriced packages at -p 1 within 400 s size to %d (%v), want 3", n, err)
+	}
+	plan, err := SelectFromParallel(universe, selected, n, 1, costs, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireComplete(t, selected, plan)
+	if wall := PredictedWallMs(plan, 1, w, unknown); wall > 400000 {
+		t.Fatalf("the sized plan predicts %d ms at the conservative price, above the 400000 ms budget", wall)
+	}
+}
+
+// TestV15086NarrowedSizeIsCeilOfPredictedOverBudget: a narrowed selection whose predicted total
+// wall time is below one shard's budget plans MinNarrowedShards; a larger one plans
+// ceil(predicted/budget), up to the cap. Every unit is a 100 s package, so a balanced placement
+// meets the bound exactly at that count, at -p 1 and at -p 4 alike (V1-5086).
+func TestV15086NarrowedSizeIsCeilOfPredictedOverBudget(t *testing.T) {
+	ms := map[string]int64{}
+	var universe []string
+	for i := 0; i < 80; i++ {
+		p := fmt.Sprintf("example.org/m/p%02d", i)
+		ms[p] = 100000
+		universe = append(universe, p)
+	}
+	costs := costsFile(ms)
+	const budget, most = int64(400000), 16
+	for _, parallel := range []int{1, 4} {
+		for n := 1; n <= len(universe); n++ {
+			predicted := int64(n) * 100000 / int64(parallel)
+			want := int((predicted + budget - 1) / budget)
+			if want < MinNarrowedShards {
+				want = MinNarrowedShards
+			}
+			if want > most {
+				want = most
+			}
+			got, err := SizeFrom(universe, universe[:n], MinNarrowedShards, most, parallel, budget, costs, nil, nil)
+			if err != nil || got != want {
+				t.Fatalf("%d packages (%d ms predicted) at -p %d size to %d (%v), want %d", n, predicted, parallel, got, err, want)
+			}
+		}
+	}
+}
+
+// TestV15086UnpricedPackagesNeverJoinAFullShard: unpriced packages beside a measured unit that
+// alone fills the budget are priced at the 90th percentile, so the sizing adds a shard rather than
+// let one of them land on the full shard. Three unpriced packages (200 s each at the table's 90th
+// percentile; its median is 1 s) and one measured 400 s package at -p 1 within 400 s: two shards
+// would put the third unpriced package beside the 400 s one; three keep that shard to itself.
+func TestV15086UnpricedPackagesNeverJoinAFullShard(t *testing.T) {
+	ms := map[string]int64{"example.org/m/big": 400000}
+	universe := []string{"example.org/m/big"}
+	for i := 0; i < 20; i++ {
+		p := fmt.Sprintf("example.org/m/p%02d", i)
+		ms[p] = 1000
+		if i >= 17 {
+			ms[p] = 200000
+		}
+		universe = append(universe, p)
+	}
+	selected := []string{"example.org/m/big"}
+	for i := 0; i < 3; i++ {
+		p := fmt.Sprintf("example.org/m/new%d", i)
+		universe = append(universe, p)
+		selected = append(selected, p)
+	}
+	costs := costsFile(ms)
+	w, unknown, ok := Weights(costs)
+	if _, median, _ := weights(costs); !ok || unknown != 200000 || median != 1000 {
+		t.Fatalf("fixture prices unpriced packages at %d (median %d), want 200000 (1000)", unknown, median)
+	}
+	two, err := SelectFromParallel(universe, selected, 2, 1, costs, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wall := PredictedWallMs(two, 1, w, unknown); wall <= 400000 {
+		t.Fatalf("two shards predict %d ms at the conservative price, want above the budget", wall)
+	}
+	n, err := SizeFrom(universe, selected, 2, 16, 1, 400000, costs, nil, nil)
+	if err != nil || n != 3 {
+		t.Fatalf("a full 400 s package and three unpriced packages size to %d (%v), want 3", n, err)
+	}
+	plan, err := SelectFromParallel(universe, selected, n, 1, costs, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireComplete(t, selected, plan)
+	for _, s := range plan {
+		for _, p := range s.Packages {
+			if p == "example.org/m/big" && (len(s.Packages) != 1 || len(s.Slices) != 0) {
+				t.Fatalf("an unpriced package landed on the full shard: %v", s.Packages)
+			}
+		}
+	}
+	if wall := PredictedWallMs(plan, 1, w, unknown); wall > 400000 {
+		t.Fatalf("the sized plan predicts %d ms, above the 400000 ms budget", wall)
+	}
+}
+
+// pricedTable is a cost table whose source records parallel, or no parallel at all when it is 0.
+func pricedTable(t *testing.T, ms map[string]int64, parallel int) []byte {
+	t.Helper()
+	source := map[string]any{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1"}
+	if parallel != 0 {
+		source["parallel"] = parallel
+	}
+	raw, err := json.Marshal(map[string]any{"profile": "corvint-ci-package-costs/0", "source": source, "milliseconds": ms})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// TestV15086PricingFollowsTheMeasuredParallelism (fault injection for the -p 1 table): a
+// table that records no parallelism was measured at -p 1, one package at a time, so a -p 4
+// shard of its packages is priced at their sum, not at a quarter of it. Reverting the
+// placement or the sizing to the requested -p fails here.
+func TestV15086PricingFollowsTheMeasuredParallelism(t *testing.T) {
+	four := map[string]int64{"example.org/q/a": 300000, "example.org/q/b": 300000, "example.org/q/c": 300000, "example.org/q/d": 300000}
+	var universe []string
+	for p := range four {
+		universe = append(universe, p)
+	}
+	// Four 300 s packages: priced at -p 4 two share a shard (600 / 4 = 150 s, but each runs
+	// 300 s); priced at their -p 1 sum each needs its own shard within 400 s.
+	for _, c := range []struct {
+		parallel int
+		want     int
+	}{{0, 4}, {1, 4}, {2, 2}, {4, 2}} {
+		got, err := SizeFrom(universe, universe, 2, 16, 4, DefaultWallBudgetMs, pricedTable(t, four, c.parallel), nil, nil)
+		if err != nil || got != c.want {
+			t.Fatalf("table at -p %d sizes -p 4 shards to %d (%v), want %d", c.parallel, got, err, c.want)
+		}
+	}
+	// Placement: at -p 2 a wall-aware plan puts a beside the three others; a -p 1 table keeps
+	// the least-loaded plan, since its times give no overlap to plan on.
+	ms := map[string]int64{"example.org/q/a": 100000, "example.org/q/b": 60000, "example.org/q/c": 50000, "example.org/q/d": 40000}
+	universe = universe[:0]
+	for p := range ms {
+		universe = append(universe, p)
+	}
+	for _, c := range []struct {
+		parallel int
+		want     [][]string
+	}{
+		{0, [][]string{{"example.org/q/a", "example.org/q/d"}, {"example.org/q/b", "example.org/q/c"}}},
+		{2, [][]string{{"example.org/q/a"}, {"example.org/q/b", "example.org/q/c", "example.org/q/d"}}},
+	} {
+		plan, err := PlanFromParallel(universe, 2, 2, pricedTable(t, ms, c.parallel), nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range plan {
+			if !reflect.DeepEqual(plan[i].Packages, c.want[i]) {
+				t.Fatalf("table at -p %d placed %v, want %v", c.parallel, plan, c.want)
+			}
+		}
+	}
+}
+
+// TestV15086PricedParallelIsTheLeastMeasuredParallelism: pricing never assumes more overlap than
+// the cost table's or a usable slice file's source shards ran at, nor more than the plan's own -p.
+func TestV15086PricedParallelIsTheLeastMeasuredParallelism(t *testing.T) {
+	ms := map[string]int64{"example.org/a": 1000}
+	slicesAt := func(parallel int) []byte {
+		source := map[string]any{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1"}
+		if parallel != 0 {
+			source["parallel"] = parallel
+		}
+		raw, _ := json.Marshal(map[string]any{"profile": "corvint-ci-test-slices/0", "source": source, "packages": map[string]any{}})
+		return raw
+	}
+	for _, c := range []struct {
+		plan, table, slices int
+		slicesRaw           []byte
+		want                int
+	}{
+		{4, 4, 4, nil, 4},
+		{4, 0, 4, nil, 1},
+		{4, 1, 4, nil, 1},
+		{4, 8, 4, nil, 4},
+		{2, 4, 4, nil, 2},
+		{8, 4, 4, nil, 4},
+		{4, 4, 0, nil, 1},
+		{4, 4, 2, nil, 2},
+		{4, 4, 0, []byte("{}"), 4}, // an unusable slice file splits nothing, so it prices nothing
+	} {
+		slicesRaw := c.slicesRaw
+		if slicesRaw == nil {
+			slicesRaw = slicesAt(c.slices)
+		}
+		if got := PricedParallel(c.plan, pricedTable(t, ms, c.table), slicesRaw); got != c.want {
+			t.Fatalf("plan -p %d, table -p %d, slices -p %d: priced %d, want %d", c.plan, c.table, c.slices, got, c.want)
+		}
+	}
+	if got := PricedParallel(4, []byte("{}"), nil); got != 1 {
+		t.Fatalf("unusable table priced at %d", got)
+	}
+	// The recorded -p is admitted only from 1 to MaxParallel.
+	for _, p := range []int{-1, MaxParallel + 1} {
+		if _, ok := Costs(pricedTable(t, ms, p)); ok {
+			t.Fatalf("cost table with parallel %d admitted", p)
+		}
+		if SliceFileUsable(slicesAt(p)) {
+			t.Fatalf("slice file with parallel %d admitted", p)
+		}
+	}
+	if _, ok := Costs(pricedTable(t, ms, MaxParallel)); !ok || !SliceFileUsable(slicesAt(MaxParallel)) {
+		t.Fatal("parallel MaxParallel refused")
 	}
 }

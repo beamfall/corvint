@@ -330,3 +330,69 @@ func TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260(t *testing.T) {
 		t.Fatal("the shards' go test -p changed; the shard-plan sizing must price the same placement")
 	}
 }
+
+// TestV15086ShardCountChangesBetweenRunsKeepRowsComplete: repricing unmeasured packages
+// (V1-5086) changes how many shards a narrowed selection run sizes to between runs in flight. Queue
+// rows whose selection runs sized to 8, 3, 2 and 5 shards, back to back, are each complete for
+// their own selection count against the same eight-shard queue outcomes, a pull-request row of
+// each count is NARROWED with its own outcomes, and the window of those rows leaves the V1-4353
+// kill switch clear with no INCOMPLETE row.
+func TestV15086ShardCountChangesBetweenRunsKeepRowsComplete(t *testing.T) {
+	p := strs(queueFixture(t).sel[0]["selected"])[0]
+	resize := func(f *fixture, sized int) {
+		for k := range f.sel {
+			if k >= sized {
+				delete(f.sel, k)
+				continue
+			}
+			f.sel[k]["shards"], f.sel[k]["shardCount"] = sized, sized
+		}
+		f.nar = map[int]doc{}
+		for k := 0; k < sized; k++ {
+			mode := "FULL"
+			var skipped []string
+			if k == 1 {
+				mode, skipped = "NARROWED", []string{p}
+			}
+			rec := narrowingRecord(k, mode, prRun, nil, skipped)
+			rec["shards"] = sized
+			f.nar[k] = rec
+		}
+	}
+	names := []string{}
+	for i, sized := range []int{shards, 3, 2, 5} {
+		q := queueFixture(t)
+		if sized != shards {
+			resize(q, sized)
+		}
+		row, _ := q.classify(t, nil)
+		if row["class"] == "INCOMPLETE" || len(strs(row["incomplete"])) != 0 || num(row["shards"]) != shards {
+			t.Fatalf("queue row of a %d-shard selection run = %v", sized, row)
+		}
+		if sized != shards && num(row["selectionShards"]) != sized {
+			t.Fatalf("queue row records selection count %v, want %d", row["selectionShards"], sized)
+		}
+		names = append(names, barNames(row["class"].(string), 300+i, "1", "0"))
+		if sized == shards {
+			continue
+		}
+		pr := prFixture(t)
+		resize(pr, sized)
+		for k := range pr.out {
+			if k >= sized {
+				delete(pr.out, k)
+				continue
+			}
+			pr.out[k]["shards"] = sized
+		}
+		row, _ = pr.classify(t, map[string]string{"ROW_KIND": "pr", "ROW_SHA": "", "ROW_RUN": prRun, "ROW_OUTCOMES_RUN": prRun})
+		if row["class"] != "NARROWED" || num(row["selectionShards"]) != sized {
+			t.Fatalf("pull-request row of a %d-shard run = %v", sized, row)
+		}
+		names = append(names, barNames("NARROWED", 400+i, "1", "0"))
+	}
+	v := barJSON(t, "1", append(names, metNames()...))
+	if w := sub(v, "window"); v["killSwitch"] != "clear" || num(w["incomplete"]) != 0 {
+		t.Fatalf("verdict over rows of changing shard counts = %v, want a clear switch and no INCOMPLETE row", v)
+	}
+}

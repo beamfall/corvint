@@ -20,7 +20,8 @@ const MinNarrowedShards = 2
 const DefaultWallBudgetMs = 400000
 
 // Size returns the fewest shards from min to max whose balanced placement of selected over
-// universe (SelectParallel) keeps every shard's predicted wall time, Wall over parallel, within
+// universe (SelectParallel) keeps every shard's predicted wall time, Wall over the priced
+// parallelism (PricedParallel: parallel, lowered to the -p the costs were measured at), within
 // budgetMs, or within the longest unit of the max-shard placement when that unit alone exceeds
 // budgetMs; max when no count does. A selection that names no package of the universe sizes to
 // min. Costs that Partition would discard (AFP-V0-022 lexical fallback) predict nothing, so the
@@ -40,7 +41,7 @@ func SizeFrom(universe, selected []string, min, max, parallel int, budgetMs int6
 	if budgetMs <= 0 {
 		return 0, errors.New("invalid wall budget")
 	}
-	w, unknown, ok := weights(costs)
+	w, unknown, ok := placementWeights(costs)
 	if !ok {
 		if _, err := SelectFromParallel(universe, selected, max, parallel, costs, allowRaw, slicesRaw); err != nil {
 			return 0, err
@@ -51,6 +52,7 @@ func SizeFrom(universe, selected []string, min, max, parallel int, budgetMs int6
 	if err != nil {
 		return 0, err
 	}
+	priced := PricedParallel(parallel, costs, slicesRaw)
 	bound := budgetMs
 	placed := false
 	for _, s := range finest {
@@ -73,7 +75,7 @@ func SizeFrom(universe, selected []string, min, max, parallel int, budgetMs int6
 				return 0, err
 			}
 		}
-		if PredictedWallMs(plan, parallel, w, unknown) <= bound {
+		if PredictedWallMs(plan, priced, w, unknown) <= bound {
 			return total, nil
 		}
 	}
@@ -100,9 +102,9 @@ func PredictedWallMs(plan []Shard, parallel int, w map[string]int64, unknown int
 	return worst
 }
 
-// Weights returns the admitted cost table and the median an unpriced package takes, as the
-// placement reads them; false when the table is unusable.
-func Weights(costs []byte) (map[string]int64, int64, bool) { return weights(costs) }
+// Weights returns the admitted cost table and the conservative price an unpriced package
+// takes, as the placement reads them; false when the table is unusable.
+func Weights(costs []byte) (map[string]int64, int64, bool) { return placementWeights(costs) }
 
 func costOf(p string, w map[string]int64, unknown int64) int64 {
 	if n, ok := w[p]; ok {

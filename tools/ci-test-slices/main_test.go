@@ -215,6 +215,42 @@ func TestAFPV0041GenerateSplitsOnlySlowListablePackages(t *testing.T) {
 	}
 }
 
+// TestV15086GenerateRecordsTheSourceParallel: generate --parallel N slices to one execution
+// slot (cishards.SliceTarget at N) and records N as the file's source parallel, which the
+// planner then prices at; at -p 1 the file records none, as before.
+func TestV15086GenerateRecordsTheSourceParallel(t *testing.T) {
+	fakeList(t, map[string][]string{"example.org/big": {"TestA", "TestB", "TestC", "TestD", "TestE", "TestF"}})
+	logs := stream(t)
+	for _, c := range []struct {
+		parallel int
+		target   string
+	}{{1, "whole example.org/small: 5000ms within the 20000ms target"}, {4, "whole example.org/small: 5000ms within the 5000ms target"}} {
+		root, head := repo(t, allowBig)
+		var notes bytes.Buffer
+		args := append([]string{"--root", root, "--revision", head, "--run-url", runURL, "--shards", "2", "--parallel", fmt.Sprint(c.parallel)}, logs...)
+		if code, err := run(context.Background(), "generate", args, nil, &notes); code != 0 || err != nil {
+			t.Fatalf("-p %d: code=%d err=%v notes=%s", c.parallel, code, err, &notes)
+		}
+		raw, err := os.ReadFile(filepath.Join(root, slicesPath))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var f sliceFile
+		if err := json.Unmarshal(raw, &f); err != nil {
+			t.Fatal(err)
+		}
+		if want := map[int]int{1: 0, 4: 4}[c.parallel]; f.Source.Parallel != want || (want == 0) == bytes.Contains(raw, []byte(`"parallel"`)) {
+			t.Fatalf("-p %d: source parallel %d, want %d:\n%s", c.parallel, f.Source.Parallel, want, raw)
+		}
+		if !strings.Contains(notes.String(), c.target) || len(f.Packages["example.org/big"].Named) != 1 {
+			t.Fatalf("-p %d: notes lack %q or big did not split in two:\n%s\n%s", c.parallel, c.target, &notes, raw)
+		}
+		if got := cishards.PricedParallel(c.parallel, declaredParallel(t, []byte(`{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+head+`","runURL":"`+runURL+`","goVersion":"`+partitionGoVersion+`"},"milliseconds":{"example.org/big":35000}}`), c.parallel), raw); got != c.parallel {
+			t.Fatalf("-p %d file prices at -p %d", c.parallel, got)
+		}
+	}
+}
+
 func TestAFPV0041GenerateRefusesUnboundInputs(t *testing.T) {
 	logs := stream(t)
 	fakeList(t, map[string][]string{"example.org/big": {"TestA", "TestB"}})
@@ -555,63 +591,13 @@ func TestAFPV0041ListParsing(t *testing.T) {
 }
 
 func TestAFPV0041SliceWithoutTimesSplitsByCount(t *testing.T) {
-	s, ok := slice([]string{"TestA", "TestB", "TestC", "TestD", "TestE", "TestF"}, nil, 60000, 3)
+	s, ok := cishards.SliceTests([]string{"TestA", "TestB", "TestC", "TestD", "TestE", "TestF"}, nil, 60000, 3)
 	if !ok || len(s.Named) != 2 || len(s.Named[0].Tests) != 2 || len(s.Named[1].Tests) != 2 || s.Named[0].Milliseconds != 20000 || s.RestMilliseconds != 20000 {
 		t.Fatalf("uneven count split: %+v", s)
 	}
-	if _, ok = slice([]string{"TestA", "TestÜ"}, nil, 1, 3); ok {
+	if _, ok = cishards.SliceTests([]string{"TestA", "TestÜ"}, nil, 1, 3); ok {
 		t.Fatal("split with fewer nameable tests than named slices")
 	}
-}
-
-func TestAFPV0041MinMaxCutsIsOptimal(t *testing.T) {
-	for _, c := range []struct {
-		costs []int64
-		k     int
-	}{{[]int64{5, 1, 1, 1, 5, 0}, 2}, {[]int64{9, 1, 1, 1, 1, 1, 1, 3}, 3}, {[]int64{1, 1, 1, 1}, 4}, {[]int64{3, 0}, 2}} {
-		cuts := minMaxCuts(c.costs, c.k)
-		if len(cuts) != c.k || cuts[0] != 0 {
-			t.Fatalf("cuts %v", cuts)
-		}
-		if got, want := largest(c.costs, cuts), brute(c.costs, c.k); got != want {
-			t.Fatalf("%v k=%d: largest %d, optimum %d", c.costs, c.k, got, want)
-		}
-	}
-}
-
-func largest(costs []int64, cuts []int) int64 {
-	var top int64
-	for i := range cuts {
-		end := len(costs)
-		if i+1 < len(cuts) {
-			end = cuts[i+1]
-		}
-		var sum int64
-		for _, c := range costs[cuts[i]:end] {
-			sum += c
-		}
-		top = max(top, sum)
-	}
-	return top
-}
-
-func brute(costs []int64, k int) int64 {
-	if k == 1 {
-		var sum int64
-		for _, c := range costs {
-			sum += c
-		}
-		return sum
-	}
-	best := int64(1 << 62)
-	for i := 1; i <= len(costs)-(k-1); i++ {
-		var head int64
-		for _, c := range costs[:i] {
-			head += c
-		}
-		best = min(best, max(head, brute(costs[i:], k-1)))
-	}
-	return best
 }
 
 func TestAFPV0041ReplayPredictsShardSums(t *testing.T) {
