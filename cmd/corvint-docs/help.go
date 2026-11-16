@@ -336,6 +336,10 @@ var commandTree = sync.OnceValue(func() clitree.Tree {
 		builder.Declare(helpTopicPath(topic), topicSummary(text))
 		builder.AddText(text, "")
 	}
+	// The reports that moved to corvint keep a node, whose help says so (AFL-V1-007).
+	for _, verb := range flowscmd.MovedReports {
+		builder.Declare([]string{"flows", verb}, flowscmd.MovedReportSummary(verb))
+	}
 	return builder.Tree(binaryName+" help --json", "cmd/"+binaryName+" help topics", []string{"cmd/" + binaryName},
 		[]string{"--root", "--version", "--json", "--tree", "--corpus", "--corpus-depth"}, commandTreeInternal)
 })

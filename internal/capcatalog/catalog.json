@@ -1026,10 +1026,11 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "status writes application-flow-status/0: per flow and variation, the attached tests and the last recorded result of each (passed, failed, flaky, timedOut, skipped, interrupted or not-run) or NOT_OBSERVED.",
+        "status writes application-flow-status/0: per flow and variation, the attached tests (the targets of its reviewed test links; a stale, unreviewed or inferred link attaches none) and the last recorded result of each (passed, failed, flaky, timedOut, skipped, interrupted or not-run) or NOT_OBSERVED.",
         "Results come only from two writers: the runs corvint test records and the test-run-evidence/0 documents flows ingest writes.",
         "impact writes application-flow-impact/1: the flows, variations and test keys reached from base..HEAD changes, with the path of each hop, and last_results per flow when the store holds a record.",
         "gaps writes application-flow-gaps/1; any gap makes a flow incomplete; --provider FILE also lists the unlinked E2E inventory tests and the inventory's state (AFU-V1-150).",
+        "A malformed, oversized or other-profile --evidence file refuses the whole report (invalid-arguments, exit 2), and so does a stored record that is not a document this build reads or whose tests the store cannot name (run-evidence-corrupt); a record damaged after it was written is skipped and the tests it held show reason run-evidence-corrupt.",
         "The reports write nothing.",
         "Writes nothing."
       ],

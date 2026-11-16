@@ -40,6 +40,15 @@ func MovedReportRefusal(verb string) string {
 	return "flows " + verb + " joins flows with test results and moved to corvint; run corvint flows " + verb
 }
 
+// MovedReports are the flow reports that moved to corvint, in help order.
+var MovedReports = []string{"status", "impact", "gaps"}
+
+// MovedReportSummary is the command-tree summary of a moved report's node, which its
+// `corvint-docs flows VERB --help` prints (AFL-V1-007).
+func MovedReportSummary(verb string) string {
+	return "moved to corvint, where it joins flows with test results; this verb refuses with exit 2: run corvint flows " + verb
+}
+
 // MovedReportsHelp points the flows help at the reports that run in corvint.
 const MovedReportsHelp = `
 Flow reports that join flows with test results run in corvint, not this binary (AFL-V1):
