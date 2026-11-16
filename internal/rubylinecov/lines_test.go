@@ -100,7 +100,10 @@ func TestAnalyzeLines(t *testing.T) {
 		{"else branch", 7, false, []string{"      :otro"}, "A#t1"},
 		{"case head", 3, false, []string{"    case v.to_i"}, "A#t1 A#t2"},
 		{"zero-hit line of an uncalled method", 12, false, []string{"    :other"}, ""},
-		{"zero-hit line replaced by two", 12, false, []string{"    y = 1", "    :other"}, ""},
+		// The new side declares a local, which changes how other lines parse
+		// whether or not this line runs: its zero hits bound nothing.
+		{"zero-hit line replaced by a new local", 12, false, []string{"    y = 1", "    :other"}, "fallback: edit of a line whose bindings change outside a called method body lib/a.rb:12"},
+		{"zero-hit line replaced by two statements", 12, false, []string{"    :first", "    :other"}, ""},
 		{"zero-hit line deleted", 12, false, nil, ""},
 		{"uncounted when line", 4, false, []string{"    when 2"}, "A#t1 A#t2"},
 		{"uncounted else line", 6, false, []string{"    else # other"}, "A#t1 A#t2"},

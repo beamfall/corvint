@@ -19,14 +19,18 @@ type Sources struct {
 }
 
 // AnalyzeLines maps a diff to the tests whose measured line coverage reached
-// the edited lines (LPCV-V0-7605 as amended by decision 0601). An edit of
-// executable lines selects the tests that hit them, so an edit of lines no
-// test hit selects none. A line Ruby does not count (when, else, a
-// continuation line) and an insertion select every test of the enclosing
-// called method and its body lines. Load-time reach, a block-structure
-// change, a new side that does not parse or cannot be checked, and every
-// fallback of Analyze keep the static plan with the reason reported.
-// Callers apply it only to a qualified family's effective plan.
+// the edited lines (LPCV-V0-7605 as amended by decision 0601). A line's hits
+// bound its reach only when Ruby cannot evaluate part of it, or bind a name
+// other lines read, without counting it. So a hunk selects the tests that hit
+// its lines, and none when no test hit them, only when every old line is a
+// counted line holding one whole statement, every new line holds one whole
+// statement, and both sides bind the same names (see unbounded). Any other
+// hunk, and an insertion, selects every test of the enclosing called method
+// and its body lines, or falls back outside one. Load-time reach, a
+// block-structure change, a new side that does not parse or cannot be
+// checked, and every fallback of Analyze keep the static plan with the
+// reason reported. Callers apply it only to a qualified family's effective
+// plan.
 func AnalyzeLines(ix *linecov.Index, diffs []linecov.FileDiff, src Sources) linecov.Effect {
 	e := linecov.Effect{Tests: map[int32]bool{}, Whole: map[string]bool{}, Touched: map[string]bool{}}
 	fail := func(format string, args ...any) linecov.Effect {
@@ -85,25 +89,41 @@ func AnalyzeLines(ix *linecov.Index, diffs []linecov.FileDiff, src Sources) line
 		if why := sameStructure(string(oldSrc), string(newSrc), d.Hunks, d.NewHunks); why != "" {
 			return fail("edit changes Ruby block structure %s: %s", d.Path, why)
 		}
-		for _, h := range d.Hunks {
+		oldSide, newSide := readSide(string(oldSrc)), readSide(string(newSrc))
+		for i, h := range d.Hunks {
 			if h.End < h.Start { // an insertion after line h.Start
 				if !selectHunk(ix, f, h, e.Tests) {
 					return fail("insertion outside a called method body %s:%d", d.Path, h.Start)
 				}
 				continue
 			}
+			// The tests that hit the old lines are always part of the reach.
+			uncounted := 0
 			for line := h.Start; line <= h.End; line++ {
-				if b, ok := lineBlock(ix, f.Path, line); ok {
-					for _, t := range b.Tests {
-						e.Tests[t] = true
-					}
-					continue
+				b, ok := lineBlock(ix, f.Path, line)
+				if !ok && uncounted == 0 {
+					uncounted = line
 				}
+				for _, t := range b.Tests {
+					e.Tests[t] = true
+				}
+			}
+			why, at := "", h.Start
+			if uncounted != 0 {
 				// Ruby does not count this line: the statement it belongs to is
 				// owned by the enclosing method.
-				if !selectHunk(ix, f, linecov.Hunk{Start: line, End: line}, e.Tests) {
-					return fail("edit of an uncounted line outside a called method body %s:%d", d.Path, line)
+				why, at = "an uncounted line", uncounted
+			} else {
+				why, at = unbounded(oldSide, newSide, h, d.NewHunks[i])
+			}
+			if why == "" {
+				continue
+			}
+			if !selectHunk(ix, f, h, e.Tests) {
+				if load >= 0 && e.Tests[load] {
+					return fail("the change reaches load-time code")
 				}
+				return fail("edit of %s outside a called method body %s:%d", why, d.Path, at)
 			}
 		}
 	}
@@ -111,6 +131,260 @@ func AnalyzeLines(ix *linecov.Index, diffs []linecov.FileDiff, src Sources) line
 		return fail("the change reaches load-time code")
 	}
 	return e
+}
+
+// side is one side of a diff as the reach rule reads it.
+type side struct {
+	raw   []string
+	state []rubydialect.LineState
+	// depth[i] is the bracket depth before line i+1; balanced is false when
+	// the depth goes negative or does not return to zero.
+	depth    []int
+	balanced bool
+}
+
+func readSide(src string) side {
+	s := side{raw: strings.Split(src, "\n"), state: rubydialect.LineStates(src), balanced: true}
+	s.depth = make([]int, len(s.state)+1)
+	depth := 0
+	for i, st := range s.state {
+		s.depth[i] = depth
+		for j := 0; j < len(st.Code); j++ {
+			switch st.Code[j] {
+			case '(', '[', '{':
+				depth++
+			case ')', ']', '}':
+				depth--
+			}
+			if depth < 0 {
+				s.balanced = false
+			}
+		}
+	}
+	s.depth[len(s.state)] = depth
+	if depth != 0 {
+		s.balanced = false
+	}
+	return s
+}
+
+// code is the trimmed code text of line n, "" outside the file.
+func (s side) code(n int) string {
+	if n < 1 || n > len(s.state) {
+		return ""
+	}
+	return strings.TrimSpace(s.state[n-1].Code)
+}
+
+// whole reports why line n is not one whole statement, or "" when it is:
+// code that begins and ends on the line outside every bracket and literal,
+// with no block keyword, no second statement and no continuation from the
+// previous line or onto the next. Ruby then counts the line whenever it
+// evaluates any part of it. The probe of Ruby 3.3.8 behind this rule: a
+// one-line `when C then B` counts only when B runs although C is evaluated,
+// a line inside a multi-line literal counts only for a lambda it holds, and
+// a multi-line statement is counted on a line other than its first.
+func (s side) whole(n int) string {
+	if n < 1 || n > len(s.state) {
+		return "a line outside the file"
+	}
+	code := s.code(n)
+	switch {
+	case !s.balanced:
+		return "a line of a file with unbalanced brackets"
+	case s.state[n-1].Inside || s.state[n-1].Open:
+		return "a line inside or opening a multi-line literal"
+	case code == "":
+		return "a blank, comment or data line"
+	case s.depth[n-1] != 0 || s.depth[n] != 0:
+		return "a line inside or opening a multi-line bracket"
+	case leads(code) || continues(code):
+		return "a line of a multi-line statement"
+	}
+	for i := 0; i < len(code); {
+		switch {
+		case rubydialect.WordByte(code[i]):
+			word, next := rubydialect.Word(code, i)
+			if next <= i {
+				next = i + 1
+			}
+			// A word after one dot is a method name (x.class), not a keyword.
+			called := i > 0 && code[i-1] == '.' && (i < 2 || code[i-2] != '.')
+			if structureKeywords[word] && !called {
+				return "a line with a block keyword"
+			}
+			i = next
+		case code[i] == ';':
+			return "a line with a second statement"
+		default:
+			i++
+		}
+	}
+	for m := n - 1; m >= 1; m-- {
+		if prev := s.code(m); prev != "" {
+			if continues(prev) {
+				return "a line of a multi-line statement"
+			}
+			break
+		}
+	}
+	for m := n + 1; m <= len(s.state); m++ {
+		if next := s.code(m); next != "" {
+			if leads(next) {
+				return "a line of a multi-line statement"
+			}
+			break
+		}
+	}
+	return ""
+}
+
+// leads reports whether trimmed code continues the previous line.
+func leads(code string) bool {
+	for _, prefix := range []string{".", "&.", "&&", "||", "and ", "or "} {
+		if strings.HasPrefix(code, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// continues reports whether trimmed code continues onto the next line: it
+// ends with an operator, a backslash or a keyword that takes an operand. A
+// trailing `?` or `!` directly after a word is a method name's suffix.
+func continues(code string) bool {
+	if code == "" {
+		return false
+	}
+	last := code[len(code)-1]
+	if last == '?' || last == '!' {
+		return len(code) < 2 || !rubydialect.WordByte(code[len(code)-2])
+	}
+	if strings.ContainsRune(`\,.+-*/%&|^=<>:(~`, rune(last)) {
+		return true
+	}
+	for _, word := range []string{"and", "or", "not", "if", "unless", "while", "until", "in", "when", "case", "elsif"} {
+		if code == word || strings.HasSuffix(code, " "+word) {
+			return true
+		}
+	}
+	return strings.HasSuffix(code, " rescue")
+}
+
+// unbounded reports why the hits of a replaced hunk's old lines do not bound
+// the edit's reach, and the line, or "" when they do: every old and new line
+// is one whole statement and both sides bind the same names in the same
+// order. A name a line binds (an assigned local, a pattern or named capture,
+// a numbered block parameter) changes how other lines parse and run even
+// when the line itself never executes.
+func unbounded(oldSide, newSide side, oldHunk, newHunk linecov.Hunk) (string, int) {
+	var oldBinds, newBinds []string
+	for n := oldHunk.Start; n <= oldHunk.End; n++ {
+		if why := oldSide.whole(n); why != "" {
+			return why, n
+		}
+		sig, ok := binding(oldSide.raw[n-1], oldSide.state[n-1].Code)
+		if !ok {
+			return "a line that may bind a block parameter or a capture", n
+		}
+		if sig != "" {
+			oldBinds = append(oldBinds, sig)
+		}
+	}
+	for n := newHunk.Start; n <= newHunk.End; n++ {
+		if why := newSide.whole(n); why != "" {
+			return why + " on the new side", oldHunk.Start
+		}
+		sig, ok := binding(newSide.raw[n-1], newSide.state[n-1].Code)
+		if !ok {
+			return "a line that may bind a block parameter or a capture on the new side", oldHunk.Start
+		}
+		if sig != "" {
+			newBinds = append(newBinds, sig)
+		}
+	}
+	if strings.Join(oldBinds, "\n") != strings.Join(newBinds, "\n") {
+		return "a line whose bindings change", oldHunk.Start
+	}
+	return "", 0
+}
+
+// binding is the signature of the names one source line can bind: "" when
+// it has no assignment; its text through the last assignment operator when
+// it assigns; and its whole word and operator sequence when it holds `=>`,
+// whose target follows the operator. Operators are read from the raw line,
+// so an assignment inside an interpolation counts and one inside a string or
+// comment only makes the comparison stricter. ok is false for a line that
+// can bind without an operator the signature would show: a named capture, or
+// a numbered or implicit block parameter in its code or an interpolation.
+func binding(raw, code string) (sig string, ok bool) {
+	if strings.Contains(raw, "(?<") {
+		return "", false
+	}
+	params := []string{code}
+	if strings.Contains(raw, "#{") {
+		params = append(params, raw)
+	}
+	for _, text := range params {
+		for i := 0; i < len(text); {
+			word, next := rubydialect.Word(text, i)
+			if next <= i {
+				i++
+				continue
+			}
+			if word == "it" || len(word) == 2 && word[0] == '_' && word[1] >= '1' && word[1] <= '9' {
+				return "", false
+			}
+			i = next
+		}
+	}
+	var tokens []string
+	last, rocket := -1, false
+	at := func(i int) byte {
+		if i < 0 || i >= len(raw) {
+			return 0
+		}
+		return raw[i]
+	}
+	for i := 0; i < len(raw); {
+		c := raw[i]
+		switch {
+		case rubydialect.WordByte(c):
+			word, next := rubydialect.Word(raw, i)
+			if next <= i {
+				next = i + 1
+			}
+			if c < '0' || c > '9' {
+				tokens = append(tokens, word)
+			}
+			i = next
+		case c == '=':
+			prev, next := at(i-1), at(i+1)
+			switch {
+			case next == '>':
+				rocket = true
+				tokens = append(tokens, "=>")
+				i++
+			case next == '=' || next == '~' || prev == '=' || prev == '!':
+				// ==, ===, =~ and != compare.
+			case (prev == '<' || prev == '>') && at(i-2) != prev:
+				// <= and >= compare; <<= and >>= assign.
+			default:
+				last = i
+				tokens = append(tokens, "=")
+			}
+			i++
+		default:
+			i++
+		}
+	}
+	switch {
+	case rocket:
+		return strings.Join(tokens, " "), true
+	case last >= 0:
+		return strings.Join(strings.Fields(raw[:last+1]), " "), true
+	}
+	return "", true
 }
 
 // lineBlock is the executable-line block of path:line, if Ruby counts it.
