@@ -19,13 +19,16 @@ import (
 // and must-run tests (AFP-V0-2480).
 const DeclaredSelectionPath = ".corvint/test-selection.json"
 
-// DeclaredSelectionProfile is the declaration's closed profile name.
+// DeclaredSelectionProfile is the profile of a declaration of owners and
+// must-run tests alone (AFP-V0-2480).
 const DeclaredSelectionProfile = "corvint-test-selection/0"
 
-// DeclaredTreeReaderSelectionProfile is the profile of a declaration that also
-// names whole-tree readers (AZU-V0-8921). It is a new value, not a new member
-// of the /0 file, so a planner that predates treeReaders refuses the file
-// instead of planning without them. The value skips /1, which is the version
+// DeclaredTreeReaderSelectionProfile is the profile of a declaration that may
+// also name whole-tree readers (AZU-V0-8921); its owners and must-run tests
+// mean what they mean under /0. It is a new value, not a new member of the
+// /0 file, so a planner that predates treeReaders refuses the file instead
+// of planning without them, and every /0 file keeps its meaning and its
+// digest (AFP-V0-2480, CMP-V1-004). The value skips /1, which is the version
 // of the runner's selection expectation (TRE-V0-021), a different object.
 const DeclaredTreeReaderSelectionProfile = "corvint-test-selection/2"
 
@@ -136,7 +139,7 @@ func readTestSelection(root *Source) (*testSelection, error) {
 	}
 	switch {
 	case declared.Profile != DeclaredSelectionProfile && declared.Profile != DeclaredTreeReaderSelectionProfile:
-		return nil, fmt.Errorf("%s: profile must be %s", DeclaredSelectionPath, DeclaredSelectionProfile)
+		return nil, fmt.Errorf("%s: profile must be %s or %s", DeclaredSelectionPath, DeclaredSelectionProfile, DeclaredTreeReaderSelectionProfile)
 	case declared.TreeReaders != nil && declared.Profile != DeclaredTreeReaderSelectionProfile:
 		// AZU-V0-8921: treeReaders exists only under the new profile, so a
 		// /0 file stays readable, byte for byte, by every 1.x planner.
