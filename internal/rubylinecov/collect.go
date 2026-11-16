@@ -59,8 +59,15 @@ type Options struct {
 	Prefix func(env []string) []string
 	PathIn func(host string) string
 	// Timeout bounds the suite run; zero means no bound beyond ctx.
-	Timeout               time.Duration
-	IsolatedTimeout       time.Duration // per isolated test; zero uses Timeout
+	Timeout         time.Duration
+	IsolatedTimeout time.Duration // per isolated test; zero uses Timeout
+	// State, when set, replaces Work with a persistent directory bound to
+	// this collection; Collect resumes from the runs it retains. Parallel
+	// bounds the isolated runs at once (below 1 means 1), and a positive
+	// Budget stops launching isolated runs after it elapses (LPCV-V0-7609).
+	State                 string
+	Parallel              int
+	Budget                time.Duration
 	onlyPackage, onlyName string
 }
 

@@ -26,7 +26,9 @@ func languageCollect(language string, args []string) error {
 	root := fs.String("root", ".", "clean repository root (required)")
 	out := fs.String("out", "", "output index (required)")
 	command := fs.String("command", "", "Ruby suite argv as a JSON array (required for ruby)")
-	parallel := fs.Int("parallel", 1, "parallel isolated JavaScript runs")
+	parallel := fs.Int("parallel", 1, "parallel isolated runs (JavaScript and Ruby)")
+	state := fs.String("state", "", "Ruby: persistent collection directory a rerun resumes from (LPCV-V0-7609)")
+	budget := fs.Duration("budget", 0, "Ruby: stop launching isolated runs after this; exit 3 with the retained count")
 	family := fs.String("runner", "node-test", "JavaScript runner family")
 	exe := fs.String("executable", "", "absolute JavaScript runner executable (required for js)")
 	files := fs.String("files", "", "comma-separated JavaScript test files (required for js)")
@@ -34,7 +36,7 @@ func languageCollect(language string, args []string) error {
 	timeout := fs.Duration("timeout", 2*time.Minute, "isolated process deadline")
 	suite := fs.Duration("suite-timeout", 10*time.Minute, "in-order suite deadline")
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "Usage: linecov %s-collect -root DIR -out INDEX [flags]\nExample: linecov ruby-collect -root . -out /tmp/ruby.idx -command '[\"ruby\",\"-Itest\",\"test/all.rb\"]'\nExample: linecov js-collect -root . -out /tmp/js.idx -runner node-test -executable /usr/bin/node -files test/a.test.js\n", language)
+		fmt.Fprintf(fs.Output(), "Usage: linecov %s-collect -root DIR -out INDEX [flags]\nExample: linecov ruby-collect -root . -out /tmp/ruby.idx -command '[\"ruby\",\"-Itest\",\"test/all.rb\"]'\nExample: linecov ruby-collect -root . -out /tmp/ruby.idx -state /tmp/ruby-state -parallel 4 -budget 8m -command '[\"bundle\",\"exec\",\"rspec\"]'\nExample: linecov js-collect -root . -out /tmp/js.idx -runner node-test -executable /usr/bin/node -files test/a.test.js\n", language)
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -72,7 +74,7 @@ func languageCollect(language string, args []string) error {
 		if err = json.Unmarshal([]byte(*command), &argv); err != nil || len(argv) == 0 {
 			return errors.New("ruby-collect: -command must be a nonempty JSON argv array")
 		}
-		run, err := rubylinecov.Collect(ctx, rubylinecov.Options{Root: *root, Work: work, Argv: argv, Timeout: *suite, IsolatedTimeout: *timeout})
+		run, err := rubylinecov.Collect(ctx, rubylinecov.Options{Root: *root, Work: work, Argv: argv, Timeout: *suite, IsolatedTimeout: *timeout, State: *state, Parallel: *parallel, Budget: *budget})
 		if err != nil {
 			return err
 		}
