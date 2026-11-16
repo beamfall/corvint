@@ -102,5 +102,23 @@ func TestLineStates(t *testing.T) {
 		if strings.Join(strings.Fields(got.Code), " ") != strings.Join(strings.Fields(w.code), " ") || got.Inside != w.inside || got.Open != w.open {
 			t.Errorf("line %d: code %q inside %v open %v, want %q %v %v", i+1, got.Code, got.Inside, got.Open, w.code, w.inside, w.open)
 		}
+	} // A blanked literal at either end of a line's code is a value.
+	for _, c := range []struct {
+		line         string
+		starts, ends bool
+	}{
+		{`raise ArgumentError, "no blocks"`, false, true},
+		{`raise ArgumentError, "no blocks" # note`, false, true},
+		{`"abc".upcase`, true, false},
+		{`  'a' + 'b'  `, true, true},
+		{`s =~ /re/`, false, true},
+		{`foo(1) # "not code"`, false, false},
+		{`x = a +`, false, false},
+		{``, false, false},
+	} {
+		got := LineStates(c.line)[0]
+		if got.StartsLiteral != c.starts || got.EndsLiteral != c.ends {
+			t.Errorf("%q: starts %v ends %v, want %v %v", c.line, got.StartsLiteral, got.EndsLiteral, c.starts, c.ends)
+		}
 	}
 }
