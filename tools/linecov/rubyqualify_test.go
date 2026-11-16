@@ -298,3 +298,79 @@ func TestRubyQualifyRefusesUnprovenRunner(t *testing.T) {
 		t.Errorf("a run whose control kept two tests folded: %v", err)
 	}
 }
+
+// LPCV-V0-7608: the fold refuses what admission refuses, so the command
+// cannot write a record CheckRubyQualification would reject. An index that
+// keeps a file whole whatever the change gives its run no control even when
+// no baseline test belongs to that file, and a run with no fault at all is
+// not a passing run.
+func TestRubyQualifyRefusesWhatAdmissionRefuses(t *testing.T) {
+	unordered := rubyReportFixture()
+	unordered.Runners[0].Unordered = []string{"test/other_test.rb"}
+	runs, _, err := foldRubyReport(unordered)
+	if err == nil || !strings.Contains(err.Error(), "no runner qualifies") || len(runs) != 1 || !strings.Contains(runs[0].Unqualified, "no control") {
+		t.Errorf("a run whose index keeps a file whole folded as qualifying: runs %+v: %v", runs, err)
+	}
+	noFault := rubyReportFixture()
+	second := rubyReportFixture().Runners[0]
+	second.Family, second.Runner = "rspec", "ruby 3.3.8 rspec 3.13.7 coverage=lines,methods"
+	second.Faults = second.Faults[2:]
+	noFault.Runners = append(noFault.Runners, second)
+	if _, _, err := foldRubyReport(noFault); err == nil || !strings.Contains(err.Error(), "no fault") {
+		t.Errorf("a run with no fault folded: %v", err)
+	}
+
+	// Through the command: neither report leaves a record behind, and a
+	// report with one run of each kind writes a record admission accepts for
+	// the qualifying runner and refuses for the other.
+	root := t.TempDir()
+	run(t, root, "git", "init", "-q")
+	for _, p := range linecov.RubyQualifiedSources {
+		write(t, root, p, "fixture "+p+"\n")
+	}
+	run(t, root, "git", "add", ".")
+	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "sources")
+	rev, _ := output(root, "git", "rev-parse", "HEAD")
+	record := filepath.Join(root, linecov.RubyQualificationRecord)
+	if err := os.MkdirAll(filepath.Dir(record), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	qualify := func(rep RubyQualReport) error {
+		rep.SelectorRevision = rev
+		data, err := json.Marshal(rep)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reportFile := filepath.Join(t.TempDir(), "report.json")
+		if err := os.WriteFile(reportFile, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return rubyQualify([]string{"-report", reportFile, "-root", root, "-record", record})
+	}
+	for name, rep := range map[string]RubyQualReport{"unordered index": unordered, "run with no fault": noFault} {
+		if err := qualify(rep); err == nil {
+			t.Errorf("%s: the command wrote a record", name)
+		}
+		if _, err := os.Stat(record); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%s: a record exists after the refusal: %v", name, err)
+		}
+	}
+	mixed := rubyReportFixture()
+	other := rubyReportFixture().Runners[0]
+	other.Family, other.Runner = "rspec", "ruby 3.3.8 rspec 3.13.7 coverage=lines,methods"
+	other.Unordered = []string{"test/other_test.rb"}
+	mixed.Runners = append(mixed.Runners, other)
+	if err := qualify(mixed); err != nil {
+		t.Fatal(err)
+	}
+	run(t, root, "git", "add", ".")
+	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "record")
+	head, _ := output(root, "git", "rev-parse", "HEAD")
+	info := &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: head}, {Key: "vcs.modified", Value: "false"}}}
+	if err := linecov.CheckRubyQualification(context.Background(), root, mixed.Runners[0].Runner, info); err != nil {
+		t.Errorf("the qualifying runner of the written record is refused: %v", err)
+	}
+	if err := linecov.CheckRubyQualification(context.Background(), root, other.Runner, info); err == nil || !strings.Contains(err.Error(), "does not qualify runner") {
+		t.Errorf("the runner with an unordered index is admitted: %v", err)
+	}
+}
