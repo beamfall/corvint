@@ -1,6 +1,6 @@
 # Work Queue Observation V0
 
-Health: KEEP
+Health: RETIRE
 
 **Owner:** Russell Lewis  
 **Date:** 2026-08-23  

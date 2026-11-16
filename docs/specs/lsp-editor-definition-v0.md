@@ -1,6 +1,6 @@
 # LSP Editor Definition V0
 
-Health: KEEP
+Health: RETIRE
 
 - Owner: Russell Lewis
 - Date: 2026-09-29
