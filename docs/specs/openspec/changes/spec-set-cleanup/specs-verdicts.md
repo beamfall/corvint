@@ -38,14 +38,16 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 
 ## Counts
 
-- active: 82
-- archive in place: 168
+- active: 84
+- archive in place: 166
 - move to beamfall/corvint-tasks: 37
 - delete: 0
 - undetermined: 1 (`test-attack-v0.md`, decided with the fault-injection proposal)
 
 The counts changed on 2026-11-09 under R42, E8 and D11: eleven rows left `undetermined` and
-`greptile-gate-v0.md` moved from archive in place to active.
+`greptile-gate-v0.md` moved from archive in place to active. They changed again on 2026-11-16 under
+decision 0600: `kotlin-jvm-affected-test-v0.md` and `swift-affected-test-understanding-v0.md` moved
+from archive in place to active.
 
 ## Table
 
@@ -219,7 +221,7 @@ The counts changed on 2026-11-09 under R42, E8 and D11: eleven rows left `undete
 | `java-affected-test-v0.md` | JAT-V0 | KEEP | archive in place | B5 | 1/1 paths; 0 hits | B5 (G26) removes internal/liveverify/affected/java; SPEC-HEALTH KEEP predates G26. |
 | `js-live-test-provider-v0.md` | - | KEEP | active | - | 2/2 paths | SPEC-HEALTH KEEP; serves PROD-TEST-006. |
 | `kotlin-android-candidate-v0.md` | KA-V0 | OUT-OF-1.0 | archive in place | B5 | 2/2 paths; 4 hits | B5 (G26) removes the analyzer. |
-| `kotlin-jvm-affected-test-v0.md` | KAT-V0 | KEEP | archive in place | B5 | 1/1 paths; 3 hits | B5 (G26) removes internal/liveverify/affected/kotlin; SPEC-HEALTH KEEP predates G26. |
+| `kotlin-jvm-affected-test-v0.md` | KAT-V0 | KEEP | active | - | 1/1 paths; 3 hits | SPEC-HEALTH KEEP; decision 0600 (2026-11-16) keeps internal/liveverify/affected/kotlin; serves PROD-TEST-011 as an additional runner. |
 | `lane-check-tooling-v0.md` | ASD-V0 | MERGE | archive in place | B8b | no paths; 179 hits | Merge target corvint-self-development-gates-v0 is itself out of 1.0; archived with the lane tooling. |
 | `lane-dogfood-tooling-v0.md` | DTL-V0 | MERGE | archive in place | B8b | no paths; 23 hits | Merge target corvint-self-development-gates-v0 is itself out of 1.0; archived with the lane tooling. |
 | `lane-shell-portability-v0.md` | ASD-V0 | MERGE | archive in place | B8b | 1/1 paths; 179 hits | Merge target corvint-self-development-gates-v0 is itself out of 1.0; archived with the lane tooling. |
@@ -313,7 +315,7 @@ The counts changed on 2026-11-09 under R42, E8 and D11: eleven rows left `undete
 | `stable-operations-v0.md` | SOP-V0 | KEEP | active | - | 6/6 paths; 10 hits | SPEC-HEALTH KEEP; serves PROD-INT-006, PROD-INT-007. |
 | `stable-readiness-record-v1.md` | SRR-V1 | KEEP | active | - | 1/1 paths; 4 hits | SPEC-HEALTH KEEP; serves PROD-INT-007. |
 | `structured-data-analyzer-candidate-v1.md` | SDA | OUT-OF-1.0 | archive in place | B5 | 2/2 paths; 0 hits | B5 (G26) removes cmd/corvint-analyzer-structured-data. |
-| `swift-affected-test-understanding-v0.md` | SATS-V0 | KEEP | archive in place | B5 | 1/1 paths; 0 hits | B5 (G26) removes internal/liveverify/affected/swift; SPEC-HEALTH KEEP predates G26. |
+| `swift-affected-test-understanding-v0.md` | SATS-V0 | KEEP | active | - | 1/1 paths; 0 hits | SPEC-HEALTH KEEP; decision 0600 (2026-11-16) keeps internal/liveverify/affected/swift; serves PROD-TEST-011 as an additional runner. |
 | `swift-apple-analyzer-candidate-v0.md` | SAC | OUT-OF-1.0 | archive in place | B5 | 2/2 paths; 4 hits | B5 (G26) removes the analyzer. |
 | `task-context-packet-v0.md` | TCP-V0 | OUT-OF-1.0 | archive in place | B7 | 2/2 paths; 106 hits | Superseded by ticket-brief-context (R28, R29; G25). |
 | `tasks-criterion-binding-v0.md` | TCB-V0 | retired | move to beamfall/corvint-tasks | B10 | no paths; 4 hits | Decision 0594 moved Tasks to beamfall/corvint-tasks, which holds the live copy; deleted here after corvint-tasks PR #4 (RMV-V1-027). |
