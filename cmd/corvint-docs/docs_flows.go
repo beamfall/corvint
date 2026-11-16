@@ -216,9 +216,12 @@ func resolveExistingPrefix(abs string) string {
 const docsFlowsHelp = `Generate bounded source-derived flow documentation (generated trust).
 
 Usage:
-  corvint-docs [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]
-  corvint-docs [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]
-  corvint-docs [--root PATH] docs flows finalize --previous FILE --provider-revision FULL_SHA --provider-path PATH
+  corvint-docs [--root PATH] docs pages generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]
+  corvint-docs [--root PATH] docs pages check --revision FULL_SHA --previous FILE [--output-dir DIR]
+  corvint-docs [--root PATH] docs pages finalize --previous FILE --provider-revision FULL_SHA --provider-path PATH
+
+docs flows generate|check|finalize is the old spelling (AFL-V1-008): an alias that prints a
+notice naming docs pages and runs the same command until the next release.
 
 Generate exclusively writes a new output directory: eight Markdown pages per flow,
 provider.json and generation.json. Ruby/Rails, JS/TS, React JSX and literal Angular

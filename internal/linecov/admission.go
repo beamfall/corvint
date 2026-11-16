@@ -6,7 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
+	"slices"
+	"strings"
 )
+
+// QualifiedProfile names a qualification record.
+const QualifiedProfile = "linecov-qualified/1"
 
 var QualifiedSources = []string{
 	"cmd/corvint/affected_linecov.go",
@@ -42,6 +47,39 @@ var QualifiedSources = []string{
 	"tools/linecov/ci.go",
 }
 
+// RubyQualificationRecord is the Ruby family's qualification record, read
+// at the selector executable's own revision (LPCV-V0-7608).
+const RubyQualificationRecord = ".github/linecov/ruby-qualification.json"
+
+// RubyQualifiedSources are the Ruby selector and collector sources a Ruby
+// record binds: every source of this package (the index, diff and narrowing
+// code the Ruby path shares), the Ruby collector and analysis, the lexer the
+// structure guard uses, and the commands (LPCV-V0-7608).
+var RubyQualifiedSources = append(rubyOwnSources(), []string{
+	"internal/rubydialect/rubydialect.go",
+	"internal/rubydialect/scanner.go",
+	"internal/rubylinecov/artifacts.go",
+	"internal/rubylinecov/collect.go",
+	"internal/rubylinecov/isolate.go",
+	"internal/rubylinecov/linecov.rb",
+	"internal/rubylinecov/lines.go",
+	"internal/rubylinecov/select.go",
+	"internal/rubylinecov/selection.go",
+	"tools/linecov/languages.go",
+	"tools/linecov/main.go",
+	"tools/linecov/rubyqualify.go",
+}...)
+
+func rubyOwnSources() []string {
+	var own []string
+	for _, p := range QualifiedSources {
+		if strings.HasPrefix(p, "internal/linecov/") {
+			own = append(own, p)
+		}
+	}
+	return own
+}
+
 type Qualified struct {
 	Profile     string            `json:"profile"`
 	Family      string            `json:"family"`
@@ -49,6 +87,50 @@ type Qualified struct {
 	IndexCommit string            `json:"indexCommit"`
 	Report      QualifiedReport   `json:"report"`
 	Sources     map[string]string `json:"sources"`
+	// Runners and Corpus describe a family qualified on a public corpus with
+	// several runners (Ruby: Minitest and RSpec). Runners names, by index
+	// runner identity, exactly the runs that qualify their runner; a run the
+	// report measured without qualifying it is restated with its reason and
+	// admits nothing (LPCV-V0-7608).
+	Runners []string         `json:"runners,omitempty"`
+	Corpus  *QualifiedCorpus `json:"corpus,omitempty"`
+}
+
+// QualifiedCorpus identifies the pinned public repository a record stands on.
+type QualifiedCorpus struct {
+	URL           string `json:"url"`
+	Commit        string `json:"commit"`
+	License       string `json:"license"`
+	LicenseSHA256 string `json:"licenseSha256"`
+}
+
+// QualifiedRun restates one runner's part of a multi-runner report: its
+// suite size, kills, the selected-set size of each fault in seeded order,
+// its controls and its misses.
+type QualifiedRun struct {
+	Runner         string `json:"runner"`
+	IndexDigest    string `json:"indexDigest"`
+	Tests          int    `json:"tests"`
+	Faults         int    `json:"faults"`
+	Killed         int    `json:"killed"`
+	Selected       []int  `json:"selected"`
+	Controls       int    `json:"controls"`
+	ControlsFailed int    `json:"controlsFailed"`
+	Misses         int    `json:"misses"`
+	// Narrowed counts the killed faults whose selected set was smaller than
+	// the suite: without one, zero misses hold for any selector.
+	Narrowed int `json:"narrowed"`
+	// Unordered counts the index files kept whole whatever the change and
+	// KeptRegardless their tests; ControlsKept is each control's kept-set
+	// size. A run qualifies its runner only when every control kept nothing,
+	// which needs an index with no such file (GLS-V0-032: a suite with
+	// unrecorded tests yields no control).
+	Unordered      int   `json:"unordered"`
+	KeptRegardless int   `json:"keptRegardless"`
+	ControlsKept   []int `json:"controlsKept"`
+	// Unqualified is why this run does not qualify its runner; empty for a
+	// qualifying run.
+	Unqualified string `json:"unqualified,omitempty"`
 }
 
 // QualifiedReport restates the summarized report a record stands on.
@@ -63,6 +145,8 @@ type QualifiedReport struct {
 	Misses   int      `json:"misses"`
 	Packages []string `json:"packages"`
 	Suite    []string `json:"suite"`
+	// Runs is set for a multi-runner family (LPCV-V0-7608).
+	Runs []QualifiedRun `json:"runs,omitempty"`
 }
 
 // CheckQualification admits exclusion only for a passing record whose runner
@@ -76,9 +160,107 @@ func CheckQualification(ctx context.Context, root, base, runner string, info *de
 	if err := json.Unmarshal(data, &q); err != nil {
 		return fmt.Errorf("qualification record invalid: %w", err)
 	}
-	if q.Profile != "linecov-qualified/1" || q.Family != "go" || q.Runner != runner || q.Report.Misses != 0 || q.Report.Mutants <= 0 || q.Report.Killed <= 0 || q.Report.Controls <= 0 || q.Report.Digest == "" {
+	if !q.passing("go") || q.Runner != runner {
 		return fmt.Errorf("qualification is not a passing record for this runner")
 	}
+	rev, err := cleanRevision(info)
+	if err != nil {
+		return err
+	}
+	return q.bound(ctx, root, QualifiedSources, base, rev)
+}
+
+// CheckRubyQualification admits the Ruby family for an index collected by
+// runner only for a passing Ruby record committed at the selector
+// executable's clean VCS revision in selectorRoot, whose bound sources match
+// that revision and one of whose runs qualifies runner. Every run must be
+// complete with zero misses and no failed control. A run qualifies its
+// runner only when it killed a fault whose selected set was smaller than the
+// suite and every one of its controls kept no test at all; a run the record
+// restates as unqualified admits nothing (LPCV-V0-7608).
+func CheckRubyQualification(ctx context.Context, selectorRoot, runner string, info *debug.BuildInfo) error {
+	rev, err := cleanRevision(info)
+	if err != nil {
+		return err
+	}
+	if selectorRoot == "" {
+		return fmt.Errorf("ruby qualification record unavailable: no selector repository")
+	}
+	data, err := gitOut(ctx, selectorRoot, "show", rev+":"+RubyQualificationRecord)
+	if err != nil {
+		return fmt.Errorf("ruby qualification record unavailable at %s: %w", rev, err)
+	}
+	var q Qualified
+	if err := json.Unmarshal(data, &q); err != nil {
+		return fmt.Errorf("ruby qualification record invalid: %w", err)
+	}
+	if err := q.RubyAdmits(runner); err != nil {
+		return err
+	}
+	return q.bound(ctx, selectorRoot, RubyQualifiedSources, rev)
+}
+
+// RubyAdmits reports why the Ruby record q does not qualify runner, or nil
+// when it does. It is every check of CheckRubyQualification that reads the
+// record alone, so the command that writes a record refuses one admission
+// would reject (LPCV-V0-7608).
+func (q Qualified) RubyAdmits(runner string) error {
+	if !q.passing("ruby") || q.Corpus == nil || q.Corpus.Commit == "" || len(q.Report.Runs) == 0 {
+		return fmt.Errorf("ruby qualification is not a passing record")
+	}
+	var qualified []string
+	unqualified := ""
+	for _, r := range q.Report.Runs {
+		if r.Runner == "" || r.Misses != 0 || r.ControlsFailed != 0 || r.Faults <= 0 || len(r.Selected) != r.Faults || r.Tests <= 0 || r.IndexDigest == "" || len(r.ControlsKept) != r.Controls {
+			return fmt.Errorf("ruby qualification run %q is not passing", r.Runner)
+		}
+		if r.Unqualified != "" {
+			if r.Runner == runner {
+				unqualified = r.Unqualified
+			}
+			continue
+		}
+		if r.Controls <= 0 || r.Killed <= 0 {
+			return fmt.Errorf("ruby qualification run %q is not passing", r.Runner)
+		}
+		for _, kept := range r.ControlsKept {
+			if kept != 0 {
+				return fmt.Errorf("ruby qualification run %q has a control keeping %d tests; a runner qualifies only when its control selects none", r.Runner, kept)
+			}
+		}
+		if r.KeptRegardless != 0 || r.Unordered != 0 {
+			return fmt.Errorf("ruby qualification run %q has no control: its index keeps %d tests whatever the change", r.Runner, r.KeptRegardless)
+		}
+		smaller := 0
+		for _, n := range r.Selected {
+			if n < r.Tests {
+				smaller++
+			}
+		}
+		if r.Narrowed <= 0 || r.Narrowed > r.Killed || r.Narrowed > smaller {
+			return fmt.Errorf("ruby qualification run %q has no killed fault that narrowed the suite", r.Runner)
+		}
+		qualified = append(qualified, r.Runner)
+	}
+	if !slices.Equal(qualified, q.Runners) {
+		return fmt.Errorf("ruby qualification names runners %q, its qualifying runs are %q", q.Runners, qualified)
+	}
+	if unqualified != "" {
+		return fmt.Errorf("ruby qualification does not qualify runner %q: %s", runner, unqualified)
+	}
+	if !slices.Contains(qualified, runner) {
+		return fmt.Errorf("ruby qualification names no runner %q", runner)
+	}
+	return nil
+}
+
+// passing reports whether q is a passing record of family.
+func (q Qualified) passing(family string) bool {
+	return q.Profile == QualifiedProfile && q.Family == family && q.Report.Misses == 0 && q.Report.Mutants > 0 && q.Report.Killed > 0 && q.Report.Controls > 0 && q.Report.Digest != ""
+}
+
+// cleanRevision is the VCS revision of a clean selector executable.
+func cleanRevision(info *debug.BuildInfo) (string, error) {
 	rev, clean := "", false
 	if info != nil {
 		for _, s := range info.Settings {
@@ -91,14 +273,19 @@ func CheckQualification(ctx context.Context, root, base, runner string, info *de
 		}
 	}
 	if rev == "" || !clean {
-		return fmt.Errorf("selector executable has no clean VCS provenance")
+		return "", fmt.Errorf("selector executable has no clean VCS provenance")
 	}
-	for _, at := range []string{base, rev} {
+	return rev, nil
+}
+
+// bound checks every source of sources against q at each revision.
+func (q Qualified) bound(ctx context.Context, root string, sources []string, revs ...string) error {
+	for _, at := range revs {
 		oids, err := OIDs(ctx, root, at)
 		if err != nil {
 			return fmt.Errorf("qualification sources unavailable at %s: %w", at, err)
 		}
-		for _, p := range QualifiedSources {
+		for _, p := range sources {
 			if oids[p] == "" || q.Sources[p] != oids[p] {
 				return fmt.Errorf("qualification source mismatch: %s at %s", p, at)
 			}

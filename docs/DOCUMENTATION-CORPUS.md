@@ -60,7 +60,7 @@ phase summary (parse, verify, freshness, index, query, encode) to stderr (`DCR-V
 The CLI streams the artifact file through that check instead of holding it whole (`DCR-V1-431`).
 A native read joined with `--corpus=FILE` takes the same verified read (`DCR-V1-432`), as does
 the current side of `delta` unless `delta --verify-rederive` rederives it (`DCR-V1-460`).
-Producers that write records onward (`docs flows generate`, flow coverage,
+Producers that write records onward (`docs pages generate`, flow coverage,
 the indexed companion build, republish and `carry-forward`) still rederive.
 
 ## Larger adoption imports
@@ -471,9 +471,9 @@ editor that held it open. Keep that file until other editors have closed it; rem
 is a separate operator action. Publication uses a pinned directory and never overwrites a competing
 new page. There is a brief absent-path window; this is not a crash-atomic filesystem transaction.
 
-The separate source-draft session `corvint docs maintain` keeps the block below, a GENERATED
+The separate source-draft session `corvint docs pages maintain` keeps the block below, a GENERATED
 orientation of `internal/docmaintain` drafted from its owner spec, in sync with committed source
-(SDD-V0-007). Refresh it with `corvint docs maintain --page docs/DOCUMENTATION-CORPUS.md --source
+(SDD-V0-007). Refresh it with `corvint docs pages maintain --page docs/DOCUMENTATION-CORPUS.md --source
 docs/specs/source-documentation-draft-v0.md --package internal/docmaintain --enable --apply`.
 
 <!-- corvint:docmaintain:insertion-point -->

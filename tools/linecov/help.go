@@ -20,8 +20,9 @@ func commandTree() any {
 		{Path: []string{"merge"}, Summary: "Merge compatible immutable indexes", Usage: []string{"linecov merge -out INDEX PART..."}, Flags: []string{"-out"}},
 		{Path: []string{"ci"}, Summary: "Narrow a Go CI shard", Usage: []string{"linecov ci -root DIR -index INDEX -base FULL_SHA -packages FILE -slices FILE -out DIR", "linecov ci -selection FILE -packages FILE -slices FILE -out DIR"}, Flags: []string{"-root", "-index", "-base", "-packages", "-slices", "-out", "-selection", "-test-timeout", "-exec"}},
 		{Path: []string{"miss"}, Summary: "List suspected misses of a failed main run", Usage: []string{"linecov miss -failed FILE [-failed FILE] -run DIR [-run DIR]"}, Flags: []string{"-failed", "-run"}},
-		{Path: []string{"ruby-collect"}, Summary: "Collect an immutable Ruby per-test index", Usage: []string{`linecov ruby-collect -root DIR -out INDEX -command '["ruby","test/all.rb"]'`}, Flags: []string{"-root", "-out", "-command", "-runner", "-executable", "-files", "-config", "-parallel", "-timeout", "-suite-timeout"}},
-		{Path: []string{"ruby-select"}, Summary: "Report Ruby coverage shadow decisions", Usage: []string{"linecov ruby-select -root DIR -index INDEX -base FULL_SHA [-files a,b]"}, Flags: []string{"-root", "-index", "-base", "-files"}},
+		{Path: []string{"ruby-collect"}, Summary: "Collect an immutable Ruby per-test index", Usage: []string{`linecov ruby-collect -root DIR -out INDEX -command '["ruby","test/all.rb"]'`, `linecov ruby-collect -root DIR -out INDEX -state DIR -parallel N -budget 8m -env NAME,NAME -command '["bundle","exec","rspec"]'`}, Flags: []string{"-root", "-out", "-command", "-runner", "-executable", "-files", "-config", "-parallel", "-state", "-budget", "-env", "-timeout", "-suite-timeout"}},
+		{Path: []string{"ruby-select"}, Summary: "Plan Ruby tests by measured line; admitted families execute it", Usage: []string{"linecov ruby-select -root DIR -index INDEX -base FULL_SHA [-files a,b] [-selector-root CORVINT_DIR] [-ruby PATH]"}, Flags: []string{"-root", "-index", "-base", "-files", "-selector-root", "-ruby"}},
+		{Path: []string{"ruby-qualify"}, Summary: "Fold a Ruby fault run into the Ruby qualification record", Usage: []string{"linecov ruby-qualify -report FILE [-root CORVINT_DIR -record FILE]"}, Flags: []string{"-report", "-root", "-record"}},
 		{Path: []string{"js-collect"}, Summary: "Collect an immutable JavaScript or TypeScript per-test index", Usage: []string{"linecov js-collect -root DIR -out INDEX -runner node-test -executable /usr/bin/node -files test/a.test.js"}, Flags: []string{"-root", "-out", "-command", "-runner", "-executable", "-files", "-config", "-parallel", "-timeout", "-suite-timeout"}},
 		{Path: []string{"js-select"}, Summary: "Report JavaScript coverage shadow decisions", Usage: []string{"linecov js-select -root DIR -index INDEX -base FULL_SHA [-files a,b]"}, Flags: []string{"-root", "-index", "-base", "-files"}},
 		{Path: []string{"watch"}, Summary: "Rerun working-tree tests on foreground save notifications", Usage: []string{"linecov watch -root DIR -index INDEX [-once|-events-stdin] [-packages a,b] [-go-wrapper PATH] [-command ARGV_JSON]"}, Flags: []string{"-root", "-index", "-packages", "-once", "-events-stdin", "-go-wrapper", "-command"}},
@@ -49,9 +50,10 @@ func help(out io.Writer, args []string) error {
 		enc.SetIndent("", "  ")
 		return enc.Encode(commandTree())
 	}
-	_, err := fmt.Fprintln(out, `Usage: linecov collect|select|qualify|qualified|redundancy|merge|ci|miss|ruby-collect|ruby-select|js-collect|js-select|watch [flags]
+	_, err := fmt.Fprintln(out, `Usage: linecov collect|select|qualify|qualified|redundancy|merge|ci|miss|ruby-collect|ruby-select|ruby-qualify|js-collect|js-select|watch [flags]
 Use linecov COMMAND --help for required inputs and examples.
-Ruby and JavaScript plans are experimental shadows; effective execution retains the static suite.
+JavaScript plans and unadmitted Ruby plans are shadows whose effective execution retains the static suite;
+a Ruby plan executes its line selection only when a passing Ruby qualification record admits it.
 Watch output is user-scoped and cannot close a CI gate.`)
 	return err
 }

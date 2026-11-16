@@ -8,6 +8,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
 	"github.com/Beamfall/corvint/internal/clitree"
+	"github.com/Beamfall/corvint/internal/flowreports"
 )
 
 // nodeHelpPrefix marks the help topic of one subcommand below a command's own topic, such as
@@ -98,6 +99,7 @@ func buildCommandTree() clitree.Tree {
 		builder.Declare(helpTopicPath(topic), summary)
 		builder.AddText(text, "")
 	}
+	builder.Describe([]string{"flows", "status"}, flowreports.StatusDescription)
 	return builder.Tree("corvint help --tree", "cmd/corvint help topics", []string{"cmd/corvint"},
 		[]string{"--root", "--version", "--json"}, commandTreeInternal)
 }
@@ -123,23 +125,7 @@ func nodeHelpText(path string) string {
 	if !ok {
 		panic("unknown command tree node")
 	}
-	return clitree.Render(commandTree(), node) + parentTopicPointer(node.Path)
-}
-
-// parentTopicPointer names the authored help topic that documents a node's command in full, so a
-// subcommand's derived help still leads to its prose.
-func parentTopicPointer(path []string) string {
-	best := []string{}
-	for _, topic := range helpTopics() {
-		if documented := helpTopicPath(topic); len(documented) > len(best) && len(documented) < len(path) &&
-			slices.Equal(documented, path[:len(documented)]) {
-			best = documented
-		}
-	}
-	if len(best) == 0 {
-		return ""
-	}
-	return "Full topic: corvint help " + strings.Join(best, " ") + "\n"
+	return clitree.Render(commandTree(), node)
 }
 
 // helpExampleTrailer gives a command topic its required inputs and, when its text has none, one
