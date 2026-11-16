@@ -2628,20 +2628,13 @@
       "command": "corvint-docs flows gaps",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--no-store] [--registry FILE] [--provider FILE]"
+        "corvint-docs [--root PATH] flows gaps ..."
       ],
       "flags": [
-        "--evidence",
-        "--flows",
-        "--no-store",
-        "--provider",
-        "--registry",
         "--root"
       ],
-      "required": [
-        "--flows DIR"
-      ],
-      "example": "corvint-docs flows gaps --flows DIR",
+      "required": [],
+      "example": "corvint-docs flows gaps",
       "help": "corvint-docs flows gaps --help"
     },
     {
@@ -2652,19 +2645,13 @@
       "command": "corvint-docs flows impact",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows impact --flows DIR --base SHA [--no-store]"
+        "corvint-docs [--root PATH] flows impact ..."
       ],
       "flags": [
-        "--base",
-        "--flows",
-        "--no-store",
         "--root"
       ],
-      "required": [
-        "--flows DIR",
-        "--base SHA"
-      ],
-      "example": "corvint-docs flows impact --flows DIR --base SHA",
+      "required": [],
+      "example": "corvint-docs flows impact",
       "help": "corvint-docs flows impact --help"
     },
     {
@@ -2894,19 +2881,13 @@
       "command": "corvint-docs flows status",
       "summary": "",
       "usage": [
-        "corvint-docs [--root PATH] flows status --flows DIR [--evidence FILE]... [--no-store] [--base SHA]"
+        "corvint-docs [--root PATH] flows status ..."
       ],
       "flags": [
-        "--base",
-        "--evidence",
-        "--flows",
-        "--no-store",
         "--root"
       ],
-      "required": [
-        "--flows DIR"
-      ],
-      "example": "corvint-docs flows status --flows DIR",
+      "required": [],
+      "example": "corvint-docs flows status",
       "help": "corvint-docs flows status --help"
     },
     {

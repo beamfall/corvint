@@ -185,8 +185,8 @@ func rvdStoreDigest(t *testing.T, root string) string {
 	return out.String()
 }
 
-// PROD-TEST-020, RVD-V1-007, RVD-V1-012: after `corvint test`, `flows status` (served by
-// corvint-docs, run here in process) with no --evidence shows that run's outcome with its tree at HEAD, and `corvint test-evidence` names it;
+// PROD-TEST-020, RVD-V1-007, RVD-V1-012: after `corvint test`, `flows status` (native in corvint,
+// AFL-V1-001, run here in process) with no --evidence shows that run's outcome with its tree at HEAD, and `corvint test-evidence` names it;
 // --no-store leaves it out; no reader (flows status, map, gaps, impact, test-evidence, flows
 // test-evidence) changes a byte of the store.
 func TestRVDV1007ProdTest020TestThenFlowsStatus(t *testing.T) {
@@ -233,7 +233,8 @@ func TestRVDV1007ProdTest020TestThenFlowsStatus(t *testing.T) {
 	if code, out, _ := runCLI(t, "--root", root, "test-evidence", "--test", "go:a", "--no-store"); code != 0 || strings.Contains(out, `"runs"`) {
 		t.Fatalf("test-evidence --no-store %d %s", code, out)
 	}
-	// corvint flows forwards to corvint-docs; runFlowsCLI runs the same handlers in process.
+	// map forwards to corvint-docs and gaps and impact are native; runFlowsCLI runs the same
+	// handlers in process.
 	for _, args := range [][]string{{"map", "--flows", "flows"}, {"gaps", "--flows", "flows"}, {"impact", "--flows", "flows", "--base", base}} {
 		if code, _, stderr := runFlowsCLI(root, args...); code != 0 {
 			t.Fatalf("flows %v %d %s", args, code, stderr)

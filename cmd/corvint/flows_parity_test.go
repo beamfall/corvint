@@ -16,7 +16,8 @@ import (
 
 // CMS-V0-912: for a fixture repository, `corvint flows ...` and `corvint how ...` through the
 // shim, the built corvint-docs run directly, and the handlers called as corvint dispatched them
-// before the move print the same stdout, stderr and exit status. The first two are separate
+// before the move print the same stdout, stderr and exit status. The status, impact and gaps
+// reports are no longer forwarded (AFL-V1-001, AFL-V1-007): flows_reports_test.go covers them. The first two are separate
 // processes; the third is the in-process baseline with corvint's own refusal envelope.
 func TestCMSV0912FlowsAndHowParityWithCorvintDocs(t *testing.T) {
 	t.Setenv("PATH", os.Getenv("PATH")) // restored after the test; BuildOnPATH prepends to it
@@ -44,7 +45,6 @@ func TestCMSV0912FlowsAndHowParityWithCorvintDocs(t *testing.T) {
 		{"export provider", shop.root, "flows", []string{"export", "--flows", "flows", "--emit", "provider"}, 0},
 		{"how", app, "how", how, 0},
 		{"flows appmap how", app, "flows", append([]string{"appmap", "how"}, how...), 0},
-		{"impact unknown base", shop.root, "flows", []string{"impact", "--flows", "flows", "--base", strings.Repeat("0", 40)}, 2},
 		{"how without a map", app, "how", []string{"--source", "e2e", "ship"}, 2},
 		{"unknown flows form", shop.root, "flows", []string{"no-such-verb"}, 2},
 	} {
