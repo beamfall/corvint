@@ -2209,6 +2209,7 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/linecov": [
+      ".github/linecov/ruby-qualification.json",
       ".github/workflows/ci.yml"
     ],
     "tools/merge-drivers": [

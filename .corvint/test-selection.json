@@ -37,6 +37,12 @@
       ]
     },
     {
+      "paths": ".github/linecov/ruby-qualification.json",
+      "tests": [
+        "tools/linecov/rubyqualify_test.go"
+      ]
+    },
+    {
       "paths": ".github/nightly-signal/body.jq",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
