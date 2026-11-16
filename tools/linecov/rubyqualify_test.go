@@ -5,14 +5,33 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/linecov"
 )
+
+// twoRunnerFixture adds an RSpec run whose index keeps its one file whole
+// whatever the change, so its control keeps both tests.
+func twoRunnerFixture() RubyQualReport {
+	rep := rubyReportFixture()
+	rspec := rubyReportFixture().Runners[0]
+	rspec.Family, rspec.Runner = "rspec", "ruby 3.3.8 rspec 3.13.7 coverage=lines,methods"
+	rspec.Unordered = []string{"test/a_test.rb"}
+	both := [][2]string{{"test/a_test.rb", "A#t1"}, {"test/a_test.rb", "A#t2"}}
+	for i := range rspec.Faults {
+		rspec.Faults[i].Selected = both
+	}
+	rep.Runners = append(rep.Runners, rspec)
+	return rep
+}
 
 func rubyReportFixture() RubyQualReport {
 	t1, t2 := [2]string{"test/a_test.rb", "A#t1"}, [2]string{"test/a_test.rb", "A#t2"}
@@ -45,14 +64,18 @@ func TestRubyQualifySummarize(t *testing.T) {
 	if r.Faults != 2 || r.Killed != 1 || r.Controls != 1 || r.ControlsFailed != 0 || r.Misses != 0 || len(r.Selected) != 2 || r.Selected[0] != 1 || r.Selected[1] != 2 || len(verdicts) != 3 || !verdicts[2].Passed || len(r.ControlsKept) != 1 || r.ControlsKept[0] != 0 {
 		t.Fatalf("runs %+v verdicts %+v", runs, verdicts)
 	}
-	// GLS-V0-032: tests of a file the index keeps whole whatever the change
-	// do not fail a control; the record restates how many it kept.
-	regardless := rubyReportFixture()
-	regardless.Runners[0].Unordered = []string{"test/a_test.rb"}
-	regardless.Runners[0].Faults[2].Selected = [][2]string{{"test/a_test.rb", "A#t1"}, {"test/a_test.rb", "A#t2"}}
-	runs, _, err = foldRubyReport(regardless)
-	if err != nil || runs[0].ControlsKept[0] != 2 || runs[0].KeptRegardless != 2 || runs[0].Unordered != 1 {
-		t.Fatalf("kept-regardless control: %v %+v", err, runs)
+	if r.Narrowed != 1 || r.Unqualified != "" || !verdicts[0].Narrowed || verdicts[1].Narrowed {
+		t.Fatalf("narrowing: run %+v verdicts %+v", r, verdicts)
+	}
+	// The strict control rule (GLS-V0-032): a control that keeps tests of a
+	// file the index keeps whole whatever the change is no control. Its run
+	// is restated as unqualified while the other runner still qualifies.
+	runs, verdicts, err = foldRubyReport(twoRunnerFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runs[0].Unqualified != "" || !strings.Contains(runs[1].Unqualified, "no control") || runs[1].ControlsKept[0] != 2 || runs[1].KeptRegardless != 2 || runs[1].Unordered != 1 || runs[1].ControlsFailed != 0 || verdicts[5].Passed {
+		t.Fatalf("kept-regardless control: %+v %+v", runs, verdicts[5])
 	}
 	for name, mutate := range map[string]func(*RubyQualReport){
 		"miss":            func(r *RubyQualReport) { r.Runners[0].Faults[0].Selected = [][2]string{{"test/a_test.rb", "A#t2"}} },
@@ -91,7 +114,7 @@ func TestRubyQualifySummarize(t *testing.T) {
 	run(t, root, "git", "add", ".")
 	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "sources")
 	rev, _ := output(root, "git", "rev-parse", "HEAD")
-	rep := rubyReportFixture()
+	rep := twoRunnerFixture()
 	rep.SelectorRevision = rev
 	data, _ := json.Marshal(rep)
 	reportFile := filepath.Join(t.TempDir(), "report.json")
@@ -112,6 +135,14 @@ func TestRubyQualifySummarize(t *testing.T) {
 	if err := linecov.CheckRubyQualification(context.Background(), root, rep.Runners[0].Runner, info); err != nil {
 		t.Fatalf("written record not admitted: %v", err)
 	}
+	// The record names only the qualifying runner and refuses the other.
+	if err := linecov.CheckRubyQualification(context.Background(), root, rep.Runners[1].Runner, info); err == nil || !strings.Contains(err.Error(), "does not qualify runner") {
+		t.Fatalf("the unqualified runner was admitted: %v", err)
+	}
+	var written linecov.Qualified
+	if data, err := os.ReadFile(record); err != nil || json.Unmarshal(data, &written) != nil || len(written.Runners) != 1 || written.Runners[0] != rep.Runners[0].Runner || len(written.Report.Runs) != 2 || written.Report.Runs[1].Unqualified == "" {
+		t.Fatalf("written record %+v: %v", written, err)
+	}
 	// A source changed since the qualified revision refuses a record.
 	write(t, root, "internal/rubylinecov/lines.go", "changed\n") //corvint:fixture-path
 	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qam", "change")
@@ -120,9 +151,11 @@ func TestRubyQualifySummarize(t *testing.T) {
 	}
 }
 
-// LPCV-V0-7608: the committed Ruby record, when present, is a passing
-// two-runner record binding exactly RubyQualifiedSources with a control that
-// selected nothing in each run.
+// LPCV-V0-7608: the committed Ruby record, when present, is a passing record
+// binding exactly RubyQualifiedSources. It qualifies Minitest with a control
+// that kept no test and a killed fault that narrowed the suite, and every
+// run it restates without qualifying carries its reason and is not named as
+// a runner.
 func TestRubyQualificationRecordPresent(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", ".github", "linecov", "ruby-qualification.json"))
 	if errors.Is(err, os.ErrNotExist) {
@@ -135,18 +168,31 @@ func TestRubyQualificationRecordPresent(t *testing.T) {
 	if err := json.Unmarshal(data, &q); err != nil {
 		t.Fatal(err)
 	}
-	if q.Profile != QualifiedProfile || q.Family != "ruby" || q.Corpus == nil || q.Report.Misses != 0 || q.Report.Killed == 0 || q.Report.Controls == 0 || len(q.Runners) != 2 || len(q.Report.Runs) != 2 {
+	if q.Profile != linecov.QualifiedProfile || q.Family != "ruby" || q.Corpus == nil || q.Report.Misses != 0 || q.Report.Killed == 0 || q.Report.Controls == 0 || len(q.Report.Runs) == 0 {
 		t.Fatalf("record %+v", q)
 	}
+	var qualified []string
 	families := map[string]bool{}
-	for i, r := range q.Report.Runs {
-		families[strings.Fields(r.Runner + " x x")[2]] = true
-		if r.Runner != q.Runners[i] || r.Misses != 0 || r.ControlsFailed != 0 || r.Controls == 0 || len(r.Selected) != r.Faults {
+	for _, r := range q.Report.Runs {
+		if r.Misses != 0 || r.ControlsFailed != 0 || len(r.Selected) != r.Faults || len(r.ControlsKept) != r.Controls {
 			t.Fatalf("run %+v", r)
 		}
+		if r.Unqualified != "" {
+			continue
+		}
+		qualified = append(qualified, r.Runner)
+		families[strings.Fields(r.Runner + " x x")[2]] = true
+		if r.Controls == 0 || r.Narrowed == 0 || r.KeptRegardless != 0 || r.Unordered != 0 {
+			t.Fatalf("qualifying run %+v", r)
+		}
+		for _, kept := range r.ControlsKept {
+			if kept != 0 {
+				t.Fatalf("qualifying run %q has a control keeping %d tests", r.Runner, kept)
+			}
+		}
 	}
-	if !families["minitest"] || !families["rspec"] {
-		t.Fatalf("runners %v", q.Runners)
+	if !slices.Equal(qualified, q.Runners) || !families["minitest"] {
+		t.Fatalf("runners %v, qualifying runs %v", q.Runners, qualified)
 	}
 	if len(q.Sources) != len(linecov.RubyQualifiedSources) {
 		t.Fatalf("record binds %d sources, RubyQualifiedSources lists %d", len(q.Sources), len(linecov.RubyQualifiedSources))
@@ -155,5 +201,100 @@ func TestRubyQualificationRecordPresent(t *testing.T) {
 		if q.Sources[p] == "" {
 			t.Fatalf("record does not bind %s", p)
 		}
+	}
+}
+
+// LPCV-V0-7608: the Ruby commands take nothing from a file the Ruby record
+// does not bind. Every top-level name languages.go and rubyqualify.go use is
+// declared in a bound file of this package.
+func TestRubyCommandsUseBoundFiles(t *testing.T) {
+	bound := map[string]bool{}
+	for _, p := range linecov.RubyQualifiedSources {
+		if dir, name := filepath.Split(p); dir == "tools/linecov/" {
+			bound[name] = true
+		}
+	}
+	for _, name := range []string{"languages.go", "main.go", "rubyqualify.go"} {
+		if !bound[name] {
+			t.Fatalf("%s is not a Ruby qualified source", name)
+		}
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	unbound := map[string]string{} // top-level name -> the unbound file declaring it
+	parsed := map[string]*ast.File{}
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parsed[name] = f
+		if bound[name] {
+			continue
+		}
+		for _, d := range f.Decls {
+			switch d := d.(type) {
+			case *ast.FuncDecl:
+				if d.Recv == nil {
+					unbound[d.Name.Name] = name
+				}
+			case *ast.GenDecl:
+				for _, spec := range d.Specs {
+					switch spec := spec.(type) {
+					case *ast.ValueSpec:
+						for _, n := range spec.Names {
+							unbound[n.Name] = name
+						}
+					case *ast.TypeSpec:
+						unbound[spec.Name.Name] = name
+					}
+				}
+			}
+		}
+	}
+	if len(unbound) == 0 {
+		t.Fatal("found no declaration in an unbound file")
+	}
+	for _, name := range []string{"languages.go", "rubyqualify.go"} {
+		var visit func(n ast.Node) bool
+		visit = func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.SelectorExpr: // pkg.Name or value.field: only the left side is this package's
+				ast.Inspect(n.X, visit)
+				return false
+			case *ast.Ident:
+				if unbound[n.Name] != "" {
+					t.Errorf("%s uses %s, declared in %s, which the Ruby record does not bind", fset.Position(n.Pos()), n.Name, unbound[n.Name])
+				}
+			}
+			return true
+		}
+		ast.Inspect(parsed[name], visit)
+	}
+}
+
+// LPCV-V0-7608: a fault run in which no killed fault kept fewer tests than
+// the suite proves nothing about narrowing, and a control that keeps any
+// test, even one the index keeps whatever the change, is no control: neither
+// run qualifies its runner, so the fold refuses.
+func TestRubyQualifyRefusesUnprovenRunner(t *testing.T) {
+	t1, t2 := [2]string{"test/a_test.rb", "A#t1"}, [2]string{"test/a_test.rb", "A#t2"}
+	whole := rubyReportFixture()
+	whole.Runners[0].Faults[0].Selected = [][2]string{t1, t2}
+	whole.Runners[0].Faults[0].Fallback = "the change reaches load-time code"
+	if _, _, err := foldRubyReport(whole); err == nil || !strings.Contains(err.Error(), "narrow") {
+		t.Errorf("a run with no narrowed kill folded: %v", err)
+	}
+	regardless := rubyReportFixture()
+	regardless.Runners[0].Unordered = []string{"test/a_test.rb"}
+	regardless.Runners[0].Faults[2].Selected = [][2]string{t1, t2}
+	if _, _, err := foldRubyReport(regardless); err == nil || !strings.Contains(err.Error(), "control") {
+		t.Errorf("a run whose control kept two tests folded: %v", err)
 	}
 }

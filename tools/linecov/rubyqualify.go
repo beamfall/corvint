@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/linecov"
 )
@@ -76,7 +77,11 @@ type rubyFaultResult struct {
 	Failing  int         `json:"failing"`
 	Selected int         `json:"selected"`
 	Missed   [][2]string `json:"missed,omitempty"`
-	Passed   bool        `json:"controlPassed,omitempty"`
+	// Passed is set for a control that killed nothing and kept no test.
+	Passed bool `json:"controlPassed,omitempty"`
+	// Narrowed is set for a killed fault whose selected set is smaller than
+	// the suite.
+	Narrowed bool `json:"narrowed,omitempty"`
 	// Regardless counts the selected tests of files kept whole whatever the change.
 	Regardless int    `json:"keptRegardless"`
 	Fallback   string `json:"fallback,omitempty"`
@@ -84,19 +89,22 @@ type rubyFaultResult struct {
 
 // rubyQualify folds a Ruby fault-run report (LPCV-V0-7608): every baseline
 // must pass completely, every fault must run the complete suite, and a
-// failing test outside the selected set is a miss. A control passes, as
-// GLS-V0-032 defines for Go, when it kills nothing, causes no fallback,
-// keeps no test by coverage and keeps only tests of files the index keeps
-// whole whatever the change. With -record it writes the Ruby qualification record bound
-// to the RubyQualifiedSources blobs at -root's HEAD, which must equal those
-// of the report's selector revision.
+// failing test outside the selected set is a miss. A control fails when it
+// kills a test, causes a fallback or keeps a test other than those of files
+// the index keeps whole whatever the change. A run qualifies its runner only
+// when a killed fault kept fewer tests than the suite and every control kept
+// no test at all: a run whose control kept tests the index keeps whatever
+// the change has no control (GLS-V0-032) and is restated as unqualified.
+// With -record it writes the Ruby qualification record, naming the
+// qualifying runners, bound to the RubyQualifiedSources blobs at -root's
+// HEAD, which must equal those of the report's selector revision.
 func rubyQualify(args []string) error {
 	fs := flag.NewFlagSet("ruby-qualify", flag.ContinueOnError)
 	reportFile := fs.String("report", "", "Ruby fault-run report (required)")
 	root := fs.String("root", ".", "Corvint checkout whose HEAD holds the qualified selector sources")
 	record := fs.String("record", "", "write the Ruby qualification record here")
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "Usage: linecov ruby-qualify -report FILE [-root CORVINT_DIR -record FILE]\nExample: linecov ruby-qualify -report /tmp/ruby-report.json -root . -record .github/linecov/ruby-qualification.json\nOutput: the per-runner verdicts; exit 1 on a miss, a failed control or an incomplete run.\n")
+		fmt.Fprintf(fs.Output(), "Usage: linecov ruby-qualify -report FILE [-root CORVINT_DIR -record FILE]\nExample: linecov ruby-qualify -report /tmp/ruby-report.json -root . -record .github/linecov/ruby-qualification.json\nOutput: the per-runner verdicts; exit 1 on a miss, a failed control, an incomplete run or when no runner qualifies.\n")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -126,12 +134,14 @@ func rubyQualify(args []string) error {
 	if *record == "" {
 		return nil
 	}
-	q := linecov.Qualified{Profile: QualifiedProfile, Family: "ruby", IndexCommit: rep.Corpus.Commit, Corpus: &rep.Corpus, Sources: map[string]string{}}
+	q := linecov.Qualified{Profile: linecov.QualifiedProfile, Family: "ruby", IndexCommit: rep.Corpus.Commit, Corpus: &rep.Corpus, Sources: map[string]string{}}
 	sum := sha256.Sum256(data)
 	q.Report = linecov.QualifiedReport{Digest: "sha256:" + hex.EncodeToString(sum[:]), Seed: rep.Seed, Runs: runs}
 	paths := map[string]bool{}
-	for _, r := range rep.Runners {
-		q.Runners = append(q.Runners, r.Runner)
+	for i, r := range rep.Runners {
+		if runs[i].Unqualified == "" {
+			q.Runners = append(q.Runners, r.Runner)
+		}
 		q.Report.Suite = append(q.Report.Suite, r.Family)
 		for _, f := range r.Faults {
 			paths[f.Path] = true
@@ -159,16 +169,18 @@ func rubyQualify(args []string) error {
 		if dirty, _ := output(*root, "git", "status", "--porcelain", "--", p); dirty != "" {
 			return fmt.Errorf("ruby-qualify: %s has uncommitted changes", p)
 		}
-		qualified, err := output(*root, "git", "rev-parse", rep.SelectorRevision+":"+p)
-		if err != nil || qualified != head {
-			return fmt.Errorf("ruby-qualify: %s at HEAD is blob %s, the qualified selector %s held %q; rerun the qualification", p, head, rep.SelectorRevision, qualified)
+		blob, err := output(*root, "git", "rev-parse", rep.SelectorRevision+":"+p)
+		if err != nil || blob != head {
+			return fmt.Errorf("ruby-qualify: %s at HEAD is blob %s, the qualified selector %s held %q; rerun the qualification", p, head, rep.SelectorRevision, blob)
 		}
 		q.Sources[p] = head
 	}
 	return writeJSON(*record, q)
 }
 
-// foldRubyReport checks a report and restates each runner's run.
+// foldRubyReport checks a report and restates each runner's run, with why
+// it does not qualify its runner when it does not. It fails on a miss, a
+// failed control, an incomplete run, or when no run qualifies its runner.
 func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResult, error) {
 	if rep.Profile != RubyQualificationProfile {
 		return nil, nil, fmt.Errorf("ruby-qualify: profile %q", rep.Profile)
@@ -178,8 +190,10 @@ func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResu
 	}
 	var runs []linecov.QualifiedRun
 	var verdicts []rubyFaultResult
-	var problems []string
+	var problems, unqualified []string
+	qualifying := 0
 	for _, r := range rep.Runners {
+		kept := 0
 		b := r.Baseline
 		if r.Runner == "" || r.IndexDigest == "" {
 			problems = append(problems, fmt.Sprintf("%s: no runner identity or index digest", r.Family))
@@ -224,16 +238,20 @@ func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResu
 			if f.Control {
 				run.Controls++
 				run.ControlsKept = append(run.ControlsKept, len(selected))
-				v.Passed = !v.Killed && f.Fallback == "" && f.KeptByCoverage == 0 && v.Regardless == len(selected)
-				if !v.Passed {
+				if v.Killed || f.Fallback != "" || f.KeptByCoverage != 0 || v.Regardless != len(selected) {
 					run.ControlsFailed++
 					problems = append(problems, fmt.Sprintf("%s: control %s:%d killed %v, fallback %q, kept %d by coverage and %d of %d whatever the change", r.Family, f.Path, f.Line, v.Killed, f.Fallback, f.KeptByCoverage, v.Regardless, len(selected)))
 				}
+				v.Passed = !v.Killed && f.Fallback == "" && len(selected) == 0
+				kept += len(selected)
 			} else {
 				run.Faults++
 				run.Selected = append(run.Selected, len(selected))
 				if v.Killed {
 					run.Killed++
+					if v.Narrowed = len(selected) < b.Tests; v.Narrowed {
+						run.Narrowed++
+					}
 				}
 				if len(v.Missed) > 0 {
 					run.Misses++
@@ -242,7 +260,25 @@ func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResu
 			}
 			verdicts = append(verdicts, v)
 		}
+		var why []string
+		switch {
+		case run.Controls == 0:
+			why = append(why, "no control ran")
+		case kept > 0 || run.KeptRegardless > 0:
+			why = append(why, fmt.Sprintf("no control: the index keeps the %d tests of %d files whatever the change (a test of each has no isolated record), so its control kept %v tests instead of none", run.KeptRegardless, run.Unordered, run.ControlsKept))
+		}
+		if run.Narrowed == 0 {
+			why = append(why, fmt.Sprintf("no killed fault narrowed the suite: each of the %d killed faults kept all %d tests", run.Killed, b.Tests))
+		}
+		if run.Unqualified = strings.Join(why, "; "); run.Unqualified == "" {
+			qualifying++
+		} else {
+			unqualified = append(unqualified, r.Family+": "+run.Unqualified)
+		}
 		runs = append(runs, run)
+	}
+	if qualifying == 0 {
+		problems = append(problems, fmt.Sprintf("no runner qualifies: %v", unqualified))
 	}
 	sort.Strings(problems)
 	if len(problems) > 0 {
