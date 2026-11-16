@@ -243,6 +243,14 @@ Rollback: revert; the moved extension also lives in `beamfall/corvint-vscode`.
 
 Gate: RMV-V1-014 has landed and its fixture test passes. This is a milestone batch.
 
+Amended by decision 0600 (2026-11-16): the Swift and Kotlin providers stay. B5 keeps
+`internal/liveverify/affected/{kotlin,swift}`, `internal/swiftimpact` with its links in
+`cmd/corvint` and `cmd/corvint-mcp`, `internal/testrunner/swiftselection`, and whatever of
+`internal/nativelinecov`, `internal/testrunner/mobile`, `internal/testrunner/native` and the
+registry `jvm_*.go` files a kept Swift or Kotlin package still reaches. The batch re-checks those
+importers before deleting and its build log names each kept file and its user. Both analyzers
+(`corvint-analyzer-swift`, `corvint-analyzer-kotlin-android`) are still removed.
+
 Paths removed:
 - `cmd/corvint-analyzer-{c-jni,dotnet,go,html-css,java,js,kotlin-android,objective-c,python,ruby,rust,shader,shell,sql-native,structured-data,swift}` (16, present; VERIFIED).
 - The 14 `internal/analyzer*` packages. Each has no importer outside the analyzer binaries,
@@ -251,21 +259,21 @@ Paths removed:
 - `internal/analyzerenvelope` (imported only by `analyzerruby` and `analyzershell`; VERIFIED).
 - `experimental/analyzers/sqlnative` (imported only by `cmd/corvint-analyzer-sql-native`;
   VERIFIED).
-- `internal/liveverify/affected/{cfamily,dotnet,java,kotlin,rust,swift}`. Importers:
-  `internal/langplugin/langplugin.go:20-36`, `internal/liveverify/affected/conformance_test.go`,
-  and each other (`java` from `kotlin.go`; `swift` from `swiftimpact` and `swfix_test.go`)
-  (VERIFIED).
-- `internal/testrunner/registry/{csharp_bodies,dotnet_artifacts,dotnet_evidence,dotnet_loaded,dotnet_mutation,dotnet_plugin,jvm_evidence,jvm_inventory,jvm_plugin,rust_evidence,rust_plugin}.go`
-  with their tests; `internal/testrunner/swiftselection` (no importer; VERIFIED);
-  `internal/testrunner/mobile` and `internal/testrunner/sql` (imported only by `registry.go`;
-  VERIFIED).
-- `internal/swiftimpact` (importers `cmd/corvint/swift_impact.go`,
-  `cmd/corvint-mcp/swift_impact.go`, `cmd/corvint-test-validity-mcp/swift_impact.go` (gone in B2),
-  `internal/contextindex/swiftpm_reader_link_test.go`; VERIFIED).
+- `internal/liveverify/affected/{cfamily,dotnet,java,rust}`. Importers:
+  `internal/langplugin/langplugin.go:20-36` and
+  `internal/liveverify/affected/conformance_test.go` (VERIFIED). `java/kotlin.go` imports the
+  Kotlin provider, not the reverse (VERIFIED at `df315e350`), so `java` goes and `kotlin` stays.
+- `internal/testrunner/registry/{csharp_bodies,dotnet_artifacts,dotnet_evidence,dotnet_loaded,dotnet_mutation,dotnet_plugin,rust_evidence,rust_plugin}.go`
+  with their tests; `internal/testrunner/sql` (imported only by `registry.go`; VERIFIED). The
+  registry files `jvm_evidence.go`, `jvm_inventory.go` and `jvm_plugin.go` go only as far as no
+  Kotlin runner needs them (NOT_VERIFIED; checked in the batch). `internal/testrunner/mobile`
+  stays if a Kotlin or Swift runner reaches it (NOT_VERIFIED; checked in the batch).
 - `internal/csharpregions` (importers `cmd/corvint-test-runner/csharp_regions.go`,
   `registry/csharp_regions_test.go`, and the B3-removed `tools/runner-*`; VERIFIED).
-- `internal/nativelinecov` (importers: registry `dotnet_evidence.go`, `jvm_evidence.go`,
-  `jvm_plugin_test.go`, `rust_evidence.go`, `swiftselection/swift_evidence.go`; VERIFIED).
+- The parts of `internal/nativelinecov` that only the removed .NET and Rust registry files reach
+  (importers: registry `dotnet_evidence.go`, `jvm_evidence.go`, `jvm_plugin_test.go`,
+  `rust_evidence.go`, and the kept `swiftselection/swift_evidence.go`; VERIFIED). The package
+  itself stays (decision 0600).
 - `internal/rustsyntax` (importers `analyzerrust`, `registry/rust_evidence.go`; VERIFIED).
 - `internal/rubysyntax` (importers `analyzerruby`, `liveverify/rbmutate`; VERIFIED).
 - `internal/shaderdialect` (importer `internal/contextindex/shader_dialect.go`; VERIFIED).
@@ -279,15 +287,16 @@ Paths removed:
 
 Files edited:
 - `internal/langplugin/langplugin.go` (imports at `:20-36`; `Providers()` registrations at
-  `:130-226` for cfamily, dotnet, java, kotlin, rust and swift, and every `SubPlugin` `Analyzers`
-  name).
+  `:130-226` for cfamily, dotnet, java and rust, and every `SubPlugin` `Analyzers` name, the
+  Kotlin and Swift ones included; the Kotlin and Swift registrations stay without their analyzer
+  paths).
 - `internal/langplugin/decl/decl.go:122-136` (language paths, including `sql`, `shader`,
   `html-css`, `structured-data`, `pymutate`, `rbmutate`; `liveverify/mutate` at `:124` stays).
 - `internal/testrunner/registry/registry.go` (removed runner names; `runnernames.go` lists
   `cargo-test`, `dotnet-*`, `gradle-junit`, `junit-platform`, `maven-surefire`, `nextest`).
-- `cmd/corvint/swift_impact.go` and `cmd/corvint-mcp/swift_impact.go` (removed with their
-  dispatch), `cmd/corvint-test-runner/csharp_regions.go`.
-- `internal/contextindex/shader_dialect.go` and `swiftpm_reader_link_test.go`.
+- `cmd/corvint-test-runner/csharp_regions.go`. `cmd/corvint/swift_impact.go` and
+  `cmd/corvint-mcp/swift_impact.go` are not touched (decision 0600).
+- `internal/contextindex/shader_dialect.go`.
 - Analyzer names in `cmd/corvint-cli/main.go:18`, `internal/cliapp/help.go:52,64,87`,
   `internal/cliprofile/profile.go:234`, `internal/releasecandidate/apps_test.go`,
   `internal/testsupport/analyzerbridgecli.go`, `tools/beamfall-shadow/*`,
@@ -299,18 +308,20 @@ Files edited:
   Rewrite the manifest's rule string, which cites decision 0594 item 8 and names analyzers, to the
   four layers (companion decision item 8). Also remove the `shared` prefixes
   `internal/rubysyntax`, `internal/rustsyntax`, `internal/shaderdialect`, the `tests` prefixes
-  `internal/csharpregions`, `internal/nativelinecov`, `internal/swiftimpact`, and the `release`
+  `internal/csharpregions` (`internal/nativelinecov` and `internal/swiftimpact` stay), and the `release`
   prefixes `cmd/corvint-go-toolchain-receipt` and `internal/toolchainreceipt` (VERIFIED present).
   No baseline edge names an analyzer package at `9ec3a29d0`.
 - `docs/CAPABILITIES.md:311` and the language specs (status lines).
 - `.github/cishards/walltime_test.go` analyzer rows go in a `.github` batch.
 
 Tests rewritten first: `internal/closureguard/candidates_test.go`,
-`internal/liveverify/affected/conformance_test.go`, `internal/contextindex/swiftpm_reader_link_test.go`,
+`internal/liveverify/affected/conformance_test.go`,
 `internal/releasecandidate/apps_test.go`, `tools/capabilities-check/main_test.go`.
 Extra proof: the RMV-V1-014 fixture test; `corvint affected --base` on a change touching a `.rs`
 file reports UNKNOWN; the shell and Go providers' tests pass unchanged (they import no analyzer,
-`nativelinecov` or `mutate` package; VERIFIED).
+`nativelinecov` or `mutate` package; VERIFIED); the Swift and Kotlin providers' tests,
+`internal/swiftimpact` and `internal/testrunner/swiftselection` tests pass unchanged, and
+`internal/closureguard/ledgers_test.go` still finds `internal/swiftimpact` linked.
 Rollback: revert. The analyzers are not recoverable from an earlier removal commit; the parent of
 B5's merge is the recovery point.
 
@@ -434,9 +445,10 @@ Checked in code at `9ec3a29d0`:
   `internal/sessiontest/plan.go:329-330` skips allowlisted unknowns, so no FULL is forced.
   The dirty-language set comes only from `language.Owns(dirty)` over the registered providers
   (`cmd/corvint/test.go:719-728`), and declared languages run only under FULL
-  (`plan.go:378-383`). After the Rust or Swift provider is removed, a `.rs` or `.swift` change under
+  (`plan.go:378-383`). After the Rust or Java provider is removed, a `.rs` or `.java` change under
   `corvint test` runs only the Go readers the Go rules select and does not run the declared `rust`
-  or `swift` command. That is a silent miss and contradicts G26's "removal fails closed".
+  or `java` command. That is a silent miss and contradicts G26's "removal fails closed". (The
+  Swift provider stays under decision 0600, so a `.swift` change keeps its owner.)
 - `corvint-test-runner` given a removed runner name fails with "unsupported runner"
   (`internal/testrunner/registry/registry.go:92,103`).
 - `docs/CAPABILITIES.md:311` says an unowned path widens to UNKNOWN; that holds for `affected`, not
@@ -490,7 +502,7 @@ test.
 | `areas.json` has five layers, the analyzers area holding 31 prefixes; no baseline edge names a removed package | VERIFIED | `tools/import-ratchet/areas.json`, `baseline.json` (19 edges) |
 | analyzer packages: only `analyzerpython`, `analyzerrust` imported outside binaries | VERIFIED | `internal/closureguard/candidates_test.go` |
 | shell and Go providers import no removed package | VERIFIED | import grep |
-| `docviews`, `breakagemap`, `cliconformance`, `unplannedread`, `scopelease`, `runnerpolicy`, `swiftselection`, `pymutate`, `rbmutate` have no importer | VERIFIED | import grep |
+| `docviews`, `breakagemap`, `cliconformance`, `unplannedread`, `scopelease`, `runnerpolicy`, `swiftselection`, `pymutate`, `rbmutate` have no importer (`swiftselection` stays anyway, decision 0600) | VERIFIED | import grep |
 | work-queue and trace chains are leaves | VERIFIED | import grep |
 | `corvint test` fails closed for removed languages | NOT TRUE today | see open item above |
 | G24 file counts (about 60 deleted, 15 edited) | NOT_VERIFIED | panel estimate |

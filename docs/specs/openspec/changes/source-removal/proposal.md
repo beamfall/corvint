@@ -104,8 +104,10 @@ checks, `.github` edits never mix with other edits, and every batch can be rever
   and `spec-toolchain-conformance.yml` (or its OCM step) go; `ci.yml`, `go-macos.yml`,
   `release-gates.yml` and `.github/cishards/*` are edited. The required-check list in the
   repository ruleset is checked before each `.github` batch lands.
-- Adopters: beamfall-apple (Swift) and beamfall-android (Kotlin) run their full declared suites
-  until a provider is rebuilt after 1.0 (G26 accepted cost). That only holds once RMV-V1-014 lands.
+- Adopters: beamfall-apple (Swift) and beamfall-android (Kotlin) keep test selection: decision 0600
+  (2026-11-16) keeps the Swift and Kotlin providers and replaces the G26 accepted cost. A
+  repository on C-family, .NET, Java or Rust runs its full declared suite, which only holds once
+  RMV-V1-014 lands.
 - Docs: `docs/CAPABILITIES.md`, `AGENTS.md` (through the companion decision), retired specs gain
   status lines, `LICENSING.md` notes.
 
