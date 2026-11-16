@@ -663,19 +663,19 @@ type shardLoad struct{ predicted, observed int64 }
 
 // shardLoads measures each shard log against the committed table (AFP-V0-604).
 // A shard's observed load is the sum of its package outcomes; its predicted load
-// is the table's cost of the same packages, the median cost for a package the
-// table lacks (as the partition places it), and, for a split package, the
-// table's whole-package cost in the observed share of its slice: slice balance
-// belongs to the AFP-V0-041 slice file, so an exact cost table is never stale.
+// is the table's cost of the same packages, the table's 90th percentile for a
+// package the table lacks (as the partition places it, V1-5086), and, for a split
+// package, the table's whole-package cost in the observed share of its slice: slice
+// balance belongs to the AFP-V0-041 slice file, so an exact cost table is never stale.
 func shardLoads(perShard []*outcomes, all *outcomes, recorded map[string]int64) []shardLoad {
 	values := make([]int64, 0, len(recorded))
 	for _, n := range recorded {
 		values = append(values, n)
 	}
 	sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
-	var median int64
+	var unpriced int64
 	if len(values) != 0 {
-		median = values[len(values)/2]
+		unpriced = values[len(values)*9/10]
 	}
 	loads := make([]shardLoad, len(perShard))
 	for i, s := range perShard {
@@ -686,7 +686,7 @@ func shardLoads(perShard []*outcomes, all *outcomes, recorded map[string]int64) 
 			loads[i].observed += max(1, s.elapsed[p])
 			cost, ok := recorded[p]
 			if !ok {
-				cost = median
+				cost = unpriced
 			}
 			if all.count[p] > 1 && all.elapsed[p] > 0 {
 				cost = cost * s.elapsed[p] / all.elapsed[p]

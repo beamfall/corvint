@@ -670,6 +670,24 @@ func TestSTRV0056RefreshRetainsDatedTables(t *testing.T) {
 	}
 }
 
+// TestV15086ShardBalancePricesUnpricedAsPlaced: the AFP-V0-604 prediction prices a package
+// the table lacks at the table's 90th percentile, as the partition places it, not at its
+// median. The table's median is 1 s and its 90th percentile 100 s; the unpriced package's
+// shard is predicted at 100 s.
+func TestV15086ShardBalancePricesUnpricedAsPlaced(t *testing.T) {
+	table := write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/a":1000,"example.org/b":1000,"example.org/c":1000,"example.org/d":100000}}`)
+	shard0 := write(t, "shard-0.json", passed("example.org/new", "100"))
+	shard1 := write(t, "shard-1.json", passed("example.org/d", "100"))
+	summary := write(t, "summary.md", "")
+	if code, err := run("check", []string{"--table", table, "--advisory", "--shards", "2", "--summary", summary, shard0, shard1}, new(bytes.Buffer)); code != 0 || err != nil {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+	got, _ := os.ReadFile(summary)
+	if want := "| 0 | 100.0s | 100.0s |"; !strings.Contains(string(got), want) {
+		t.Fatalf("summary lacks %q:\n%s", want, got)
+	}
+}
+
 // TestAFPV0604ShardBalanceStaleTrigger proves the advisory report flags a stale
 // table when the slowest shard exceeds the ideal shard by the material share and
 // its prediction by as much, reports every shard's balance in the summary, and
