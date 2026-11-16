@@ -22,6 +22,12 @@
 // by more than --factor, that the table is missing, or that the table still
 // lists but the run did not execute.
 //
+// refresh --parallel N (1 to 64, default 1) declares the `go test -p` the source shards
+// ran at; above 1 the table records it as its source parallel, and the planner prices
+// shards at no more than that parallelism (AFP-V0-2181 part 7, V1-5086). A table without
+// it is a -p 1 measurement. --history retains only -p 1 tables: `corvint test shards
+// --durations` takes the median of the retained times, which a -p N time would skew.
+//
 //	ci-shard-costs refresh ... --history DIR [--keep N] [--at TIME] shard0.log ...
 //
 // --history (STR-V0-056) also retains the refreshed table, byte for byte, as
@@ -104,6 +110,7 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 	history := fs.String("history", "", "refresh: retain the refreshed table in this directory (STR-V0-056)")
 	keep := fs.Int("keep", defaultKeep, "refresh --history: retained tables to keep, 1 to 64")
 	at := fs.String("at", "", "refresh --history: retention time, RFC 3339 in UTC (default now)")
+	parallel := fs.Int("parallel", 1, "refresh: go test -p the source shards ran at, 1 to 64 (V1-5086)")
 	if err := fs.Parse(args); err != nil {
 		return 2, nil
 	}
@@ -111,7 +118,8 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	if (mode != "refresh" && mode != "check") || fs.NArg() == 0 || !(*factor >= 1) || math.IsInf(*factor, 0) || *floor < 0 {
+	if (mode != "refresh" && mode != "check") || fs.NArg() == 0 || !(*factor >= 1) || math.IsInf(*factor, 0) || *floor < 0 ||
+		*parallel < 1 || *parallel > cishards.MaxParallel || (mode != "refresh" && *parallel != 1) || (*history != "" && *parallel != 1) {
 		return 2, errors.New("usage: ci-shard-costs refresh|check --shards N [flags] LOG...")
 	}
 	if *advisory {
@@ -161,7 +169,7 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 				}
 			}
 		}
-		raw, err := encode(observed, *revision, *runURL)
+		raw, err := encode(observed, *revision, *runURL, *parallel)
 		if err != nil {
 			return 2, err
 		}
@@ -462,10 +470,15 @@ func combine(o *outcomes, shards int, allowPath, slicesPath string) (map[string]
 // its pinned version, and any other toolchain is refused (decision 0522).
 var sourceGoVersion = runtime.Version()
 
-func encode(observed map[string]int64, revision, runURL string) ([]byte, error) {
+// encode writes the table; a source parallel above 1 is recorded, -p 1 is the absent default.
+func encode(observed map[string]int64, revision, runURL string, parallel int) ([]byte, error) {
+	source := map[string]any{"revision": revision, "runURL": runURL, "goVersion": sourceGoVersion}
+	if parallel > 1 {
+		source["parallel"] = parallel
+	}
 	raw, err := json.MarshalIndent(map[string]any{
 		"profile":      "corvint-ci-package-costs/0",
-		"source":       map[string]string{"revision": revision, "runURL": runURL, "goVersion": sourceGoVersion},
+		"source":       source,
 		"milliseconds": observed,
 	}, "", "  ")
 	if err != nil {
@@ -663,19 +676,19 @@ type shardLoad struct{ predicted, observed int64 }
 
 // shardLoads measures each shard log against the committed table (AFP-V0-604).
 // A shard's observed load is the sum of its package outcomes; its predicted load
-// is the table's cost of the same packages, the median cost for a package the
-// table lacks (as the partition places it), and, for a split package, the
-// table's whole-package cost in the observed share of its slice: slice balance
-// belongs to the AFP-V0-041 slice file, so an exact cost table is never stale.
+// is the table's cost of the same packages, the table's 90th percentile for a
+// package the table lacks (as the partition places it, V1-5086), and, for a split
+// package, the table's whole-package cost in the observed share of its slice: slice
+// balance belongs to the AFP-V0-041 slice file, so an exact cost table is never stale.
 func shardLoads(perShard []*outcomes, all *outcomes, recorded map[string]int64) []shardLoad {
 	values := make([]int64, 0, len(recorded))
 	for _, n := range recorded {
 		values = append(values, n)
 	}
 	sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
-	var median int64
+	var unpriced int64
 	if len(values) != 0 {
-		median = values[len(values)/2]
+		unpriced = values[len(values)*9/10]
 	}
 	loads := make([]shardLoad, len(perShard))
 	for i, s := range perShard {
@@ -686,7 +699,7 @@ func shardLoads(perShard []*outcomes, all *outcomes, recorded map[string]int64) 
 			loads[i].observed += max(1, s.elapsed[p])
 			cost, ok := recorded[p]
 			if !ok {
-				cost = median
+				cost = unpriced
 			}
 			if all.count[p] > 1 && all.elapsed[p] > 0 {
 				cost = cost * s.elapsed[p] / all.elapsed[p]

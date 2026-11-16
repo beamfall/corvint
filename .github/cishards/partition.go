@@ -76,6 +76,8 @@ type estimates struct {
 		Revision  string `json:"revision"`
 		RunURL    string `json:"runURL"`
 		GoVersion string `json:"goVersion"`
+		// Parallel is the `go test -p` the source shards ran at; absent means 1 (V1-5086).
+		Parallel int `json:"parallel,omitempty"`
 	} `json:"source"`
 	Milliseconds map[string]int64 `json:"milliseconds"`
 }
@@ -86,31 +88,56 @@ type estimates struct {
 // (decision 0557).
 var SourceGoVersions = map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": true, "go1.27.4": true}
 
+// weights returns the admitted cost table and its median, the price ShareOf gives an unpriced
+// package; false when the table is unusable.
 func weights(raw []byte) (map[string]int64, int64, bool) {
-	if len(raw) > 1<<20 {
+	w, values, _, ok := costTable(raw)
+	if !ok {
 		return nil, 0, false
+	}
+	return w, values[len(values)/2], true
+}
+
+// placementWeights returns the admitted cost table and the conservative price placement and
+// sizing give an unpriced package: the table's 90th percentile, never below its median (V1-5086).
+// A package the table has not measured is more often a new or slow one than a typical one, so
+// pricing it at the median let several such packages share a shard with a measured long unit and
+// overrun the wall budget.
+func placementWeights(raw []byte) (map[string]int64, int64, bool) {
+	w, values, _, ok := costTable(raw)
+	if !ok {
+		return nil, 0, false
+	}
+	return w, values[len(values)*9/10], true
+}
+
+// costTable returns the admitted table, its sorted values and the -p its source
+// shards ran at (1 when the source records none); false when it is unusable.
+func costTable(raw []byte) (map[string]int64, []int64, int, bool) {
+	if len(raw) > 1<<20 {
+		return nil, nil, 0, false
 	}
 	var e estimates
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
-	if d.Decode(&e) != nil || d.Decode(new(any)) != io.EOF || e.Profile != "corvint-ci-package-costs/0" || !SourceGoVersions[e.Source.GoVersion] || len(e.Source.Revision) != 40 || len(e.Milliseconds) == 0 || len(e.Milliseconds) > MaxPackages {
-		return nil, 0, false
+	if d.Decode(&e) != nil || d.Decode(new(any)) != io.EOF || e.Profile != "corvint-ci-package-costs/0" || !SourceGoVersions[e.Source.GoVersion] || len(e.Source.Revision) != 40 || len(e.Milliseconds) == 0 || len(e.Milliseconds) > MaxPackages || e.Source.Parallel < 0 || e.Source.Parallel > MaxParallel {
+		return nil, nil, 0, false
 	}
 	if _, err := hex.DecodeString(e.Source.Revision); err != nil {
-		return nil, 0, false
+		return nil, nil, 0, false
 	}
 	if !strings.HasPrefix(e.Source.RunURL, "https://github.com/beamfall/corvint/actions/runs/") {
-		return nil, 0, false
+		return nil, nil, 0, false
 	}
 	values := make([]int64, 0, len(e.Milliseconds))
 	for p, n := range e.Milliseconds {
 		if _, err := validate([]string{p}); err != nil || n <= 0 || n > 3000000 {
-			return nil, 0, false
+			return nil, nil, 0, false
 		}
 		values = append(values, n)
 	}
 	sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
-	return e.Milliseconds, values[len(values)/2], true
+	return e.Milliseconds, values, max(1, e.Source.Parallel), true
 }
 
 // Partition always assigns every supplied package exactly once. Estimates only
@@ -128,7 +155,7 @@ func partition(packages []string, total int, raw []byte) ([][]string, error) {
 		return nil, err
 	}
 	shards := make([][]string, total)
-	w, unknown, ok := weights(raw)
+	w, unknown, ok := placementWeights(raw)
 	if !ok {
 		for i, p := range universe {
 			shards[i%total] = append(shards[i%total], p)

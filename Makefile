@@ -1415,8 +1415,9 @@ typescript-test: interactive-alpha-test
 host-adapter-test: typescript-test
 
 # interactive-alpha-test runs the interactive-alpha process harness's own node:test suite, the one
-# node-test unit of that directory the affected graph selects (V1-5200). It needs node alone: the
-# browser cases skip without CORVINT_TEST_PLAYWRIGHT, and the installed proofs beside it are
+# node-test unit of that directory the affected graph selects (V1-5200). It needs node and
+# /usr/bin/python3, which its process-escape fixture forks; the browser cases skip without
+# CORVINT_TEST_PLAYWRIGHT, and the installed proofs beside it are
 # release-host qualification, declared as binary consumers in .corvint/test-binary-consumers.json.
 .PHONY: interactive-alpha-test
 interactive-alpha-test: ## Run the interactive-alpha process harness tests (node:test)

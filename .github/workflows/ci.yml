@@ -1814,6 +1814,21 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
           overwrite: true
+      - name: Retain -p 4 package outcomes for a -p 4 cost refresh (AFP-V0-540, V1-5086)
+        # A pull request's complete full shard keeps its contended -p 4 outcomes under a name the
+        # advisory drift report's ci-shard-costs-* pattern does not match, so a -p 1 table is
+        # never compared with them; `ci-shard-costs refresh --parallel 4` and `ci-test-slices
+        # generate --parallel 4` read them, and the table then records its source parallel.
+        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted' && github.event_name == 'pull_request'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-pr-shard-costs-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/shard-costs/shard-${{ strategy.job-index }}.json
+          if-no-files-found: ignore
+          retention-days: 3
+          overwrite: true
       - name: Mark a self-hosted shard for the advisory cost-drift report (AFP-V0-422)
         # In place of the stream a hosted shard would keep, so ci-shard-cost-drift abstains with
         # the runner as its reason instead of comparing box timings with the cloud table.
@@ -2240,15 +2255,17 @@ jobs:
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
-      - name: CI workflow helper tests (CIN-V0-8720 to CIN-V0-8723, GHA-V1-040, GHA-V1-041)
-        # Python extract-and-run tests of workflow steps and helpers under .github/forward-rows;
-        # they make no hosted request.
+      - name: CI workflow helper tests (CIN-V0-8720 to CIN-V0-8723, GHA-V1-040, GHA-V1-041, V1-5200)
+        # Python extract-and-run tests of workflow steps and helpers under .github/forward-rows,
+        # and the vscode-extension consumer gate under .github/consumers; they make no hosted
+        # request.
         working-directory: source
         run: |
           python3 -B .github/forward-rows/known-flakes_test.py
           python3 -B .github/forward-rows/go-product_test.py
           python3 -B .github/forward-rows/linecov-stale_test.py
           python3 -B .github/forward-rows/release-binaries_test.py
+          python3 -B .github/consumers/gate_test.py
       - name: Windows vet including test files (AFP-V0-042)
         # go build skips _test.go files, so a test that breaks only for GOOS=windows reached main
         # (V1-1117). Skipped only on a pull request whose merge commit provably changes no .go,
