@@ -841,3 +841,33 @@ func joinLines(list []string) string {
 	}
 	return strings.Join(list, "\n") + "\n"
 }
+
+// writeJSON, sortedKeys and firstLine serve the Go and the Ruby commands,
+// so they live in a file both qualification records bind.
+func writeJSON(file string, v any) error {
+	if file == "" {
+		return nil
+	}
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(file, append(data, '\n'), 0o644)
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func firstLine(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+	}
+	return s
+}
