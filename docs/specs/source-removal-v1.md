@@ -263,22 +263,34 @@ landed. A test SHALL prove it on a fixture repository that declares a `rust` com
 - WHEN a change touches `src/lib.rs`
 - THEN `corvint test` runs all tests and the plan names `UNOWNED_DIRTY_PATH` and the path
 
-**Scenario: Swift change after removal**
-- GIVEN beamfall-apple declares `swift` in `test-commands.json` and the Swift provider is removed
-- WHEN a change touches `Sources/App/View.swift`
-- THEN `corvint test` runs all tests, including the declared Swift command, and the plan names the
+**Scenario: Java change after removal**
+- GIVEN a fixture repository declares `java` in `test-commands.json` and the Java provider is
+  removed
+- WHEN a change touches `src/main/java/App.java`
+- THEN `corvint test` runs all tests, including the declared Java command, and the plan names the
   reason
+
+**Scenario: Swift change after B5 (decision 0600)**
+- GIVEN beamfall-apple declares `swift` in `test-commands.json` and B5 has landed
+- WHEN a change touches `Sources/App/View.swift`
+- THEN the kept Swift provider owns the path and the plan does not name `UNOWNED_DIRTY_PATH` or
+  `runner-removed` for it
 
 - `RMV-V1-015`: (proposed 2026-11-10) Languages and analyzers beyond the seven runners (G26)
 
 B5 SHALL remove all 16 `cmd/corvint-analyzer-*` binaries, the 14 `internal/analyzer*` packages,
-`internal/analyzerenvelope`, `experimental/analyzers/sqlnative`, the `cfamily`, `dotnet`, `java`,
-`kotlin`, `rust` and `swift` providers under `internal/liveverify/affected`, their registry and
-testrunner plugin files, `internal/swiftimpact`, `internal/csharpregions`,
-`internal/nativelinecov`, `internal/rustsyntax`, `internal/shaderdialect`, `internal/rubysyntax`,
+`internal/analyzerenvelope`, `experimental/analyzers/sqlnative`, the `cfamily`, `dotnet`, `java`
+and `rust` providers under `internal/liveverify/affected`, their registry and testrunner plugin
+files, `internal/csharpregions`, `internal/rustsyntax`, `internal/shaderdialect`, `internal/rubysyntax`,
 the sql-native ratchet, `cmd/corvint-go-toolchain-receipt` with `internal/toolchainreceipt`,
 `internal/liveverify/pymutate` and `internal/liveverify/rbmutate`. It SHALL keep the shell provider
-and Go. B5 SHALL also delete the `analyzers` area from `tools/import-ratchet/areas.json`, leaving
+and Go. It SHALL also keep the Swift and Kotlin providers under `internal/liveverify/affected`,
+`internal/swiftimpact` with its links in `cmd/corvint` and `cmd/corvint-mcp`,
+`internal/testrunner/swiftselection`, and every file of `internal/nativelinecov`,
+`internal/testrunner/mobile`, `internal/testrunner/native` and the registry `jvm_*.go` files that
+a kept Swift or Kotlin package still imports (decision 0600, 2026-11-16, amending G26); the
+batch's build log SHALL name each such kept file and its user. The Swift and Kotlin analyzers are
+among the 16 removed binaries. B5 SHALL also delete the `analyzers` area from `tools/import-ratchet/areas.json`, leaving
 four layers (shared; tests and docs; release), and rewrite the manifest's rule string to match
 (companion decision item 8, amending decision 0594 item 8).
 
@@ -801,14 +813,12 @@ workflow on 2026-11-12 (decision 0598, superseding D11).
 | B5 | `dotnet-affected-selection-v0.md` | DNAS-V0 |
 | B5 | `java-affected-test-v0.md` | JAT-V0 |
 | B5 | `kotlin-android-candidate-v0.md` | KA-V0 |
-| B5 | `kotlin-jvm-affected-test-v0.md` | KAT-V0 |
 | B5 | `native-jvm-bridge-analyzer-candidates-v0.md` | NJB |
 | B5 | `rust-affected-test-understanding-v0.md` | RUST-AFFECTED-V0 |
 | B5 | `rust-analyzer-candidate-v0.md` | RAC |
 | B5 | `shader-glsl-metal-analyzer-candidate-v0.md` | SHA-V0 |
 | B5 | `sql-native-ratchet-gate-v0.md` | SNR-V0 |
 | B5 | `structured-data-analyzer-candidate-v1.md` | SDA |
-| B5 | `swift-affected-test-understanding-v0.md` | SATS-V0 |
 | B5 | `swift-apple-analyzer-candidate-v0.md` | SAC |
 | B6 | `aggregate-local-outcome-v0.md` | ALO-V0 |
 | B6 | `cem-2.0-intent.md` | CEM2-V0 |
@@ -840,7 +850,7 @@ workflow on 2026-11-12 (decision 0598, superseding D11).
 | B8b | `shared-path-change-policy-v0.md` | SPC-V0 |
 
 ##### Scenario: a family retired with its batch
-- GIVEN B5 removes `internal/liveverify/affected/swift`
+- GIVEN B5 removes `internal/liveverify/affected/rust`
 - WHEN the batch lands
-- THEN `swift-affected-test-understanding-v0.md` carries a retirement status line and its
-`SATS-V0` IDs remain in `REQUIREMENTS.tsv` as history rows
+- THEN `rust-affected-test-understanding-v0.md` carries a retirement status line and its
+`RUST-AFFECTED-V0` IDs remain in `REQUIREMENTS.tsv` as history rows
