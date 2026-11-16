@@ -2653,15 +2653,21 @@ Go record is read. Ruby therefore remains **UNQUALIFIED / static** under
 LPCV-V0-963. These measured baselines and kills do not establish Ruby admission
 or current Go qualification.
 
-Ruby admission update (decision 0601, lane r1ruby): `docs/build-log/2026-11-16-r1ruby-ruby-line-admission.md`
-supersedes the Ruby state above. Line-level selection (`LPCV-V0-7605` as amended), the
+Ruby admission update (decision 0601, lane r1ruby): `docs/build-log/2026-11-16-r1ruby-review-repair.md`
+supersedes the Ruby state above and the first record of
+`docs/build-log/2026-11-16-r1ruby-ruby-line-admission.md`, whose independent review found the
+line rule unsound and the record unproven. Line-level selection (`LPCV-V0-7605` as amended), the
 `LPCV-V0-7608` record and the resumable collector (`LPCV-V0-7609`) produced complete WebMock
-indexes for Minitest (23 isolated tests) and RSpec (4,846 isolated runs; 11 files kept whole by
-2,930 unrecorded outcomes). The seed-20261116 run had 14 faults with 11 killed (Minitest 5/7, RSpec
-6/7) and 0 misses. The zero-hit control has 0 hits in every dump. It selects and kills nothing in
-Minitest. In RSpec it kills nothing, keeps 0 tests by coverage and keeps only the 4,371 tests of
-those 11 files, so it passes under `GLS-V0-032`. Ruby is **QUALIFIED** for
-`ruby 3.3.8 minitest 5.26.2` and `ruby 3.3.8 rspec 3.13.7` while
-`.github/linecov/ruby-qualification.json` binds the selector sources. Every other Ruby tuple stays
-static. None of the seven faults narrowed: six reach load-time code and one changes block
-structure.
+indexes for Minitest (23 isolated tests, every one recorded) and RSpec (4,846 isolated runs; 11
+files kept whole by 2,930 unrecorded outcomes). The seed-20261116 rerun has 20 faults and one
+control per runner, each against both complete suites, with 0 misses. Minitest kills 9 of 20,
+two of them on a selected set of 1 of 23 tests, and its zero-hit control selects and kills
+nothing: Ruby is **QUALIFIED** for `ruby 3.3.8 minitest 5.26.2` while
+`.github/linecov/ruby-qualification.json` binds the selector sources. RSpec kills 13 of 20,
+three of them on a narrowed set, with no miss, but its control keeps the 4,371 tests of those 11
+files, so under `GLS-V0-032` it has no control: `ruby 3.3.8 rspec 3.13.7` is **UNQUALIFIED**,
+the record restates its run with that reason, and admission refuses it. A zero-kept RSpec
+control is not reachable on this corpus without dropping tests that can fail: 2,927 outcomes
+reach more in suite order than alone, two `quality_spec.rb` examples read every tracked file
+through unobserved `git` children, and one example fails alone. Every other Ruby tuple stays
+static.
