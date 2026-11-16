@@ -1239,6 +1239,10 @@
       "reason": "`git ls-files` lists the cmd and internal Go file names, fixture Go files the ownership rule owns included (AZU-V0-8922)"
     },
     {
+      "runs": "script/check-host-package-versions.sh",
+      "reason": "`git log --name-only` lists every path under integrations and protocol/integrations, files the ownership rule owns included; no scoped reader exists (AZU-V0-8923)"
+    },
+    {
       "runs": "script/check-license-headers.sh",
       "reason": "`git grep` reads every tracked file outside its pathspec exclusions, which live in the script's code, so every path is selected (decision 0586; AZU-V0-8922)"
     },
@@ -1261,6 +1265,10 @@
     {
       "runs": "script/check-traceability-tests.sh",
       "reason": "perl reads every tracked Go test file, fixture test files the ownership rule owns included, beside docs/specs (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/github-split-check.sh",
+      "reason": "`git log --name-only` lists every path each lane commit changed and refuses a range that mixes .github paths with others, so any path can change its result (ASD-V0-706; AZU-V0-8923)"
     },
     {
       "runs": "script/long-lines-check.sh",

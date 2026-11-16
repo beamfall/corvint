@@ -126,10 +126,121 @@ func TestGoModSelectsEveryGoTestUnit_AZU_V0_8925(t *testing.T) {
 	}
 }
 
-// wholeTreeMarker matches a text that enumerates the tracked tree or walks
-// a directory: git ls-files or git grep in any spelling, find, rg, or a
-// Python or Go directory walk (AZU-V0-8923).
-var wholeTreeMarker = regexp.MustCompile(`ls-files|\bgit\s+(?:-C\s+\S+\s+)?grep\b|['"]git['"]\s*,\s*['"]grep['"]|\bfind\s+(?:\.|"?\$)|\brg\s|os\.walk\(|\.rglob\(|filepath\.Walk`)
+// AZU-V0-8922 (the independent review of round 2): a new change-evidence
+// file is a tracked file like any other, so its plan selects every declared
+// whole-tree reader driver: the end-of-line, binary, stray-backup and
+// tracked-ignored checks read it. The project's unbounded-reader exclusion
+// (AFP-V0-772) keeps it from the tests that locate the root, not from a
+// script that lists every tracked path.
+func TestNewChangeEvidenceSelectsTreeReaders_AZU_V0_8922(t *testing.T) {
+	graph, _ := repositoryOwnershipGraph(t)
+	marked := graph.TreeReaderDrivers()
+	if len(marked) < 20 {
+		t.Fatalf("only %d declared tree reader drivers: the check exercises too little", len(marked))
+	}
+	for _, dirty := range []string{".corvint/changes/zz.cem.json", ".corvint/changes/zz.cem.json.bak", ".corvint/change.cem.json"} {
+		plan := affected.Select(graph, []string{dirty})
+		selected := selectedSet(plan)
+		for _, target := range []string{"eol-policy-check", "binary-blobs-check", "stray-backups-check", "tracked-ignored-check"} {
+			if _, hit := selected["driver:make:Makefile#"+target]; !hit {
+				t.Errorf("%s: %s is not selected (scope %s, %d unknown)", dirty, target, plan.Scope, len(plan.Unknown))
+			}
+		}
+		var missed []string
+		for id := range marked {
+			_, target, _ := strings.Cut(id, "#")
+			if _, hit := selected[id]; !hit && target != "*" && !strings.Contains(target, "%") {
+				missed = append(missed, id)
+			}
+		}
+		slices.Sort(missed)
+		if len(missed) != 0 {
+			t.Errorf("%s: %d declared tree reader drivers are left out: %v", dirty, len(missed), missed)
+		}
+	}
+}
+
+// wholeTreeForms are the textual forms the AZU-V0-8923 guard reads as an
+// enumeration of the tracked tree or a directory walk, each with a line that
+// spells it. A file that matches one is a declared tree reader or a reasoned
+// exception. TestWholeTreeMarkerForms_AZU_V0_8923 holds the list to its
+// examples and names the forms the guard cannot see.
+var wholeTreeForms = []struct{ name, pattern, example string }{
+	{"git ls-files, any spelling", `ls-files`, `git -c core.quotePath=false ls-files -z`},
+	{"git ls-tree", `ls-tree`, `git ls-tree -r --name-only HEAD`},
+	{"git grep", `\bgit\s+(?:-C\s+\S+\s+)?grep\b`, `git -C "$root" grep -l TODO`},
+	{"git grep as an argument list", `['"]git['"]\s*,\s*['"]grep['"]`, `subprocess.run(["git", "grep", "-l", "TODO"])`},
+	{"a git listing of changed names", `--name-only|--name-status`, `git diff --name-only "$base" --`},
+	{"find over the root or a variable", `\bfind\s+(?:\.|"?\$)`, `find . -name '*.orig'`},
+	{"ripgrep", `\brg\s`, `rg -l TODO`},
+	{"recursive grep", `\bgrep\s+(?:-\S+\s+)*(?:-[A-Za-z]*[rR]|--recursive|--dereference-recursive)`, `grep -n -rl TODO .`},
+	{"recursive ls", `\bls\s+(?:-\S+\s+)*-[A-Za-z]*R`, `ls -laR`},
+	{"shell globstar", `\*\*/`, `for f in **/*.md; do :; done`},
+	{"Python os.walk", `os\.walk\(`, `for d, _, names in os.walk(root):`},
+	{"Python os.scandir", `os\.scandir\(`, `with os.scandir(root) as it:`},
+	{"Python os.listdir", `os\.listdir\(`, `for name in os.listdir(root):`},
+	{"Python glob and pathlib glob", `\bi?glob\(`, `glob.glob("**/*.md", recursive=True)`},
+	{"Python pathlib rglob", `\.rglob\(`, `root.rglob("*")`},
+	{"Python pathlib iterdir", `\.iterdir\(`, `for child in root.iterdir():`},
+	{"Go filepath.Walk and WalkDir", `filepath\.Walk`, `filepath.WalkDir(root, visit)`},
+	{"Go fs.WalkDir", `fs\.WalkDir`, `fs.WalkDir(os.DirFS(root), ".", visit)`},
+	{"Go os.ReadDir", `os\.ReadDir`, `entries, err := os.ReadDir(root)`},
+	{"Go Glob", `(?:filepath|fs)\.Glob`, `filepath.Glob(filepath.Join(root, "*"))`},
+}
+
+// wholeTreeMarker matches a text in any of wholeTreeForms.
+var wholeTreeMarker = func() *regexp.Regexp {
+	patterns := make([]string, len(wholeTreeForms))
+	for i, form := range wholeTreeForms {
+		patterns[i] = form.pattern
+	}
+	return regexp.MustCompile(strings.Join(patterns, "|"))
+}()
+
+// wholeTreeUnseen are enumerations the textual guard cannot see, each with
+// the rule that covers it instead. They are listed so that the bound of the
+// guard is a tested statement, not an assumption.
+var wholeTreeUnseen = []struct{ name, example, covered string }{
+	{"a computed command", `"$lister" -z | while read -r -d '' f; do :; done`, "a computed site is selected on every dirty path (AZU-V0-001)"},
+	{"a compiled tool run by go run", `go run ./tools/tree-audit`, "go run makes its target a whole-tree reader (AFP-V0-9401)"},
+	{"a tool on PATH that walks by itself", `shellcheck-all`, "the V1-4685 reader audit; a new one needs a treeReaders entry by hand"},
+	{"a listing read from a file", `while read -r f; do cat "$f"; done < "$manifest"`, "the manifest is a path literal, which selects the script when it changes"},
+}
+
+// AZU-V0-8923: the guard's marker covers exactly wholeTreeForms. Each form's
+// example matches through its own pattern, so a pattern edit that stops
+// seeing a form fails here; each wholeTreeUnseen example does not match, so
+// the guard's stated bound is true.
+func TestWholeTreeMarkerForms_AZU_V0_8923(t *testing.T) {
+	for _, form := range wholeTreeForms {
+		if !regexp.MustCompile(form.pattern).MatchString(form.example) {
+			t.Errorf("%s: pattern %q does not match its example %q", form.name, form.pattern, form.example)
+		}
+		if !wholeTreeMarker.MatchString(form.example) {
+			t.Errorf("%s: the marker does not match %q", form.name, form.example)
+		}
+	}
+	// The forms the round 2 review found missing.
+	for _, text := range []string{`grep -r TODO .`, `git ls-tree -r HEAD`, `git diff --name-only main`, `fs.WalkDir(tree, ".", visit)`, `glob.glob("*")`, `os.scandir(".")`} {
+		if !wholeTreeMarker.MatchString(text) {
+			t.Errorf("the marker does not match %q", text)
+		}
+	}
+	for _, unseen := range wholeTreeUnseen {
+		if wholeTreeMarker.MatchString(unseen.example) {
+			t.Errorf("%s: %q matches the marker; move it to wholeTreeForms", unseen.name, unseen.example)
+		}
+		if unseen.covered == "" {
+			t.Errorf("%s: no covering rule is named", unseen.name)
+		}
+	}
+	// No path is read by naming a file: a plain read stays unmarked.
+	for _, text := range []string{`cat docs/README.md`, `grep -n TODO docs/README.md`, `ls -la script`, `git diff --exit-code -- docs/specs/REQUIREMENTS.tsv`} {
+		if wholeTreeMarker.MatchString(text) {
+			t.Errorf("the marker matches the plain read %q", text)
+		}
+	}
+}
 
 // wholeTreeException is one driver-run file that matches wholeTreeMarker but
 // reads no path the ownership rule owns. scope, when set, is every owner
@@ -145,23 +256,31 @@ type wholeTreeException struct {
 // reads the content or the name of every tracked path is a treeReaders entry
 // instead.
 var wholeTreeExceptions = map[string]wholeTreeException{
-	".github/forward-rows/collect.sh":     {nil, "find runs over the downloaded artifact directory, never the repository"},
-	"script/acceptance-log-audit.sh":      {[]string{"docs/specs/openspec/changes/**"}, "find lists the change folders under docs/specs/openspec/changes"},
-	"script/batch-regen.sh":               {nil, "git ls-files lists only untracked files, to report what the regeneration wrote"},
-	"script/check-ci-least-privilege.sh":  {[]string{".github/workflows/*.yml", ".github/workflows/*.yaml"}, "git ls-files lists the workflow files; its exception table is a named path"},
-	"script/check-decision-numbers.sh":    {[]string{"docs/decisions/**"}, "git ls-files lists docs/decisions"},
-	"script/check-spec-claims.sh":         {[]string{"docs/specs/**"}, "git ls-files lists docs/specs"},
-	"script/check-test-script-refs.sh":    {[]string{"**/*_test.sh"}, "git ls-files lists the shell tests"},
-	"script/gate-receipt":                 {nil, "git ls-files -v reads the index flags, which no path edit changes, and lists ignored Go files"},
-	"script/gen-documentation-paths.sh":   {[]string{"docs/*.md", "integrations/README.md", "integrations/*/README.md", "AGENTS.md", "CLAUDE.md", "internal/nativelinecov/README.md", "internal/runnerprotocol/README.md", "tools/runner-plugin/README.md", "tools/runner-reference/README.md"}, "git ls-files lists the documentation paths it generates the declaration from"},
-	"script/gen-spec-requirements.sh":     {[]string{"docs/specs/**"}, "git ls-files lists docs/specs; its one other input is a path literal, which selects it"},
-	"script/go-archive-gate":              {nil, "find counts the files of its temporary release directory"},
-	"script/go-cache-trim.sh":             {nil, "find walks the Go build cache outside the repository"},
-	"script/heavy.sh":                     {nil, "a command runner: it lists untracked files and walks its own output and copied worktree to ship them; the reads are its command's, which the command's own driver models"},
-	"script/release-checklist":            {nil, "git ls-files tests three named legacy paths"},
-	"script/requirement-id-collisions.sh": {nil, "git grep appears only in a printed note"},
-	"script/scratch-sweep.sh":             {nil, "find and git ls-files walk scratch worktrees outside the repository"},
-	"script/spec-requirements-resolve.sh": {[]string{"docs/specs/REQUIREMENTS.tsv", "docs/specs/INDEX.json", "docs/specs/README.md"}, "git grep reads the three generated spec files for conflict markers"},
+	".github/forward-rows/collect.sh":            {nil, "find runs over the downloaded artifact directory, never the repository"},
+	"script/acceptance-log-audit.sh":             {[]string{"docs/specs/openspec/changes/**"}, "find lists the change folders under docs/specs/openspec/changes"},
+	"script/analyzer-inputs.sh":                  {nil, "git diff --name-only lists go.mod, go.sum and the audited internal Go files that differ from a revision; its one caller in a recipe, the analyzer schema check, prints the list as a note that never changes the exit status"},
+	"script/batch-assemble.sh":                   {nil, "git merge-tree --name-only prints the conflicted paths of the lane merges it assembles: the result of merging other branches, never a read of this tree"},
+	"script/batch-regen.sh":                      {nil, "git ls-files lists only untracked files, to report what the regeneration wrote"},
+	"script/batch-review-packet.sh":              {nil, "git diff --name-only lists the paths each first-parent merge of the reviewed range changed, to print the overlap table of a review packet: it reads the range's history, judges nothing, and no path changes its exit status"},
+	"script/check-ci-least-privilege.sh":         {[]string{".github/workflows/*.yml", ".github/workflows/*.yaml"}, "git ls-files lists the workflow files; its exception table is a named path"},
+	"script/check-decision-numbers.sh":           {[]string{"docs/decisions/**"}, "git ls-files lists docs/decisions"},
+	"script/check-spec-claims.sh":                {[]string{"docs/specs/**"}, "git ls-files lists docs/specs"},
+	"script/check-test-script-refs.sh":           {[]string{"**/*_test.sh"}, "git ls-files lists the shell tests"},
+	"script/doc-gates-summary.sh":                {nil, "git diff --name-only decides only whether a hint about changed help sources is printed; the exit status is the wrapped command's"},
+	"script/gate-receipt":                        {nil, "git ls-files -v reads the index flags, which no path edit changes, and lists ignored Go files"},
+	"script/gen-documentation-paths.sh":          {[]string{"docs/*.md", "integrations/README.md", "integrations/*/README.md", "AGENTS.md", "CLAUDE.md", "internal/nativelinecov/README.md", "internal/runnerprotocol/README.md", "tools/runner-plugin/README.md", "tools/runner-reference/README.md"}, "git ls-files lists the documentation paths it generates the declaration from"},
+	"script/gen-spec-requirements.sh":            {[]string{"docs/specs/**"}, "git ls-files lists docs/specs; its one other input is a path literal, which selects it"},
+	"script/go-archive-gate":                     {nil, "find counts the files of its temporary release directory"},
+	"script/go-cache-trim.sh":                    {nil, "find walks the Go build cache outside the repository"},
+	"script/heavy.sh":                            {nil, "a command runner: it lists untracked files and walks its own output and copied worktree to ship them; the reads are its command's, which the command's own driver models"},
+	"script/lane-dispatch-check.sh":              {nil, "git ls-tree -d tests whether one directory a ticket names exists at a commit; it lists no tree"},
+	"script/release-checklist":                   {nil, "git ls-files tests three named legacy paths"},
+	"script/repin-use-case-receipts.sh":          {nil, "git diff --name-only feeds the informational list of changed paths no receipt pins (UCV0-018), which never changes the exit status or what is repinned"},
+	"script/requirement-id-collisions.sh":        {nil, "git grep appears only in a printed note"},
+	"script/review-head-check.sh":                {nil, "git diff --name-only lists what changed between a reviewed head and HEAD, both taken from the saved review the caller passes; it is a step of the Codex review flow that refuses without a review, not a check a make target or workflow job runs on the tree"},
+	"script/scratch-sweep.sh":                    {nil, "find and git ls-files walk scratch worktrees outside the repository"},
+	"script/spec-requirements-resolve.sh":        {[]string{"docs/specs/REQUIREMENTS.tsv", "docs/specs/INDEX.json", "docs/specs/README.md"}, "git grep reads the three generated spec files for conflict markers"},
+	"script/spec-requirements-worktree-check.sh": {[]string{"docs/specs/**"}, "git diff --name-only lists the unstaged docs/specs files"},
 }
 
 // ownershipRulePaths returns the paths the ownership rule takes out of
@@ -195,9 +314,11 @@ func TestDriverRunWholeTreeScriptsAreDeclared_AZU_V0_8923(t *testing.T) {
 	graph, tracked := repositoryOwnershipGraph(t)
 	root := repositoryRoot(t)
 	marked := graph.TreeReaderDrivers()
+	// The declaration itself, not the marked drivers: a declared file whose
+	// drivers an earlier entry already marked is still declared.
 	declared := map[string]bool{}
-	for _, runs := range marked {
-		declared[runs] = true
+	for _, entry := range graph.DeclaredTreeReaders() {
+		declared[entry.Runs] = true
 	}
 	// covered reports a driver selected on every dirty path whatever it
 	// runs: a computed site, or a recipe that enumerates the tree itself.

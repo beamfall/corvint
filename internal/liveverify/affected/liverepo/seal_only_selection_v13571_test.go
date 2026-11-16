@@ -42,6 +42,7 @@ func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
 		}
 	}
 	withChecked := append([]string{".corvint/change.cem.json"}, sealed[:1]...)
+	treeReaders := graph.TreeReaderDrivers()
 	for _, dirty := range [][]string{sealed[:1], sealed, withChecked} {
 		plan := affected.Select(graph, dirty)
 		if plan.Scope != affected.ScopeBounded || len(plan.Unknown) != 0 {
@@ -80,8 +81,14 @@ func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
 			case affected.WitnessPathGlobReader:
 				// A make target that runs `go run` or enumerates the tree
 				// reads every path, recorded as the anchored glob "/*"
-				// (AFP-V0-9401), so it is selected on every change.
-				if selection.Kind != affected.SelectionKindDriverTarget || selection.Witness.Glob != "/*" {
+				// (AFP-V0-9401), so it is selected on every change. So is
+				// a make target or CI job that runs a declared whole-tree
+				// reader (AZU-V0-8922): the end-of-line, binary and
+				// stray-backup checks list a sealed CEM like any tracked
+				// file, and AFP-V0-772 excludes it only from the readers
+				// that locate the root at run time.
+				_, declared := treeReaders[selection.UnitID]
+				if selection.Witness.Glob != "/*" || selection.Kind != affected.SelectionKindDriverTarget && !declared {
 					t.Errorf("%s selected by %s glob %q; want a CEM reader or its dependent", selection.UnitID, selection.Witness.Kind, selection.Witness.Glob)
 				}
 			default:

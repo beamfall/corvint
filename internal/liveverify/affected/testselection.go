@@ -386,28 +386,20 @@ func (graph *Graph) resolveTreeReaders(partial bool) error {
 	return nil
 }
 
-// declaredTreeReaderSkips reports a dirty path a driver the treeReaders
-// declaration made a whole-tree reader does not read for selection: one the
-// project declares no unbounded reader reads (AFP-V0-772,
-// .corvint/unbounded-reader-exclusions.json), as it does for every other
-// unbounded reader. A recipe that enumerates the tree itself keeps its glob
-// whole (AZU-V0-8922).
-func (graph *Graph) declaredTreeReaderSkips(id, dirtyPath string) bool {
-	if _, declared := graph.treeReaderDrivers[id]; !declared {
-		return false
-	}
-	index := graph.runtimeReaderEntry(dirtyPath)
-	return index >= 0 && graph.runtimeReaders[index].NoUnboundedReaders
-}
-
 // driversRunning lists, sorted, the driver units that run owner: the make
 // targets and workflow jobs that reach it through dependents, directly or
-// through a testless script, program or driver that runs it (AZU-V0-8922).
-// An edge that exists only because a unit imports every owner under a
-// package wildcard (`go vet ./...` resolves to "...") runs no script, so
-// it is not followed unless the unit also names the file exactly
-// (runsExplicitly). A unit with tests is a leaf: what it runs, it runs on
-// the test's inputs.
+// through a script, program or driver that runs it (AZU-V0-8922). An edge
+// that exists only because a unit imports every owner under a package
+// wildcard (`go vet ./...` resolves to "...") runs no script, so it is not
+// followed unless the unit also names the file exactly (runsExplicitly).
+//
+// A wrapper that has tests is followed like one that has none: dependents
+// holds a unit's production edges, so its production file runs owner
+// whatever tests the unit carries. Only a unit made of test files alone is a
+// leaf: its edge is the test's own, and a test runs owner on its fixture,
+// not on the tree. A test that does run it over the tree is declared as a
+// tree reader itself; a declared file's own unit is the start of the walk,
+// never a leaf.
 func (graph *Graph) driversRunning(owner string) []string {
 	seen := map[string]bool{owner: true}
 	queue := []string{owner}
@@ -422,7 +414,7 @@ func (graph *Graph) driversRunning(owner string) []string {
 			seen[dependent] = true
 			if strings.HasPrefix(dependent, DriverNamespace+":") {
 				drivers = append(drivers, dependent)
-			} else if len(graph.units[dependent].Tests) != 0 {
+			} else if unit := graph.units[dependent]; len(unit.Sources) == 0 && len(unit.Tests) != 0 {
 				continue
 			}
 			queue = append(queue, dependent)
@@ -468,6 +460,15 @@ func (graph *Graph) DriversRunning(path string) []string {
 		return nil
 	}
 	return graph.driversRunning(owner)
+}
+
+// DeclaredTreeReaders lists the declared whole-tree readers in the
+// declaration's order (AZU-V0-8921); nil when there is none.
+func (graph *Graph) DeclaredTreeReaders() []TreeReader {
+	if graph.testSelection == nil {
+		return nil
+	}
+	return slices.Clone(graph.testSelection.TreeReaders)
 }
 
 // TreeReaderDrivers maps each driver the declaration made a whole-tree
