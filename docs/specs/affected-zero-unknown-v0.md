@@ -1019,23 +1019,28 @@ tree reader, a tested wrapper is followed, and the guard's marker is a tested li
   with every closed default joined in place, to a depth of 8. Make spells the shell's `$` as
   `$$`, so the recipe line `cat $${F:-data/x.txt}` makes its target's driver a reader of
   `data/x.txt` (V1-5628: the driver skipped the whole braced expansion and the target was not
-  selected for an edit of the default). Where that lexer reads no default, a word deeper than
-  the depth bound or one whose parameter is indirect (`${!N:-WORD}`), subscripted
-  (`${N[0]:-WORD}`) or special, the driver SHALL read the text with every `${` opener blanked
-  through its value operator, so the default is still a token: a default it cannot resolve
-  widens the tokens and is never dropped. The `?` forms and every other operator supply no
-  word. The rule SHALL only add tokens: the tokens of the text with every expansion blanked, as
-  the driver read them before the rule, come first and unchanged, so no driver unit loses a
-  reader and no selection narrows. Evidence: `TestDriverRecipeParameterDefaultIsRead_V1_5628`
+  selected for an edit of the default). Where that lexer leaves a default unjoined, a word
+  deeper than the depth bound or one whose parameter is indirect (`${!N:-WORD}`), subscripted
+  (`${N[0]:-WORD}`) or special, the driver SHALL also read the text with every value-supplying
+  expansion replaced by its word at any depth, its opener through the value operator and its
+  matching `}` dropped, so the default is still a token alone and composed with the text around
+  it: `cat data/${!S:-x}.txt` reads `data/x.txt`, and so does a default nested past the bound
+  and followed by a suffix. A default it cannot resolve widens the tokens and is never dropped.
+  Any other `${` opener is blanked there and its `}` kept. The `?` forms and every other
+  operator supply no word. The rule SHALL only add tokens: the tokens of the text with every
+  expansion blanked, as the driver read them before the rule, come first and unchanged, so no
+  driver unit loses a reader and no selection narrows. Evidence: `TestDriverRecipeParameterDefaultIsRead_V1_5628`
   (the six forms, a nested default, a quoted, a positional and an unclosed one, each selecting
   the make target for an edit of the default alone),
   `TestDriverPathTokensReadValueWords_AZU_V0_8927`,
   `TestDriverPathTokensKeepNonValueFormsBlank_AZU_V0_8927`,
-  `TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927`,
+  `TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927` (a bare and a suffixed default 10
+  and 24 levels deep),
   `TestDriverPathTokensOnlyAdd_AZU_V0_8927` (475255 texts, each keeping the tokens read before
   the rule as a prefix of those read now); a replay over this repository at `964535021` left
   all 250 driver units (195 of the Makefile) and the driver readers of 10540 tracked paths
-  unchanged. Rollback:
+  unchanged, and the joined read left the tokens of all 2520 texts with a `${` in the Makefile,
+  `.github/` and the shell scripts as the blanked read had them. Rollback:
   have `driverPathTokens` in `internal/liveverify/affected/driver_shell.go` return
   `driverBlankedPathTokens(text)`; the blanked tokens stay.
 

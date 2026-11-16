@@ -4,7 +4,8 @@ import "strings"
 
 // MaxValueWordDepth bounds how deep ValueWords follows a value word inside a
 // value word. The shell plugin keeps only the tokens of the blanked text for
-// a deeper word; the driver reads a deeper word flat (driverFlatValueWords).
+// a deeper word; the driver joins a deeper word in place
+// (driverJoinedValueWords).
 const MaxValueWordDepth = 8
 
 // ValueWords finds, by brace matching, the value-supplying parameter
