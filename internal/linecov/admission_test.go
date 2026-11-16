@@ -189,8 +189,8 @@ func TestRubyQualificationAdmission(t *testing.T) {
 		return QualifiedRun{Runner: runner, IndexDigest: "sha256:ix", Tests: 23, Faults: 7, Killed: 5, Selected: []int{1, 2, 3, 4, 5, 6, 7}, Controls: 1}
 	}
 	q := Qualified{Profile: "linecov-qualified/1", Family: "ruby", IndexCommit: "corpus", Runners: []string{mini, rspec},
-		Corpus: &QualifiedCorpus{URL: "https://example.invalid/webmock", Commit: "corpus", License: "MIT", LicenseSHA256: "x"},
-		Report: QualifiedReport{Digest: "sha256:fixture", Seed: 1, Mutants: 14, Killed: 10, Controls: 2, Runs: []QualifiedRun{run(mini), run(rspec)}},
+		Corpus:  &QualifiedCorpus{URL: "https://example.invalid/webmock", Commit: "corpus", License: "MIT", LicenseSHA256: "x"},
+		Report:  QualifiedReport{Digest: "sha256:fixture", Seed: 1, Mutants: 14, Killed: 10, Controls: 2, Runs: []QualifiedRun{run(mini), run(rspec)}},
 		Sources: map[string]string{}}
 	for _, p := range RubyQualifiedSources {
 		q.Sources[p] = oids[p]
