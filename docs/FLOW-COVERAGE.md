@@ -171,8 +171,11 @@ are dropped with `truncated` true and the full counts in `totals`. The MCP tool
 inputs and returns the same report (AFL-V1-003). Both reports are read-only and byte-identical for
 identical inputs; a malformed flows directory, an unsupported flows schema, an unresolvable base,
 or a malformed, oversized or other-profile receipt or evidence file is refused whole with exit 2
-(AFL-V1-005, AFL-V1-006). In the store, a record that is not a document this build reads, or whose
-tests the store cannot name, refuses the report the same way (`run-evidence-corrupt`); a record
-edited after it was written that still parses is skipped and the tests it held show reason
-`run-evidence-corrupt`
-(RVD-V1-010). The store and the named files are bounded separately, 8192 records each.
+(AFL-V1-005, AFL-V1-006). A stored record is never refused: one that was edited after it was
+written, is malformed, is of another profile or is oversized is skipped, the report exits 0 and
+names it under `run_evidence`, and every test it held shows `NOT_OBSERVED` with reason
+`run-evidence-corrupt`, even over an older stored pass, since the skipped record may be newer.
+When the store cannot name the record's tests (no readable log), every test the store would answer
+is marked so; a result from a named `--evidence` file, read after the store, still stands. `flows
+impact` marks its `last_results` the same way (RVD-V1-010). The store and the named files are
+bounded separately, 8192 records each.

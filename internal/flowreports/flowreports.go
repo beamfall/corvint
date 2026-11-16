@@ -173,11 +173,11 @@ func runImpact(ctx context.Context, root string, args []string, out io.Writer) e
 	if err != nil {
 		return &unresolvedBase{*base}
 	}
-	records, _, err := appflows.RunEvidenceFor(ctx, root, nil, *noStore)
+	records, read, err := appflows.RunEvidenceFor(ctx, root, nil, *noStore)
 	if err != nil {
 		return err
 	}
-	data, err := appflows.FlowImpactResults(ctx, root, set, resolved, records)
+	data, err := appflows.FlowImpactResults(ctx, root, set, resolved, records, read)
 	if err != nil {
 		return err
 	}
