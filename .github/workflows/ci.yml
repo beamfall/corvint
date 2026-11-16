@@ -795,22 +795,22 @@ jobs:
     # GLS-V0-042: a shard whose line-level step said NARROWED, fixed before any test runs, names
     # no tested tree either, even when its tests step kept the lists.
     outputs:
-      full0: ${{ strategy.job-index == 0 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full1: ${{ strategy.job-index == 1 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full2: ${{ strategy.job-index == 2 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full3: ${{ strategy.job-index == 3 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full4: ${{ strategy.job-index == 4 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full0: ${{ strategy.job-index == 0 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full1: ${{ strategy.job-index == 1 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full2: ${{ strategy.job-index == 2 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full3: ${{ strategy.job-index == 3 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full4: ${{ strategy.job-index == 4 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
       # AFP-V0-2791 (V1-5235): LAYERS in every shard whose layer selection said LAYERS, the only
       # route to a layer-narrowed shard; ci-tested-tree-record records no tree for such a run.
       layers: ${{ steps.layers.outputs.mode }}
