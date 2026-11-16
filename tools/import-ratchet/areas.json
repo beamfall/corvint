@@ -208,7 +208,6 @@
         "internal/mergedrivers",
         "internal/perfbudget",
         "internal/releasecandidate",
-        "internal/releasegate",
         "internal/toolchainreceipt",
         "internal/update",
         "internal/workflowshell",

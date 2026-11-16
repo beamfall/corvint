@@ -289,7 +289,7 @@ func (reading *moduleReading) referenceRow(changedPath string, reference package
 
 func (reading *moduleReading) swiftImpact(changedPath string) []rankedResult {
 	if reading.swift == nil {
-		reading.swift = buildSwiftTargetMap(reading.index, swiftPMReader)
+		reading.swift = buildSwiftTargetMap(reading.index, reading.index.swiftPMReader)
 	}
 	targets := reading.swift
 	unitID, ok := targets.unit[changedPath]
@@ -325,7 +325,7 @@ func (reading *moduleReading) swiftImpact(changedPath string) []rankedResult {
 		if !valid || !loaded {
 			continue
 		}
-		for _, imported := range swiftPMReader.ImportedModules(text) {
+		for _, imported := range reading.index.swiftPMReader.ImportedModules(text) {
 			if imported.Module == module {
 				rows = append(rows, reading.importRow(changedPath, name, imported.Line, module,
 					"imports SwiftPM target module "+module+" containing "+changedPath, "high"))

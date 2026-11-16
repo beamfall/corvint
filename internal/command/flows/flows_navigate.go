@@ -9,8 +9,6 @@ import (
 	"github.com/Beamfall/corvint/internal/appflows"
 )
 
-func init() { flowSubcommands["navigate"] = runFlowsNavigate }
-
 // NavigateHelp documents `flows navigate`; help.go appends it to flowsHelp.
 const NavigateHelp = `
 Navigation usage:

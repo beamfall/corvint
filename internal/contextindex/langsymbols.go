@@ -914,6 +914,7 @@ func normalizeLineEndings(text string) string {
 }
 
 var symbolExtractors = map[string]func(Source, string) ([]Symbol, []ExtractionNote){
+	".metal": shaderSymbols, ".hlsl": shaderSymbols, ".glsl": shaderSymbols,
 	".rs":    rustSymbols,
 	".cs":    csharpSymbols,
 	".swift": swiftSymbols,

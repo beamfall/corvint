@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/swiftimpact"
 	"io"
 	"maps"
 	"os"
@@ -275,7 +276,11 @@ func belowToplevel(declared, toplevel string) string {
 // profileRegistries binds each --tool-profile value; the empty value is the
 // default V0 registry.
 var profileRegistries = map[string]func(string) (*bridge.Registry, error){
-	"": bridge.New, toolProfileFlows: bridge.NewFlows,
+	"": func(root string) (*bridge.Registry, error) {
+		return bridge.NewWithSwiftPMReader(root, swiftimpact.Reader{})
+	}, toolProfileFlows: func(root string) (*bridge.Registry, error) {
+		return bridge.NewFlowsWithSwiftPMReader(root, swiftimpact.Reader{})
+	},
 }
 
 // extractToolProfile removes the optional, closed descendant-profile selector

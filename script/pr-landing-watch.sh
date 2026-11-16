@@ -23,7 +23,7 @@
 # Merge path closeout (ASD-V0-1922, V1-3496): the first pass that sees MERGED also runs the
 # post-merge Tasks reconcile after fetching origin/main and verifying it contains mergeCommit.oid,
 # once per PR (LANDING_RECONCILE: the corvint-tasks closeout-debt reconcile, which moved to
-# beamfall/corvint-tasks with decision 0594; unset, the pass is SKIPPED as with --no-reconcile)
+# beamfall/corvint-tasks with decision 0594; unset, runs corvint-tasks ticket closeout-debt)
 # and prints, after MERGED,
 # `RECONCILE status=N log=FILE`. Without --act it forces RECONCILE_APPLY empty (propose only);
 # with --act RECONCILE_APPLY passes through. Status 1 (debt or proposals) or 2 (refused) also
@@ -103,9 +103,8 @@ view=$("$gh" pr view "$pr" ${repo_args[@]+"${repo_args[@]}"} --json state,autoMe
 IFS=$'\t' read -r pr_state armed head merged <<< "$view"
 # reconcile_merged runs the post-merge Tasks reconcile once per merged PR (ASD-V0-1922, V1-3496).
 reconcile_merged() {
-  if (( ! reconcile )) || [[ -z ${LANDING_RECONCILE:-} ]]; then
+  if (( ! reconcile )); then
     local skipped=$state/reconcile-$pr-skipped.log why=--no-reconcile
-    ((reconcile)) && why="LANDING_RECONCILE unset"
     printf 'SKIPPED post-merge Tasks reconcile for PR %s (%s); run the corvint-tasks reconcile (beamfall/corvint-tasks) before closeout\n' "$pr" "$why" > "$skipped" || die "cannot retain skipped reconcile report $skipped; fix: choose a writable --state-dir and retry"
     printf 'RECONCILE status=SKIPPED log=%s\n' "$skipped"
     printf '%s pr=%s reconcile=skipped log=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$pr" "$skipped" >> "$alerts" || die "cannot retain skipped reconcile alert $alerts; fix: create a writable parent for --alerts and retry"
@@ -126,7 +125,12 @@ reconcile_merged() {
     printf 'merge %s is absent from origin/main; fix: retry after origin/main contains the merge\n' "$merged" >> "$log"
     status=2
   else
-    RECONCILE_APPLY=$apply "$LANDING_RECONCILE" < /dev/null >> "$log" 2>&1 || status=$?
+    if [[ -n ${LANDING_RECONCILE:-} ]]; then
+      RECONCILE_APPLY=$apply "$LANDING_RECONCILE" < /dev/null >> "$log" 2>&1 || status=$?
+    else
+      # The default is read-only: ambiguous/umbrella citations remain proposals.
+      (cd "$here/.." && "${LANDING_TASKS:-corvint-tasks}" ticket closeout-debt --ref refs/remotes/origin/main) < /dev/null >> "$log" 2>&1 || status=$?
+    fi
   fi
   # Refusals remain retryable; only a completed scan (with or without debt) is reconciled.
   ((status <= 1)) && put reconciled "$status"

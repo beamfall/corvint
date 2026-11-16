@@ -5,6 +5,7 @@ package externallive_test
 import (
 	"context"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -85,7 +86,7 @@ func TestPWPV0010KeepReportersLive(t *testing.T) {
 	defer server.Close()
 	t.Setenv("PLAYWRIGHT_JSON_OUTPUT_NAME", "reports/run.json")
 	t.Setenv("PLAYWRIGHT_JUNIT_OUTPUT_NAME", "reports/junit.xml")
-	cfg := jstestprovider.E2EConfig{
+	cfg := jstestprovider.E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config: jstestprovider.Config{
 			Dir: root, ConfigFile: filepath.Join(root, "keep.config.cjs"), TestFiles: []string{filepath.Join(root, "keep.spec.cjs")},
 			RunnerName: "playwright", RunnerVersion: pkg.Version,

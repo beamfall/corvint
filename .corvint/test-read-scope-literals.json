@@ -160,7 +160,6 @@
       "internal/pythongrammar": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/pythonsyntax": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/releasecandidate": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/releasegate": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/repoenvelope": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/requestpath": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/rootalias": "walltime_test.go replay data, not a read (bridge until ci-1107x)",

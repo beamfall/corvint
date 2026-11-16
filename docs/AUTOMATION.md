@@ -71,12 +71,12 @@ about their safety as a triggered step.
 Where each row was verified:
 
 - `affected`: profile `cmd/corvint/affected.go:41@af9fb447`; exits `cmd/corvint/affected.go:916-1008@c510c682`; its
-  refusals are emitted without the ledger recorder (`cmd/corvint/main.go:663-668@7ed11581`); help text
+  refusals are emitted without the ledger recorder (`cmd/corvint/main.go:664-669@7ed11581`); help text
   "runs no test, writes no repository state" (`cmd/corvint/help.go:527@f024c3ab`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls
   as for `affected`; envelope
-  `cmd/corvint/main.go:858@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
-  the index in memory (`cmd/corvint/main.go:730@7219f23e`) and writes no snapshot store (`.git/corvint/index`).
+  `cmd/corvint/main.go:861@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
+  the index in memory (`cmd/corvint/main.go:731@7219f23e`) and writes no snapshot store (`.git/corvint/index`).
 - 1.0 labels: `docs/specs/corvint-1.0-product-and-release-v1.md` classification table.
 - Every exit code in the table was also observed: 0 in the worked example and 2 from `affected` and `impact` given a short base.
 
@@ -91,10 +91,10 @@ as part of that dated run.
 
 Corvint sets no whole-command timeout on these steps. Some internal Git steps carry their own
 deadline and fail the command when it expires: the index build and the range-impact diff use 30 s
-(`internal/contextindex/git.go:27@e8c8d0ea`, `internal/contextindex/index.go:334@c925936b`,
+(`internal/contextindex/git.go:27@e8c8d0ea`, `internal/contextindex/index.go:335@c925936b`,
 `internal/contextindex/range_impact.go:124@c925936b`), and `affected` reads `git status` under 10 s
 (`internal/liveverify/affected/dirty.go:37@bb3abea6`, `internal/liveverify/affected/dirty.go:53@d3f19770`). Otherwise
-the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1097@5434511f`,
+the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1100@5434511f`,
 `cmd/corvint/signals_unix.go:11-12@4a4dfd65`); the exit code a signal produces is not documented here
 (unknown). The automation host must set its own step timeout. No timeout has been qualified; 5
 minutes per step is a suggestion that leaves more than 20 times the loaded measurements as

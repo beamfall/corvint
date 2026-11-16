@@ -192,7 +192,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint-ruby-test-provider` | experimental companion | Ships in bundle `/3` (`CRB-V0-020`); preview RSpec provider (`LPCV-V0-090..095`), usage smoke only, RSpec execution not qualified. |
 | `corvint-release-candidate`, `corvint-release-install` | Core | Core candidate assembly and install (`PUB-V0-022..026`). |
 | `corvint-companion-release`, `corvint-public-release-check` | retired 2026-11-09 (decision 0594) | Deleted with the companion bundle; the Core source archive and stable readers moved to `internal/corerelease`. |
-| `corvint-release-gate`, `corvint-pulse` | retired 2026-11-06 (V1-4747 AC3) | Deleted: no caller. `internal/releasegate` stays for the hostile-regression row. |
+| `corvint-release-gate`, `corvint-pulse` | retired 2026-11-06 (V1-4747 AC3) | Deleted: no caller. `internal/releasegate` retired with V1-4805; the hostile-regression row uses `internal/update`. |
 | `corvint-test`, `corvint-tests-accept`, `corvint-behavior-falsify`, `corvint-playwright-minimize` | retired 2026-11-09 (decision 0593) | Deleted with the E2E proof lab. |
 | `corvint-web-flows`, `corvint-work-queue` | experimental | Prototypes with proposed or experimental specs. |
 | `corvint-console`, `corvint-dashboard-snapshot`, `corvint-gateway`, `corvint-intake`, `corvint-remote-provider`, `corvint-corpus-*`, `corvint-postmerge-*` | retired 2026-11-09 (decision 0594) | Deleted with the hosted surfaces. |
