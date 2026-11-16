@@ -2621,3 +2621,16 @@ fallback, the latter required by LPCV-V0-7605), and no RSpec index was produced
 Go record is read. Ruby therefore remains **UNQUALIFIED / static** under
 LPCV-V0-963. These measured baselines and kills do not establish Ruby admission
 or current Go qualification.
+
+Ruby admission update (decision 0601, lane r1ruby): `docs/build-log/2026-11-16-r1ruby-ruby-line-admission.md`
+supersedes the Ruby state above. Line-level selection (`LPCV-V0-7605` as amended), the
+`LPCV-V0-7608` record and the resumable collector (`LPCV-V0-7609`) produced complete WebMock
+indexes for Minitest (23 isolated tests) and RSpec (4,846 isolated runs; 11 files kept whole by
+2,930 unrecorded outcomes). The seed-20261116 run had 14 faults with 11 killed (Minitest 5/7, RSpec
+6/7) and 0 misses. The zero-hit control has 0 hits in every dump. It selects and kills nothing in
+Minitest. In RSpec it kills nothing, keeps 0 tests by coverage and keeps only the 4,371 tests of
+those 11 files, so it passes under `GLS-V0-032`. Ruby is **QUALIFIED** for
+`ruby 3.3.8 minitest 5.26.2` and `ruby 3.3.8 rspec 3.13.7` while
+`.github/linecov/ruby-qualification.json` binds the selector sources. Every other Ruby tuple stays
+static. None of the seven faults narrowed: six reach load-time code and one changes block
+structure.
