@@ -141,9 +141,12 @@ type LanguagePlan struct {
 	RecordedTests               map[string][]string
 	Index, Base, Head, Language string
 	Runner                      string // the index runner identity admission checks
-	Scope                       string
-	GateEligible                bool
-	Reason                      string
+	// Unordered names the files the index keeps whole whatever the change
+	// (a test without an isolated record, LPCV-V0-962).
+	Unordered    []string
+	Scope        string
+	GateEligible bool
+	Reason       string
 	// Admission is the Ruby admission outcome: "admitted" or the refusal.
 	// Fallback is the candidate's static-fallback reason, if any.
 	Admission, Fallback                        string `json:",omitempty"`
@@ -253,7 +256,7 @@ func languageDecide(ctx context.Context, root string, ix *linecov.Index, languag
 	if err != nil {
 		return LanguagePlan{}, err
 	}
-	p := LanguagePlan{Index: ix.Commit, Base: base, Head: head, Language: language, Runner: ix.Runner, Scope: "user", Reason: "coverage-collector-unqualified", Effective: map[string]linecov.PackagePlan{}}
+	p := LanguagePlan{Index: ix.Commit, Base: base, Head: head, Language: language, Runner: ix.Runner, Unordered: ix.Unordered, Scope: "user", Reason: "coverage-collector-unqualified", Effective: map[string]linecov.PackagePlan{}}
 	if static == nil {
 		tracked, err := output(root, "git", "ls-files")
 		if err != nil {
