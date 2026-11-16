@@ -1412,7 +1412,11 @@ ASD-V0-770, ASD-V0-772):
   `~/lanes/tt-verify-<commit>-<start>.log`. The last line is the verdict:
   `tt-verify commit=SHA rc=N secs=N ok=N fail=PKGS timeout=PKGS log=PATH`, where `timeout` lists
   the packages go test killed at its timeout, apart from ordinary failures. Cite that line and the
-  log path in the PR.
+  log path in the PR. Exit codes: 0 verify passed; 1 verify failed, with make's own status in the
+  verdict's `rc` field; 2 usage, or the argument is not a commit in the checkout; 3 the worktree or
+  lock file could not be set up; 5 no `flock` or no pinned toolchain; 6 another run is live. A
+  TERM sent to the helper alone takes effect when `make` returns; stop a run by signalling its
+  process group.
 
 ## 15. In-lane subagents and test-writing rules (V1-3253, V1-3259)
 

@@ -236,9 +236,16 @@ last=${out##*$'\n'}
 # An ordinary failure and a timeout kill are reported apart, each naming its package.
 bad=$(ttcommit 1 'ok  \texample/a\t1.0s\n--- FAIL: TestX (0.01s)\nFAIL\texample/b\t2.0s\npanic: test timed out after 10m0s\n\trunning tests:\nFAIL\texample/store\t600.0s\nFAIL\n')
 out=$(ttrun "$bad" 2>&1); rc=$?
-[[ $rc == 2 && ${out##*$'\n'} == *" rc=2 "*" ok=1 fail=example/b timeout=example/store log="* ]] || fail "tt-verify fail verdict rc=$rc: $out"
+[[ $rc == 1 && ${out##*$'\n'} == *" rc=2 "*" ok=1 fail=example/b timeout=example/store log="* ]] || fail "tt-verify fail verdict rc=$rc: $out"
 [[ $out == *'--- FAIL: TestX'* ]] || fail "tt-verify does not show the failing test: $out"
 [[ $(ls "$tt/lanes"/tt-verify-*.log | wc -l) -eq 2 ]] || fail 'tt-verify did not keep one log per run'
+# go test's outer kill of a test binary counts as a timeout too.
+quit=$(ttcommit 1 'ok  \texample/a\t1.0s\n*** Test killed with quit: ran too long (11m0s).\nFAIL\texample/store\t660.0s\nFAIL\n')
+out=$(ttrun "$quit" 2>&1); rc=$?
+[[ $rc == 1 && ${out##*$'\n'} == *" fail=none timeout=example/store log="* ]] || fail "tt-verify quit-kill verdict rc=$rc: $out"
+# A registration whose tree is already gone does not block the next run for that commit.
+git -C "$tt/repo" worktree add -q --detach "$tt/lanes/tt-verify-$short.wt" "$good" && /bin/rm -r "$tt/lanes/tt-verify-$short.wt"
+expect 0 "commit=$short rc=0" -- ttrun "$good"
 # A host without the pinned toolchain is refused before make runs.
 printf '#!/bin/sh\necho go1.0.0\n' > "$tt/bin/go"
 expect 5 'the Makefile wants go9.9.9' -- ttrun "$good"
@@ -258,6 +265,11 @@ if ((real_flock)); then
   touch "$tt/lanes/release"; wait
   [[ $(cat "$tt/first.rc") == 0 ]] || fail "tt-verify first run rc $(cat "$tt/first.rc"): $(cat "$tt/first.out")"
   [[ ! -e $tt/lanes/tt-verify-$sshort.wt ]] || fail 'tt-verify first run left its worktree'
+  # A process the verify leaves running does not keep the host locked after the run ends.
+  printf 'WANT_GO := go9.9.9\nverify:\n\t@(sleep 5 > /dev/null 2>&1 &); cat out.txt\n' > "$tt/repo/Makefile"
+  leak=$(ttcommit 0 'ok  \texample/a\t1.0s\n')
+  expect 0 ' rc=0 ' -- ttrun "$leak"
+  expect 0 ' rc=0 ' -- ttrun "$leak"
 else
   expect 5 'flock is not installed' -- env PATH=/usr/bin:/bin TT_REPO="$tt/repo" TT_LANES="$tt/lanes" "$script/lane-host-tt-verify.sh" "$good"
 fi

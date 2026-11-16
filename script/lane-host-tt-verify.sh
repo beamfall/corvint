@@ -13,8 +13,8 @@
 # `fail` lists the packages whose tests failed and `timeout` those go test killed at its timeout;
 # each is `none` when empty.
 #
-# Exit: make verify's status; 2 usage or not a commit; 3 worktree; 5 no flock or no pinned
-# toolchain; 6 another run is live.
+# Exit: 0 verify passed; 1 verify failed (the verdict's rc field keeps make's own status); 2 usage
+# or not a commit; 3 worktree; 5 no flock or no pinned toolchain; 6 another run is live.
 # Environment: TT_REPO (default ~/projects/corvint-tasks), TT_LANES (default ~/lanes).
 set -u
 [ $# -eq 1 ] || { echo "usage: tt-verify.sh COMMIT" >&2; exit 2; }
@@ -34,12 +34,15 @@ echo "commit=$S pid=$$ start=$(date +%T)" > "$D/tt-verify.owner"
 W="$D/tt-verify-$S.wt"
 L="$D/tt-verify-$S-$(date +%Y%m%dT%H%M%S).log"
 cleanup() {
-  cd / && git -C "$R" worktree remove --force "$W" 2> /dev/null
+  cd / || true
+  git -C "$R" worktree remove --force "$W" 2> /dev/null || [ ! -e "$W" ] || echo "tt-verify: could not remove $W; remove it by hand" >&2
   : > "$D/tt-verify.owner"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 # A tree left by a killed run is cleared here, under the lock, so it is never a live run's tree.
+# The prune drops a registration whose directory is already gone.
+git -C "$R" worktree prune
 [ ! -e "$W" ] || git -C "$R" worktree remove --force "$W" || { echo "tt-verify: cannot clear $W" >&2; exit 3; }
 git -C "$R" worktree add -q --detach "$W" "$C" || { echo "tt-verify: cannot add worktree $W" >&2; exit 3; }
 cd "$W" || exit 3
@@ -58,15 +61,18 @@ fi
 
 echo "tt-verify commit=$C go=$(GOTOOLCHAIN=local go env GOVERSION 2> /dev/null) load=$(cut -d' ' -f1-3 /proc/loadavg 2> /dev/null) start=$(date +%T)" | tee "$L"
 t0=$(date +%s)
-if [ -x script/heavy.sh ]; then script/heavy.sh make verify >> "$L" 2>&1; rc=$?
-else make verify >> "$L" 2>&1; rc=$?; fi
+# make and everything it starts run without the lock descriptor, so a process that outlives the
+# run cannot keep the host locked.
+if [ -x script/heavy.sh ]; then script/heavy.sh make verify >> "$L" 2>&1 9>&-; rc=$?
+else make verify >> "$L" 2>&1 9>&-; rc=$?; fi
 secs=$(($(date +%s) - t0))
 
-# A package whose FAIL line follows go test's timeout panic was killed by the timeout; report it
-# apart from ordinary failures.
-timeouts=$(awk '/^panic: test timed out after/ {t=1} /^FAIL\t/ { if (t) print $2; t=0 }' "$L" | sort -u | paste -sd, -)
-fails=$(awk '/^panic: test timed out after/ {t=1} /^FAIL\t/ { if (!t) print $2; t=0 }' "$L" | sort -u | paste -sd, -)
+# A package whose FAIL line follows go test's timeout panic, or its outer kill of a binary that
+# ignored the panic, was killed by the timeout; report it apart from ordinary failures.
+timeouts=$(awk '/^panic: test timed out after|^\*\*\* Test killed/ {t=1} /^FAIL\t/ { if (t) print $2; t=0 }' "$L" | sort -u | paste -sd, -)
+fails=$(awk '/^panic: test timed out after|^\*\*\* Test killed/ {t=1} /^FAIL\t/ { if (!t) print $2; t=0 }' "$L" | sort -u | paste -sd, -)
 grep -E '^(--- FAIL|panic:)' "$L" | cut -c1-200 | head -20
 [ "$rc" -eq 0 ] || tail -n 6 "$L" | cut -c1-240
 echo "tt-verify commit=$S rc=$rc secs=$secs ok=$(grep -c '^ok' "$L") fail=${fails:-none} timeout=${timeouts:-none} log=$L" | tee -a "$L"
-exit "$rc"
+[ "$rc" -eq 0 ] || exit 1
+exit 0
