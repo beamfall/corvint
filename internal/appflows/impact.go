@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -26,8 +27,10 @@ type ImpactReport struct {
 	ChangedPaths []string    `json:"changed_paths"`
 	Graph        ImpactGraph `json:"graph"`
 	// ReachUnknown lists the changed paths whose reach cannot be resolved, by the reach rule of
-	// change affected-plan-kinds; with any, every flow is named with reason reach-unknown
-	// (AFL-V1-007). Absent when every path resolved.
+	// change affected-plan-kinds: those with no owning unit in the impact graph, or every changed
+	// path when a link target has none (the graph then names each such target as
+	// LINK_TARGET_UNOWNED). With any, every flow is named with reason reach-unknown (AFL-V1-007).
+	// Absent when every path resolved.
 	ReachUnknown []string     `json:"reach_unknown,omitempty"`
 	Flows        []ImpactFlow `json:"flows"`
 }
@@ -71,6 +74,10 @@ type ImpactHit struct {
 // ImpactDirtyWorktree is the graph unknown reason of an impact report built from a worktree that
 // differs from HEAD.
 const ImpactDirtyWorktree = "DIRTY_WORKTREE"
+
+// ImpactLinkTargetUnowned is the graph unknown reason of a link target with no owning unit in the
+// impact graph: its language has no adapter, or it no longer exists (AFL-V1-007).
+const ImpactLinkTargetUnowned = "LINK_TARGET_UNOWNED"
 
 // FlowImpactAt is the `flows impact` pipeline shared by the CLI verb and the MCP tool: it diffs the
 // resolved base commit against HEAD, builds the impact graph over every supported language, marks the
@@ -131,9 +138,13 @@ func FlowImpact(ctx context.Context, root string, set IntentSet, base string, gr
 		report.Graph.Unknown = append(report.Graph.Unknown, u.Reason+": "+u.Detail)
 	}
 	changedBy := changedUnits(graph, plan.Dirty)
-	report.ReachUnknown = unresolvedReach(graph, plan.Dirty, set, links)
+	var unowned []string
+	report.ReachUnknown, unowned = unresolvedReach(graph, plan.Dirty, set, links)
 	if len(report.ReachUnknown) != 0 {
 		report.Graph.Scope = affected.ScopeUnknown
+	}
+	for _, target := range unowned {
+		report.Graph.Unknown = append(report.Graph.Unknown, ImpactLinkTargetUnowned+": "+target)
 	}
 	for _, intent := range set.Flows {
 		hits := []ImpactHit{}
@@ -153,27 +164,54 @@ func FlowImpact(ctx context.Context, root string, set IntentSet, base string, gr
 }
 
 // unresolvedReach lists, sorted, the changed paths whose reach cannot be resolved (AFL-V1-007, by
-// the reach rule of change affected-plan-kinds): a path with no owning unit in the impact graph
-// that no link of the set targets. Such a path may reach any flow through an edge the graph does
-// not hold, so it is never dropped as unrelated. A flow's own intent file and the flow declaration
-// are flow inputs, not application code, and are left out.
-func unresolvedReach(graph *affected.Graph, changed []string, set IntentSet, links []EvaluatedLink) []string {
-	targets := map[string]bool{}
-	for _, l := range links {
-		targets[l.Target.Path] = true
-	}
-	unknown := []string{}
+// the reach rule of change affected-plan-kinds), and the link targets that leave it unresolved.
+// Reach is resolved only through owning units of the impact graph, so two cases have none:
+//
+//   - A changed path with no owning unit, whether or not a link targets it: it may reach any flow
+//     through an edge the graph does not hold, so it is never dropped as unrelated, and a link
+//     that targets it resolves that one link only.
+//   - A link target with no owning unit (its language has no adapter, or it no longer exists):
+//     what it imports is unknown, so no changed path's reach to it can be resolved, and every
+//     changed path is listed with the targets named.
+//
+// The flow inputs (flowInput) are not application code and are left out; with only those changed
+// nothing is listed.
+func unresolvedReach(graph *affected.Graph, changed []string, set IntentSet, links []EvaluatedLink) (paths, targets []string) {
+	var code, unowned []string
 	for _, p := range changed {
-		if _, owned := graph.OwnerOf(p); owned || targets[p] || p == FlowsDeclarationPath || set.Dir != "" && strings.HasPrefix(p, set.Dir+"/") {
+		if flowInput(set, p) {
 			continue
 		}
-		unknown = append(unknown, p)
+		code = append(code, p)
+		if _, owned := graph.OwnerOf(p); !owned {
+			unowned = append(unowned, p)
+		}
 	}
-	slices.Sort(unknown)
-	if len(unknown) == 0 {
-		return nil
+	if len(code) == 0 {
+		return nil, nil
 	}
-	return unknown
+	for _, l := range links {
+		if l.Target.Path == "" {
+			continue
+		}
+		if _, owned := graph.OwnerOf(l.Target.Path); !owned {
+			targets = append(targets, l.Target.Path)
+		}
+	}
+	if len(targets) != 0 {
+		return sortedSet(code), sortedSet(targets)
+	}
+	if len(unowned) == 0 {
+		return nil, nil
+	}
+	return sortedSet(unowned), nil
+}
+
+// flowInput reports a path the flow readers own, not application code: the flow declaration, or
+// a .json file directly in the intents directory (a flow's intent, present or deleted,
+// retired.json or origins.json). Any other file under that directory is not one.
+func flowInput(set IntentSet, p string) bool {
+	return p == FlowsDeclarationPath || set.Dir != "" && path.Dir(p) == set.Dir && strings.HasSuffix(strings.ToLower(p), ".json")
 }
 
 // reachUnknownFlow names a flow when reach is unknown (AFL-V1-007): every variation

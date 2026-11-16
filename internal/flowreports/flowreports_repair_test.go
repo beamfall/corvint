@@ -106,6 +106,42 @@ func TestAFLV1006StoreRecordRefusedWhole_V15623(t *testing.T) {
 	})
 }
 
+// RVD-V1-010 (review note N1): a test title may itself hold " @" (a Playwright tag such as
+// "pays @smoke"), and the store names a held test as its key, then " @" and the project when it
+// has one. The test a skipped record held is still marked run-evidence-corrupt, with and without
+// a project in the held name, and a record held for another project marks nothing.
+func TestRVDV1010CorruptMarkKeepsATaggedTitle_V15623(t *testing.T) {
+	const tagged = "checkout.spec.ts > pays @smoke"
+	retitle := func(intent *appflows.FlowIntent) {
+		for index := range intent.Links {
+			if intent.Links[index].Target.TestKey == checkoutKey {
+				intent.Links[index].Target.TestKey = tagged
+			}
+		}
+	}
+	for name, c := range map[string]struct {
+		held   string
+		marked bool
+	}{
+		"held with its project":    {tagged + " @chromium", true},
+		"held with no project":     {tagged, true},
+		"held for another project": {tagged + " @firefox", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fx := newShop(t, retitle)
+			plant(t, fx.root, strings.Repeat("c", 64), ingested(t, tagged, fx.head, fx.tree, "passed"), []string{c.held})
+			r, _ := status(t, fx.root)
+			got := row(t, r, "checkout", "checkout.basic")
+			if len(got) != 1 || got[0].TestKey != tagged || got[0].Result != appflows.ResultNotObserved {
+				t.Fatalf("the tagged test's row: %+v", got)
+			}
+			if marked := got[0].Reason == runevidence.ReasonCorrupt; marked != c.marked {
+				t.Fatalf("held %q: row reason %q, want marked %v", c.held, got[0].Reason, c.marked)
+			}
+		})
+	}
+}
+
 // testLink is a declared test link of a variation, reviewed at anchor ("" leaves it unreviewed).
 func testLink(from, path, key, anchor string) appflows.FlowLink {
 	return appflows.FlowLink{From: from, Basis: "declared", Target: appflows.LinkTarget{Type: "test", Path: path, TestKey: key}, ReviewedAt: anchor}
