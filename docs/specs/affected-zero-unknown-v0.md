@@ -916,6 +916,77 @@ lanes and external full-suite/mutation observations at every historical revision
   it replayed all eight. Rollback: drop the retry; the replay then needs a binary that predates
   AFP-V0-9730.
 
+### Ownership-rule readers (lane r1replay, V1-4685)
+
+Experimental under the owner's standing lane auto-accept (orchestrator round 2 of lane r1replay,
+2026-11-16). The V1-4685 reader audit
+(`docs/build-log/2026-11-16-r1replay-ownership-replay-complete.md`) found units that read, run or
+compile a path the AZU-V0-002/AZU-V0-8900 ownership rule takes out of `unknown` and that the plan
+of that path alone did not select: Python tests (class N1), a make target whose script reads a
+parameter default (N2), whole-tree content checks (W) and the Go units that compile from `go.mod`
+(G). These requirements close each class at head; where a reader set cannot be named, the path
+stays unknown.
+
+- **AZU-V0-8920: Parameter-default paths are shell reads.** The shell plugin SHALL keep, as path
+  tokens, the word of a value-supplying parameter expansion: `${NAME:-WORD}`, `${NAME-WORD}`,
+  `${NAME:=WORD}`, `${NAME=WORD}`, `${NAME:+WORD}` and `${NAME+WORD}`, for a name, a positional
+  parameter, `@` or `*`. The word is the value the expansion takes, so
+  `file=${1:-conformance/divergence-register.md}` reads the register. The `?` forms (an error
+  message) and every other operator keep blanking the expansion. Tokens only add selections; a
+  testless script that reads such a path still carries the read to the drivers that run it
+  (AFP-V0-2992). Evidence: `TestParameterDefaultFormsAreTokens_AZU_V0_8920`,
+  `TestParameterDefaultPathSelectsItsMakeTarget_AZU_V0_8920`. Rollback: drop the
+  `valueExpansion` rewrite in `internal/liveverify/affected/shell/shell.go`.
+- **AZU-V0-8921: Declared whole-tree readers.** `.corvint/test-selection.json` MAY carry
+  `treeReaders`, a strictly ascending list of at most 64 `{runs, reason}` entries, under the new
+  profile `corvint-test-selection/2` only. `runs` is a repository file in the AFP-V0-160 grammar
+  outside `.corvint/` (no directory), and `reason` is 1 to 200 bytes of printable text. A
+  `corvint-test-selection/0` file is read exactly as before and refuses `treeReaders`, so every
+  1.x planner reads a /0 file unchanged, and a planner that predates `treeReaders` refuses a /2
+  file with `unsupported-affected-graph` instead of planning without them. The value skips /1,
+  the version of the runner's selection expectation (TRE-V0-021). A full build SHALL refuse an
+  entry whose file no unit owns or that no driver runs; a partial build skips it. The entries are
+  part of the graph digest; a /0 file keeps its digest. Evidence:
+  `TestTreeReaderDeclarationRefusals_AZU_V0_8921`, `TestCMPV1003TestSelectionFileContract`.
+  Rollback: return the file to /0 without `treeReaders`; the drivers then stay unselected for
+  data paths, as before.
+- **AZU-V0-8922: Whole-tree reader drivers.** Every driver unit that runs a declared file, directly
+  or through a testless script, program or driver that runs it, SHALL become a whole-tree reader
+  driver: it gains the AFP-V0-9401 tree-read glob, so it is a `PATH_GLOB_READER` of every dirty
+  path and its driver dependents follow (AFP-V0-9402). An edge that exists only because a unit
+  imports every owner under a package wildcard (`go vet ./...`) runs no script and is not
+  followed; a unit with tests is a leaf. A path the project declares no unbounded reader reads
+  (AFP-V0-772, `.corvint/unbounded-reader-exclusions.json`) is not read by a declared tree
+  reader either; a recipe that enumerates the tree itself keeps its whole glob. Selection is
+  conservative: a script's own exclusions live in its code, so every other path selects it.
+  Evidence: `TestDeclaredTreeReaderSelectsItsDrivers_AZU_V0_8922`. Rollback: as AZU-V0-8921.
+- **AZU-V0-8923: Whole-tree script guard.** A repository test SHALL fail when a testless file that
+  a driver runs (and that no computed site or tree-enumerating recipe already covers) matches the
+  whole-tree marker (`git ls-files`, `git grep`, `find .`, `rg`, a Python or Go directory walk)
+  and is neither a declared tree reader nor a reasoned exception. An exception with a scope SHALL
+  fail when any tracked path in the scope is an ownership-rule path. Whether a program reads
+  every tracked file is undecidable in general, so the bounded guard is textual: a computed
+  command or compiled tool stays with `go run`'s AFP-V0-9401 rule, computed sites and the reader
+  audit. Evidence: `TestDriverRunWholeTreeScriptsAreDeclared_AZU_V0_8923`.
+- **AZU-V0-8924: Ownership-rule namer guard.** A repository test SHALL fail when a tracked test or
+  driver-run script spells, outside a comment or a `//corvint:fixture-path` line, a repository
+  path of two or more components that the ownership rule takes out of unknown, and the plan of
+  that path alone neither selects nor reaches the test's unit, or does not select every runnable
+  driver that runs the script, unless a reasoned exception names the file. A lone file name and a
+  path assembled from parts stay with the reader rules and the audit. Evidence:
+  `TestOwnedPathNamersAreReached_AZU_V0_8924`.
+- **AZU-V0-8925: `go.mod` owns every Go test unit.** The `go.mod` owner SHALL name every top-level
+  directory that holds a Go test unit of the root module: `go.mod` sets the module path, the
+  language version and every dependency version, so each Go unit compiles from it. A repository
+  test SHALL fail when the plan of `go.mod` alone leaves out a Go unit with tests. Evidence:
+  `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925`.
+- **AZU-V0-8926: Miss-class regressions.** The plan of each audited path alone SHALL select its
+  reader: `.github/cishards/package-costs.json` both Python tests that read it (N1, by owner),
+  `conformance/divergence-register.md` `dr-numbers-check` (N2),
+  `internal/mcp/cli/testdata/tools-list-default.golden.jsonl` and `benchmarks/README.md` the
+  whole-tree content checks (W), and `go.mod` every Go test unit (G). Evidence:
+  `TestOwnershipReaderMissClasses_AZU_V0_8926`, `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925`.
+
 ## Non-goals
 
 - No requirement here may drop a reached, reading, executing, importing or embedding unit. Every
@@ -1183,6 +1254,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 |---|---|---|
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
+| AZU-V0-8920 to AZU-V0-8926 | V1-4685 | `TestParameterDefaultFormsAreTokens_AZU_V0_8920`, `TestParameterDefaultPathSelectsItsMakeTarget_AZU_V0_8920`, `TestTreeReaderDeclarationRefusals_AZU_V0_8921`, `TestDeclaredTreeReaderSelectsItsDrivers_AZU_V0_8922`, `TestDriverRunWholeTreeScriptsAreDeclared_AZU_V0_8923`, `TestOwnedPathNamersAreReached_AZU_V0_8924`, `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925`, `TestOwnershipReaderMissClasses_AZU_V0_8926`; head proof over the 160 audited paths in `docs/build-log/2026-11-16-r1replay-ownership-replay-complete.md` |
 | AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
 | AZU-V0-003 | V1-4686 | AZU-V0-212: `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`, `TestFrontierSiteRecordIsComplete_TJAA_V0_1161` (frontierSites count equals the recorded sites), `TestFrontierDirections_TJAA_V0_1161`; one-file TypeScript probe in `docs/build-log/2026-11-09-frontier.md` |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestRawStringJoinRetainsUnknown_AZU_V0_8901`, `TestConstructedDirectoryRetainsUnknown_AZU_V0_8901` (raw formatted paths, split separators, trailing-slash joins and backticks without format markers), `TestConstructedBasenameSpellings_AZU_V0_8901` (shared root/nested substitution, quote, format, concatenation and join matrix; known callers remain selected), `TestNormalizedJoinRetainsUnknown_AZU_V0_8901` (normalized literal components and unresolved suffixes retain UNKNOWN), `TestTraversalJoinRetainsUnknown_AZU_V0_8901` (an unresolved intermediate ancestor operand cancels an unrelated prefix; integrated selection retains UNKNOWN and known callers), `TestTraversalJoinSuffixBounds_AZU_V0_8901` (only a fixed non-shell suffix proves exclusion; shell suffixes, partial suffixes and cleaned components retain uncertainty, grouped or not, and a suffix on one branch of a conditional or boolean expression proves nothing), `TestGroupedSuffixJoinRetainsUnknown_AZU_V0_8901` (an undeclared `name + (".sh")` caller retains UNKNOWN), `TestNormalizedJoinBounds_AZU_V0_8901`, `TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901` (two declared scripts share a directory; embedded Python with an escaped basename retains UNKNOWN and known caller selection), `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904`, `TestInboundRevisionRejectsInvalidSnapshots_AZU_V0_8904` (invalid base with valid HEAD and invalid HEAD retain changed-declaration uncertainty) |
