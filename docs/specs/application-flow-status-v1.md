@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-16
 Requirement prefix: `AFL-V1`
 Intent status: proposed (change `flows-status-report`, rewritten 2026-11-09; V1-5623)
-Delivery status: not-started
+Delivery status: experimental
 Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/flows-status-report/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/application-flow-status/spec.md`),
@@ -15,9 +15,9 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/flows-status-re
 
 ## Agent digest
 - Claim: `corvint flows status` and `flows impact` run in `corvint` alone, report each flow's tests and last recorded result, and match the MCP flow tools.
-- Status: proposed (change `flows-status-report`, rewritten 2026-11-09; V1-5623) / not-started
-- Exists: the report logic in `internal/appflows` (`FlowStatusFrom`, `FlowImpactResults`, `FlowGaps`) and the `corvint mcp --tool-profile flows` tools; the command entry is in the `corvint-docs` command group.
-- Blocked on: nothing outside the change.
+- Status: proposed (change `flows-status-report`, rewritten 2026-11-09; V1-5623) / experimental
+- Exists: `internal/flowreports` (the three reports, served by `corvint flows`), `appflows.ReadResults` and `FlowStatus`, the `corvint mcp` flow tools, and the `corvint-docs docs pages` group.
+- Blocked on: the release-workflow smoke job (FSV-V1-007, a separate lane); owner acceptance of the intent.
 - Read next: Requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
@@ -42,7 +42,7 @@ writers recorded it; any other test is `NOT_OBSERVED` (invariant 2).
 
 Requirement IDs are stable. Each requirement keeps the change's text.
 
-- `AFL-V1-001`: (proposed 2026-11-09; V1-5623; delivery not-started) One native report per flow and variation
+- `AFL-V1-001`: (proposed 2026-11-09; V1-5623; delivery experimental) One native report per flow and variation
 
 Source: G5, G11. `corvint flows status` MUST run with `corvint` installed alone and MUST report,
 for each flow and variation in `.corvint/flows.json`, the tests tied to it by accepted, non-stale
@@ -53,7 +53,7 @@ link records, plus the `unassigned` count of the E2E inventory.
 - WHEN the user runs `corvint flows status`
 - THEN the report lists both flows, their variations and their linked tests
 
-- `AFL-V1-002`: (proposed 2026-11-09; V1-5623; delivery not-started) Results only from named writers
+- `AFL-V1-002`: (proposed 2026-11-09; V1-5623; delivery experimental) Results only from named writers
 
 Source: G5, G24. The report MUST take a test result only from a `corvint-test-run/0` receipt
 written by `corvint test` or from a `test-run-evidence/0` file written by `flows ingest`, MUST show
@@ -64,7 +64,7 @@ its source commit.
 - WHEN the receipt covers one linked test and not another
 - THEN the first shows its outcome and the second shows `NOT_OBSERVED`
 
-- `AFL-V1-003`: (proposed 2026-11-09; V1-5623; delivery not-started) The MCP tool returns the same report
+- `AFL-V1-003`: (proposed 2026-11-09; V1-5623; delivery experimental) The MCP tool returns the same report
 
 Source: G5; owner decision R30 (2026-11-09). `corvint.flows.status` on `corvint mcp` MUST return the
 same records as the command for the same inputs, and its tool name, input schema, output profile and
@@ -74,7 +74,7 @@ error codes MUST match its row in the table of change `mcp-tool-table`.
 - WHEN the command and the tool run on the same inputs
 - THEN both return byte-identical report bodies
 
-- `AFL-V1-004`: (proposed 2026-11-09; V1-5623; delivery not-started) `--base` matches `flows impact`
+- `AFL-V1-004`: (proposed 2026-11-09; V1-5623; delivery experimental) `--base` matches `flows impact`
 
 Source: G5, G6. With `--base FULL_SHA`, the report MUST contain exactly the flows and variations
 that `corvint flows impact` reports as touched for the same base and head.
@@ -83,7 +83,7 @@ that `corvint flows impact` reports as touched for the same base and head.
 - WHEN a change touches one route of one flow
 - THEN the report and `flows impact` name the same single flow and variation
 
-- `AFL-V1-005`: (proposed 2026-11-09; V1-5623; delivery not-started) Bounded, read-only and deterministic
+- `AFL-V1-005`: (proposed 2026-11-09; V1-5623; delivery experimental) Bounded, read-only and deterministic
 
 Source: invariant 4. The report MUST be bounded with a stable order, truncation marker and totals,
 MUST write nothing, and MUST be byte-identical for identical inputs.
@@ -92,7 +92,7 @@ MUST write nothing, and MUST be byte-identical for identical inputs.
 - WHEN the command runs twice on the same inputs
 - THEN both outputs are byte-identical and `git status` shows no change
 
-- `AFL-V1-006`: (proposed 2026-11-09; V1-5623; delivery not-started) Invalid input is refused whole
+- `AFL-V1-006`: (proposed 2026-11-09; V1-5623; delivery experimental) Invalid input is refused whole
 
 Source: G5, invariant 2. A malformed, oversized or unknown-profile flow file, receipt or evidence
 file MUST produce a typed refusal with exit 2 and MUST NOT produce a partial report.
@@ -101,7 +101,7 @@ file MUST produce a typed refusal with exit 2 and MUST NOT produce a partial rep
 - WHEN `.corvint/flows.json` declares profile `corvint-flows/9`
 - THEN the command exits 2 with a typed refusal naming the profile
 
-- `AFL-V1-007`: (proposed 2026-11-09; V1-5623; delivery not-started) `flows impact` is native
+- `AFL-V1-007`: (proposed 2026-11-09; V1-5623; delivery experimental) `flows impact` is native
 
 Source: G5 (docs F2). `corvint flows impact --base FULL_SHA` MUST run with `corvint` installed
 alone, computing the touched flows and variations and their linked tests on the shared flow model
@@ -124,7 +124,7 @@ smoke test with `corvint-docs` absent, and the APK-V0-007 comparison test. Rollb
 commit; `runFlowsShim` again forwards `flows impact` to `corvint-docs`, and APK-V0-007 returns to
 blocked.
 
-- `AFL-V1-008`: (proposed 2026-11-09; V1-5623; delivery not-started) One docs command group before 1.0
+- `AFL-V1-008`: (proposed 2026-11-09; V1-5623; delivery experimental) One docs command group before 1.0
 
 Source: R42 (panel pick) B4 (docs-mcp finding 20). The three look-alike docs command families,
 `docs flows generate` / `docs flows check`, `flows docs` / `flows docs maintain` and
@@ -151,14 +151,14 @@ the old names return as the only names.
 
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
-| AFL-V1-001 | 3 | not started | not produced |
-| AFL-V1-002 | 4 | not started | not produced |
-| AFL-V1-003 | 7 | not started | not produced |
-| AFL-V1-004 | 6 | not started | not produced |
-| AFL-V1-005 | 3 | not started | not produced |
-| AFL-V1-006 | 3 | not started | not produced |
-| AFL-V1-007 | 5 | not started | not produced |
-| AFL-V1-008 | 7a | not started | not produced |
+| AFL-V1-001 | 3 | `internal/flowreports` (`Run`, `runStatus`), dispatched natively by `runFlowsShim` in `cmd/corvint/flows_shim.go`; `appflows.FlowStatus` (`internal/appflows/status.go`) with the provider's `inventory` and `unassigned`; `corvint-docs flows status` refuses with `MovedReportRefusal` | `TestAFLV1001StatusListsFlowsVariationsAndTests_V15623` (`internal/flowreports`), `TestAFLV1001StatusUnassignedFromProvider_V15623` (`internal/command/flows`), `TestAFLV1001V1007ReportsRunWithCorvintAlone_V15623` (`cmd/corvint`), `TestAFLV1007MovedReportsNameCorvint_V15623` (`cmd/corvint-docs`); `tools/flows-smoke --binary` PASS with `corvint` alone |
+| AFL-V1-002 | 4 | `appflows.ReadResults` in `internal/appflows/runstore.go`, the one appflows file that reaches the store (RVD-V1-011), over the store's receipt reader (RVD-V1-006); `granularity` and `result_sources` in `application-flow-status/0`; `matchesTarget` joins a file-level receipt row to a title link of its file | `TestAFLV1002NoSourceIsNotObserved_V15623`, `TestAFLV1002ReceiptGivesFileLevelOutcome_V15623`, `TestAFLV1002IngestedAndStaleResults_V15623` (`internal/flowreports`), `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`) |
+| AFL-V1-003 | 7 | `callFlowsStatus` in `internal/mcp/bridge/flows.go` on the same readers, with the `provider` input; the `corvint.flows_status` row of `internal/capcatalog/mcp.go` names `corvint flows status` | `TestAFLV1003V1007ToolsReturnTheCommandReports_V15623` (`internal/flowreports`), `TestMTTV1009NativeFlowReportToolsMatchCLI` (`cmd/corvint`), `TestV15255V15257FlowsToolsMatchCLIVerbs` (`internal/command/flows`) |
+| AFL-V1-004 | 6 | `appflows.FlowStatus` keeps exactly the flows and variations `FlowImpactAt` names | `TestAFLV1004BaseMatchesFlowsImpact_V15623` (the APK-V0-007 comparison) |
+| AFL-V1-005 | 3 | `appflows.FlowStatus` (stable order, `MaxStatusTests`, `truncated`, `totals`); no writer on the path | `TestAFLV1005RepeatedRunIsByteIdenticalAndReadOnly_V15623`, `TestV15257StatusBound` |
+| AFL-V1-006 | 3 | `refuseUnreadableFlows` and `Run` in `internal/flowreports`; `ReadResults` refuses a malformed, oversized or other-profile file | `TestAFLV1006InvalidInputRefusedWhole_V15623`, `TestFSVV1005FlowReportsRefuseWithoutPartialOutput_V15410` |
+| AFL-V1-007 | 5 | `runImpact` in `internal/flowreports`; `corvint-docs flows impact` refuses with the notice; `corvint.flows_impact` kept | `TestAFLV1001V1007ReportsRunWithCorvintAlone_V15623`, `TestAFLV1003V1007ToolsReturnTheCommandReports_V15623`, `TestAFLV1007MovedReportsNameCorvint_V15623`, `TestAFLV1004BaseMatchesFlowsImpact_V15623` |
+| AFL-V1-008 | 7a | `cmd/corvint-docs/docs_pages.go` (`resolveDocsPages`, `docsPagesHelp`); names in the change's design | `TestAFLV1008OldNamesAreAliasesWithANotice_V15623`, `TestAFLV1008HelpListsOneGroup_V15623` (help text compared with the authored topic) |
 
 ## Rollback
 

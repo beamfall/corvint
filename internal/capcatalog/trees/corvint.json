@@ -660,7 +660,7 @@
       "command": "corvint flows status",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] flows status --flows DIR [--receipt FILE]... [--evidence FILE]... [--provider FILE] [--no-store] [--base SHA]"
+        "corvint [--root PATH] flows status --flows DIR [--evidence FILE]... [--provider FILE] [--no-store] [--base SHA]"
       ],
       "flags": [
         "--base",
@@ -668,7 +668,6 @@
         "--flows",
         "--no-store",
         "--provider",
-        "--receipt",
         "--root"
       ],
       "required": [

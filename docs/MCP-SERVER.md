@@ -204,7 +204,6 @@ Each flow at HEAD, its variations, attached tests and the last recorded result o
 - Input `evidence`: Repository-relative test evidence files to join to the flows.
 - Input `flows`: Repository-relative directory holding the flow intent files.
 - Input `provider`: Repository-relative E2E selection provider file whose inventory gives the unassigned count.
-- Input `receipts`: Repository-relative corvint-test-run/0 receipts written by corvint test.
 - Output profile: `application-flow-status/0`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
 - Parity test: `corvint TestMTTV1009NativeFlowReportToolsMatchCLI`

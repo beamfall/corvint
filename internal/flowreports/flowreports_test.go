@@ -19,6 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
+	"github.com/Beamfall/corvint/internal/runevidence"
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
@@ -205,6 +206,16 @@ func ingested(t *testing.T, key, commit, tree string, outcome string) []byte {
 	return line
 }
 
+// record appends one run document to the repository's run evidence store, as corvint test does
+// for every receipt it writes (RVD-V1-004).
+func record(t *testing.T, root string, document []byte) {
+	t.Helper()
+	gitDir := git(t, root, "rev-parse", "--absolute-git-dir")
+	if _, err := (runevidence.Store{Dir: runevidence.Locate(gitDir)}).Append(document); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func file(t *testing.T, name string, data []byte) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), name)
@@ -238,8 +249,8 @@ func TestAFLV1001StatusListsFlowsVariationsAndTests_V15623(t *testing.T) {
 	}
 }
 
-// AFL-V1-002: no result source at all: every result NOT_OBSERVED, exit 0, and the sources it
-// looked at are listed: the empty store and the absent default receipt.
+// AFL-V1-002: no result source at all: every result NOT_OBSERVED, exit 0, and the source it
+// looked at is listed with no records; with --no-store the store is listed as not read.
 func TestAFLV1002NoSourceIsNotObserved_V15623(t *testing.T) {
 	fx := newShop(t)
 	r, _ := status(t, fx.root)
@@ -248,23 +259,22 @@ func TestAFLV1002NoSourceIsNotObserved_V15623(t *testing.T) {
 			t.Fatalf("%v: %+v", key, got)
 		}
 	}
-	want := []appflows.ResultSource{{Kind: appflows.SourceStore, State: appflows.SourceRead}, {Kind: appflows.SourceReceipt, Path: appflows.DefaultReceiptLabel, State: appflows.SourceAbsent}}
-	if !slices.Equal(r.ResultSources, want) {
+	if want := []appflows.ResultSource{{Kind: appflows.SourceStore, State: appflows.SourceRead}}; !slices.Equal(r.ResultSources, want) {
 		t.Fatalf("result_sources %+v, want %+v", r.ResultSources, want)
 	}
 	r, _ = status(t, fx.root, "--no-store")
-	if len(r.ResultSources) != 2 || r.ResultSources[0].State != appflows.SourceSkipped || r.ResultSources[1].State != appflows.SourceSkipped {
-		t.Fatalf("--no-store sources %+v", r.ResultSources)
+	if want := []appflows.ResultSource{{Kind: appflows.SourceStore, State: appflows.SourceSkipped}}; !slices.Equal(r.ResultSources, want) {
+		t.Fatalf("--no-store sources %+v, want %+v", r.ResultSources, want)
 	}
 }
 
-// AFL-V1-002: a corvint test receipt names a test file; its outcome reaches the title link of that
-// file with granularity file, never as a per-title result, and the test the receipt does not
-// cover stays NOT_OBSERVED. The default receipt is read the same way.
+// AFL-V1-002: a corvint test receipt names a test file; once corvint test has recorded it, its
+// outcome reaches the title link of that file with granularity file, never as a per-title result,
+// and the test the receipt does not cover stays NOT_OBSERVED.
 func TestAFLV1002ReceiptGivesFileLevelOutcome_V15623(t *testing.T) {
 	fx := newShop(t)
-	named := file(t, "test-run.json", receipt(t, fx.head, fx.tree, "FAIL", "e2e/checkout.spec.ts"))
-	r, _ := status(t, fx.root, "--no-store", "--receipt", named)
+	record(t, fx.root, receipt(t, fx.head, fx.tree, "FAIL", "e2e/checkout.spec.ts"))
+	r, _ := status(t, fx.root)
 	got := row(t, r, "checkout", "checkout.basic")
 	if len(got) != 1 || got[0].TestKey != checkoutKey || got[0].Result != "failed" || got[0].Granularity != "file" || got[0].Stale ||
 		got[0].SourceCommit != fx.head || got[0].Authority != appflows.AuthorityLocallyObserved {
@@ -273,22 +283,20 @@ func TestAFLV1002ReceiptGivesFileLevelOutcome_V15623(t *testing.T) {
 	if other := row(t, r, "search", "search.basic"); other[0].Result != appflows.ResultNotObserved {
 		t.Fatalf("search is not in the receipt: %+v", other)
 	}
-	if last := r.ResultSources[len(r.ResultSources)-1]; last != (appflows.ResultSource{Kind: appflows.SourceReceipt, Path: named, State: appflows.SourceRead, Records: 1}) {
-		t.Fatalf("receipt source %+v", last)
+	if want := []appflows.ResultSource{{Kind: appflows.SourceStore, State: appflows.SourceRead, Records: 1}}; !slices.Equal(r.ResultSources, want) {
+		t.Fatalf("result_sources %+v, want %+v", r.ResultSources, want)
 	}
-	gitDir := git(t, fx.root, "rev-parse", "--absolute-git-dir")
-	write(t, filepath.Join(gitDir, "corvint"), map[string]string{"test-run.json": string(receipt(t, fx.head, fx.tree, "PASS", "e2e/search.spec.ts"))})
-	r, _ = status(t, fx.root)
-	if got := row(t, r, "search", "search.basic"); got[0].Result != "passed" || got[0].Granularity != "file" {
-		t.Fatalf("search from the default receipt: %+v", got)
+	if r.RunEvidence == nil || r.RunEvidence.Records != 1 {
+		t.Fatalf("run_evidence %+v", r.RunEvidence)
 	}
-	if r.ResultSources[1] != (appflows.ResultSource{Kind: appflows.SourceReceipt, Path: appflows.DefaultReceiptLabel, State: appflows.SourceRead, Records: 1}) {
-		t.Fatalf("default receipt source %+v", r.ResultSources)
+	if r, _ = status(t, fx.root, "--no-store"); row(t, r, "checkout", "checkout.basic")[0].Result != appflows.ResultNotObserved {
+		t.Fatalf("--no-store read the recorded receipt")
 	}
 }
 
 // AFL-V1-002: an ingested Playwright result names the title itself (granularity test), and a
-// result recorded at another commit is stale with its source commit.
+// result recorded at another commit is stale with its source commit. A named --evidence file is
+// read after the store, so its newer record wins over a stored run.
 func TestAFLV1002IngestedAndStaleResults_V15623(t *testing.T) {
 	fx := newShop(t)
 	baseTree := git(t, fx.root, "rev-parse", fx.b+"^{tree}")
@@ -300,27 +308,38 @@ func TestAFLV1002IngestedAndStaleResults_V15623(t *testing.T) {
 	if got := row(t, r, "search", "search.basic"); got[0].Result != "failed" || !got[0].Stale || got[0].SourceCommit != fx.b || got[0].SourceTree != baseTree {
 		t.Fatalf("stale: %+v", got)
 	}
-	// Named receipts are read before named evidence files, so the evidence record is the newest.
-	named := file(t, "receipt.json", receipt(t, fx.head, fx.tree, "PASS", "e2e/search.spec.ts"))
-	r, _ = status(t, fx.root, "--no-store", "--evidence", evidence, "--receipt", named)
-	if got := row(t, r, "search", "search.basic"); got[0].Result != "failed" || !got[0].Stale {
-		t.Fatalf("named --evidence files come after --receipt files: %+v", got)
+	if last := r.ResultSources[len(r.ResultSources)-1]; last != (appflows.ResultSource{Kind: appflows.SourceEvidence, Path: evidence, State: appflows.SourceRead, Records: 2}) {
+		t.Fatalf("evidence source %+v", last)
+	}
+	record(t, fx.root, receipt(t, fx.head, fx.tree, "PASS", "e2e/search.spec.ts"))
+	if got := row(t, mustStatus(t, fx.root), "search", "search.basic"); got[0].Result != "passed" || got[0].Granularity != "file" || got[0].Stale {
+		t.Fatalf("the recorded run at HEAD: %+v", got)
+	}
+	r, _ = status(t, fx.root, "--evidence", evidence)
+	if got := row(t, r, "search", "search.basic"); got[0].Result != "failed" || !got[0].Stale || got[0].Granularity != "test" {
+		t.Fatalf("a named --evidence file is read after the store: %+v", got)
 	}
 }
 
-// AFL-V1-006: a malformed, oversized or other-profile receipt or evidence file, or an unknown
-// flow-file profile, is one typed refusal with exit 2 and no partial report.
+func mustStatus(t *testing.T, root string) appflows.StatusReport {
+	t.Helper()
+	r, _ := status(t, root)
+	return r
+}
+
+// AFL-V1-006: a malformed, oversized or other-profile evidence file, or an unknown flow-file
+// profile, is one typed refusal with exit 2 and no partial report.
 func TestAFLV1006InvalidInputRefusedWhole_V15623(t *testing.T) {
 	fx := newShop(t)
 	oversized := bytes.Repeat([]byte(" "), appflows.MaxBytes+1)
 	for name, args := range map[string][]string{
-		"malformed receipt":     {"--receipt", file(t, "bad.json", []byte("{not json"))},
-		"other profile receipt": {"--receipt", file(t, "other.json", []byte(`{"profile":"corvint-affected/1"}`))},
-		"ingested as receipt":   {"--receipt", file(t, "runs.jsonl", ingested(t, checkoutKey, fx.head, fx.tree, "passed"))},
-		"oversized receipt":     {"--receipt", file(t, "big.json", oversized)},
-		"missing receipt":       {"--receipt", filepath.Join(t.TempDir(), "absent.json")},
-		"malformed evidence":    {"--evidence", file(t, "bad.jsonl", []byte("{}\n"))},
-		"unknown flag":          {"--registry", "runs/registry.json"},
+		"malformed evidence":   {"--evidence", file(t, "bad.jsonl", []byte("{not json\n"))},
+		"incomplete evidence":  {"--evidence", file(t, "empty.jsonl", []byte("{}\n"))},
+		"receipt as evidence":  {"--evidence", file(t, "test-run.json", receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"))},
+		"oversized evidence":   {"--evidence", file(t, "big.jsonl", oversized)},
+		"missing evidence":     {"--evidence", filepath.Join(t.TempDir(), "absent.jsonl")},
+		"unknown flag":         {"--registry", "runs/registry.json"},
+		"receipt is no option": {"--receipt", file(t, "test-run2.json", receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"))},
 	} {
 		code, out, diagnostic := report(t, fx.root, "status", append([]string{"--flows", "flows", "--no-store"}, args...)...)
 		if code != 2 || out != "" || !strings.Contains(diagnostic, `"code":"invalid-arguments"`) {
@@ -340,13 +359,13 @@ func TestAFLV1006InvalidInputRefusedWhole_V15623(t *testing.T) {
 // AFL-V1-005: two runs on the same inputs print the same bytes and write nothing.
 func TestAFLV1005RepeatedRunIsByteIdenticalAndReadOnly_V15623(t *testing.T) {
 	fx := newShop(t)
-	named := file(t, "test-run.json", receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"))
+	evidence := file(t, "runs.jsonl", ingested(t, checkoutKey, fx.head, fx.tree, "passed"))
 	before := git(t, fx.root, "status", "--porcelain", "--ignored")
 	gitDir := git(t, fx.root, "rev-parse", "--absolute-git-dir")
 	if _, err := os.Stat(filepath.Join(gitDir, "corvint")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("fixture already has %s/corvint", gitDir)
 	}
-	for _, args := range [][]string{{"--receipt", named}, {"--base", fx.b}} {
+	for _, args := range [][]string{{"--evidence", evidence}, {"--base", fx.b}} {
 		_, first := status(t, fx.root, args...)
 		_, second := status(t, fx.root, args...)
 		if first != second {
@@ -401,7 +420,8 @@ func TestAFLV1004BaseMatchesFlowsImpact_V15623(t *testing.T) {
 // return the command's report body: the same canonical bytes for the same inputs.
 func TestAFLV1003V1007ToolsReturnTheCommandReports_V15623(t *testing.T) {
 	fx := newShop(t)
-	write(t, fx.root, map[string]string{"runs/test-run.json": string(receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"))})
+	record(t, fx.root, receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"))
+	write(t, fx.root, map[string]string{"runs/runs.jsonl": string(ingested(t, searchKey, fx.head, fx.tree, "failed"))})
 	registry, err := bridge.NewFlows(fx.root)
 	if err != nil {
 		t.Fatal(err)
@@ -413,7 +433,7 @@ func TestAFLV1003V1007ToolsReturnTheCommandReports_V15623(t *testing.T) {
 	if !listed[bridge.ToolFlowsStatus] || !listed[bridge.ToolFlowsImpact] {
 		t.Fatalf("the flows profile does not list %s and %s: %v", bridge.ToolFlowsStatus, bridge.ToolFlowsImpact, listed)
 	}
-	// The command runs from the root, so the relative receipt path names the same file.
+	// The command runs from the root, so the relative evidence path names the same file.
 	t.Chdir(fx.root)
 	for _, test := range []struct {
 		tool      string
@@ -422,7 +442,7 @@ func TestAFLV1003V1007ToolsReturnTheCommandReports_V15623(t *testing.T) {
 		args      []string
 	}{
 		{bridge.ToolFlowsStatus, map[string]any{"flows": "flows"}, "status", []string{"--flows", "flows"}},
-		{bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "receipts": []any{"runs/test-run.json"}, "base": fx.b}, "status", []string{"--flows", "flows", "--receipt", "runs/test-run.json", "--base", fx.b}},
+		{bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "base": fx.b}, "status", []string{"--flows", "flows", "--evidence", "runs/runs.jsonl", "--base", fx.b}},
 		{bridge.ToolFlowsImpact, map[string]any{"flows": "flows", "base": fx.b}, "impact", []string{"--flows", "flows", "--base", fx.b}},
 	} {
 		code, out, diagnostic := report(t, fx.root, test.verb, test.args...)

@@ -41,7 +41,7 @@ var rvdSelectionPrefixes = []string{
 }
 
 // rvdAppflowsReaders are the appflows functions that read the store.
-var rvdAppflowsReaders = []string{"ReadStoredRunEvidence", "RunEvidenceFor", "WithStoredRunEvidence"}
+var rvdAppflowsReaders = []string{"ReadResults", "ReadStoredRunEvidence", "RunEvidenceFor", "WithStoredRunEvidence"}
 
 // rvdCorvintAllowed is every cmd/corvint function that may touch the store or a store reader: the
 // one writer of corvint test and corvint watch (RVD-V1-004) and the test-evidence and context
