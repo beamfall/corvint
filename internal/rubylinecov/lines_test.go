@@ -81,6 +81,7 @@ func linesSources(newSource string) Sources {
 			}
 			return nil
 		},
+		Lex: lexerAgrees,
 	}
 }
 
@@ -148,6 +149,8 @@ func TestAnalyzeLinesStructureAndSyntax(t *testing.T) {
 	noCheck.Check = nil
 	noOld := src
 	noOld.Old = nil
+	noLexer := src
+	noLexer.Lex = nil
 	for name, c := range map[string]struct {
 		diffs []linecov.FileDiff
 		src   Sources
@@ -155,6 +158,7 @@ func TestAnalyzeLinesStructureAndSyntax(t *testing.T) {
 	}{
 		"no syntax check":   {[]linecov.FileDiff{d}, noCheck, "fallback: no Ruby syntax check for lib/a.rb"},
 		"no blobs":          {[]linecov.FileDiff{d}, noOld, "fallback: source blobs unavailable for lib/a.rb"},
+		"no Ruby lexer":     {[]linecov.FileDiff{d}, noLexer, "fallback: no Ruby lexer for lib/a.rb"},
 		"stale index blob":  {[]linecov.FileDiff{{Path: "lib/a.rb", OldOID: "other", NewOID: "new", Hunks: d.Hunks, NewHunks: d.NewHunks}}, src, "fallback: index records lib/a.rb at another blob"},
 		"absent file":       {[]linecov.FileDiff{{Path: "lib/b.rb", OldOID: "b", NewOID: "c", Hunks: d.Hunks, NewHunks: d.NewHunks}}, src, "fallback: uninstrumented file lib/b.rb"},
 		"non-Ruby input":    {[]linecov.FileDiff{{Path: "lib/data.yml", OldOID: "a", NewOID: "b"}}, src, "fallback: non-Ruby input lib/data.yml"},

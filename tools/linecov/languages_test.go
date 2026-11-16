@@ -172,6 +172,14 @@ func TestLanguageDecideRubyAdmission(t *testing.T) {
 			}
 		})
 	}
+	// A line Ruby reads as a blank-delimited percent literal, which the lexer
+	// reads as code: the interpreter's own reading keeps the static plan.
+	t.Run("line the lexer misreads admitted", func(t *testing.T) {
+		p := decide(strings.Replace(body, ":never", "% never ", 1), nil)
+		if e := p.Effective[file]; e.Mode != linecov.Whole || !strings.Contains(p.Fallback, "Ruby reads the new side of lib.rb differently from the lexer: line 7") {
+			t.Fatalf("effective %+v fallback %q", e, p.Fallback)
+		}
+	})
 }
 
 // LPCV-V0-7607: saves replan dirty contents against the recorded commit and
