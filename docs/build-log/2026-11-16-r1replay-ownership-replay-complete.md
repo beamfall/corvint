@@ -1585,8 +1585,22 @@ test literals and documentation only, so the binary is the planner of the final 
 - All 730 (merge, path, unit) reader classes are selected: 0 left to an unknown path, 0
   missed, 0 units absent.
 - Against the round 2 head plans: units removed 0; growth per path min 0, median 1, max 4,
-  142 in total. 139 of the 142 are `host-package-versions-check`; the others are
-  `agent-preflight-test`, `go-vet` and `shell-test`, one path each.
+  142 in total. 139 of the 142 are `host-package-versions-check`; the other three are
+  `agent-preflight-test`, `go-vet` and `shell-test` on one path, explained next.
+
+**Base against head on the 160 audited paths.** The base binary planned each audited path
+alone on the base tree `c7dbf717e` (160 of 160 exit 0), and each plan was compared with the
+head plans of the same path.
+
+- Units the base selected and the round 3 head does not: 0, over all 160 paths.
+- Units the base selected and the round 2 head did not: 3, on one path. For
+  `.claude/skills/corvint-lane-flow/SKILL.md` the round 2 head had dropped
+  `agent-preflight-test`, `go-vet` and `shell-test`. `script/agent-preflight.sh` reads
+  `${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}`, the same nested default as finding 1, so this was
+  a second, live instance of that defect. The round 3 head selects all three again, with the
+  script's `shell:foreign-invocation-unmodelled` unknown that the base plan also carried.
+- Growth from base to the round 3 head per path: min 16, max 340 (`go.mod`), 3314 in total.
+  This is the cost of the declarations and of the shell rule together.
 
 **An older binary.** The base binary refuses the round 3 tree: `affected --no-cache --full
 --path .corvint/changes/zz.cem.json` exits 2 with `unsupported-affected-graph`
@@ -1632,5 +1646,10 @@ Under `/home/russell/lanes/r1replay-evidence/r3/` (not committed). SHA-256:
   `85f0799fbad3fc768c00919f715803fbe454b92092f3f7472c8a5ef282606f51`;
   the older-binary refusal `case2/base-on-round3-tree.err`:
   `5f6c8b751f88be71b681c3e89e1046311f0c91843c1a696197e678f81693d8a0`.
+- `baseproof-r3.py`: `b942ab42dc0dc6bf254deb5a7e2fa991d04c673eb564bb50946754dbab0bcce5`;
+  `baseproof-compare-r3.py`: `31dfa231a03c8da7ad355fa7f6820e9290971b0fefbe904d92242bba9cdcea79`;
+  base plans `baseproof/*.json`, concatenated:
+  `8443f6e670ede03305535d1946db8bbf7a967cff5d1a55af7cdb4f9d0f201f9d`;
+  `baseproof-compare.txt`: `09e440faadf4ccdc810585ec1064b552aedb6c36d0a29d3b2ee37f93c02dee0f`.
 - The failing-first outputs are `f1-`, `f2-`, `f3-`, `f5-` and `f6-*.log`; the whole-package
   test logs are in `tests/`.
