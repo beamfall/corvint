@@ -283,13 +283,13 @@ func TestAFPV02181PlanAndSelectBalanceWallTime(t *testing.T) {
 
 const replayPrefix = "github.com/Beamfall/corvint/"
 
-// replayFixture parses a frozen per-unit fixture such as run41568676566: each
-// package's measured time, and for each split package its slices.
-func replayFixture(t *testing.T, fixture string) (universe []string, ms map[string]int64, splits map[string]fixtureSplit) {
+// replayFixture is the frozen per-unit milliseconds of run 41568676566: each
+// package's measured time, and for each split package its committed slices.
+func replayFixture(t *testing.T) (universe []string, ms map[string]int64, splits map[string]fixtureSplit) {
 	t.Helper()
 	ms = map[string]int64{}
 	splits = map[string]fixtureSplit{}
-	for _, entry := range strings.Split(fixture, "; ") {
+	for _, entry := range strings.Split(run41568676566, "; ") {
 		if entry == "" {
 			continue
 		}
@@ -320,10 +320,8 @@ func replayFixture(t *testing.T, fixture string) (universe []string, ms map[stri
 
 func TestAFPV02181Run41568676566Replay(t *testing.T) {
 	t.Run("AFP-V0-2181", func(t *testing.T) {
-		universe, ms, splits := replayFixture(t, run41568676566)
-		// Run 41568676566 measured 426 packages; the fixture drops the deleted
-		// internal/releasegate (V1-4805), so exactly 425 remain.
-		if len(universe) != 426-1 || len(splits) != 3 {
+		universe, ms, splits := replayFixture(t)
+		if len(universe) != 426 || len(splits) != 3 {
 			t.Fatalf("fixture has %d packages, %d split", len(universe), len(splits))
 		}
 		allowed := []string{}
@@ -504,7 +502,7 @@ const run41568676566 = "" +
 	"internal/procgroup 105644; internal/procprofile 3107; internal/projectpath 1032; " +
 	"internal/projectprofile 1016; internal/proofabstraction 1407; internal/pulse 1045; " +
 	"internal/pythongrammar 1019; internal/pythonsyntax 1050; internal/receiptbundle 4080; " +
-	"internal/releasecandidate 3423; internal/remoteprovider 1286; " +
+	"internal/releasecandidate 3423; internal/releasegate 48488; internal/remoteprovider 1286; " +
 	"internal/repoenvelope 1016; internal/repro 1016; internal/requestpath 1093; " +
 	"internal/revieworder 1075; internal/rootalias 1; internal/rubyautoload 1029; " +
 	"internal/rubyprofile 2114; internal/rubytestprovider 5216; internal/runhygiene 1; " +
