@@ -46,9 +46,11 @@ func TestRubyQualifySummarize(t *testing.T) {
 		t.Fatalf("runs %+v verdicts %+v", runs, verdicts)
 	}
 	for name, mutate := range map[string]func(*RubyQualReport){
-		"miss":               func(r *RubyQualReport) { r.Runners[0].Faults[0].Selected = [][2]string{{"test/a_test.rb", "A#t2"}} },
-		"control selects":    func(r *RubyQualReport) { r.Runners[0].Faults[2].Selected = [][2]string{{"test/a_test.rb", "A#t2"}} },
-		"control kills":      func(r *RubyQualReport) { r.Runners[0].Faults[2].Suite.Failing = [][2]string{{"test/a_test.rb", "A#t2"}} },
+		"miss":            func(r *RubyQualReport) { r.Runners[0].Faults[0].Selected = [][2]string{{"test/a_test.rb", "A#t2"}} },
+		"control selects": func(r *RubyQualReport) { r.Runners[0].Faults[2].Selected = [][2]string{{"test/a_test.rb", "A#t2"}} },
+		"control kills": func(r *RubyQualReport) {
+			r.Runners[0].Faults[2].Suite.Failing = [][2]string{{"test/a_test.rb", "A#t2"}}
+		},
 		"incomplete suite":   func(r *RubyQualReport) { r.Runners[0].Faults[1].Suite.Tests = 1 },
 		"failing baseline":   func(r *RubyQualReport) { r.Runners[0].Baseline.Failing = [][2]string{{"test/a_test.rb", "A#t2"}} },
 		"skipped baseline":   func(r *RubyQualReport) { r.Runners[0].Baseline.Skipped = 1 },
@@ -119,7 +121,7 @@ func TestRubyQualificationRecordPresent(t *testing.T) {
 	}
 	families := map[string]bool{}
 	for i, r := range q.Report.Runs {
-		families[strings.Fields(r.Runner+" x x")[2]] = true
+		families[strings.Fields(r.Runner + " x x")[2]] = true
 		if r.Runner != q.Runners[i] || r.Misses != 0 || r.ControlsFailed != 0 || r.Controls == 0 || len(r.Selected) != r.Faults {
 			t.Fatalf("run %+v", r)
 		}

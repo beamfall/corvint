@@ -161,7 +161,7 @@ func TestLanguageDecideRubyAdmission(t *testing.T) {
 			if e.Mode == linecov.Tests {
 				got += ":" + strings.Join(e.Tests, ",")
 			}
-			if got != tc.effective || p.Reason != tc.reason || p.GateEligible != tc.gate {
+			if got != tc.effective || p.Reason != tc.reason || p.GateEligible != tc.gate || p.Runner != ix.Runner {
 				t.Fatalf("effective %s reason %q gate %v admission %q fallback %q", got, p.Reason, p.GateEligible, p.Admission, p.Fallback)
 			}
 			if tc.admit != nil && p.Admission != tc.admit.Error() {
