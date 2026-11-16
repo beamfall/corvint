@@ -30,9 +30,12 @@ unassigned is null. --base SHA limits the report to exactly the flows and variat
 names and carries its impact_graph. At most 8192 test rows, then truncated with full totals.
 impact writes application-flow-impact/1: the flows, variations and test keys reached from
 base..HEAD changes, with the path of each hop, and last_results per flow when the store holds a
-record. A changed path with no owning unit in the impact graph that no link targets has unknown
-reach: it is listed in reach_unknown, and every flow is named with all its variations and reason
-reach-unknown, never an empty list; status --base then keeps every flow. gaps writes
+record. A changed path with no owning unit in the impact graph has unknown reach, linked or not:
+it is listed in reach_unknown, and every flow is named with all its variations and reason
+reach-unknown, never an empty or narrowed list; status --base then keeps every flow. A link target
+with no owning unit (no adapter for its language, or a missing file) does the same for every
+changed path, and graph.unknown names it as LINK_TARGET_UNOWNED. The flow declaration and the
+.json files directly in the intents directory are flow inputs and are left out. gaps writes
 application-flow-gaps/1; any gap makes a flow incomplete; --provider FILE also
 lists the unlinked E2E inventory tests and the inventory's state (AFU-V1-150).
 A malformed, oversized or other-profile --evidence file refuses the whole report

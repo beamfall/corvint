@@ -138,18 +138,26 @@ func WithStoredRunEvidence(ctx context.Context, root string, records []TestRunEv
 
 // corruptTarget reports whether a skipped record held a result for the target under project: its
 // own test key, or a file-level ID of the target's test file, which is how a corvint test receipt
-// names it (RVD-V1-010, AFL-V1-002).
+// names it (RVD-V1-010, AFL-V1-002). The store names a held test as its key, then " @" and the
+// project when the record has one; a key may itself hold " @" (a tag in a test title), so each
+// name is read both ways: whole as a key with no project, and split at its last " @".
 func (r *RunEvidenceRead) corruptTarget(target testTarget, project string) bool {
 	if r == nil {
 		return false
 	}
-	for _, held := range r.CorruptTests {
-		key, heldProject, _ := strings.Cut(held, " @")
+	held := func(key, heldProject string) bool {
 		if heldProject != "" && project != "" && heldProject != project {
-			continue
+			return false
 		}
 		probe := TestRunEvidence{TestKey: key, Project: heldProject, granularity: runevidence.GranularityFile}
-		if _, ok := matchesTarget(&probe, target, project, false); ok {
+		_, ok := matchesTarget(&probe, target, project, false)
+		return ok
+	}
+	for _, name := range r.CorruptTests {
+		if held(name, "") {
+			return true
+		}
+		if cut := strings.LastIndex(name, " @"); cut >= 0 && held(name[:cut], name[cut+len(" @"):]) {
 			return true
 		}
 	}
