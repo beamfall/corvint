@@ -1004,6 +1004,14 @@ NEX-V0-004	docs/specs/application-flow-navigation-execution-v0.md	Preconditions 
 NEX-V0-005	docs/specs/application-flow-navigation-execution-v0.md	The bounded receipt MUST bind revision/tree, packet, execution input, committed	unrecorded	-
 NEX-V0-006	docs/specs/application-flow-navigation-execution-v0.md	Receipts MUST contain only closed results/reasons and bounded IDs/methods, never	unrecorded	-
 NEX-V0-007	docs/specs/application-flow-navigation-execution-v0.md	The compiled companion MUST prove real-browser success and pre-dispatch refusal,	unrecorded	-
+AFL-V1-001	docs/specs/application-flow-status-v1.md	(proposed 2026-11-09; V1-5623; delivery not-started) One native report per flow	unrecorded	-
+AFL-V1-002	docs/specs/application-flow-status-v1.md	(proposed 2026-11-09; V1-5623; delivery not-started) Results only from named wri	unrecorded	-
+AFL-V1-003	docs/specs/application-flow-status-v1.md	(proposed 2026-11-09; V1-5623; delivery not-started) The MCP tool returns the sa	unrecorded	-
+AFL-V1-004	docs/specs/application-flow-status-v1.md	(proposed 2026-11-09; V1-5623; delivery not-started) `--base` matches `flows imp	unrecorded	-
+AFL-V1-005	docs/specs/application-flow-status-v1.md	(proposed 2026-11-09; V1-5623; delivery not-started) Bounded, read-only and dete	unrecorded	-
+AFL-V1-006	docs/specs/application-flow-status-v1.md	(proposed 2026-11-09; V1-5623; delivery not-started) Invalid input is refused wh	unrecorded	-
+AFL-V1-007	docs/specs/application-flow-status-v1.md	(proposed 2026-11-09; V1-5623; delivery not-started) `flows impact` is native	unrecorded	-
+AFL-V1-008	docs/specs/application-flow-status-v1.md	(proposed 2026-11-09; V1-5623; delivery not-started) One docs command group befo	unrecorded	-
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	Declare the analyzed application/build, supported adapters, routes, actors, data	unrecorded	-
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	Discover candidate flows from existing repository intent, route/navigation/form/	unrecorded	-
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	Represent each flow's actor, preconditions, actions, expected postconditions and	unrecorded	-

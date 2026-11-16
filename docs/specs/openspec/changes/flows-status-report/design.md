@@ -33,6 +33,27 @@ until the owner amends them.
   unlinked test and is never a complete answer. A flow's own `status` stays `complete` or
   `incomplete`.
 
+## Docs command group names (AFL-V1-008)
+
+Builder decision (2026-11-16, V1-5623), recorded before the rename commit as AFL-V1-008 requires;
+it stands until the owner amends it. The three look-alike families move into one group,
+`corvint-docs docs pages`, which owns every command that writes or checks a generated
+documentation page. Each old spelling stays an alias for one release: it runs the same handler with
+the same flags and prints one stderr notice naming the new spelling.
+
+| Old name | New name | What it does |
+|---|---|---|
+| `docs flows generate` | `docs pages generate` | generate the bounded source-derived flow pages from a corpus |
+| `docs flows check` | `docs pages check` | check those generated pages against regeneration |
+| `docs flows finalize` | `docs pages finalize` | bind the generated pages to a provider revision |
+| `flows docs` | `docs pages flow` | render one flow page and its claims sidecar; `--check` compares |
+| `flows docs maintain` | `docs pages flow-maintain` | preview or apply maintenance of that committed page pair |
+| `docs maintain` | `docs pages maintain` | refresh one human page's generated blocks from source |
+
+The notice is one line: `corvint-docs: OLD is renamed NEW; OLD is an alias until the next release
+(AFL-V1-008)`. `corvint docs ...` and `corvint flows docs ...` forward to `corvint-docs`
+unchanged, so they print the same notice.
+
 ## Failure modes
 
 - No result source given and no default receipt: every result is `NOT_OBSERVED`, exit 0, with the

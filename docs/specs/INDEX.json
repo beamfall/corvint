@@ -4697,5 +4697,18 @@
     "closableToday": false,
     "implementation": [],
     "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/application-flow-status-v1.md",
+    "title": "Application Flow Status V1",
+    "reqPrefix": "AFL-V1",
+    "intent": "proposed (change `flows-status-report`, rewritten 2026-11-09; V1-5623)",
+    "delivery": "not-started",
+    "claim": "`corvint flows status` and `flows impact` run in `corvint` alone, report each flow's tests and last recorded result, and match the MCP flow tools.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
   }
 ]
