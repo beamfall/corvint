@@ -241,9 +241,9 @@ type Results struct {
 // (RVD-V1-005), normalised by the store's one receipt reader (RVD-V1-006), then each named
 // test-run-evidence/0 file. It opens no receipt file itself: STR-V0-011 admits no other receipt
 // reader. A named file that is missing, malformed, oversized or not test-run-evidence/0 refuses
-// the whole read (AFL-V1-006), and so does a stored record that is intact but not a document this
-// build reads, or one whose tests the store cannot name; a record damaged after it was written
-// whose tests the store names is skipped and named instead (RVD-V1-010). The store's records and
+// the whole read (AFL-V1-006), and so does a stored record that is not a document this build reads,
+// or one whose tests the store cannot name; a record edited after it was written that still parses
+// and whose tests the store names is skipped and named instead (RVD-V1-010). The store's records and
 // the named files are bounded separately, as RunEvidenceFor bounds them: the store keeps its newest
 // maxRunRecords records, and the named files together hold at most maxRunRecords. Nothing is
 // written (RVD-V1-012).

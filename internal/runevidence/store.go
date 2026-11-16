@@ -485,10 +485,11 @@ type Record struct {
 type Corrupt struct {
 	ID    string   `json:"id"`
 	Tests []string `json:"tests"`
-	// Invalid is set when the record is not damaged storage but input no writer of this build
-	// stores: its bytes hash to its name yet do not parse (a malformed document or an unknown
-	// profile), or the file is larger than any record a writer keeps. A report that must refuse
-	// such input whole (AFL-V1-006) reads it here; RVD-V1-010 readers skip it like any other.
+	// Invalid is set when the record is input no writer of this build stores, not a stored
+	// document edited after it was written: its bytes do not parse (a malformed document or an
+	// unknown profile), whatever its name, or the file is larger than any record a writer keeps. A
+	// report that must refuse such input whole (AFL-V1-006) reads it here; RVD-V1-010 readers skip
+	// it like any other.
 	Invalid bool `json:"-"`
 }
 
@@ -606,6 +607,10 @@ func (s Store) Read() (Snapshot, error) {
 			invalid = err != nil
 		} else if err == nil {
 			err = errors.New("record bytes do not hash to the record's name")
+			// An edit that still parses is damage RVD-V1-010 names; bytes that do not parse are
+			// input no writer stores, whatever the file is called.
+			_, parseErr := Parse(data)
+			invalid = parseErr != nil
 		}
 		if err != nil {
 			skipped = append(skipped, Corrupt{ID: entry.ID, Tests: nonNil(entry.Tests), Invalid: invalid})

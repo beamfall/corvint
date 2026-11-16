@@ -1030,7 +1030,7 @@
         "Results come only from two writers: the runs corvint test records and the test-run-evidence/0 documents flows ingest writes.",
         "impact writes application-flow-impact/1: the flows, variations and test keys reached from base..HEAD changes, with the path of each hop, and last_results per flow when the store holds a record.",
         "gaps writes application-flow-gaps/1; any gap makes a flow incomplete; --provider FILE also lists the unlinked E2E inventory tests and the inventory's state (AFU-V1-150).",
-        "A malformed, oversized or other-profile --evidence file refuses the whole report (invalid-arguments, exit 2), and so does a stored record that is not a document this build reads or whose tests the store cannot name (run-evidence-corrupt); a record damaged after it was written is skipped and the tests it held show reason run-evidence-corrupt.",
+        "A malformed, oversized or other-profile --evidence file refuses the whole report (invalid-arguments, exit 2), and so does a stored record that is not a document this build reads or whose tests the store cannot name (run-evidence-corrupt); a record edited after it was written that still parses is skipped and the tests it held show reason run-evidence-corrupt.",
         "The reports write nothing.",
         "Writes nothing."
       ],

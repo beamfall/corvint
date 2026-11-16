@@ -53,12 +53,12 @@ func plant(t *testing.T, root, name string, data []byte, tests []string) {
 	}
 }
 
-// AFL-V1-006 over the run evidence store: a stored record that hashes to its own name but is not a
-// receipt or test-run-evidence/0 document this build reads (malformed, or an unknown profile such as
-// corvint-test-run/9), or a skipped record whose tests the store cannot name, refuses the whole
-// report with exit 2 and nothing on stdout, as a bad --evidence file does. A record damaged after it
-// was written (its bytes no longer hash to its name) whose tests the log names stays the RVD-V1-010
-// case: skipped, and the tests it held are marked run-evidence-corrupt.
+// AFL-V1-006 over the run evidence store: a stored record that is not a receipt or
+// test-run-evidence/0 document this build reads (malformed, or an unknown profile such as
+// corvint-test-run/9), whatever its name, or a skipped record whose tests the store cannot name,
+// refuses the whole report with exit 2 and nothing on stdout, as a bad --evidence file does. A record
+// edited by hand that still parses (its bytes no longer hash to its name) and whose tests the log
+// names stays the RVD-V1-010 case: skipped, and the tests it held are marked run-evidence-corrupt.
 func TestAFLV1006StoreRecordRefusedWhole_V15623(t *testing.T) {
 	checkoutFile := []string{"playwright:e2e/checkout.spec.ts"}
 	unknown := []byte(`{"profile":"corvint-test-run/9","source":{"head":"h","tree":"t"}}` + "\n")
@@ -71,6 +71,9 @@ func TestAFLV1006StoreRecordRefusedWhole_V15623(t *testing.T) {
 		"unknown profile with no log": func(t *testing.T, fx shop) { plant(t, fx.root, runevidence.ID(unknown), unknown, nil) },
 		"damaged record with no log": func(t *testing.T, fx shop) {
 			plant(t, fx.root, strings.Repeat("b", 64), receipt(t, fx.head, fx.tree, "PASS", "e2e/checkout.spec.ts"), nil)
+		},
+		"malformed bytes under another record's name": func(t *testing.T, fx shop) {
+			plant(t, fx.root, strings.Repeat("d", 64), malformed, checkoutFile)
 		},
 		"bad record beside a valid one": func(t *testing.T, fx shop) {
 			record(t, fx.root, receipt(t, fx.head, fx.tree, "PASS", "e2e/search.spec.ts"))

@@ -37,8 +37,8 @@ application-flow-gaps/1; any gap makes a flow incomplete; --provider FILE also
 lists the unlinked E2E inventory tests and the inventory's state (AFU-V1-150).
 A malformed, oversized or other-profile --evidence file refuses the whole report
 (invalid-arguments, exit 2), and so does a stored record that is not a document this build reads or
-whose tests the store cannot name (run-evidence-corrupt); a record damaged after it was written is
-skipped and the tests it held show reason run-evidence-corrupt. The store and the named files are
+whose tests the store cannot name (run-evidence-corrupt); a record edited after it was written that
+still parses is skipped and the tests it held show reason run-evidence-corrupt. The store and the named files are
 bounded separately, 8192 records each. The reports write nothing. corvint.flows_status,
 corvint.flows_impact and corvint.flows_gaps on corvint mcp --tool-profile flows return the same
 reports.
