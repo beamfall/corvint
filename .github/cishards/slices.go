@@ -256,7 +256,7 @@ func PlanFromParallel(packages []string, total, parallel int, costs, allowRaw, s
 		return nil, err
 	}
 	shards := make([]Shard, total)
-	w, unknown, ok := weights(costs)
+	w, unknown, ok := placementWeights(costs)
 	if !ok {
 		// Invalid costs keep the AFP-V0-022 lexical fallback and split nothing.
 		for i, p := range universe {
@@ -337,7 +337,7 @@ func PlanFromParallel(packages []string, total, parallel int, costs, allowRaw, s
 }
 
 // Select places only the selected packages of the universe across total shards
-// (AFP-V0-590): the same measured costs, median for an unpriced package, test
+// (AFP-V0-590): the same measured costs, the conservative price for an unpriced package, test
 // slices and placement as Plan, over the selection instead of the universe.
 // Each selected package runs whole in exactly one shard or as each of its slices
 // once; a selected package absent from the universe is dropped, as the

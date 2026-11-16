@@ -283,13 +283,13 @@ func TestAFPV02181PlanAndSelectBalanceWallTime(t *testing.T) {
 
 const replayPrefix = "github.com/Beamfall/corvint/"
 
-// replayFixture is the frozen per-unit milliseconds of run 41568676566: each
-// package's measured time, and for each split package its committed slices.
-func replayFixture(t *testing.T) (universe []string, ms map[string]int64, splits map[string]fixtureSplit) {
+// replayFixture parses a frozen per-unit fixture such as run41568676566: each
+// package's measured time, and for each split package its slices.
+func replayFixture(t *testing.T, fixture string) (universe []string, ms map[string]int64, splits map[string]fixtureSplit) {
 	t.Helper()
 	ms = map[string]int64{}
 	splits = map[string]fixtureSplit{}
-	for _, entry := range strings.Split(run41568676566, "; ") {
+	for _, entry := range strings.Split(fixture, "; ") {
 		if entry == "" {
 			continue
 		}
@@ -320,7 +320,7 @@ func replayFixture(t *testing.T) (universe []string, ms map[string]int64, splits
 
 func TestAFPV02181Run41568676566Replay(t *testing.T) {
 	t.Run("AFP-V0-2181", func(t *testing.T) {
-		universe, ms, splits := replayFixture(t)
+		universe, ms, splits := replayFixture(t, run41568676566)
 		// Run 41568676566 measured 426 packages; the fixture drops the deleted
 		// internal/releasegate (V1-4805), so exactly 425 remain.
 		if len(universe) != 426-1 || len(splits) != 3 {
