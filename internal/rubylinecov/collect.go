@@ -65,9 +65,13 @@ type Options struct {
 	// this collection; Collect resumes from the runs it retains. Parallel
 	// bounds the isolated runs at once (below 1 means 1), and a positive
 	// Budget stops launching isolated runs after it elapses (LPCV-V0-7609).
-	State                 string
-	Parallel              int
-	Budget                time.Duration
+	State    string
+	Parallel int
+	Budget   time.Duration
+	// Env names further environment variables the suite's results depend on
+	// (NO_CONNECTION). State binds their values beside the Ruby and gem
+	// environment, and a resume under another value is refused.
+	Env                   []string
 	onlyPackage, onlyName string
 }
 
