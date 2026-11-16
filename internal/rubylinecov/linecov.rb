@@ -13,7 +13,8 @@
 # outside any test (loading, before(:all) hooks) is the "load" bucket. Every
 # other process, a subprocess or a fork, inherits CORVINT_LINECOV_TEST, the
 # sequence number of the test running when it started, and dumps its whole
-# coverage under that test at exit.
+# coverage under that test at exit. A fork, spawn or system launch carries a
+# token the child's completed dump must join.
 #
 # A process that replaces itself through exec (bundle exec, a wrapper script)
 # writes its dump first, since exec skips at_exit. An exec that fails (a
@@ -34,6 +35,7 @@ module CorvintLinecov
   SUITE = OWNER.nil? || OWNER == Process.pid.to_s
 
   @files = {}
+  @relatives = {}
   @seq = 0
   @current = nil
   @framework = nil
@@ -161,19 +163,28 @@ module CorvintLinecov
 
     # executed keeps the repository files of one result, notes each file's
     # executable lines and methods once, and returns what ran.
+    # A file none of whose counters is positive is skipped by one C-level
+    # maximum, since a test reaches few of the files loaded; the output is
+    # the same as walking every counter.
     def executed(result)
       lines = {}
       methods = {}
       result.each do |abs, cov|
-        rel = relative(abs)
+        rel = (@relatives[abs] ||= [relative(abs)]).first
         next unless rel
 
-        @files[rel] ||= [cov[:lines].each_index.reject { |i| cov[:lines][i].nil? }.map { |i| i + 1 },
+        counts = cov[:lines]
+        @files[rel] ||= [counts.each_index.reject { |i| counts[i].nil? }.map { |i| i + 1 },
                          cov[:methods].keys.map { |k| k[2, 4] }.uniq]
-        ran = cov[:lines].each_index.select { |i| cov[:lines][i].to_i.positive? }.map { |i| i + 1 }
-        lines[rel] = ran unless ran.empty?
-        called = cov[:methods].select { |_, n| n.positive? }.keys.map { |k| k[2, 4] }.uniq
-        methods[rel] = called unless called.empty?
+        if (counts.compact.max || 0).positive?
+          ran = []
+          counts.each_with_index { |n, i| ran << (i + 1) if n&.positive? }
+          lines[rel] = ran
+        end
+        calls = cov[:methods]
+        next unless (calls.values.max || 0).positive?
+
+        methods[rel] = calls.select { |_, n| n.positive? }.keys.map { |k| k[2, 4] }.uniq
       end
       [lines, methods]
     end
@@ -191,13 +202,7 @@ module CorvintLinecov
     def finish(keep_open: false)
       return unless @out
 
-      if Process.pid != @pid # a fork: dump under the test running at fork
-        @out = File.open(File.join(DIR, "child-#{Process.pid}-#{rand(1 << 32)}.jsonl"), 'w')
-        @out.sync = true
-        @pid = Process.pid
-        @forked = true
-        emit('kind' => 'start', 'ruby' => RUBY_VERSION, 'pid' => Process.pid, 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => ENV['CORVINT_LINECOV_LAUNCH'])
-      end
+      own_dump
       if SUITE && !@forked
         take('load')
         emit('kind' => 'framework', 'name' => @framework&.first, 'version' => @framework && version)
@@ -223,7 +228,21 @@ module CorvintLinecov
     end
 
     def emit(value)
+      own_dump
       @out.write(encode(value) << "\n")
+    end
+
+    # own_dump gives a forked process its own dump from its first event,
+    # headed by the test running at fork and the fork's launch token, so
+    # nothing it writes lands in its parent's dump.
+    def own_dump
+      return if Process.pid == @pid
+
+      @out = File.open(File.join(DIR, "child-#{Process.pid}-#{rand(1 << 32)}.jsonl"), 'w')
+      @out.sync = true
+      @pid = Process.pid
+      @forked = true
+      emit('kind' => 'start', 'ruby' => RUBY_VERSION, 'pid' => Process.pid, 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => ENV['CORVINT_LINECOV_LAUNCH'])
     end
 
     def encode(value)
@@ -283,9 +302,20 @@ module CorvintLinecov
       super
     end
 
+    # A fork carries a launch token like spawn: a child that completes its
+    # dump joins it, and one that ends abruptly (exit!, a kill) leaves it
+    # unjoined, so the test's record stays incomplete.
     def fork(*args, &block)
-      CorvintLinecov.emit('kind' => 'unobserved-child', 'test' => ENV['CORVINT_LINECOV_TEST'])
-      super
+      token = "fork-#{Process.pid}-#{rand(1 << 48)}"
+      CorvintLinecov.emit('kind' => 'launch', 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => token)
+      parent = Process.pid
+      previous = ENV['CORVINT_LINECOV_LAUNCH']
+      ENV['CORVINT_LINECOV_LAUNCH'] = token
+      begin
+        super
+      ensure
+        ENV['CORVINT_LINECOV_LAUNCH'] = previous if Process.pid == parent
+      end
     end
 
     def exec(*args)
