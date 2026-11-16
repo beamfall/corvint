@@ -103,11 +103,11 @@ at a time per root; a verdict too large for one message is the tool error `verdi
 |---|---|---|---|---|
 | `corvint.affected` | experimental | `--tool-profile affected` | Which tests a change requires: the affected-summary/1 verdict for a base or for the dirty worktree, or a select-all answer with its reason | `corvint affected --summary [--base REV]` |
 | `corvint.flows_coverage` | experimental | `--tool-profile flows` | Complete accepted flow variation coverage, bound to immutable bytes; the page verdict covers the full inventory | `corvint-docs flows coverage` |
-| `corvint.flows_gaps` | experimental | `--tool-profile flows` | Flows at HEAD without passing test evidence and, with a provider, the E2E tests no flow variation links | `corvint-docs flows gaps` |
-| `corvint.flows_impact` | experimental | `--tool-profile flows` | The flows the base..HEAD changed paths reach through links and the impact graph | `corvint-docs flows impact` |
+| `corvint.flows_gaps` | experimental | `--tool-profile flows` | Flows at HEAD without passing test evidence and, with a provider, the E2E tests no flow variation links | `corvint flows gaps` |
+| `corvint.flows_impact` | experimental | `--tool-profile flows` | The flows the base..HEAD changed paths reach through links and the impact graph | `corvint flows impact` |
 | `corvint.flows_map` | experimental | `--tool-profile flows` | Flow intents at HEAD with their links and test evidence, or the flows one path or test key reaches | `corvint-docs flows map` |
 | `corvint.flows_navigate` | experimental | `--tool-profile flows` | The navigation map of the flow intents, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant | `corvint-docs flows navigate` |
-| `corvint.flows_status` | experimental | `--tool-profile flows` | Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches | `corvint-docs flows status` |
+| `corvint.flows_status` | experimental | `--tool-profile flows` | Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches | `corvint flows status` |
 | `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
 | `corvint.impact` | experimental | default | Revision-bound impact evidence for Go, Ruby, JavaScript and TypeScript paths, without source bodies | `corvint impact --language-profile non-go-syntax-v0 --limit N PATH...` |
 | `corvint.status` | experimental | default | Exact commit, tree, worktree state and a privacy-preserving dirty-path digest of the served root | none |
@@ -149,7 +149,7 @@ Flows at HEAD without passing test evidence and, with a provider, the E2E tests 
 - Input `registry`: Repository-relative E2E test registry file.
 - Output profile: `application-flow-gaps/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
-- Parity test: `corvint-docs TestMTTV1009FlowsToolsMatchCLI`
+- Parity test: `corvint TestMTTV1009NativeFlowReportToolsMatchCLI`
 - Replaces: `corvint.flows.gaps`
 
 ### `corvint.flows_impact`
@@ -161,7 +161,7 @@ The flows the base..HEAD changed paths reach through links and the impact graph.
 - Input `flows`: Repository-relative directory holding the flow intent files.
 - Output profile: `application-flow-impact/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
-- Parity test: `corvint-docs TestMTTV1009FlowsToolsMatchCLI`
+- Parity test: `corvint TestMTTV1009NativeFlowReportToolsMatchCLI`
 - Replaces: `corvint.flows.impact`
 
 ### `corvint.flows_map`
@@ -200,12 +200,14 @@ The navigation map of the flow intents, or the ordered packet that reaches one g
 Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches.
 
 - Input schema: `internal/mcp/bridge/flows.go`
-- Input `base`: Optional full commit id of the base; only the flows base..HEAD reaches are reported.
+- Input `base`: Optional full commit id of the base; only the flows and variations base..HEAD reaches are reported.
 - Input `evidence`: Repository-relative test evidence files to join to the flows.
 - Input `flows`: Repository-relative directory holding the flow intent files.
+- Input `provider`: Repository-relative E2E selection provider file whose inventory gives the unassigned count.
+- Input `receipts`: Repository-relative corvint-test-run/0 receipts written by corvint test.
 - Output profile: `application-flow-status/0`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
-- Parity test: `corvint-docs TestMTTV1009FlowsToolsMatchCLI`
+- Parity test: `corvint TestMTTV1009NativeFlowReportToolsMatchCLI`
 - Replaces: `corvint.flows.status`
 
 ### `corvint.help`

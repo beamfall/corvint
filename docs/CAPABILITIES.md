@@ -357,9 +357,12 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint cem verify-stable` | Change Evidence Map verify-stable action | `corvint cem verify-stable --repository PATH --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem verify-stable --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint context` | Print the path brief of a file or directory | `corvint context --path PATH` | `corvint context --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint docs` | Experimental source documentation orientation, served by corvint-docs | `corvint docs SUBCOMMAND` | `corvint docs --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint flows` | Application flows and assertions, served by corvint-docs | `corvint flows` | `corvint flows --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint flows` | Application flows and assertions: the test-joining reports run in corvint, the rest are served by corvint-docs | `corvint flows` | `corvint flows --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint flows appmap` |  | `corvint flows appmap build --manifest FILE` | `corvint flows appmap --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint flows appmap build` | Compile the committed manifest into an application map at one revision (experimental, AMAP-V0) | `corvint flows appmap build --manifest FILE` | `corvint flows appmap build --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint flows gaps` |  | `corvint flows gaps --flows DIR` | `corvint flows gaps --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint flows impact` |  | `corvint flows impact --flows DIR --base SHA` | `corvint flows impact --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint flows status` |  | `corvint flows status --flows DIR` | `corvint flows status --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint flows test-evidence` |  | `corvint flows test-evidence --flows DIR PATH` | `corvint flows test-evidence --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint how` | Answer "how do I GOAL" from an application map, served by corvint-docs | `corvint how GOAL` | `corvint how --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint impact` | Compile experimental impact evidence for index-admitted paths | `corvint impact PATH...` | `corvint impact --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
@@ -526,8 +529,8 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-docs flows docs` |  | `corvint-docs flows docs --flows DIR --page FILE --claims FILE` | `corvint-docs flows docs --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows docs maintain` |  | `corvint-docs flows docs maintain --flows DIR --page FILE --claims FILE --preview &#124; --apply --expected-proposal SHA256` | `corvint-docs flows docs maintain --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows export` |  | `corvint-docs flows export --flows DIR --emit inventory` | `corvint-docs flows export --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
-| `corvint-docs flows gaps` |  | `corvint-docs flows gaps --flows DIR` | `corvint-docs flows gaps --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
-| `corvint-docs flows impact` |  | `corvint-docs flows impact --flows DIR --base SHA` | `corvint-docs flows impact --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
+| `corvint-docs flows gaps` |  | `corvint-docs flows gaps` | `corvint-docs flows gaps --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
+| `corvint-docs flows impact` |  | `corvint-docs flows impact` | `corvint-docs flows impact --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows import` |  | `corvint-docs flows import --flows DIR --from FILE --format behavior-adapter-request` | `corvint-docs flows import --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows ingest` |  | `corvint-docs flows ingest --format playwright-json --from FILE --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST --fixture-id ID --fixture-digest DIGEST` | `corvint-docs flows ingest --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows ingest-coverage` |  | `corvint-docs flows ingest-coverage --format v8 --from FILE --evidence FILE... --revision FULL_COMMIT` | `corvint-docs flows ingest-coverage --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
@@ -536,7 +539,7 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-docs flows record` |  | `corvint-docs flows record --manifest FILE --evidence FILE --output FILE` | `corvint-docs flows record --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows request-path` |  | `corvint-docs flows request-path --file PATH --route 'METHOD /path'` | `corvint-docs flows request-path --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows stability` |  | `corvint-docs flows stability --registry FILE` | `corvint-docs flows stability --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
-| `corvint-docs flows status` |  | `corvint-docs flows status --flows DIR` | `corvint-docs flows status --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
+| `corvint-docs flows status` |  | `corvint-docs flows status` | `corvint-docs flows status --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows test-evidence` |  | `corvint-docs flows test-evidence` | `corvint-docs flows test-evidence --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs how` | Answer "how do I GOAL" from an application map (SKH-V0, experimental) | `corvint-docs how --map FILE --source GOAL` | `corvint-docs how --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs mcp` | Serve the documentation tools over the local read-only stdio MCP transport (MTT-V1-004, experimental) | `corvint-docs mcp --root ABSOLUTE_ROOT` | `corvint-docs mcp --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |

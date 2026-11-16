@@ -256,7 +256,7 @@ func TestV15257StatusReportsAttachedTestsAndLastResults(t *testing.T) {
 		t.Errorf("totals %+v", report.Totals)
 	}
 	happy := statusVariation(t, report, "checkout", "checkout.happy")
-	if len(happy.Tests) != 1 || happy.Code != "" || happy.Tests[0] != (appflows.StatusTest{TestKey: "checkout.spec.ts > pays", Project: "chromium", Result: "passed", SourceCommit: fx.head, SourceTree: shopGit(t, fx.root, "rev-parse", "HEAD^{tree}"), RunID: "run-1", Authority: appflows.AuthorityIngested}) {
+	if len(happy.Tests) != 1 || happy.Code != "" || happy.Tests[0] != (appflows.StatusTest{TestKey: "checkout.spec.ts > pays", Project: "chromium", Result: "passed", SourceCommit: fx.head, SourceTree: shopGit(t, fx.root, "rev-parse", "HEAD^{tree}"), RunID: "run-1", Authority: appflows.AuthorityIngested, Granularity: "test"}) {
 		t.Errorf("checkout.happy: %+v", happy)
 	}
 	basic := statusVariation(t, report, "search", "search.basic")
@@ -403,8 +403,11 @@ func TestV15255V15257FlowsToolsMatchCLIVerbs(t *testing.T) {
 	reportReceipt(t, fx.root, "e2e/discovery.json", fx.b, digest, "playwright-sources:sha256:"+digest)
 	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsGaps, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "provider": provider}, "gaps", "--flows", "flows", "--evidence", evidence, "--provider", provider)
 	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsGaps, map[string]any{"flows": "flows"}, "gaps", "--flows", "flows")
-	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}}, "status", "--flows", "flows", "--evidence", evidence)
-	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "base": fx.b}, "status", "--flows", "flows", "--evidence", evidence, "--base", fx.b)
+	// AFL-V1-002: status lists each source as the caller named it, so the command runs from the
+	// root with the same repository-relative name the tool takes.
+	t.Chdir(fx.root)
+	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}}, "status", "--flows", "flows", "--evidence", "runs/runs.jsonl")
+	assertFlowsParity(t, fx.root, registry, bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "base": fx.b}, "status", "--flows", "flows", "--evidence", "runs/runs.jsonl", "--base", fx.b)
 
 	result, callErr := registry.Call(t.Context(), bridge.ToolFlowsGaps, []byte(`{"flows":"flows","provider":"`+provider+`"}`))
 	if callErr != nil || result.Receipt["inventory"].(map[string]any)["state"] != appflows.InventoryStale {
@@ -426,5 +429,27 @@ func TestV15255V15257FlowsToolsMatchCLIVerbs(t *testing.T) {
 	}
 	if _, err := registry.Call(t.Context(), bridge.ToolFlowsStatus, []byte(`{"flows":"flows","base":"`+strings.Repeat("0", 40)+`"}`)); err == nil || err.Code != "flows-refused" {
 		t.Errorf("unknown base: %#v", err)
+	}
+}
+
+// AFL-V1-001: with a provider, status carries the E2E inventory's state and the unassigned count,
+// the number of inventory tests no variation links, which is gaps' unlinked total for the same
+// provider; corvint.flows_status returns the same body.
+func TestAFLV1001StatusUnassignedFromProvider_V15623(t *testing.T) {
+	fx := newShopFixture(t)
+	fx.root = resolvedRoot(t, fx.root)
+	provider := reportProvider(t, fx.root, "e2e/provider.json", "flows", "e2e/discovery.json",
+		inventoryTest("checkout.spec.ts > declines", "chromium", "e2e/checkout.spec.ts"),
+		inventoryTest("checkout.spec.ts > pays", "chromium", "e2e/checkout.spec.ts"),
+		inventoryTest("orders.spec.ts > lists", "chromium", "e2e/orders.spec.ts"))
+	digest := strings.Repeat("b", 64)
+	reportReceipt(t, fx.root, "e2e/discovery.json", fx.b, digest, "playwright-sources:sha256:"+digest)
+	report, _ := decodeStatus(t, fx.root, "--no-store", "--provider", provider)
+	gaps := decodeGaps(t, fx.root, "--no-store", "--provider", provider)
+	if report.Unassigned == nil || *report.Unassigned != 2 || *report.Unassigned != gaps.UnlinkedTotal || report.Inventory != gaps.Inventory {
+		t.Fatalf("unassigned %v inventory %+v; gaps unlinked %d inventory %+v", report.Unassigned, report.Inventory, gaps.UnlinkedTotal, gaps.Inventory)
+	}
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
+		assertFlowsParity(t, fx.root, flowsRegistry(t, fx.root), bridge.ToolFlowsStatus, map[string]any{"flows": "flows", "provider": provider}, "status", "--flows", "flows", "--provider", provider)
 	}
 }

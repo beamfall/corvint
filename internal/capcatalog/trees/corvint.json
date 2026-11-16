@@ -535,7 +535,7 @@
         "flows"
       ],
       "command": "corvint flows",
-      "summary": "Application flows and assertions, served by corvint-docs",
+      "summary": "Application flows and assertions: the test-joining reports run in corvint, the rest are served by corvint-docs",
       "usage": [
         "corvint [--root PATH] flows [SUBCOMMAND] [OPTIONS]"
       ],
@@ -604,6 +604,78 @@
       ],
       "example": "corvint flows appmap build --manifest FILE",
       "help": "corvint flows appmap build --help"
+    },
+    {
+      "path": [
+        "flows",
+        "gaps"
+      ],
+      "command": "corvint flows gaps",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--no-store] [--registry FILE] [--provider FILE]"
+      ],
+      "flags": [
+        "--evidence",
+        "--flows",
+        "--no-store",
+        "--provider",
+        "--registry",
+        "--root"
+      ],
+      "required": [
+        "--flows DIR"
+      ],
+      "example": "corvint flows gaps --flows DIR",
+      "help": "corvint flows gaps --help"
+    },
+    {
+      "path": [
+        "flows",
+        "impact"
+      ],
+      "command": "corvint flows impact",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] flows impact --flows DIR --base SHA [--no-store]"
+      ],
+      "flags": [
+        "--base",
+        "--flows",
+        "--no-store",
+        "--root"
+      ],
+      "required": [
+        "--flows DIR",
+        "--base SHA"
+      ],
+      "example": "corvint flows impact --flows DIR --base SHA",
+      "help": "corvint flows impact --help"
+    },
+    {
+      "path": [
+        "flows",
+        "status"
+      ],
+      "command": "corvint flows status",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] flows status --flows DIR [--receipt FILE]... [--evidence FILE]... [--provider FILE] [--no-store] [--base SHA]"
+      ],
+      "flags": [
+        "--base",
+        "--evidence",
+        "--flows",
+        "--no-store",
+        "--provider",
+        "--receipt",
+        "--root"
+      ],
+      "required": [
+        "--flows DIR"
+      ],
+      "example": "corvint flows status --flows DIR",
+      "help": "corvint flows status --help"
     },
     {
       "path": [

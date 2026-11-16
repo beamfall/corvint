@@ -23,6 +23,9 @@ type RunEvidenceRead struct {
 	CorruptTests   []string `json:"corrupt_tests,omitempty"`
 	Truncated      bool     `json:"truncated,omitempty"`
 	Reasons        []string `json:"reasons"`
+	// ids are the record IDs the read converted, so a reader can tell a receipt the store already
+	// holds (AFL-V1-002). Never encoded.
+	ids map[string]bool
 }
 
 // RunEvidenceStore is the run evidence store of the repository at root:
@@ -49,7 +52,7 @@ func ReadStoredRunEvidence(ctx context.Context, root string) ([]TestRunEvidence,
 	if err != nil {
 		return nil, nil, errors.New("the run evidence store cannot be read")
 	}
-	read := &RunEvidenceRead{LogUnreadable: snapshot.LogUnreadable, Reasons: slices.Clone(snapshot.Reasons)}
+	read := &RunEvidenceRead{LogUnreadable: snapshot.LogUnreadable, Reasons: slices.Clone(snapshot.Reasons), ids: map[string]bool{}}
 	corrupt := func(c runevidence.Corrupt) {
 		read.CorruptRecords = append(read.CorruptRecords, c.ID)
 		read.CorruptTests = append(read.CorruptTests, c.Tests...)
@@ -75,6 +78,7 @@ func ReadStoredRunEvidence(ctx context.Context, root string) ([]TestRunEvidence,
 		}
 		total += len(converted)
 		read.Records++
+		read.ids[record.Entry.ID] = true
 		batches = append(batches, converted)
 	}
 	records := make([]TestRunEvidence, 0, total)
@@ -102,29 +106,7 @@ func storedRecords(record runevidence.Record) ([]TestRunEvidence, error) {
 		}
 		return records, nil
 	}
-	records := make([]TestRunEvidence, 0, len(record.Rows))
-	for _, row := range record.Rows {
-		r := TestRunEvidence{
-			Schema: RunEvidenceSchema, Authority: AuthorityLocallyObserved, RunID: record.Entry.ID,
-			Runner:  RunRunner{Name: row.Instance, Version: row.RunnerVersion},
-			Source:  RunSource{Commit: row.Commit, Tree: row.Tree, Clean: row.Clean},
-			TestKey: row.TestID, Project: row.Project, Attempts: []RunAttempt{}, Cleanup: "not-declared",
-			NegativeControls: []NegativeControl{},
-		}
-		if row.Outcome != "not-run" {
-			attempt := RunAttempt{Ordinal: 1, Outcome: row.Outcome, AssertionAnchors: []RunAnchor{}, Attachments: []RunAttachment{}}
-			// A row with no durationMs is NOT_MEASURED: DurationMS stays zero and the attempt is
-			// marked, never read as a measured 0 ms.
-			if row.DurationMs != nil {
-				attempt.DurationMS = *row.DurationMs
-			} else {
-				attempt.durationNotMeasured = true
-			}
-			r.Attempts = append(r.Attempts, attempt)
-		}
-		records = append(records, r)
-	}
-	return records, nil
+	return rowRecords(record.Entry.ID, record.Rows), nil
 }
 
 // RunEvidenceFor returns the records a report reads: the store's, unless noStore, followed by those

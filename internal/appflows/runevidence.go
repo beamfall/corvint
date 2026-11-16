@@ -59,6 +59,10 @@ type TestRunEvidence struct {
 	// CoverageArtifacts pins the coverage files this run wrote by sha256, so a coverage
 	// ingest can prove a coverage input belongs to this run (AFU-V1-120).
 	CoverageArtifacts []RunDigestRef `json:"coverage_artifacts,omitempty"`
+	// granularity is a converted corvint-test-run/0 row's: file when the runner reported the
+	// file's or package's tests only together (RVD-V1-006). It is never encoded; a decoded
+	// test-run-evidence/0 record names one test (AFL-V1-002).
+	granularity string
 }
 
 type RunRunner struct {
