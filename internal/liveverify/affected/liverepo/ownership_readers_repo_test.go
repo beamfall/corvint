@@ -353,7 +353,8 @@ func TestOwnedPathNamersAreReached_AZU_V0_8924(t *testing.T) {
 				continue
 			}
 			for _, token := range namedPathToken.FindAllString(line, -1) {
-				token = strings.TrimPrefix(token, "./")
+				// `${1:-PATH}` lexes as `-PATH`; an option is no path.
+				token = strings.TrimPrefix(strings.TrimLeft(token, "-"), "./")
 				if strings.Contains(token, "/") && token != file && isTracked[token] && !seen[token] {
 					seen[token] = true
 					names[token] = append(names[token], current)
