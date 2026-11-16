@@ -6294,6 +6294,8 @@ LPCV-V0-7602	docs/specs/live-proof-carrying-verification-v0.md	(accepted under s
 LPCV-V0-7603	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4507) Collection records	standing	V1-4507
 LPCV-V0-7604	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4414) The explicit	standing	V1-4414
 LPCV-V0-7605	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4415) Ruby collection	standing	V1-4415
+LPCV-V0-7608	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0601 (owner 2026-11-16); V1-4365) The Ruby family is	owner	decision 0601; 2026-11-16; V1-4365
+LPCV-V0-7609	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0601 (owner 2026-11-16); V1-4365) `linecov ruby-collect	owner	decision 0601; 2026-11-16; V1-4365
 LPCV-V0-7606	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4421) The explicit	standing	V1-4421
 LPCV-V0-7607	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4372) `linecov watch`	standing	V1-4372
 LPCV-V0-1085	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4372, V1-5253)	standing	2026-10-11; V1-4372; V1-5253
