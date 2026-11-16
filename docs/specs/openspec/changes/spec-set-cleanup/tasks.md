@@ -45,7 +45,8 @@ the B6, B7, B8b, B10 and B11 tasks land with their gated batches.
 - [ ] 3.4 With B4: archive the five B4 spec rows and `docs/EXTENSION-ECOSYSTEM.md`; delete
       `docs/EXTERNAL-EVIDENCE-PROVIDERS.md`. Requirements: SSC-V1-002, SSC-V1-006. Proof: as 3.1
       plus `make documentation-paths-check`.
-- [ ] 3.5 With B5: archive the fourteen B5 spec rows; rewrite `native-shell-affected-test-v0.md`
+- [ ] 3.5 With B5: archive the twelve B5 spec rows (the Swift and Kotlin
+      affected-test specs stay active, decision 0600); rewrite `native-shell-affected-test-v0.md`
       to shell only and `language-plugins-v0.md` as their rows say; edit `docs/CAPABILITIES.md`. Requirements: SSC-V1-002, SSC-V1-006. Proof: as 3.1.
 - [ ] 3.6 With B6: archive the ten B6 spec rows and `docs/CHANGE-EVIDENCE-MAP.md`; delete
       `docs/CHANGE-FLOW.md` and the two CEM schemas; rewrite `ARCHITECTURE.md`, `GLOSSARY.md`,
