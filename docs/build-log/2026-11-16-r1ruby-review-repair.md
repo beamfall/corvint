@@ -1,5 +1,10 @@
 # 2026-11-16: Ruby admission review repair: bounded reach, strict controls, RSpec unqualified (V1-4365)
 
+> Superseded in part by `2026-11-16-r1ruby-binding-signature-repair.md`: the review of this
+> round found that the binding signature of a `=>` line dropped sigils and punctuation. The
+> signature rule and the record (report `173e91d5…9b78`, selector `e5c974af8`) are replaced
+> there; the rerun has the same faults, selected-set sizes and verdicts.
+
 Requirements: LPCV-V0-7605, LPCV-V0-7608, LPCV-V0-7609 (each amended), LPCV-V0-963, GLS-V0-032.
 Decision: 0601. Lane base `c7dbf717e2b2d25dd83b3f26fb7ac7def95587b6`; reviewed head
 `8c1202a4d95c4ee3d5e10f3385736882c5becd47`. The independent review of
