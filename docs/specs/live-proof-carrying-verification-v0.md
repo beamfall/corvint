@@ -768,8 +768,12 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   unstamped executable, a source blob mismatch, an index runner the record does not name, a miss,
   a failed control or a record with no kill or no control refuses admission: the effective plan
   stays static with `coverage-collector-unqualified` and the refusal in `Admission`.
-  `linecov ruby-qualify -record` writes the record only from a report whose baselines pass, whose
-  controls select and kill nothing, and whose faults have no miss. Witness:
+  `linecov ruby-qualify -record` writes the record only from a report whose baselines pass
+  completely, whose faults each ran the complete suite with no miss, and whose controls pass. A
+  control passes as `GLS-V0-032` defines for Go: it kills nothing, causes no fallback, keeps no
+  test by coverage (plan reason `selected` or `stale`), and keeps only tests of files the index
+  keeps whole whatever the change (a test of the file has no isolated record, `LPCV-V0-962`); the
+  record restates those files, their tests and each control's kept-set size. Witness:
   `TestRubyQualificationAdmission`, `TestRubyQualifySummarize`, `TestLanguageDecideRubyAdmission`,
   `TestRubyQualificationRecordPresent`.
 - `LPCV-V0-7609`: (accepted, decision 0601 (owner 2026-11-16); V1-4365) `linecov ruby-collect

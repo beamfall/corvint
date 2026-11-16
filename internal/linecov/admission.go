@@ -111,6 +111,12 @@ type QualifiedRun struct {
 	Controls       int    `json:"controls"`
 	ControlsFailed int    `json:"controlsFailed"`
 	Misses         int    `json:"misses"`
+	// Unordered counts the index files kept whole whatever the change and
+	// KeptRegardless their tests; ControlsKept is each control's kept-set
+	// size, all of it kept regardless (the GLS-V0-032 control rule).
+	Unordered      int   `json:"unordered"`
+	KeptRegardless int   `json:"keptRegardless"`
+	ControlsKept   []int `json:"controlsKept"`
 }
 
 // QualifiedReport restates the summarized report a record stands on.
@@ -176,8 +182,13 @@ func CheckRubyQualification(ctx context.Context, selectorRoot, runner string, in
 	}
 	found := false
 	for i, r := range q.Report.Runs {
-		if r.Runner != q.Runners[i] || r.Misses != 0 || r.ControlsFailed != 0 || r.Controls <= 0 || r.Killed <= 0 || r.Faults <= 0 || len(r.Selected) != r.Faults || r.Tests <= 0 || r.IndexDigest == "" {
+		if r.Runner != q.Runners[i] || r.Misses != 0 || r.ControlsFailed != 0 || r.Controls <= 0 || r.Killed <= 0 || r.Faults <= 0 || len(r.Selected) != r.Faults || r.Tests <= 0 || r.IndexDigest == "" || len(r.ControlsKept) != r.Controls {
 			return fmt.Errorf("ruby qualification run %q is not passing", r.Runner)
+		}
+		for _, kept := range r.ControlsKept {
+			if kept > r.KeptRegardless {
+				return fmt.Errorf("ruby qualification run %q has a control keeping tests beyond those kept whatever the change", r.Runner)
+			}
 		}
 		found = found || r.Runner == runner
 	}

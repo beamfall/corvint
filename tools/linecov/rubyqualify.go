@@ -34,7 +34,9 @@ type RubyQualRunner struct {
 	Runner      string          `json:"runner"`
 	IndexDigest string          `json:"indexDigest"`
 	Baseline    RubySuiteResult `json:"baseline"`
-	Faults      []RubyQualFault `json:"faults"`
+	// Unordered is the index's files kept whole whatever the change.
+	Unordered []string        `json:"unordered"`
+	Faults    []RubyQualFault `json:"faults"`
 }
 
 // RubySuiteResult is one complete suite run.
@@ -44,6 +46,8 @@ type RubySuiteResult struct {
 	Failing [][2]string `json:"failing"`
 	Skipped int         `json:"skipped"`
 	Outside int         `json:"outside"`
+	// Inventory lists every test of a baseline run.
+	Inventory [][2]string `json:"inventory,omitempty"`
 }
 
 // RubyQualFault is one committed fault: its site, the complete suite's
@@ -56,7 +60,10 @@ type RubyQualFault struct {
 	Head     string          `json:"head"`
 	Suite    RubySuiteResult `json:"suite"`
 	Selected [][2]string     `json:"selected"`
-	Fallback string          `json:"fallback,omitempty"`
+	// KeptByCoverage counts the selected tests whose record reached the
+	// change (plan reason selected or stale).
+	KeptByCoverage int    `json:"keptByCoverage"`
+	Fallback       string `json:"fallback,omitempty"`
 }
 
 // rubyFaultResult is the verdict on one fault.
@@ -70,13 +77,17 @@ type rubyFaultResult struct {
 	Selected int         `json:"selected"`
 	Missed   [][2]string `json:"missed,omitempty"`
 	Passed   bool        `json:"controlPassed,omitempty"`
-	Fallback string      `json:"fallback,omitempty"`
+	// Regardless counts the selected tests of files kept whole whatever the change.
+	Regardless int    `json:"keptRegardless"`
+	Fallback   string `json:"fallback,omitempty"`
 }
 
 // rubyQualify folds a Ruby fault-run report (LPCV-V0-7608): every baseline
-// must pass completely, every fault must run the complete suite, a failing
-// test outside the selected set is a miss, and a control must select and
-// kill nothing. With -record it writes the Ruby qualification record bound
+// must pass completely, every fault must run the complete suite, and a
+// failing test outside the selected set is a miss. A control passes, as
+// GLS-V0-032 defines for Go, when it kills nothing, causes no fallback,
+// keeps no test by coverage and keeps only tests of files the index keeps
+// whole whatever the change. With -record it writes the Ruby qualification record bound
 // to the RubyQualifiedSources blobs at -root's HEAD, which must equal those
 // of the report's selector revision.
 func rubyQualify(args []string) error {
@@ -173,10 +184,21 @@ func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResu
 		if r.Runner == "" || r.IndexDigest == "" {
 			problems = append(problems, fmt.Sprintf("%s: no runner identity or index digest", r.Family))
 		}
-		if b.Exit != 0 || len(b.Failing) != 0 || b.Skipped != 0 || b.Outside != 0 || b.Tests <= 0 {
+		if b.Exit != 0 || len(b.Failing) != 0 || b.Skipped != 0 || b.Outside != 0 || b.Tests <= 0 || len(b.Inventory) != b.Tests {
 			problems = append(problems, fmt.Sprintf("%s: the baseline did not pass completely", r.Family))
 		}
-		run := linecov.QualifiedRun{Runner: r.Runner, IndexDigest: r.IndexDigest, Tests: b.Tests, Selected: []int{}}
+		run := linecov.QualifiedRun{Runner: r.Runner, IndexDigest: r.IndexDigest, Tests: b.Tests, Selected: []int{}, ControlsKept: []int{}, Unordered: len(r.Unordered)}
+		unordered := map[string]bool{}
+		for _, f := range r.Unordered {
+			unordered[f] = true
+		}
+		inventory := map[[2]string]bool{}
+		for _, t := range b.Inventory {
+			inventory[t] = true
+			if unordered[t[0]] {
+				run.KeptRegardless++
+			}
+		}
 		for _, f := range r.Faults {
 			if f.Suite.Tests != b.Tests || f.Suite.Skipped != 0 || f.Suite.Outside != 0 {
 				problems = append(problems, fmt.Sprintf("%s: %s %s:%d did not run the complete suite", r.Family, f.Kind, f.Path, f.Line))
@@ -186,6 +208,14 @@ func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResu
 				selected[s] = true
 			}
 			v := rubyFaultResult{Kind: f.Kind, Path: f.Path, Line: f.Line, Control: f.Control, Killed: len(f.Suite.Failing) > 0, Failing: len(f.Suite.Failing), Selected: len(selected), Fallback: f.Fallback}
+			for s := range selected {
+				if unordered[s[0]] {
+					v.Regardless++
+				}
+				if !inventory[s] {
+					problems = append(problems, fmt.Sprintf("%s: %s %s:%d selected %v outside the baseline inventory", r.Family, f.Kind, f.Path, f.Line, s))
+				}
+			}
 			for _, failing := range f.Suite.Failing {
 				if !selected[failing] {
 					v.Missed = append(v.Missed, failing)
@@ -193,10 +223,11 @@ func foldRubyReport(rep RubyQualReport) ([]linecov.QualifiedRun, []rubyFaultResu
 			}
 			if f.Control {
 				run.Controls++
-				v.Passed = len(selected) == 0 && !v.Killed
+				run.ControlsKept = append(run.ControlsKept, len(selected))
+				v.Passed = !v.Killed && f.Fallback == "" && f.KeptByCoverage == 0 && v.Regardless == len(selected)
 				if !v.Passed {
 					run.ControlsFailed++
-					problems = append(problems, fmt.Sprintf("%s: control %s:%d selected %d and killed %v", r.Family, f.Path, f.Line, len(selected), v.Killed))
+					problems = append(problems, fmt.Sprintf("%s: control %s:%d killed %v, fallback %q, kept %d by coverage and %d of %d whatever the change", r.Family, f.Path, f.Line, v.Killed, f.Fallback, f.KeptByCoverage, v.Regardless, len(selected)))
 				}
 			} else {
 				run.Faults++
