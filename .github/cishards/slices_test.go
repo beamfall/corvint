@@ -24,10 +24,15 @@ type fixtureSplit struct {
 	ms    []int64 // one per named slice, then the catch-all
 }
 
+// fixtureSource is the source of the fixture cost tables and slice files: measured at -p 4,
+// the pull-request shards' parallelism, so every plan up to -p 4 prices at the -p it plans
+// for (PricedParallel). The V1-5086 pricing tests declare their own sources.
+var fixtureSource = map[string]any{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1", "parallel": 4}
+
 func costsFile(ms map[string]int64) []byte {
 	raw, _ := json.Marshal(map[string]any{
 		"profile":      "corvint-ci-package-costs/0",
-		"source":       map[string]string{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1"},
+		"source":       fixtureSource,
 		"milliseconds": ms,
 	})
 	return raw
@@ -53,7 +58,7 @@ func slicesFile(splits map[string]fixtureSplit) []byte {
 	}
 	raw, _ := json.Marshal(map[string]any{
 		"profile":  "corvint-ci-test-slices/0",
-		"source":   map[string]string{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1"},
+		"source":   fixtureSource,
 		"packages": packages,
 	})
 	return raw
@@ -855,4 +860,95 @@ func TestAFPV0022RepositoryUniverseNeedsNoTableEdit(t *testing.T) {
 		t.Fatalf("add a package: %v", err)
 	}
 	requireComplete(t, added, plan)
+}
+
+// TestV15086SliceTargetIsOneExecutionSlot: the AFP-V0-060 slice target for shards at -p
+// parallel is the total over shards times parallel, raised to the longest package the
+// allow-list keeps whole and capped at the wall budget; the count bounds each slice by it.
+func TestV15086SliceTargetIsOneExecutionSlot(t *testing.T) {
+	allowed := map[string]string{"example.org/big": "fixture"}
+	for _, c := range []struct {
+		elapsed          map[string]int64
+		shards, parallel int
+		want             int64
+	}{
+		// 1,600 s over 16 shards at -p 1 is 100 s each; at -p 4 each slot is 25 s.
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 100000}, 16, 1, 100000},
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 100000}, 16, 4, 100000},
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 10000}, 16, 4, 23593},
+		// A whole package longer than the slot sets the target; the budget caps it.
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 300000}, 16, 4, 300000},
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 500000}, 16, 4, DefaultWallBudgetMs},
+		{map[string]int64{"example.org/big": 9000000}, 2, 1, DefaultWallBudgetMs},
+	} {
+		if got := SliceTarget(c.elapsed, allowed, c.shards, c.parallel); got != c.want {
+			t.Fatalf("%v over %d shards at -p %d: target %d, want %d", c.elapsed, c.shards, c.parallel, got, c.want)
+		}
+	}
+	for _, c := range []struct {
+		elapsed, target int64
+		shards, want    int
+	}{{1069600, 338400, 16, 4}, {338400, 338400, 16, 1}, {9000000, 1000, 16, 16}, {9000000, 1000, 3, 3}, {5, 0, 16, 5}} {
+		if got := SliceCount(c.elapsed, c.target, c.shards); got != c.want {
+			t.Fatalf("SliceCount(%d, %d, %d) = %d, want %d", c.elapsed, c.target, c.shards, got, c.want)
+		}
+	}
+	// Observed times weigh the cut and price each slice at its share of the package.
+	s, ok := SliceTests([]string{"TestD", "TestA", "TestB", "TestC", "BenchmarkX"}, map[string]int64{"TestA": 30, "TestB": 10, "TestC": 10, "TestD": 10, "TestGone": 40}, 10000, 3)
+	if !ok || !reflect.DeepEqual(s, TestSplit{Named: []NamedSlice{{3000, []string{"TestA"}}, {3000, []string{"TestB", "TestC", "TestD"}}}, RestMilliseconds: 4000}) {
+		t.Fatalf("split %+v ok=%v", s, ok)
+	}
+	if _, ok := SliceTests([]string{"TestA"}, nil, 10000, 3); ok {
+		t.Fatal("split with fewer nameable tests than named slices")
+	}
+}
+
+func TestAFPV0041MinMaxCutsIsOptimal(t *testing.T) {
+	for _, c := range []struct {
+		costs []int64
+		k     int
+	}{{[]int64{5, 1, 1, 1, 5, 0}, 2}, {[]int64{9, 1, 1, 1, 1, 1, 1, 3}, 3}, {[]int64{1, 1, 1, 1}, 4}, {[]int64{3, 0}, 2}} {
+		cuts := minMaxCuts(c.costs, c.k)
+		if len(cuts) != c.k || cuts[0] != 0 {
+			t.Fatalf("cuts %v", cuts)
+		}
+		if got, want := largestGroup(c.costs, cuts), bruteMinMax(c.costs, c.k); got != want {
+			t.Fatalf("%v k=%d: largest %d, optimum %d", c.costs, c.k, got, want)
+		}
+	}
+}
+
+func largestGroup(costs []int64, cuts []int) int64 {
+	var top int64
+	for i := range cuts {
+		end := len(costs)
+		if i+1 < len(cuts) {
+			end = cuts[i+1]
+		}
+		var sum int64
+		for _, c := range costs[cuts[i]:end] {
+			sum += c
+		}
+		top = max(top, sum)
+	}
+	return top
+}
+
+func bruteMinMax(costs []int64, k int) int64 {
+	if k == 1 {
+		var sum int64
+		for _, c := range costs {
+			sum += c
+		}
+		return sum
+	}
+	best := int64(1 << 62)
+	for i := 1; i <= len(costs)-(k-1); i++ {
+		var head int64
+		for _, c := range costs[:i] {
+			head += c
+		}
+		best = min(best, max(head, bruteMinMax(costs[i:], k-1)))
+	}
+	return best
 }

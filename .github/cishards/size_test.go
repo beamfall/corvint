@@ -1,7 +1,9 @@
 package cishards
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -264,5 +266,118 @@ func TestV15086UnpricedPackagesNeverJoinAFullShard(t *testing.T) {
 	}
 	if wall := PredictedWallMs(plan, 1, w, unknown); wall > 400000 {
 		t.Fatalf("the sized plan predicts %d ms, above the 400000 ms budget", wall)
+	}
+}
+
+// pricedTable is a cost table whose source records parallel, or no parallel at all when it is 0.
+func pricedTable(t *testing.T, ms map[string]int64, parallel int) []byte {
+	t.Helper()
+	source := map[string]any{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1"}
+	if parallel != 0 {
+		source["parallel"] = parallel
+	}
+	raw, err := json.Marshal(map[string]any{"profile": "corvint-ci-package-costs/0", "source": source, "milliseconds": ms})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// TestV15086PricingFollowsTheMeasuredParallelism (fault injection for the -p 1 table): a
+// table that records no parallelism was measured at -p 1, one package at a time, so a -p 4
+// shard of its packages is priced at their sum, not at a quarter of it. Reverting the
+// placement or the sizing to the requested -p fails here.
+func TestV15086PricingFollowsTheMeasuredParallelism(t *testing.T) {
+	four := map[string]int64{"example.org/q/a": 300000, "example.org/q/b": 300000, "example.org/q/c": 300000, "example.org/q/d": 300000}
+	var universe []string
+	for p := range four {
+		universe = append(universe, p)
+	}
+	// Four 300 s packages: priced at -p 4 two share a shard (600 / 4 = 150 s, but each runs
+	// 300 s); priced at their -p 1 sum each needs its own shard within 400 s.
+	for _, c := range []struct {
+		parallel int
+		want     int
+	}{{0, 4}, {1, 4}, {2, 2}, {4, 2}} {
+		got, err := SizeFrom(universe, universe, 2, 16, 4, DefaultWallBudgetMs, pricedTable(t, four, c.parallel), nil, nil)
+		if err != nil || got != c.want {
+			t.Fatalf("table at -p %d sizes -p 4 shards to %d (%v), want %d", c.parallel, got, err, c.want)
+		}
+	}
+	// Placement: at -p 2 a wall-aware plan puts a beside the three others; a -p 1 table keeps
+	// the least-loaded plan, since its times give no overlap to plan on.
+	ms := map[string]int64{"example.org/q/a": 100000, "example.org/q/b": 60000, "example.org/q/c": 50000, "example.org/q/d": 40000}
+	universe = universe[:0]
+	for p := range ms {
+		universe = append(universe, p)
+	}
+	for _, c := range []struct {
+		parallel int
+		want     [][]string
+	}{
+		{0, [][]string{{"example.org/q/a", "example.org/q/d"}, {"example.org/q/b", "example.org/q/c"}}},
+		{2, [][]string{{"example.org/q/a"}, {"example.org/q/b", "example.org/q/c", "example.org/q/d"}}},
+	} {
+		plan, err := PlanFromParallel(universe, 2, 2, pricedTable(t, ms, c.parallel), nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range plan {
+			if !reflect.DeepEqual(plan[i].Packages, c.want[i]) {
+				t.Fatalf("table at -p %d placed %v, want %v", c.parallel, plan, c.want)
+			}
+		}
+	}
+}
+
+// TestV15086PricedParallelIsTheLeastMeasuredParallelism: pricing never assumes more overlap than
+// the cost table's or a usable slice file's source shards ran at, nor more than the plan's own -p.
+func TestV15086PricedParallelIsTheLeastMeasuredParallelism(t *testing.T) {
+	ms := map[string]int64{"example.org/a": 1000}
+	slicesAt := func(parallel int) []byte {
+		source := map[string]any{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1"}
+		if parallel != 0 {
+			source["parallel"] = parallel
+		}
+		raw, _ := json.Marshal(map[string]any{"profile": "corvint-ci-test-slices/0", "source": source, "packages": map[string]any{}})
+		return raw
+	}
+	for _, c := range []struct {
+		plan, table, slices int
+		slicesRaw           []byte
+		want                int
+	}{
+		{4, 4, 4, nil, 4},
+		{4, 0, 4, nil, 1},
+		{4, 1, 4, nil, 1},
+		{4, 8, 4, nil, 4},
+		{2, 4, 4, nil, 2},
+		{8, 4, 4, nil, 4},
+		{4, 4, 0, nil, 1},
+		{4, 4, 2, nil, 2},
+		{4, 4, 0, []byte("{}"), 4}, // an unusable slice file splits nothing, so it prices nothing
+	} {
+		slicesRaw := c.slicesRaw
+		if slicesRaw == nil {
+			slicesRaw = slicesAt(c.slices)
+		}
+		if got := PricedParallel(c.plan, pricedTable(t, ms, c.table), slicesRaw); got != c.want {
+			t.Fatalf("plan -p %d, table -p %d, slices -p %d: priced %d, want %d", c.plan, c.table, c.slices, got, c.want)
+		}
+	}
+	if got := PricedParallel(4, []byte("{}"), nil); got != 1 {
+		t.Fatalf("unusable table priced at %d", got)
+	}
+	// The recorded -p is admitted only from 1 to MaxParallel.
+	for _, p := range []int{-1, MaxParallel + 1} {
+		if _, ok := Costs(pricedTable(t, ms, p)); ok {
+			t.Fatalf("cost table with parallel %d admitted", p)
+		}
+		if SliceFileUsable(slicesAt(p)) {
+			t.Fatalf("slice file with parallel %d admitted", p)
+		}
+	}
+	if _, ok := Costs(pricedTable(t, ms, MaxParallel)); !ok || !SliceFileUsable(slicesAt(MaxParallel)) {
+		t.Fatal("parallel MaxParallel refused")
 	}
 }
