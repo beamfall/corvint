@@ -16,7 +16,7 @@ import (
 
 func rubyReportFixture() RubyQualReport {
 	t1, t2 := [2]string{"test/a_test.rb", "A#t1"}, [2]string{"test/a_test.rb", "A#t2"}
-	base := RubySuiteResult{Tests: 2, Failing: [][2]string{}}
+	base := RubySuiteResult{Tests: 2, Failing: [][2]string{}, Inventory: [][2]string{t1, t2}}
 	killed := RubySuiteResult{Exit: 1, Tests: 2, Failing: [][2]string{t1}}
 	return RubyQualReport{
 		Profile: RubyQualificationProfile, Seed: 20261116,
@@ -42,8 +42,17 @@ func TestRubyQualifySummarize(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := runs[0]
-	if r.Faults != 2 || r.Killed != 1 || r.Controls != 1 || r.ControlsFailed != 0 || r.Misses != 0 || len(r.Selected) != 2 || r.Selected[0] != 1 || r.Selected[1] != 2 || len(verdicts) != 3 || !verdicts[2].Passed {
+	if r.Faults != 2 || r.Killed != 1 || r.Controls != 1 || r.ControlsFailed != 0 || r.Misses != 0 || len(r.Selected) != 2 || r.Selected[0] != 1 || r.Selected[1] != 2 || len(verdicts) != 3 || !verdicts[2].Passed || len(r.ControlsKept) != 1 || r.ControlsKept[0] != 0 {
 		t.Fatalf("runs %+v verdicts %+v", runs, verdicts)
+	}
+	// GLS-V0-032: tests of a file the index keeps whole whatever the change
+	// do not fail a control; the record restates how many it kept.
+	regardless := rubyReportFixture()
+	regardless.Runners[0].Unordered = []string{"test/a_test.rb"}
+	regardless.Runners[0].Faults[2].Selected = [][2]string{{"test/a_test.rb", "A#t1"}, {"test/a_test.rb", "A#t2"}}
+	runs, _, err = foldRubyReport(regardless)
+	if err != nil || runs[0].ControlsKept[0] != 2 || runs[0].KeptRegardless != 2 || runs[0].Unordered != 1 {
+		t.Fatalf("kept-regardless control: %v %+v", err, runs)
 	}
 	for name, mutate := range map[string]func(*RubyQualReport){
 		"miss":            func(r *RubyQualReport) { r.Runners[0].Faults[0].Selected = [][2]string{{"test/a_test.rb", "A#t2"}} },
@@ -51,7 +60,17 @@ func TestRubyQualifySummarize(t *testing.T) {
 		"control kills": func(r *RubyQualReport) {
 			r.Runners[0].Faults[2].Suite.Failing = [][2]string{{"test/a_test.rb", "A#t2"}}
 		},
-		"incomplete suite":   func(r *RubyQualReport) { r.Runners[0].Faults[1].Suite.Tests = 1 },
+		"incomplete suite": func(r *RubyQualReport) { r.Runners[0].Faults[1].Suite.Tests = 1 },
+		"control fallback": func(r *RubyQualReport) { r.Runners[0].Faults[2].Fallback = "the change reaches load-time code" },
+		"control by coverage": func(r *RubyQualReport) {
+			r.Runners[0].Unordered = []string{"test/a_test.rb"}
+			r.Runners[0].Faults[2].Selected = [][2]string{{"test/a_test.rb", "A#t1"}}
+			r.Runners[0].Faults[2].KeptByCoverage = 1
+		},
+		"selected outside inventory": func(r *RubyQualReport) {
+			r.Runners[0].Faults[0].Selected = [][2]string{{"test/a_test.rb", "A#t1"}, {"x", "y"}}
+		},
+		"no inventory":       func(r *RubyQualReport) { r.Runners[0].Baseline.Inventory = nil },
 		"failing baseline":   func(r *RubyQualReport) { r.Runners[0].Baseline.Failing = [][2]string{{"test/a_test.rb", "A#t2"}} },
 		"skipped baseline":   func(r *RubyQualReport) { r.Runners[0].Baseline.Skipped = 1 },
 		"no runner identity": func(r *RubyQualReport) { r.Runners[0].Runner = "" },
