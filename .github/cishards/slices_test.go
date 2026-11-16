@@ -625,17 +625,25 @@ func TestAFPV0590SelectBalancesByMeasuredCost(t *testing.T) {
 	}
 }
 
-// The median of the whole cost table, not of the selection, prices an unpriced package.
-func TestAFPV0590SelectUsesTheFullTableMedian(t *testing.T) {
-	universe := []string{"example.org/a", "example.org/b", "example.org/c", "example.org/d", "example.org/x", "example.org/y", "example.org/z"}
-	costs := costsFile(map[string]int64{"example.org/a": 100, "example.org/b": 100, "example.org/c": 100, "example.org/d": 3000})
+// The conservative price of the whole cost table, its 90th percentile (V1-5086), not of the
+// selection, prices an unpriced package: ten 100 ms entries and one 3000 ms entry put it at 100,
+// where the selection's own priced package alone would put it at 3000.
+func TestAFPV0590SelectUsesTheFullTableConservativePrice(t *testing.T) {
+	universe := []string{"example.org/d", "example.org/x", "example.org/y", "example.org/z"}
+	ms := map[string]int64{"example.org/d": 3000}
+	for i := 0; i < 10; i++ {
+		p := fmt.Sprintf("example.org/f%d", i)
+		ms[p] = 100
+		universe = append(universe, p)
+	}
+	costs := costsFile(ms)
 	plan, err := SelectFrom(universe, []string{"example.org/z", "example.org/d", "example.org/x", "example.org/y"}, 2, costs, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []Shard{{Packages: []string{"example.org/d"}}, {Packages: []string{"example.org/x", "example.org/y", "example.org/z"}}}
 	if !reflect.DeepEqual(plan, want) {
-		t.Fatalf("unpriced packages not priced at the table median: %v", plan)
+		t.Fatalf("unpriced packages not priced at the whole table's conservative price: %v", plan)
 	}
 }
 
@@ -686,13 +694,14 @@ func TestAFPV0022MembershipDerivedFromUniverse(t *testing.T) {
 	const m = "github.com/Beamfall/corvint/x/"
 	big, gone, gonesplit, added := m+"big", m+"gone", m+"gonesplit", m+"added"
 	universe := []string{big, m + "a", m + "c", m + "d", m + "e"}
-	// The whole-table median is 50 with and without the stale "gone" entry.
+	// The whole-table conservative price (V1-5086, the 90th percentile) is 100 with and without
+	// the stale "gone" entry, and with the added package priced at it.
 	priced := map[string]int64{big: 100, m + "a": 100, m + "c": 50, m + "d": 30, m + "e": 10}
 	withGone := map[string]int64{gone: 70, gonesplit: 20}
 	for p, n := range priced {
 		withGone[p] = n
 	}
-	pricedAdded := map[string]int64{added: 50}
+	pricedAdded := map[string]int64{added: 100}
 	for p, n := range withGone {
 		pricedAdded[p] = n
 	}
@@ -727,7 +736,7 @@ func TestAFPV0022MembershipDerivedFromUniverse(t *testing.T) {
 			}
 			unpriced := plan(withAdded, stale, allowStale, slicesStale)
 			if got := plan(withAdded, plusAdded, allowStale, slicesStale); !reflect.DeepEqual(unpriced, got) {
-				t.Fatalf("%s: an unpriced package is not placed at the median:\n%v\n%v", name, unpriced, got)
+				t.Fatalf("%s: an unpriced package is not placed at the conservative price:\n%v\n%v", name, unpriced, got)
 			}
 			plan(deleted, stale, allowStale, slicesStale)
 
@@ -747,7 +756,7 @@ func TestAFPV0022MembershipDerivedFromUniverse(t *testing.T) {
 			a, _ := partition(withAdded, total, stale)
 			b, _ := partition(withAdded, total, plusAdded)
 			if !reflect.DeepEqual(a, b) {
-				t.Fatalf("%s: partition does not price an unpriced package at the median:\n%v\n%v", name, a, b)
+				t.Fatalf("%s: partition does not price an unpriced package at the conservative price:\n%v\n%v", name, a, b)
 			}
 			placed := map[string]int{}
 			for _, s := range a {
@@ -801,7 +810,7 @@ func TestAFPV0022RepositoryUniverseNeedsNoTableEdit(t *testing.T) {
 	for _, p := range universe {
 		in[p] = true
 		if _, ok := costs[p]; !ok {
-			t.Logf("unpriced (median estimate): %s", p)
+			t.Logf("unpriced (conservative estimate): %s", p)
 		}
 	}
 	heaviest := make([]string, 0, len(costs))

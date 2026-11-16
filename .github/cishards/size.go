@@ -40,7 +40,7 @@ func SizeFrom(universe, selected []string, min, max, parallel int, budgetMs int6
 	if budgetMs <= 0 {
 		return 0, errors.New("invalid wall budget")
 	}
-	w, unknown, ok := weights(costs)
+	w, unknown, ok := placementWeights(costs)
 	if !ok {
 		if _, err := SelectFromParallel(universe, selected, max, parallel, costs, allowRaw, slicesRaw); err != nil {
 			return 0, err
@@ -100,9 +100,9 @@ func PredictedWallMs(plan []Shard, parallel int, w map[string]int64, unknown int
 	return worst
 }
 
-// Weights returns the admitted cost table and the median an unpriced package takes, as the
-// placement reads them; false when the table is unusable.
-func Weights(costs []byte) (map[string]int64, int64, bool) { return weights(costs) }
+// Weights returns the admitted cost table and the conservative price an unpriced package
+// takes, as the placement reads them; false when the table is unusable.
+func Weights(costs []byte) (map[string]int64, int64, bool) { return placementWeights(costs) }
 
 func costOf(p string, w map[string]int64, unknown int64) int64 {
 	if n, ok := w[p]; ok {

@@ -4470,7 +4470,7 @@ selected package unrun. The full fallback is unchanged.
   cost-balanced placement of the driver selection. There are four parts.
   - (1) `cishards.Select` (`SelectFrom`) keeps the selected packages that are in the complete
     universe, once each, and places only them with `PlanFrom`: the same longest-processing-time
-    placement (by predicted wall time, `AFP-V0-2181`), the median of the whole cost table for an unpriced package, and the same
+    placement (by predicted wall time, `AFP-V0-2181`), the 90th percentile of the whole cost table for an unpriced package (`V1-5086`), and the same
     `AFP-V0-041` slices for a split package. Every selected package of the universe lands on exactly
     one shard (whole or as all of its slices), none is omitted, a package outside the universe is
     dropped, an empty selection leaves every shard empty, and selecting the whole universe or `./...`
