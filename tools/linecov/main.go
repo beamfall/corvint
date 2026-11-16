@@ -69,6 +69,8 @@ func main() {
 		err = qualify(os.Args[2:])
 	case "qualified":
 		err = qualified(os.Args[2:])
+	case "ruby-qualify":
+		err = rubyQualify(os.Args[2:])
 	case "redundancy":
 		err = redundancy(os.Args[2:])
 	case "merge":
