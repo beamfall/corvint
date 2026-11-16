@@ -757,17 +757,34 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   `when` condition and a key of a multi-line literal without counting their line, and a line
   that declares a local, a pattern or named capture, or a numbered or implicit block parameter
   changes how other lines parse and run without executing. A binding is compared as the line's
-  own text: through its last assignment operator, or the whole line when it holds `=>`; a named
-  capture in either spelling (`(?<n>`, `(?'n'`) or a block parameter is never bounded. When the
-  old or new side of the file holds, anywhere, a `%` followed by a space or tab with or without
-  one letter between (`% `, `%q `, `%Q\t`), the text is compared exactly as written, indentation
-  and every blank included. Otherwise the indentation is cut and each other run of spaces and
-  tabs is read as one space; nothing else is dropped. Amended 2026-11-16 (repair round 3,
-  independent review P2; the earlier text read every run as one space): Ruby 3.3.8 accepts a
-  space or tab as the delimiter of a bare, `q`, `Q`, `s`, `r` and `x` percent literal, so the
-  run's length decides where the literal ends (`%  =>x ` declares `x`, `% =>x ` is a string).
-  The lexer does not read such a literal and it may open on an earlier line, so the whole file
-  decides. Amended 2026-11-16 (repair
+  own text: through its last assignment operator, or the whole line when it holds `=>`, with
+  the indentation cut and each other run of spaces and tabs read as one space; text after the
+  last assignment operator, and a line with neither operator, is not compared. A named capture
+  in either spelling (`(?<n>`, `(?'n'`) or a block parameter is never bounded. That squeezed
+  comparison is the only one. When the old or new side of the file holds, anywhere, a `%`
+  followed by a space or tab with or without one letter between (`% `, `%q `, `%Q\t`), nothing
+  in that file is bounded by a line's text or hits: every replaced or deleted hunk selects
+  every test of the enclosing called method and its body lines, or falls back outside one, as
+  an insertion does. Amended 2026-11-16 (repair round 4, independent review P1; the round-3
+  text compared such a file's lines exactly as written, but only through the last assignment
+  operator, so the blank that closes a literal was never compared): Ruby 3.3.8 accepts a space
+  or tab as the delimiter of a bare, `q`, `Q`, `s`, `r` and `x` percent literal and closes it
+  at the next such blank, which may be a line's indentation, a blank inside it or the blank at
+  its end (`%  =>x ` declares `x`, `% =>x ` is a string; `p 1, % a ` ends the literal, `p 1, % a`
+  runs it onto the next line and swallows an assignment there), so no part of a line's text
+  tells what the line declares. A file is narrowed at all only when the index's Ruby reads both
+  of its sides as the lexer does: `ruby-select` asks the interpreter's own lexer (Ripper) for
+  each side, and a line whose code text differs, a line that begins or ends inside a literal,
+  heredoc body or block comment for one reader only, or a side Ruby does not lex keeps the
+  static plan (`Ruby reads the old|new side of FILE differently from the lexer`); blanks at a
+  line's end are not compared. Amended 2026-11-16 (repair round 4, found while closing review
+  P1): the lexer of `internal/rubydialect` is an approximation. It reads a percent literal
+  delimited by a blank, a newline or `=`, two divisions on one line, a lower-case heredoc tag
+  and a quote in `$'` as code or as the wrong literal, and an edit of such text can change a
+  method the edit is not in, where the tests of the enclosing method are not enough (measured
+  on Ruby 3.3.8: removing the blank that closes `z = % a ` in a tab-indented file swallows a
+  later method, and `z = %` at a line's end against `z = 1 %` turns the next line from a
+  literal's body into code). Amended 2026-11-16 (repair
   round 2, independent review P1; the earlier text compared a `=>` line by its words and its `=`
   and `=>` tokens, so `x = {:a => 1}` and `@x = {:a => 1}` compared equal and an edit between
   them on a line no test hit selected nothing): a sigil, a dot, a bracket, a comma, a number, a
@@ -780,14 +797,17 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   the enclosing called method and its body lines; outside a method body, or in an uncalled
   method, they fall back. Load-time reach, block-structure changes (the keyword and bracket
   sequence of the edited lines, or the code outside them, differs), a new side that does not
-  parse under the index's Ruby (`ruby -c`) or cannot be checked, missing blobs, and every
-  earlier fallback keep the static plan with the reason reported. Data-driven test-unit cases
+  parse under the index's Ruby (`ruby -c`) or cannot be checked, a side Ruby reads differently
+  from the lexer or cannot be asked about, missing blobs, and every earlier fallback keep the
+  static plan with the reason reported. Data-driven test-unit cases
   retain distinct identities. Witness: `TestIsolationAndChildren`, `TestUncalledMethodFallback`,
   `TestDataDrivenTestUnit`, `TestLoadedEvalAndNewTestFallback`, `TestLiveRSpecIsolation`,
   `TestAnalyzeLines`, `TestAnalyzeLinesStructureAndSyntax`, `TestAnalyzeLinesUnboundedReach`,
   `TestAnalyzeLinesBoundedReach`, `TestLineReachRules`, `TestLiveLineReach`, `TestLineStates`,
   `TestBindingSignatureKeepsLineText`, `TestLiveBindingSignatureAgreesWithRuby`,
-  `TestBlankDelimitedFileComparesExactText`, `TestLiveBlankRunInStringBody`,
+  `TestBlankDelimitedFileBoundsNoHunk`, `TestAnalyzeLinesBlankDelimitedFileHunkKinds`,
+  `TestLiveBlankRunInStringBody`, `TestLiveEditBeyondTheLexer`,
+  `TestEditBeyondTheLexerNeedsRuby`, `TestLiveRubyLexerAgainstTheLexer`,
   `TestLanguageDecideRubyAdmission`.
 - `LPCV-V0-7608`: (accepted, decision 0601 (owner 2026-11-16); V1-4365) The Ruby family is
   admitted only by `.github/linecov/ruby-qualification.json` (`linecov-qualified/1`, family
