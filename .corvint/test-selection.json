@@ -1,5 +1,5 @@
 {
-  "profile": "corvint-test-selection/0",
+  "profile": "corvint-test-selection/2",
   "owners": [
     {
       "paths": ".claude/skills/corvint-lane-flow/SKILL.md",
@@ -16,7 +16,9 @@
     {
       "paths": ".github/cishards/**",
       "tests": [
-        ".github/cishards/"
+        ".github/cishards/",
+        ".github/macos/shard_test.py",
+        "tools/ci-reuse-replay/replay_test.py"
       ]
     },
     {
@@ -547,7 +549,17 @@
     {
       "paths": "go.mod",
       "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+        ".github/cishards/",
+        ".github/testconfine/",
+        "benchmarks/selfuse-batch/",
+        "cmd/",
+        "conformance/",
+        "examples/evidence-provider/v0/",
+        "experimental/analyzers/sqlnative/",
+        "internal/",
+        "protocol/integrations/",
+        "script/spec-coverage-audit/",
+        "tools/"
       ]
     },
     {
@@ -1183,6 +1195,84 @@
     {
       "tests": "cmd/corvint/core_freeze_test.go",
       "reason": "AFP-V0-9320: TestCoreVerbsEmitTheFrozenProfiles guards affected graph and excluded digests; keep its package whole for every nonempty change"
+    }
+  ],
+  "treeReaders": [
+    {
+      "runs": ".github/ci-cadence/classify.sh",
+      "reason": "`git grep` over the target's non-test Go files, fixture and nested-module Go files the ownership rule owns included; selected on every path for want of a scoped reader (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/batch-precheck.sh",
+      "reason": "`git ls-files` reads every tracked Go file, fixture and nested-module Go files the ownership rule owns included (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/changed-checks.sh",
+      "reason": "`git grep` reads every tracked Markdown file for citations of the changed paths, and the changed and untracked listing names any path (ASD-V0-576; AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-bash32.sh",
+      "reason": "awk reads the first line of every tracked file that is no *.sh file to find bash scripts (ASD-V0-600; AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-binary-blobs.sh",
+      "reason": "`git ls-files -s --eol` classifies the indexed content of every tracked path as text or binary (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-eol-policy.sh",
+      "reason": "perl reads `git ls-files --eol` for every tracked path, attributes and index bytes alike (decision 0061); only two fixtures skip the ending check (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-error-code-ownership.sh",
+      "reason": "`git grep` over the cmd and internal Go files, fixture and nested-module Go files the ownership rule owns included (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-fixed-tmp-paths.sh",
+      "reason": "`git grep` reads every tracked Go test file, fixture test files the ownership rule owns included (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-go-format.sh",
+      "reason": "gofmt reads every tracked Go file, fixture and nested-module Go files the ownership rule owns included (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-goos-filenames.sh",
+      "reason": "`git ls-files` lists the cmd and internal Go file names, fixture Go files the ownership rule owns included (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-license-headers.sh",
+      "reason": "`git grep` reads every tracked file outside its pathspec exclusions, which live in the script's code, so every path is selected (decision 0586; AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-line-citations.sh",
+      "reason": "`git ls-files` lists every tracked path a citation may name and reads the cited lines (LVT-V0-006; AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-mkfifo-build-tags.sh",
+      "reason": "`git grep` reads every tracked Go file, fixture and nested-module Go files the ownership rule owns included (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-requirement-definitions.sh",
+      "reason": "perl reads every tracked Go file, fixture and nested-module Go files the ownership rule owns included, beside docs/specs and the make files (RDG-V0-9980; AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-stray-backups.sh",
+      "reason": "`git ls-files` lists the name of every tracked path; adding or renaming any path can fail it (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/check-traceability-tests.sh",
+      "reason": "perl reads every tracked Go test file, fixture test files the ownership rule owns included, beside docs/specs (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/long-lines-check.sh",
+      "reason": "awk reads every tracked text file outside .corvint/agent-grep-exclude; text-ness is a content property, so every path is selected (ASD-V0-573; AZU-V0-8922)"
+    },
+    {
+      "runs": "script/requirement-ids-free.sh",
+      "reason": "`git grep -- .` reads every tracked file for requirement IDs in use (AZU-V0-8922)"
+    },
+    {
+      "runs": "script/tracked-ignored-check.sh",
+      "reason": "`git ls-files -ci --exclude-standard` matches every tracked path against the ignore rules (AZU-V0-8922)"
     }
   ]
 }

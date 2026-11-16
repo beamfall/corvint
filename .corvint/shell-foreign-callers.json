@@ -195,6 +195,7 @@
       "mentions": [
         "internal/appmap/fixture_seed_test.go",
         "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/liverepo/ownership_readers_repo_test.go",
         "internal/liveverify/affected/shell/callers_constructed_test.go",
         "internal/releasecandidate/version_test.go",
         "script/check-ci-least-privilege.sh",
@@ -257,6 +258,7 @@
       "mentions": [
         "internal/appmap/fixture_seed_test.go",
         "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/liverepo/ownership_readers_repo_test.go",
         "internal/liveverify/affected/shell/callers_constructed_test.go",
         "internal/releasecandidate/version_test.go",
         "script/check-line-citations.sh",
@@ -506,6 +508,7 @@
         "internal/extevidence/selection_test.go",
         "internal/liveverify/affected/golang/readkinds_test.go",
         "internal/liveverify/affected/liverepo/measure_test.go",
+        "internal/liveverify/affected/liverepo/ownership_readers_repo_test.go",
         "internal/liveverify/affected/liverepo/precision_replay_repo_test.go",
         "internal/liveverify/affected/liverepo/replay_v14170_test.go",
         "internal/liveverify/affected/liverepo/unbounded_readers_v14283_repo_test.go",
