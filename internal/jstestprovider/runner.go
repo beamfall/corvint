@@ -209,6 +209,8 @@ func errString(err error) string {
 // evidence/ipr-08-runner-selection.md section 6, item 1) and the roadmap
 // acceptance line requiring proven descendant cleanup.
 type E2EConfig struct {
+	// LoopbackGet is the request-local HTTP transport for readiness and preflight.
+	LoopbackGet LoopbackGet `json:"-"`
 	// ScopedTempOutput keeps native generated output in provider-owned scratch.
 	// It does not admit caller-controlled runner options or paths.
 	ScopedTempOutput bool
@@ -342,7 +344,7 @@ func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if readyLimit <= 0 {
 		readyLimit = 15 * time.Second
 	}
-	if err := waitReady(ctx, cfg.ServerReadyURL, readyLimit); err != nil {
+	if err := waitReady(ctx, cfg.ServerReadyURL, readyLimit, cfg.LoopbackGet); err != nil {
 		cancelServer()
 		serverObs := <-serverDone
 		descendantsGone := serverObs.OwnedProcessGroupCleanup
@@ -441,11 +443,11 @@ func outputLimitOrDefault(limit int) int {
 	return limit
 }
 
-func waitReady(ctx context.Context, url string, limit time.Duration) error {
+func waitReady(ctx context.Context, url string, limit time.Duration, loopbackGet LoopbackGet) error {
 	if url == "" {
 		return nil
 	}
-	if err := probeAddress(url); err != nil {
+	if err := probeAddress(url, loopbackGet); err != nil {
 		return err
 	}
 	deadline := time.Now().Add(limit)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -132,7 +133,7 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 	negate := func(t *testing.T, ctx context.Context, title, step string, maxRuns, repeat int) stepnegation.Document {
 		t.Helper()
 		cfg := NegateConfig{
-			E2E: E2EConfig{
+			E2E: E2EConfig{LoopbackGet: loopbackhttp.Get,
 				Config:         Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: envKeys, Timeout: 90 * time.Second},
 				ExternalServer: true, AppIdentity: "negate-fixture-v1", ServerReadyURL: app.URL,
 			},
@@ -261,7 +262,7 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 		requireInterruptionObserved(t, slowSeen, slowCancelled, cancelledOnSlow.Load())
 	})
 	t.Run("ambiguous-selection-refused", func(t *testing.T) {
-		_, err := RunNegate(ctx, NegateConfig{E2E: E2EConfig{Config: Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: pkg.Version, Timeout: 90 * time.Second}, ExternalServer: true, AppIdentity: "negate-fixture-v1", ServerReadyURL: app.URL},
+		_, err := RunNegate(ctx, NegateConfig{E2E: E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: pkg.Version, Timeout: 90 * time.Second}, ExternalServer: true, AppIdentity: "negate-fixture-v1", ServerReadyURL: app.URL},
 			Root: root, Spec: "negate.spec.cjs", Test: "negate > no such test", Step: "x", allowUnqualifiedTuple: !qualified})
 		if refusal, ok := err.(*NegateRefusal); !ok || refusal.Code != NegateTestAmbiguous {
 			t.Fatalf("err = %v, want %s", err, NegateTestAmbiguous)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -138,7 +139,7 @@ func TestPWPV0091PreflightProbesRunInOrderAndStopAtFirstFailure(t *testing.T) {
 		if err := validatePreflight(d); err != nil {
 			t.Fatal(err)
 		}
-		return runPreflight(context.Background(), &Preflight{File: "/decl.json", Digest: strings.Repeat("a", 64), Declaration: d}, dir)
+		return runPreflight(context.Background(), &Preflight{File: "/decl.json", Digest: strings.Repeat("a", 64), Declaration: d}, dir, loopbackhttp.Get)
 	}
 	t.Run("passing", func(t *testing.T) {
 		skipWindowsProcessRefusal(t) // the passing list runs the seed command probe through procgroup (ASD-V0-2234).
@@ -227,7 +228,7 @@ func TestPWPV0092PreflightFailureReceiptHasNoTestVerdicts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := E2EConfig{Config: Config{Dir: dir, ConfigFile: filepath.Join(dir, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: "1.64.0", TestFiles: []string{filepath.Join(dir, "example.spec.cjs")}, Timeout: time.Second},
+	cfg := E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{Dir: dir, ConfigFile: filepath.Join(dir, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: "1.64.0", TestFiles: []string{filepath.Join(dir, "example.spec.cjs")}, Timeout: time.Second},
 		ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: server.URL + "/healthz", ServerReadyLimit: time.Second, TestArgv: []string{"--project=chromium"}, Preflight: preflight}
 	r, err := RunE2E(context.Background(), cfg)
 	if err != nil {

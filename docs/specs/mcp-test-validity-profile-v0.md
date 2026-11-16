@@ -127,10 +127,11 @@ freshness to the worktree's current digests, exactly as `corvint test-validity -
   vectors.
 - `MTV-V0-950`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2185) The HTTP
   client of `jstestprovider`'s server readiness and preflight probes MUST live in
-  `internal/jstestprovider/loopbackhttp`, which registers it from `init`; `jstestprovider` itself
+  `internal/jstestprovider/loopbackhttp`, whose `Get` function startup passes in
+  `E2EConfig.LoopbackGet`; no `init` registers it (V1-4818). `jstestprovider` itself
   MUST import no connection-making network package. Only binaries that run E2E suites import
   `loopbackhttp`, so the `MTV-V0-010` allowlist is empty and the core `net/http` allowlist names
-  only `testrunner`. A probe in a binary that never imported the client MUST fail closed before
+  only `testrunner`. A probe given no client MUST fail closed before
   its first request rather than wait out its bound.
 
 ## Non-goals and failure modes

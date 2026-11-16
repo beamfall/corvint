@@ -125,7 +125,7 @@ const noMutation = "no mutation tool yet"
 const noTestProvider = "no Corvint test provider binary"
 const noProvider = "no affected-selection provider; changes widen scope"
 
-var manifests = []Manifest{
+var manifests = buildManifests([]Manifest{
 	{
 		Name:      "cfamily",
 		Paths:     []string{"cmd/corvint-analyzer-c-jni", "cmd/corvint-analyzer-objective-c", "internal/liveverify/affected/cfamily"},
@@ -264,9 +264,9 @@ var manifests = []Manifest{
 		Runners:   []string{"structured-data-behavior"},
 		Absent:    map[Piece]string{Provider: noProvider, TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
 	},
-}
+})
 
-func init() {
+func buildManifests(manifests []Manifest) []Manifest {
 	for i, m := range manifests {
 		manifests[i].RunnerPieces = make(map[string]runnernames.RunnerPieces, len(m.Runners))
 		for _, r := range m.Runners {
@@ -279,6 +279,7 @@ func init() {
 		d := decl.Of(m.Name)
 		manifests[i].Dialects, manifests[i].Dependencies = d.Dialects, d.Dependencies
 	}
+	return manifests
 }
 
 // All returns every registered language plugin, in registration order.

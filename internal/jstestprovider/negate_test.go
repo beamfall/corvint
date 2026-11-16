@@ -3,6 +3,7 @@ package jstestprovider
 import (
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,7 +27,7 @@ func negateFixture(t *testing.T) NegateConfig {
 		}
 	}
 	return NegateConfig{
-		E2E: E2EConfig{
+		E2E: E2EConfig{LoopbackGet: loopbackhttp.Get,
 			Config:         Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: "1.63.0"},
 			ExternalServer: true, AppIdentity: "fixture-app", ServerReadyURL: "http://127.0.0.1:4000/health",
 		},

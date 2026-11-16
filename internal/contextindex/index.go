@@ -216,6 +216,7 @@ type Marker struct {
 }
 
 type Index struct {
+	swiftPMReader                                                   SwiftPMReader
 	Root, ObjectFormat, CommitRevision, Revision, ProfileID, Module string
 	StatusSHA256                                                    string
 	Sources                                                         map[string]Source

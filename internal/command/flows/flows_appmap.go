@@ -12,8 +12,6 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-func init() { flowSubcommands["appmap"] = runFlowsAppmap }
-
 // AppmapHelp documents `flows appmap`; help.go appends it to flowsHelp.
 const AppmapHelp = `
 Application map usage (experimental, AMAP-V0):

@@ -196,7 +196,7 @@ func validatePreflightProbe(p PreflightProbe) error {
 // stops at the first failure; later probes are not-run (PWP-V0-091). It never
 // starts the test runner and returns the infrastructure failure to record, or
 // nil when every probe passed.
-func runPreflight(ctx context.Context, p *Preflight, dir string) (*PreflightReceipt, *InfrastructureFailure) {
+func runPreflight(ctx context.Context, p *Preflight, dir string, loopbackGet LoopbackGet) (*PreflightReceipt, *InfrastructureFailure) {
 	d := p.Declaration
 	receipt := &PreflightReceipt{Schema: PreflightSchema, DeclarationFile: p.File, DeclarationDigest: p.Digest, BaseURL: d.BaseURL, Outcome: PreflightPassed, Probes: make([]PreflightProbeResult, 0, len(d.Probes))}
 	total, cancel := context.WithTimeout(ctx, time.Duration(d.TotalTimeoutMS)*time.Millisecond)
@@ -213,7 +213,7 @@ func runPreflight(ctx context.Context, p *Preflight, dir string) (*PreflightRece
 			result.Reason = "preflight-timeout"
 		default:
 			started := time.Now()
-			runProbe(total, probe, dir, &result)
+			runProbe(total, probe, dir, &result, loopbackGet)
 			result.DurationMS = time.Since(started).Milliseconds()
 			if result.State == PreflightFailed && ctx.Err() == nil && total.Err() != nil && result.Reason != "command-timeout" {
 				// The total budget, not the probe's own bound, ended it.
@@ -240,12 +240,12 @@ func preflightArtefact(base string, p PreflightProbe) string {
 	}
 }
 
-func runProbe(ctx context.Context, p PreflightProbe, dir string, result *PreflightProbeResult) {
+func runProbe(ctx context.Context, p PreflightProbe, dir string, result *PreflightProbeResult, loopbackGet LoopbackGet) {
 	limit := time.Duration(p.TimeoutMS) * time.Millisecond
 	reason, observed := "", ""
 	switch p.Kind {
 	case PreflightHTTP:
-		reason, observed = probeHTTP(ctx, result.Artefact, p.ExpectStatus, limit)
+		reason, observed = probeHTTP(ctx, result.Artefact, p.ExpectStatus, limit, loopbackGet)
 	case PreflightCommand:
 		reason, observed = probeCommand(ctx, p.Argv, dir, limit)
 	case PreflightStorageState:
@@ -262,10 +262,10 @@ func runProbe(ctx context.Context, p PreflightProbe, dir string, result *Preflig
 
 // probeHTTP polls one GET until an admitted status answers or the probe bound
 // ends. Redirects are never followed.
-func probeHTTP(ctx context.Context, address string, expect []int, limit time.Duration) (string, string) {
+func probeHTTP(ctx context.Context, address string, expect []int, limit time.Duration, loopbackGet LoopbackGet) (string, string) {
 	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
-	if probeAddress(address) != nil {
+	if probeAddress(address, loopbackGet) != nil {
 		return "http-unreachable", ""
 	}
 	last := 0
