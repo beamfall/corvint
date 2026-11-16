@@ -757,8 +757,16 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   `when` condition and a key of a multi-line literal without counting their line, and a line
   that declares a local, a pattern or named capture, or a numbered or implicit block parameter
   changes how other lines parse and run without executing. A binding is compared as the line's
-  text through its last assignment operator, or its whole word and operator sequence when it
-  holds `=>`; a named capture or block parameter is never bounded. Every other replaced hunk, a
+  own text, with each run of spaces and tabs read as one space and nothing else dropped: through
+  its last assignment operator, or the whole line when it holds `=>`; a named capture in either
+  spelling (`(?<n>`, `(?'n'`) or a block parameter is never bounded. Amended 2026-11-16 (repair
+  round 2, independent review P1; the earlier text compared a `=>` line by its words and its `=`
+  and `=>` tokens, so `x = {:a => 1}` and `@x = {:a => 1}` compared equal and an edit between
+  them on a line no test hit selected nothing): a sigil, a dot, a bracket, a comma, a number, a
+  comment mark and a no-break space each decide what a line declares, so two lines share a
+  signature only when that text is the same; comment and string text is compared as written and
+  never read as code. A block keyword glued to a number or a bracket (`1if`, `f(1)and`) is read
+  as the keyword. Every other replaced hunk, a
   line Ruby does not count (`else`, a continuation line) and an insertion select every test of
   the enclosing called method and its body lines; outside a method body, or in an uncalled
   method, they fall back. Load-time reach, block-structure changes (the keyword and bracket
@@ -769,6 +777,7 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   `TestDataDrivenTestUnit`, `TestLoadedEvalAndNewTestFallback`, `TestLiveRSpecIsolation`,
   `TestAnalyzeLines`, `TestAnalyzeLinesStructureAndSyntax`, `TestAnalyzeLinesUnboundedReach`,
   `TestAnalyzeLinesBoundedReach`, `TestLineReachRules`, `TestLiveLineReach`, `TestLineStates`,
+  `TestBindingSignatureKeepsLineText`, `TestLiveBindingSignatureAgreesWithRuby`,
   `TestLanguageDecideRubyAdmission`.
 - `LPCV-V0-7608`: (accepted, decision 0601 (owner 2026-11-16); V1-4365) The Ruby family is
   admitted only by `.github/linecov/ruby-qualification.json` (`linecov-qualified/1`, family
@@ -796,7 +805,13 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   each ran the complete suite with no miss, whose controls do not fail and in which at least
   one run qualifies its runner. A control fails when it kills a test, causes a fallback, keeps
   a test by coverage (plan reason `selected` or `stale`) or keeps a test outside the files the
-  index keeps whole whatever the change. Witness: `TestRubyQualificationAdmission`,
+  index keeps whole whatever the change. Amended 2026-11-16 (repair round 2, independent review
+  note; the fold qualified a run whose index keeps a file whole when no baseline test belonged
+  to that file, and restated a run with no fault, both of which admission refuses): the command
+  restates a run whose index keeps any file whole as having no control, fails on a run with no
+  fault, and writes a record only when the record-only checks of admission
+  (`Qualified.RubyAdmits`) accept it for every runner it names. Witness:
+  `TestRubyQualifyRefusesWhatAdmissionRefuses`, `TestRubyQualificationAdmission`,
   `TestRubyQualificationRefusesWithoutNarrowing`, `TestRubyQualificationRefusesKeptControl`,
   `TestRubyQualifySummarize`, `TestRubyQualifyRefusesUnprovenRunner`,
   `TestRubyCommandsUseBoundFiles`, `TestLanguageDecideRubyAdmission`,
@@ -2656,7 +2671,10 @@ or current Go qualification.
 Ruby admission update (decision 0601, lane r1ruby): `docs/build-log/2026-11-16-r1ruby-review-repair.md`
 supersedes the Ruby state above and the first record of
 `docs/build-log/2026-11-16-r1ruby-ruby-line-admission.md`, whose independent review found the
-line rule unsound and the record unproven. Line-level selection (`LPCV-V0-7605` as amended), the
+line rule unsound and the record unproven.
+`docs/build-log/2026-11-16-r1ruby-binding-signature-repair.md` records the second repair (the
+binding signature of a `=>` line) and the rerun that rebinds the record: the same faults, the
+same selected-set sizes and 0 misses, so the state below stands. Line-level selection (`LPCV-V0-7605` as amended), the
 `LPCV-V0-7608` record and the resumable collector (`LPCV-V0-7609`) produced complete WebMock
 indexes for Minitest (23 isolated tests, every one recorded) and RSpec (4,846 isolated runs; 11
 files kept whole by 2,930 unrecorded outcomes). The seed-20261116 rerun has 20 faults and one
