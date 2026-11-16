@@ -182,7 +182,7 @@ func TestAFUV1125FlowLimitCLICode(t *testing.T) {
 	git("commit", "-qm", "source")
 	rev := git("rev-parse", "HEAD")
 	var out, stderr bytes.Buffer
-	code := runContext(context.Background(), []string{"--root", root, "docs", "flows", "generate", "--revision", rev, "--scope", "app", "--output-dir", filepath.Join(root, "generated")}, strings.NewReader(""), &out, &stderr)
+	code := runContext(context.Background(), []string{"--root", root, "docs", "pages", "generate", "--revision", rev, "--scope", "app", "--output-dir", filepath.Join(root, "generated")}, strings.NewReader(""), &out, &stderr)
 	var envelope struct {
 		Code string `json:"code"`
 	}

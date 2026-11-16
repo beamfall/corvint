@@ -468,11 +468,21 @@ from executed source files with executed line spans anchored to the committed bl
 links the coverage contradicts as coverage-contradiction conflicts; and every path or
 test it cannot classify as an unknown with a reason. Source maps are not resolved.
 
-Documentation usage:
-  corvint-docs [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
-  corvint-docs [--root PATH] flows docs --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
+Renamed (AFL-V1-008): flows docs and flows docs maintain are now docs pages flow and docs pages
+flow-maintain (corvint-docs help docs pages); the old spellings below are aliases that print a
+notice and run the same command until the next release:
+  corvint-docs [--root PATH] flows docs ...
+  corvint-docs [--root PATH] flows docs maintain ...
+`
 
-docs renders the page from the committed intents with a fixed template, marks every
+// PageHelp documents `docs pages flow` and `docs pages flow-maintain`, the renamed `flows docs`
+// and `flows docs maintain` (AFL-V1-008); the docs pages help topic prints it.
+const PageHelp = `
+Flow page usage:
+  corvint-docs [--root PATH] docs pages flow --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
+  corvint-docs [--root PATH] docs pages flow --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
+
+flow renders the page from the committed intents with a fixed template, marks every
 claim that is not PROVEN, and writes the flow-doc-claims/0 sidecar; both paths are
 repository-relative and each is replaced through a temporary file and a rename.
 --docs-root checks corvint-claim anchor comments in committed Markdown under DIR.
@@ -488,7 +498,7 @@ whose state or detail changed (UNKNOWN when the committed sidecar is missing) an
 names the regenerate command. worktree says whether a read input differs from HEAD.
 
 Experimental maintenance (FDM-V0, proposed):
-  corvint-docs [--root PATH] flows docs maintain --flows DIR --page FILE --claims FILE
+  corvint-docs [--root PATH] docs pages flow-maintain --flows DIR --page FILE --claims FILE
     --preview | --apply --expected-proposal SHA256 [--receipt FILE | --adopt]
 preview writes nothing and prints a digest-bound proposal; apply rederives it, refuses
 drift, publishes the pair without clobbering and prints a receipt to save and commit.
