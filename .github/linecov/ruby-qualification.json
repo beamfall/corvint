@@ -4,17 +4,24 @@
   "runner": "",
   "indexCommit": "f90fd503000279076c02269299067e08bf1ca1ee",
   "report": {
-    "digest": "sha256:baa55c50f401d4625249075350fcb478fbb8b9d4562c3874d33a17d29c6dda5a",
+    "digest": "sha256:173e91d593cf76966edcbe49f37b5092e78ac1947906b3521709c01f04319b78",
     "seed": 20261116,
-    "sites": 8,
-    "mutants": 14,
-    "killed": 11,
+    "sites": 21,
+    "mutants": 40,
+    "killed": 22,
     "invalid": 0,
     "controls": 2,
     "misses": 0,
     "packages": [
+      "lib/webmock/api.rb",
+      "lib/webmock/config.rb",
       "lib/webmock/request_execution_verifier.rb",
-      "lib/webmock/util/query_mapper.rb"
+      "lib/webmock/request_pattern.rb",
+      "lib/webmock/request_registry.rb",
+      "lib/webmock/stub_registry.rb",
+      "lib/webmock/util/hash_counter.rb",
+      "lib/webmock/util/query_mapper.rb",
+      "lib/webmock/util/version_checker.rb"
     ],
     "suite": [
       "minitest",
@@ -23,10 +30,10 @@
     "runs": [
       {
         "runner": "ruby 3.3.8 minitest 5.26.2 coverage=lines,methods",
-        "indexDigest": "sha256:d1e56378f5ab773bd0d5835721d204f13f74752e8821460eaf9d7f6fd6a96eb1",
+        "indexDigest": "sha256:4d3ab5e779b3dfd88a93425e852442dbad5f212eefaa0c88e7326c0625b20b0e",
         "tests": 23,
-        "faults": 7,
-        "killed": 5,
+        "faults": 20,
+        "killed": 9,
         "selected": [
           23,
           23,
@@ -34,11 +41,25 @@
           23,
           23,
           23,
-          23
+          23,
+          1,
+          1,
+          17,
+          17,
+          23,
+          23,
+          23,
+          0,
+          23,
+          23,
+          0,
+          23,
+          0
         ],
         "controls": 1,
         "controlsFailed": 0,
         "misses": 0,
+        "narrowed": 2,
         "unordered": 0,
         "keptRegardless": 0,
         "controlsKept": [
@@ -49,8 +70,8 @@
         "runner": "ruby 3.3.8 rspec 3.13.7 coverage=lines,methods",
         "indexDigest": "sha256:438274033870c9a0408f668fe7b6b8e3168ef4ee980d82675f706b8a1277f782",
         "tests": 4846,
-        "faults": 7,
-        "killed": 6,
+        "faults": 20,
+        "killed": 13,
         "selected": [
           4846,
           4846,
@@ -58,21 +79,36 @@
           4846,
           4846,
           4846,
-          4846
+          4846,
+          4371,
+          4371,
+          4846,
+          4846,
+          4846,
+          4846,
+          4846,
+          4389,
+          4846,
+          4846,
+          4378,
+          4383,
+          4383
         ],
         "controls": 1,
         "controlsFailed": 0,
         "misses": 0,
+        "narrowed": 3,
         "unordered": 11,
         "keptRegardless": 4371,
         "controlsKept": [
           4371
-        ]
+        ],
+        "unqualified": "no control: the index keeps the 4371 tests of 11 files whatever the change (a test of each has no isolated record), so its control kept [4371] tests instead of none"
       }
     ]
   },
   "sources": {
-    "internal/linecov/admission.go": "9f3af96d3b7c509a0b6603741d9eb6c99b8f2599",
+    "internal/linecov/admission.go": "a0eb1d2d0149f92a79e08afddd49b8093cc4e111",
     "internal/linecov/audit.go": "b40df7ec52c71cc23c0901bb6a8cb137206fb04d",
     "internal/linecov/collect.go": "89055fb4ded92cc1b7184e124fedf2e07033f351",
     "internal/linecov/compact.go": "656dac6d1a976c55d3f2170eb7485148dff59bd5",
@@ -98,22 +134,21 @@
     "internal/linecov/syscallenv.go": "8fd7fcad56e156d64fc0a91bd4c6ae7118802fc3",
     "internal/linecov/windows.go": "20983ff01c270d4ea85d918a9d09631a03fba890",
     "internal/linecov/worktree.go": "96c53b9242a63b0477d4b40c90ae79073d0f2835",
-    "internal/rubydialect/rubydialect.go": "4da4f4d550701aaa37fbbefd9a586100eea62fd5",
+    "internal/rubydialect/rubydialect.go": "2a3f074ab0f729449a03eeab2ed6bbde08fa3f16",
     "internal/rubydialect/scanner.go": "972a74a01097a583a59aa280f5128aecf85a5734",
     "internal/rubylinecov/artifacts.go": "70007fef8e930731317c22c9e6c4f0c14bb4bc43",
-    "internal/rubylinecov/collect.go": "b869474ac9ffedfefeb457528bf8f8140e11fbf2",
-    "internal/rubylinecov/isolate.go": "c8808a8ba7cede0818b564fa8bbc413e781b2590",
+    "internal/rubylinecov/collect.go": "b7300ab56762d668b9f1bc8621014124bb62d8c3",
+    "internal/rubylinecov/isolate.go": "148b7d31445b0c5dc7225db8c09ab2d979ab3530",
     "internal/rubylinecov/linecov.rb": "33b5b27136a9a7c2e3889d38a0f23d5ad873295a",
-    "internal/rubylinecov/lines.go": "af00e733d5b8ac97062fc3c983c3282b509aa1f9",
+    "internal/rubylinecov/lines.go": "417725fc67c73b59ff9385851656e8cb56a65277",
     "internal/rubylinecov/select.go": "71a2b3481cb748d31fbd2147a9ae30af607a2697",
     "internal/rubylinecov/selection.go": "dcf5455145df7428df13acc1655925d971ed564b",
-    "tools/linecov/languages.go": "deead3905a7b9394264fc63353bc13bfd0ea48ef",
-    "tools/linecov/main.go": "da46f0bbd5b403195794f91e26b53e4daef817bf",
-    "tools/linecov/rubyqualify.go": "edb9c5a5323d5f97e1424f390ee5046670c6a6d9"
+    "tools/linecov/languages.go": "7cba12dcc1500c3a6e75b53f4a2c308de1b50728",
+    "tools/linecov/main.go": "42b11f7e9d0a125d86922c95629c9cc9d9b2b7c6",
+    "tools/linecov/rubyqualify.go": "7be9565a08a0e76604ab7d6a3a83c984fd621dcd"
   },
   "runners": [
-    "ruby 3.3.8 minitest 5.26.2 coverage=lines,methods",
-    "ruby 3.3.8 rspec 3.13.7 coverage=lines,methods"
+    "ruby 3.3.8 minitest 5.26.2 coverage=lines,methods"
   ],
   "corpus": {
     "url": "https://github.com/bblimke/webmock",
