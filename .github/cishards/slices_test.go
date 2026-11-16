@@ -451,12 +451,14 @@ func TestAFPV0060CommittedSlicesBoundOversizedPackages(t *testing.T) {
 	for p := range costs {
 		universe = append(universe, p)
 	}
-	// internal/tasks/cli, which AFP-V0-164 (V1-1752) also split, moves to
-	// beamfall/corvint-tasks (decision 0594). internal/tasks/store stays in the
-	// tables until the tests outside .github stop naming it as the split package.
+	// internal/tasks/cli and internal/tasks/store, which AFP-V0-164 (V1-1752) also
+	// split, moved to beamfall/corvint-tasks (decision 0594). The others ran longer
+	// than the budget whole in run 42408095814 (V1-5086).
 	for _, p := range []string{
 		"github.com/Beamfall/corvint/cmd/corvint",
-		"github.com/Beamfall/corvint/internal/tasks/store",
+		"github.com/Beamfall/corvint/internal/analyzerkotlinandroid",
+		"github.com/Beamfall/corvint/internal/doccorpus",
+		"github.com/Beamfall/corvint/internal/liveverify/affected/golang/typedreach",
 	} {
 		if _, ok := f.Packages[p]; !ok {
 			t.Fatalf("%s is not split", p)
