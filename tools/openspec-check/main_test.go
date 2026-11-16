@@ -385,6 +385,26 @@ func TestOSCV1008HealthClass(t *testing.T) {
 	f.mustPass()
 }
 
+// TestOSCV1008HeaderListAndBoldLines pins that a spec header written as list items or in bold
+// (`- Key: value`, `* Key: value`, `**Key:** value`, `**Key**: value`) is read like a plain one.
+func TestOSCV1008HeaderListAndBoldLines(t *testing.T) {
+	f := newFixture(t)
+	for name, header := range map[string]string{
+		"dash":        "- Delivery status: retired\n- Health: RETIRE\n",
+		"star":        "* Delivery status: retired\n* Health: RETIRE\n",
+		"bold inside": "**Delivery status:** retired\n**Health:** RETIRE\n",
+		"bold key":    "**Delivery status**: retired\n**Health**: RETIRE\n",
+		"bold item":   "- **Delivery status:** retired\n- **Health:** RETIRE\n",
+	} {
+		f.write("docs/specs/new-v1.md", "# New\n\n"+header+"\n## Requirements\n")
+		if code, out := f.check(); code != 0 {
+			t.Errorf("%s header: exit %d\n%s", name, code, out)
+		}
+	}
+	f.write("docs/specs/new-v1.md", "# New\n\n- Delivery status: experimental\n**Health:** RETIRE\n")
+	f.mustFail(1, nil, "`Health: RETIRE` needs `Delivery status: retired`, got \"experimental\"")
+}
+
 func TestOSCV1009AcceptanceLink(t *testing.T) {
 	f := newFixture(t)
 	f.addChange("x")
