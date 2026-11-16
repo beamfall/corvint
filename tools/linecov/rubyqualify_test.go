@@ -113,7 +113,7 @@ func TestRubyQualifySummarize(t *testing.T) {
 		t.Fatalf("written record not admitted: %v", err)
 	}
 	// A source changed since the qualified revision refuses a record.
-	write(t, root, "internal/rubylinecov/lines.go", "changed\n")
+	write(t, root, "internal/rubylinecov/lines.go", "changed\n") //corvint:fixture-path
 	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qam", "change")
 	if err := rubyQualify([]string{"-report", reportFile, "-root", root, "-record", filepath.Join(t.TempDir(), "r.json")}); err == nil || !strings.Contains(err.Error(), "rerun the qualification") {
 		t.Fatalf("stale sources recorded: %v", err)
