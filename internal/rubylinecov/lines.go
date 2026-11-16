@@ -86,10 +86,10 @@ func AnalyzeLines(ix *linecov.Index, diffs []linecov.FileDiff, src Sources) line
 		if err := src.Check(d.Path, newSrc); err != nil {
 			return fail("the new side of %s does not parse: %v", d.Path, err)
 		}
-		if why := sameStructure(string(oldSrc), string(newSrc), d.Hunks, d.NewHunks); why != "" {
+		oldSide, newSide := readSide(string(oldSrc)), readSide(string(newSrc))
+		if why := sameStructure(oldSide, newSide, d.Hunks, d.NewHunks); why != "" {
 			return fail("edit changes Ruby block structure %s: %s", d.Path, why)
 		}
-		oldSide, newSide := readSide(string(oldSrc)), readSide(string(newSrc))
 		for i, h := range d.Hunks {
 			if h.End < h.Start { // an insertion after line h.Start
 				if !selectHunk(ix, f, h, e.Tests) {
@@ -166,6 +166,29 @@ func readSide(src string) side {
 		s.balanced = false
 	}
 	return s
+}
+
+// codes is every line's code text.
+func (s side) codes() []string {
+	codes := make([]string, len(s.state))
+	for i, st := range s.state {
+		codes[i] = st.Code
+	}
+	return codes
+}
+
+// structure lists line n's block keywords and brackets in order, with
+// markers for a line that continues from the previous or onto the next.
+func (s side) structure(n int) []string {
+	var tokens []string
+	if s.leads(n) {
+		tokens = append(tokens, "<lead")
+	}
+	tokens = append(tokens, structureTokens(s.state[n-1].Code)...)
+	if s.continues(n) {
+		tokens = append(tokens, "cont>")
+	}
+	return tokens
 }
 
 // code is the trimmed code text of line n, "" outside the file.
@@ -409,22 +432,22 @@ func lineBlock(ix *linecov.Index, path string, line int) (linecov.Block, bool) {
 // each hunk keeps its sequence of block keywords, brackets and line
 // continuations. It is lexical, so it may refuse a harmless edit; the syntax
 // check covers a malformed one.
-func sameStructure(oldSrc, newSrc string, oldHunks, newHunks []linecov.Hunk) string {
+func sameStructure(oldSide, newSide side, oldHunks, newHunks []linecov.Hunk) string {
 	if len(oldHunks) != len(newHunks) {
 		return "unpaired hunks"
 	}
-	for _, s := range []string{oldSrc, newSrc} {
-		x := rubydialect.Symbols(s, 100000, 100000)
+	for _, s := range []side{oldSide, newSide} {
+		x := rubydialect.Symbols(strings.Join(s.raw, "\n"), 100000, 100000)
 		if x.Stop != "" || x.UnterminatedComment || x.UnterminatedString {
 			return "the lexer did not reach a clean end"
 		}
 	}
-	oldCode, newCode := rubydialect.CodeLines(oldSrc), rubydialect.CodeLines(newSrc)
-	region := func(code []string, h linecov.Hunk) []string {
+	oldCode, newCode := oldSide.codes(), newSide.codes()
+	region := func(s side, h linecov.Hunk) []string {
 		var tokens []string
-		for line := h.Start; line <= h.End; line++ {
-			if line >= 1 && line <= len(code) {
-				tokens = append(tokens, structureTokens(code[line-1])...)
+		for n := h.Start; n <= h.End; n++ {
+			if n >= 1 && n <= len(s.state) {
+				tokens = append(tokens, s.structure(n)...)
 			}
 		}
 		return tokens
@@ -449,7 +472,7 @@ func sameStructure(oldSrc, newSrc string, oldHunks, newHunks []linecov.Hunk) str
 		if o != oFirst || n != nFirst {
 			return "misaligned hunks"
 		}
-		if strings.Join(region(oldCode, oh), " ") != strings.Join(region(newCode, nh), " ") {
+		if strings.Join(region(oldSide, oh), " ") != strings.Join(region(newSide, nh), " ") {
 			return fmt.Sprintf("keywords, brackets or continuations differ at line %d", nh.Start)
 		}
 		o, n = max(o, oh.End+1), max(n, nh.End+1)
@@ -477,14 +500,10 @@ var structureKeywords = map[string]bool{
 	"rescue": true, "then": true, "unless": true, "until": true, "when": true, "while": true,
 }
 
-// structureTokens lists one code line's block keywords and brackets in order,
-// with markers for a line that continues onto the next or from the previous.
+// structureTokens lists one code line's block keywords and brackets in
+// order.
 func structureTokens(code string) []string {
 	var tokens []string
-	trimmed := strings.TrimSpace(code)
-	if strings.HasPrefix(trimmed, ".") || strings.HasPrefix(trimmed, "&.") {
-		tokens = append(tokens, "<lead")
-	}
 	for i := 0; i < len(code); {
 		c := code[i]
 		switch {
@@ -504,14 +523,6 @@ func structureTokens(code string) []string {
 			i++
 		default:
 			i++
-		}
-	}
-	if trimmed != "" && strings.ContainsRune(`\,.+-*/%&|^=<>!?:(`, rune(trimmed[len(trimmed)-1])) {
-		tokens = append(tokens, "cont>")
-	}
-	for _, word := range []string{" and", " or", " not"} {
-		if strings.HasSuffix(trimmed, word) {
-			tokens = append(tokens, "cont>")
 		}
 	}
 	return tokens
