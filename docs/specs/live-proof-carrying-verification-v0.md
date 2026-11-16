@@ -742,10 +742,42 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   attempt has a token joined to a completed instrumented process; missing tokens, environment
   clearing, non-Ruby children, unobservable forks and popen/backtick launchers make records
   incomplete. Failed exec attempts cancel their launch marker. Load/eval code is attributed to
-  the load bucket; uncalled method edits and changed test files use static fallback. Data-driven
-  test-unit cases retain distinct identities. Witness: `TestIsolationAndChildren`,
-  `TestUncalledMethodFallback`, `TestDataDrivenTestUnit`, `TestLoadedEvalAndNewTestFallback`,
-  `TestLiveRSpecIsolation`.
+  the load bucket; changed test files use static fallback. The method-level analysis of
+  unqualified plans (`rubylinecov.Analyze`, used by `linecov watch`) keeps static fallback for
+  uncalled method edits. Amended by decision 0601 (owner 2026-11-16, "Build Ruby admission"):
+  `ruby-select`'s candidate is the line-level analysis (`rubylinecov.AnalyzeLines`), and its
+  effective plan applies it only when `LPCV-V0-7608` admits the Ruby family; every unqualified
+  state keeps the static plan. A line-level edit of executable lines selects the tests whose
+  measured coverage hit them, so an edit on lines with zero measured hits selects no test. An
+  edited line Ruby does not count (`when`, `else`, continuation lines) or an insertion selects
+  every test of the enclosing called method and its body lines; outside a method body, or in an
+  uncalled method, it falls back. Load-time reach, block-structure changes (the keyword and
+  bracket sequence of the edited lines, or the code outside them, differs), a new side that does
+  not parse under the index's Ruby (`ruby -c`) or cannot be checked, missing blobs, and every
+  earlier fallback keep the static plan with the reason reported. Data-driven test-unit cases
+  retain distinct identities. Witness: `TestIsolationAndChildren`, `TestUncalledMethodFallback`,
+  `TestDataDrivenTestUnit`, `TestLoadedEvalAndNewTestFallback`, `TestLiveRSpecIsolation`,
+  `TestAnalyzeLines`, `TestAnalyzeLinesStructureAndSyntax`, `TestLanguageDecideRubyAdmission`.
+- `LPCV-V0-7608`: (accepted, decision 0601 (owner 2026-11-16); V1-4365) The Ruby family is
+  admitted only by `.github/linecov/ruby-qualification.json` (`linecov-qualified/1`, family
+  `ruby`) read at the selector executable's clean VCS revision in `ruby-select -selector-root`.
+  The record restates a fault run on a pinned public corpus: its report digest, seed, fault
+  count, kills, controls and misses, and for each runner identity (the index runner string) its
+  test count, kills, per-fault selected-set sizes, controls and misses. It binds every
+  `RubyQualifiedSources` blob at that revision. A missing or unreadable record, a dirty or
+  unstamped executable, a source blob mismatch, an index runner the record does not name, a miss,
+  a failed control or a record with no kill or no control refuses admission: the effective plan
+  stays static with `coverage-collector-unqualified` and the refusal in `Admission`.
+  `linecov ruby-qualify -record` writes the record only from a report whose baselines pass, whose
+  controls select and kill nothing, and whose faults have no miss. Witness:
+  `TestRubyQualificationAdmission`, `TestRubyQualifySummarize`, `TestLanguageDecideRubyAdmission`,
+  `TestRubyQualificationRecordPresent`.
+- `LPCV-V0-7609`: (accepted, decision 0601 (owner 2026-11-16); V1-4365) `linecov ruby-collect
+  -state DIR` keeps the ordinary-order run and each isolated run's dumps and terminal result
+  under DIR, bound to the root, commit, argv and deadlines, and resumes from them; `-parallel N`
+  runs N isolated tests at once and `-budget D` stops launching runs after D, exiting 3 with the
+  retained count. The merged index is byte-identical to a serial run over the same retained
+  ordinary-order run. Witness: `TestIsolatedParallelResume`, `TestLiveCollectResume`.
 - `LPCV-V0-7606`: (accepted under standing implementation authority, V1-4421) The explicit
   `linecov js-collect` and `js-select` commands collect JavaScript/TypeScript indexes through
   the shared builder and validated `linecov.Decode` (`Load` is Open + Decode), apply `jslinecov.Analyze`, and report recorded
