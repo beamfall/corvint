@@ -1,3 +1,4 @@
+.github/cishards/layers.go:ScanLayerPackages: under .github, in the isolated cishards module, which cannot import internal/gitrun; ls-files -z with the inherited environment, no timeout and unbounded stdout
 .github/cishards/live.go:LiveTests: under .github, which needs a CI-wiring review to edit; inherits the environment with no timeout and unbounded stdout
 cmd/corvint/adopt_setup.go:setupIgnoreCheck: check-ignore --stdin with the inherited environment; exit code 1 read through exec.ExitError means no match
 cmd/corvint/affected_abbrev_base.go:affectedAbbrevGit: resolved gitstatus.Executable with a fixed environment and unbounded stdout; a failure reads as no candidates

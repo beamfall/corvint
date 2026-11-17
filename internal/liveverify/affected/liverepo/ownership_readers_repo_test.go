@@ -256,6 +256,7 @@ type wholeTreeException struct {
 // reads the content or the name of every tracked path is a treeReaders entry
 // instead.
 var wholeTreeExceptions = map[string]wholeTreeException{
+	".github/consumers/gate.py":                  {nil, "git diff --name-only lists the paths the pull request merge commit changed, only to decide whether the VS Code extension suite runs; any doubt runs it, and it reads no ownership-rule path"},
 	".github/forward-rows/collect.sh":            {nil, "find runs over the downloaded artifact directory, never the repository"},
 	"script/acceptance-log-audit.sh":             {[]string{"docs/specs/openspec/changes/**"}, "find lists the change folders under docs/specs/openspec/changes"},
 	"script/analyzer-inputs.sh":                  {nil, "git diff --name-only lists go.mod, go.sum and the audited internal Go files that differ from a revision; its one caller in a recipe, the analyzer schema check, prints the list as a note that never changes the exit status"},
