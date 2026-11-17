@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,8 +47,27 @@ func measuredSample(t *testing.T) ([]string, []byte, map[string]int64, []string)
 	return u, raw, costs, logs
 }
 
+// declaredParallel is raw with its source parallel set to p (AFP-V0-2181 part 7, V1-5086).
+func declaredParallel(t *testing.T, raw []byte, p int) []byte {
+	t.Helper()
+	var table map[string]any
+	if err := json.Unmarshal(raw, &table); err != nil {
+		t.Fatal(err)
+	}
+	table["source"].(map[string]any)["parallel"] = p
+	out, err := json.Marshal(table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
 func TestCINV07620ReplayParallelPlacement(t *testing.T) {
-	u, raw, costs, logs := measuredSample(t)
+	u, undeclared, costs, logs := measuredSample(t)
+	// The sample records no go test -p, so the planner prices it at -p 1 (V1-5086): a -p 4
+	// plan of it is the serial plan. The -p 4 placement below is of the same times declared
+	// as measured at -p 4, a synthetic declaration this placement regression needs.
+	raw := declaredParallel(t, undeclared, 4)
 	root := t.TempDir()
 	costsFile := write(t, filepath.Join(root, "costs.json"), string(raw))
 	write(t, filepath.Join(root, allowPath), "{}\n")
@@ -60,6 +80,9 @@ func TestCINV07620ReplayParallelPlacement(t *testing.T) {
 	parallel, err := cishards.PlanFromParallel(u, 2, 4, raw, nil, nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if priced, err := cishards.PlanFromParallel(u, 2, 4, undeclared, nil, nil); err != nil || !reflect.DeepEqual(priced, serial) {
+		t.Fatalf("a table without a measured -p plans -p 4 shards unlike the serial plan: %v", err)
 	}
 	// Compare both placements under the SAME p=4 model and common overhead.
 	// Serial LPT: 729.270s; parallel-aware placement: 723.828s.
@@ -163,9 +186,12 @@ func TestCINV07620ReplayOptions(t *testing.T) {
 			}
 		}
 	}
-	for _, flags := range [][]string{{"--parallel", "4"}, {"--compile-link", "1ns"}} {
-		if code, err := run(context.Background(), "generate", append(flags, "missing.log"), &bytes.Buffer{}, &bytes.Buffer{}); code != 2 || err == nil || err.Error() != "usage: ci-test-slices generate|replay [flags] LOG..." {
-			t.Fatalf("generate accepted replay options: %d %v", code, err)
-		}
+	if code, err := run(context.Background(), "generate", []string{"--compile-link", "1ns", "missing.log"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 2 || err == nil || err.Error() != "usage: ci-test-slices generate|replay [flags] LOG..." {
+		t.Fatalf("generate accepted a replay option: %d %v", code, err)
+	}
+	// generate takes --parallel as the -p its logs ran at (V1-5086): past the usage check,
+	// the missing logs refuse.
+	if code, err := run(context.Background(), "generate", []string{"--parallel", "4", "missing.log"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 2 || err == nil || err.Error() == "usage: ci-test-slices generate|replay [flags] LOG..." {
+		t.Fatalf("generate refused --parallel 4 at the usage check: %d %v", code, err)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -67,6 +68,8 @@ type sliceFile struct {
 		Revision  string `json:"revision"`
 		RunURL    string `json:"runURL"`
 		GoVersion string `json:"goVersion"`
+		// Parallel is the `go test -p` the source shards ran at; absent means 1 (V1-5086).
+		Parallel int `json:"parallel,omitempty"`
 	} `json:"source"`
 	Packages map[string]struct {
 		Named []struct {
@@ -105,7 +108,7 @@ func Allowed(raw []byte) (map[string]string, bool) {
 // usable source, whatever packages it splits.
 func decodeSlices(raw []byte) (sliceFile, bool) {
 	var f sliceFile
-	if !strict(raw, &f) || f.Profile != "corvint-ci-test-slices/0" || !SourceGoVersions[f.Source.GoVersion] || len(f.Source.Revision) != 40 || !strings.HasPrefix(f.Source.RunURL, "https://github.com/beamfall/corvint/actions/runs/") {
+	if !strict(raw, &f) || f.Profile != "corvint-ci-test-slices/0" || !SourceGoVersions[f.Source.GoVersion] || len(f.Source.Revision) != 40 || !strings.HasPrefix(f.Source.RunURL, "https://github.com/beamfall/corvint/actions/runs/") || f.Source.Parallel < 0 || f.Source.Parallel > MaxParallel {
 		return f, false
 	}
 	if _, err := hex.DecodeString(f.Source.Revision); err != nil {
@@ -225,6 +228,26 @@ func Wall(sum, longest int64, parallel int) int64 {
 	return max(longest*int64(parallel), sum)
 }
 
+// PricedParallel is the parallelism a plan for shards that run `go test -p parallel` prices
+// at (AFP-V0-2181 part 7, V1-5086): parallel, lowered to the -p the cost table's source shards
+// ran at and to the -p of a usable slice file's source, each 1 when the file records none.
+// A time measured at -p q already carries the contention of q concurrent packages, so at
+// any -p of at least q a shard finishes no later than its Wall at q; a time measured alone
+// (-p 1) carries none, so a -p 4 shard of such units is priced at their sum, never at a
+// quarter of it. Pricing never assumes more overlap than the measurements saw. An unusable
+// table prices at 1; the placement then keeps its lexical fallback.
+func PricedParallel(parallel int, costs, slicesRaw []byte) int {
+	_, _, q, ok := costTable(costs)
+	if !ok {
+		return 1
+	}
+	parallel = min(parallel, q)
+	if f, ok := decodeSlices(slicesRaw); ok {
+		parallel = min(parallel, max(1, f.Source.Parallel))
+	}
+	return max(1, parallel)
+}
+
 // Plan places every package of the universe, whole or as test slices, in exactly
 // one shard. Without a split package it equals Partition.
 func Plan(packages []string, total int) ([]Shard, error) {
@@ -256,7 +279,8 @@ func PlanFromParallel(packages []string, total, parallel int, costs, allowRaw, s
 		return nil, err
 	}
 	shards := make([]Shard, total)
-	w, unknown, ok := weights(costs)
+	w, unknown, ok := placementWeights(costs)
+	parallel = PricedParallel(parallel, costs, slicesRaw)
 	if !ok {
 		// Invalid costs keep the AFP-V0-022 lexical fallback and split nothing.
 		for i, p := range universe {
@@ -337,7 +361,7 @@ func PlanFromParallel(packages []string, total, parallel int, costs, allowRaw, s
 }
 
 // Select places only the selected packages of the universe across total shards
-// (AFP-V0-590): the same measured costs, median for an unpriced package, test
+// (AFP-V0-590): the same measured costs, the conservative price for an unpriced package, test
 // slices and placement as Plan, over the selection instead of the universe.
 // Each selected package runs whole in exactly one shard or as each of its slices
 // once; a selected package absent from the universe is dropped, as the
@@ -391,4 +415,154 @@ func SelectFromParallel(universe, selected []string, total, parallel int, costs,
 		return make([]Shard, total), nil
 	}
 	return PlanFromParallel(subset, total, parallel, costs, allowRaw, slicesRaw)
+}
+
+// NamedSlice is one named slice of a slice file entry: its predicted milliseconds and the
+// sorted top-level tests it runs.
+type NamedSlice struct {
+	Milliseconds int64    `json:"milliseconds"`
+	Tests        []string `json:"tests"`
+}
+
+// TestSplit is one package's slice file entry: its named slices and the catch-all's
+// predicted milliseconds.
+type TestSplit struct {
+	Named            []NamedSlice `json:"named"`
+	RestMilliseconds int64        `json:"restMilliseconds"`
+}
+
+// SliceTarget is the AFP-V0-060 slice size a generation aims at for shards that run
+// `go test -p parallel` (AFP-V0-2181 part 7, V1-5086), from each package's elapsed
+// milliseconds in the source run: the even share of one execution slot, the total over
+// shards times parallel, raised to the longest package the allow-list keeps whole, and
+// capped at DefaultWallBudgetMs. A shard at -p parallel overlaps its units, so slicing to
+// the shard share (total over shards) leaves each slice its shard's whole wall and the
+// longest slices set the plan's max; slicing below the longest whole package cannot lower
+// that max, and every extra slice is one more sibling that must sit in another shard.
+func SliceTarget(elapsed map[string]int64, allowed map[string]string, shards, parallel int) int64 {
+	var total, whole int64
+	for p, ms := range elapsed {
+		total += ms
+		if _, ok := allowed[p]; !ok {
+			whole = max(whole, ms)
+		}
+	}
+	slots := int64(max(1, shards) * max(1, parallel))
+	return max(1, min(DefaultWallBudgetMs, max(whole, total/slots)))
+}
+
+// SliceCount is how many slices a package of elapsed milliseconds takes at target: enough
+// that each is at most target, bounded by MaxSlices and the shard count; below 2 it stays whole.
+func SliceCount(elapsed, target int64, shards int) int {
+	target = max(1, target)
+	return int(min(int64(MaxSlices), int64(shards), (elapsed+target-1)/target))
+}
+
+// SliceTests splits one package of elapsed milliseconds into k slices: k-1 named runs of
+// its sorted nameable tests and a catch-all holding the rest of them plus every test it
+// cannot name. Observed top-level test times weigh the cut (an unobserved name takes their
+// median, observed time no name carries goes to the catch-all); without them every name
+// weighs the same. Each slice is priced at its share of elapsed. False when there are fewer
+// nameable tests than named slices.
+func SliceTests(names []string, observed map[string]int64, elapsed int64, k int) (TestSplit, bool) {
+	var named []string
+	for _, n := range names {
+		if testName.MatchString(n) {
+			named = append(named, n)
+		}
+	}
+	sort.Strings(named)
+	if k < 2 || len(named) < k-1 {
+		return TestSplit{}, false
+	}
+	weight := func(string) int64 { return 1 }
+	var rest int64
+	if len(observed) != 0 {
+		values := make([]int64, 0, len(observed))
+		for _, ms := range observed {
+			values = append(values, ms)
+		}
+		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+		median := values[len(values)/2]
+		weight = func(n string) int64 {
+			if ms, ok := observed[n]; ok {
+				return ms
+			}
+			return median
+		}
+		in := map[string]bool{}
+		for _, n := range named {
+			in[n] = true
+		}
+		for n, ms := range observed {
+			if !in[n] {
+				rest += ms
+			}
+		}
+	}
+	costs := make([]int64, len(named)+1)
+	var sum int64
+	for i, n := range named {
+		costs[i] = weight(n)
+		sum += costs[i]
+	}
+	costs[len(named)] = rest
+	sum += rest
+	cuts := minMaxCuts(costs, k)
+	scale := func(from, to int) int64 {
+		var c int64
+		for _, x := range costs[from:to] {
+			c += x
+		}
+		ms := elapsed
+		if sum > 0 {
+			ms = int64(math.Round(float64(elapsed) * float64(c) / float64(sum)))
+		}
+		return min(3000000, max(1, ms))
+	}
+	var s TestSplit
+	for i := 0; i < k-1; i++ {
+		s.Named = append(s.Named, NamedSlice{Milliseconds: scale(cuts[i], cuts[i+1]), Tests: named[cuts[i]:cuts[i+1]]})
+	}
+	s.RestMilliseconds = scale(cuts[k-1], len(costs))
+	return s, true
+}
+
+// minMaxCuts returns the k group starts of the contiguous partition of costs
+// that minimises the largest group, every group non-empty, preferring earlier cuts.
+func minMaxCuts(costs []int64, k int) []int {
+	n := len(costs)
+	prefix := make([]int64, n+1)
+	for i, c := range costs {
+		prefix[i+1] = prefix[i] + c
+	}
+	const inf = math.MaxInt64
+	best := make([][]int64, k+1)
+	from := make([][]int, k+1)
+	for g := range best {
+		best[g] = make([]int64, n+1)
+		from[g] = make([]int, n+1)
+		for i := range best[g] {
+			best[g][i] = inf
+		}
+	}
+	best[0][0] = 0
+	for g := 1; g <= k; g++ {
+		for i := g; i <= n; i++ {
+			for j := g - 1; j < i; j++ {
+				if best[g-1][j] == inf {
+					continue
+				}
+				if v := max(best[g-1][j], prefix[i]-prefix[j]); v < best[g][i] {
+					best[g][i], from[g][i] = v, j
+				}
+			}
+		}
+	}
+	cuts := make([]int, k)
+	for g, i := k, n; g > 0; g-- {
+		cuts[g-1] = from[g][i]
+		i = from[g][i]
+	}
+	return cuts
 }

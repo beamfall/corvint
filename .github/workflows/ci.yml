@@ -795,22 +795,25 @@ jobs:
     # GLS-V0-042: a shard whose line-level step said NARROWED, fixed before any test runs, names
     # no tested tree either, even when its tests step kept the lists.
     outputs:
-      full0: ${{ strategy.job-index == 0 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full1: ${{ strategy.job-index == 1 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full2: ${{ strategy.job-index == 2 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full3: ${{ strategy.job-index == 3 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full4: ${{ strategy.job-index == 4 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full0: ${{ strategy.job-index == 0 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full1: ${{ strategy.job-index == 1 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full2: ${{ strategy.job-index == 2 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full3: ${{ strategy.job-index == 3 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full4: ${{ strategy.job-index == 4 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && steps.layers.outputs.mode != 'LAYERS' && 'FULL' || '' }}
+      # AFP-V0-2791 (V1-5235): LAYERS in every shard whose layer selection said LAYERS, the only
+      # route to a layer-narrowed shard; ci-tested-tree-record records no tree for such a run.
+      layers: ${{ steps.layers.outputs.mode }}
     env:
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
       # shadow (STR-V0-012 step 3), and to 2 (V1-3314, CIN-V0-001) after the dead-pin rows of
@@ -1332,6 +1335,98 @@ jobs:
             ${{ runner.temp }}/corvint-narrowing/decision.json
           if-no-files-found: error
           retention-days: 90
+      - name: Layer selection (AFP-V0-2790..2793, V1-5235)
+        # A pull request the AFP-V0-098 gate did not decide (verdict other than MET) runs the
+        # packages of its changed layers and of every layer that may import them, by the layer
+        # manifest tools/import-ratchet/areas.json, plus the packages whose tests import, declare
+        # or name what changed and the unbounded readers. An unmapped path, a change to the
+        # manifest, the ratchet baseline, the read declarations, go.mod, go.sum or anything under
+        # .github, and any failure here run every package. The job summary records the layers and
+        # why. LAYERS narrows the tests step only after the record below was retained, and the run
+        # names no tested tree. Pushes and the merge queue never run this step.
+        id: layers
+        if: github.event_name == 'pull_request' && needs.narrowing-verdict.outputs.verdict != 'MET' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: source
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TESTED_MERGE: ${{ github.sha }}
+          SHARD: ${{ strategy.job-index }}
+          SHARDS: ${{ strategy.job-total }}
+          # The tests step's -p (AFP-V0-540) under another name, so that step and the narrowing gate stay
+          # its only setters; ci-shards places the selection as the tests step recomputes it.
+          LAYER_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
+        run: |
+          # Only these explicit files enter the isolated module, as for ci-shards.
+          d="$RUNNER_TEMP/ci-layers-source"
+          mkdir -p "$d/layerplan"
+          cp .github/cishards/layers.go "$d/"
+          cp .github/cishards/layerplan/main.go "$d/layerplan/"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.4\n' > "$d/go.mod"
+          (cd "$d" && export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS= &&
+            go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-layers" ./layerplan)
+          l="$RUNNER_TEMP/corvint-layers"
+          mkdir -p "$l"
+          full() {
+            echo "AFP-V0-2791: shard $SHARD runs its whole partition: $1"
+            if [ "$SHARD" = 0 ]; then printf '\nLayer selection fell back to FULL: %s\n' "$1" >> "$GITHUB_STEP_SUMMARY"; fi
+            exit 0
+          }
+          go list ./... > "$l/universe" || full "go list failed"
+          # The tested merge against its base, and the pull request's own range; either failing is FULL.
+          { git diff -z --no-renames --name-only "$TESTED_MERGE^1" "$TESTED_MERGE" &&
+            git diff -z --no-renames --name-only "$PR_BASE...$PR_HEAD"; } > "$l/changed" || full "the changed paths cannot be listed"
+          if [ "$SHARD" = 0 ]; then
+            "$RUNNER_TEMP/ci-layers" --root . --changed "$l/changed" --universe "$l/universe" --summary "$l/summary.md" > "$l/plan.json" || full "the layer plan failed"
+            cat "$l/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            "$RUNNER_TEMP/ci-layers" --root . --changed "$l/changed" --universe "$l/universe" > "$l/plan.json" || full "the layer plan failed"
+          fi
+          mode=$(jq -er '.mode' "$l/plan.json") || full "the layer plan is unreadable"
+          jq -c '{mode, reasons, changedAreas, selectedAreas: [.selectedAreas[]?.name], selected: (.selected | length), known}' "$l/plan.json"
+          [ "$mode" = LAYERS ] || full "$(jq -r '.reasons | join("; ")' "$l/plan.json")"
+          jq -er 'select((.selected | type) == "array" and (.selected | length) > 0 and all(.selected[]; type == "string" and length > 0 and (test("\\s") | not)))
+            | .selected | join("\n")' "$l/plan.json" > "$l/selected" || full "the layer plan's selection is unreadable"
+          # This shard's part of the cost-balanced placement of the selection (AFP-V0-590), and the
+          # rest of its partition, which it skips.
+          export SHARD_TEST_P="$LAYER_TEST_P"
+          if ! { part=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" < "$l/universe") &&
+            part_slices=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --slices < "$l/universe") &&
+            placed=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --select "$l/selected" < "$l/universe") &&
+            placed_slices=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --select "$l/selected" --slices < "$l/universe"); }; then
+            full "the selection cannot be placed"
+          fi
+          { printf '%s\n' "$placed"; awk '{ print $3 }' <<< "$placed_slices"; } | sed '/^$/d' | sort -u > "$l/executed"
+          { printf '%s\n' "$part"; awk '{ print $3 }' <<< "$part_slices"; } | sed '/^$/d' | sort -u | grep -Fvxf "$l/selected" > "$l/skipped" || true
+          jq -n --arg pr "$PR_NUMBER" --arg base "$PR_BASE" --arg head "$PR_HEAD" --arg target "$TESTED_MERGE" \
+            --arg runId "$GITHUB_RUN_ID" --arg runAttempt "$GITHUB_RUN_ATTEMPT" --arg shard "$SHARD" --arg shards "$SHARDS" \
+            --slurpfile plan "$l/plan.json" --rawfile selected "$l/selected" --rawfile executed "$l/executed" --rawfile skipped "$l/skipped" \
+            'def lines: [split("\n")[] | select(length > 0)];
+            {profile: "corvint-pr-narrowing/0", mode: "NARROWED", placement: "BALANCED", source: "layers",
+              reasons: ["AFP-V0-2791 layers: " + ($plan[0].selectedAreas | map(.name) | join(", "))], reasonCodes: ["layers"],
+              pr: $pr, base: $base, head: $head, target: $target, runId: ($runId | tonumber), runAttempt: ($runAttempt | tonumber),
+              shard: ($shard | tonumber), shards: ($shards | tonumber),
+              selected: ($selected | lines), executed: ($executed | lines), skipped: ($skipped | lines), reused: []}' > "$l/narrowing.json" ||
+            full "the narrowing record cannot be written"
+          echo "AFP-V0-2791: shard $SHARD runs $(wc -l < "$l/executed") of $(wc -l < "$l/selected") selected package(s) and skips $(wc -l < "$l/skipped")"
+          echo "mode=LAYERS" >> "$GITHUB_OUTPUT"
+      - name: Retain the layer narrowing record (AFP-V0-2791)
+        # The forward rows read it like the AFP-V0-099 record, which a LAYERS shard never has
+        # (that gate runs only under a MET verdict); the tests step narrows only after this upload.
+        id: layers-record
+        if: steps.layers.outputs.mode == 'LAYERS'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-narrowing-${{ strategy.job-index }}
+          # AFP-V0-2791: the same artifact name as the AFP-V0-099 record, which is never uploaded beside it.
+          path: ${{ runner.temp }}/corvint-layers/narrowing.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Line-level selection (GLS-V0-040..043; narrows only while CORVINT_LINECOV_NARROWING is on)
         # GLS-V0-041: the newest linecov-index of main whose commit is an ancestor of the base,
         # planned by corvint affected --line-index and linecov built from the newest commit of main
@@ -1485,6 +1580,8 @@ jobs:
           # merge queue's deciding full suite and AFP-V0-428 seed producer among them, keeps
           # -p 1, the ci profile's argv (STR-V0-012).
           SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
+          # AFP-V0-2791: LAYERS only when the layer selection said so and its record was retained.
+          LAYER_MODE: ${{ steps.layers.outputs.mode == 'LAYERS' && steps.layers-record.outcome == 'success' && 'LAYERS' || '' }}
           # AFP-V0-2702 (V1-4923): the one place of this workflow where the live test tier skips
           # (main-miss.yml's confirmation reruns repeat this step's setting, CIN-V0-7922). The
           # confine wrapper passes it to the test binaries; the merge-queue go-live job, local runs,
@@ -1560,6 +1657,33 @@ jobs:
               fi
             else
               echo "::warning::shard $SHARD: the narrowing record or its executed list is missing, unreadable or disagrees; running the whole shard"
+            fi
+          fi
+          # AFP-V0-2791: a LAYERS shard runs its part of the balanced placement of the layer
+          # selection, recomputed here and required to equal its retained record's `executed`; when
+          # it disagrees the shard also runs its whole partition, and when it cannot be recomputed
+          # the shard runs whole (go-product then fails the mixed placement, AFP-V0-591).
+          if [ -z "$narrowed" ] && [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "${LAYER_MODE:-}" = LAYERS ]; then
+            layer_dir="$RUNNER_TEMP/corvint-layers"
+            if layer_executed=$(jq -er 'select(.profile == "corvint-pr-narrowing/0" and .mode == "NARROWED" and .placement == "BALANCED" and (.executed | type) == "array"
+                  and all(.executed[]; type == "string" and length > 0 and (test("\\s") | not))) | .executed | join("\n")' "$layer_dir/narrowing.json" 2> /dev/null) &&
+              layer_packages=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --select "$layer_dir/selected" --order "$RUNNER_TEMP/affected-order/plan.json" < "$RUNNER_TEMP/ci-package-universe") &&
+              layer_slices=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --select "$layer_dir/selected" --slices < "$RUNNER_TEMP/ci-package-universe"); then
+              placement=BALANCED
+              chosen="$layer_dir/selected"
+              if [ "$( { printf '%s\n' "$layer_packages"; awk '{ print $3 }' <<< "$layer_slices"; } | sed '/^$/d' | sort -u)" = "$(printf '%s\n' "$layer_executed" | sed '/^$/d' | sort -u)" ]; then
+                narrowed=1
+                echo "AFP-V0-2791: shard $SHARD runs $(printf '%s\n' "$layer_executed" | sed '/^$/d' | wc -l) package(s) of the changed layers and their dependents; the full suite runs in the merge queue"
+                packages=$layer_packages
+                slices=$layer_slices
+              else
+                echo "::warning::shard $SHARD: the layer placement disagrees with its record; running the whole shard and its part of the placement"
+                # shellcheck disable=SC2086
+                packages=$(printf '%s\n' $packages $layer_packages | sed '/^$/d' | awk '!seen[$0]++')
+                slices=$(printf '%s\n' "$slices" "$layer_slices" | sed '/^$/d' | awk '!seen[$0]++')
+              fi
+            else
+              echo "::warning::shard $SHARD: the layer record or placement cannot be read; running the whole shard"
             fi
           fi
           # GLS-V0-042: the line-level selection narrows these lists last. It may only drop a whole
@@ -1814,6 +1938,21 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
           overwrite: true
+      - name: Retain -p 4 package outcomes for a -p 4 cost refresh (AFP-V0-540, V1-5086)
+        # A pull request's complete full shard keeps its contended -p 4 outcomes under a name the
+        # advisory drift report's ci-shard-costs-* pattern does not match, so a -p 1 table is
+        # never compared with them; `ci-shard-costs refresh --parallel 4` and `ci-test-slices
+        # generate --parallel 4` read them, and the table then records its source parallel.
+        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted' && github.event_name == 'pull_request'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-pr-shard-costs-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/shard-costs/shard-${{ strategy.job-index }}.json
+          if-no-files-found: ignore
+          retention-days: 3
+          overwrite: true
       - name: Mark a self-hosted shard for the advisory cost-drift report (AFP-V0-422)
         # In place of the stream a hosted shard would keep, so ci-shard-cost-drift abstains with
         # the runner as its reason instead of comparing box timings with the cloud table.
@@ -2004,7 +2143,7 @@ jobs:
     # which is part of the tree a reusing commit must equal, changes what it prints. Any
     # mismatch prints no record, and the reusing run runs FULL; this job never fails CI.
     needs: [docs-plan, narrowing-verdict, go-product-shard]
-    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && ((needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL')) && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && ((needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL')) && needs.go-product-shard.outputs.layers != 'LAYERS' && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
@@ -2240,15 +2379,17 @@ jobs:
           test -z "$(gofmt -l cmd internal tools .github/cishards .github/testconfine)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
-      - name: CI workflow helper tests (CIN-V0-8720 to CIN-V0-8723, GHA-V1-040, GHA-V1-041)
-        # Python extract-and-run tests of workflow steps and helpers under .github/forward-rows;
-        # they make no hosted request.
+      - name: CI workflow helper tests (CIN-V0-8720 to CIN-V0-8723, GHA-V1-040, GHA-V1-041, V1-5200)
+        # Python extract-and-run tests of workflow steps and helpers under .github/forward-rows,
+        # and the vscode-extension consumer gate under .github/consumers; they make no hosted
+        # request.
         working-directory: source
         run: |
           python3 -B .github/forward-rows/known-flakes_test.py
           python3 -B .github/forward-rows/go-product_test.py
           python3 -B .github/forward-rows/linecov-stale_test.py
           python3 -B .github/forward-rows/release-binaries_test.py
+          python3 -B .github/consumers/gate_test.py
       - name: Windows vet including test files (AFP-V0-042)
         # go build skips _test.go files, so a test that breaks only for GOOS=windows reached main
         # (V1-1117). Skipped only on a pull request whose merge commit provably changes no .go,
@@ -2289,13 +2430,16 @@ jobs:
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
             )
           done
-      - name: Live-tier discovery and helper copy self-tests in the checkout (AFP-V0-2701, AFP-V0-2702, AFP-V0-2726)
+      - name: Live-tier discovery, helper copy and layer self-tests in the checkout (AFP-V0-2701, AFP-V0-2702, AFP-V0-2726, AFP-V0-2790..2793)
         # ./... skips .github, and the isolated helper module above omits live.go and
         # isolated_copies_test.go: these tests read the checkout's Git index and workflow files, so
         # they run here, in the repository itself. AFP-V0-2726 replays every isolated helper build
         # of every workflow and fails when one omits a file its packages or embeds need.
+        # AFP-V0-2792: the layer drift check fails when a package has no layer, a manifest prefix
+        # holds no package, the shard data names an unmapped package or this workflow loses the
+        # layer selection's wiring.
         working-directory: source
-        run: go test -count=1 -timeout 30m -run '_AFPV0270[12]$|_AFPV02726$' ./.github/cishards/
+        run: go test -count=1 -timeout 30m -run '_AFPV0270[12]$|_AFPV02726$|_AFPV0279[0-3]$' ./.github/cishards/
       - name: Independent interop under production toolchain
         # AFP-V0-380 (V1-1103): the only run of interop/cem01-go's tests and vet in this workflow.
         working-directory: source/interop/cem01-go

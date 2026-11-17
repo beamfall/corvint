@@ -195,6 +195,23 @@ jobs:
             env -i PATH="$smoke/path" HOME="$smoke/home" "$smoke/set/$name" --version | tee "$smoke/$name.txt"
             grep -q "^$name $version " "$smoke/$name.txt"
           done
+      - name: Smoke the flows reports with corvint installed alone (V1-5550, FSV-V1-007)
+        # The tool installs only the archive's corvint, with git as the one other executable on
+        # PATH, and fails if any corvint-* executable sits beside it: corvint alone must plan and
+        # report a supported flows file and refuse an unsupported one.
+        run: |
+          out="$RUNNER_TEMP/release"
+          if [ ! -f "$out/corvint_linux_amd64.tar.gz" ]; then
+            echo "::notice::$TAG did not build corvint; the flows smoke does not apply"
+            exit 0
+          fi
+          go run ./tools/flows-smoke --archive "$out/corvint_linux_amd64.tar.gz" --keep "$RUNNER_TEMP/flows-smoke"
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flows-smoke
+          path: ${{ runner.temp }}/flows-smoke/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-binaries

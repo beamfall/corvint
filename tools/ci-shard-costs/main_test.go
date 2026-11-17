@@ -475,7 +475,7 @@ func assertStrictTableInputRefused(t *testing.T, suffix, reason string) {
 	t.Helper()
 	for _, mode := range []string{"refresh", "check"} {
 		t.Run(mode, func(t *testing.T) {
-			old, err := encode(map[string]int64{"example.org/a": 1000}, revision, runURL)
+			old, err := encode(map[string]int64{"example.org/a": 1000}, revision, runURL, 1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -544,7 +544,7 @@ func TestAFPV0043RefreshValidStreamByteParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := encode(costs, revision, runURL)
+	want, err := encode(costs, revision, runURL, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -556,6 +556,39 @@ func TestAFPV0043RefreshValidStreamByteParity(t *testing.T) {
 	got, err := os.ReadFile(table)
 	if err != nil || !bytes.Equal(got, want) {
 		t.Fatalf("table parity: err=%v\ngot %s\nwant %s", err, got, want)
+	}
+}
+
+// TestV15086RefreshRecordsTheSourceParallel: refresh --parallel N records N as the table's
+// source parallel, which the planner prices at; -p 1 records none, and a value outside 1..64,
+// --parallel on check or a -p N table retained in --history is a usage error.
+func TestV15086RefreshRecordsTheSourceParallel(t *testing.T) {
+	logs := []string{write(t, "shard0.json", passed("example.org/a", "2")), write(t, "shard1.json", passed("example.org/b", "3"))}
+	allow, slices := write(t, "allow.json", "{}"), write(t, "slices.json", "{}")
+	for _, p := range []int{1, 4} {
+		table := filepath.Join(t.TempDir(), "costs.json")
+		args := []string{"--table", table, "--shards", "2", "--allow", allow, "--slices", slices, "--revision", revision, "--run-url", runURL, "--parallel", strconv.Itoa(p)}
+		if code, err := run("refresh", append(args, logs...), nil); code != 0 || err != nil {
+			t.Fatalf("-p %d: code=%d err=%v", p, code, err)
+		}
+		raw, err := os.ReadFile(table)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(raw, []byte(`"parallel"`)) != (p > 1) || (p > 1 && !bytes.Contains(raw, []byte(`"parallel": 4`))) {
+			t.Fatalf("-p %d table source:\n%s", p, raw)
+		}
+		if got := cishards.PricedParallel(4, raw, nil); got != p {
+			t.Fatalf("-p %d table prices -p 4 shards at -p %d", p, got)
+		}
+	}
+	for _, c := range []struct {
+		mode string
+		args []string
+	}{{"refresh", []string{"--parallel", "0"}}, {"refresh", []string{"--parallel", "65"}}, {"check", []string{"--parallel", "4"}}, {"refresh", []string{"--parallel", "4", "--revision", revision, "--history", t.TempDir()}}} {
+		if code, err := run(c.mode, append(append([]string{"--shards", "2"}, c.args...), logs...), nil); code != 2 || err == nil || !strings.HasPrefix(err.Error(), "usage:") {
+			t.Fatalf("%s %v: code=%d err=%v", c.mode, c.args, code, err)
+		}
 	}
 }
 
@@ -667,6 +700,24 @@ func TestSTRV0056RefreshRetainsDatedTables(t *testing.T) {
 		if code, err := run(mode, args, nil); code != 2 || err == nil {
 			t.Errorf("%s: code=%d err=%v", name, code, err)
 		}
+	}
+}
+
+// TestV15086ShardBalancePricesUnpricedAsPlaced: the AFP-V0-604 prediction prices a package
+// the table lacks at the table's 90th percentile, as the partition places it, not at its
+// median. The table's median is 1 s and its 90th percentile 100 s; the unpriced package's
+// shard is predicted at 100 s.
+func TestV15086ShardBalancePricesUnpricedAsPlaced(t *testing.T) {
+	table := write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/a":1000,"example.org/b":1000,"example.org/c":1000,"example.org/d":100000}}`)
+	shard0 := write(t, "shard-0.json", passed("example.org/new", "100"))
+	shard1 := write(t, "shard-1.json", passed("example.org/d", "100"))
+	summary := write(t, "summary.md", "")
+	if code, err := run("check", []string{"--table", table, "--advisory", "--shards", "2", "--summary", summary, shard0, shard1}, new(bytes.Buffer)); code != 0 || err != nil {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+	got, _ := os.ReadFile(summary)
+	if want := "| 0 | 100.0s | 100.0s |"; !strings.Contains(string(got), want) {
+		t.Fatalf("summary lacks %q:\n%s", want, got)
 	}
 }
 
