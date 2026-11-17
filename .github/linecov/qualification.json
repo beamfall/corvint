@@ -2,9 +2,9 @@
   "profile": "linecov-qualified/1",
   "family": "go",
   "runner": "go1.27.4 linux amd64 arch=\"GOAMD64=v1 GOFIPS140=off\" cgo=1 goflags=\"-race\" goexperiment=\"\" runtime=\"\" exec=\"sha256:a0618e567510021f551e2df34ef7dc972416b0f41dda0ae8a514c5741a96b149\" test=\"-test.paniconexit0 -test.v=test2json -test.timeout=50m0s\" atomic",
-  "indexCommit": "2564c19f464f1aed6399701e2669b00d15fc93e5",
+  "indexCommit": "cb9e25fc2eef300e9edea917c9a798b75c2cf1cb",
   "report": {
-    "digest": "sha256:d8b9cc6d69bebba52a06239cc6ba6f766bc4d5f5700591d28d8f1dcab706e247",
+    "digest": "sha256:f9c7a0fd579c9e2b313c89fed2d7bbc93436ddf4d5957913577080d1906cd005",
     "seed": 20261116,
     "sites": 20,
     "mutants": 20,
