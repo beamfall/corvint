@@ -43,8 +43,10 @@ defaults:
 # either pin lags main's selection code (pin-lag.sh). CIN-V0-011 (V1-4354): both are now
 # floors; the pin-main step builds the tools from the commit of main the gate compares
 # against whenever that commit descends from the pin, so no selection change needs a repin.
+# V1-4685 (owner ci-control-plane OK 2026-11-17): both floors moved to 8205ecabb, the main
+# commit that carries the ownership-audit planner change and the batch 1116a shard tables.
 env:
-  CORVINT_PR_TOOL_SOURCE: "8daec98ce4349c1583186692726d2c3a782ac647"
+  CORVINT_PR_TOOL_SOURCE: "8205ecabbf660a66cab19547113a014461b913dd"
   # AFP-V0-047: the reviewed origin/main commit the shadow `corvint test` planner is built
   # from. It only plans (--dry-run) and never decides, executes or narrows, so it is pinned
   # apart from CORVINT_PR_TOOL_SOURCE: that pin builds the deciding driver, which only plans
@@ -52,7 +54,7 @@ env:
   # the shadow. AFP-V0-603 (V1-3067, owner ci-control-plane OK 2026-10-28): never older than
   # CORVINT_PR_TOOL_SOURCE, or the shadow runs older selection rules than the driver and the
   # AFP-V0-098 superset rule records FULL on every batch.
-  CORVINT_TEST_SHADOW_SOURCE: "8daec98ce4349c1583186692726d2c3a782ac647"
+  CORVINT_TEST_SHADOW_SOURCE: "8205ecabbf660a66cab19547113a014461b913dd"
   # AFP-V0-984 (V1-3751): narrow.sh runs 1 in CORVINT_PR_SAMPLE_K pull-request runs that would
   # narrow in full, chosen by the head commit and this seed, so the forward bar can estimate the
   # narrowing miss rate. Empty K turns sampling off. Read only by narrow.sh of the
