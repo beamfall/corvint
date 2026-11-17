@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-22
 Intent status: retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`
 Delivery status: superseded
+Health: KEEP
 Retirement note: V1-1278 S3 (`CEM-V1-220`, `CEM-V1-221`, `CEM-V1-225`) deleted `protocol/cem-0.3`
 and the portable 0.3 tests; the body below is historical and its requirement IDs stay for traceability.
 Authoritative successor: `docs/specs/cem-stable-v1.md`

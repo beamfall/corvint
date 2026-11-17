@@ -6,10 +6,10 @@ Contract review: independently re-reviewed 2026-09-13 (`docs/reviews/hdc-v0-rere
 amendments applied by decision 0209; capsule and renderer clauses deferred
 Intent status: accepted (decision 0047, 2026-09-04)
 Delivery status: partial (HDCV0-023..029, HDCV0-041)
+Health: KEEP
 First qualified profile: Material for MkDocs
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
-`docs/SPEC-DRIVEN-DEVELOPMENT.md`,
-`docs/specs/applied-intelligence-breakthroughs-v0.md`, and
+`docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/applied-intelligence-breakthroughs-v0.md`, and
 `docs/specs/use-case-conformance-v0.md`
 
 External profile authority consulted at freeze:

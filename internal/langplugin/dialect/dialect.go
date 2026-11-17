@@ -11,7 +11,6 @@ package dialect
 import (
 	"fmt"
 	"regexp"
-	"sync"
 )
 
 // Probe is one lexical probe an impact profile runs on each masked code line:
@@ -97,15 +96,34 @@ type Region struct {
 	Symbols func(text string, maxLines, maxSymbols int) Extraction
 }
 
-var (
-	mu      sync.RWMutex
-	impacts = map[string]Impact{}
-	regions = map[string]Region{}
-)
+// Hooks is one plugin's explicitly supplied dialect algorithms.
+type Hooks struct {
+	Impacts map[string]Impact
+	Regions map[string]Region
+}
+
+// Registry owns validated hook tables. Construction never mutates another registry.
+type Registry struct {
+	impacts map[string]Impact
+	regions map[string]Region
+}
+
+func NewRegistry(sets ...Hooks) Registry {
+	r := Registry{impacts: map[string]Impact{}, regions: map[string]Region{}}
+	for _, set := range sets {
+		for name, impact := range set.Impacts {
+			r.registerImpact(name, impact)
+		}
+		for name, region := range set.Regions {
+			r.registerRegion(name, region)
+		}
+	}
+	return r
+}
 
 // RegisterImpact registers the impact profile of dialect name. It panics on a
 // duplicate or incomplete registration, which is a link-time programming error.
-func RegisterImpact(name string, impact Impact) {
+func (r Registry) registerImpact(name string, impact Impact) {
 	if impact.CodeLines == nil || impact.Loads == nil || impact.StaticLoad == nil {
 		panic(fmt.Sprintf("dialect: impact %q lacks CodeLines, Loads or StaticLoad", name))
 	}
@@ -114,21 +132,20 @@ func RegisterImpact(name string, impact Impact) {
 			panic(fmt.Sprintf("dialect: impact %q has a probe without a code or pattern", name))
 		}
 	}
-	register(impacts, name, impact)
+	impact.Probes = append([]Probe(nil), impact.Probes...)
+	register(r.impacts, name, impact)
 }
 
 // RegisterRegion registers the region normalizer of dialect name. It panics on
 // a duplicate or incomplete registration.
-func RegisterRegion(name string, region Region) {
+func (r Registry) registerRegion(name string, region Region) {
 	if region.Normalize == nil {
 		panic(fmt.Sprintf("dialect: region %q lacks Normalize", name))
 	}
-	register(regions, name, region)
+	register(r.regions, name, region)
 }
 
 func register[T any](table map[string]T, name string, hook T) {
-	mu.Lock()
-	defer mu.Unlock()
 	if _, dup := table[name]; dup || name == "" {
 		panic(fmt.Sprintf("dialect: duplicate or empty registration %q", name))
 	}
@@ -136,17 +153,14 @@ func register[T any](table map[string]T, name string, hook T) {
 }
 
 // LookupImpact returns the impact profile registered for dialect name.
-func LookupImpact(name string) (Impact, bool) {
-	mu.RLock()
-	defer mu.RUnlock()
-	impact, ok := impacts[name]
+func (r Registry) LookupImpact(name string) (Impact, bool) {
+	impact, ok := r.impacts[name]
+	impact.Probes = append([]Probe(nil), impact.Probes...)
 	return impact, ok
 }
 
 // LookupRegion returns the region normalizer registered for dialect name.
-func LookupRegion(name string) (Region, bool) {
-	mu.RLock()
-	defer mu.RUnlock()
-	region, ok := regions[name]
+func (r Registry) LookupRegion(name string) (Region, bool) {
+	region, ok := r.regions[name]
 	return region, ok
 }

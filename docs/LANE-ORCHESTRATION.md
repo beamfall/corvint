@@ -1401,6 +1401,22 @@ ASD-V0-770, ASD-V0-772):
   ssh identity and BatchMode reach, the adopter checkout, `~/lanes/heavy.sh` drift from
   `script/lane-host-heavy.sh` (the tracked wrapper source; installing it is an owner step) and repo
   hygiene (ASD-V0-766, ASD-V0-767). Every finding names its owner step; the script changes nothing.
+- Verify a corvint-tasks batch head on a lane host with `ssh HOST 'bash ~/lanes/tt-verify.sh COMMIT'`
+  (V1-5650), run as a visible background task: `make verify` there takes longer than a foreground
+  call allows. Its source is `script/lane-host-tt-verify.sh`; install it with
+  `install -m 0755 script/lane-host-tt-verify.sh ~/lanes/tt-verify.sh`. Push the commit to the
+  host's corvint-tasks checkout first. The helper allows one run per host: a second run exits 6
+  naming the live one and leaves its tree alone. Each run uses its own detached worktree, removed
+  on exit, puts the Go patch the Makefile pins (`WANT_GO`) first on PATH from `~/sdk` or the module
+  cache (exit 5 when the host has neither), and keeps its log as
+  `~/lanes/tt-verify-<commit>-<start>.log`. The last line is the verdict:
+  `tt-verify commit=SHA rc=N secs=N ok=N fail=PKGS timeout=PKGS log=PATH`, where `timeout` lists
+  the packages go test killed at its timeout, apart from ordinary failures. Cite that line and the
+  log path in the PR. Exit codes: 0 verify passed; 1 verify failed, with make's own status in the
+  verdict's `rc` field; 2 usage, or the argument is not a commit in the checkout; 3 the worktree or
+  lock file could not be set up; 5 no `flock` or no pinned toolchain; 6 another run is live. A
+  TERM sent to the helper alone takes effect when `make` returns; stop a run by signalling its
+  process group.
 
 ## 15. In-lane subagents and test-writing rules (V1-3253, V1-3259)
 

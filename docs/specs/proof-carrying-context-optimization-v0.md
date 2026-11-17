@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: accepted (decision 0047, 2026-09-04)
 Delivery status: not-started
+Health: KEEP
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/agent-harness-integration-v0.md`,
 `docs/specs/session-context-dividend-v0.md`, `docs/DOGFOOD.md`

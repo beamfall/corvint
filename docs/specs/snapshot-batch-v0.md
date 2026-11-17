@@ -5,6 +5,7 @@ Date: 2026-09-04
 Requirement prefix: `SBQ-V0`
 Intent status: accepted (decision 0052)
 Delivery status: experimental
+Health: KEEP
 Revision status: revision 10 (round 9 Claude + Codex applied)
 Authoritative inputs: `docs/specs/index-snapshot-v0.md` (snapshot identity and the one writing
 verb), `docs/specs/go-production-kernel-migration-v0.md` (`GPK-V0-040` coverage denomination, query

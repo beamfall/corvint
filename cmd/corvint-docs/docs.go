@@ -311,12 +311,13 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 }
 
 // docsSubcommands is the `docs` dispatch table: nav, draft and consume dispatch through
-// parseDocsInvocation, corpus through parseCorpusInvocation, maintain through
-// docs_maintain.go and flows through docs_flows.go. parseDocsInvocation, the catch-all that
+// parseDocsInvocation, corpus through parseCorpusInvocation, pages through docs_pages.go onto
+// its commands' handlers (AFL-V1-008), maintain through docs_maintain.go and flows through
+// docs_flows.go (the last two are pages' aliases until the next release). parseDocsInvocation, the catch-all that
 // runs after those parsers, refuses any name outside this table with a refusal built from it,
 // so a name dispatches only if listed. docsHelp lists every entry with its maturity, and
 // TestDocsHelpListsEveryDispatchedSubcommand drives each entry into its own parser (V1-2134).
-var docsSubcommands = []string{"nav", "draft", "consume", "citations", "check", "corpus", "maintain", "flows"}
+var docsSubcommands = []string{"nav", "draft", "consume", "citations", "check", "corpus", "pages", "maintain", "flows"}
 
 const docsHelp = `Experimental source documentation orientation.
 
@@ -329,9 +330,13 @@ Usage:
   corvint-docs [--root PATH] docs citations check [--json] [PATH...]
   corvint-docs [--root PATH] docs check                      (corvint-docs help docs check)
   corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)
-  corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)
-  corvint-docs [--root PATH] docs flows generate|check|finalize ...  (corvint-docs help docs flows)
-Maturity: every docs subcommand (nav, draft, consume, citations, check, corpus, maintain, flows) is experimental.
+  corvint-docs [--root PATH] docs pages VERB ...  (generate, check, finalize, flow, flow-maintain or maintain; corvint-docs help docs pages)
+  corvint-docs [--root PATH] docs maintain ...  (alias of docs pages maintain until the next release)
+  corvint-docs [--root PATH] docs flows generate|check|finalize ...  (alias of docs pages generate|check|finalize until the next release)
+Maturity: every docs subcommand (nav, draft, consume, citations, check, corpus, pages, maintain, flows) is experimental.
+The generated-page commands are one group, docs pages (AFL-V1-008); docs maintain, docs flows,
+flows docs and flows docs maintain are its old spellings, aliases that print a notice naming the
+new spelling and run the same command until the next release.
 
 Navigation is the separate explicitly trusted pinned MkDocs profile. It stages committed
 source, emits an exact proposal patch, and validates navigation by a full candidate reload.

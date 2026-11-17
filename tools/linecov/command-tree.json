@@ -247,7 +247,8 @@
       "command": "linecov ruby-collect",
       "summary": "Collect an immutable Ruby per-test index",
       "usage": [
-        "linecov ruby-collect -root DIR -out INDEX -command '[\"ruby\",\"test/all.rb\"]'"
+        "linecov ruby-collect -root DIR -out INDEX -command '[\"ruby\",\"test/all.rb\"]'",
+        "linecov ruby-collect -root DIR -out INDEX -state DIR -parallel N -budget 8m -env NAME,NAME -command '[\"bundle\",\"exec\",\"rspec\"]'"
       ],
       "flags": [
         "-root",
@@ -258,6 +259,9 @@
         "-files",
         "-config",
         "-parallel",
+        "-state",
+        "-budget",
+        "-env",
         "-timeout",
         "-suite-timeout"
       ],
@@ -271,25 +275,47 @@
     },
     {
       "path": [
+        "ruby-qualify"
+      ],
+      "command": "linecov ruby-qualify",
+      "summary": "Fold a Ruby fault run into the Ruby qualification record",
+      "usage": [
+        "linecov ruby-qualify -report FILE [-root CORVINT_DIR -record FILE]"
+      ],
+      "flags": [
+        "-report",
+        "-root",
+        "-record"
+      ],
+      "required": [
+        "-report FILE"
+      ],
+      "example": "linecov ruby-qualify -report FILE [-root CORVINT_DIR -record FILE]",
+      "help": "linecov ruby-qualify --help"
+    },
+    {
+      "path": [
         "ruby-select"
       ],
       "command": "linecov ruby-select",
-      "summary": "Report Ruby coverage shadow decisions",
+      "summary": "Plan Ruby tests by measured line; admitted families execute it",
       "usage": [
-        "linecov ruby-select -root DIR -index INDEX -base FULL_SHA [-files a,b]"
+        "linecov ruby-select -root DIR -index INDEX -base FULL_SHA [-files a,b] [-selector-root CORVINT_DIR] [-ruby PATH]"
       ],
       "flags": [
         "-root",
         "-index",
         "-base",
-        "-files"
+        "-files",
+        "-selector-root",
+        "-ruby"
       ],
       "required": [
         "-root DIR",
         "-index INDEX",
         "-base FULL_SHA"
       ],
-      "example": "linecov ruby-select -root DIR -index INDEX -base FULL_SHA [-files a,b]",
+      "example": "linecov ruby-select -root DIR -index INDEX -base FULL_SHA [-files a,b] [-selector-root CORVINT_DIR] [-ruby PATH]",
       "help": "linecov ruby-select --help"
     },
     {

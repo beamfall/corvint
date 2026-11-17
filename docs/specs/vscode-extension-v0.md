@@ -1,5 +1,7 @@
 # VS Code Extension V0
 
+Health: KEEP
+
 **Owner:** Russell Lewis
 
 **Date:** 2026-08-23

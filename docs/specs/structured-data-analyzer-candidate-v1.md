@@ -3,6 +3,7 @@
 Owner: Russell Lewis
 Intent status: rejected-as-specified
 Delivery status: deferred
+Health: KEEP
 Disposition: a root-span-only fact has no ranking value. A future key/value-coordinate specification
 would be new work, not a revival of this candidate.
 

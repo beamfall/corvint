@@ -5,6 +5,7 @@ Owner: Russell Lewis
 Date: 2026-11-10
 Intent status: proposed
 Delivery status: not-started
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/release-process/`;
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-INT-006, 012, 013, 014, 015 and 017; G8, G9, G10, G10a,
 G12, G15a, G18); owner decisions R2, R3 and R24 (2026-11-09) and H1, H2 and H3 (2026-11-10);

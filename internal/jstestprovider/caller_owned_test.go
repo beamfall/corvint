@@ -2,6 +2,7 @@ package jstestprovider
 
 import (
 	"context"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,7 +32,7 @@ func callerOwnedConfig(t *testing.T, readyURL string) (E2EConfig, string) {
 	if err := os.Chmod(runner, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	return E2EConfig{
+	return E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config:            Config{Dir: dir, TestFiles: []string{filepath.Join(dir, "new.spec.js")}, ConfigFile: filepath.Join(dir, "playwright.config.js"), PackageJSON: filepath.Join(dir, "package.json"), Lockfile: filepath.Join(dir, "package-lock.json"), RunnerName: "playwright", RunnerVersion: "fixture", Timeout: 20 * time.Second},
 		CallerOwnedServer: true, ServerReadyURL: readyURL, ServerReadyLimit: 5 * time.Second, TestArgv: []string{runner}, AppBuildDir: dir,
 	}, ran

@@ -196,7 +196,28 @@ func parseRequirements(text string) map[string]requirementRow {
 	return rows
 }
 
-// specHeader returns the `Key: value` lines before the first `## ` heading of a spec.
+// specHeaderLine reads a header line written as a list item (`- Key: value`, `* Key: value`) or
+// with a bold key (`**Key:** value`, `**Key**: value`) as the plain `Key: value` form.
+func specHeaderLine(line string) string {
+	for _, marker := range []string{"- ", "* "} {
+		if rest, ok := strings.CutPrefix(line, marker); ok {
+			line = rest
+			break
+		}
+	}
+	rest, ok := strings.CutPrefix(line, "**")
+	if !ok {
+		return line
+	}
+	key, value, ok := strings.Cut(rest, "**")
+	if !ok {
+		return line
+	}
+	return key + value // `Key:` + ` value`, or `Key` + `: value`
+}
+
+// specHeader returns the `Key: value` lines before the first `## ` heading of a spec, read
+// through specHeaderLine.
 func specHeader(path string) (map[string]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -211,6 +232,7 @@ func specHeader(path string) (map[string]string, error) {
 		if strings.HasPrefix(line, "## ") {
 			break
 		}
+		line = specHeaderLine(line)
 		if key, value, ok := strings.Cut(line, ":"); ok && headerLine.MatchString(line) {
 			if _, seen := header[key]; !seen {
 				header[key] = strings.TrimSpace(value)

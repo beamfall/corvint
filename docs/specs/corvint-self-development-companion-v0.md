@@ -5,6 +5,7 @@ Date: 2026-11-04
 Requirement prefix: `CSD-V0`
 Intent status: accepted
 Delivery status: experimental
+Health: MERGE
 Authoritative inputs: owner's pk-ci lane charter; V1-4359, V1-4553, V1-4575 and V1-3264;
 `corvint-self-development-v0.md`, whose Requirements section has 256 obligations.
 

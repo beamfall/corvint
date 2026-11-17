@@ -252,7 +252,7 @@ func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
 		fail("freshness-leader-unavailable")
 		return r, nil
 	}
-	if e := externalReady(ctx, cfg.ServerReadyURL, 5*time.Second); e != nil {
+	if e := externalReady(ctx, cfg.ServerReadyURL, 5*time.Second, cfg.LoopbackGet); e != nil {
 		fail("freshness-readiness-unavailable")
 		return r, nil
 	}

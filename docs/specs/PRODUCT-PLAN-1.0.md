@@ -6,6 +6,7 @@ the review-round decisions R1 to R41 and the final-round delegation R42; owner d
 H12 of 2026-11-10 are applied in place)
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 
 ## Agent digest
 - Claim: Proposed 1.0 product contract of 77 requirements for testing, documentation, task manager, integration, release, a GitHub Action and agent packages.
@@ -528,7 +529,7 @@ Also part of the bar (owner decisions of 2026-11-09).
     `corvint` command (`cmd/corvint/watch.go` on integ `9ec3a29d0`). It is Go-only: the command
     refuses a non-Go index. It runs tests unless `--dry-run` is given, the opposite of G7's
     default. The macOS kqueue source is compile-checked only, `NOT_OBSERVED` live
-    (`docs/specs/live-proof-carrying-verification-v0.md:14@3bb12604`). (integ) The integ copy of
+    (`docs/specs/live-proof-carrying-verification-v0.md:15@3bb12604`). (integ) The integ copy of
     `internal/perfbudget/budgets.json` holds scenario `watch-replan` with an advisory p95
     target of 1000 ms and enforced provisional ceilings of 2500 ms and 64 MiB, and scenario
     `watch-replan-self`, followed by baseline samples (first sample 696.74 ms). No p50 target
@@ -2148,7 +2149,7 @@ The first draft of this file (commit `1d9dc4c90`) contained these errors or omis
 2. Watch is a `corvint` command and Go-only. The draft said the loop was the tool `linecov watch`.
    On the integration branch it is `corvint watch` (`cmd/corvint/watch.go`), Go-only (the command
    refuses a non-Go index), running tests by default unless `--dry-run`, with the macOS kqueue
-   source not observed live (`docs/specs/live-proof-carrying-verification-v0.md:14@3bb12604`;
+   source not observed live (`docs/specs/live-proof-carrying-verification-v0.md:15@3bb12604`;
    the first draft cited line 1285, which is wrong). G7 needs all seven runners and
    list-by-default.
 3. `AGENTS.md` licence text. `LICENSING.md:5-10@6536f97b` says the whole repository is Apache-2.0 since
@@ -2180,7 +2181,7 @@ name it; the acceptance record still restates them.
 
 | Accepted text | What it says | Conflict | Resolution needed |
 |---|---|---|---|
-| PRS-V1-001 (`docs/specs/corvint-1.0-product-and-release-v1.md:331@220578f8`) | 1.0 Core is exactly the local change-evidence loop, the CEM, OCM and frontier proof wire, the dogfood loop, the three Core jobs of decision 0332, and the native release artifact | G8 removes the ceremony and `corvint cem`; decision 0594 and answer 13 define three products, not Core plus companions | Supersede with the three-product definition of "The 1.0 bar"; carry over the native release artifact and lifecycle clause into PROD-INT-006 and PROD-INT-014 |
+| PRS-V1-001 (`docs/specs/corvint-1.0-product-and-release-v1.md:332@220578f8`) | 1.0 Core is exactly the local change-evidence loop, the CEM, OCM and frontier proof wire, the dogfood loop, the three Core jobs of decision 0332, and the native release artifact | G8 removes the ceremony and `corvint cem`; decision 0594 and answer 13 define three products, not Core plus companions | Supersede with the three-product definition of "The 1.0 bar"; carry over the native release artifact and lifecycle clause into PROD-INT-006 and PROD-INT-014 |
 | PRS-V1-018 (`docs/specs/corvint-1.0-product-and-release-v1.md` at commit `b55635262`, before its R37 amendment by V1-5399) | Stable 1.0 ships five SDD improvements, V1-1344 to V1-1348: (a) `record` citation class, (b) dogfood-check OCM coverage line, (c) generated spec header rows, (d) recorded acceptance mode per requirement with an audit command, (e) `dogfood finish-lane` | G8 closes V1-1344 to V1-1348 as superseded; (b) and (e) depend on the removed ceremony | Supersede. (c) and (d) carry over to 1.0 and (a), (b), (e) drop (owner decision R37 (2026-11-09)); see PROD-INT-010 and 011 |
 | PRS-V1-004 | Core platforms darwin/arm64 and linux/amd64; Windows unsupported | G15a builds linux/arm64 too; answer 16 adds WSL | Amend platform list; keep Windows native unsupported |
 | PRS-V1-006 | Host scope is plain CLI plus Codex CLI and Claude Code at FALLBACK | G19 sets a full bar for Claude Code and Codex, preview for OpenCode and Pi | Supersede by the agent decision (PROD-INT-023 to 027) |

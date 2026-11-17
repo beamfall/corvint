@@ -19,8 +19,18 @@ import (
 // and must-run tests (AFP-V0-2480).
 const DeclaredSelectionPath = ".corvint/test-selection.json"
 
-// DeclaredSelectionProfile is the declaration's closed profile name.
+// DeclaredSelectionProfile is the profile of a declaration of owners and
+// must-run tests alone (AFP-V0-2480).
 const DeclaredSelectionProfile = "corvint-test-selection/0"
+
+// DeclaredTreeReaderSelectionProfile is the profile of a declaration that may
+// also name whole-tree readers (AZU-V0-8921); its owners and must-run tests
+// mean what they mean under /0. It is a new value, not a new member of the
+// /0 file, so a planner that predates treeReaders refuses the file instead
+// of planning without them, and every /0 file keeps its meaning and its
+// digest (AFP-V0-2480, CMP-V1-004). The value skips /1, which is the version
+// of the runner's selection expectation (TRE-V0-021), a different object.
+const DeclaredTreeReaderSelectionProfile = "corvint-test-selection/2"
 
 // WitnessDeclaredTestOwner selects a unit whose test file a declared owner
 // names, because an owner pattern matches a dirty path (AFP-V0-2482). Like a
@@ -47,6 +57,7 @@ const (
 	maxOwnerPatternBytes      = 256
 	maxOwnerPatternStars      = 4
 	maxMustRunReasonBytes     = 200
+	maxDeclaredTreeReaders    = 64
 )
 
 // TestOwner is one declared owner: the dirty paths Paths matches select the
@@ -79,20 +90,33 @@ type DeclaredOwner struct {
 	DirtyPath string `json:"dirtyPath"`
 }
 
+// TreeReader is one declared whole-tree reader (AZU-V0-8921): the repository
+// file Runs is a script, tool or program that reads every tracked path, as a
+// content check over `git ls-files` does, for the project's stated Reason.
+// Every driver unit that runs it, directly or through units that run it, is
+// a whole-tree reader driver (AZU-V0-8922).
+type TreeReader struct {
+	Runs   string `json:"runs"`
+	Reason string `json:"reason"`
+}
+
 // testSelection is the declaration as the graph digest and cache carry it.
+// TreeReaders is omitted when empty, so a /0 declaration keeps its digest.
 type testSelection struct {
-	Owners  []TestOwner    `json:"owners,omitempty"`
-	MustRun []MustRunEntry `json:"mustRun,omitempty"`
+	Owners      []TestOwner    `json:"owners,omitempty"`
+	MustRun     []MustRunEntry `json:"mustRun,omitempty"`
+	TreeReaders []TreeReader   `json:"treeReaders,omitempty"`
 }
 
 func (declared *testSelection) empty() bool {
-	return declared == nil || len(declared.Owners) == 0 && len(declared.MustRun) == 0
+	return declared == nil || len(declared.Owners) == 0 && len(declared.MustRun) == 0 && len(declared.TreeReaders) == 0
 }
 
 type testSelectionFile struct {
-	Profile string         `json:"profile"`
-	Owners  []TestOwner    `json:"owners"`
-	MustRun []MustRunEntry `json:"mustRun"`
+	Profile     string         `json:"profile"`
+	Owners      []TestOwner    `json:"owners"`
+	MustRun     []MustRunEntry `json:"mustRun"`
+	TreeReaders []TreeReader   `json:"treeReaders"`
 }
 
 // readTestSelection returns the declaration: nil when the repository declares
@@ -113,8 +137,13 @@ func readTestSelection(root *Source) (*testSelection, error) {
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
 		return nil, fmt.Errorf("%s: %w", DeclaredSelectionPath, err)
 	}
-	if declared.Profile != DeclaredSelectionProfile {
-		return nil, fmt.Errorf("%s: profile must be %s", DeclaredSelectionPath, DeclaredSelectionProfile)
+	switch {
+	case declared.Profile != DeclaredSelectionProfile && declared.Profile != DeclaredTreeReaderSelectionProfile:
+		return nil, fmt.Errorf("%s: profile must be %s or %s", DeclaredSelectionPath, DeclaredSelectionProfile, DeclaredTreeReaderSelectionProfile)
+	case declared.TreeReaders != nil && declared.Profile != DeclaredTreeReaderSelectionProfile:
+		// AZU-V0-8921: treeReaders exists only under the new profile, so a
+		// /0 file stays readable, byte for byte, by every 1.x planner.
+		return nil, fmt.Errorf("%s: treeReaders needs profile %s", DeclaredSelectionPath, DeclaredTreeReaderSelectionProfile)
 	}
 	if len(declared.Owners) > maxDeclaredOwners || len(declared.MustRun) > maxDeclaredMustRun {
 		return nil, fmt.Errorf("%s: at most %d owners and %d mustRun entries", DeclaredSelectionPath, maxDeclaredOwners, maxDeclaredMustRun)
@@ -146,7 +175,20 @@ func readTestSelection(root *Source) (*testSelection, error) {
 			return nil, fmt.Errorf("%s: mustRun %q reason must be 1 to %d bytes of printable text", DeclaredSelectionPath, entry.Tests, maxMustRunReasonBytes)
 		}
 	}
-	selection := &testSelection{Owners: declared.Owners, MustRun: declared.MustRun}
+	if len(declared.TreeReaders) > maxDeclaredTreeReaders {
+		return nil, fmt.Errorf("%s: at most %d treeReaders", DeclaredSelectionPath, maxDeclaredTreeReaders)
+	}
+	previous = ""
+	for _, entry := range declared.TreeReaders {
+		if !validDeclaredTest(entry.Runs) || strings.HasSuffix(entry.Runs, "/") || entry.Runs <= previous {
+			return nil, fmt.Errorf("%s: treeReaders runs %q", DeclaredSelectionPath, entry.Runs)
+		}
+		previous = entry.Runs
+		if !validTestSelectionReason(entry.Reason) {
+			return nil, fmt.Errorf("%s: treeReaders %q reason must be 1 to %d bytes of printable text", DeclaredSelectionPath, entry.Runs, maxMustRunReasonBytes)
+		}
+	}
+	selection := &testSelection{Owners: declared.Owners, MustRun: declared.MustRun, TreeReaders: declared.TreeReaders}
 	if selection.empty() {
 		return nil, nil
 	}
@@ -298,7 +340,150 @@ func (graph *Graph) resolveTestSelection(partial bool) error {
 		}
 		return strings.Compare(left.Tests, right.Tests)
 	})
+	return graph.resolveTreeReaders(partial)
+}
+
+// resolveTreeReaders marks every driver unit that runs a declared whole-tree
+// reader as a whole-tree reader driver: it gains the driver tree-read glob,
+// so it is a PATH_GLOB_READER of every dirty path and its driver dependents
+// are followed, as for a recipe that enumerates the tree itself
+// (AZU-V0-8922, AFP-V0-9401, AFP-V0-9402). A driver runs the file when the
+// file's owning unit reaches it through dependents. A declared file no unit
+// owns, or one no driver runs, contradicts the observed graph: a full build
+// refuses it, naming the entry; a partial build skips it (AZU-V0-8921).
+func (graph *Graph) resolveTreeReaders(partial bool) error {
+	graph.treeReaderDrivers = nil
+	for _, entry := range graph.testSelection.TreeReaders {
+		owner, owned := graph.owner[entry.Runs]
+		if !owned {
+			if partial {
+				continue
+			}
+			return fmt.Errorf("%s: treeReaders runs %q is no file a unit of the graph owns", DeclaredSelectionPath, entry.Runs)
+		}
+		drivers := graph.driversRunning(owner)
+		if len(drivers) == 0 && !partial {
+			return fmt.Errorf("%s: treeReaders runs %q is run by no driver unit the graph observes", DeclaredSelectionPath, entry.Runs)
+		}
+		for _, id := range drivers {
+			unit := graph.units[id]
+			if slices.Contains(unit.PathGlobs, driverTreeReadGlob) {
+				// A recipe that enumerates the tree itself, or a driver an
+				// earlier entry marked, already reads every path.
+				continue
+			}
+			// Clone: the plugin result the graph cache stores keeps its own
+			// globs, and a restore applies the declaration again.
+			unit.PathGlobs = append(slices.Clone(unit.PathGlobs), driverTreeReadGlob)
+			slices.Sort(unit.PathGlobs)
+			graph.units[id] = unit
+			if graph.treeReaderDrivers == nil {
+				graph.treeReaderDrivers = map[string]string{}
+			}
+			graph.treeReaderDrivers[id] = entry.Runs
+		}
+	}
 	return nil
+}
+
+// driversRunning lists, sorted, the driver units that run owner: the make
+// targets and workflow jobs that reach it through dependents, directly or
+// through a script, program or driver that runs it (AZU-V0-8922). An edge
+// that exists only because a unit imports every owner under a package
+// wildcard (`go vet ./...` resolves to "...") runs no script, so it is not
+// followed unless the unit also names the file exactly (runsExplicitly).
+//
+// A wrapper that has tests is followed like one that has none: dependents
+// holds a unit's production edges, so its production file runs owner
+// whatever tests the unit carries. Only a unit made of test files alone is a
+// leaf: its edge is the test's own, and a test runs owner on its fixture,
+// not on the tree. A test that does run it over the tree is declared as a
+// tree reader itself; a declared file's own unit is the start of the walk,
+// never a leaf.
+func (graph *Graph) driversRunning(owner string) []string {
+	seen := map[string]bool{owner: true}
+	queue := []string{owner}
+	var drivers []string
+	for len(queue) != 0 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, dependent := range graph.dependents[id] {
+			if seen[dependent] || !graph.runsExplicitly(dependent, id) {
+				continue
+			}
+			seen[dependent] = true
+			if strings.HasPrefix(dependent, DriverNamespace+":") {
+				drivers = append(drivers, dependent)
+			} else if unit := graph.units[dependent]; len(unit.Sources) == 0 && len(unit.Tests) != 0 {
+				continue
+			}
+			queue = append(queue, dependent)
+		}
+	}
+	slices.Sort(drivers)
+	return drivers
+}
+
+// runsExplicitly reports whether dependent's edge to id is more than a
+// package wildcard: id is a driver (a prerequisite, a make call or a job's
+// step), dependent has no wildcard path import, or a non-wildcard path import
+// of dependent resolves to id as resolvePathImports resolves it.
+func (graph *Graph) runsExplicitly(dependent, id string) bool {
+	if strings.HasPrefix(id, DriverNamespace+":") {
+		return true
+	}
+	unit := graph.units[dependent]
+	wildcard := false
+	for _, entry := range slices.Concat(unit.PathImports, unit.BuildPathImports) {
+		if entry == "..." || strings.HasSuffix(entry, "/...") {
+			wildcard = true
+			continue
+		}
+		if graph.owner[entry] == id {
+			return true
+		}
+		for _, file := range slices.Concat(graph.units[id].Sources, graph.units[id].Tests) {
+			if rest, below := strings.CutPrefix(file, entry+"/"); below && !strings.Contains(rest, "/") {
+				return true
+			}
+		}
+	}
+	return !wildcard
+}
+
+// DriversRunning lists, sorted, the driver units that run the repository
+// file path by the relation a declared whole-tree reader uses (AZU-V0-8922);
+// nil when no unit owns path.
+func (graph *Graph) DriversRunning(path string) []string {
+	owner, owned := graph.owner[path]
+	if !owned {
+		return nil
+	}
+	return graph.driversRunning(owner)
+}
+
+// DeclaredTreeReaders lists the declared whole-tree readers in the
+// declaration's order (AZU-V0-8921); nil when there is none.
+func (graph *Graph) DeclaredTreeReaders() []TreeReader {
+	if graph.testSelection == nil {
+		return nil
+	}
+	return slices.Clone(graph.testSelection.TreeReaders)
+}
+
+// TreeReaderDrivers maps each driver the declaration made a whole-tree
+// reader to the first declared file it runs (AZU-V0-8922); a driver whose
+// recipe already enumerates the tree is not listed. It is nil when there is
+// none.
+func (graph *Graph) TreeReaderDrivers() map[string]string {
+	if len(graph.treeReaderDrivers) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(graph.treeReaderDrivers))
+	for id, runs := range graph.treeReaderDrivers {
+		out[id] = runs
+	}
+	return out
 }
 
 // exercisingUnits lists, in graph order, the units holding a test file that

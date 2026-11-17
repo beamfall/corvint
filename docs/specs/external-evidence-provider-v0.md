@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-18
 Intent status: accepted (decision 0309)
 Delivery status: experimental (file records and local authoring kit; kit promotion blocked on V1-0013)
+Health: KEEP
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/analyzer-capability-contract-v0.md`, `docs/specs/affected-plan-v0.md`,
 `docs/specs/change-frontier-v0.md`, and the feature request Beamfall/corvint#1.

@@ -5,6 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `DRC-V0`
 Intent status: accepted (decision 0201, 2026-09-13, with clause amendments; `DRC-V0-001` subject shape, `DRC-V0-004` registry location and `DRC-V0-011` ratchet start by owner instructions 2026-09-12)
 Delivery status: implemented: envelope, fix registry, screen/bound, the additive CLI envelope, the converted refusal sites in the code kept after decision 0594 (the working-tree impact, batch, prove, checkpoint and touch-set sites were deleted with their commands; twenty-four sites remain), repair-stop and the coverage ratchet at twenty-four sites
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariants 2, 4 and 5, `../SPEC-DRIVEN-DEVELOPMENT.md`,
 `self-observation-ledger-v0.md` `SOL-V0-007` (the one write a refusal is already allowed to make),
 and `../agent-memory/fixes.md` (the refuse-without-naming-the-repair entries that motivated this

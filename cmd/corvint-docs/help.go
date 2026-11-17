@@ -18,7 +18,7 @@ const rootHelp = `usage: corvint-docs [--root PATH] docs SUBCOMMAND [OPTIONS]
        corvint-docs [--root PATH] flows [SUBCOMMAND] [OPTIONS]
        corvint-docs [--root PATH] how [OPTIONS] GOAL
        corvint-docs mcp --root ABSOLUTE_ROOT [--corpus-artifact PATH]
-       corvint-docs help docs | docs check | docs corpus | docs corpus OPERATION | docs flows | docs maintain | flows | how | mcp | docs-tool
+       corvint-docs help docs | docs check | docs corpus | docs corpus OPERATION | docs pages [VERB] | flows | how | mcp | docs-tool
        corvint-docs help --json
 Corvint's documentation app (decision 0594): drafting pinned documentation, the documentation
 corpus, generated-block maintenance and flow documentation, and the application-flow group
@@ -32,8 +32,11 @@ test-validity), corvint-docs runs that read in the corvint executable beside it 
 joins the corpus receipt onto its output.
 Required: a Git repository at --root (default .) for every verb but the corpus operations that
 read only their input files.
-Writes: docs maintain --apply and docs flows finalize write the pages they name; flows record,
-flows docs maintain --apply and the flows ingest verbs write the files they name; docs draft and
+The commands that write or check a generated page are one group, docs pages (generate, check,
+finalize, flow, flow-maintain, maintain); docs flows, flows docs [maintain] and docs maintain are
+its old spellings, aliases until the next release (AFL-V1-008).
+Writes: docs pages maintain --apply and docs pages finalize write the pages they name; flows
+record, docs pages flow-maintain --apply and the flows ingest verbs write the files they name; docs draft and
 docs consume best-effort append unsupported-* failures to .corvint/self-observations.jsonl
 (SOL-V0-007); every other verb reads.
 Example: corvint-docs docs corpus search --artifact corpus.json --query TERM
@@ -63,6 +66,7 @@ var helpBooleanFlags = map[string]bool{"--apply": true, "--check": true, "--dry-
 var nestedHelpTopics = [][2]string{
 	{"docs corpus", "docs-corpus"},
 	{"docs check", "docs-check"},
+	{"docs pages", "docs-pages"},
 	{"docs flows", "docs-flows"},
 	{"docs maintain", "docs-maintain"},
 }
@@ -127,6 +131,8 @@ func helpWordsTopic(words []string) string {
 		if slices.Contains(docsSubcommands, words[1]) {
 			return nestedTopicOr(words[0], words[1], "docs")
 		}
+	case len(words) == 3 && words[0] == "docs" && words[1] == "pages" && slices.Contains(pageVerbs(), words[2]):
+		return pagesHelpTopic(words[2])
 	case len(words) == 3 && words[0] == "docs" && words[1] == "corpus":
 		if _, ok := lookupCorpusOperation(words[2]); ok {
 			return "docs-corpus-" + words[2]
@@ -156,6 +162,11 @@ func commandHelpTopic(rest []string) string {
 		return ""
 	case len(rest) > 1 && rest[1] == "corpus":
 		return corpusHelpTopic(rest[2:])
+	case len(rest) > 2 && rest[1] == "pages" && !argparseOptionLike(rest[2]):
+		if !slices.Contains(pageVerbs(), rest[2]) {
+			return ""
+		}
+		return pagesHelpTopic(rest[2])
 	case len(rest) > 1 && slices.Contains(docsSubcommands, rest[1]):
 		return nestedTopicOr(rest[0], rest[1], "docs")
 	case len(rest) > 1 && !argparseOptionLike(rest[1]):
@@ -237,7 +248,9 @@ func topicText(topic string) string {
 	case "root":
 		return rootHelp
 	case "docs":
-		return docsHelp + "\n" + docsMaintainHelp + "\n" + docsFlowsHelp
+		return docsHelp + "\n" + docsPagesHelp + "\n" + docsMaintainHelp + "\n" + docsFlowsHelp
+	case "docs-pages":
+		return docsPagesHelp + flowscmd.PageHelp
 	case "docs-corpus":
 		return docsCorpusHelp()
 	case "docs-check":
@@ -260,7 +273,7 @@ func topicText(topic string) string {
 
 // helpTopics lists every authored topic that documents a command path, in a stable order.
 func helpTopics() []string {
-	topics := []string{"docs", "docs-check", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool", "flows", "how", "mcp"}
+	topics := []string{"docs", "docs-check", "docs-corpus", "docs-pages", "docs-flows", "docs-maintain", "docs-tool", "flows", "how", "mcp"}
 	for _, operation := range corpusOperations {
 		topics = append(topics, "docs-corpus-"+operation.name)
 	}
@@ -277,10 +290,12 @@ func helpTopicPath(topic string) []string {
 		return []string{"docs", "corpus"}
 	case "docs-check":
 		return []string{"docs", "check"}
+	case "docs-pages":
+		return []string{"docs", "pages"}
 	case "docs-flows":
-		return []string{"docs", "flows"}
+		return []string{"docs", "pages", "generate"}
 	case "docs-maintain":
-		return []string{"docs", "maintain"}
+		return []string{"docs", "pages", "maintain"}
 	case "docs-tool":
 		return []string{toolVerb}
 	}
@@ -320,6 +335,10 @@ var commandTree = sync.OnceValue(func() clitree.Tree {
 		text := topicText(topic)
 		builder.Declare(helpTopicPath(topic), topicSummary(text))
 		builder.AddText(text, "")
+	}
+	// The reports that moved to corvint keep a node, whose help says so (AFL-V1-007).
+	for _, verb := range flowscmd.MovedReports {
+		builder.Declare([]string{"flows", verb}, flowscmd.MovedReportSummary(verb))
 	}
 	return builder.Tree(binaryName+" help --json", "cmd/"+binaryName+" help topics", []string{"cmd/" + binaryName},
 		[]string{"--root", "--version", "--json", "--tree", "--corpus", "--corpus-depth"}, commandTreeInternal)

@@ -5,6 +5,7 @@ Date: 2026-09-30
 Requirement prefix: `PT-V0`
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner-approved six V1 wow additions, V1-0504;
 `docs/CHANGE-EVIDENCE-MAP.md` (the former `docs/CEM-CI.md` was removed by V1-1278 S3); `docs/specs/cem-pilot-kit.md`; `LICENSING.md`; `AGENTS.md` invariants 1–4, 7–8.
 

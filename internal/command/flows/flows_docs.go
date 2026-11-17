@@ -36,11 +36,11 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 	check := f.Bool("check", false, "compare the committed page and sidecar with regeneration")
 	waivers := f.String("waivers", "", "committed flow-doc-waivers/0 file, repository-relative; read by generation and --check alike")
 	if f.Parse(args) != nil || *dir == "" || o.Page == "" || o.Claims == "" || f.NArg() != 0 {
-		return errors.New("flows docs requires --flows DIR --page FILE --claims FILE, optional --registry FILE, --docs-root DIR, --waivers FILE and repeatable --evidence FILE")
+		return errors.New("docs pages flow requires --flows DIR --page FILE --claims FILE, optional --registry FILE, --docs-root DIR, --waivers FILE and repeatable --evidence FILE")
 	}
 	if maintenance {
 		if *preview == *apply || *check || *waivers != "" || (*preview && *expected != "") || (*apply && *expected == "") {
-			return errors.New("flows docs maintain needs --preview or --apply --expected-proposal SHA256")
+			return errors.New("docs pages flow-maintain needs --preview or --apply --expected-proposal SHA256")
 		}
 		o.Registry = *registry
 		options := appflows.DocMaintenanceOptions{Flows: *dir, Docs: o, EvidenceFiles: *evidence, Receipt: *receipt, Adopt: *adopt}
@@ -65,7 +65,7 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 		return err
 	}
 	if *preview || *apply || *expected != "" || *receipt != "" || *adopt {
-		return errors.New("maintenance flags require flows docs maintain")
+		return errors.New("maintenance flags require docs pages flow-maintain")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
@@ -111,7 +111,7 @@ func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o a
 		return err
 	}
 	if report.Status != "pass" {
-		return &gokernel.Error{Code: flowDocsCheckFailed, Message: fmt.Sprintf("flows docs --check found %d failure(s)", len(report.Failures))}
+		return &gokernel.Error{Code: flowDocsCheckFailed, Message: fmt.Sprintf("docs pages flow --check found %d failure(s)", len(report.Failures))}
 	}
 	return nil
 }

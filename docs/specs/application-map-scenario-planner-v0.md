@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-07
 Intent status: accepted
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner request [issue 660](https://github.com/beamfall/corvint/issues/660)
 (native ticket V1-0959), `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/application-map-v0.md` (AMAP-V0, the map this planner reads),

@@ -5,6 +5,7 @@
 package importratchet
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -41,7 +42,7 @@ var rvdSelectionPrefixes = []string{
 }
 
 // rvdAppflowsReaders are the appflows functions that read the store.
-var rvdAppflowsReaders = []string{"ReadStoredRunEvidence", "RunEvidenceFor", "WithStoredRunEvidence"}
+var rvdAppflowsReaders = []string{"ReadResults", "ReadStoredRunEvidence", "RunEvidenceFor", "WithStoredRunEvidence"}
 
 // rvdCorvintAllowed is every cmd/corvint function that may touch the store or a store reader: the
 // one writer of corvint test and corvint watch (RVD-V1-004) and the test-evidence and context
@@ -115,10 +116,13 @@ func TestRVDV1011StoredResultsDoNotChangePlan(t *testing.T) {
 	if len(refs) == 0 {
 		t.Fatalf("no appflows function reaches the store; the scan no longer sees %s", rvdStoreReaders)
 	}
-	for _, ref := range refs {
-		if !strings.HasPrefix(ref, rvdStoreReaders+" ") {
-			t.Errorf("RUN_EVIDENCE_APPFLOWS_READ %s: only %s reaches the store", ref, rvdStoreReaders)
-		}
+	for _, problem := range rvdAppflowsProblems(refs) {
+		t.Error(problem)
+	}
+	spy := rvdAppflowsProblems([]string{rvdStoreReaders + " RunEvidenceFor ReadStoredRunEvidence", "plan.go Plan ReadStoredRunEvidence"})
+	wantFix := "\nfix: move the store read into " + rvdAppflows + "/" + rvdStoreReaders + "; store-reading code belongs there (RVD-V1-011)"
+	if len(spy) != 1 || !strings.HasPrefix(spy[0], "RUN_EVIDENCE_APPFLOWS_READ plan.go Plan ReadStoredRunEvidence: ") || !strings.HasSuffix(spy[0], wantFix) {
+		t.Errorf("SPY_INEFFECTIVE a store read outside %s: got %q, want one problem naming plan.go and ending %q", rvdStoreReaders, spy, wantFix)
 	}
 	refs, err = rvdStoreReferences(root, rvdCorvint, m.Module)
 	if err != nil {
@@ -127,6 +131,19 @@ func TestRVDV1011StoredResultsDoNotChangePlan(t *testing.T) {
 	if !slices.Equal(refs, rvdCorvintAllowed) {
 		t.Errorf("RUN_EVIDENCE_CORVINT_READ cmd/corvint store references\n got %q\nwant %q", refs, rvdCorvintAllowed)
 	}
+}
+
+// rvdAppflowsProblems refuses each appflows store reference outside runstore.go, naming the file
+// and the fix.
+func rvdAppflowsProblems(refs []string) []string {
+	var problems []string
+	for _, ref := range refs {
+		if !strings.HasPrefix(ref, rvdStoreReaders+" ") {
+			problems = append(problems, fmt.Sprintf("RUN_EVIDENCE_APPFLOWS_READ %s: only %s reaches the store\nfix: move the store read into %s/%s; store-reading code belongs there (RVD-V1-011)",
+				ref, rvdStoreReaders, rvdAppflows, rvdStoreReaders))
+		}
+	}
+	return problems
 }
 
 func rvdSelection(pkg string) bool {

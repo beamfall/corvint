@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"context"
+	"github.com/Beamfall/corvint/internal/swiftimpact"
 	"testing"
 )
 
@@ -27,7 +28,7 @@ func moduleImpact(t *testing.T, files map[string]string, changed string) (map[st
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := Impact(index, []string{changed}, maxLimit)
+	result, err := Impact(index.WithSwiftPMReader(swiftimpact.Reader{}), []string{changed}, maxLimit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +229,8 @@ func TestNGIV0986CapabilitiesListModuleReferenceSuffixes(t *testing.T) {
 // missing reading; the test binary links internal/swiftimpact (NGI-V0-988).
 func TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership(t *testing.T) {
 	t.Parallel()
-	if swiftPMReader == nil {
+	reader := SwiftPMReader(swiftimpact.Reader{})
+	if reader == nil {
 		t.Fatal("the contextindex test binary registered no SwiftPMReader; internal/swiftimpact is not linked")
 	}
 	index, err := Build(context.Background(), impactRepositoryWithFiles(t, swiftPackageFixture))
@@ -246,5 +248,27 @@ func TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership(t *testing.T) {
 	disclosures := reading.disclosures()
 	if !stringIn(disclosures, swiftModuleUncertainty) || !stringIn(disclosures, swiftReaderUnlinked) {
 		t.Fatalf("disclosures = %v, want the Swift precision limits and the unlinked reading", disclosures)
+	}
+}
+
+// LGP-V0-8600: wiring one index view never changes an earlier or unwired view.
+func TestSwiftReaderWiringIsRequestLocal(t *testing.T) {
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, swiftPackageFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wired := index.WithSwiftPMReader(swiftimpact.Reader{})
+	for _, view := range []*Index{wired, index, wired.WithSwiftPMReader(nil), wired} {
+		receipt, err := Impact(view, []string{"Sources/Core/Ledger.swift"}, maxLimit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := moduleImpactRows(receipt, "reverse-import")
+		if view == wired && got["Sources/App/main.swift"] != "high" {
+			t.Fatalf("wired request lost reader: %v", got)
+		}
+		if view != wired && len(got) != 0 {
+			t.Fatalf("reader leaked to another request: %v", got)
+		}
 	}
 }

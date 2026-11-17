@@ -18,6 +18,7 @@ import (
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/extevidence"
+	"github.com/Beamfall/corvint/internal/flowreports"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -127,14 +128,36 @@ func flowIntentRepo(t *testing.T) string {
 	return root
 }
 
+// runFlowsCLI runs one flows verb in process. The reports that join flows with test results
+// (status, impact, gaps) moved to the tests layer's internal/flowreports, which corvint serves
+// (AFL-V1-001, AFL-V1-007); this test-only route keeps their fixtures and goldens here, and
+// runDocsFlowsCLI runs what corvint-docs itself dispatches.
 func runFlowsCLI(root string, args ...string) (int, string, string) {
+	if len(args) > 0 && flowreports.IsVerb(args[0]) {
+		var out, diagnostic bytes.Buffer
+		code := flowreports.Run(context.Background(), root, args[0], args[1:], &out, &diagnostic, reportsEnv)
+		return code, out.String(), diagnostic.String()
+	}
+	return runDocsFlowsCLI(root, args...)
+}
+
+// runDocsFlowsCLI runs one verb as corvint-docs flows dispatches it.
+func runDocsFlowsCLI(root string, args ...string) (int, string, string) {
 	var out, diagnostic bytes.Buffer
 	code := Run(context.Background(), root, args, &out, &diagnostic, testEnv)
 	return code, out.String(), diagnostic.String()
 }
 
-// testEnv stands in for the root's error envelope and affected-revision refusal: the same
-// {"code": ..., "error": ..., "ok": false} line and refusal code, without the root's diagnostics.
+// reportsEnv is testEnv for the flow reports, with the affected-revision refusal code.
+var reportsEnv = flowreports.Env{
+	EmitError: testEnv.EmitError,
+	BaseRefusal: func(base string) error {
+		return &gokernel.Error{Code: "unsupported-affected-revision", Message: "base " + base + " is not a commit in this repository"}
+	},
+}
+
+// testEnv stands in for the root's error envelope: the same
+// {"code": ..., "error": ..., "ok": false} line, without the root's diagnostics.
 var testEnv = Env{
 	EmitError: func(diagnostic io.Writer, err error) {
 		code := "internal-error"
@@ -145,9 +168,6 @@ var testEnv = Env{
 		codeJSON, _ := json.Marshal(code)
 		messageJSON, _ := json.Marshal(err.Error())
 		fmt.Fprintf(diagnostic, "{\"code\": %s, \"error\": %s, \"ok\": false}\n", codeJSON, messageJSON)
-	},
-	BaseRefusal: func(base string) error {
-		return &gokernel.Error{Code: "unsupported-affected-revision", Message: "base " + base + " is not a commit in this repository"}
 	},
 }
 

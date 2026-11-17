@@ -112,23 +112,19 @@ func TestSKHV0810HowAlias(t *testing.T) {
 	}
 }
 
-// TestFlowsImpactUnknownBaseUsesRootRefusal pins this binary's wiring of flowsEnv.BaseRefusal:
-// the flows package tests use a stub Env, so only this end-to-end dispatch catches a miswired or
-// nil refusal (AFU-V1 impact keeps the affected-revision refusal envelope).
-func TestFlowsImpactUnknownBaseUsesRootRefusal(t *testing.T) {
-	root := taskContextRepository(t)
-	cemWrite(t, root, "flows/retired.json", `{"schema":"application-flow-retired/1","flow_ids":[],"variation_ids":[]}`+"\n")
-	cemGit(t, root, "add", "-A")
-	cemGit(t, root, "commit", "-qm", "flows")
-	base := strings.Repeat("0", 40)
-	code, out, diagnostic := runCLI(t, "--root", root, "flows", "impact", "--flows", "flows", "--base", base)
-	if code != 2 || out != "" {
-		t.Fatalf("code=%d out=%q diagnostic=%s", code, out, diagnostic)
-	}
-	for _, want := range []string{"unsupported-affected-revision", "base " + base + " is not a commit in this repository", "affected.use-commit-base"} {
-		if !strings.Contains(diagnostic, want) {
-			t.Fatalf("diagnostic lacks %q: %s", want, diagnostic)
+// AFL-V1-007, AFL-V1-001: the reports that join flows with test results moved to corvint; the
+// corvint-docs verbs are a notice naming the corvint command, exit 2, nothing on stdout, before any
+// argument or repository is read.
+func TestAFLV1007MovedReportsNameCorvint_V15623(t *testing.T) {
+	for _, verb := range []string{"status", "impact", "gaps"} {
+		code, out, diag := runCLI(t, "--root", t.TempDir(), "flows", verb, "--flows", "flows", "--base", strings.Repeat("0", 40))
+		if code != 2 || out != "" || !strings.Contains(diag, `"code": "invalid-arguments"`) || !strings.Contains(diag, "run corvint flows "+verb) ||
+			!strings.Contains(diag, flowscmd.MovedReportRefusal(verb)) {
+			t.Fatalf("flows %s: %d %q %s", verb, code, out, diag)
 		}
+	}
+	if code, out, _ := runCLI(t, "help", "flows"); code != 0 || !strings.Contains(out, "flows status|impact|gaps") || strings.Contains(out, "flows status --flows") {
+		t.Fatalf("flows help still documents the moved reports: %d %s", code, out)
 	}
 }
 

@@ -5,6 +5,7 @@ Date: 2026-11-05
 Requirement prefix: `AFP-V0`
 Intent status: experimental
 Delivery status: experimental
+Health: MERGE
 Authoritative inputs: owner lane charter for affprec, 2026-11-05; `affected-plan-v0.md` (AFP-V0-012, AFP-V0-021, AFP-V0-036).
 
 ## Agent digest

@@ -33,6 +33,115 @@ until the owner amends them.
   unlinked test and is never a complete answer. A flow's own `status` stays `complete` or
   `incomplete`.
 
+Builder decisions (2026-11-16, V1-5623), recorded while building the native reports; they stand
+until the owner amends them.
+
+- Home of the code. The command handlers of `flows status`, `flows impact` and `flows gaps` moved
+  from `internal/command/flows` (docs layer) to the new tests-layer package
+  `internal/flowreports`, which `corvint flows` dispatches. `flows gaps` moved too: PROD-DOCS-011
+  lists it with status, impact and test-evidence as a test-joining report, and FSV-V1-007's smoke
+  runs it with `corvint` alone. Each `corvint-docs` copy is a refusal naming `corvint flows VERB`
+  (exit 2, `invalid-arguments`).
+- The join stays shared. The joins themselves (`FlowStatus`, `FlowImpactResults`, `FlowGaps`) stay
+  in `internal/appflows`, where they already were, because the `corvint mcp` flow tools in the
+  shared `internal/mcp/bridge` call them; moving them into the tests layer would make the shared
+  bridge import upward. The tests layer owns the commands; the shared layer keeps one copy of each
+  report, so the command and the tool cannot diverge (AFL-V1-003).
+- Result sources. `appflows.ReadResults` reads the run evidence store, then each
+  `--evidence FILE`. The receipt reader is the store's (RVD-V1-006): `corvint test` appends every
+  receipt it writes to the store (RVD-V1-004), so the report sees each run without opening a
+  receipt file. A direct `--receipt FILE` or default-receipt read was built and withdrawn:
+  `TestSTRV0011ReceiptsHaveNoOtherReader` admits no receipt reader without an accepted
+  requirement, and this change is `pending-owner` in `docs/specs/openspec/acceptance-log.tsv`. A
+  receipt whose store append failed (`run-evidence-write-failed`) is therefore not reported.
+  `result_sources` lists each source, `read` or `not-read`, with its record count, printing a
+  named file as the caller named it, so the command and the tool print the same bytes for the
+  same names.
+- Granularity. A `corvint-test-run/0` row is file level (RVD-V1-006). It reaches a title link when
+  its key is the link's key, its key is the link's test file, or it is the canonical file-level
+  test ID of that file. The row carries `granularity: file`, and `slice` when its unit ran only part
+  of the file; an ingested record carries `granularity: test`. A receipt row names no Playwright
+  project, so it stands for the project of a variation that declares at most one; for a variation
+  of several projects every row stays `NOT_OBSERVED` with reason `project-not-recorded`, never one
+  `passed` for projects that may not have run (invariant 2).
+- Unassigned. `--provider FILE` (and the tool's `provider`) reuses the gaps inventory reader:
+  `inventory` and `unassigned` equal gaps' `inventory` and `unlinked_total`; without a provider
+  `unassigned` is `null`, never 0.
+- `--base`. The report keeps exactly the flows and the variations `flows impact` names, where it
+  used to keep every variation of a reached flow.
+
+Builder decisions (2026-11-16, V1-5623 review repair), from the independent review of the first
+delivery; they stand until the owner amends them.
+
+- Attached tests are the targets of `reviewed` test links only (AFL-V1-001: "accepted, non-stale
+  link records"); a `stale`, `unreviewed`, `inferred` or other unaccepted link attaches nothing,
+  and a variation left with none carries `no-test`. AFU-V1-160, the first version of this block,
+  read every non-inferred link; it is reconciled to AFL-V1-001. `flows map` and `flows gaps` keep
+  their own rules.
+- Store records and AFL-V1-006. RVD-V1-010 (accepted) skips a corrupt store record and marks its
+  tests `run-evidence-corrupt`; AFL-V1-006 refuses a malformed or unknown-profile receipt whole.
+  By owner ruling (2026-11-16, V1-5658) RVD-V1-010 wins for the store and AFL-V1-006 covers only
+  input the command names: any stored record the report cannot read (edited, malformed, of a
+  profile such as `corvint-test-run/9`, or oversized) is skipped and named under `run_evidence`,
+  and the report exits 0; a bad `--evidence` file is still refused whole. A test the skipped record
+  held reads NOT_OBSERVED `run-evidence-corrupt` even over an older stored result, since the
+  skipped record may be newer; only a named file, read after the store, gives its result. A marked
+  test is one the skipped record held by its key or by a file-level ID of its test file; when the
+  store cannot name the record's tests (no readable log) every test is treated as held, so no
+  stored pass is reported. `flows impact` marks its `last_results` the same way; `flows map`,
+  `flows gaps` and `corvint test-evidence` keep their own RVD-V1-010 reading.
+- Bounds. The store and the named `--evidence` files are bounded separately, as `RunEvidenceFor`
+  bounds them: the store keeps its newest 8192 records (`run_evidence.truncated`), and the named
+  files together hold at most 8192 (`run-evidence-record-bound`).
+- Unknown reach (APK-V0-010). Reach is resolved only through owning units of the impact graph, so
+  it is unknown in two cases. (1) A changed path with no owning unit, whether or not a link targets
+  it: a link that targets it resolves that one link, not what else imports the path (second review,
+  B1). (2) A link target with no owning unit, because its language has no adapter or the file no
+  longer exists: what it imports is unknown, so every changed path's reach is unknown and the
+  graph's `unknown` names each such target as `LINK_TARGET_UNOWNED: PATH` (second review, B2).
+  `flows impact` then lists the paths in `reach_unknown`, sets the graph scope `UNKNOWN`, and names
+  every flow with all its variations and their test keys and `reason: reach-unknown` (keeping any
+  resolved hits); `flows status --base` keeps every flow and variation with the same reason and the
+  same graph. Left out as flow inputs, not application code: the flow declaration and the `.json`
+  files directly in the intents directory (intents, `retired.json`, `origins.json`); any other
+  file under that directory is under the rule, and a change of flow inputs alone names nothing.
+  Both members are omitted when every path resolved, so earlier reports keep their bytes.
+  Not covered, and unchanged from before this change: reach through a file that has no adapter
+  and is neither changed nor a link target. With an owned `src/search.ts` (a link target)
+  importing `Cart.vue`, which imports an owned `src/lib/price.ts`, a change of `price.ts` alone
+  resolves as not reaching the flow, because the static import graph holds no edge through
+  `Cart.vue`; every changed path and link target has an owning unit, so none of APK-V0-010's three
+  cases applies, and the graph's `unknown` does not name the import. Likewise a planner unknown or
+  a dirty worktree (AFU-V1-163) sets the scope `UNKNOWN` and leaves the list as resolved. Closing
+  either needs the graph to give the units whose imports it could not resolve, and a ruling on
+  AFU-V1-017's narrowing; both are for the owner.
+
+## Docs command group names (AFL-V1-008)
+
+Builder decision (2026-11-16, V1-5623), recorded before the rename commit as AFL-V1-008 requires;
+it stands until the owner amends it. The three look-alike families move into one group,
+`corvint-docs docs pages`, which owns every command that writes or checks a generated
+documentation page. Each old spelling stays an alias for one release: it runs the same handler with
+the same flags and prints one stderr notice naming the new spelling.
+
+| Old name | New name | What it does |
+|---|---|---|
+| `docs flows generate` | `docs pages generate` | generate the bounded source-derived flow pages from a corpus |
+| `docs flows check` | `docs pages check` | check those generated pages against regeneration |
+| `docs flows finalize` | `docs pages finalize` | bind the generated pages to a provider revision |
+| `flows docs` | `docs pages flow` | render one flow page and its claims sidecar; `--check` compares |
+| `flows docs maintain` | `docs pages flow-maintain` | preview or apply maintenance of that committed page pair |
+| `docs maintain` | `docs pages maintain` | refresh one human page's generated blocks from source |
+
+`docs pages` refuses an unknown verb, with or without `--help`, and a positional word after
+`docs pages flow` (whose handler would read `maintain` as flow-maintain), as `invalid-arguments`.
+Refusals and hints name the new spellings (`refresh with docs pages maintain ...`).
+`corvint-docs flows status|impact|gaps --help` states that the verb moved to `corvint`.
+
+The notice is one line: `corvint-docs: OLD is renamed NEW; OLD is an alias until the next release
+(AFL-V1-008)`. `corvint docs ...` and `corvint flows docs ...` forward to `corvint-docs`
+unchanged, so they print the same notice.
+
 ## Failure modes
 
 - No result source given and no default receipt: every result is `NOT_OBSERVED`, exit 0, with the

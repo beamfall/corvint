@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Drafted: 2026-09-05
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Implementation: `internal/doccompiler/draft.go`, `cmd/corvint-docs/docs.go`, `internal/docmaintain`, `cmd/corvint-docs/docs_maintain.go`
 Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `ROADMAP.md` AT-15
 

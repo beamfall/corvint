@@ -5,6 +5,7 @@ Date: 2026-09-22
 Requirement prefix: `SOP-V0`
 Intent status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23; `SOP-V0-013` accepted under the owner's standing auto-accept, 2026-10-11, V1-1114)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `../decisions/0341-stable-operations-qualification-2026-09-22.md`,
 `../decisions/0360-cross-version-lifecycle-and-memory-rows-2026-09-23.md`,
 `public-release-v0.md` (`PUB-V0-025`/`PUB-V0-026` install lifecycle and hostile store),
@@ -44,7 +45,7 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
   reports `fresh`. The rebuilt file is the same size but not byte-identical to the first build (460
   differing bytes under `cmp -l`), so the recovery contract is packet identity, not snapshot identity.
 - The version string is the `PUB-V0-001` tuple constant `version` in `cmd/corvint/main.go` and the build
-  stamp is `var build = "0"` (`cmd/corvint/main.go:1130@e7212353`), set by `-ldflags -X main.build=N`.
+  stamp is `var build = "0"` (`cmd/corvint/main.go:1133@e7212353`), set by `-ldflags -X main.build=N`.
 - The archive producer writes `corvint_<goos>_<goarch>.tar.gz` for four targets, `SHA256SUMS` and
   `verification-report.json` (`release-artifact-integrity-v0.md`); the installer refuses a case-fold
   alias of an existing store entry (`internal/releasecandidate/operations.go:193@1161e39d`).
@@ -197,7 +198,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 |---|---|---|
 | hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:198@5817975f`, `internal/genesis/repository_test.go:210@a2e88456`, `internal/genesis/repository_test.go:248@a1e12d68` |
 | hostile-repository | `internal/contextindex` | `internal/contextindex/history_test.go:62@671cf1e3` |
-| paths | `internal/releasegate` | `internal/releasegate/releasegate_test.go:143@e18871cf` |
+| paths | `internal/update` | `internal/update/archive_path_test.go` |
 | paths | `internal/corerelease` | `internal/corerelease/export_test.go:25@d4b6a1eb` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
 | symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:328@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:557@22f1c7f2`, `internal/contextindex/snapshot_test.go:607@ee7924d9` |

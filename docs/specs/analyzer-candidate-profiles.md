@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-25
 Intent status: proposed
 Delivery status: deferred
+Health: KEEP
 Disposition: deferred by decision 0132; return only with an accepted qualification-and-launch profile.
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/analyzer-capability-contract-v0.md`, and the owner's direction to support Go, Python 3.12,

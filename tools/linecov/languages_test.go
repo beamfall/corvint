@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -75,7 +76,7 @@ test('a',()=>assert.equal(lib.a(),1)); test('b',()=>assert.equal(lib.b(),2));`
 				write(t, root, source, strings.Replace(body, "  1", "  3", 1))
 			}
 			run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qam", "edit")
-			p, err := languageDecide(context.Background(), root, ix, lang, base, []string{file})
+			p, err := languageDecide(context.Background(), root, ix, lang, base, []string{file}, selectOptions{ruby: exe})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -84,6 +85,101 @@ test('a',()=>assert.equal(lib.a(),1)); test('b',()=>assert.equal(lib.b(),2));`
 			}
 		})
 	}
+}
+
+// LPCV-V0-7605/7608: a Ruby plan executes its line-level candidate only when
+// the family is admitted; an unexecuted-line edit then selects and runs no
+// test, a load-time edit stays whole, and every refusal keeps the static plan
+// with coverage-collector-unqualified and the refusal reported.
+func TestLanguageDecideRubyAdmission(t *testing.T) {
+	exe, err := exec.LookPath("ruby")
+	if err != nil {
+		t.Skip("ruby unavailable")
+	}
+	exe, _ = filepath.Abs(exe)
+	if err := exec.Command(exe, "-e", "gem 'minitest'").Run(); err != nil {
+		t.Skip("minitest unavailable")
+	}
+	root := t.TempDir()
+	file := "test/a_test.rb"
+	body := "class Lib\n  def self.a\n    1\n  end\n\n  def self.unused\n    :never\n  end\nend\n"
+	write(t, root, "lib.rb", body)
+	write(t, root, file, "require 'minitest/autorun'\nrequire_relative '../lib'\nclass LibTest < Minitest::Test\n def test_a; assert_equal 1, Lib.a; end\n def test_b; assert true; end\nend\n")
+	commit := func(msg string) string {
+		run(t, root, "git", "add", ".")
+		run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", msg)
+		head, err := output(root, "git", "rev-parse", "HEAD")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return head
+	}
+	run(t, root, "git", "init", "-q")
+	base := commit("base")
+	index := filepath.Join(t.TempDir(), "idx")
+	argv, _ := json.Marshal([]string{exe, file})
+	if err := languageCollect("ruby", []string{"-root", root, "-out", index, "-command", string(argv)}); err != nil {
+		t.Fatal(err)
+	}
+	ix, err := linecov.Load(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := rubyAdmit
+	t.Cleanup(func() { rubyAdmit = saved })
+	decide := func(edited string, admit error) LanguagePlan {
+		t.Helper()
+		run(t, root, "git", "checkout", "-q", "--detach", base)
+		write(t, root, "lib.rb", edited)
+		commit("edit")
+		rubyAdmit = func(context.Context, string, string) error { return admit }
+		p, err := languageDecide(context.Background(), root, ix, "ruby", base, []string{file}, selectOptions{ruby: exe})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	refused := errors.New("ruby qualification record unavailable")
+	for _, tc := range []struct {
+		name, edited string
+		admit        error
+		effective    string
+		reason       string
+		gate         bool
+	}{
+		{"covered line admitted", strings.Replace(body, "    1", "    3", 1), nil, "tests:LibTest#test_a", "coverage-qualified", true},
+		{"covered line refused", strings.Replace(body, "    1", "    3", 1), refused, "whole", "coverage-collector-unqualified", false},
+		{"unexecuted line admitted", strings.Replace(body, ":never", ":other", 1), nil, "exclude", "coverage-qualified", true},
+		{"unexecuted line refused", strings.Replace(body, ":never", ":other", 1), refused, "whole", "coverage-collector-unqualified", false},
+		{"load-time line admitted", strings.Replace(body, "class Lib", "class Lib # x\n  X = 1", 1), nil, "whole", "coverage-qualified", true},
+		{"unparsable admitted", strings.Replace(body, ":never", ":never +", 1), nil, "whole", "coverage-qualified", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := decide(tc.edited, tc.admit)
+			e := p.Effective[file]
+			got := string(e.Mode)
+			if e.Mode == linecov.Tests {
+				got += ":" + strings.Join(e.Tests, ",")
+			}
+			if got != tc.effective || p.Reason != tc.reason || p.GateEligible != tc.gate || p.Runner != ix.Runner {
+				t.Fatalf("effective %s reason %q gate %v admission %q fallback %q", got, p.Reason, p.GateEligible, p.Admission, p.Fallback)
+			}
+			if tc.admit != nil && p.Admission != tc.admit.Error() {
+				t.Fatalf("refusal not reported: %q", p.Admission)
+			}
+			if tc.effective == "whole" && tc.admit == nil && p.Fallback == "" {
+				t.Fatal("fallback reason not reported")
+			}
+		})
+	}
+	// A line Ruby reads as a blank-delimited percent literal, which the lexer
+	// reads as code: the interpreter's own reading keeps the static plan.
+	t.Run("line the lexer misreads admitted", func(t *testing.T) {
+		p := decide(strings.Replace(body, ":never", "% never ", 1), nil)
+		if e := p.Effective[file]; e.Mode != linecov.Whole || !strings.Contains(p.Fallback, "Ruby reads the new side of lib.rb differently from the lexer: line 7") {
+			t.Fatalf("effective %+v fallback %q", e, p.Fallback)
+		}
+	})
 }
 
 // LPCV-V0-7607: saves replan dirty contents against the recorded commit and

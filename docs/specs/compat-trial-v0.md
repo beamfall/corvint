@@ -5,6 +5,7 @@ Date: 2026-09-04
 Requirement prefix: `CTR-V0`
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Health: RETIRE
 Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
 Retirement note: decision 0594 (the test-selection refocus) deleted `tools/cem-trial` (756d3670 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `ROADMAP.md` (AT-09, AT-10), `docs/plans/EXCEPTIONAL-CORVINT-2026-09-04.md`

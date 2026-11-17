@@ -5,6 +5,7 @@ Date: 2026-09-24
 Requirement prefix: `HLQ-V1`
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Health: RETIRE
 Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: ticket V1-0016, `agent-harness-integration-v0.md` (`AHI-002`, `AHI-003`,

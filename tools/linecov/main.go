@@ -43,6 +43,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/linecov/watch"
+	"github.com/Beamfall/corvint/internal/rubylinecov"
 )
 
 func main() {
@@ -68,6 +69,8 @@ func main() {
 		err = qualify(os.Args[2:])
 	case "qualified":
 		err = qualified(os.Args[2:])
+	case "ruby-qualify":
+		err = rubyQualify(os.Args[2:])
 	case "redundancy":
 		err = redundancy(os.Args[2:])
 	case "merge":
@@ -81,6 +84,11 @@ func main() {
 	}
 	if errors.Is(err, flag.ErrHelp) {
 		return
+	}
+	var incomplete *rubylinecov.IncompleteError
+	if errors.As(err, &incomplete) {
+		fmt.Fprintln(os.Stderr, "linecov:", err)
+		os.Exit(3)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "linecov:", err)
@@ -832,4 +840,34 @@ func joinLines(list []string) string {
 		return ""
 	}
 	return strings.Join(list, "\n") + "\n"
+}
+
+// writeJSON, sortedKeys and firstLine serve the Go and the Ruby commands,
+// so they live in a file both qualification records bind.
+func writeJSON(file string, v any) error {
+	if file == "" {
+		return nil
+	}
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(file, append(data, '\n'), 0o644)
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func firstLine(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+	}
+	return s
 }

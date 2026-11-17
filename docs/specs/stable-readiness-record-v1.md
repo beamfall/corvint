@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-26
 Intent status: accepted (decision 0422, 2026-09-26)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: decision 0420 (owner, 2026-09-26), `AGENTS.md`,
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, tickets V1-0018 AC2, V1-0019, V1-0020 AC3 and V1-0021 AC3,
 PRS-V1-004 and PRS-V1-005 in `corvint-1.0-product-and-release-v1.md`, PUB-V0-021 and PUB-V0-023

@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-27
 Intent status: experimental under the standing lane auto-accept (2026-10-27; V1-2840)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: V1-2840 / GitHub #1914 owner request (record a corvint command with its
 inputs pinned by digest or revision, its output, exit code and optional expectations; replay it
 against the current build printing pass/fail per expectation plus build identity; bundles are

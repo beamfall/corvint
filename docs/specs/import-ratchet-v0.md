@@ -5,6 +5,7 @@ Date: 2026-11-06
 Requirement prefix: `IRT-V0`
 Intent status: experimental
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel restructuring plan); decision 0397 (the existing Tasks import-direction rule, which this contract does not change); decision 0594 item 8 and ticket V1-5233 (the manifest keyed to the five layers shared, analyzers, tests, docs and release).
 
 ## Agent digest
@@ -136,7 +137,7 @@ reviewed change.
 - IRT-V0-020 does not see these Git spawns: `os.StartProcess`, `syscall.Exec` or another
   non-`os/exec` primitive; a dot import of `os/exec`; a program held in a name without `git`
   (at c9775bd90, for example, `executable` in `internal/contextindex/git.go` `gitRaw` and
-  `identity.path` in `internal/releasegate/git_unix.go` `runGitProcess`); a program returned by
+  `identity.path` in the since-retired `internal/releasegate/git_unix.go` `runGitProcess`); a program returned by
   any call other than `gitstatus.Executable()`; and a wrapper that builds the `exec.Cmd` elsewhere
   and receives the program from its caller. Spawns inside `internal/gitrun` are out of scope by
   design. A name that contains `git` but holds another program would be listed needlessly; the

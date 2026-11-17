@@ -5,6 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `GAG-V0`
 Intent status: accepted (decision 0105 amendment 2026-09-12); GAG-V0-009 experimental under the standing lane auto-accept (2026-10-30; V1-3238)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md` "Required
 capability-spec shape", `release-artifact-integrity-v0.md` and `go-production-kernel-migration-v0.md`
 (which own the artifact contract this gate invokes), `optional-artifact-check-scripts-v0.md`

@@ -16,7 +16,7 @@ var rubySymbols = regionSymbols
 func regionSymbols(source Source, text string) ([]Symbol, []ExtractionNote) {
 	symbols := make([]Symbol, 0)
 	notes := make([]ExtractionNote, 0)
-	region, ok := dialect.LookupRegion(SymbolRegionLanguage(source.Path))
+	region, ok := dialects.LookupRegion(SymbolRegionLanguage(source.Path))
 	if !ok || region.Symbols == nil {
 		return symbols, append(notes, ExtractionNote{source.Path, noteExtractorUnavailable})
 	}

@@ -5,6 +5,7 @@ Date: 2026-09-02
 Requirement prefix: `IDX-SNAP-V0`
 Intent status: accepted (decision 0049, 2026-09-04)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `docs/decisions/0032-index-snapshot-2026-09-02.md` (the owner's instruction and
 the measured basis), `docs/specs/revision-cache-dirty-worktree-v0.md` (the cache key and the dirty
 view, `DIRTY-CACHE-001` to `DIRTY-CACHE-004` and `DIRTY-CACHE-007`),

@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-30
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner-requested GitHub issue #390 (native V1-0537), and the
 2026-09-30 instruction to implement it. This technical contract proposes concrete
 semantics; issue intent does not accept generated implementation detail.
@@ -755,12 +756,13 @@ supply a build-unit graph; the Kotlin and C# rules read package and namespace sy
 - `NGI-V0-988`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) `internal/contextindex` SHALL NOT import
   `internal/liveverify/affected` or its language packages, so the corvint-tasks source archive
   closure (`PUB-V0-012`, `PUB-V0-013`) stays unchanged. It SHALL read SwiftPM targets and Swift
-  imports through a `SwiftPMReader` that `internal/swiftimpact` registers. Every binary that links
-  the affected Swift model and can reach path impact (`corvint`, `corvint-mcp`,
-  `corvint-test-validity-mcp`) SHALL link that package, and corvint-tasks SHALL link neither;
+  imports through an explicitly supplied `SwiftPMReader` implemented by `internal/swiftimpact`
+  (V1-4818). Every binary that links
+  the affected Swift model and can reach path impact (`corvint`, `corvint-mcp`) SHALL supply that reader to request-local index views, and
+  corvint-tasks SHALL link neither; the withheld `corvint-test-validity-mcp` serves no path impact;
   `corvint-docs-mcp` and `corvint-web-flows` never reach path impact and do not link it
   (`docs/build-log/2026-11-09-layer-tests-targets.md`). A Swift
-  request served without a registered reader SHALL report no target membership and no
+  request served without a supplied reader SHALL report no target membership and no
   `reverse-import` row, and SHALL keep the profile gap. It SHALL also carry the line
   `this binary does not link the SwiftPM target reading, so Swift paths have no target membership`.
 
@@ -880,7 +882,7 @@ Observed execution and independent findings are retained in
 | `NGI-V0-985` | `moduleReading.disclosures` | `TestNGIV0980SwiftReverseImpactFollowsSPMTargetMembership`, `TestNGIV0981KotlinReverseImpactFollowsPackageImports`, `TestNGIV0982CSharpReverseImpactFollowsUsingDirectives` |
 | `NGI-V0-986` | `ImpactCapabilities` (`internal/contextindex/impact_capabilities.go`); `impact` help (`cmd/corvint/help.go`) | `TestNGIV0986CapabilitiesListModuleReferenceSuffixes`, `TestGPKV0085ImpactCapabilitiesAgreeWithAdmission` |
 | `NGI-V0-987` | `ImportedModules`, `TargetModule` (`internal/liveverify/affected/swift/imports.go`) | `TestNGIV0987ImportedModulesReadsCodeOnlyImports` |
-| `NGI-V0-988` | `SwiftPMReader`, `RegisterSwiftPMReader` (`internal/contextindex/swiftpm_reader.go`); `buildSwiftTargetMap`; `internal/swiftimpact`; `cmd/*/swift_impact.go` | `TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership`, `TestNGIV0988ReaderReadsSwiftPMTargetsAndImports`, `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader` (removed), `TestCurrentTasksSourceArchiveBuildsOffline` (removed) |
+| `NGI-V0-988` | `SwiftPMReader`, `WithSwiftPMReader` (`internal/contextindex/swiftpm_reader.go`); `buildSwiftTargetMap`; `internal/swiftimpact`; `cmd/corvint/main.go`; `internal/mcp/cli/main.go` | `TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership`, `TestNGIV0988ReaderReadsSwiftPMTargetsAndImports`, `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader` (removed), `TestCurrentTasksSourceArchiveBuildsOffline` (removed) |
 
 ## Non-goals, rollout and rollback
 
@@ -904,7 +906,7 @@ file is then ignored. The implementation stays experimental pending human accept
 integration. The Swift, Kotlin and C# readings (`NGI-V0-980` to `NGI-V0-988`) compile nothing,
 read no `.csproj`, Gradle or Xcode project, follow one import hop, and change neither range
 impact, `corvint graph`, the `GPK-V0-027` oracle nor the historical packet budget; roll them back
-by removing `module_impact.go`, `swiftpm_reader.go`, `internal/swiftimpact`, the `cmd/*/swift_impact.go`
+by removing `module_impact.go`, `swiftpm_reader.go`, `internal/swiftimpact`, the `cmd/corvint/main.go`; `internal/mcp/cli/main.go`
 imports, `imports.go`, the `moduleMapped` view and their wiring in `impact`,
 `reverseImportProfileGap`, `ImpactCapabilities` and the help text. Revert task-owned code/spec changes to roll back; preserve original
 receipts and the failed/unsupported outcomes. Kill or repair the extension if it
