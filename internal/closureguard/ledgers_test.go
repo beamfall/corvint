@@ -34,11 +34,14 @@ func TestLTAV0009LiveContextPathCannotReachTheLedgers(t *testing.T) {
 // V1-5071): every binary that links the Swift model and can reach path impact
 // links this reading, so their impact answers agree. corvint-docs-mcp and
 // corvint-web-flows never reach path impact, so their unreachable registrations
-// were removed (docs/build-log/2026-11-09-layer-tests-targets.md). The
-// corvint-tasks closure half left with Corvint Tasks (decision 0594).
+// were removed (docs/build-log/2026-11-09-layer-tests-targets.md), and
+// corvint-test-validity-mcp, which serves only corvint.test_validity, lost its
+// own when the reader became explicit request wiring (V1-4818,
+// docs/build-log/2026-11-16-r1cleanup-explicit-wiring.md). The corvint-tasks
+// closure half left with Corvint Tasks (decision 0594).
 func TestNGIV0988ImpactBinariesLinkReader(t *testing.T) {
 	const module = "github.com/Beamfall/corvint/"
-	linked := []string{"corvint", "corvint-mcp", "corvint-test-validity-mcp"}
+	linked := []string{"corvint", "corvint-mcp"}
 	args := []string{"list", "-f", "{{.ImportPath}} {{join .Deps \" \"}}"}
 	for _, name := range linked {
 		args = append(args, module+"cmd/"+name)
