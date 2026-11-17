@@ -66,6 +66,7 @@ build-log entry `2026-11-11-ghci3-orphaned-ci`.
 Lane ci-speed (2026-11-06; V1-4815) adds AFP-V0-2700 to AFP-V0-2702 here for the same reason; see
 build-log entry `2026-11-06-ci-speed`. Lane selgh (2026-11-06; V1-4930, V1-4934) adds AFP-V0-2720
 to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`.
+Lane r1layers (2026-11-16; V1-5235) adds AFP-V0-2790 to AFP-V0-2793 here for the same reason.
 Lane floor (2026-11-03; V1-0643, V1-2744) adds
 AFP-V0-2360 to AFP-V0-2363 and AFP-V0-2370 to AFP-V0-2378 here for the same reason; see build-log
 entry `2026-11-03-floor-typed-reach`.
@@ -2286,6 +2287,55 @@ one list, so a later class cannot reopen it.
   the `go-static` job runs it in the checkout beside the AFP-V0-2701 and AFP-V0-2702 tests, on
   every pull request, merge-queue entry and main push that runs go-static.
 
+- **AFP-V0-2790:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5235; decision 0594
+  item 8) A pull-request shard SHALL be able to derive its packages from the layers of
+  `tools/import-ratchet/areas.json`, longest prefix first as the import ratchet maps them. The
+  selected areas SHALL be every area holding a changed path, then, to a fixpoint, every entry area,
+  every area of a strictly higher layer than a selected one, and the importing area of a baselined
+  edge (`tools/import-ratchet/baseline.json`) into a selected one. Beside those areas it SHALL select
+  every unbounded reader (`.corvint/unbounded-readers.json`), every test-only package the manifest
+  does not map, and every package whose tests import a selected package, whose directory or
+  declared read scope (`.corvint/test-read-scopes.json`) holds a changed path, or whose test string
+  literals name a changed path or a directory of two or more segments above it. The plan SHALL be
+  FULL, with its reason, when a changed path is not clean, lies under `.github`, is one of the
+  derivation's inputs (the manifest, the baseline, the unbounded and read-scope declarations,
+  `go.mod`, `go.sum`), or maps to no area; when a production package has no area, imports a package
+  with no area, or imports against the layer direction outside the baseline; when a package of the
+  shard universe (`go list ./...`) is not in the scanned tree; when no path changed; when every area
+  is selected; or when the selection names no package. Every doubt fails open to more tests, never
+  fewer. The derivation is `PlanLayers` in `.github/cishards/layers.go`, run by
+  `.github/cishards/layerplan`.
+- **AFP-V0-2791:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5235; amends
+  AFP-V0-097) A `pull_request` shard of `go-product-shard` whose narrowing verdict is not MET and
+  whose docs plan is neither DOCS nor REUSE SHALL run the layer plan of AFP-V0-2790 over the tested
+  merge's first-parent diff and the pull request's own range, built in its own isolated module like
+  the other helpers (AFP-V0-2726). On a LAYERS plan it SHALL place the selection with `ci-shards
+  --select` at the tests step's `-p` (AFP-V0-540) and retain a `corvint-pr-narrowing/0` record
+  (`mode` NARROWED, `placement` BALANCED, `source` `layers`, reason code `layers`) as the shard's
+  `ci-narrowing-<index>` artifact, which the AFP-V0-099 record never uploads beside it. The tests
+  step SHALL run the layer placement only when that record was retained and the placement it
+  recomputes from the record's selection equals the record's executed set; on a difference it SHALL
+  run the union, and on an unreadable record or placement the whole shard. Any failure of the layer
+  step SHALL leave the whole shard. A shard whose layer step chose LAYERS SHALL report `layers`
+  LAYERS, and `ci-tested-tree-record` SHALL NOT record that run's tree as fully tested.
+- **AFP-V0-2792:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5235) A drift check
+  SHALL fail when a production Go package of the tree has no area, when a manifest prefix holds no
+  package, when a non-test import runs against the layer direction outside the baseline, when a
+  shard table (`.github/cishards/package-costs.json`, `test-slices.json`,
+  `test-split-allow.json`) cannot be read or names a key outside the module, when one of those
+  tables, an unbounded-reader unit or a read-scope package names a production package of the tree
+  that has no area, and when `.github/workflows/ci.yml` loses a line that wires the layer selection.
+  A shard-table row for a package the tree no longer holds is the cost tables' own staleness and
+  selects nothing here. The check is `LayerDrift` in `.github/cishards/layers.go`; the `go-static`
+  job runs it on the checkout with the AFP-V0-2701, AFP-V0-2702 and AFP-V0-2726 tests.
+- **AFP-V0-2793:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5235) The layer step of
+  shard 0 SHALL append the plan to the job's step summary: the mode and each FULL reason, every
+  changed path and its area, the selected areas and why each was selected, the skipped areas, and
+  the packages selected outside the selected areas and why. A shard that falls back SHALL say why in
+  its log, and shard 0 also in the summary. `push` runs on `main` and `merge_group` entries SHALL
+  NOT run the layer step: their shards, the merge queue's deciding full suite among them, are
+  unchanged.
+
 - **AFP-V0-3260:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4353;
   amends AFP-V0-2724) The `shard-plan` job SHALL also size the `go-product-shard` matrix of a
   `merge_group` entry whose base is `refs/heads/main`, when `CORVINT_MQ_NARROWING` is on and the
@@ -4357,6 +4407,10 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-2724 | the `shard-plan` job, the `go-product-shard` matrix and `needs`, the workflow-level pins, the `SHARDS` of `go-product` and `ci-narrowed-tree-record` in `.github/workflows/ci.yml`; `.github/forward-rows/shard-plan.sh` | `TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724` and `TestAFPV02724ShardPlanOverlapsDocsPlan_AFPV02724` (the plan job needs only `narrowing-verdict`, and every reader of its outputs skips or ignores them on DOCS and REUSE) in `tools/ci-forward-row/narrowing_sized_test.go`; `TestAFPV0097WorkflowBindings`, `TestAFPV0591CoverageGuard`, `TestCINV0011ToolsBuildFromComparedMain` and `TestCINV0010PinLagRefusesNarrowing` (`pinlag_test.go`), `TestAFPV0734NarrowedRecordJob` and `TestAFPV0024WorkflowShardCountsAgree` (`tools/ci-reuse-plan`) on the workflow text; an observed sized pull-request run is pending the owner's ci-control-plane review and a `CORVINT_PR_TOOL_SOURCE` that carries `shard-plan.sh` |
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
 | AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
+| AFP-V0-2790 | `PlanLayers`, `ParseLayerInputs`, `ScanLayerPackages` in `.github/cishards/layers.go`; `.github/cishards/layerplan/main.go` | `TestPlanLayers_AFPV02790`, `TestParseLayerInputsRefuses_AFPV02790` in `.github/cishards/layers_test.go`; `TestLayerDriftLive_AFPV02792` (a docs-area path of this repository selects docs and release and skips shared, analyzers and tests) |
+| AFP-V0-2791 | the `layers` and `layers-record` steps, `LAYER_MODE` and the layer block of the tests step, the `layers` output of `go-product-shard`, and the `layers` clause of `ci-tested-tree-record` in `.github/workflows/ci.yml` | `LayerWorkflowMarkers` checked by `TestLayerDrift_AFPV02792` and `TestLayerDriftLive_AFPV02792`; the workflow's pinned tests in `tools/ci-forward-row` and `tools/ci-reuse-plan`; a recorded pull-request run touching only docs-area packages is `NOT_OBSERVED` |
+| AFP-V0-2792 | `LayerDrift` and `LayerWorkflowMarkers` in `.github/cishards/layers.go`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestLayerDrift_AFPV02792` (one case per failure) and `TestLayerDriftLive_AFPV02792` in `.github/cishards/layers_test.go` |
+| AFP-V0-2793 | `WriteLayerSummary` in `.github/cishards/layers.go`; the summary lines of the `layers` step in `.github/workflows/ci.yml` | `TestLayerSummary_AFPV02793` in `.github/cishards/layers_test.go`; hosted run `NOT_OBSERVED` |
 | AFP-V0-9009 | `inboundRuntimeSiteFile`, `ownedTest` and their calls in `inboundRuntimeSite` (`internal/liveverify/affected/inbound_runtime.go`) | `TestLinelessInboundRuntimeSite_AFP_V0_9009` (declared directory edge selects the caller and closes the entry; the undeclared fault injection keeps it unknown) `TestInboundRuntimeSiteFile_AFP_V0_9009` and `TestInboundRuntimeSiteAmbiguity_AFP_V0_9009` in `internal/liveverify/affected/inbound_runtime_test.go`; `TestDeclaredInboundRuntime_AZU_V0_8902`; the before/after repro in build-log entry `2026-11-07-selmin` |
 | AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` and `Source` in `ImportSetRecords` (`internal/liveverify/affected/golang/importsets.go`); `goListFile.unproven` and `goListFile.proven`, the `confinedCommand` check of `goListScanFile` and the `observesSource` pass of `goListUnits` (`golang/importgraph.go`) and the allowlist `observesSource`, `inertImports`, `classifiedImports`, `allowedDirectives`, `observingMethods`, `confinedCommand` and `ownTestdata` (`golang/sourcereaders.go`), and `commandDirectoryProven` (`golang/commanddirectories.go`); `ImportSetChanges.Source`, `Graph.SourcePath`, `unknownImportSets` and the `ImportGraphReadsFiles` case of `importGraphReadersOf` (`internal/liveverify/affected/importgraph.go`); `Unit.ImportGraphReadsFiles` in `unit.go`, `graph.go` and `graphcache.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change no import set and select no proven reader, but a new kept-set file or a test body edit still selects the unproven `-json` reader wide; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010` (a duplicate-import test file added, or a test file renamed, selects the unproven file-name reader names and not the proven guard; dropping `Source` loses it; an added import selects both); `TestPackageDocReaderSelected_AFP_V0_9010` (a package comment edit selects the computed-target `{{.Doc}}` reader with chain lib, docs and not guard; dropping `Source` loses it); `TestUnknownReaderFallsBackToRun_AFP_V0_9010` (34 channels each make a proven reader unproven and selected by a body-only edit, among them an `os.Symlink` into testdata, an aliased `exec.Command` and `exec.CommandContext`, a function value of `exec.Command`, an `exec.ExitError` type, a package-level command, an `Args` index swap, a command passed to `json.Unmarshal`, and the unclassified `net/http/cgi` import, `reflect.ValueOf`, an unknown `//go:` directive, `t.Chdir` and a computed `t.Setenv`; an own-testdata read, an environment read and a confined command with literal `Env`, `Dir`, `Stderr`, `ProcessState` and `reflect.DeepEqual` stay proven and unselected); `TestReaderEnvironmentIdentity_AFP_V0_9010` (custom and shadowed receivers and an unknown environment producer retain folded-test-addition selection; standard, aliased and literal controls); `TestReaderBuiltinIdentity_AFP_V0_9010` (package/local append, argument append, shadowed conversion and unknown environment retain folded-test-addition selection; builtin control); `TestCallerFilenameProvenance_AFP_V0_9010` (line/block/column directives and unknown filename transform retain remapped-target import selection; physical filename control) |
 | AFP-V0-9010 | Same implementation as the preceding AFP-V0-9010 row | `TestCommandDirectoryFallsBack_AFP_V0_9010` (computed byte directory and unknown origins retain import and body selection; derived root and fresh temporary directory controls); `TestUnknownDirectoryListingIsNotExecution_AFP_V0_9010` (computed directory, Git stdout and unknown origins retain import/body reads without a false execution edge; unknown command methods and escapes retain that edge); `TestExistingTestdataSymlinkFallsBack_AFP_V0_9010` (existing directory, root and file symlinks retain body selection); `TestTestdataUnknownEntryFailsClosed_AFP_V0_9010` (regular-file control, unknown filesystem modes and lookup error); `TestFilesystemMutatorsObserveSource_AFP_V0_9010` (filesystem mutators and unknown members fail closed as calls and values); `TestMutatorSeesFoldedTestFileAddition_AFP_V0_9010` (computed-path mutator errors and an unknown operation retain selection on a kept-import test addition, with import-only and dropped-Source controls); `TestSourcePath_AFP_V0_9010` (`.go`, testdata `.go`, `.s`, `.syso`, `.c` and embedded-file paths give the Source, a README or a non-embedded text file none; an assembly file selects the unproven reader wide and a README does not); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
@@ -4456,7 +4510,7 @@ AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh`
 checks in `row.jq` and the `shards` equality in `narrowedRecordOf`; the pins may stay at the
 workflow level. Either half reverts alone. For AFP-V0-2726, delete
 `.github/cishards/isolated_copies_test.go` and its alternative in the go-static `-run` pattern; the
-`size.go` copy in `linecov-index.yml` stays while `partition.go` embeds it. For AFP-V0-3260, drop the
+`size.go` copy in `linecov-index.yml` stays while `partition.go` embeds it. For AFP-V0-2790 to AFP-V0-2793, delete the `layers` and `layers-record` steps, the `LAYER_MODE` env and layer block of the tests step, the `layers` output and its `ci-tested-tree-record` clause from `ci.yml`, and their alternative in the go-static `-run` pattern; `layers.go`, `layers_test.go` and `layerplan` can then be deleted. Every pull-request shard the narrowing verdict does not cover runs whole again. For AFP-V0-3260, drop the
 `merge_group` clause from the `shard-plan` job's `if:`: queue entries keep sixteen shards again. The `$qcounts` choice in `row.jq` may stay: an unsized queue run names sixteen. For AFP-V0-2370 to
 AFP-V0-2378, emptying `typedReachPackages` restores whole-package selection; the package and the
 tool can then be deleted. For AFP-V0-2360 to AFP-V0-2363, deleting a declaration and restoring its

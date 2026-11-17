@@ -24,10 +24,15 @@ type fixtureSplit struct {
 	ms    []int64 // one per named slice, then the catch-all
 }
 
+// fixtureSource is the source of the fixture cost tables and slice files: measured at -p 4,
+// the pull-request shards' parallelism, so every plan up to -p 4 prices at the -p it plans
+// for (PricedParallel). The V1-5086 pricing tests declare their own sources.
+var fixtureSource = map[string]any{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1", "parallel": 4}
+
 func costsFile(ms map[string]int64) []byte {
 	raw, _ := json.Marshal(map[string]any{
 		"profile":      "corvint-ci-package-costs/0",
-		"source":       map[string]string{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1"},
+		"source":       fixtureSource,
 		"milliseconds": ms,
 	})
 	return raw
@@ -53,7 +58,7 @@ func slicesFile(splits map[string]fixtureSplit) []byte {
 	}
 	raw, _ := json.Marshal(map[string]any{
 		"profile":  "corvint-ci-test-slices/0",
-		"source":   map[string]string{"revision": testRevision, "runURL": testRunURL, "goVersion": "go1.27.1"},
+		"source":   fixtureSource,
 		"packages": packages,
 	})
 	return raw
@@ -451,12 +456,14 @@ func TestAFPV0060CommittedSlicesBoundOversizedPackages(t *testing.T) {
 	for p := range costs {
 		universe = append(universe, p)
 	}
-	// internal/tasks/cli, which AFP-V0-164 (V1-1752) also split, moves to
-	// beamfall/corvint-tasks (decision 0594). internal/tasks/store stays in the
-	// tables until the tests outside .github stop naming it as the split package.
+	// internal/tasks/cli and internal/tasks/store, which AFP-V0-164 (V1-1752) also
+	// split, moved to beamfall/corvint-tasks (decision 0594). The others ran longer
+	// than the budget whole in run 42408095814 (V1-5086).
 	for _, p := range []string{
 		"github.com/Beamfall/corvint/cmd/corvint",
-		"github.com/Beamfall/corvint/internal/tasks/store",
+		"github.com/Beamfall/corvint/internal/analyzerkotlinandroid",
+		"github.com/Beamfall/corvint/internal/doccorpus",
+		"github.com/Beamfall/corvint/internal/liveverify/affected/golang/typedreach",
 	} {
 		if _, ok := f.Packages[p]; !ok {
 			t.Fatalf("%s is not split", p)
@@ -625,17 +632,25 @@ func TestAFPV0590SelectBalancesByMeasuredCost(t *testing.T) {
 	}
 }
 
-// The median of the whole cost table, not of the selection, prices an unpriced package.
-func TestAFPV0590SelectUsesTheFullTableMedian(t *testing.T) {
-	universe := []string{"example.org/a", "example.org/b", "example.org/c", "example.org/d", "example.org/x", "example.org/y", "example.org/z"}
-	costs := costsFile(map[string]int64{"example.org/a": 100, "example.org/b": 100, "example.org/c": 100, "example.org/d": 3000})
+// The conservative price of the whole cost table, its 90th percentile (V1-5086), not of the
+// selection, prices an unpriced package: ten 100 ms entries and one 3000 ms entry put it at 100,
+// where the selection's own priced package alone would put it at 3000.
+func TestAFPV0590SelectUsesTheFullTableConservativePrice(t *testing.T) {
+	universe := []string{"example.org/d", "example.org/x", "example.org/y", "example.org/z"}
+	ms := map[string]int64{"example.org/d": 3000}
+	for i := 0; i < 10; i++ {
+		p := fmt.Sprintf("example.org/f%d", i)
+		ms[p] = 100
+		universe = append(universe, p)
+	}
+	costs := costsFile(ms)
 	plan, err := SelectFrom(universe, []string{"example.org/z", "example.org/d", "example.org/x", "example.org/y"}, 2, costs, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []Shard{{Packages: []string{"example.org/d"}}, {Packages: []string{"example.org/x", "example.org/y", "example.org/z"}}}
 	if !reflect.DeepEqual(plan, want) {
-		t.Fatalf("unpriced packages not priced at the table median: %v", plan)
+		t.Fatalf("unpriced packages not priced at the whole table's conservative price: %v", plan)
 	}
 }
 
@@ -686,13 +701,14 @@ func TestAFPV0022MembershipDerivedFromUniverse(t *testing.T) {
 	const m = "github.com/Beamfall/corvint/x/"
 	big, gone, gonesplit, added := m+"big", m+"gone", m+"gonesplit", m+"added"
 	universe := []string{big, m + "a", m + "c", m + "d", m + "e"}
-	// The whole-table median is 50 with and without the stale "gone" entry.
+	// The whole-table conservative price (V1-5086, the 90th percentile) is 100 with and without
+	// the stale "gone" entry, and with the added package priced at it.
 	priced := map[string]int64{big: 100, m + "a": 100, m + "c": 50, m + "d": 30, m + "e": 10}
 	withGone := map[string]int64{gone: 70, gonesplit: 20}
 	for p, n := range priced {
 		withGone[p] = n
 	}
-	pricedAdded := map[string]int64{added: 50}
+	pricedAdded := map[string]int64{added: 100}
 	for p, n := range withGone {
 		pricedAdded[p] = n
 	}
@@ -727,7 +743,7 @@ func TestAFPV0022MembershipDerivedFromUniverse(t *testing.T) {
 			}
 			unpriced := plan(withAdded, stale, allowStale, slicesStale)
 			if got := plan(withAdded, plusAdded, allowStale, slicesStale); !reflect.DeepEqual(unpriced, got) {
-				t.Fatalf("%s: an unpriced package is not placed at the median:\n%v\n%v", name, unpriced, got)
+				t.Fatalf("%s: an unpriced package is not placed at the conservative price:\n%v\n%v", name, unpriced, got)
 			}
 			plan(deleted, stale, allowStale, slicesStale)
 
@@ -747,7 +763,7 @@ func TestAFPV0022MembershipDerivedFromUniverse(t *testing.T) {
 			a, _ := partition(withAdded, total, stale)
 			b, _ := partition(withAdded, total, plusAdded)
 			if !reflect.DeepEqual(a, b) {
-				t.Fatalf("%s: partition does not price an unpriced package at the median:\n%v\n%v", name, a, b)
+				t.Fatalf("%s: partition does not price an unpriced package at the conservative price:\n%v\n%v", name, a, b)
 			}
 			placed := map[string]int{}
 			for _, s := range a {
@@ -801,7 +817,7 @@ func TestAFPV0022RepositoryUniverseNeedsNoTableEdit(t *testing.T) {
 	for _, p := range universe {
 		in[p] = true
 		if _, ok := costs[p]; !ok {
-			t.Logf("unpriced (median estimate): %s", p)
+			t.Logf("unpriced (conservative estimate): %s", p)
 		}
 	}
 	heaviest := make([]string, 0, len(costs))
@@ -844,4 +860,95 @@ func TestAFPV0022RepositoryUniverseNeedsNoTableEdit(t *testing.T) {
 		t.Fatalf("add a package: %v", err)
 	}
 	requireComplete(t, added, plan)
+}
+
+// TestV15086SliceTargetIsOneExecutionSlot: the AFP-V0-060 slice target for shards at -p
+// parallel is the total over shards times parallel, raised to the longest package the
+// allow-list keeps whole and capped at the wall budget; the count bounds each slice by it.
+func TestV15086SliceTargetIsOneExecutionSlot(t *testing.T) {
+	allowed := map[string]string{"example.org/big": "fixture"}
+	for _, c := range []struct {
+		elapsed          map[string]int64
+		shards, parallel int
+		want             int64
+	}{
+		// 1,600 s over 16 shards at -p 1 is 100 s each; at -p 4 each slot is 25 s.
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 100000}, 16, 1, 100000},
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 100000}, 16, 4, 100000},
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 10000}, 16, 4, 23593},
+		// A whole package longer than the slot sets the target; the budget caps it.
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 300000}, 16, 4, 300000},
+		{map[string]int64{"example.org/big": 1500000, "example.org/w": 500000}, 16, 4, DefaultWallBudgetMs},
+		{map[string]int64{"example.org/big": 9000000}, 2, 1, DefaultWallBudgetMs},
+	} {
+		if got := SliceTarget(c.elapsed, allowed, c.shards, c.parallel); got != c.want {
+			t.Fatalf("%v over %d shards at -p %d: target %d, want %d", c.elapsed, c.shards, c.parallel, got, c.want)
+		}
+	}
+	for _, c := range []struct {
+		elapsed, target int64
+		shards, want    int
+	}{{1069600, 338400, 16, 4}, {338400, 338400, 16, 1}, {9000000, 1000, 16, 16}, {9000000, 1000, 3, 3}, {5, 0, 16, 5}} {
+		if got := SliceCount(c.elapsed, c.target, c.shards); got != c.want {
+			t.Fatalf("SliceCount(%d, %d, %d) = %d, want %d", c.elapsed, c.target, c.shards, got, c.want)
+		}
+	}
+	// Observed times weigh the cut and price each slice at its share of the package.
+	s, ok := SliceTests([]string{"TestD", "TestA", "TestB", "TestC", "BenchmarkX"}, map[string]int64{"TestA": 30, "TestB": 10, "TestC": 10, "TestD": 10, "TestGone": 40}, 10000, 3)
+	if !ok || !reflect.DeepEqual(s, TestSplit{Named: []NamedSlice{{3000, []string{"TestA"}}, {3000, []string{"TestB", "TestC", "TestD"}}}, RestMilliseconds: 4000}) {
+		t.Fatalf("split %+v ok=%v", s, ok)
+	}
+	if _, ok := SliceTests([]string{"TestA"}, nil, 10000, 3); ok {
+		t.Fatal("split with fewer nameable tests than named slices")
+	}
+}
+
+func TestAFPV0041MinMaxCutsIsOptimal(t *testing.T) {
+	for _, c := range []struct {
+		costs []int64
+		k     int
+	}{{[]int64{5, 1, 1, 1, 5, 0}, 2}, {[]int64{9, 1, 1, 1, 1, 1, 1, 3}, 3}, {[]int64{1, 1, 1, 1}, 4}, {[]int64{3, 0}, 2}} {
+		cuts := minMaxCuts(c.costs, c.k)
+		if len(cuts) != c.k || cuts[0] != 0 {
+			t.Fatalf("cuts %v", cuts)
+		}
+		if got, want := largestGroup(c.costs, cuts), bruteMinMax(c.costs, c.k); got != want {
+			t.Fatalf("%v k=%d: largest %d, optimum %d", c.costs, c.k, got, want)
+		}
+	}
+}
+
+func largestGroup(costs []int64, cuts []int) int64 {
+	var top int64
+	for i := range cuts {
+		end := len(costs)
+		if i+1 < len(cuts) {
+			end = cuts[i+1]
+		}
+		var sum int64
+		for _, c := range costs[cuts[i]:end] {
+			sum += c
+		}
+		top = max(top, sum)
+	}
+	return top
+}
+
+func bruteMinMax(costs []int64, k int) int64 {
+	if k == 1 {
+		var sum int64
+		for _, c := range costs {
+			sum += c
+		}
+		return sum
+	}
+	best := int64(1 << 62)
+	for i := 1; i <= len(costs)-(k-1); i++ {
+		var head int64
+		for _, c := range costs[:i] {
+			head += c
+		}
+		best = min(best, max(head, bruteMinMax(costs[i:], k-1)))
+	}
+	return best
 }
