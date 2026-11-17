@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-18
 Intent status: accepted (decision 0311)
 Delivery status: experimental (file transport only)
+Health: KEEP
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/affected-plan-v0.md`, `docs/specs/external-evidence-provider-v0.md`,
 `docs/specs/external-evidence-provider-v1.md`, decisions 0309 and 0310, and the feature request

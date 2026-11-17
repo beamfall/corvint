@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-12
 Intent status: accepted
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: ticket V1-1301 (owner request 2026-10-12, milestone `v1-0`), standing
 auto-accept of lane requirements from 2026-10-11, `affected-plan-v0.md`,
 `live-proof-carrying-verification-v0.md`, `ruby-affected-test-adapter-v0.md`,

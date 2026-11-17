@@ -6,6 +6,7 @@ Requirement prefix: `PRS-V1`
 Status: accepted (decision 0373, 2026-09-23; scope expanded by decision 0426, 2026-09-28)
 Intent status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0); PRS-V1-840 experimental under the owner's standing lane auto-accept (2026-10-31; V1-2487))
 Delivery status: partial; expanded 1.0 qualification pending
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariants 1-8, `public-release-v0.md` (the 0.6 local-workflow
 scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 `../decisions/0332-verified-local-workflow-scope-2026-09-22.md`, `daily-change-evidence-workflow-v0.md`,
@@ -192,7 +193,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint-ruby-test-provider` | experimental companion | Ships in bundle `/3` (`CRB-V0-020`); preview RSpec provider (`LPCV-V0-090..095`), usage smoke only, RSpec execution not qualified. |
 | `corvint-release-candidate`, `corvint-release-install` | Core | Core candidate assembly and install (`PUB-V0-022..026`). |
 | `corvint-companion-release`, `corvint-public-release-check` | retired 2026-11-09 (decision 0594) | Deleted with the companion bundle; the Core source archive and stable readers moved to `internal/corerelease`. |
-| `corvint-release-gate`, `corvint-pulse` | retired 2026-11-06 (V1-4747 AC3) | Deleted: no caller. `internal/releasegate` stays for the hostile-regression row. |
+| `corvint-release-gate`, `corvint-pulse` | retired 2026-11-06 (V1-4747 AC3) | Deleted: no caller. `internal/releasegate` retired with V1-4805; the hostile-regression row uses `internal/update`. |
 | `corvint-test`, `corvint-tests-accept`, `corvint-behavior-falsify`, `corvint-playwright-minimize` | retired 2026-11-09 (decision 0593) | Deleted with the E2E proof lab. |
 | `corvint-web-flows`, `corvint-work-queue` | experimental | Prototypes with proposed or experimental specs. |
 | `corvint-console`, `corvint-dashboard-snapshot`, `corvint-gateway`, `corvint-intake`, `corvint-remote-provider`, `corvint-corpus-*`, `corvint-postmerge-*` | retired 2026-11-09 (decision 0594) | Deleted with the hosted surfaces. |

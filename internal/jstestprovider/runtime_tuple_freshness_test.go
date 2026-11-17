@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -143,7 +144,7 @@ func TestPWPV0052ReporterFreshnessTuplesFromTable(t *testing.T) {
 		t.Fatalf("freshness reporter tuples %v", got)
 	}
 	scratch := t.TempDir()
-	config, _, _, err := externalCommand(E2EConfig{Config: Config{ConfigFile: "/repo/playwright.config.cjs"}, Freshness: &FreshnessConfig{}}, scratch)
+	config, _, _, err := externalCommand(E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{ConfigFile: "/repo/playwright.config.cjs"}, Freshness: &FreshnessConfig{}}, scratch)
 	if err != nil {
 		t.Fatal(err)
 	}

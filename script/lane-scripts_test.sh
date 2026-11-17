@@ -3064,6 +3064,22 @@ RECONCILE status=0 log=$lw/state/reconcile-7.log" ]] || fail "landing watch miss
 [[ $(cat "$lw/s/reconciles") == apply= ]] || fail "a dry pass applied: $(cat "$lw/s/reconciles")"
 grep -q 'closeout-debt report' "$lw/state/reconcile-7.log" || fail "reconcile output not kept"
 [[ ! -e $lw/state/alerts.log ]] || fail "a clean reconcile alerted: $(cat "$lw/state/alerts.log")"
+# ASD-V0-1922 / V1-3496: unset override still scans, from the verified checkout.
+cat > "$lw/tasks" << 'STUB'
+#!/bin/sh
+printf '%s %s\n' "$PWD" "$*" >> "$LW_SCENARIO/default-scans"
+echo 'closeout-debt default proposals'
+exit "${LW_DEFAULT_RC:-0}"
+STUB
+chmod +x "$lw/tasks"
+lwd() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE= LANDING_TASKS=$lw/tasks "$lw/checkout/script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@"; }
+out=$(LW_DEFAULT_RC=2 lwd 71)
+[[ $out == *'RECONCILE status=2 '* ]] && ! grep -q '^reconciled=' "$lw/state/pr-71" || fail "default refusal not retryable: $out"
+out=$(LW_DEFAULT_RC=1 lwd 71)
+[[ $out == *'RECONCILE status=1 '* && $(wc -l < "$lw/s/default-scans" | tr -d ' ') == 2 ]] || fail "default retry failed: $out"
+grep -qxF "$lw/checkout ticket closeout-debt --ref refs/remotes/origin/main" "$lw/s/default-scans" || fail 'default scan wrong root or argv'
+[[ $(lwd 71) == MERGED && $(wc -l < "$lw/s/default-scans" | tr -d ' ') == 2 ]] || fail 'default scan repeated'
+grep -q 'pr=71 reconcile=closeout-debt' "$lw/state/alerts.log" || fail 'default proposals not alerted'
 # Debt alerts; --act passes RECONCILE_APPLY through; a refusal alerts as refused; --no-reconcile skips.
 out=$(LW_RECONCILE_RC=1 RECONCILE_APPLY=manual lwr --act 16); rc=$?
 [[ $rc == 0 && $out == "MERGED
@@ -3423,12 +3439,12 @@ if [ -n "$CORVINT_TASKS_SNAPSHOT" ]; then
   case "$1 $2" in
     "queue status") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" || { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; exit 2; }
       printf '%s\n' '{"outcome":"OK","items":[]}'; exit 0 ;;
-    "queue snapshot") printf '%s\n' '{"outcome":"ERROR","codes":["UNSUPPORTED"]}'; exit 2 ;;
     # ticket show verifies the bundle first (readSnapshotBundle), so a missing or unverifiable
     # file fails the read; LD_SHOWLOG records which file each read was served from.
     "ticket show") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" 2> /dev/null ||
         { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; echo "snapshot unreadable: $CORVINT_TASKS_SNAPSHOT" >&2; exit 2; }
       [ -z "$LD_SHOWLOG" ] || printf '%s %s\n' "$3" "$CORVINT_TASKS_SNAPSHOT" >> "$LD_SHOWLOG" ;;
+    *) printf '%s\n' '{"outcome":"ERROR","codes":["UNSUPPORTED"]}'; exit 2 ;;
   esac
 fi
 if [ "$1 $2 $3" = "queue snapshot --out" ]; then
@@ -3438,6 +3454,55 @@ if [ "$1 $2 $3" = "queue snapshot --out" ]; then
     *) printf '%s\n' '{"profile":"stub-snapshot"}' > "$4" ;;
   esac
   printf '%s\n' '{"outcome":"OK","items":[]}'; exit 0
+fi
+if [ "$1 $2" = "ticket delivery-screen" ]; then
+  [ -z "$LD_SCREEN_LOG" ] || printf '%s\n' "$*" >> "$LD_SCREEN_LOG"
+  case ${LD_SCREEN:-CLEAR} in
+    fail) exit 2 ;;
+    malformed) echo '{}'; exit 0 ;;
+    missing) echo '{"outcome":"OK","items":[{"profile":"taskman-delivery-screen/0","tickets":[]}]}'; exit 0 ;;
+  esac
+  ref=''
+  prev=''
+  for arg in "$@"; do
+    [ "$prev" != --ref ] || ref=$arg
+    prev=$arg
+  done
+  binding=$ref
+  profile=taskman-delivery-screen/0
+  extra=''
+  verdict=${LD_SCREEN:-CLEAR}
+  case $verdict in
+    minimal-binding|missing-binding|wrong-commit|unknown-binding|unknown-profile|unknown-field|missing-scan) verdict=CLEAR ;;
+  esac
+  case ${LD_SCREEN:-CLEAR} in
+    wrong-commit) binding=0000000000000000000000000000000000000000 ;;
+    unknown-profile) profile=taskman-delivery-screen/future ;;
+    unknown-field) extra=',"futureAuthority":true' ;;
+  esac
+  if [ "${LD_SCREEN:-CLEAR}" = minimal-binding ]; then
+    printf '{"outcome":"OK","items":[{"profile":"%s"' "$profile"
+  else
+  printf '{"outcome":"OK","items":[{"profile":"%s","ref":"%s"' "$profile" "$ref"
+  case ${LD_SCREEN:-CLEAR} in
+    missing-binding) ;;
+    unknown-binding) printf ',"refCommit":{"future":"%s"}' "$binding" ;;
+    *) printf ',"refCommit":"%s"' "$binding" ;;
+  esac
+  [ "${LD_SCREEN:-CLEAR}" = missing-scan ] || printf ',"scanTruncated":false'
+  printf '%s' ',"commitsScanned":"1","github":"NOT_OBSERVED","prsExported":"0","human":[],"mutationAuthority":false,"laneHeads":[],"laneScanTruncated":false'
+  fi
+  printf '%s,"tickets":[' "$extra"
+  shift 2
+  sep=''
+  for id in "$@"; do
+    case $id in --*) break ;; esac
+    printf '%s{"local":"%s","verdict":"%s"}' "$sep" "$id" "$verdict"
+    sep=,
+  done
+  printf '%s\n' ']}]}'
+  [ "${LD_SCREEN:-CLEAR}" = CLEAR ] && exit 0
+  exit 1
 fi
 [ "$1 $2" = "ticket show" ] || exit 9
 case $3 in
@@ -3455,6 +3520,16 @@ out=$(ldi --out "$ld/in" V1-0001 V1-0002 2> "$ld/err")
   grep -qxF "BASE=$lbase (pinned at dispatch; never the host checkout's HEAD)" "$ld/in/brief-header.md" &&
   grep -qxF "Before the first commit: script/lane-dispatch.sh base-check --base $lbase --fresh" "$ld/in/brief-header.md" ||
   fail "lane-dispatch inputs: $out $(cat "$ld/err" "$ld/in/lane.env" 2> /dev/null)"
+# ASD-V0-2201: delivery classifications block before lane.env or host publication.
+for verdict in DELIVERED DELIVERED_ON_LANE COMPLETED HELD IN_FLIGHT TRUNCATED FUTURE_VERDICT fail malformed missing minimal-binding missing-binding wrong-commit unknown-binding unknown-profile unknown-field missing-scan; do
+  out=$(LD_SCREEN=$verdict ldi --out "$ld/screen-$verdict" V1-0001 V1-0002 2>&1)
+  [[ $? == 2 && $out == *'lane-dispatch: REFUSE screen findings'* && ! -e $ld/screen-$verdict/lane.env ]] ||
+    fail "delivery screen admitted $verdict: $out"
+done
+out=$(LD_SCREEN=NOT_OBSERVED LD_SCREEN_LOG=$ld/screen-args ldi --out "$ld/screen-unobserved" V1-0001 2>&1)
+[[ $? == 0 && -s $ld/screen-unobserved/ticket-bodies-abc-w1/delivery-screen.json ]] &&
+  grep -q 'NOT_OBSERVED' "$ld/screen-unobserved/ticket-bodies-abc-w1/delivery-screen.json" &&
+  grep -q -- "--lane-refs --ref $lbase --json" "$ld/screen-args" || fail "screen uncertainty or pinned arguments lost: $out"
 # ASD-V0-2420 (V1-4440, V1-4226): the inputs carry a queue snapshot and the brief header names the
 # read route for any ticket and the all-lane-branch screen; a failed or empty export is refused.
 [[ $(cat "$ld/in/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot"}' && ! -e $ld/in/ticket-bodies-abc-w1/queue-snapshot.out ]] &&
@@ -3470,12 +3545,22 @@ done
 # On a snapshot host (CORVINT_TASKS_SNAPSHOT set, queue snapshot refused) the named file is copied
 # and verified; an absent or unverifiable one is refused queue-snapshot-failed.
 printf '%s\n' '{"profile":"stub-snapshot","host":"journal"}' > "$ld/staged.json"
-out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json LD_SHOWLOG=$ld/showlog ldi --out "$ld/snap-host" V1-0001 V1-0002 2>&1)
+# Snapshot refusal precedes command dispatch, even for --unaudited. The fixture
+# admits only its implemented snapshot reads and refuses every other command.
+for verb in delivery-screen future-command; do
+  out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json "$ld/bin/tasks" ticket "$verb" V1-0001 --unaudited)
+  [[ $? == 2 && $out == '{"outcome":"ERROR","codes":["UNSUPPORTED"]}' ]] ||
+    fail "snapshot fixture admitted $verb: $out"
+done
+out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json LD_SCREEN_LOG=$ld/snap-screen-args LD_SHOWLOG=$ld/showlog ldi --out "$ld/snap-host" V1-0001 V1-0002 2>&1)
 rc=$? sh_snap=$(cd "$ld/snap-host/ticket-bodies-abc-w1" 2> /dev/null && pwd -P)/queue-snapshot.json
 [[ $rc == 0 && $(cat "$ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot","host":"journal"}' &&
   ! -e $ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.out &&
   $(cat "$ld/showlog") == "V1-0001 $sh_snap"$'\n'"V1-0002 $sh_snap" ]] ||
   fail "lane-dispatch on a snapshot host (ticket reads must come from the verified copy): $out $(cat "$ld/showlog" 2> /dev/null)"
+[[ -s $ld/snap-host/lane.env ]] &&
+  grep -qxF "ticket delivery-screen V1-0001 V1-0002 --lane-refs --ref $lbase --json --unaudited" "$ld/snap-screen-args" ||
+  fail "snapshot dispatch lost unaudited Git screening or lane.env: $out"
 # A relative CORVINT_TASKS_SNAPSHOT resolves in REPO, not the caller's directory.
 printf '%s\n' '{"profile":"stub-snapshot","host":"rel"}' > "$ld/repo/rel-staged.json"
 out=$(cd "$ld" && CORVINT_TASKS_SNAPSHOT=rel-staged.json LANE_DISPATCH_TASKS=$ld/bin/tasks LANE_DISPATCH_SSH=$ld/bin/ssh "$script/lane-dispatch.sh" inputs \

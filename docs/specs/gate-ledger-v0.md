@@ -5,6 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
+Health: KEEP
 Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-787 experimental under the standing lane auto-accept (2026-11-01; V1-4188); GL-V0-775, GL-V0-776 and GL-V0-785 experimental under the standing lane auto-accept (2026-11-01; V1-4160); GL-V0-786 experimental under the standing lane auto-accept (2026-11-01; V1-4194); GL-V0-3720 and GL-V0-788 experimental under the standing lane auto-accept (2026-11-01; V1-4193)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents

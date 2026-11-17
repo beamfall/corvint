@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/flowcoverage"
 )
 
@@ -55,7 +56,12 @@ var flowsSchemas = map[string][]string{
 // NewFlows binds the opt-in flows descendant profile, which adds the six read-only flows tools
 // (coverage, map, gaps, impact, navigate, status) to the V0 three (AFU-V1-034, AFU-V1-162, amending MCPV0-026).
 func NewFlows(root string) (*Registry, error) {
-	registry, err := New(root)
+	return NewFlowsWithSwiftPMReader(root, nil)
+}
+
+// NewFlowsWithSwiftPMReader binds the flows profile with an explicit Swift reader.
+func NewFlowsWithSwiftPMReader(root string, reader contextindex.SwiftPMReader) (*Registry, error) {
+	registry, err := NewWithSwiftPMReader(root, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -107,10 +113,10 @@ func flowsToolDescriptors() []ToolDescriptor {
 		},
 		{
 			Name:        ToolFlowsStatus,
-			Description: "Report each flow at HEAD, its variations, the tests attached to each and the last recorded result of each test or NOT_OBSERVED, optionally only the flows the base..HEAD change reaches (application-flow-status/0).",
+			Description: "Report each flow at HEAD, its variations, the tests attached to each and the last recorded result of each test from corvint test runs and ingested run evidence, or NOT_OBSERVED, optionally only the flows and variations the base..HEAD change reaches (application-flow-status/0).",
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
-				"flows": relative, "evidence": files,
+				"flows": relative, "evidence": files, "provider": relative,
 				"base": map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
 			}, []any{"flows"}),
 		},
@@ -152,6 +158,7 @@ type flowsGapsInput struct {
 type flowsStatusInput struct {
 	Flows    string   `json:"flows"`
 	Evidence []string `json:"evidence"`
+	Provider *string  `json:"provider"`
 	Base     *string  `json:"base"`
 }
 
@@ -209,11 +216,13 @@ func (registry *Registry) callFlowsGaps(ctx context.Context, arguments []byte) (
 	})
 }
 
-// callFlowsStatus is `flows status` (AFU-V1-162); with a base it serializes with flows impact, whose
-// pipeline it runs between the same repository probes.
+// callFlowsStatus is `corvint flows status` (AFL-V1-003): the same shared readers and report, so
+// the receipt body is the command's. With a base it serializes with flows impact, whose pipeline it
+// runs between the same repository probes.
 func (registry *Registry) callFlowsStatus(ctx context.Context, arguments []byte) (Result, *Error) {
 	var input flowsStatusInput
-	if decodeClosed(arguments, &input) != nil || !validFlowFiles(input.Flows, input.Evidence) || (input.Base != nil && !fullObjectID(*input.Base)) {
+	if decodeClosed(arguments, &input) != nil || !validFlowFiles(input.Flows, input.Evidence) ||
+		(input.Base != nil && !fullObjectID(*input.Base)) || (input.Provider != nil && !validFlowPath(*input.Provider)) {
 		return Result{}, failure("invalid-arguments")
 	}
 	if input.Base != nil {
@@ -221,17 +230,23 @@ func (registry *Registry) callFlowsStatus(ctx context.Context, arguments []byte)
 		defer flowsImpactSerial.Unlock()
 	}
 	return registry.runFlows(ctx, ToolFlowsStatus, input.Flows, func(ctx context.Context, root string, set appflows.IntentSet) ([]byte, error) {
-		records, store, err := flowRunEvidence(ctx, root, input.Evidence)
+		results, err := appflows.ReadResults(ctx, root, appflows.ResultInputs{Evidence: input.Evidence,
+			Resolve: func(file string) (string, error) { return resolveFlowInput(root, file) }})
 		if err != nil {
 			return nil, err
 		}
-		base := ""
+		options := appflows.StatusOptions{Results: results}
 		if input.Base != nil {
-			if base, err = appflows.ResolveRevision(ctx, root, *input.Base); err != nil {
+			if options.Base, err = appflows.ResolveRevision(ctx, root, *input.Base); err != nil {
 				return nil, err
 			}
 		}
-		return appflows.FlowStatusFrom(ctx, root, set, records, base, store)
+		if input.Provider != nil {
+			if options.Inventory, err = appflows.ReadInventoryProvider(root, *input.Provider, input.Flows); err != nil {
+				return nil, err
+			}
+		}
+		return appflows.FlowStatus(ctx, root, set, options)
 	})
 }
 
@@ -247,11 +262,11 @@ func (registry *Registry) callFlowsImpact(ctx context.Context, arguments []byte)
 		if err != nil {
 			return nil, err
 		}
-		records, _, err := flowRunEvidence(ctx, root, nil)
+		records, read, err := flowRunEvidence(ctx, root, nil)
 		if err != nil {
 			return nil, err
 		}
-		return appflows.FlowImpactResults(ctx, root, set, resolved, records)
+		return appflows.FlowImpactResults(ctx, root, set, resolved, records, read)
 	})
 }
 
@@ -337,14 +352,24 @@ func flowRunEvidence(ctx context.Context, root string, files []string) ([]appflo
 func readFlowInputs[T any](root string, files []string, read func([]string) ([]T, error)) ([]T, error) {
 	resolved := make([]string, 0, len(files))
 	for _, file := range files {
-		if parent := path.Dir(file); parent != "." {
-			if _, err := appflows.FlowsDir(root, parent); err != nil {
-				return nil, err
-			}
+		name, err := resolveFlowInput(root, file)
+		if err != nil {
+			return nil, err
 		}
-		resolved = append(resolved, filepath.Join(root, filepath.FromSlash(file)))
+		resolved = append(resolved, name)
 	}
 	return read(resolved)
+}
+
+// resolveFlowInput is one repository-relative input file under root, refusing a symlinked parent
+// directory.
+func resolveFlowInput(root, file string) (string, error) {
+	if parent := path.Dir(file); parent != "." {
+		if _, err := appflows.FlowsDir(root, parent); err != nil {
+			return "", err
+		}
+	}
+	return filepath.Join(root, filepath.FromSlash(file)), nil
 }
 
 func validFlowFiles(dir string, files []string) bool {

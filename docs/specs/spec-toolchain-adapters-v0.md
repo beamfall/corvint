@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-17
 Intent status: accepted
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: `AGENTS.md` invariants 2, 3, 6 and 7, decision 0540, decision 0541,
 `docs/specs/ocm-intent-forms-v0.md` (`OIF-V0`), `docs/specs/verified-absence-frontier-v0.md`,
 `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, `LICENSING.md`

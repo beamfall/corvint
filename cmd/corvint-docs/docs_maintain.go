@@ -47,7 +47,7 @@ func parseDocsMaintainInvocation(arguments []string) (docsMaintainOptions, bool,
 		flag, value, inline := strings.Cut(arguments[index], "=")
 		if flag == "--enable" || flag == "--preview" || flag == "--apply" || flag == "--watch" || flag == "--check" {
 			if inline || seen[flag] {
-				return options, true, argumentError("duplicate or valued docs maintain boolean: " + flag)
+				return options, true, argumentError("duplicate or valued docs pages maintain boolean: " + flag)
 			}
 			seen[flag] = true
 		}
@@ -69,15 +69,15 @@ func parseDocsMaintainInvocation(arguments []string) (docsMaintainOptions, bool,
 			continue
 		}
 		if flag != "--page" && flag != "--source" && flag != "--package" && flag != "--max-writes" && flag != "--max-wall-clock" {
-			return options, true, argumentError("unrecognized docs maintain argument: " + flag)
+			return options, true, argumentError("unrecognized docs pages maintain argument: " + flag)
 		}
 		if seen[flag] {
-			return options, true, argumentError("duplicate docs maintain argument: " + flag)
+			return options, true, argumentError("duplicate docs pages maintain argument: " + flag)
 		}
 		seen[flag] = true
 		if !inline {
 			if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
-				return options, true, argumentError("missing docs maintain argument value: " + flag)
+				return options, true, argumentError("missing docs pages maintain argument value: " + flag)
 			}
 			value, index = arguments[index+1], index+1
 		}
@@ -105,26 +105,26 @@ func parseDocsMaintainInvocation(arguments []string) (docsMaintainOptions, bool,
 	if options.check {
 		// DMF-V1-003: a read-only check needs no --enable and takes no session flags.
 		if previewOrApplySeen || options.watch || options.enable || seen["--max-writes"] || seen["--max-wall-clock"] {
-			return options, true, argumentError("docs maintain --check takes only --page and an optional --source with --package")
+			return options, true, argumentError("docs pages maintain --check takes only --page and an optional --source with --package")
 		}
 		if options.page == "" || (options.source == "") != (options.pkg == "") {
-			return options, true, argumentError("docs maintain --check requires --page, and --source with --package to check one block")
+			return options, true, argumentError("docs pages maintain --check requires --page, and --source with --package to check one block")
 		}
 		root, err := resolveExplicitRoot(options.root)
 		options.root = root
 		return options, true, err
 	}
 	if options.page == "" || options.source == "" || options.pkg == "" {
-		return options, true, argumentError("docs maintain requires --page, --source and --package")
+		return options, true, argumentError("docs pages maintain requires --page, --source and --package")
 	}
 	if !options.enable {
-		return options, true, argumentError("docs maintain requires --enable")
+		return options, true, argumentError("docs pages maintain requires --enable")
 	}
 	if !previewOrApplySeen {
-		return options, true, argumentError("docs maintain requires --preview or --apply")
+		return options, true, argumentError("docs pages maintain requires --preview or --apply")
 	}
 	if seen["--preview"] && seen["--apply"] {
-		return options, true, argumentError("docs maintain requires exactly one of --preview or --apply")
+		return options, true, argumentError("docs pages maintain requires exactly one of --preview or --apply")
 	}
 	if options.watch && !options.apply {
 		return options, true, argumentError("--watch requires --apply")
@@ -211,7 +211,7 @@ func runDocsMaintainCheck(ctx context.Context, options docsMaintainOptions, stdo
 			names = append(names, fmt.Sprintf("%s:%d source=%s package=%s %s (%s)", b.Page, b.Line, b.Source, b.Package, b.State, b.Reason))
 		}
 	}
-	emitError(stderr, &gokernel.Error{Code: docsMaintainStale, Message: fmt.Sprintf("%d stale generated block(s): %s; refresh with docs maintain --enable --apply", report.Stale, strings.Join(names, "; "))})
+	emitError(stderr, &gokernel.Error{Code: docsMaintainStale, Message: fmt.Sprintf("%d stale generated block(s): %s; refresh with docs pages maintain --enable --apply", report.Stale, strings.Join(names, "; "))})
 	return 1
 }
 
@@ -242,12 +242,15 @@ func maintainReceiptObject(result *docmaintain.Result) map[string]any {
 const docsMaintainHelp = `Experimental automatic maintenance of one human documentation page
 
 Usage:
-  corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply)
+  corvint-docs [--root PATH] docs pages maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply)
     [--max-writes N] [--max-wall-clock DURATION] [--watch]
-  corvint-docs [--root PATH] docs maintain --check --page PATH [--source PATH --package DIRECTORY]
+  corvint-docs [--root PATH] docs pages maintain --check --page PATH [--source PATH --package DIRECTORY]
 
 Example:
-  corvint-docs docs maintain --check --page docs/guide.md
+  corvint-docs docs pages maintain --check --page docs/guide.md
+
+docs maintain is the old spelling (AFL-V1-008): an alias that prints a notice naming docs pages
+maintain and runs the same command until the next release.
 
 An explicitly enabled, bounded local session that refreshes exactly one
 generated block of PATH, delimited by "<!-- corvint:docmaintain begin ... -->"

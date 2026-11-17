@@ -13,8 +13,6 @@ import (
 	"github.com/Beamfall/corvint/internal/requestpath"
 )
 
-func init() { flowSubcommands["request-path"] = runFlowsRequestPath }
-
 // RequestPathHelp documents `flows request-path`; help.go appends it to flowsHelp.
 const RequestPathHelp = `
 Request-path usage (AMAP-V0-130..139):

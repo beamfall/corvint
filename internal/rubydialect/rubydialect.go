@@ -28,11 +28,13 @@ import (
 // plugin is the language plugin whose declarations this package implements.
 const plugin = "ruby"
 
-func init() {
+// Hooks returns the Ruby algorithms without changing a package registry.
+func Hooks() dialect.Hooks {
+	hooks := dialect.Hooks{Impacts: map[string]dialect.Impact{}, Regions: map[string]dialect.Region{}}
 	for _, d := range decl.Of(plugin).Dialects {
 		switch d.Kind {
 		case decl.ImpactDialect:
-			dialect.RegisterImpact(d.Name, dialect.Impact{
+			hooks.Impacts[d.Name] = dialect.Impact{
 				CodeLines: CodeLines,
 				Probes: []dialect.Probe{
 					{Code: "observed-reflective-dispatch", Pattern: dialect.Reflection},
@@ -41,14 +43,15 @@ func init() {
 				Loads:        loads,
 				StaticLoad:   StaticLoad,
 				Verification: VerificationCommand,
-			})
+			}
 		case decl.RegionDialect:
-			dialect.RegisterRegion(d.Name, dialect.Region{
+			hooks.Regions[d.Name] = dialect.Region{
 				Normalize: func(text string) ([]dialect.Line, bool) { return NormalizedLines(text), true },
 				Symbols:   Symbols,
-			})
+			}
 		}
 	}
+	return hooks
 }
 
 var (
@@ -65,6 +68,50 @@ func CodeLines(text string) []string {
 		lines[i] = scanner.scanLine(line)
 	}
 	return lines
+}
+
+// LineState is one physical line's code-only text (as CodeLines gives it)
+// with the lexical state around it: Inside when the line begins within a
+// string, percent literal, heredoc body or block comment, and Open when it
+// ends within one or owes a heredoc body. StartsLiteral and EndsLiteral say
+// that the first or last code byte of the line belongs to a blanked literal,
+// so the blank Code there is a value, not an operator's missing operand.
+type LineState struct {
+	Code                       string
+	Inside, Open               bool
+	StartsLiteral, EndsLiteral bool
+}
+
+// LineStates returns the LineState of every line of text.
+func LineStates(text string) []LineState {
+	scanner := rubyScanner{}
+	lines := strings.Split(text, "\n")
+	states := make([]LineState, len(lines))
+	carried := func() bool {
+		return scanner.inBlockComment || scanner.literal != nil || len(scanner.heredocs) > 0
+	}
+	for i, line := range lines {
+		var spans [][2]int
+		scanner.spans, scanner.comment = &spans, -1
+		states[i].Inside = carried()
+		states[i].Code = scanner.scanLine(line)
+		states[i].Open = carried()
+		scanner.spans = nil
+		cut := len(line)
+		if scanner.comment >= 0 {
+			cut = scanner.comment
+		}
+		body := strings.TrimRight(line[:cut], " \t")
+		first := len(body) - len(strings.TrimLeft(body, " \t"))
+		for _, span := range spans {
+			if span[0] >= cut || len(body) == 0 {
+				continue
+			}
+			states[i].StartsLiteral = states[i].StartsLiteral || span[0] <= first && first < span[1]
+			states[i].EndsLiteral = states[i].EndsLiteral || span[0] < len(body) && len(body) <= span[1]
+		}
+	}
+	return states
 }
 
 // StaticLoad recognizes only a complete quoted argument, parenthesized or

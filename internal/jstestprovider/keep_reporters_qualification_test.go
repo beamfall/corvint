@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"reflect"
 	"strings"
 	"testing"
@@ -321,12 +322,12 @@ func TestKeepReportersQualifiedProjection(t *testing.T) {
 func TestKeepReportersQualificationRunGuards(t *testing.T) {
 	control, keep := keepQualificationPair(t)
 	q := QualifyKeepReporters(control, nil, keep, nil)
-	if _, err := RunE2E(context.Background(), E2EConfig{ExternalServer: true, KeepReportersQualification: &q}); err == nil || err.Error() != "keep-reporters-qualification-requires-keep-reporters" {
+	if _, err := RunE2E(context.Background(), E2EConfig{LoopbackGet: loopbackhttp.Get, ExternalServer: true, KeepReportersQualification: &q}); err == nil || err.Error() != "keep-reporters-qualification-requires-keep-reporters" {
 		t.Fatalf("qualification without keep mode: %v", err)
 	}
 	bad := q
 	bad.Verdict, bad.Reasons = KeepReportersNotQualified, []string{"keep-reporters-no-tests"}
-	if _, err := RunE2E(context.Background(), E2EConfig{ExternalServer: true, KeepReporters: true, KeepReportersQualification: &bad}); err == nil || err.Error() != jstestreceipt.KeepReportersQualificationInvalid {
+	if _, err := RunE2E(context.Background(), E2EConfig{LoopbackGet: loopbackhttp.Get, ExternalServer: true, KeepReporters: true, KeepReportersQualification: &bad}); err == nil || err.Error() != jstestreceipt.KeepReportersQualificationInvalid {
 		t.Fatalf("not-qualified record accepted: %v", err)
 	}
 }

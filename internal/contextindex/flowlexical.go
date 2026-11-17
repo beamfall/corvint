@@ -3,8 +3,6 @@ package contextindex
 import (
 	"bytes"
 	"strings"
-
-	"github.com/Beamfall/corvint/internal/langplugin/dialect"
 )
 
 // FlowCodeLines shares the native literal/comment masks with the bounded flow
@@ -13,7 +11,7 @@ import (
 // any other language gets the web mask (LGP-V0-025). Web interpolation and
 // dynamic Ruby dispatch intentionally remain unresolved.
 func FlowCodeLines(language, text string) []string {
-	if profile, ok := dialect.LookupImpact(language); ok {
+	if profile, ok := dialects.LookupImpact(language); ok {
 		return profile.CodeLines(text)
 	}
 	return flowWebCodeLines(text)

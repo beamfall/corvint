@@ -5,6 +5,7 @@ Date: 2026-10-20
 Requirement prefix: `CAP-V0`
 Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints capabilities are properly documented so agents can fully understand what it can do", and the same-day scope addition for a README capability section; `../../AGENTS.md` invariants 2 and 8; `../AGENT-ROUTES.md`; beamfall/corvint#1588 (2026-10-23), a machine-readable command catalog generated from the command registry and a task-indexed guide shipped with the install.
 
 ## Agent digest
@@ -537,6 +538,19 @@ cannot silently go missing or outlive its command.
   `TestCAPV0975FlagsSplitAlternatives` (`internal/clitree`) and the regenerated
   `internal/capcatalog/trees/corvint.json`, where `docs maintain` gains `--apply`. Rollback:
   restore the single-token read and regenerate the snapshots.
+- `CAP-V0-976`: (experimental under the standing lane auto-accept (2026-11-16); V1-5635; amends
+  `CAP-V0-040` and `CAP-V0-042`) A tree node MAY carry a `description` (`clitree.Builder.Describe`).
+  A node page (`clitree.Render`) MUST print the description under its title when the node has
+  one, and otherwise end with `Full topic: BINARY help WORDS` naming the nearest enclosing node
+  that has a summary, so every binary's node page leads to its prose; a node with no such ancestor
+  names none. `corvint flows status` MUST carry a description stating its result-source rule: only
+  the run evidence store (unless `--no-store`) and each `--evidence FILE` count, and a test no read
+  record names is `NOT_OBSERVED`. Failure mode: `corvint flows status --help` printed only usage,
+  flags, required and example, and the committed-snapshot route named no parent topic. Evidence:
+  `TestCAPV0976NodePageDescriptionOrParentTopic` (`internal/clitree`),
+  `TestCAPV0976FlowsStatusNodePageCarriesResultSourceRule` (`cmd/corvint`) and the regenerated
+  `internal/capcatalog/trees/corvint.json`. Rollback: drop the field, the line and the
+  description, and regenerate the snapshots.
 - `CAP-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the
   first word of a `corvint-tasks` command is not a verb, the unknown-verb warning MUST name, as
   `corvint-tasks VERB --help`, every implemented verb whose last word is that word (a guessed
@@ -957,6 +971,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
 | CAP-V0-726 | `cmd/corvint-update/help.go`, `cmd/corvint-work-queue/help.go`, `internal/capcatalog/trees/corvint-update.json`, `internal/capcatalog/trees/corvint-work-queue.json` | `TestCAPV0726EveryNodeAnswersHelp` (both binaries), `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0700CompanionsAnswerTheSharedContract` (removed) |
 | CAP-V0-975 | `clitree.Flags` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0975FlagsSplitAlternatives` |
+| CAP-V0-976 | `clitree.Render`, `Builder.Describe` (`internal/clitree/clitree.go`), `flowreports.StatusDescription`, `buildCommandTree`, `internal/capcatalog/trees/corvint.json` | `TestCAPV0976NodePageDescriptionOrParentTopic` (internal/clitree), `TestCAPV0976FlowsStatusNodePageCarriesResultSourceRule` (cmd/corvint) |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
 | CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (removed) (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |
 | CAP-V0-931 | `clitree.Answer` | `TestCAPV0931AnswerRoutesHelpOnly` (internal/clitree) |

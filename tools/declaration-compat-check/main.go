@@ -43,7 +43,7 @@ var closed = map[string][]string{
 	".corvint/test-read-scope-literals.json":    {""},
 	".corvint/test-read-scope-trees.json":       {"", "/trees/*/*"},
 	".corvint/test-read-scopes.json":            {""},
-	".corvint/test-selection.json":              {"", "/owners/*", "/mustRun/*"},
+	".corvint/test-selection.json":              {"", "/owners/*", "/mustRun/*", "/treeReaders/*"},
 	".corvint/unbounded-reader-exclusions.json": {""},
 	".corvint/unbounded-readers.json":           {""},
 }

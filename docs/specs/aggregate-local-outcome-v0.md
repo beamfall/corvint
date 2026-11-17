@@ -3,6 +3,7 @@
 Owner: repository owner. Proposed build slice: V1-0611. Date: 2026-10-02.
 Intent status: retired 2026-11-11 (decision 0594)
 Delivery status: retired
+Health: RETIRE
 Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
 Retirement note: decision 0594 (2026-11-09) deleted `internal/dogfoodflow`, `internal/dogfoodoperation` and `internal/localcompletion` and removed the dogfood finish selector this profile served (item 4); its item 3 removes orphan packages that no kept binary reaches, and V1-5240 deleted `internal/tracerecordrepo`, which held the aggregate candidate, and `internal/tracerepopaths` as unreached code on 2026-11-11 (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Human job: finish a complete explicitly enrolled change whose current-path admission exceeds the

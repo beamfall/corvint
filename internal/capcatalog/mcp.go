@@ -293,15 +293,24 @@ var (
 )
 
 // flowsRow is one flow-report row; name is the tool's earlier
-// corvint.flows.<verb> name, which the row replaces (MTT-V1-007).
+// corvint.flows.<verb> name, which the row replaces (MTT-V1-007). The reports
+// that join flows with test results run in corvint itself (AFL-V1-003,
+// AFL-V1-007, PROD-DOCS-011); the other verbs are corvint-docs's.
 func flowsRow(name, verb, summary, profile string, inputs ...MCPInput) MCPTool {
-	return MCPTool{
+	row := MCPTool{
 		Name: "corvint.flows_" + verb, Server: ServerCore, Availability: AvailabilityExperimental, Summary: summary,
 		OptIn: flowsOptIn, InputSchema: flowsSource, Inputs: inputs, OutputProfile: profile, Errors: flowsErrors,
 		CLIEquivalent: "corvint-docs flows " + verb, Replaces: []string{name},
 		ParityTest: "corvint-docs TestMTTV1009FlowsToolsMatchCLI",
 	}
+	if slices.Contains(nativeFlowReports, verb) {
+		row.CLIEquivalent, row.ParityTest = "corvint flows "+verb, "corvint TestMTTV1009NativeFlowReportToolsMatchCLI"
+	}
+	return row
 }
+
+// nativeFlowReports are the flow reports corvint serves (internal/flowreports).
+var nativeFlowReports = []string{"gaps", "impact", "status"}
 
 var (
 	flowsDir      = in("flows", "Repository-relative directory holding the flow intent files.")
@@ -407,8 +416,9 @@ func mcpToolRows() []MCPTool {
 			in("traffic", "Repository-relative recorded traffic files."),
 		),
 		flowsRow("corvint.flows.status", "status", "Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches", "application-flow-status/0",
-			in("base", "Optional full commit id of the base; only the flows base..HEAD reaches are reported."),
+			in("base", "Optional full commit id of the base; only the flows and variations base..HEAD reaches are reported."),
 			flowsEvidence, flowsDir,
+			in("provider", "Repository-relative E2E selection provider file whose inventory gives the unassigned count."),
 		),
 
 		// corvint-docs mcp: the documentation tools (MTT-V1-004).

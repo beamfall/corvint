@@ -303,7 +303,7 @@ Support boundary:
   the self-observation ledger (.corvint/self-observations.jsonl) on an
   unsupported-* failure; a ledger storage failure never alters the response.
   cem begin, prepare, cite and mark write local CEM artifacts; cem report,
-  index, and docs flows and maintain write local state (COMMAND --help).
+  index, and docs pages write local state (COMMAND --help).
 `
 
 // hiddenCommands are the dispatched internal or historical verbs that root help leaves out of

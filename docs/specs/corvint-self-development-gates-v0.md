@@ -5,6 +5,7 @@ Date: 2026-11-04
 Requirement prefix: `ASC-V0`
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: repository-owner requests V1-3615, V1-4166, V1-4239, V1-4242, V1-3580 and V1-5162; `AGENTS.md` invariants 4 and 8; `docs/specs/corvint-self-development-v0.md` `ASD-V0-035`, `ASD-V0-042`, `ASD-V0-925` and `ASD-V0-943`.
 
 ## Agent digest

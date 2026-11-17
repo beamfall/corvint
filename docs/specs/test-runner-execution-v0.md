@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-01
 Intent status: proposed; TRE-V0-021..023 accepted (decision 0454; V1-0620)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner instructions 2026-10-01, native V1-0591..0596,
 `docs/specs/live-proof-carrying-verification-v0.md`, `docs/specs/go-live-test-provider-v0.md`.
 

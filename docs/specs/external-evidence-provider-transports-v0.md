@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-19
 Intent status: accepted (decisions 0316, 0317, 0318)
 Delivery status: implemented
+Health: MERGE
 Authoritative inputs: `AGENTS.md` invariant 7, `docs/specs/external-evidence-provider-v0.md`,
 `docs/specs/external-evidence-provider-v1.md`, `docs/specs/external-evidence-provider-v2.md`,
 `internal/procgroup`, and the feature request Beamfall/corvint#11.

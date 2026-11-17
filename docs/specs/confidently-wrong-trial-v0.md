@@ -5,6 +5,7 @@ Date: 2026-09-01
 Requirement prefix: `CWT-V0`
 Intent status: retired 2026-11-11 (decision 0597)
 Delivery status: retired
+Health: RETIRE
 Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
 Retirement note: decision 0597 (context proven only) deleted `tools/cw-trial`, which measured the cut packet (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` ("How this beats the

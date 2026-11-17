@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-24
 Intent status: accepted (decision 0385)
 Delivery status: partially delivered; original issue-175 flows qualified locally
+Health: KEEP
 Authoritative inputs: owner request [issue 175](https://github.com/beamfall/corvint/issues/175) and
 the owner's additions of 2026-09-24 (mapping E2E tests to code changes, an agent that can navigate
 and use a website, documentation proven accurate by the same evidence), `AGENTS.md`,
@@ -43,7 +44,7 @@ At `978b37b`:
 
 - `corvint flows` dispatched only `record` beside its report, created its output without root or
   symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
-  `import` subcommands (`internal/command/flows/flows.go:54-55@97c5349d`), routes `record` through the
+  `import` subcommands (`internal/command/flows/flows.go:44-45@97c5349d`), routes `record` through the
   root-confined exclusive writer (`internal/appflows/report.go:324@18a159fa`,
   `internal/appflows/input.go:161-174@06fa25b5`), and checks Lstat before open
   (`internal/appflows/input.go:135-142@8ab13087`).
@@ -60,7 +61,7 @@ At `978b37b`:
   attempt. The external reporter emits the same complete inventory only under the separate `/3`
   profile (`internal/jstestprovider/attempt_details.go`); earlier profiles continue to refuse it.
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
-  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:198-203@cea38e20`). S4
+  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:199-204@cea38e20`). S4
   leaves it so: only `internal/appflows/selection.go` produces an `e2e-safe` omission.
 
 ## Definitions
@@ -347,7 +348,9 @@ Flow status report (change `flows-status-report`, V1-5257, PROD-TEST-010; the pr
   DIR [--evidence FILE]...` MUST print, for each flow and each variation, the attached tests (the
   non-inferred `test` links from the variation, crossed with its projects as `flows map` evidence
   pairs are) and the last recorded result of each. A variation with no attached test is shown with
-  an empty test list and the code `no-test`.
+  an empty test list and the code `no-test`. (Reconciled 2026-11-16 with AFL-V1-001, which
+  replaces this block: only `reviewed` test links attach a test; a stale or unreviewed link
+  attaches none.)
 - `AFU-V1-161`: (proposed 2026-11-09; V1-5257; delivery experimental) The last result MUST come
   from the newest `test-run-evidence/0` record that names the pair: the last in evidence order (the
   run evidence store's records in append order, then the `--evidence` files), whatever its tree, so

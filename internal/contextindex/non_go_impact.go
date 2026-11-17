@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/langplugin/decl"
-	"github.com/Beamfall/corvint/internal/langplugin/dialect"
 )
 
 // NonGoImpactLanguage names the bounded syntax profiles, never runtime
@@ -71,7 +70,7 @@ func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int, ex
 		}
 		// A declared dialect whose plugin registered no profile cannot be
 		// read, so it fails closed exactly as unreadable bytes do (LGP-V0-026).
-		profile, registered := dialect.LookupImpact(language)
+		profile, registered := dialects.LookupImpact(language)
 		source, exists := index.Sources[name]
 		text, valid, loaded := source.Text()
 		if !registered || !exists || !valid || !loaded {

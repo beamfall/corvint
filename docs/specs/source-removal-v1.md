@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-10
 Intent status: proposed
 Delivery status: not-started
+Health: KEEP
 Authoritative inputs: change folder `docs/specs/openspec/changes/source-removal/` (`proposal.md`,
 `design.md`, `tasks.md`, `path-verdicts.md` and `specs/source-removal/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-TEST-002, PROD-INT-009, PROD-INT-010),

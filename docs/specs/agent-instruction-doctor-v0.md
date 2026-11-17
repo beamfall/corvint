@@ -5,6 +5,7 @@ Date: 2026-09-30
 Requirement prefix: `IID-V0`
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner instruction for six V1 wow additions, 2026-09-30;
 V1-0502 bounded slice; related V1-0413 and V1-0414; `AGENTS.md` invariants 1–4, 7–8;
 `docs/specs/task-context-packet-v0.md` TCP-V0-008 and TCP-V0-023.

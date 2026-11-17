@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -328,7 +329,7 @@ func TestExternalReadiness(t *testing.T) {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) }))
 			defer server.Close()
-			err := externalReady(context.Background(), server.URL, 80*time.Millisecond)
+			err := externalReady(context.Background(), server.URL, 80*time.Millisecond, loopbackhttp.Get)
 			if (err == nil) != (status == 200) {
 				t.Fatalf("status %d: %v", status, err)
 			}
@@ -336,7 +337,7 @@ func TestExternalReadiness(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if externalReady(ctx, "http://127.0.0.1:1", time.Second) == nil {
+	if externalReady(ctx, "http://127.0.0.1:1", time.Second, loopbackhttp.Get) == nil {
 		t.Fatal("cancelled readiness passed")
 	}
 }
@@ -492,7 +493,7 @@ func TestQualifiedIdentityStableAcrossScratchAndDistinctAcrossProjects(t *testin
 }
 
 func TestExternalAdmission(t *testing.T) {
-	base := E2EConfig{Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.60.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
+	base := E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.60.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
 	if err := admitExternal(base); err != nil {
 		t.Fatal(err)
 	}
@@ -838,7 +839,7 @@ func playwrightTupleReceipt(t *testing.T, profile, runner, node, use string) Rec
 // either direction, and the 1.63.0 system-browser version is not inherited by
 // 1.64.0 (PWP-V0-037 admits only the version 1.64.0 ran live with).
 func TestPWPV0032Playwright164BundledTupleIsExact(t *testing.T) {
-	base := E2EConfig{Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.64.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
+	base := E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.64.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
 	if err := admitExternal(base); err != nil {
 		t.Fatalf("1.64.0 refused: %v", err)
 	}
@@ -984,7 +985,7 @@ func TestPWPV0037Playwright164SystemChromeIsExact(t *testing.T) {
 // PWP-V0-034: every pre-run e2e refusal is typed, keeps its earlier error
 // text, and encodes one canonical document naming the qualified versions.
 func TestPWPV0034PreRunRefusalsAreTyped(t *testing.T) {
-	base := E2EConfig{Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.62.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
+	base := E2EConfig{LoopbackGet: loopbackhttp.Get, Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.62.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
 	_, err := RunE2E(context.Background(), base)
 	var refusal *E2ERefusal
 	if !errors.As(err, &refusal) || refusal.Code != "external-playwright-version-unqualified" {

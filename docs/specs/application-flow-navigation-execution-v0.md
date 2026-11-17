@@ -2,6 +2,7 @@
 
 Intent status: accepted technical profile under AFU-V1-029 (decision 0455; V1-0252)
 Delivery status: experimental; qualification pending
+Health: KEEP
 
 ## Agent digest
 - Claim: An explicit companion can execute a bounded UI navigation packet against an owned cooperative local fixture.

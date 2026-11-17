@@ -231,10 +231,11 @@ Go package. Drafts cite source; consumption rechecks the exact draft bytes. Gene
 not accept human intent. The [source documentation contract](specs/source-documentation-draft-v0.md#cli-contract)
 contains a complete CLI draft/consume example and the same MCP tool semantics.
 
-To refresh a source-bound page, use the separate experimental maintenance command:
+To refresh a source-bound page, use the separate experimental maintenance command (its old
+spelling `docs maintain` is an alias until the next release, AFL-V1-008):
 
 ```sh
-corvint docs maintain --page docs/page.md --source docs/specs/owner.md \
+corvint docs pages maintain --page docs/page.md --source docs/specs/owner.md \
   --package internal/example --enable --preview
 ```
 
@@ -248,7 +249,7 @@ computes a new preview, so an earlier CLI preview is not a retained approval tok
 For automatic refresh on macOS or Linux, run an explicitly bounded foreground watch:
 
 ```sh
-corvint docs maintain --page docs/page.md --source docs/specs/owner.md \
+corvint docs pages maintain --page docs/page.md --source docs/specs/owner.md \
   --package internal/example --enable --apply --watch \
   --max-writes 20 --max-wall-clock 1h
 ```

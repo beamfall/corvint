@@ -1,9 +1,11 @@
 # Browser behavior falsification V0
 
+Delivery status: retired
+Health: RETIRE
+
 - Owner: Russell Lewis
 - Date: 2026-09-21
 - Intent status: retired 2026-11-09 (decision 0593)
-- Delivery status: retired
 - Retirement base: b1a117eb129687f9555fa0c826fadfa0627afe3b
 - Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted
   `cmd/corvint-behavior-falsify` and `internal/behaviorfalsify` with the E2E proof lab (b1a117eb is

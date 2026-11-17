@@ -5,6 +5,7 @@ Date: 2026-11-01
 Requirement prefix: `VRP-V0`
 Intent status: proposed
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: ticket V1-2600 (CEM 2.0 Phase 2 kill-or-continue value replay) and V1-2602
 (typed per-unit label vocabulary); `benchmarks/README.md` (partitions and the first-observation
 rule); `AGENTS.md` invariants 2, 4 and 8; the existing machinery this replay reuses unchanged:

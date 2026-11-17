@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); LPCV-V0-290..292 accepted under the owner's standing auto-accept (2026-10-11) (V1-2015, V1-2090, V1-2091)
 Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191); LPCV-V0-290..292 experimental (V1-2015, V1-2090, V1-2091)
+Health: KEEP
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
@@ -741,10 +742,130 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   attempt has a token joined to a completed instrumented process; missing tokens, environment
   clearing, non-Ruby children, unobservable forks and popen/backtick launchers make records
   incomplete. Failed exec attempts cancel their launch marker. Load/eval code is attributed to
-  the load bucket; uncalled method edits and changed test files use static fallback. Data-driven
-  test-unit cases retain distinct identities. Witness: `TestIsolationAndChildren`,
-  `TestUncalledMethodFallback`, `TestDataDrivenTestUnit`, `TestLoadedEvalAndNewTestFallback`,
-  `TestLiveRSpecIsolation`.
+  the load bucket; changed test files use static fallback. The method-level analysis of
+  unqualified plans (`rubylinecov.Analyze`, used by `linecov watch`) keeps static fallback for
+  uncalled method edits. Amended by decision 0601 (owner 2026-11-16, "Build Ruby admission"):
+  `ruby-select`'s candidate is the line-level analysis (`rubylinecov.AnalyzeLines`), and its
+  effective plan applies it only when `LPCV-V0-7608` admits the Ruby family; every unqualified
+  state keeps the static plan. A replaced hunk selects the tests whose measured coverage hit its
+  old lines, and no test when none hit them, only when the hits bound its reach: each old line is
+  a counted line holding one whole statement, each new line holds one whole statement, and both
+  sides bind the same names in the same order. A whole statement begins and ends on its line
+  outside every bracket and literal, with no block keyword, second statement or continuation
+  from the previous line or onto the next. Amended 2026-11-16 (repair round 1, independent review
+  P0; the earlier text selected every counted line by its hits): Ruby 3.3.8 evaluates a one-line
+  `when` condition and a key of a multi-line literal without counting their line, and a line
+  that declares a local, a pattern or named capture, or a numbered or implicit block parameter
+  changes how other lines parse and run without executing. A binding is compared as the line's
+  own text: through its last assignment operator, or the whole line when it holds `=>`, with
+  the indentation cut and each other run of spaces and tabs read as one space; text after the
+  last assignment operator, and a line with neither operator, is not compared. A named capture
+  in either spelling (`(?<n>`, `(?'n'`) or a block parameter is never bounded. That squeezed
+  comparison is the only one. When the old or new side of the file holds, anywhere, a `%`
+  followed by a space or tab with or without one letter between (`% `, `%q `, `%Q\t`), nothing
+  in that file is bounded by a line's text or hits: every replaced or deleted hunk selects
+  every test of the enclosing called method and its body lines, or falls back outside one, as
+  an insertion does. Amended 2026-11-16 (repair round 4, independent review P1; the round-3
+  text compared such a file's lines exactly as written, but only through the last assignment
+  operator, so the blank that closes a literal was never compared): Ruby 3.3.8 accepts a space
+  or tab as the delimiter of a bare, `q`, `Q`, `s`, `r` and `x` percent literal and closes it
+  at the next such blank, which may be a line's indentation, a blank inside it or the blank at
+  its end (`%  =>x ` declares `x`, `% =>x ` is a string; `p 1, % a ` ends the literal, `p 1, % a`
+  runs it onto the next line and swallows an assignment there), so no part of a line's text
+  tells what the line declares. A file is narrowed at all only when the index's Ruby reads both
+  of its sides as the lexer does: `ruby-select` asks the interpreter's own lexer (Ripper) for
+  each side, and a line whose code text differs, a line that begins or ends inside a literal,
+  heredoc body or block comment for one reader only, or a side Ruby does not lex keeps the
+  static plan (`Ruby reads the old|new side of FILE differently from the lexer`); blanks at a
+  line's end are not compared. Amended 2026-11-16 (repair round 4, found while closing review
+  P1): the lexer of `internal/rubydialect` is an approximation. It reads a percent literal
+  delimited by a blank, a newline or `=`, two divisions on one line, a lower-case heredoc tag
+  and a quote in `$'` as code or as the wrong literal, and an edit of such text can change a
+  method the edit is not in, where the tests of the enclosing method are not enough (measured
+  on Ruby 3.3.8: removing the blank that closes `z = % a ` in a tab-indented file swallows a
+  later method, and `z = %` at a line's end against `z = 1 %` turns the next line from a
+  literal's body into code). Amended 2026-11-16 (repair
+  round 2, independent review P1; the earlier text compared a `=>` line by its words and its `=`
+  and `=>` tokens, so `x = {:a => 1}` and `@x = {:a => 1}` compared equal and an edit between
+  them on a line no test hit selected nothing): a sigil, a dot, a bracket, a comma, a number, a
+  comment mark and a no-break space each decide what a line declares, so two lines share a
+  signature only when that text is the same; comment and string text is compared as written and
+  never read as code. A block keyword glued to a number or a bracket (`1if`, `f(1)and`) is read
+  as the keyword; a number with a radix prefix (`0x`, `0b`, `0o`, `0d`) ends where Ruby ends it,
+  so `0xdef` holds no keyword and `0x1fif` holds `if` (repair round 3, review P3). Every other replaced hunk, a
+  line Ruby does not count (`else`, a continuation line) and an insertion select every test of
+  the enclosing called method and its body lines; outside a method body, or in an uncalled
+  method, they fall back. Load-time reach, block-structure changes (the keyword and bracket
+  sequence of the edited lines, or the code outside them, differs), a new side that does not
+  parse under the index's Ruby (`ruby -c`) or cannot be checked, a side Ruby reads differently
+  from the lexer or cannot be asked about, missing blobs, and every earlier fallback keep the
+  static plan with the reason reported. Data-driven test-unit cases
+  retain distinct identities. Witness: `TestIsolationAndChildren`, `TestUncalledMethodFallback`,
+  `TestDataDrivenTestUnit`, `TestLoadedEvalAndNewTestFallback`, `TestLiveRSpecIsolation`,
+  `TestAnalyzeLines`, `TestAnalyzeLinesStructureAndSyntax`, `TestAnalyzeLinesUnboundedReach`,
+  `TestAnalyzeLinesBoundedReach`, `TestLineReachRules`, `TestLiveLineReach`, `TestLineStates`,
+  `TestBindingSignatureKeepsLineText`, `TestLiveBindingSignatureAgreesWithRuby`,
+  `TestBlankDelimitedFileBoundsNoHunk`, `TestAnalyzeLinesBlankDelimitedFileHunkKinds`,
+  `TestLiveBlankRunInStringBody`, `TestLiveEditBeyondTheLexer`,
+  `TestEditBeyondTheLexerNeedsRuby`, `TestLiveRubyLexerAgainstTheLexer`,
+  `TestLanguageDecideRubyAdmission`.
+- `LPCV-V0-7608`: (accepted, decision 0601 (owner 2026-11-16); V1-4365) The Ruby family is
+  admitted only by `.github/linecov/ruby-qualification.json` (`linecov-qualified/1`, family
+  `ruby`) read at the selector executable's clean VCS revision in `ruby-select -selector-root`.
+  The record restates a fault run on a pinned public corpus: its report digest, seed, fault
+  count, kills, controls and misses, and for each runner identity (the index runner string) its
+  test count, kills, narrowed kills, per-fault selected-set sizes, controls, each control's
+  kept-set size and misses. It binds every `RubyQualifiedSources` blob at that revision; the
+  Ruby commands use no declaration of an unbound file. Amended 2026-11-16 (repair round 1,
+  independent review P1; the earlier text let a control keep tests of files the index keeps
+  whole and required no narrowing): a run qualifies its runner only when one of its killed
+  faults kept fewer tests than the suite, since zero misses otherwise hold for any selector, and
+  every one of its controls kept no test at all. A run whose control kept tests of files the
+  index keeps whole whatever the change (a test of the file has no isolated record,
+  `LPCV-V0-962`) has no control, as `GLS-V0-032` rules for a package with unrecorded tests: its
+  runner stays unqualified until its index records every test and its control keeps none. The
+  record names the qualifying runners and restates every other run with the reason, which
+  admits nothing. A missing or unreadable record, a dirty or unstamped executable, a source blob
+  mismatch, an index runner no qualifying run names, a miss or a failed control in any run, a
+  qualifying run with a control that kept a test, with unrecorded files or with no narrowed
+  kill, a runner list that differs from the qualifying runs, or a record with no kill or no
+  control refuses admission: the effective plan stays static with
+  `coverage-collector-unqualified` and the refusal in `Admission`. `linecov ruby-qualify
+  -record` writes the record only from a report whose baselines pass completely, whose faults
+  each ran the complete suite with no miss, whose controls do not fail and in which at least
+  one run qualifies its runner. A control fails when it kills a test, causes a fallback, keeps
+  a test by coverage (plan reason `selected` or `stale`) or keeps a test outside the files the
+  index keeps whole whatever the change. Amended 2026-11-16 (repair round 2, independent review
+  note; the fold qualified a run whose index keeps a file whole when no baseline test belonged
+  to that file, and restated a run with no fault, both of which admission refuses): the command
+  restates a run whose index keeps any file whole as having no control, fails on a run with no
+  fault, and writes a record only when the record-only checks of admission
+  (`Qualified.RubyAdmits`) accept it for every runner it names. Witness:
+  `TestRubyQualifyRefusesWhatAdmissionRefuses`, `TestRubyQualificationAdmission`,
+  `TestRubyQualificationRefusesWithoutNarrowing`, `TestRubyQualificationRefusesKeptControl`,
+  `TestRubyQualifySummarize`, `TestRubyQualifyRefusesUnprovenRunner`,
+  `TestRubyCommandsUseBoundFiles`, `TestLanguageDecideRubyAdmission`,
+  `TestRubyQualificationRecordPresent`.
+- `LPCV-V0-7609`: (accepted, decision 0601 (owner 2026-11-16); V1-4365) `linecov ruby-collect
+  -state DIR` keeps the ordinary-order run and each isolated run's dumps and terminal result
+  under DIR, bound to the collector script digest, root, commit, argv and deadlines, and resumes
+  from them; `-parallel N`
+  runs N isolated tests at once and `-budget D` stops launching runs after D, exiting 3 with the
+  retained count. Amended 2026-11-16 (repair round 1, independent review P2): DIR is also bound
+  to the Ruby and gem environment (digests of `PATH`, `RUBYOPT`, `RUBYLIB` and every `GEM_`,
+  `BUNDLE_`, `RUBY`, `RBENV_`, `RVM_`, `CHRUBY_` and `ASDF_RUBY` variable) and to each variable
+  `-env NAME,NAME` declares; a resume under another value is refused naming the variable. An
+  isolated run that reports another runner identity than the retained ordinary-order run stops
+  the collection and is not retained. The merged index is byte-identical to a serial run over the same retained
+  ordinary-order run. Each required file outside the root compiles without coverage (unless Ruby
+  lacks the `coverage_enabled` compile option or another `load_iseq` hook is installed), so a
+  per-test `Coverage.result` copies only the counters the dump keeps. A fork carries a launch
+  token like spawn and system: a child that completes its own dump joins it (its reach goes to the
+  test running at fork, or the load bucket), and a child that ends abruptly leaves the record
+  incomplete; popen and backtick children stay unobserved. Witness:
+  `TestIsolatedParallelResume`, `TestIsolatedRetention`, `TestResumeBindsEnvironment`,
+  `TestLiveCollectResume`, `TestCollectorSkipsOutsideFiles`, `TestObservedFork`,
+  `TestIsolationAndChildren`.
 - `LPCV-V0-7606`: (accepted under standing implementation authority, V1-4421) The explicit
   `linecov js-collect` and `js-select` commands collect JavaScript/TypeScript indexes through
   the shared builder and validated `linecov.Decode` (`Load` is Open + Decode), apply `jslinecov.Analyze`, and report recorded
@@ -2555,3 +2676,52 @@ documents, `--static` is refused as an unknown option, and every other member is
 retained document or receipt format changes.
 
 | LPCV-V0-7705 | `internal/testvaliditydoc.unrecognizedProvider` | `TestLPCVV07705PlainPlaywrightReceiptGuidance` |
+
+## Pinned qualification ledger (2026-11-16)
+
+`docs/build-log/2026-11-16-r1docs-line-qualification.md` records the LPCV-V0-963
+family states, exact Beamfall corpus pins, the public Ruby corpus identity/license,
+and the current binding limit of the historical Go qualification. An UNQUALIFIED
+family retains its static plan. This ledger changes no admission rule or wire format;
+Swift and Kotlin/JVM remain in 1.0 under decision 0600.
+
+The independent-review rerun in that record repairs the public Ruby environment:
+WebMock at the same pin passes its complete upstream offline RSpec baseline
+(4,846 examples, 0 failures; upstream `NO_CONNECTION=1` excludes 344 network
+examples) and Minitest baseline (23 tests, 0 failures). Seed 20261116's seven
+faults kill 5/7 in Minitest and 6/7 in RSpec; the shared zero-hit control kills
+none in either complete suite. Minitest selection retains all 23 tests for every
+fault and the control (0 misses; each candidate is a load-time or uncalled-method
+fallback, the latter required by LPCV-V0-7605), and no RSpec index was produced
+(about 7.9 hours of serial isolated runs). No Ruby admission check exists: only a
+Go record is read. Ruby therefore remains **UNQUALIFIED / static** under
+LPCV-V0-963. These measured baselines and kills do not establish Ruby admission
+or current Go qualification.
+
+Ruby admission update (decision 0601, lane r1ruby): `docs/build-log/2026-11-16-r1ruby-review-repair.md`
+supersedes the Ruby state above and the first record of
+`docs/build-log/2026-11-16-r1ruby-ruby-line-admission.md`, whose independent review found the
+line rule unsound and the record unproven.
+`docs/build-log/2026-11-16-r1ruby-binding-signature-repair.md` records the second repair (the
+binding signature of a `=>` line) and the rerun that rebinds the record: the same faults, the
+same selected-set sizes and 0 misses, so the state below stands.
+`docs/build-log/2026-11-16-r1ruby-blank-literal-repair.md` records the third (a blank run that
+delimits a percent literal) and a second rerun with the same faults, selected sets and 0 misses.
+`docs/build-log/2026-11-16-r1ruby-lexer-comparison-repair.md` records the fourth (a file is
+narrowed only where Ruby's own lexer reads it as the lexer does, and a file that may hold a
+blank-delimited percent literal bounds no hunk) and a third rerun with the same faults, selected
+sets and 0 misses. Line-level selection (`LPCV-V0-7605` as amended), the
+`LPCV-V0-7608` record and the resumable collector (`LPCV-V0-7609`) produced complete WebMock
+indexes for Minitest (23 isolated tests, every one recorded) and RSpec (4,846 isolated runs; 11
+files kept whole by 2,930 unrecorded outcomes). The seed-20261116 rerun has 20 faults and one
+control per runner, each against both complete suites, with 0 misses. Minitest kills 9 of 20,
+two of them on a selected set of 1 of 23 tests, and its zero-hit control selects and kills
+nothing: Ruby is **QUALIFIED** for `ruby 3.3.8 minitest 5.26.2` while
+`.github/linecov/ruby-qualification.json` binds the selector sources. RSpec kills 13 of 20,
+three of them on a narrowed set, with no miss, but its control keeps the 4,371 tests of those 11
+files, so under `GLS-V0-032` it has no control: `ruby 3.3.8 rspec 3.13.7` is **UNQUALIFIED**,
+the record restates its run with that reason, and admission refuses it. A zero-kept RSpec
+control is not reachable on this corpus without dropping tests that can fail: 2,927 outcomes
+reach more in suite order than alone, two `quality_spec.rb` examples read every tracked file
+through unobserved `git` children, and one example fails alone. Every other Ruby tuple stays
+static.

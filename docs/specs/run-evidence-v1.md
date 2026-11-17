@@ -130,17 +130,29 @@ the oldest records first. Readers MUST NOT prune.
 - WHEN a 21st run of T is appended
 - THEN the oldest of those records is removed
 
-- `RVD-V1-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5448) Corrupt store and failed writes are named
+- `RVD-V1-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5448; amended by owner ruling 2026-11-16, V1-5658) Corrupt store and failed writes are named
 
-A record whose bytes do not match its name, or that does not parse, MUST be skipped and its tests
-shown as `NOT_OBSERVED` with reason `run-evidence-corrupt`. An unreadable `log.jsonl` MUST be rebuilt
-by the next writer. A failed append MUST print `run-evidence-write-failed` and MUST NOT change the
-exit code of the test run.
+A stored record whose bytes do not match its name, that does not parse (malformed, or of a profile
+this build does not read), or that is larger than any record the writer keeps MUST be skipped and
+named under `run_evidence`, never refused: the report exits 0. Every test it held MUST be shown as
+`NOT_OBSERVED` with reason `run-evidence-corrupt`, whatever an older stored record says, because the
+skipped record may be newer and hold a failure; only a named `--evidence` file, read after the
+store, may still give the result. When the store cannot name a skipped record's tests (`log.jsonl`
+is missing or unreadable), the record may have held any test, so every test is treated as held. An
+unreadable `log.jsonl` MUST be rebuilt by the next writer. A failed append MUST print
+`run-evidence-write-failed` and MUST NOT change the exit code of the test run.
 
 **Scenario: edited record**
 - GIVEN a record file edited by hand
 - WHEN `corvint flows status` runs
 - THEN the record is skipped and its tests show `run-evidence-corrupt`
+
+**Scenario: unparseable record**
+- GIVEN a stored record that is not JSON, or names profile `corvint-test-run/9`, and an older
+  stored pass of a test it holds
+- WHEN `corvint flows status` runs
+- THEN the command exits 0, `run_evidence` names the record, and the test shows `NOT_OBSERVED`
+  with reason `run-evidence-corrupt`
 
 - `RVD-V1-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5448) Run results never narrow selection
 
@@ -211,9 +223,10 @@ Delivered by ticket V1-5448 (build-log `docs/build-log/2026-11-11-run-evidence.m
   of them that names it, stale unless bound to HEAD from a clean worktree; `--no-store` reads only the files
   (the MCP tools take no such argument). A receipt row becomes a LOCALLY_OBSERVED record that never
   carries a verified run header. `flows status` adds `source_tree` to each test, `reason`
-  `run-evidence-corrupt` to a NOT_OBSERVED test that only a skipped record held, and a
+  `run-evidence-corrupt` to a NOT_OBSERVED test a skipped record held (RVD-V1-010), and a
   `run_evidence` member when the store gave anything; `flows impact` adds `last_results` per flow
-  when the store holds a record, so a report with no stored run keeps its bytes. `corvint
+  when the store holds or skipped a record, marking a held test the same way, so a report with no
+  stored run keeps its bytes. `corvint
   test-evidence` and `flows test-evidence` add `runs`: the newest stored result of each named test
   with its tree and `at_revision`; stored runs never change the answer's status. Up to 8192 stored
   records are read, newest first, with `truncated` set past that.
@@ -238,7 +251,7 @@ Delivered by ticket V1-5448 (build-log `docs/build-log/2026-11-11-run-evidence.m
 | RVD-V1-007 | `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`), `TestRVDV1007FlowsReadersUseStore`, `TestRVDV1007FlowsToolsReadStore` (`internal/command/flows`), `TestRVDV1007NewestStoredResultWins` (newest record wins, freshness separate) (`internal/appflows`) |
 | RVD-V1-008 | `TestRVDV1008NoListingVerb` (`cmd/corvint`); the "removed verb" scenario, `TestRVDV1008RunsVerbIsUnknown` (`cmd/corvint`), is skipped: gated on change `source-removal` |
 | RVD-V1-009 | `TestRVDV1009RetentionAt21Runs`, `TestRVDV1009SizeCap` (`internal/runevidence`) |
-| RVD-V1-010 | `TestRVDV1010CorruptRecordSkipped`, `TestRVDV1010UnreadableLogRebuilt`, `TestRVDV1010LockWaitIsBounded`, `TestRVDV1010ReadIsBounded`, `TestRVDV1010OversizedCorruptRecordsStayWithinTheReadBudget`, `TestRVDV1010FailedReadReportsWhatItConsumed` (`internal/runevidence`), `TestRVDV1010StatusNamesCorruptRecord` (`internal/command/flows`), `TestRVDV1010CLIWriteFailureKeepsExitCode` (`cmd/corvint`) |
+| RVD-V1-010 | `TestRVDV1010CorruptRecordSkipped`, `TestRVDV1010UnreadableLogRebuilt`, `TestRVDV1010LockWaitIsBounded`, `TestRVDV1010ReadIsBounded`, `TestRVDV1010OversizedCorruptRecordsStayWithinTheReadBudget`, `TestRVDV1010FailedReadReportsWhatItConsumed` (`internal/runevidence`), `TestRVDV1010StatusNamesCorruptRecord` (`internal/command/flows`), `TestRVDV1010UnparsableStoreRecordSkippedAndMarked_V15658` (unparseable, unknown-profile and damaged records, with and without a log, through status, impact and the MCP tools; `RunEvidenceRead.settle` in `internal/appflows/runstore.go`) (`internal/flowreports`), `TestRVDV1010CLIWriteFailureKeepsExitCode` (`cmd/corvint`) |
 | RVD-V1-011 | `TestRVDV1011NoSelectionPackageReadsTheStore`, `TestRVDV1011StoredResultsDoNotChangePlan` (`tools/import-ratchet`) |
 | RVD-V1-012 | `TestRVDV1012ReadMissingStoreWritesNothing`, `TestRVDV1010CorruptRecordSkipped` (`internal/runevidence`), `TestRVDV1007FlowsReadersUseStore`, `TestRVDV1007FlowsToolsReadStore` (`internal/command/flows`), `TestRVDV1007ProdTest020TestThenFlowsStatus` (`cmd/corvint`), `TestRVDV1012TestEvidenceReadsStoreWithoutWriting` (`internal/testevidencedoc`) |
 

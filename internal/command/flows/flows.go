@@ -22,11 +22,9 @@ import (
 )
 
 // Env carries the root-owned behaviour the flows handlers share with every other command: the
-// JSON error envelope written to the diagnostic stream, and the affected-revision refusal for a
-// --base that does not name a commit.
+// JSON error envelope written to the diagnostic stream.
 type Env struct {
-	EmitError   func(diagnostic io.Writer, err error)
-	BaseRefusal func(base string) error
+	EmitError func(diagnostic io.Writer, err error)
 }
 
 // Run executes `corvint-docs flows ARGS` against root and returns the process exit code. The root
@@ -37,14 +35,6 @@ func Run(ctx context.Context, root string, args []string, out, diagnostic io.Wri
 
 func argumentError(message string) error {
 	return &gokernel.Error{Code: "invalid-arguments", Message: message}
-}
-
-// unresolvedBase marks a --base that is not a commit; runFlowSubcommand turns it into
-// Env.BaseRefusal so the refusal itself stays defined once, by the root.
-type unresolvedBase struct{ base string }
-
-func (err *unresolvedBase) Error() string {
-	return "base " + err.base + " is not a commit in this repository"
 }
 
 func runFlows(ctx context.Context, root string, args []string, out, diagnostic io.Writer, env Env) int {
@@ -122,8 +112,9 @@ func runFlows(ctx context.Context, root string, args []string, out, diagnostic i
 
 type flowSubcommand func(ctx context.Context, root string, args []string, out, diag io.Writer) error
 
-var flowSubcommands = map[string]flowSubcommand{"export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
-	"gaps": runFlowsGaps, "impact": runFlowsImpact, "ingest": runFlowsIngest, "docs": runFlowsDocs,
+var flowSubcommands = map[string]flowSubcommand{
+	"appmap": runFlowsAppmap, "navigate": runFlowsNavigate, "request-path": runFlowsRequestPath, "status": refuseMovedReport("status"), "export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
+	"gaps": refuseMovedReport("gaps"), "impact": refuseMovedReport("impact"), "ingest": runFlowsIngest, "docs": runFlowsDocs,
 	"stability": runFlowsStability, "ingest-coverage": runFlowsIngestCoverage, "test-evidence": refuseFlowsTestEvidence}
 
 // Subcommands names the registered `flows` subcommands for the help catalog; `coverage` and the
@@ -159,10 +150,6 @@ func runFlowSubcommand(ctx context.Context, run flowSubcommand, root string, arg
 	root, err := filepath.Abs(root)
 	if err == nil {
 		err = run(ctx, root, args, out, diagnostic)
-	}
-	var unresolved *unresolvedBase
-	if errors.As(err, &unresolved) {
-		err = env.BaseRefusal(unresolved.base)
 	}
 	if errors.Is(err, errAppmapEdgesUnproven) {
 		return 1
@@ -285,39 +272,6 @@ func flowMap(ctx context.Context, root string, set appflows.IntentSet, evidence 
 	return appflows.FlowMap(ctx, root, set, records, registry)
 }
 
-func runFlowsGaps(ctx context.Context, root string, args []string, out, diag io.Writer) error {
-	f, dir, evidence, registry := flowQueryFlags("flows gaps")
-	provider := f.String("provider", "", "repository-relative application-flow-selection-provider/1 file whose inventory is compared")
-	noStore := f.Bool("no-store", false, "read only the named --evidence files, not the run evidence store")
-	if f.Parse(args) != nil || *dir == "" || f.NArg() != 0 {
-		return errors.New("flows gaps requires --flows DIR and optional --registry FILE, --provider FILE, --no-store and repeatable --evidence FILE")
-	}
-	if err := refuseUnreadableFlows(root); err != nil {
-		return err
-	}
-	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
-	if err != nil {
-		return err
-	}
-	records, _, err := appflows.RunEvidenceFor(ctx, root, *evidence, *noStore)
-	if err != nil {
-		return err
-	}
-	// AFU-V1-150: the E2E inventory is the provider's; without one the report says it is absent.
-	var inventory *appflows.InventoryProvider
-	if *provider != "" {
-		if inventory, err = appflows.ReadInventoryProvider(root, *provider, *dir); err != nil {
-			return err
-		}
-	}
-	data, err := appflows.FlowGaps(ctx, root, set, records, *registry, inventory)
-	if err != nil {
-		return err
-	}
-	_, err = out.Write(data)
-	return err
-}
-
 // runFlowsStability aggregates repeated runs through the run registry committed at HEAD (AFU-V1-042).
 func runFlowsStability(ctx context.Context, root string, args []string, out, diag io.Writer) error {
 	f := flag.NewFlagSet("flows stability", flag.ContinueOnError)
@@ -336,38 +290,6 @@ func runFlowsStability(ctx context.Context, root string, args []string, out, dia
 		return err
 	}
 	data, err := appflows.FlowStability(ctx, root, *registry, records)
-	if err != nil {
-		return err
-	}
-	_, err = out.Write(data)
-	return err
-}
-
-func runFlowsImpact(ctx context.Context, root string, args []string, out, diag io.Writer) error {
-	f := flag.NewFlagSet("flows impact", flag.ContinueOnError)
-	f.SetOutput(io.Discard)
-	dir := f.String("flows", "", "intent directory inside the root")
-	base := f.String("base", "", "base commit of the changed range")
-	noStore := f.Bool("no-store", false, "do not read the run evidence store")
-	if f.Parse(args) != nil || *dir == "" || *base == "" || f.NArg() != 0 {
-		return errors.New("flows impact requires --flows DIR --base SHA and optional --no-store")
-	}
-	if err := refuseUnreadableFlows(root); err != nil {
-		return err
-	}
-	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
-	if err != nil {
-		return err
-	}
-	resolved, err := appflows.ResolveRevision(ctx, root, *base)
-	if err != nil {
-		return &unresolvedBase{*base}
-	}
-	records, _, err := appflows.RunEvidenceFor(ctx, root, nil, *noStore)
-	if err != nil {
-		return err
-	}
-	data, err := appflows.FlowImpactResults(ctx, root, set, resolved, records)
 	if err != nil {
 		return err
 	}
@@ -502,44 +424,22 @@ written, and the command exits 1.
 Query usage:
   corvint-docs [--root PATH] flows map --flows DIR [--evidence FILE]... [--no-store] [--registry FILE]
   corvint-docs [--root PATH] flows map --flows DIR [--path P | --test-key K]
-  corvint-docs [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--no-store] [--registry FILE] [--provider FILE]
-  corvint-docs [--root PATH] flows status --flows DIR [--evidence FILE]... [--no-store] [--base SHA]
-  corvint-docs [--root PATH] flows impact --flows DIR --base SHA [--no-store]
   corvint-docs [--root PATH] flows stability --registry FILE [--evidence FILE]...
   corvint-docs [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE
     --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA [--source-clean]
     --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST
     --fixture-id ID --fixture-digest DIGEST [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]... [--record]
 
-Run evidence store: map, gaps, status and impact read the private run evidence store at
-<git-dir>/corvint/evidence by default, which corvint test and flows ingest --record append
-to; each --evidence FILE adds to it and --no-store reads only the named files. The newest
-record naming a test gives its last result, shown with its source tree; status lists any
-store record that no longer hashes to its name under run_evidence and marks a test only it
-held run-evidence-corrupt; impact adds last_results per flow when the store holds a record.
-No read writes the store (RVD-V1-007, RVD-V1-012).
-Example: corvint flows status --flows flows --no-store --evidence runs/runs.jsonl
+Run evidence store: map reads the private run evidence store at <git-dir>/corvint/evidence
+by default, which corvint test and flows ingest --record append to; each --evidence FILE adds
+to it and --no-store reads only the named files. The newest record naming a test gives its
+last result, shown with its source tree. No read writes the store (RVD-V1-007, RVD-V1-012).
+Example: corvint-docs flows map --flows flows --no-store --evidence runs/runs.jsonl
 
 map writes application-flow-map/1: every link with its basis, review state and the
 self-attested review summary, and per variation the test-run-evidence/0 state and
 authority at HEAD. --path or --test-key writes application-flow-lookup/1 instead.
-gaps writes application-flow-gaps/1; any gap makes a flow incomplete. With --provider FILE
-(a repository-relative application-flow-selection-provider/1 file that declares the same
---flows DIR) it also lists, as unlinked_tests with code unlinked-test, every test of the
-provider's E2E inventory that no flow variation links with a non-inferred test link, at most
-1024 in test-key order with the total, and says in inventory whether that inventory was
-absent (no --provider), complete, partial, stale or unverified against its declared
-discovery receipt; an absent inventory is never a complete answer (experimental, AFU-V1-150).
-Example: corvint-docs flows gaps --flows flows --provider .corvint/e2e-provider.json
-status writes application-flow-status/0: per flow and variation, the attached tests and
-the last recorded test-run-evidence/0 result of each (passed, failed, flaky, timedOut,
-skipped, interrupted or not-run) or NOT_OBSERVED, stale with its source_commit when the
-newest record is bound to another tree; --base SHA limits the flows to exactly those
-flows impact names and carries its impact_graph scope; at most 8192 test rows, then
-truncated with full totals (experimental, AFU-V1-160).
-Example: corvint-docs flows status --flows flows --evidence runs/runs.jsonl
-impact writes application-flow-impact/1: flows, variations and test keys reached from
-base..HEAD changes, with the path of each hop. stability writes flows-run-stability/0: per
+stability writes flows-run-stability/0: per
 aggregate of the flows-run-registry/0 FILE committed at HEAD, the raw repeated-run
 counts, the applied threshold and a clean or not-stable verdict. ingest writes test-run-evidence/0 JSONL to
 stdout. Every --format, playwright-json included, requires the run header: --run-id,
@@ -568,11 +468,21 @@ from executed source files with executed line spans anchored to the committed bl
 links the coverage contradicts as coverage-contradiction conflicts; and every path or
 test it cannot classify as an unknown with a reason. Source maps are not resolved.
 
-Documentation usage:
-  corvint-docs [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
-  corvint-docs [--root PATH] flows docs --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
+Renamed (AFL-V1-008): flows docs and flows docs maintain are now docs pages flow and docs pages
+flow-maintain (corvint-docs help docs pages); the old spellings below are aliases that print a
+notice and run the same command until the next release:
+  corvint-docs [--root PATH] flows docs ...
+  corvint-docs [--root PATH] flows docs maintain ...
+`
 
-docs renders the page from the committed intents with a fixed template, marks every
+// PageHelp documents `docs pages flow` and `docs pages flow-maintain`, the renamed `flows docs`
+// and `flows docs maintain` (AFL-V1-008); the docs pages help topic prints it.
+const PageHelp = `
+Flow page usage:
+  corvint-docs [--root PATH] docs pages flow --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
+  corvint-docs [--root PATH] docs pages flow --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
+
+flow renders the page from the committed intents with a fixed template, marks every
 claim that is not PROVEN, and writes the flow-doc-claims/0 sidecar; both paths are
 repository-relative and each is replaced through a temporary file and a rename.
 --docs-root checks corvint-claim anchor comments in committed Markdown under DIR.
@@ -588,7 +498,7 @@ whose state or detail changed (UNKNOWN when the committed sidecar is missing) an
 names the regenerate command. worktree says whether a read input differs from HEAD.
 
 Experimental maintenance (FDM-V0, proposed):
-  corvint-docs [--root PATH] flows docs maintain --flows DIR --page FILE --claims FILE
+  corvint-docs [--root PATH] docs pages flow-maintain --flows DIR --page FILE --claims FILE
     --preview | --apply --expected-proposal SHA256 [--receipt FILE | --adopt]
 preview writes nothing and prints a digest-bound proposal; apply rederives it, refuses
 drift, publishes the pair without clobbering and prints a receipt to save and commit.

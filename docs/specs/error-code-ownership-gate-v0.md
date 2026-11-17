@@ -5,6 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `ECO-V0`
 Intent status: accepted (decision 0100, 2026-09-12)
 Delivery status: implemented
+Health: KEEP
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../decisions/0100-error-code-ownership-ratchet-and-doccompiler-detail-codes-2026-09-12.md`,
 `diagnostic-repair-contract-v0.md` (`DRC-V0-006`, which keeps every present code spelling), and
 `decision-number-gate-v0.md` as the shape a gate spec takes here.

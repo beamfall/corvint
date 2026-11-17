@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-26
 Intent status: superseded by `docs/specs/analyzer-capability-contract-v0.md`
 Delivery status: superseded
+Health: KEEP
 Authoritative successor: `docs/specs/analyzer-capability-contract-v0.md`
 
 ## Agent digest

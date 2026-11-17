@@ -104,7 +104,7 @@ The 11 `internal/analyzer*` rows below are covered by the B5 wildcard `internal/
 | `internal/observations` | keep | writer of the bounded self-observation ledger (invariant 4) | `imp=cmd/corvint,...` (4) |
 | `internal/proctrace` | keep | runner registry | `imp=internal/testrunner/registry` |
 | `internal/pythongrammar`, `internal/pythonsyntax` | keep | pytest is a blocking runner | `imp=internal/contextindex,internal/liveverify/pyresolve,...` |
-| `internal/releasegate` | keep | release hostile-regression gate | `st=script/check-hostile-regressions.sh` |
+| `internal/releasegate` | remove | V1-4805: no importer; hostile regression rehomed to internal/update | `st=script/check-hostile-regressions.sh` |
 | `internal/repoenvelope` | keep | MCP bridge | `imp=internal/mcp/*` (4) |
 | `internal/rubyautoload`, `rubydialect`, `rubylinecov`, `rubyprofile` | keep | RSpec and Minitest are blocking runners; `rubyprofile` is the Ruby profile conformance test | `imp=internal/contextindex,internal/liveverify/affected/ruby,...`; `rubyprofile` is test-only |
 | `internal/runhygiene` | keep | appflows, JS provider, Playwright runs | `imp=` 3 |

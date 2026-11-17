@@ -5,6 +5,7 @@ package externallive_test
 import (
 	"context"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -149,7 +150,7 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
 	t.Setenv("CORVINT_FIXTURE_MARKER", filepath.Join(root, "lifecycle"))
 	t.Setenv("CORVINT_FIXTURE_BROWSER_PATH", "")
-	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, PackageJSON: packageJSON, Lockfile: lockfile, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER", "CORVINT_FIXTURE_BROWSER_PATH"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
+	cfg := jstestprovider.E2EConfig{LoopbackGet: loopbackhttp.Get, Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, PackageJSON: packageJSON, Lockfile: lockfile, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER", "CORVINT_FIXTURE_BROWSER_PATH"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
 	cfg.RetainAttemptDetails = retainAttempts
 	cfg.DeclaredEnvKeys = append(cfg.DeclaredEnvKeys, "PLAYWRIGHT_BROWSERS_PATH")
 	r, err := jstestprovider.RunE2E(context.Background(), cfg)
@@ -540,7 +541,7 @@ func runQualifiedPlaywrightDevicesSpread(t *testing.T, retainAttempts bool) {
 	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
 	configFile := filepath.Join(root, "devices.config.cjs")
 	testFile := filepath.Join(root, "devices.spec.cjs")
-	cfg := jstestprovider.E2EConfig{
+	cfg := jstestprovider.E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config: jstestprovider.Config{
 			Dir: root, ConfigFile: configFile, TestFiles: []string{testFile},
 			RunnerName: "playwright", RunnerVersion: pkg.Version,
@@ -653,7 +654,7 @@ func TestPWPV0035SensitiveProfileLive(t *testing.T) {
 	}))
 	defer server.Close()
 	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
-	cfg := jstestprovider.E2EConfig{
+	cfg := jstestprovider.E2EConfig{LoopbackGet: loopbackhttp.Get,
 		Config: jstestprovider.Config{
 			Dir: root, ConfigFile: filepath.Join(root, "sensitive.config.cjs"), TestFiles: []string{filepath.Join(root, "sensitive.spec.cjs")},
 			RunnerName: "playwright", RunnerVersion: pkg.Version,

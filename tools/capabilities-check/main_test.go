@@ -532,8 +532,8 @@ func TestCAPV0007UndocumentedSubcommandFails(t *testing.T) {
 	}
 	// flows is an exec-only shim (decision 0595): corvint's tree holds only what corvint answers
 	// itself, and corvint-docs's tree catalogues the forwarded subcommands.
-	if got := strings.Join(inv.Subcommands["flows"], ","); got != "appmap,test-evidence" {
-		t.Errorf("flows subcommands %q, want the two corvint answers itself", got)
+	if got := strings.Join(inv.Subcommands["flows"], ","); got != "appmap,gaps,impact,status,test-evidence" {
+		t.Errorf("flows subcommands %q, want the five corvint answers itself", got)
 	}
 	dropped := replaceOnce(t, catalog, "`compare`, ", "")
 	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "runs compare") || len(got) != 1 {

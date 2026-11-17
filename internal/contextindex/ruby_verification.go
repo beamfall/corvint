@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/langplugin/decl"
-	"github.com/Beamfall/corvint/internal/langplugin/dialect"
 )
 
 // rubyManifestBound (analyzer_bounds.go) bounds each committed Gemfile,
@@ -23,7 +22,7 @@ func rubyVerificationCommand(index *Index) string {
 		if decl.RuleOf(decl.ImpactDialect, name) != decl.ConstantReferences {
 			continue
 		}
-		if hook, ok := dialect.LookupImpact(name); ok && hook.Verification != nil {
+		if hook, ok := dialects.LookupImpact(name); ok && hook.Verification != nil {
 			return hook.Verification(indexTree{index})
 		}
 	}

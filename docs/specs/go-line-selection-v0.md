@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-03
 Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-4364, V1-4365, V1-4366)
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner goal of 2026-11-03 (a changed line runs only the tests it can affect,
 locally and in CI, fast, proven by fault injection); decision 0590;
 `live-proof-carrying-verification-v0.md` "Line-level coverage selection" (LPCV-V0-950..963);

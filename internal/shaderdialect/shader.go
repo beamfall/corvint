@@ -53,8 +53,9 @@ type Source struct {
 	Reason       string
 }
 
-func init() {
-	dialect.RegisterRegion("shader", dialect.Region{Normalize: Normalize, Symbols: Symbols})
+// Hooks returns the shader algorithms for explicit registry construction.
+func Hooks() dialect.Hooks {
+	return dialect.Hooks{Regions: map[string]dialect.Region{"shader": {Normalize: Normalize, Symbols: Symbols}}}
 }
 
 // Parse supports literal includes and ordinary C-style free functions/kernels,

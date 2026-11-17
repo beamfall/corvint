@@ -5,6 +5,7 @@ Frozen: 2026-09-11
 Requirement prefix: `DSE-V0`
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Health: RETIRE
 Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
 Retirement note: decision 0594 (the test-selection refocus) deleted `internal/depsource` (756d3670 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md` invariants 1, 2, 4 and 7,

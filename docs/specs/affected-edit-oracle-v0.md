@@ -5,6 +5,7 @@ Date: 2026-11-08
 Requirement prefix: `AEO-V0`
 Intent status: accepted
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner request V1-5181 (2026-11-08), `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/affected-plan-v0.md`, `docs/specs/affected-zero-unknown-v0.md`.
 

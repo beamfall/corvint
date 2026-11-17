@@ -53,7 +53,7 @@ func runCallerOwned(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if readyLimit <= 0 {
 		readyLimit = 15 * time.Second
 	}
-	if err := externalReady(ctx, cfg.ServerReadyURL, readyLimit); err != nil {
+	if err := externalReady(ctx, cfg.ServerReadyURL, readyLimit, cfg.LoopbackGet); err != nil {
 		receipt.AppBuildAtPublish = AppBuildIdentity{Unknown: true, Reason: "no test run reached publish"}
 		receipt.Infrastructure = &InfrastructureFailure{Reason: "server-not-ready", Detail: err.Error()}
 		if ctx.Err() != nil {
@@ -88,7 +88,7 @@ func runCallerOwned(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		receipt.Infrastructure = boundary
 		return receipt, nil
 	}
-	if externalReady(ctx, cfg.ServerReadyURL, time.Second) != nil {
+	if externalReady(ctx, cfg.ServerReadyURL, time.Second, cfg.LoopbackGet) != nil {
 		receipt.Infrastructure = &InfrastructureFailure{Reason: "server-unavailable-at-publish", Detail: "caller-owned-server-not-answering"}
 		return receipt, nil
 	}

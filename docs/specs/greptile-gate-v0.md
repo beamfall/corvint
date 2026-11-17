@@ -5,6 +5,7 @@ Date: 2026-11-06
 Requirement prefix: `GRG-V0`
 Intent status: retired 2026-11-12 (decision 0598)
 Delivery status: retired
+Health: RETIRE
 Authoritative inputs: owner instruction 2026-11-08 ("figure out why this is so difficult, and fix it": carry 5/5 across unchanged PR diffs); owner instructions 2026-11-06 (merge only at Greptile 5/5 on the current head with every Greptile thread resolved); `affected-plan-v0.md` AFP-V0-171 (user-posted success kept).
 
 ## Agent digest

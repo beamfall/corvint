@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-03
 Intent status: accepted
 Delivery status: experimental
+Health: KEEP
 Authoritative inputs: owner request of 2026-11-03 (each language acts as a plugin, each testing and
 coverage tool as a plugin of that language, so Corvint core stays language-agnostic and only uses
 the plugins); tickets V1-4404 and V1-4405 (owner, 2026-11-03: the other language-specific interactions belong in the plugins too, and a language and its tooling should be testable apart from the rest of Corvint); `affected-plan-v0.md` (the `affected.Language` seam);
@@ -153,13 +154,14 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   one fails the test. The baselines fall to the literals this change could not move, each with its
   reason (a wire field or output value, a language-syntax token, a toolchain argv word, or a
   dialect's own algorithm body).
-- `LGP-V0-020`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405)
+- `LGP-V0-020`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405; amended under the owner's standing auto-accept (2026-11-16); V1-4818)
   `langplugin.Dirs(name)` lists a plugin's directories: its owned paths and every sub-plugin path,
   sorted and without duplicates. A test fails, per plugin, when a non-test Go file in those
   directories reaches `cmd/corvint`, `internal/contextindex`, `internal/testsource` or
   `internal/langplugin` through module-internal imports, so a plugin can be built and tested apart
-  from the core. The one exemption is `internal/swiftimpact`, the Swift adapter that registers into
-  `contextindex.RegisterSwiftPMReader`; the test records its reason and fails if it goes stale.
+  from the core. The isolation check has no exemptions. `internal/swiftimpact.Reader` implements
+  the provider-free `dialect.SwiftPMReader` interface; binaries supply it explicitly to request-local
+  context index views and MCP profile constructors, without importing core packages from the adapter.
 - `LGP-V0-021`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) `make plugin-test
   PLUGIN=<name>` tests one language and its tooling apart from the rest of Corvint: it runs
   `go test` over `langplugin.Dirs(name)` only (printed by `go run ./tools/plugin-dirs <name>`, which
@@ -172,10 +174,11 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 
 - `LGP-V0-023`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) `internal/langplugin/dialect`
   is the hook registry through which a plugin hands its dialect algorithm bodies to core. It imports
-  only the standard library. A plugin registers an `Impact` profile (code-line mask, probes, load
+  only the standard library. A plugin supplies a `Hooks` value with an `Impact` profile (code-line mask, probes, load
   pattern, static-load judgement, optional verification command) or a `Region` (normalizer,
   optional symbol extractor) under a dialect name its declaration carries; a duplicate, empty or
-  incomplete registration, including a probe without a code or pattern, panics at link time. Core looks hooks up by the declared dialect name and
+  incomplete hook, including a probe without a code or pattern, panics in `NewRegistry`.
+  Core constructs a private registry from those values and looks hooks up by the declared dialect name and
   never by a language name of its own. A plugin package may import `internal/langplugin/decl` and
   `internal/langplugin/dialect`, which are provider-free leaves, and still no core package
   (LGP-V0-020).
@@ -190,8 +193,8 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   `internal/rubydialect` owns the Ruby lexical scanner (comments, strings, percent literals,
   heredocs), the Ruby impact profile, the Ruby symbol-region normalizer and declaration extractor,
   and the Ruby verification command, which reads the plugin's `Dependencies` (LGP-V0-017). Its
-  `init` registers a hook for every dialect the Ruby declaration names. `internal/contextindex`
-  links it with a blank import and keeps no Ruby algorithm body except the constant-reference rule,
+  `Hooks` returns a hook for every dialect the Ruby declaration names. `internal/contextindex`
+  explicitly constructs its registry from those hooks and keeps no Ruby algorithm body except the constant-reference rule,
   which reads the scanner's word helpers.
 - `LGP-V0-026`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) A missing hook fails closed. A
   declared impact dialect with no registered profile reports `source-analysis-unavailable`; a
@@ -232,6 +235,22 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   plugin has the admission-guard shape and is not reported. A parity test SHALL pin
   `SelectionPlugin`'s result for every registered runner.
 
+- `LGP-V0-8600`: (accepted under the owner's standing auto-accept (2026-11-16); V1-4818)
+  Swift impact, dialect algorithms, JavaScript readiness/preflight and flows command dispatch MUST
+  use explicit wiring, with no blank-import registration, package-level mutable hook or `init`
+  setter in those areas. Swift readers belong to request-local index views; HTTP clients belong
+  to `E2EConfig`; dialect registries copy their input maps and probe slices; flows and manifest
+  tables are complete initializer values. Construction and invocation order MUST NOT change
+  another request's hooks. Missing Swift/HTTP readers retain their existing refusals and
+  uncertainty. Both default and flows MCP profiles explicitly supply the Swift reader without
+  widening MCP path admission. Swift and Kotlin remain supported. No wire, help, stderr or
+  exit-code change is authorized. Evidence: `TestExplicitWiringHasNoInitHooks`, `TestExplicitRegistryOrderAndIsolation`,
+  `TestSwiftReaderWiringIsRequestLocal`, `TestSwiftImpactThroughProfileConstructors`,
+  `TestNativeCLISwiftReverseImpact`, `TestProfileConstructorsInstallSwiftReader`,
+  `TestProfileImpactRetainsClosedLanguageSet`, `TestExplicitProbeClientsAreIndependent` and the
+  existing package suites. Non-goals: adding plugins, altering algorithms or removing languages. Rollback:
+  revert the wiring and corresponding spec amendment together.
+
 ## Failure modes
 
 | Failure | Detection | Outcome |
@@ -247,7 +266,7 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 | A dependency maps to a runner its plugin does not declare | `Validate` (LGP-V0-017) | test fails naming plugin and package |
 | A plugin package starts importing a core package | isolation test (LGP-V0-020) | test fails naming the plugin and import chain |
 | A remaining core literal has no recorded reason | ratchet (LGP-V0-019) | test fails naming the entry |
-| Two plugins register the same dialect hook, or one registers an incomplete hook | `dialect.Register*` (LGP-V0-023) | panic at init naming the dialect |
+| Two plugins register the same dialect hook, or one registers an incomplete hook | `dialect.NewRegistry` (LGP-V0-023) | panic at construction naming the dialect |
 | An impact or module dialect declares no rule, or a rule core does not implement for its kind | `Validate` (LGP-V0-024) | test fails naming plugin and dialect |
 | A registry function branches on a runner name to choose a plugin type | `TestRegistryChoosesNoPluginByRunnerName_AFPV09986` | test fails naming the file, line and name |
 | A declared dialect's plugin hooks are not linked | `ImplementedDialects` (LGP-V0-026) | `source-analysis-unavailable` or an extraction note; conformance test fails |
@@ -308,6 +327,7 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-025 | `internal/rubydialect` | `rubydialect_test.go`, existing Ruby impact and symbol tests |
 | LGP-V0-026 | `non_go_impact.go`, `rubysymbols.go`, `ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` (removed) |
 | LGP-V0-027 | `contextindex/dialect_hooks.go`, ratchet | `TestCoreNameLiterals_LGPV0009`, existing tests |
+| LGP-V0-8600 | Explicit constructors and per-request readers | `TestExplicitWiringHasNoInitHooks`, `TestExplicitRegistryOrderAndIsolation`, `TestSwiftReaderWiringIsRequestLocal`, `TestSwiftImpactThroughProfileConstructors`, `TestNativeCLISwiftReverseImpact`, `TestProfileConstructorsInstallSwiftReader`, `TestExplicitProbeClientsAreIndependent` |
 | AFP-V0-9985 | `Family.SelectionRunners` and `Family.Selection` in `internal/testrunner/registry/registry.go`, `SelectionPlugin` in `runner_plugin.go`, `dynamic.RubySelectionRunners` | `TestSelectionPluginParity_AFPV09985`, `TestRSPV0048RubyGloballyRegistered` and the other Ruby registry tests unchanged |
 | AFP-V0-9986 | `internal/testrunner/registry/family_branch_test.go` | `TestRegistryChoosesNoPluginByRunnerName_AFPV09986` (empty baseline; the `5bfe17dc6` fixture is reported) |
 

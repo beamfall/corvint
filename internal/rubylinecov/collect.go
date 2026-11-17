@@ -59,8 +59,19 @@ type Options struct {
 	Prefix func(env []string) []string
 	PathIn func(host string) string
 	// Timeout bounds the suite run; zero means no bound beyond ctx.
-	Timeout               time.Duration
-	IsolatedTimeout       time.Duration // per isolated test; zero uses Timeout
+	Timeout         time.Duration
+	IsolatedTimeout time.Duration // per isolated test; zero uses Timeout
+	// State, when set, replaces Work with a persistent directory bound to
+	// this collection; Collect resumes from the runs it retains. Parallel
+	// bounds the isolated runs at once (below 1 means 1), and a positive
+	// Budget stops launching isolated runs after it elapses (LPCV-V0-7609).
+	State    string
+	Parallel int
+	Budget   time.Duration
+	// Env names further environment variables the suite's results depend on
+	// (NO_CONNECTION). State binds their values beside the Ruby and gem
+	// environment, and a resume under another value is refused.
+	Env                   []string
 	onlyPackage, onlyName string
 }
 
@@ -405,13 +416,33 @@ func (r *record) add(e event) {
 	}
 }
 
+// mergeShapes unions file shapes, keeping each line and method once in
+// first-seen order: every isolated run reports the same shapes again, and
+// a suite of thousands of tests must not multiply them (LPCV-V0-7609).
 func mergeShapes(into, from map[string]fileShape) {
 	for p, s := range from {
 		cur := into[p]
-		cur.Lines = append(cur.Lines, s.Lines...)
-		cur.Methods = append(cur.Methods, s.Methods...)
+		cur.Lines = appendNew(cur.Lines, s.Lines)
+		cur.Methods = appendNew(cur.Methods, s.Methods)
 		into[p] = cur
 	}
+}
+
+func appendNew[T comparable](cur, add []T) []T {
+	if len(add) == 0 {
+		return cur
+	}
+	seen := make(map[T]bool, len(cur)+len(add))
+	for _, v := range cur {
+		seen[v] = true
+	}
+	for _, v := range add {
+		if !seen[v] {
+			seen[v] = true
+			cur = append(cur, v)
+		}
+	}
+	return cur
 }
 
 // Index builds the linecov index of a run collected at commit. oids maps every

@@ -410,9 +410,7 @@ var corePackages = []string{"cmd/corvint", "internal/contextindex", "internal/te
 
 // isolationExemptions are plugin directories allowed to reach a core package,
 // each with its reason (LGP-V0-020).
-var isolationExemptions = map[string]string{
-	"internal/swiftimpact": "Swift adapter that registers its SwiftPM reader into contextindex.RegisterSwiftPMReader",
-}
+var isolationExemptions = map[string]string{}
 
 // TestPluginIsolation_LGPV0020 fails, per plugin, when a non-test Go file in
 // the plugin's directories reaches a core package through module-internal
