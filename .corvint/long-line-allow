@@ -4,6 +4,7 @@
 conformance/cli-parity-v0/manifest.json
 conformance/lrf-v0/manifest.json
 conformance/pulse-snapshot-v0/cases.json
+docs/CAPABILITIES.md
 docs/specs/README.md
 docs/specs/affected-plan-v0.md
 docs/specs/application-map-v0.md

@@ -3076,9 +3076,9 @@ lwd() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE= LANDING_TASKS=$lw/tasks "
 out=$(LW_DEFAULT_RC=2 lwd 71)
 [[ $out == *'RECONCILE status=2 '* ]] && ! grep -q '^reconciled=' "$lw/state/pr-71" || fail "default refusal not retryable: $out"
 out=$(LW_DEFAULT_RC=1 lwd 71)
-[[ $out == *'RECONCILE status=1 '* && $(wc -l < "$lw/s/default-scans") == 2 ]] || fail "default retry failed: $out"
+[[ $out == *'RECONCILE status=1 '* && $(wc -l < "$lw/s/default-scans" | tr -d ' ') == 2 ]] || fail "default retry failed: $out"
 grep -qxF "$lw/checkout ticket closeout-debt --ref refs/remotes/origin/main" "$lw/s/default-scans" || fail 'default scan wrong root or argv'
-[[ $(lwd 71) == MERGED && $(wc -l < "$lw/s/default-scans") == 2 ]] || fail 'default scan repeated'
+[[ $(lwd 71) == MERGED && $(wc -l < "$lw/s/default-scans" | tr -d ' ') == 2 ]] || fail 'default scan repeated'
 grep -q 'pr=71 reconcile=closeout-debt' "$lw/state/alerts.log" || fail 'default proposals not alerted'
 # Debt alerts; --act passes RECONCILE_APPLY through; a refusal alerts as refused; --no-reconcile skips.
 out=$(LW_RECONCILE_RC=1 RECONCILE_APPLY=manual lwr --act 16); rc=$?
