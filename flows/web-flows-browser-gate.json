@@ -48,7 +48,7 @@
         "type": "source",
         "path": "cmd/corvint-web-flows/main.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "observe",
@@ -57,7 +57,7 @@
         "type": "source",
         "path": "internal/appflows/navigation_execution.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "observe",
@@ -66,7 +66,7 @@
         "type": "source",
         "path": "internal/companioncli/companioncli.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "web-flows-browser-gate.default",
@@ -76,7 +76,7 @@
         "path": "tools/web-flows/test/e2e.mjs",
         "test_key": "tools/web-flows/test/e2e.mjs"
       },
-      "reviewed_at": "7ddb7123162e145816aa9fb409194fd7434ff124"
+      "reviewed_at": "a739a8e130e43f67ac423d2c6940c86168b69ad9"
     },
     {
       "from": "web-flows-browser-gate.default",
@@ -86,7 +86,7 @@
         "path": "tools/web-flows/test/navigation-e2e.mjs",
         "test_key": "tools/web-flows/test/navigation-e2e.mjs"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     }
   ]
 }

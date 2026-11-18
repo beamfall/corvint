@@ -4,16 +4,16 @@ Accepted by the owner on 2026-11-18 with RCF-D1 to RCF-D3 answered (see `design.
 
 ## 1. Spec and ticket
 
-- [ ] 1.1 File the tracking ticket (milestone `v1-0`) and link it in `proposal.md`.
+- [x] 1.1 File the tracking ticket (milestone `v1-0`) and link it in `proposal.md`.
   Requirements: all. Proof: `corvint-tasks ticket show` output.
-- [ ] 1.2 Write `docs/specs/release-candidate-4-v1.md` from the accepted spec delta and index it.
+- [x] 1.2 Write `docs/specs/release-candidate-4-v1.md` from the accepted spec delta and index it.
   Requirements: RCF-V1-001 to RCF-V1-012. Proof: `make spec-requirements-check`.
 
 ## 2. Docs search qualification
 
-- [ ] 2.1 Commit the frozen query set and its digest; pin the three repositories.
+- [x] 2.1 Commit the frozen query set and its digest; pin the three repositories.
   Requirements: RCF-V1-007. Proof: committed file and digest.
-- [ ] 2.2 Add the qualification runner: CLI and MCP per query, passage verification, canonical
+- [x] 2.2 Add the qualification runner: CLI and MCP per query, passage verification, canonical
   record comparison, bounds and `git status` checks, Beamfall digest-only output.
   Requirements: RCF-V1-008. Proof: focused tests with an injected unverified passage and an
   injected CLI/MCP mismatch, each failing.
