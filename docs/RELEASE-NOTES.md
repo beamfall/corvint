@@ -31,7 +31,31 @@ windows/amd64 is UNSUPPORTED for 1.0 (decision 0559, PR #1781, `PRS-V1-004`). Th
 emits `corvint_windows_amd64.zip`. It is not attached and is not a release artifact. The
 fail-closed Windows refusals of decision 0559 (V1-2485, V1-2484) are in this candidate.
 
-Main changes since rc.2:
+Changes after the single-root commit `9477995d` ("Corvint 1.0"), 202 merges to the candidate:
+- Product scope: [decision 0594](decisions/0594-refocus-on-test-selection-2026-11-09.md) refocuses
+  Corvint on test selection, and [decision 0596](decisions/0596-accept-product-plan-1-0-2026-11-10.md)
+  accepts the 1.0 product plan. Go, Vitest, Jest, Playwright, pytest, RSpec and Minitest are the
+  release-blocking runners (G1); languages and analyzers beyond them are removed (G26), except the
+  Swift and Kotlin providers ([decision 0600](decisions/0600-keep-swift-kotlin-providers-2026-11-16.md));
+  the VS Code extension moves out (G22); the E2E proof lab is cut
+  ([decision 0593](decisions/0593-cut-e2e-proof-lab-2026-11-09.md)); and context is limited to
+  proven paths ([decision 0597](decisions/0597-context-proven-only-2026-11-11.md)).
+- Test selection: a line-level test impact index with admission-gated narrowing
+  ([decision 0590](decisions/0590-line-level-coverage-test-selection-2026-11-03.md)), per-test line
+  coverage for Go, the node JS/TS runners, Playwright and Cypress runs and Ruby, a shared selection
+  verdict (V1-5401), Jest and pytest file-tier providers, and experimental runner selection plugins
+  ([decision 0592](decisions/0592-runner-selection-plugins-2026-11-07.md)).
+- Commands: `corvint mcp` serves the MCP server from the core binary (V1-3244); `corvint context`
+  takes a path (`PROD-INT-032`); `corvint impact` expands a directory operand to its admitted files
+  (V1-5436); `flows appmap` works on real applications (V1-5466 to V1-5472).
+- Release and CI: the Go pin is go1.27.4
+  ([decision 0599](decisions/0599-go-1-27-4-revision-admitted-2026-11-12.md), V1-5408); a pushed
+  version tag runs `.github/workflows/release-binaries.yml`, which tests both modules, runs the
+  corvint archive gate and builds the release set (Candidate status below); the dogfood seal and
+  Greptile steps left the merge path (decisions 0594 and
+  [0598](decisions/0598-remove-greptile-codex-review-2026-11-12.md)).
+
+Main changes since rc.2, up to the single-root commit:
 - CEM 1.0 cutover: the 0.x wire, verifier, producers, examples and routes are deleted (V1-1278); a
   `cem/0.x` to `cem/1.0` converter migrated every committed map (V1-1275, V1-1277); the dogfood loop
   and the Tasks seal gate recompute the sealed `cem/1.0` verdict (V1-1283); the technical contract
@@ -268,7 +292,21 @@ in its positioning section.
 
 ### Candidate status
 
-No `v1.0.0-rc.3` tag exists yet. The first candidate, commit
+The candidate is `FULL_COMMIT` `bd1b10330d7a40bfc01bebd32e988c476f4ae62b`, Corvint 1.0.0-rc.3
+(build 203), the merge of pull request #228. The tag `v1.0.0-rc.3` points at the release-notes
+commit whose only parent is that commit. At `FULL_COMMIT` the hosted release gates (run
+44338922515) passed the linux/amd64 full gate, the interop gate, the N-1 replay as
+`FIRST_RELEASE`, the selection baseline and the focused docs gates. The macOS full gate is
+advisory; its 2026-11-17 failure at the same commit is the known `gokernel` timeout V1-5298.
+
+The tag pipeline builds the release set at the tagged commit: `corvint`, `corvint-docs`,
+`corvint-mcp`, `corvint-docs-mcp` and `corvint-update` for darwin/arm64, linux/amd64 and
+linux/arm64, one `SHA256SUMS`, and the corvint archive gate's `verification-report.json`. Its
+publish job stays off until the protected `release` environment and the build attestation exist
+(`GHA-V1-040` to `GHA-V1-042`), so the owner publishes the prerelease from the build job's checked
+artifact, unchanged. darwin/amd64 and windows/amd64 are not release artifacts.
+
+Earlier rc.3 candidates in the archived history were never tagged. The first candidate, commit
 `866a7fd52a3cd979f9fd038ecfa998e15111421c` (build 757), was built and checked on the owner
 darwin/arm64 host (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-rc3-candidate-866a7fd5.md`) but never tagged: its full
 gate was `NOT_RUN`. The next candidate, `6edb100b`, failed the full gate on linux/amd64 in
@@ -276,12 +314,10 @@ gate was `NOT_RUN`. The next candidate, `6edb100b`, failed the full gate on linu
 (chat, 2026-10-27: "a linux gate seems ok"); the archive, reproducibility, lifecycle, hostile,
 replay and companion steps run on the owner darwin/arm64 host.
 
-The candidate that is tagged is recorded here, with its build number, digests and evidence, in the
-release-notes commit made at that tag. Until then these notes describe `main`, not a release.
-
 Like rc.2, rc.3 is unsigned: `SHA256SUMS` only, publisher identity `NOT_VERIFIED` (decision 0433).
-The four Darwin and Linux archives are the release set. `script/public-release-check` (core
-qualification, `PUB-V0-020`) is recorded `NOT_RUN` under the decision 0382 amendment.
+`script/public-release-check` (core qualification, `PUB-V0-020`) is recorded `NOT_RUN` under the
+decision 0382 amendment, and the V1-0019 untouched-repository validation of this candidate is
+`NOT_RUN`.
 
 ## 1.0.0-rc.2 release candidate
 
