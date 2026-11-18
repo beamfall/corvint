@@ -55,6 +55,12 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   source/test changes and semantic or name-only narrowing cannot remove that widening.
   Unrelated units remain eligible for normal exclusion; unresolved unit IDs are never
   guessed into filesystem paths.
+  The closure includes declared binary consumers of testless commands: runnable consumers
+  are selected and consumers without a runner retain their existing uncertainty. Widened
+  units are registered as unbounded readers with a graph-bound degradation cause, so
+  independent witness validation can resolve both units and declared consumers. Only that
+  explicit runtime degradation may substitute for a consumer's ordinary build witness;
+  an arbitrary unbounded read is insufficient.
 - `CIN-V1-942`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5087)
   The existing `plan.unknown` LANGUAGE_FRONTIER detail SHALL identify every degraded edge's
   tests, runs, declaration reason and unresolved-target reason using the prefix
@@ -1308,4 +1314,4 @@ batch-precheck` and `make batch-push-check` are the checks before a push.
 
 | Requirements | Implementation | Evidence |
 | --- | --- | --- |
-| CIN-V1-940, CIN-V1-941, CIN-V1-942 | `runtime_edges.go`, `select.go`, `affectedBuildGraph` | `TestRuntimeEdgeWidening_CINV1940`, `TestRuntimeEdgeWideningRefusals_CINV1940`, `TestAffectedRuntimeEdgeWidening_CINV1940`, `TestRuntimeEdgeDegradationAdmission_CINV1942`, `TestRuntimeEdgeDegradationRecord_CINV1942`; hosted record integration pending the separate `.github` patch |
+| CIN-V1-940, CIN-V1-941, CIN-V1-942 | `runtime_edges.go`, `select.go`, `affectedBuildGraph` | `TestRuntimeEdgeWidening_CINV1940`, `TestRuntimeEdgeWideningRefusals_CINV1940`, `TestRuntimeWideningConsumersAndWitnesses_CINV1941`, `TestAffectedRuntimeEdgeWidening_CINV1940`, `TestRuntimeEdgeDegradationAdmission_CINV1942`, `TestRuntimeEdgeDegradationRecord_CINV1942`; hosted record integration pending the separate `.github` patch |

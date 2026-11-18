@@ -515,7 +515,7 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	if graph.existenceUnits, err = graph.existenceReaderUnits(); err != nil {
 		return nil, err
 	}
-	graph.runtimeWidening = graph.runtimeEdgeWidening()
+	graph.registerRuntimeWidening()
 	// Bind the conservative build mode as well as the declarations: a partial
 	// graph skipping the same unresolved edges must have a different digest.
 	for _, edge := range graph.degradedRuntimeEdges {
@@ -944,15 +944,19 @@ func (graph *Graph) UnitIDs() []string { return append([]string(nil), graph.orde
 
 // UnboundedReaders lists, sorted, every unit whose reads no literal or declared
 // scope bounds: the units rule (d) selects on any dirty path (AFP-V0-012,
-// AFP-V0-023).
+// AFP-V0-023), including unresolved runtime-edge closures (CIN-V1-941).
 func (graph *Graph) UnboundedReaders() []string { return append([]string(nil), graph.unbounded...) }
 
 // UnboundedChain returns why rule (d) selects an unbounded reader
 // (AFP-V0-500): the unit ids from the unit whose own unbounded read is the
 // cause to the reader itself, each importing (or its tests importing) the one
 // before it, and the cause's own reason. A reader that is its own cause has a
-// one-unit chain; a unit that is not an unbounded reader has none.
+// one-unit chain; a runtime-widened unit has its own graph-bound degradation
+// reason (CIN-V1-941). A unit that is not an unbounded reader has none.
 func (graph *Graph) UnboundedChain(id string) (chain []string, reads string) {
+	if witness, widened := graph.runtimeWidening[id]; widened {
+		return slices.Clone(witness.Chain()), witness.Cause.Reads
+	}
 	chain, ok := graph.chains[id]
 	if !ok {
 		return nil, ""

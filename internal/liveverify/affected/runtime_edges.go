@@ -203,6 +203,23 @@ func runtimeEdgeDegradation(edge RuntimeEdge) string {
 	return fmt.Sprintf("runtime:unresolved-edge: tests=%q runs=%q: runs names no unit; reason=%q", edge.Tests, edge.Runs, edge.Reason)
 }
 
+// registerRuntimeWidening makes the degradation an explicit unbounded cause,
+// shared by selection, graph inspection and independent witness verification.
+// A declared read scope or name-only read cannot bound an unresolved runtime
+// target, so none of those narrower proofs applies to this closure.
+func (graph *Graph) registerRuntimeWidening() {
+	graph.runtimeWidening = graph.runtimeEdgeWidening()
+	for id := range graph.runtimeWidening {
+		graph.unbounded = append(graph.unbounded, id)
+		graph.causes[id] = id
+		graph.chains[id] = []string{id}
+		delete(graph.namesOnly, id)
+		delete(graph.runnerOnly, id)
+	}
+	slices.Sort(graph.unbounded)
+	graph.unbounded = slices.Compact(graph.unbounded)
+}
+
 // runtimeEdgeWidening computes the full reverse closure, including terminal
 // test/exec edges and file readers. Unlike normal change propagation it never
 // stops at a test-only edge or a reader: uncertainty must cover that whole area.
