@@ -17,9 +17,9 @@ Accepted by the owner on 2026-11-18 with RCF-D1 to RCF-D3 answered (see `design.
   record comparison, bounds and `git status` checks, Beamfall digest-only output.
   Requirements: RCF-V1-008. Proof: focused tests with an injected unverified passage and an
   injected CLI/MCP mismatch, each failing.
-- [ ] 2.3 Run the qualification and DCS-V1-404 twice on one commit; record the build-log entry.
+- [x] 2.3 Run the qualification and DCS-V1-404 twice on one commit; record the build-log entry.
   Requirements: RCF-V1-008, RCF-V1-009. Proof: build-log entry with digests and counts.
-- [ ] 2.4 Add the rerun trigger to the affected plan for ranking, corpus and promoted surfaces.
+- [x] 2.4 Add the rerun trigger to the affected plan for ranking, corpus and promoted surfaces.
   Requirements: RCF-V1-010. Proof: `corvint affected` on a ranking diff selects the runner.
 
 ## 3. Promotion
