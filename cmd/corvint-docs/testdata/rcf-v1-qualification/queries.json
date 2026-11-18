@@ -7,7 +7,7 @@
     {
       "name": "corvint",
       "url": "https://github.com/beamfall/corvint",
-      "commit": "1795bfc0dc8065d8e026738a5ffb2a557139534a",
+      "commit": "3dc980b7aec44eb4f880f3bdaec2fc2a23da2102",
       "evidence": "full",
       "scopes": [
         "cmd/corvint-docs",
