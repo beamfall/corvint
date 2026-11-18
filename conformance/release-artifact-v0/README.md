@@ -71,7 +71,14 @@ Set `CORVINT_ARCHIVE_WORKERS=1` for serial scheduling, or another positive integ
 concurrency; values above the target count are clamped, and invalid values use the default.
 For example, `CORVINT_ARCHIVE_WORKERS=2 make go-archive-gate` uses two target workers in each
 phase. This setting never enters the closed build environment. Each target still has two
-cold-cache loose builds plus two separate raw-commit archive builds and two assemblies.
+initially cold loose builds plus two separate raw-commit archive builds and two assemblies.
+After the loose gate passes, each raw build continues only its matching same-target A or B
+cache from that run. Go validates action inputs again; changed source recompiles, and ignored
+live source still cannot pass the raw/loose byte binding. No caller cache is used, and A/B
+caches remain independent. Raw exports, private indexes, build outputs and assemblies stay
+separate. To compare a four-CPU budget, set `GOMAXPROCS=4 CORVINT_ARCHIVE_WORKERS=4` and
+restrict CPU affinity to four CPUs as well: the closed child environments do not inherit
+`GOMAXPROCS`. This is a local measurement, not hosted-runner qualification.
 Reports and terminal failures retain manifest order; later work is canceled and joined
 when an earlier target fails. Loose report-level findings still collect across all targets.
 

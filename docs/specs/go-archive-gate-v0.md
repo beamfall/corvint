@@ -110,8 +110,9 @@ On the fresh-clone question that `decision-number-gate-v0.md` pins: this script 
 worktree-enumeration defect. It passes `--revision HEAD` and derives `HEAD^{commit}` and
 `HEAD^{tree}` from Git, so it builds and verifies committed content. An uncommitted change does not
 pass silently either: the delegated `archive` command refuses unless `git status --porcelain
---untracked-files=all` is empty (`conformance/release-artifact-v0/archive_run.go:471@f0223702`), so any
-staged, unstaged, or untracked change fails this gate until it is committed or removed.
+--untracked-files=all` is empty
+(`conformance/release-artifact-v0/archive_run.go:480@f0223702`), so any staged, unstaged, or untracked
+change fails this gate until it is committed or removed.
 
 GAG-V0-007 requires that a witness the current run did not record cannot satisfy the status check.
 The `archive` subcommand writes the witness best-effort: on failure it prints
@@ -193,12 +194,17 @@ its witness write fails, was not taken: it changes the release command that
   MUST be removed after a terminal error. No archive candidate may be retained on failure.
 - `GAG-V0-9963`: (accepted under the owner's standing auto-accept (2026-11-06); V1-4733)
   Scheduling MUST preserve the loose gate plus the two independent raw-commit archive builds,
-  separate cold caches, private indexes and temporary/assembly directories required by
+  independent initially cold A/B caches, private indexes and temporary/assembly directories under
   `ARTIFACT-GO-V0-001`, `ARTIFACT-GO-V0-003`, `ARTIFACT-GO-V0-005` and `ARTIFACT-GO-V0-007`.
   Exported source metadata MUST be initialized before parallel readers start and remain immutable
   during their builds. Live-root loose outputs MUST NOT replace raw-export builds: ignored source
   can change the former without changing the commit/tree. All clean-state rechecks, offline
   verification, byte comparisons, closed-set checks and same-run witness checks remain mandatory.
+  Amendment authorized by the V1-4733 lane charter (2026-11-18): after the loose gate passes,
+  each raw-export build MAY continue only its same-target, same-side loose cache from this run.
+  The pinned Go toolchain MUST validate cached action inputs; a changed input recompiles. A and B
+  MUST never share a cache or consume caller caches. Both raw-export build commands still run;
+  a live-root binary MUST NOT be copied into place as a raw-export result.
 
 ## Non-goals and simpler baseline
 
@@ -273,6 +279,14 @@ targets=5 verdict=PASS`) made the subsequent `script/release-checklist` run repo
 
 ## Acceptance criteria and testing matrix
 
+The V1-4733 cache continuation amendment requires a real loose/raw pair with separate initially
+empty A/B caches, byte-identical outputs, and a changed ignored live source whose primed caches
+still produce the raw committed bytes and refuse the loose binding. The whole conformance package
+and real-producer injection test must pass. Measure the same host before/after with default and
+four-worker scheduling; disclose the host and CPU restriction rather than claiming hosted CI proof.
+Failure classification and report order remain covered by the existing parallel/serial tests.
+
+
 `script/go-archive-gate_test.sh`, the `go-archive-gate-test` target, covers private-root creation and
 mode, the offline environment, the `HEAD` and private-output arguments, normal/failure/interrupt
 cleanup, build-failure status preservation, GAG-V0-007 (unrecorded, non-`PASS` and other-revision witnesses), and
@@ -315,10 +329,17 @@ the same assertions and does not change the producer or wrapper contract.
 | GAG-V0-9960 | `TestTargetWorkersBoundedOverlap`, `TestTargetWorkerOverride`, `TestTargetWorkersEmpty` in `conformance/release-artifact-v0/target_workers_test.go` |
 | GAG-V0-9961 | `TestParallelLooseReportMatchesSerial`, `TestParallelArchiveFailureMatchesSerial`, `TestParallelArchiveSuccessMatchesSerial` in `conformance/release-artifact-v0/target_workers_test.go` |
 | GAG-V0-9962 | `script/go-archive-gate_test.sh` case 7 (cancellation during producer compilation, no archive work begins); `TestTargetWorkersCancelOnlySuffixAndJoin`, `TestTargetWorkersParentCancellation` in `conformance/release-artifact-v0/target_workers_test.go`; `TestParallelLooseCancellationReapsBuildAndRemovesSuffix` in `conformance/release-artifact-v0/target_workers_posix_test.go`; `TestParallelLooseCancellationReapsSmokeGitAndRemovesSuffix` in `conformance/release-artifact-v0/smoke_cancellation_posix_test.go` (inherited commit and status hooks with pipe-holding descendants); `TestGroupHangupJoinsLooseDescendantsBeforeWrapperCleanup` in `conformance/release-artifact-v0/hangup_posix_test.go` (group SIGHUP and SIGTERM, recorded isolated build/child PIDs, scratch lifetime); existing `TestBuildArchivesCancellationRemovesScratchStageAndOutput` in `conformance/release-artifact-v0/archive_gate_test.go` |
-| GAG-V0-9963 | existing `TestArchiveBuildPathsProveSeparateColdInputs`, `TestFinalGitRecheckRejectsDirtyStagedUntrackedAndHeadMovement` in `conformance/release-artifact-v0/archive_gate_test.go`; `TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses` in `conformance/release-artifact-v0/loose_gate_ignored_source_test.go`; real before/after gate evidence in `docs/build-log/2026-11-05-archive-gate-parallel.md` |
+| GAG-V0-9963 | `TestArchiveCacheContinuationPreservesIndependentBuilds` in `conformance/release-artifact-v0/archive_cache_test.go`; existing `TestArchiveBuildPathsProveSeparateColdInputs`, `TestFinalGitRecheckRejectsDirtyStagedUntrackedAndHeadMovement` in `conformance/release-artifact-v0/archive_gate_test.go`; `TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses` in `conformance/release-artifact-v0/loose_gate_ignored_source_test.go`; real before/after gate evidence in `docs/build-log/2026-11-05-archive-gate-parallel.md` |
 
 
 ## Rollout, rollback, and drift
+
+Roll back cache continuation by restoring fresh `cache-a/<target>` and `cache-b/<target>` roots
+in `buildArchiveTarget`. This restores four cold compilations per target without changing reports,
+archive contents, worker scheduling, failure classification, or the existing verification gates.
+An incorrect cache pairing can conceal nondeterminism; per-side/per-target isolation is mandatory.
+An ignored source must still trigger the existing loose binding refusal after raw recompilation.
+
 
 This document is additive ownership over an existing gate member; it changes no behavior. Rollback
 removes the document and its index locators and alters no script. Dropping the gate itself would

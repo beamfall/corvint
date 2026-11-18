@@ -184,10 +184,10 @@ func buildArchiveTarget(ctx context.Context, options ArchiveOptions, scratch, so
 	targetID := target.GOOS + "-" + target.GOARCH
 	buildAPath := filepath.Join(scratch, "build-a", targetID, binaryName)
 	buildBPath := filepath.Join(scratch, "build-b", targetID, binaryName)
-	if err := archiveBuildOnce(ctx, sourceA, gitDirectory, state.commit, manifest, target, buildAPath, filepath.Join(scratch, "cache-a", targetID), filepath.Join(scratch, "tmp-a", targetID)); err != nil {
+	if err := archiveBuildOnce(ctx, sourceA, gitDirectory, state.commit, manifest, target, buildAPath, archiveTargetCache(scratch, target, "a"), filepath.Join(scratch, "tmp-a", targetID)); err != nil {
 		return ArchiveTargetReport{GOOS: target.GOOS, GOARCH: target.GOARCH, BinaryName: binaryName, ArchiveName: archiveName}, nil, 0, err
 	}
-	if err := archiveBuildOnce(ctx, sourceB, gitDirectory, state.commit, manifest, target, buildBPath, filepath.Join(scratch, "cache-b", targetID), filepath.Join(scratch, "tmp-b", targetID)); err != nil {
+	if err := archiveBuildOnce(ctx, sourceB, gitDirectory, state.commit, manifest, target, buildBPath, archiveTargetCache(scratch, target, "b"), filepath.Join(scratch, "tmp-b", targetID)); err != nil {
 		return ArchiveTargetReport{GOOS: target.GOOS, GOARCH: target.GOARCH, BinaryName: binaryName, ArchiveName: archiveName}, nil, 0, err
 	}
 	binaryA, err := os.ReadFile(buildAPath)
@@ -251,6 +251,15 @@ func bindLooseGateTarget(loose TargetReport, target Target, binary []byte) error
 		return fmt.Errorf("loose-gate-binary-mismatch")
 	}
 	return nil
+}
+
+// archiveTargetCache continues one side of this run's verified loose pair. Go
+// revalidates action inputs against the raw export; ignored live source cannot
+// become committed source through a cache hit. Sides and targets never share
+// entries, so each compilation action still has two independent cold origins.
+// Both raw builds, their private indexes and the loose-byte binding still run.
+func archiveTargetCache(scratch string, target Target, side string) string {
+	return filepath.Join(scratch, "existing-loose-gate", "cache-"+side+"-"+target.GOOS+"-"+target.GOARCH)
 }
 
 // Keep the exported .git file immutable while parallel builds read it. Standalone
