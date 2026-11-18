@@ -1387,7 +1387,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 
 | Requirement | Tickets | Evidence |
 |---|---|---|
-| AZU-V1-960 | V1-4679 | `TestUnownedSourceBoundReads_AZU_V1_960`; `TestForeignJSONFrontierReaders_AZU_V1_960`; `TestPackageImportTargetFailures_AZU_V1_960` |
+| AZU-V1-960 | V1-4679 | `TestUnownedSourceBoundReads_AZU_V1_960`; `TestForeignJSONFrontierReaders_AZU_V1_960`; `TestPackageImportTargetFailures_AZU_V1_960`; `TestResolvedRelativeForeignReaders_AZU_V1_960` (successful source lookup retains JSON and unknown path uncertainty); `TestForeignRegularFileGraphCache_AZU_V1_960` (exact JSON and alias cold store / warm hit with identical selection) |
 | AZU-V1-961 | V1-4679 | `TestUnownedHostedFrontier_AZU_V1_961`; `TestYAMLResolutionInputs_AZU_V1_961` |
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |

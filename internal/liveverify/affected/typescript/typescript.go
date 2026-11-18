@@ -841,7 +841,9 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 			if target != "" {
 				resolved[ref] = true
 			}
-			if local && unresolved {
+			// A source match does not prove the runtime cannot load a foreign
+			// candidate. Preserve those reads before pruning resolved literals.
+			if local {
 				clean := strings.SplitN(strings.SplitN(ref, "?", 2)[0], "#", 2)[0]
 				candidate := path.Clean(path.Join(path.Dir(owner), clean))
 				// A literal path outside the repository cannot name a tracked
@@ -851,6 +853,8 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 					dataTokens[unit.ID] = append(dataTokens[unit.ID], tokens...)
 					unit.PathTokensBounded = unit.PathTokensBounded || bounded
 				}
+			}
+			if local && unresolved {
 				site, token := unitRefSite(*unit, sites, ref)
 				frontier.raiseToken(FrontierUnresolvedImport, site, token)
 			}

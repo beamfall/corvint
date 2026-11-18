@@ -4,6 +4,9 @@ package typescript
 import (
 	"context"
 	"fmt"
+	"os"
+	"reflect"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -254,6 +257,90 @@ func TestPackageImportURLReaders_AZU_V1_960(t *testing.T) {
 			}
 			if tc.bounded && len(frontierDetails(plan)) == 0 {
 				t.Fatalf("unknown URL form lost uncertainty: %+v", plan)
+			}
+		})
+	}
+}
+
+// AZU-V1-960: source resolution cannot certify a complete runtime read set.
+func TestResolvedRelativeForeignReaders_AZU_V1_960(t *testing.T) {
+	for _, tc := range []struct {
+		name, candidate, dirty string
+		unproven               bool
+	}{
+		{"extensionless JSON beside source", "settings", "settings.json", false},
+		{"unknown path beside source", "settings%future", "elsewhere/payload.json", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, tc.candidate+".cjs", "module.exports = {value: 2};\n")
+			write(t, root, tc.dirty, `{"value":1}`)
+			write(t, root, "read.test.cjs", "const {test} = require('node:test');\nconst data = require("+fmt.Sprintf("%q", "./"+tc.candidate)+");\ntest('read', () => data.value);\n")
+			result, err := New().Units(context.Background(), root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reader := unitByID(result, unitID(runnerNode, "read.test.cjs"))
+			if !slices.Contains(reader.Imports, unitID("", tc.candidate+".cjs")) {
+				t.Fatalf("fixture must resolve its source candidate: %+v", reader)
+			}
+			if reader.PathTokensBounded != tc.unproven {
+				t.Fatalf("read-set proof bounded=%v, want %v: %+v", reader.PathTokensBounded, tc.unproven, reader)
+			}
+			graph, err := affected.Build(context.Background(), root, New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := affected.Select(graph, []string{tc.dirty})
+			if tc.unproven {
+				want := "typescript:path-token-bound:" + reader.ID
+				if !slices.Contains(frontierDetails(plan), want) {
+					t.Fatalf("unknown path form lost its read-set frontier: %+v", plan)
+				}
+			} else if !slices.Contains(plan.SelectedTests(), "read.test.cjs") {
+				t.Fatalf("foreign reader omitted: %+v", plan)
+			}
+		})
+	}
+}
+
+// AFP-V0-391/392, AZU-V1-960: regular-file imports must not poison observation
+// recording with an ENOTDIR manifest probe; a warm cache must preserve selection.
+func TestForeignRegularFileGraphCache_AZU_V1_960(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("graph cache change-time pins require linux or darwin")
+	}
+	saved := affected.GraphCacheRacyWindow
+	affected.GraphCacheRacyWindow = 0
+	t.Cleanup(func() { affected.GraphCacheRacyWindow = saved })
+	for _, mode := range []string{"relative", "alias"} {
+		t.Run(mode, func(t *testing.T) {
+			root, cache := t.TempDir(), t.TempDir()
+			if err := os.Chmod(cache, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			ref := "./settings.json"
+			if mode == "alias" {
+				ref = "@cfg"
+				write(t, root, "tsconfig.json", `{"compilerOptions":{"baseUrl":".","paths":{"@cfg":["settings.json"]}}}`)
+			}
+			write(t, root, "settings.json", `{"value":1}`)
+			write(t, root, "read.test.cjs", "const {test} = require('node:test');\nconst data = require("+fmt.Sprintf("%q", ref)+");\ntest('read', () => data.value);\n")
+			cold, outcome, err := affected.BuildCached(context.Background(), root, cache, "sha256:foreign-file-test", New())
+			if err != nil || !outcome.Stored {
+				t.Fatalf("cold build must store: %+v, %v", outcome, err)
+			}
+			warm, outcome, err := affected.BuildCached(context.Background(), root, cache, "sha256:foreign-file-test", New())
+			if err != nil || !outcome.Hit {
+				t.Fatalf("warm build must hit: %+v, %v", outcome, err)
+			}
+			coldPlan := affected.Select(cold, []string{"settings.json"})
+			warmPlan := affected.Select(warm, []string{"settings.json"})
+			if cold.Digest() != warm.Digest() || !reflect.DeepEqual(coldPlan, warmPlan) {
+				t.Fatal("cached graph or selection differs from fresh")
+			}
+			if !slices.Contains(warmPlan.SelectedTests(), "read.test.cjs") {
+				t.Fatalf("cached foreign reader omitted: %+v", warmPlan)
 			}
 		})
 	}

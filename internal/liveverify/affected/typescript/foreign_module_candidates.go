@@ -24,15 +24,26 @@ func foreignModuleCandidates(root *affected.Source, candidate string) ([]string,
 		}
 	}
 	tokens = append(tokens, candidate+".json", path.Join(candidate, "index.json"))
+	// Only absent paths, regular files and manifest-free directories prove a
+	// complete candidate set. Probe the file first: probing a regular file's
+	// child yields ENOTDIR and makes the observation uncacheable.
+	info, err := root.Stat(candidate)
+	if errors.Is(err, fs.ErrNotExist) {
+		return tokens, false
+	}
+	if err != nil {
+		return tokens, true
+	}
+	if info.Mode().IsRegular() {
+		return tokens, false
+	}
+	if !info.IsDir() {
+		return tokens, true
+	}
 	// Even a dotted name can denote a directory; a manifest can redirect its
 	// read outside that directory. Missing/unreadable metadata is not absence.
-	_, err := root.Stat(path.Join(candidate, "package.json"))
+	_, err = root.Stat(path.Join(candidate, "package.json"))
 	if !errors.Is(err, fs.ErrNotExist) {
-		// An existing regular file cannot also be a package directory. Stat of
-		// its child may return ENOTDIR instead of fs.ErrNotExist.
-		if info, statErr := root.Stat(candidate); statErr == nil && info.Mode().IsRegular() {
-			return tokens, false
-		}
 		return tokens, true
 	}
 	return tokens, false
