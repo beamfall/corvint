@@ -17,11 +17,15 @@ func TestUnownedSourceBoundReads_AZU_V1_960(t *testing.T) {
 		sites       map[string][]string
 		want        bool
 	}{
+		{name: "bare", entry: "y:import", want: true},
+		{name: "unrecorded overflow", entry: "y:import:+2", want: true},
+		{name: "unknown site form", entry: "y:import:future(site=app.y)", want: true},
 		{name: "unrelated", entry: "y:import:app.y:1 `./other.json`"},
 		{name: "literal", entry: "y:import:app.y:1 `./data.json`", want: true},
 		{name: "alias target", entry: "y:import:app.y:1 `@cfg`", tokens: []string{"data.json"}, want: true},
 		{name: "bounded", entry: "y:import:app.y", bounded: true, want: true},
 		{name: "unowned table", entry: "y:import:config.json", want: true},
+		{name: "complete unrelated overflow", entry: "y:import:+1", sites: map[string][]string{"y:import": {"app.y:1 `./other.json`"}}},
 		{name: "overflow", entry: "y:import:+1", sites: map[string][]string{"y:import": {"app.y:1 `./data.json`"}}, want: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

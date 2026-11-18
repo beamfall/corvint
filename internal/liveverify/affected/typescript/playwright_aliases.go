@@ -291,19 +291,20 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 			continue
 		}
 		target, claimed := nearest.resolve(ref, bodies)
+		// Source resolution certifies only its source edge, not the absence of
+		// other reads. Keep every substituted candidate, regardless of file
+		// type or whether a source fallback resolved (AZU-V1-960).
+		if claimed {
+			for _, candidate := range nearest.candidates(ref) {
+				targets = append(targets, candidate)
+				if path.Ext(candidate) == "" {
+					targets = append(targets, candidate+".json")
+				}
+			}
+		}
 		if target == "" {
 			if claimed {
 				sites.raiseRef(frontier, FrontierPathAlias, owner, ref)
-				// The substituted targets are what the alias could load: a
-				// data file the adapter does not observe, such as JSON, is
-				// then read by the importer through its path token
-				// (TJAA-V0-1161, V1-4683).
-				for _, candidate := range nearest.candidates(ref) {
-					targets = append(targets, candidate)
-					if path.Ext(candidate) == "" {
-						targets = append(targets, candidate+".json")
-					}
-				}
 			}
 			continue
 		}
@@ -325,7 +326,7 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 
 // candidates lists the repository-relative paths the alias patterns that
 // claim ref substitute it into, and the baseUrl join when no pattern claims
-// it, without probing for a module: the files an unresolved alias could load.
+// it, without probing for a module: the files any alias alternative could load.
 func (config typeScriptAliases) candidates(ref string) []string {
 	var paths []string
 	claimed := false

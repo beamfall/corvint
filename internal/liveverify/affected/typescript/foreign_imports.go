@@ -3,6 +3,7 @@ package typescript
 
 import (
 	"encoding/json"
+	"net/url"
 	"path"
 	"strings"
 
@@ -37,8 +38,8 @@ func packageImportTargets(owner, ref string, bodies map[string]string) ([]string
 				var value string
 				if json.Unmarshal(raw, &value) == nil {
 					value = strings.ReplaceAll(value, "*", capture)
-					target := path.Join(directory, value)
-					if !strings.HasPrefix(value, "./") || !affected.ValidRelativePath(target) || strings.Contains(value, "\\") {
+					target, understood := packageImportFileTarget(directory, value)
+					if !understood {
 						bounded = true
 						return
 					}
@@ -71,4 +72,40 @@ func packageImportTargets(owner, ref string, bodies map[string]string) ([]string
 		}
 		directory = path.Dir(directory)
 	}
+}
+
+// packageImportFileTarget admits only relative file URLs with nonempty path
+// components made of ASCII letters, digits, space, dot, underscore or hyphen.
+// Decode each component separately: queries/fragments do not name file bytes,
+// and encoded separators, dot segments and all other forms remain unproved.
+func packageImportFileTarget(directory, value string) (string, bool) {
+	if !strings.HasPrefix(value, "./") {
+		return "", false
+	}
+	// URL preprocessing differs for raw whitespace/control bytes. Require
+	// printable ASCII input; filenames needing other bytes use percent escapes.
+	for _, c := range value {
+		if c < '!' || c > '~' {
+			return "", false
+		}
+	}
+	u, err := url.Parse(value)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.Opaque != "" || u.User != nil {
+		return "", false
+	}
+	components := strings.Split(strings.TrimPrefix(u.EscapedPath(), "./"), "/")
+	for i, component := range components {
+		decoded, err := url.PathUnescape(component)
+		if err != nil || decoded == "" || decoded == "." || decoded == ".." {
+			return "", false
+		}
+		for _, c := range decoded {
+			if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == ' ' || c == '.' || c == '_' || c == '-') {
+				return "", false
+			}
+		}
+		components[i] = decoded
+	}
+	target := path.Join(directory, strings.Join(components, "/"))
+	return target, affected.ValidRelativePath(target)
 }

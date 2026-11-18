@@ -99,7 +99,7 @@ type observation struct {
 	configs   []string
 	puppeteer bool
 	test      bool
-	// aliasTargets are the paths an unresolved tsconfig alias of the module
+	// aliasTargets are the paths any tsconfig alias alternative of the module
 	// could load, added to its path tokens (TJAA-V0-1161).
 	aliasTargets []string
 	aliasBounded bool

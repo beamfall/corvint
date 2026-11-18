@@ -1180,7 +1180,14 @@ by the existing source and token limits and a 16-level conditional nesting limit
 V1-4679 evidence is retained in `docs/build-log/2026-11-18-m8-frontier.md`. The new reader fixtures
 combine resolved source imports with JSON aliases and exceed the displayed frontier-site bound.
 Negative cases cover unrelated data; fixture fault injections cover named reads, resolution
-inputs, touched fixtures and path-open sites. Historical full-suite and changed-line mutation
+inputs, touched fixtures and path-open sites. Self-review repair witnesses are
+`TestMixedAliasFallbackReaders_AZU_V1_960` (every alias candidate survives a resolved source
+fallback, including unknown file types), `TestPackageImportURLReaders_AZU_V1_960` (URL query,
+fragment and percent decoding; unsupported forms retain uncertainty), and the bare, unrecorded
+overflow and unknown-site cases in `TestUnownedSourceBoundReads_AZU_V1_960` (AZU-V1-961).
+The package-target proof admits printable-ASCII relative file URLs whose decoded components contain only ASCII
+letters, digits, spaces, dots, underscores and hyphens, excluding empty and dot segments; all
+other target forms remain unproved. See `docs/build-log/2026-11-18-m8-frontier-self-review.md`. Historical full-suite and changed-line mutation
 qualification remains required by AZU-V0-009; a seven-merge plan comparison cannot replace it.
 
 

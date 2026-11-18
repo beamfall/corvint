@@ -121,3 +121,77 @@ func TestOutboundKindsSelectTheirSites_AZU_V0_003(t *testing.T) {
 		})
 	}
 }
+
+// AZU-V1-960: resolving a source fallback proves nothing about the other
+// candidates, including file types the source resolver does not understand.
+func TestMixedAliasFallbackReaders_AZU_V1_960(t *testing.T) {
+	for _, candidate := range []string{"data.json", "data.future-format"} {
+		t.Run(candidate, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
+			write(t, root, "playwright.config.ts", "import { defineConfig } from '@playwright/test';\nexport default defineConfig({});\n")
+			write(t, root, "tsconfig.json", fmt.Sprintf(`{"compilerOptions":{"baseUrl":".","paths":{"@cfg":[%q,"fallback.ts"]}}}`, candidate))
+			write(t, root, candidate, `{"value":1}`)
+			write(t, root, "fallback.ts", "export default {value: 2};\n")
+			write(t, root, "read.spec.ts", "import {test} from '@playwright/test';\nimport data from '@cfg';\ntest('read', () => { console.log(data); });\n")
+			result, err := New().Units(context.Background(), root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if frontierHas(result, FrontierPathAlias) {
+				t.Fatal("fixture must resolve under the alias gate")
+			}
+			graph, err := affected.Build(context.Background(), root, New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := affected.Select(graph, []string{candidate})
+			if !slices.Contains(plan.SelectedTests(), "read.spec.ts") {
+				t.Fatalf("lost fallback candidate reader: %+v", plan)
+			}
+		})
+	}
+}
+
+// AZU-V1-960: package targets denote URLs. Only understood local paths can
+// prove a bounded read set; unknown target forms must keep uncertainty.
+func TestPackageImportURLReaders_AZU_V1_960(t *testing.T) {
+	for _, tc := range []struct {
+		target, dirty string
+		bounded       bool
+	}{
+		{"./data.json?variant=one", "data.json", false},
+		{"./data.json#fragment", "data.json", false},
+		{"./%64ata.json", "data.json", false},
+		{"./data%20one.json?variant=one", "data one.json", false},
+		{"./dir%2fdata.json", "dir/data.json", true},
+		{"./data%ZZ.json", "data.json", true},
+		{"./data%00.json", "data.json", true},
+		{"./data.json ", "data.json", true},
+		{"./data%3Bfuture.json", "data;future.json", true},
+		{"future:payload", "data.json", true},
+	} {
+		t.Run(tc.target, func(t *testing.T) {
+			body := fmt.Sprintf(`{"imports":{"#cfg":%q},"devDependencies":{"vitest":"1"}}`, tc.target)
+			targets, bounded := packageImportTargets("tests/read.test.ts", "#cfg", map[string]string{"package.json": body})
+			if bounded != tc.bounded || !bounded && !slices.Contains(targets, tc.dirty) {
+				t.Fatalf("targets=%v bounded=%v", targets, bounded)
+			}
+			root := t.TempDir()
+			write(t, root, "package.json", body)
+			write(t, root, tc.dirty, `{"value":1}`)
+			write(t, root, "read.test.ts", "import {test} from 'vitest';\nimport data from '#cfg';\ntest('read', () => data.value);\n")
+			graph, err := affected.Build(context.Background(), root, New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := affected.Select(graph, []string{tc.dirty})
+			if !tc.bounded && !slices.Contains(plan.SelectedTests(), "read.test.ts") {
+				t.Fatalf("URL reader omitted: %+v", plan)
+			}
+			if tc.bounded && len(frontierDetails(plan)) == 0 {
+				t.Fatalf("unknown URL form lost uncertainty: %+v", plan)
+			}
+		})
+	}
+}

@@ -1237,9 +1237,14 @@ func (graph *Graph) bearsOnUnowned(name, entry string, fixtures, unowned []strin
 // entryNamesAny preserves a source-bound site's explicit reads before applying
 // the declaration's negative proof (AZU-V1-960). Alias targets live in the
 // unit's tokens; overflow entries use the complete site record. A located
-// site with no owner, or a bounded token set, cannot prove absence of a read.
+// site with no owner, a missing site record, or a bounded token set cannot
+// prove absence of a read. Only nonempty, owned site lists with complete token sets can.
 func (graph *Graph) entryNamesAny(name, entry string, dirty []string) bool {
-	for _, site := range graph.frontierEntrySites(name, entry) {
+	sites := graph.frontierEntrySites(name, entry)
+	if len(sites) == 0 {
+		return true
+	}
+	for _, site := range sites {
 		file := graph.siteFile(site)
 		id, owned := graph.owner[file]
 		if !owned || graph.units[id].PathTokensBounded {
