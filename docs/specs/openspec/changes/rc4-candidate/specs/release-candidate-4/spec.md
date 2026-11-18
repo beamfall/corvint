@@ -33,8 +33,8 @@ below with `PASS`, `WAIVED` (quoting the owner's words and date) or `NOT_RUN`. T
 pushed while any row is `NOT_RUN` or `FAIL`. Items: M4 merged (H7); removals done; flow links signed
 (H6); held-out pools sealed (PRR-V1-004); release gates passing on the commit (V1-3177, V1-3055,
 V1-4850); tag workflow build job (REL-V1-005); three-target `binaries.json` (REL-V1-008); core-set
-archives installable by `corvint-update` (V1-5473); owner decision RCF-D1 (keep `corvint-mcp`) applied; RCF-V1-006 to
-RCF-V1-011 delivered or explicitly deferred by the owner.
+archives installable by `corvint-update` (V1-5473); owner decision RCF-D1 (keep `corvint-mcp`)
+applied; RCF-V1-006 to RCF-V1-011 delivered or explicitly deferred by the owner.
 
 #### Scenario: Unready item holds the tag
 
@@ -143,8 +143,8 @@ candidate tag.
 
 When RCF-V1-008 and RCF-V1-009 pass, one commit MUST set the promoted scope's delivery status to
 `validated` naming the qualification build-log entry; change the `README.md` row for the promoted
-scope; set PROD-DOCS-009's state; and mark the three tools' input and output schemas and the corpus format `stable` in `tools/compatibility-table/surfaces.json` with
-contract tests (CMP-V1-002). Result order SHALL stay `preview`. Independent external utility MUST
+scope; set PROD-DOCS-009's state; and mark the three tools' input and output schemas and the corpus format
+`stable` in `tools/compatibility-table/surfaces.json` with contract tests (CMP-V1-002). Result order SHALL stay `preview`. Independent external utility MUST
 be reported `EXTERNAL_DEPENDENT` and `NOT_RUN`, never as passed.
 
 #### Scenario: Promotion lands
