@@ -240,6 +240,11 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
   closed record variants. Comparator regressions are `TestRCFV1011SchemaComparatorRejectsRestrictions`,
   `TestRCFV1011SchemaComparatorClosedForms` and `TestRCFV1011OutputComparatorChecksEveryMember`
   in `internal/mcp/corpusbridge/rcf_contract_test.go`.
+  The corpus guard also pins scalar underlying kinds and checks representative JSON encodings.
+  `TestRCFV1011ScalarContractClosedForms` and `TestRCFV1011AttemptStateJSON` in
+  `internal/mcp/corpusbridge/rcf_scalar_test.go` reject named scalar retyping, unknown scalar
+  forms and custom scalar encoders. Dynamic receipt results and raw JSON contents remain
+  outside this static scalar check; the output fixtures above cover their exercised forms.
 - Task 3.2 (RCF-V1-011): NOT_PRODUCED until the qualification and promotion commit.
 - Task 3.3 (RCF-V1-012): NOT_PRODUCED until the revert drill.
 

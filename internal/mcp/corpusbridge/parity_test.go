@@ -105,10 +105,14 @@ func TestRCFV1011CorpusFormat(t *testing.T) {
 		"manifest.schema": doccorpus.ManifestSchemaV2,
 		"receipt.schema":  doccorpus.ReceiptSchema,
 	}
+	seen := map[reflect.Type]bool{}
 	for _, value := range []any{doccorpus.Manifest{}, doccorpus.Artifact{}, doccorpus.Receipt{}, doccorpus.InputFreshness{}, doccorpus.RepositoryListing{}} {
-		rcfTypeFields(reflect.TypeOf(value), fields, map[reflect.Type]bool{})
+		rcfTypeFields(reflect.TypeOf(value), fields, seen)
 	}
 	rcfContract(t, "corpus-format", fields)
+	if err := rcfCorpusScalarContract(seen, rcfCorpusScalarKinds()); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func rcfTypeFields(typ reflect.Type, fields map[string]string, seen map[reflect.Type]bool) {
@@ -117,7 +121,10 @@ func rcfTypeFields(typ reflect.Type, fields map[string]string, seen map[reflect.
 	}
 	seen[typ] = true
 	switch typ.Kind() {
-	case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Map:
+	case reflect.Map:
+		rcfTypeFields(typ.Key(), fields, seen)
+		rcfTypeFields(typ.Elem(), fields, seen)
+	case reflect.Pointer, reflect.Slice, reflect.Array:
 		rcfTypeFields(typ.Elem(), fields, seen)
 	case reflect.Struct:
 		for i := 0; i < typ.NumField(); i++ {
