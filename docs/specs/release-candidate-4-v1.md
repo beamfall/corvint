@@ -216,7 +216,10 @@ the CMP-V1-004 notice rule.
 Each entry names the task in `tasks.md`, then the requirements, implementation and evidence.
 
 - Tasks 4.3 and 4.4 (RCF-V1-001, RCF-V1-002): NOT_PRODUCED until the owner tags rc.4.
-- Tasks 4.1 and 4.2 (RCF-V1-003): NOT_PRODUCED until the readiness record is written.
+- Task 4.1 (RCF-V1-003): done (RCF-D1 applied, V1-5545 COMPLETED).
+- Task 4.2 (RCF-V1-003): first-pass record `docs/build-log/2026-11-18-rc4-readiness.md` is HOLD:
+  rows M4, removals, flow links, held-out pools and V1-0374 are `NOT_RUN`, and release gates are
+  `FAIL`. The task completes only when every row is `PASS` or `WAIVED` on the candidate commit.
 - Task 4.4 (RCF-V1-004, RCF-V1-005): NOT_PRODUCED until the rc.4 release notes.
 - Task 3.2 (RCF-V1-006): delivery `validated` for exactly the promoted scope: the four CLI verbs,
   the three MCP tools and `corvint-evidence-corpus/2`. Every other docs verb, tool and format keeps
