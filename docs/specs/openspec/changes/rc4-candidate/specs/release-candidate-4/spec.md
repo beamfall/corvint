@@ -34,7 +34,9 @@ pushed while any row is `NOT_RUN` or `FAIL`. Items: M4 merged (H7); removals don
 (H6); held-out pools sealed (PRR-V1-004); release gates passing on the commit (V1-3177, V1-3055,
 V1-4850); tag workflow build job (REL-V1-005); three-target `binaries.json` (REL-V1-008); core-set
 archives installable by `corvint-update` (V1-5473); owner decision RCF-D1 (keep `corvint-mcp`)
-applied; RCF-V1-006 to RCF-V1-011 delivered or explicitly deferred by the owner.
+applied, with V1-5545 retired; the candidate-byte linux/amd64 qualification workflow (V1-0374);
+commit authorship on `origin/main` fixed or waived by the owner (V1-5621); RCF-V1-006 to
+RCF-V1-011 delivered or explicitly deferred by the owner.
 
 #### Scenario: Unready item holds the tag
 
