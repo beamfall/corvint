@@ -721,6 +721,8 @@ AFP-V0-9208	docs/specs/affected-reader-precision-v0.md	(accepted under the owner
 AFP-V0-9209	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
 AFP-V0-9510	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5165)	standing	2026-10-11; V1-5165
 AFP-V0-9810	docs/specs/affected-reader-precision-v0.md	(experimental under the owner's standing lane auto-accept; lane affprec2	standing	-
+AZU-V1-960	docs/specs/affected-zero-unknown-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4679)	standing	2026-10-11; V1-4679
+AZU-V1-961	docs/specs/affected-zero-unknown-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4679)	standing	2026-10-11; V1-4679
 AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	**Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
 AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	**Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list	unrecorded	-
 AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	**Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTB	unrecorded	-
