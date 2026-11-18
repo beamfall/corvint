@@ -56,6 +56,11 @@ func TestRCFV1011DocsToolSchemas(t *testing.T) {
 			rcfSchemaFields("input", tool.InputSchema, fields)
 			rcfSchemaFields("output", tool.OutputSchema, fields)
 			rcfContract(t, tool.Name+"-schemas", fields)
+			if err := rcfSchemaContract(tool.Name+"-schemas", map[string]any{
+				"input": tool.InputSchema, "output": tool.OutputSchema,
+			}, rcfReadContract(t, tool.Name+"-schemas")); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 	for _, name := range []string{"corvint.docs_search", "corvint.docs_get", "corvint.docs_info"} {
@@ -132,7 +137,7 @@ func rcfTypeFields(typ reflect.Type, fields map[string]string, seen map[reflect.
 }
 
 // RCF-V1-011: exercise the shared group used by both docs servers. Keep only
-// field types, unioning array members, so no result ID, rank or ordering is pinned.
+// field types plus each member's closed record variant; result order is not pinned.
 // Reuse the /2 corpus fixture and the compact-view fixture's optional branches.
 func TestRCFV1011DocsToolOutputs(t *testing.T) {
 	root := boundFixture(t, 3, true)
@@ -242,21 +247,16 @@ func rcfOutputContract(t *testing.T, name string, value any) {
 	}
 	walk("$", wire)
 	rcfContract(t, name+"-output", fields)
+	if err := rcfOutputShape(name, rcfReadContract(t, name+"-output")).check("$", wire); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // An explicit field list allows additive fields, but every existing field and
 // type must remain. Goldens are reviewed inputs, never rewritten by a test run.
 func rcfContract(t *testing.T, name string, got map[string]string) {
 	t.Helper()
-	path := "testdata/rcf-contract/" + name + ".json"
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var want map[string]string
-	if err := json.Unmarshal(raw, &want); err != nil || len(want) == 0 {
-		t.Fatalf("invalid contract %s: %v", path, err)
-	}
+	want := rcfReadContract(t, name)
 	keys := make([]string, 0, len(want))
 	for key := range want {
 		keys = append(keys, key)
@@ -267,4 +267,18 @@ func rcfContract(t *testing.T, name string, got map[string]string) {
 			t.Errorf("%s: field %s: got %q (present=%t), want %q", name, key, value, ok, want[key])
 		}
 	}
+}
+
+func rcfReadContract(t *testing.T, name string) map[string]string {
+	t.Helper()
+	path := "testdata/rcf-contract/" + name + ".json"
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want map[string]string
+	if err := json.Unmarshal(raw, &want); err != nil || len(want) == 0 {
+		t.Fatalf("invalid contract %s: %v", path, err)
+	}
+	return want
 }

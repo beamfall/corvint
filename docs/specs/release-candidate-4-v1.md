@@ -236,6 +236,10 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
   `internal/mcp/corpusbridge/parity_test.go`, extending the existing typed schema and compact
   receipt fixtures. Field contracts live in `internal/mcp/corpusbridge/testdata/rcf-contract/`;
   they pin input/output fields and nested manifest/artifact types without ranking order.
+  Schema comparison rejects unpinned constraints; runtime checks validate each member against
+  closed record variants. Comparator regressions are `TestRCFV1011SchemaComparatorRejectsRestrictions`,
+  `TestRCFV1011SchemaComparatorClosedForms` and `TestRCFV1011OutputComparatorChecksEveryMember`
+  in `internal/mcp/corpusbridge/rcf_contract_test.go`.
 - Task 3.2 (RCF-V1-011): NOT_PRODUCED until the qualification and promotion commit.
 - Task 3.3 (RCF-V1-012): NOT_PRODUCED until the revert drill.
 
