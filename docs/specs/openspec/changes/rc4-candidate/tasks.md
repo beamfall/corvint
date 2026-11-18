@@ -1,6 +1,6 @@
 # Tasks: `rc4-candidate`
 
-No task starts until the owner accepts this change and answers RCF-D1 to RCF-D3.
+Accepted by the owner on 2026-11-18 with RCF-D1 to RCF-D3 answered (see `design.md`).
 
 ## 1. Spec and ticket
 
@@ -24,7 +24,7 @@ No task starts until the owner accepts this change and answers RCF-D1 to RCF-D3.
 
 ## 3. Promotion
 
-- [ ] 3.1 Contract tests for the three tools' schemas and the corpus format (if RCF-D2 accepted).
+- [ ] 3.1 Contract tests for the three tools' schemas and the corpus format (RCF-D2).
   Requirements: RCF-V1-011. Proof: tests fail on a renamed field.
 - [ ] 3.2 One commit: spec delivery status, `README.md`, PROD-DOCS-009 state, compatibility
   table and generated `docs/COMPATIBILITY.md`.
@@ -34,8 +34,8 @@ No task starts until the owner accepts this change and answers RCF-D1 to RCF-D3.
 
 ## 4. Candidate
 
-- [ ] 4.1 Record RCF-D1 and apply it (MTT-V1-010 or V1-5473 scope).
-  Requirements: RCF-V1-003. Proof: owner note and the changed `binaries.json` or ticket.
+- [ ] 4.1 Apply RCF-D1 (keep `corvint-mcp`): mark MTT-V1-010 superseded and keep V1-5473's
+  three archives. Requirements: RCF-V1-003. Proof: spec edit and V1-5473 archive list.
 - [ ] 4.2 Write the readiness record for the candidate commit.
   Requirements: RCF-V1-003. Proof: every row `PASS` or `WAIVED`.
 - [ ] 4.3 Owner tags `v1.0.0-rc.4` and approves publish; record the draw seed.
