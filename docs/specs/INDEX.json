@@ -4998,5 +4998,18 @@
     "closableToday": false,
     "implementation": [],
     "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/release-candidate-4-v1.md",
+    "title": "Release candidate 4 V1",
+    "reqPrefix": "RCF-V1",
+    "intent": "accepted by the owner on 2026-11-18",
+    "delivery": "partial",
+    "claim": "rc.4 is the M5a candidate; docs corpus search leaves experimental after a frozen run.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
   }
 ]
