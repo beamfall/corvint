@@ -21,6 +21,7 @@ work="$tmp/work"
 q clone "$tmp/origin.git" "$work"
 mkdir -p "$work/script"
 /bin/cp -f "$hook" "$work/script/pre-push-windows-vet.sh"
+/bin/cp -f "$here/check-ai-coauthor-trailers.sh" "$work/script/"
 # The documented install: a wrapper in the hooks directory that runs the checkout's own copy.
 hooks=$(git -C "$work" rev-parse --path-format=absolute --git-path hooks)
 mkdir -p "$hooks"

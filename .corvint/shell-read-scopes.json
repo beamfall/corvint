@@ -8,6 +8,16 @@
       "reason": "Outside script/, it runs make -f Makefile capability-catalog in a scratch directory with a stub generator standing in for go run; the Makefile includes no file (TSP-V0-830).",
       "localReads": []
     },
+    "script/check-ai-coauthor-trailers_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Runs only ai-coauthor-trailers-check from the repository Makefile in a temporary Git fixture; all commits, event payloads and remotes are private to that fixture (V1-5621).",
+      "localReads": [
+        "script/check-ai-coauthor-trailers.sh",
+        "script/pre-push-windows-vet.sh"
+      ]
+    },
     "script/check-install-lifecycle_test.sh": {
       "reads": [
         ".github/cishards/",

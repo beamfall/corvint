@@ -138,6 +138,14 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   "$BASE_SHA" HEAD` and fails with it; a make target keeps the step mirrorable by batch-precheck.
   A pull request run without `BASE_SHA` SHALL fail. A tree without the script, a merge-queue run
   and a push say so and pass; the step carries the AFP-V0-670 REUSE condition.
+  V1-5621 AC2 amendment (standing approval, 2026-11-18): the shared checker also enforces
+  ASD-V0-560 author and committer identity rules. When `GITHUB_EVENT_PATH` is supplied on a PR,
+  the make target MUST read and validate its exact `pull_request.head.sha` and use
+  `BASE_SHA..head.sha`, excluding the synthetic checkout merge. An unreadable or invalid event
+  MUST refuse; an explicit local range retains its existing behavior. Acceptance: the shell
+  guard suite exercises the actual make target with a clean PR head and an offending synthetic
+  merge, plus author and committer violations in PR commits. Rollback: restore the target
+  and range checker from the lane base; existing trailer checks remain.
 - **CIN-V0-007:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2902)
   A `go-product-shard` job SHALL NOT start when `docs-plan` succeeded with mode `DOCS` or `REUSE`,
   and `go-product` SHALL accept a skipped shard result only for that decision. A skip under any

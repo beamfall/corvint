@@ -164,4 +164,141 @@ printf '#!/bin/sh\n# corvint ai-trailer guard (ASD-V0-071)\nexit 0\n' > "$hookf"
 "$check" --install-hook > "$tmp/out" 2>&1 && fail "a marked hook with other logic was replaced"
 grep -q 'already exists and is not this hook' "$tmp/out" || fail "marked foreign hook: $(cat "$tmp/out")"
 
+# 9. ASD-V0-560 / CIN-V0-006 (V1-5621 AC2): actual identities, CI entry point and pre-push.
+# This separate fixture has historical prohibited identities, just as origin/main does.
+git init -q "$tmp/identities" || fail "identity repo"
+cd "$tmp/identities" || fail "identity cd"
+git -c commit.gpgsign=false commit -q --allow-empty -m root || fail "identity root"
+iroot=$(git rev-parse HEAD)
+GIT_AUTHOR_NAME=Claude GIT_COMMITTER_EMAIL=person@anthropic.com \
+  git -c commit.gpgsign=false commit -q --allow-empty -m historical || fail "historical identity"
+historical=$(git rev-parse HEAD)
+git -c commit.gpgsign=false commit -q --allow-empty -m clean-base || fail "clean base"
+ibase=$(git rev-parse HEAD)
+git clone -q --bare . "$tmp/identity-remote.git" || fail "seed historical remote"
+git remote add origin "$tmp/identity-remote.git" || fail "identity remote"
+git update-ref refs/remotes/origin/main "$ibase" || fail "vet comparison base"
+mkdir -p script "$tmp/push-hooks"
+/bin/cp -f "$check" "$script/pre-push-windows-vet.sh" script/ || fail "copy push scripts"
+printf '#!/bin/sh\nexec script/pre-push-windows-vet.sh "$@"\n' > "$tmp/push-hooks/pre-push"
+chmod +x "$tmp/push-hooks/pre-push"
+git config core.hooksPath "$tmp/push-hooks"
+# Run the actual Makefile target; no build or unrelated target runs in this fixture.
+ci_check() {
+  MAKEFLAGS= MFLAGS= MAKELEVEL=0 DOGFOOD_BASE= BASE= \
+    GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$tmp/event.json" BASE_SHA="$ibase" \
+    make -s -f "$script/../Makefile" ai-coauthor-trailers-check
+}
+pr_event() { printf '{"pull_request":{"head":{"sha":"%s"}}}\n' "$1" > "$tmp/event.json"; }
+for role in AUTHOR COMMITTER; do
+  for field in NAME EMAIL; do
+    for value in cLaUdE person@AnThRoPiC.CoM person@mail.anthropic.com; do
+      git reset -q --hard "$ibase" || fail "reset identity fixture"
+      env "GIT_${role}_${field}=$value" git -c commit.gpgsign=false commit -q --allow-empty -m identity ||
+        fail "plant $role $field"
+      bad_sha=$(git rev-parse HEAD)
+      "$check" "$ibase" "$bad_sha" > "$tmp/out" 2>&1
+      [[ $? == 1 ]] && grep -q "$bad_sha has a prohibited identity" "$tmp/out" ||
+        fail "$role $field $value range accepted: $(cat "$tmp/out")"
+      pr_event "$bad_sha"
+      ci_check > "$tmp/out" 2>&1 && fail "CI accepted $role $field $value"
+      grep -q "$bad_sha has a prohibited identity" "$tmp/out" || fail "CI did not check identity"
+      git push origin HEAD:refs/heads/proposed > "$tmp/out" 2>&1 &&
+        fail "pre-push accepted $role $field $value"
+      grep -q "$bad_sha has a prohibited identity" "$tmp/out" || fail "push did not check identity"
+    done
+  done
+done
+
+# A clean commit passes on top of historical violations, including lookalike domains/names.
+git reset -q --hard "$ibase" || fail "reset clean"
+GIT_AUTHOR_NAME='Claude Monet' GIT_AUTHOR_EMAIL=claude@example.org \
+  GIT_COMMITTER_NAME=claude-smith GIT_COMMITTER_EMAIL=person@notanthropic.com \
+  git -c commit.gpgsign=false commit -q --allow-empty -m clean || fail "plant clean"
+clean_sha=$(git rev-parse HEAD)
+"$check" "$ibase" HEAD > "$tmp/out" 2>&1 || fail "clean range: $(cat "$tmp/out")"
+pr_event "$clean_sha"
+ci_check > "$tmp/out" 2>&1 || fail "clean CI: $(cat "$tmp/out")"
+git push origin HEAD:refs/heads/proposed > "$tmp/out" 2>&1 || fail "clean new ref: $(cat "$tmp/out")"
+git -c commit.gpgsign=false commit -q --allow-empty -m next-clean || fail "next clean"
+git push origin HEAD:refs/heads/proposed > "$tmp/out" 2>&1 || fail "clean update: $(cat "$tmp/out")"
+git tag -a -m tagged clean-tag || fail "tag clean"
+git push origin clean-tag > "$tmp/out" 2>&1 || fail "clean tag: $(cat "$tmp/out")"
+git push origin :refs/heads/proposed > "$tmp/out" 2>&1 || fail "delete ref: $(cat "$tmp/out")"
+# Neither the destination's name nor stale local tracking refs can exempt unpublished commits.
+git update-ref refs/remotes/origin/stale "$bad_sha" || fail "stale ref"
+git push origin "$bad_sha:refs/heads/proposed" > "$tmp/out" 2>&1 && fail "stale ref bypass"
+grep -q "$bad_sha has a prohibited identity" "$tmp/out" || fail "stale ref refusal missing"
+# Another empty destination must check all ancestry, including the historical identity.
+git init -q --bare "$tmp/empty.git" || fail "empty destination"
+git push "$tmp/empty.git" HEAD:refs/heads/proposed > "$tmp/out" 2>&1 && fail "empty remote bypass"
+grep -q "$historical has a prohibited identity" "$tmp/out" || fail "wrong remote excluded history"
+
+# Both ref updates must be examined; a clean first ref cannot hide a bad second ref.
+zero=0000000000000000000000000000000000000000
+printf 'refs/heads/a %s refs/heads/a %s\nrefs/heads/b %s refs/heads/b %s\n' \
+  "$clean_sha" "$zero" "$bad_sha" "$zero" |
+  "$check" --pre-push origin "$tmp/identity-remote.git" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q "$bad_sha has a prohibited identity" "$tmp/out" || fail "second ref bypass"
+# Mailmap presentation never changes the raw identities being checked.
+printf 'Human <human@example.org> <person@mail.anthropic.com>\n' > .mailmap
+"$check" "$ibase" "$bad_sha" > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "mailmap masked identity"
+rm .mailmap
+
+# A synthetic merge with an offending committer is outside the PR's exact base..head range.
+git checkout -q -b synthetic "$ibase" || fail "synthetic checkout"
+git -c commit.gpgsign=false commit -q --allow-empty -m base-advance || fail "advance base"
+GIT_COMMITTER_NAME=Claude git -c commit.gpgsign=false merge -q --no-ff -m synthetic "$clean_sha" ||
+  fail "synthetic merge"
+pr_event "$clean_sha"
+ci_check > "$tmp/out" 2>&1 || fail "CI scanned synthetic merge: $(cat "$tmp/out")"
+printf '{"pull_request":{"head":{"sha":"invalid"}}}\n' > "$tmp/event.json"
+ci_check > "$tmp/out" 2>&1 && fail "invalid event passed"
+grep -q 'cannot read the pull request head SHA' "$tmp/out" || fail "invalid event not named"
+rm "$tmp/event.json"
+ci_check > "$tmp/out" 2>&1 && fail "missing event passed"
+
+# Guard failures are fail closed before vet. Direct stdin exercises deletion-only and failures.
+zero=0000000000000000000000000000000000000000
+printf 'refs/heads/x %s refs/heads/x %s\n' "$zero" "$ibase" |
+  "$check" --pre-push origin "$tmp/absent.git" > "$tmp/out" 2>&1 || fail "deletion read remote"
+printf 'refs/heads/x %s refs/heads/x %s\n' "$clean_sha" "$zero" |
+  "$check" --pre-push origin "$tmp/absent.git" > "$tmp/out" 2>&1
+[[ $? == 2 ]] || fail "remote enumeration failed open"
+# A remote commit not present locally requires a fetch, not a guessed comparison base.
+remote_new=$(printf 'remote-only\n' | git -C "$tmp/identity-remote.git" commit-tree "$ibase^{tree}" -p "$ibase")
+git -C "$tmp/identity-remote.git" update-ref refs/heads/unfetched "$remote_new"
+printf 'refs/heads/x %s refs/heads/x %s\n' "$clean_sha" "$zero" |
+  "$check" --pre-push origin "$tmp/identity-remote.git" > "$tmp/out" 2>&1
+[[ $? == 2 ]] && grep -q 'fetch the destination history' "$tmp/out" || fail "missing remote object accepted"
+# Internal PR refs are not published branch/tag history and a normal fetch need not have them.
+git -C "$tmp/identity-remote.git" update-ref -d refs/heads/unfetched
+git -C "$tmp/identity-remote.git" update-ref refs/pull/1/head "$remote_new"
+printf 'refs/heads/x %s refs/heads/x %s\n' "$clean_sha" "$zero" |
+  "$check" --pre-push origin "$tmp/identity-remote.git" > "$tmp/out" 2>&1 || fail "internal PR ref blocked push"
+# A replaced ref outside heads/tags still supplies an exclusion (other destination has none).
+git init -q --bare "$tmp/custom.git" || fail "custom remote"
+git -C "$tmp/custom.git" fetch -q "$tmp/identities" "$ibase" || fail "seed custom object"
+git -C "$tmp/custom.git" update-ref refs/custom/x "$ibase" || fail "seed custom ref"
+printf 'refs/heads/x %s refs/custom/x %s\n' "$clean_sha" "$ibase" |
+  "$check" --pre-push custom "$tmp/custom.git" > "$tmp/out" 2>&1 || fail "custom old ref ignored"
+# Trailer behavior is shared by the push path too; the original trailer tests above stay intact.
+printf 'trailer\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n' |
+  git -c commit.gpgsign=false commit -q --allow-empty -F - || fail "plant trailer"
+trailer_sha=$(git rev-parse HEAD)
+printf 'refs/heads/x %s refs/heads/x %s\n' "$trailer_sha" "$zero" |
+  "$check" --pre-push origin "$tmp/identity-remote.git" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q 'credits\|crediting' "$tmp/out" || fail "push trailer accepted"
+
+# A shallow clone cannot establish which ancestral commits a range introduces.
+git clone -q --depth 1 "file://$tmp/identity-remote.git" "$tmp/shallow" || fail "shallow clone"
+(cd "$tmp/shallow" && "$check" HEAD HEAD) > "$tmp/out" 2>&1
+[[ $? == 2 ]] && grep -q 'shallow or unreadable history' "$tmp/out" || fail "shallow range accepted"
+(cd "$tmp/shallow" && printf 'refs/heads/x %s refs/heads/x %s\n' "$ibase" "$zero" |
+  "$check" --pre-push origin "$tmp/identity-remote.git") > "$tmp/out" 2>&1
+[[ $? == 2 ]] || fail "shallow push accepted"
+(cd "$tmp/shallow" && printf 'refs/heads/x %s refs/heads/x %s\n' "$zero" "$ibase" |
+  "$check" --pre-push origin "$tmp/absent.git") > "$tmp/out" 2>&1 || fail "shallow deletion refused"
+
 printf 'check-ai-coauthor-trailers_test: ok\n'

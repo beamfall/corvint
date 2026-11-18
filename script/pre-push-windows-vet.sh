@@ -13,8 +13,13 @@
 # changes, or when untracked (including ignored) Go files exist, which the vet would read but the
 # push does not carry: check out the commit you push, or run the vet on it and push with
 # --no-verify. A pushed annotated tag is peeled to its commit before the HEAD comparison.
+# Before vet, the shared identity/trailer guard checks only commits absent from this destination.
 # CORVINT_PRE_PUSH_VET overrides the vet command (default `make windows-vet`).
 set -uo pipefail
+
+# ASD-V0-560 (V1-5621): share the range/CI identity and trailer guard for every pushed commit.
+refs=$(cat) || exit 2
+"$(dirname "$0")/check-ai-coauthor-trailers.sh" --pre-push "$@" <<< "$refs" || exit $?
 
 zero=0000000000000000000000000000000000000000
 base_ref=${CORVINT_PRE_PUSH_BASE:-origin/main}
@@ -36,7 +41,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   elif [[ -n $changed ]]; then
     needs_vet+=("$local_sha $local_ref")
   fi
-done
+done <<< "$refs"
 ((${#needs_vet[@]} > 0)) || exit 0
 
 head=$(git rev-parse HEAD 2> /dev/null) || head=
