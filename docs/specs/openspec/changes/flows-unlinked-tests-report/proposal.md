@@ -14,7 +14,7 @@ existing ID in `docs/specs/REQUIREMENTS.tsv` at integ 9ec3a29d0 or in the other 
 Owner answers and decisions this change implements: G5, G11, owner answers 4, 9 and 15, owner
 decision R11
 (2026-11-09), owner decision R12 (2026-11-09) and owner decision R30 (2026-11-09)
-Intent status: proposed (rewritten 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: experimental code exists on `claude/layers-integ` (lane `flowrep`, head
 `a28017c29`, merged compile-only, tests and review not run). It predates G5 and G11.
 Written before dispatch: the first version was; this rewrite precedes the rework lane.
