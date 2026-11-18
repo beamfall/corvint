@@ -19,6 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/lineanchor"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
+	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
 // The RCF-V1-007 frozen query set and its committed digest.
@@ -297,8 +298,8 @@ func (v *rcfVerifier) verify(a lineanchor.Anchor) string {
 	if doccorpus.Digest(data) != a.SHA256 {
 		return "blob digest does not match"
 	}
-	if a.Start == 0 && a.End == 0 && a.SpanSHA256 == "" {
-		return ""
+	if a.SpanSHA256 == "" {
+		return "line span digest is missing"
 	}
 	lines := bytes.SplitAfter(data, []byte("\n"))
 	if len(lines) > 0 && len(lines[len(lines)-1]) == 0 {
@@ -307,34 +308,43 @@ func (v *rcfVerifier) verify(a lineanchor.Anchor) string {
 	if a.Start < 1 || a.End < a.Start || a.End > len(lines) {
 		return "line span is outside the pinned blob"
 	}
-	if doccorpus.Digest(bytes.Join(lines[a.Start-1:a.End], nil)) != a.SpanSHA256 {
+	span := bytes.Join(lines[a.Start-1:a.End], nil)
+	if len(bytes.TrimSpace(span)) == 0 || len(span) > lineanchor.MaxSpanBytes {
+		return "line span is empty or exceeds the excerpt bound"
+	}
+	if doccorpus.Digest(span) != a.SpanSHA256 {
 		return "line span digest does not match the pinned blob"
 	}
 	return ""
 }
 
-// rcfAnchors collects every anchor-shaped object in a receipt: citations,
-// result evidence, rank match anchors and envelope citations.
+// rcfAnchors collects anchors from the receipt's defined locations, even
+// when required fields are missing: citations, result evidence, rank match
+// anchors and envelope citations. verify rejects incomplete anchors.
 func rcfAnchors(value any, out *[]lineanchor.Anchor) error {
 	switch v := value.(type) {
 	case map[string]any:
-		_, blob := v["blob"]
-		_, path := v["path"]
-		_, revision := v["revision"]
-		_, digest := v["sha256"]
-		if blob && path && revision && digest {
-			raw, err := json.Marshal(v)
-			if err != nil {
-				return err
+		for key, child := range v {
+			if key == "citations" || key == "anchors" || key == "match_anchor" {
+				raw, err := json.Marshal(child)
+				if err != nil {
+					return err
+				}
+				if key == "match_anchor" {
+					var a lineanchor.Anchor
+					if err := json.Unmarshal(raw, &a); err != nil {
+						return err
+					}
+					*out = append(*out, a)
+				} else {
+					var anchors []lineanchor.Anchor
+					if err := json.Unmarshal(raw, &anchors); err != nil {
+						return err
+					}
+					*out = append(*out, anchors...)
+				}
+				continue
 			}
-			var a lineanchor.Anchor
-			if err := json.Unmarshal(raw, &a); err != nil {
-				return err
-			}
-			*out = append(*out, a)
-			return nil
-		}
-		for _, child := range v {
 			if err := rcfAnchors(child, out); err != nil {
 				return err
 			}
@@ -394,6 +404,10 @@ func rcfCheck(root, commit string, limit int, digestOnly bool, queries []rcfQuer
 			Result *struct {
 				IsError           bool           `json:"isError"`
 				StructuredContent jsontext.Value `json:"structuredContent"`
+				Content           []struct {
+					Type string `json:"type"`
+					Text string `json:"text"`
+				} `json:"content"`
 			} `json:"result"`
 		}
 		if err := json.Unmarshal(a.MCPFrame, &frame); err != nil || frame.Result == nil || frame.Result.IsError || len(frame.Result.StructuredContent) == 0 {
@@ -408,6 +422,18 @@ func rcfCheck(root, commit string, limit int, digestOnly bool, queries []rcfQuer
 		}
 		if !bytes.Equal(cli, mcp) {
 			fail(q.ID, "", "CLI and MCP records differ after canonical JSON encoding")
+		}
+		if len(frame.Result.Content) != 1 || frame.Result.Content[0].Type != "text" {
+			fail(q.ID, "", "MCP text receipt is missing or has unexpected content blocks")
+		} else {
+			text := frame.Result.Content[0].Text
+			payload := strings.TrimSuffix(strings.TrimPrefix(text, repoenvelope.Prefix), repoenvelope.Suffix)
+			framed, err := repoenvelope.Frame(payload)
+			if err != nil || framed != text {
+				fail(q.ID, "", "MCP text receipt has an invalid repository envelope")
+			} else if record, err := rcfCanonical([]byte(payload)); err != nil || !bytes.Equal(record, mcp) || !bytes.Equal(record, cli) {
+				fail(q.ID, "", "MCP text and structured records differ after canonical JSON encoding")
+			}
 		}
 		var receipt doccorpus.Receipt
 		var tree any
@@ -539,6 +565,23 @@ func rcfRewrite(t *testing.T, raw []byte, edit func(map[string]any)) []byte {
 	return out
 }
 
+// rcfRewriteAnswer keeps all three receipt copies equal while injecting a
+// passage defect, so transport parity cannot mask the verifier regression.
+func rcfRewriteAnswer(t *testing.T, a rcfAnswer, edit func(map[string]any)) rcfAnswer {
+	t.Helper()
+	a.CLI = rcfRewrite(t, a.CLI, edit)
+	a.MCPFrame = rcfRewrite(t, a.MCPFrame, func(frame map[string]any) {
+		result := frame["result"].(map[string]any)
+		edit(result["structuredContent"].(map[string]any))
+		framed, err := repoenvelope.Frame(string(a.CLI))
+		if err != nil {
+			t.Fatal(err)
+		}
+		result["content"] = []any{map[string]any{"type": "text", "text": framed}}
+	})
+	return a
+}
+
 // RCF-V1-008: on the typed fixture every query answers on both surfaces with
 // byte-equal canonical records, every passage verifies against its pinned
 // blob, the bounds hold and the repository's status is unchanged.
@@ -570,11 +613,7 @@ func TestRCFV1008UnverifiedPassageFailsTheRun(t *testing.T) {
 			}
 			citations[0].(map[string]any)["span_sha256"] = doccorpus.Digest([]byte("tampered\n"))
 		}
-		a.CLI = rcfRewrite(t, a.CLI, edit)
-		a.MCPFrame = rcfRewrite(t, a.MCPFrame, func(frame map[string]any) {
-			edit(frame["result"].(map[string]any)["structuredContent"].(map[string]any))
-		})
-		answers["fixture-01"] = a
+		answers["fixture-01"] = rcfRewriteAnswer(t, a, edit)
 	})
 	if report.Verdict != "FAIL" || report.Unverified != 1 || len(report.Failures) != 1 {
 		t.Fatalf("RCF-V1-008: an unverified passage passed: %+v", report)
@@ -585,6 +624,165 @@ func TestRCFV1008UnverifiedPassageFailsTheRun(t *testing.T) {
 	}
 	if got := rcfVerdict([]rcfRepositoryReport{report}); got != "FAIL" {
 		t.Fatal(got)
+	}
+}
+
+// RCF-V1-008: incomplete anchors at each defined location fail even when
+// the CLI and both MCP receipt copies agree on the malformed object.
+func TestRCFV1008IncompleteAnchorFailsTheRun(t *testing.T) {
+	root, repo := rcfFixtureRepository(t, "full")
+	locations := []struct {
+		name string
+		put  func(map[string]any, any)
+	}{
+		{"citations", func(doc map[string]any, a any) { doc["citations"] = []any{a} }},
+		{"result evidence", func(doc map[string]any, a any) {
+			doc["results"].([]any)[0].(map[string]any)["evidence"].(map[string]any)["anchors"] = []any{a}
+		}},
+		{"rank match", func(doc map[string]any, a any) {
+			doc["result_ranks"] = map[string]any{"proof:flow": map[string]any{"match_anchor": a}}
+		}},
+		{"envelope citations", func(doc map[string]any, a any) {
+			doc["trust_envelope"].(map[string]any)["citations"] = []any{a}
+		}},
+	}
+	for _, location := range locations {
+		for _, field := range []string{"blob", "path", "revision", "sha256"} {
+			t.Run(location.name+"/"+field, func(t *testing.T) {
+				report := rcfQualify(t, repo, 20, root, "corpus.json", func(answers map[string]rcfAnswer) {
+					// First prove the same location with an intact anchor passes.
+					answers["fixture-01"] = rcfRewriteAnswer(t, answers["fixture-01"], func(doc map[string]any) {
+						location.put(doc, doc["citations"].([]any)[0])
+					})
+					var baseline rcfRepositoryReport
+					rcfCheck(root, repo.Commit, 20, false, repo.Queries, answers, &baseline)
+					if len(baseline.Failures) != 0 || baseline.PassagesVerified == 0 {
+						t.Fatalf("RCF-V1-008: invalid baseline: %+v", baseline)
+					}
+					answers["fixture-01"] = rcfRewriteAnswer(t, answers["fixture-01"], func(doc map[string]any) {
+						original := doc["citations"].([]any)[0].(map[string]any)
+						anchor := map[string]any{}
+						for key, value := range original {
+							anchor[key] = value
+						}
+						delete(anchor, field)
+						location.put(doc, anchor)
+					})
+				})
+				if report.Verdict != "FAIL" || report.Unverified != 1 || len(report.Failures) != 1 {
+					t.Fatalf("RCF-V1-008: incomplete anchor passed: %+v", report)
+				}
+				if f := report.Failures[0]; f.Query != "fixture-01" || !strings.Contains(f.Reason, "not pinned") {
+					t.Fatalf("RCF-V1-008: failure does not name the query: %+v", f)
+				}
+			})
+		}
+	}
+}
+
+// RCF-V1-008 / DCP-V1-004: a matching whole-blob hash cannot excuse a
+// missing, invalid, vacuous or oversized passage, even with a matching span hash.
+func TestRCFV1008InvalidSpanFailsTheRun(t *testing.T) {
+	root, repo := rcfFixtureRepository(t, "full")
+	blank := " \t\r\n"
+	oversized := strings.Repeat("x", lineanchor.MaxSpanBytes) + "\n"
+	data := "valid\n" + blank + oversized
+	// This commit is confined to the disposable fixture repository.
+	cemWrite(t, root, "spans.txt", data)
+	cemGit(t, root, "add", "spans.txt")
+	cemGit(t, root, "commit", "-qm", "span verification fixture")
+	revision := cemGit(t, root, "rev-parse", "HEAD")
+	blob := cemGit(t, root, "rev-parse", revision+":spans.txt")
+	for _, tc := range []struct {
+		name   string
+		start  int
+		end    int
+		digest string
+		reason string
+	}{
+		{"missing span", 0, 0, "", "span digest is missing"},
+		{"missing digest", 1, 1, "", "span digest is missing"},
+		{"zero coordinates", 0, 0, doccorpus.Digest(nil), "outside the pinned blob"},
+		{"negative start", -1, 1, doccorpus.Digest([]byte("valid\n")), "outside the pinned blob"},
+		{"reversed coordinates", 2, 1, doccorpus.Digest(nil), "outside the pinned blob"},
+		{"past last line", 1, 4, doccorpus.Digest([]byte(data)), "outside the pinned blob"},
+		{"whitespace only", 2, 2, doccorpus.Digest([]byte(blank)), "empty or exceeds"},
+		{"oversized", 3, 3, doccorpus.Digest([]byte(oversized)), "empty or exceeds"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			report := rcfQualify(t, repo, 20, root, "corpus.json", func(answers map[string]rcfAnswer) {
+				answers["fixture-01"] = rcfRewriteAnswer(t, answers["fixture-01"], func(doc map[string]any) {
+					a := doc["citations"].([]any)[0].(map[string]any)
+					a["revision"], a["path"], a["blob"], a["sha256"] = revision, "spans.txt", blob, doccorpus.Digest([]byte(data))
+					a["start_line"], a["end_line"], a["span_sha256"] = 1, 1, doccorpus.Digest([]byte("valid\n"))
+				})
+				var baseline rcfRepositoryReport
+				rcfCheck(root, repo.Commit, 20, false, repo.Queries, answers, &baseline)
+				if len(baseline.Failures) != 0 || baseline.PassagesVerified == 0 {
+					t.Fatalf("RCF-V1-008: invalid baseline: %+v", baseline)
+				}
+				answers["fixture-01"] = rcfRewriteAnswer(t, answers["fixture-01"], func(doc map[string]any) {
+					a := doc["citations"].([]any)[0].(map[string]any)
+					a["start_line"], a["end_line"], a["span_sha256"] = tc.start, tc.end, tc.digest
+				})
+			})
+			if report.Verdict != "FAIL" || report.Unverified != 1 || len(report.Failures) != 1 {
+				t.Fatalf("RCF-V1-008: invalid span passed: %+v", report)
+			}
+			if f := report.Failures[0]; f.Query != "fixture-01" || !strings.Contains(f.Reason, tc.reason) {
+				t.Fatalf("RCF-V1-008: failure does not name the query: %+v", f)
+			}
+		})
+	}
+}
+
+// RCF-V1-008 / DCP-V1-016: corrupting only the model-facing text fails the
+// run while the CLI and MCP structured receipts still agree.
+func TestRCFV1008MCPTextMismatchFailsTheRun(t *testing.T) {
+	root, repo := rcfFixtureRepository(t, "full")
+	for _, mode := range []string{"missing", "different", "unframed", "invalid JSON", "terminator collision", "hidden character"} {
+		t.Run(mode, func(t *testing.T) {
+			reason := "invalid repository envelope"
+			switch mode {
+			case "missing":
+				reason = "missing or has unexpected content blocks"
+			case "different", "invalid JSON":
+				reason = "records differ"
+			}
+			report := rcfQualify(t, repo, 20, root, "corpus.json", func(answers map[string]rcfAnswer) {
+				a := answers["fixture-02"]
+				a.MCPFrame = rcfRewrite(t, a.MCPFrame, func(frame map[string]any) {
+					result := frame["result"].(map[string]any)
+					text := result["content"].([]any)[0].(map[string]any)
+					switch mode {
+					case "missing":
+						delete(result, "content")
+					case "different":
+						raw := rcfRewrite(t, a.CLI, func(doc map[string]any) { doc["freshness"] = "stale" })
+						framed, err := repoenvelope.Frame(string(raw))
+						if err != nil {
+							t.Fatal(err)
+						}
+						text["text"] = framed
+					case "unframed":
+						text["text"] = string(a.CLI)
+					case "invalid JSON":
+						text["text"] = repoenvelope.Prefix + "{" + repoenvelope.Suffix
+					case "terminator collision":
+						text["text"] = repoenvelope.Prefix + `{"text":"` + repoenvelope.Terminator + `"}` + repoenvelope.Suffix
+					case "hidden character":
+						text["text"] = repoenvelope.Prefix + "{\"text\":\"\u2028\"}" + repoenvelope.Suffix
+					}
+				})
+				answers["fixture-02"] = a
+			})
+			if report.Verdict != "FAIL" || len(report.Failures) != 1 || report.Unverified != 0 {
+				t.Fatalf("RCF-V1-008: MCP text mismatch passed: %+v", report)
+			}
+			if f := report.Failures[0]; f.Query != "fixture-02" || !strings.Contains(f.Reason, reason) {
+				t.Fatalf("RCF-V1-008: failure does not name the query: %+v", f)
+			}
+		})
 	}
 }
 
@@ -600,11 +798,13 @@ func TestRCFV1008SurfaceMismatchFailsTheRun(t *testing.T) {
 		})
 		answers["fixture-02"] = a
 	})
-	if report.Verdict != "FAIL" || len(report.Failures) != 1 {
+	if report.Verdict != "FAIL" || len(report.Failures) != 2 {
 		t.Fatalf("RCF-V1-008: a surface mismatch passed: %+v", report)
 	}
-	if f := report.Failures[0]; f.Query != "fixture-02" || f.Passage != "" || !strings.Contains(f.Reason, "records differ") {
-		t.Fatalf("RCF-V1-008: failure does not name the query: %+v", f)
+	for _, f := range report.Failures {
+		if f.Query != "fixture-02" || f.Passage != "" || !strings.Contains(f.Reason, "records differ") {
+			t.Fatalf("RCF-V1-008: failure does not name the query: %+v", f)
+		}
 	}
 }
 
@@ -618,11 +818,7 @@ func TestRCFV1008DigestOnlyReport(t *testing.T) {
 			citations, _ := doc["citations"].([]any)
 			citations[0].(map[string]any)["sha256"] = doccorpus.Digest([]byte("tampered"))
 		}
-		a.CLI = rcfRewrite(t, a.CLI, edit)
-		a.MCPFrame = rcfRewrite(t, a.MCPFrame, func(frame map[string]any) {
-			edit(frame["result"].(map[string]any)["structuredContent"].(map[string]any))
-		})
-		answers["fixture-01"] = a
+		answers["fixture-01"] = rcfRewriteAnswer(t, a, edit)
 	})
 	if report.Verdict != "FAIL" || len(report.Failures) == 0 || !strings.HasPrefix(report.Failures[0].Passage, "sha256:") {
 		t.Fatalf("RCF-V1-008: %+v", report)
