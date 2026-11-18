@@ -23,10 +23,15 @@ func TestCancellationKillsAndReapsGitDescendants(t *testing.T) {
 	started := filepath.Join(bin, "started")
 	descendantFile := filepath.Join(bin, "descendant")
 	fakeGit := filepath.Join(bin, "git")
+	// The probe runs its identity and status reads concurrently, so two fake Gits write the
+	// descendant file. Each writes its own temporary file and renames it into place: a `>`
+	// redirect truncates first, and a cancellation that kills the second writer between the
+	// truncation and the write left the file empty for good (2026-11-17 nightly, macos-15).
 	script := "#!/bin/sh\n" +
 		"sleep 30 &\n" +
 		"child=$!\n" +
-		"printf '%s' \"$child\" > '" + descendantFile + "'\n" +
+		"printf '%s' \"$child\" > '" + descendantFile + "'.$$\n" +
+		"mv -f '" + descendantFile + "'.$$ '" + descendantFile + "'\n" +
 		"printf started > '" + started + "'\n" +
 		"wait \"$child\"\n"
 	if err := execfile.WriteFile(fakeGit, []byte(script), 0o755); err != nil {
@@ -59,10 +64,8 @@ func TestCancellationKillsAndReapsGitDescendants(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatalf("cancelled probe did not terminate within %s", 30*time.Second)
 	}
-	// descendantFile is written by fakeGit strictly before the started marker,
-	// so its content should already be visible; under heavy host load reading
-	// it here has occasionally raced a not-yet-durable write, so poll instead
-	// of reading once.
+	// descendantFile is renamed into place by fakeGit strictly before the started
+	// marker, so it already holds a whole pid; poll anyway rather than read once.
 	readDeadline := time.Now().Add(30 * time.Second)
 	var pid int
 	for {

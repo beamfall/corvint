@@ -315,7 +315,9 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. (proposed;
   V1-0943) The `affected worktree` and `affected committed range` defaults are skipped because 0.8.1
   predates `affected-plan/1`; their `affected full` counterparts replay without `--full`, which is the
-  N-1 default and the same `affected-plan/0` document. (accepted under the owner's standing
+  N-1 default and the same `affected-plan/0` document. (V1-3177, 2026-11-18) Both exceptions apply
+  only to an N-1 whose `affected` usage offers no `--full`; against `v1.0.0-rc.3` and later, whose
+  default is already `affected-plan/1`, all four affected modes replay unchanged. (accepted under the owner's standing
   auto-accept (2026-10-11); V1-0285) The `cem status`, `cem verify`, `ocm status` and `ocm verify`
   modes are skipped because decision 0525 §6 superseded the `cem/0.2` freeze and its N-1 reader:
   their fixture is a `cem/1.0` map, which 0.8.1 cannot read (`cem` refuses `--artifacts`, `ocm`
