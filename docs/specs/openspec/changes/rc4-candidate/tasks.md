@@ -34,7 +34,7 @@ Accepted by the owner on 2026-11-18 with RCF-D1 to RCF-D3 answered (see `design.
 
 ## 4. Candidate
 
-- [ ] 4.1 Apply RCF-D1 (keep `corvint-mcp`): mark MTT-V1-010 superseded and keep V1-5473's
+- [x] 4.1 Apply RCF-D1 (keep `corvint-mcp`): mark MTT-V1-010 superseded and keep V1-5473's
   three archives. Requirements: RCF-V1-003. Proof: spec edit and V1-5473 archive list.
 - [ ] 4.2 Write the readiness record for the candidate commit.
   Requirements: RCF-V1-003. Proof: every row `PASS` or `WAIVED`.
