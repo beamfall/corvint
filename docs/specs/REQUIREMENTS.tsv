@@ -7675,6 +7675,18 @@ ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	the receipt is t
 ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	the release revision is the receipt's `revision`, not `HEAD`. `PASS`	unrecorded	-
 ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	every attached digest MUST be witnessed locally by the private archive	unrecorded	-
 ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	the reader is read-only and offline. It invokes only local `git`, with the	unrecorded	-
+RCF-V1-001	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) rc.4 is the M5a qualification candidate	owner	2026-11-18
+RCF-V1-002	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Candidate numbering after rc.4	owner	2026-11-18
+RCF-V1-003	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Readiness record before the tag	owner	2026-11-18
+RCF-V1-004	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Untouched-repository validation on published	owner	2026-11-18
+RCF-V1-005	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Release notes name promotions and previews	owner	2026-11-18
+RCF-V1-006	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Docs search promotion scope	owner	2026-11-18
+RCF-V1-007	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Frozen qualification query set	owner	2026-11-18
+RCF-V1-008	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Verified, consistent and read-only	owner	2026-11-18
+RCF-V1-009	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Ranking evaluation floor	owner	2026-11-18
+RCF-V1-010	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Rerun on change	owner	2026-11-18
+RCF-V1-011	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Status and stability updates in one commit	owner	2026-11-18
+RCF-V1-012	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Rollback	owner	2026-11-18
 REL-V1-001	docs/specs/release-process-v1.md	Milestone M0 re-scopes the v1-0 release object. Before any removal lane starts,	unrecorded	-
 REL-V1-002	docs/specs/release-process-v1.md	Milestone M5a qualification candidate. A qualification candidate tag MUST be pus	unrecorded	-
 REL-V1-003	docs/specs/release-process-v1.md	Release calendar. The freeze MUST be 2026-12-15. Stable MUST NOT be promoted bef	unrecorded	-
