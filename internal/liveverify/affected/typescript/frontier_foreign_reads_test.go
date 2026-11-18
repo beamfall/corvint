@@ -10,6 +10,69 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
+// AZU-V1-960 / V1-4683: a source lookup is not a complete foreign-read
+// proof. Directory entries are candidates; unsupported package resolution and
+// unknown path forms must keep uncertainty for arbitrary redirected reads.
+func TestForeignModuleResolutionBoundary_AZU_V1_960(t *testing.T) {
+	for _, mode := range []string{"relative", "baseUrl", "paths"} {
+		for _, tc := range []struct {
+			name, ref, dirty, manifest string
+			unproven                   bool
+		}{
+			{name: "extensionless JSON", ref: "settings", dirty: "settings.json"},
+			{name: "directory index", ref: "cfg", dirty: "cfg/index.json"},
+			{name: "JSON suffix fallback", ref: "cfg.json", dirty: "cfg.json.json"},
+			{name: "dotted directory index", ref: "cfg.json", dirty: "cfg.json/index.json"},
+			{name: "package main", ref: "cfg", dirty: "elsewhere/payload.json", manifest: `{"main":"../elsewhere/payload.json"}`, unproven: true},
+			{name: "unknown manifest form", ref: "cfg", dirty: "elsewhere/payload.json", manifest: `{"main":{"future":"../elsewhere/payload.json"}}`, unproven: true},
+			{name: "unknown suffix directory", ref: "cfg.future", dirty: "cfg.future/index.json"},
+			{name: "unknown path syntax", ref: "cfg%2Ffuture", dirty: "elsewhere/payload.json", unproven: true},
+		} {
+			t.Run(mode+"/"+tc.name, func(t *testing.T) {
+				root := t.TempDir()
+				write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
+				write(t, root, "playwright.config.ts", "import {defineConfig} from '@playwright/test';\nexport default defineConfig({});\n")
+				ref := tc.ref
+				switch mode {
+				case "relative":
+					ref = "./" + ref
+				case "baseUrl":
+					write(t, root, "tsconfig.json", `{"compilerOptions":{"baseUrl":"."}}`)
+				case "paths":
+					write(t, root, "tsconfig.json", fmt.Sprintf(`{"compilerOptions":{"baseUrl":".","paths":{"@cfg":[%q]}}}`, ref))
+					ref = "@cfg"
+				}
+				write(t, root, tc.dirty, `{"value":1}`)
+				if tc.manifest != "" {
+					write(t, root, "cfg/package.json", tc.manifest)
+				}
+				write(t, root, "helper.ts", "export const helper = 1;\n")
+				write(t, root, "read.spec.ts", "import {test} from '@playwright/test';\nimport {helper} from './helper';\nconst data = require("+fmt.Sprintf("%q", ref)+");\ntest('read', () => data.value + helper);\n")
+				result, err := New().Units(context.Background(), root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				reader := unitByID(result, unitID(runnerPlaywright, "read.spec.ts"))
+				if reader.PathTokensBounded != tc.unproven {
+					t.Fatalf("read-set proof bounded=%v, want %v: %+v", reader.PathTokensBounded, tc.unproven, reader)
+				}
+				graph, err := affected.Build(context.Background(), root, New())
+				if err != nil {
+					t.Fatal(err)
+				}
+				plan := affected.Select(graph, []string{tc.dirty})
+				if tc.unproven {
+					if len(frontierDetails(plan)) == 0 {
+						t.Fatalf("unproved resolution lost uncertainty: %+v", plan)
+					}
+				} else if !slices.Contains(plan.SelectedTests(), "read.spec.ts") {
+					t.Fatalf("foreign module reader omitted: %+v", plan)
+				}
+			})
+		}
+	}
+}
+
 // AZU-V1-960, V1-4683: normal resolved imports must not erase JSON alias
 // targets. Extensionless imports and every hidden overflow site remain readers.
 func TestForeignJSONFrontierReaders_AZU_V1_960(t *testing.T) {

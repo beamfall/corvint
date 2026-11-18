@@ -639,6 +639,16 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 				sites.raiseRef(frontier, reason(observation.path, ref), observation.path, ref)
 			}
 		}
+		var candidates []string
+		for _, target := range observation.aliasTargets {
+			tokens, bounded := foreignModuleCandidates(root, target)
+			candidates = append(candidates, tokens...)
+			observation.aliasBounded = observation.aliasBounded || bounded
+			if bounded {
+				frontier.raiseToken(FrontierUnresolvedImport, observation.path, target)
+			}
+		}
+		observation.aliasTargets = candidates
 		observation.dataTokens = jsonModuleTokens(root, observation.path, observation.refs, frontier)
 	}
 	var e2eConfigs []string
@@ -647,7 +657,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			e2eConfigs = append(e2eConfigs, config.directory)
 		}
 	}
-	return buildResult(observations, configs, scopes, sites, frontier, root.HeldIgnored(), reason), frontier, e2eConfigs, nil
+	return buildResult(observations, configs, scopes, sites, frontier, root, reason), frontier, e2eConfigs, nil
 }
 
 // pathAliasMarker returns the offset of the first `"paths"` or `"baseUrl"` key in a tsconfig.
@@ -730,7 +740,7 @@ func tsconfigToken(body string) int {
 	return strings.Index(clean, "tsconfig")
 }
 
-func buildResult(observations []observation, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet, excluded func(string) bool, aliasReason func(owner, ref string) string) affected.Result {
+func buildResult(observations []observation, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet, root *affected.Source, aliasReason func(owner, ref string) string) affected.Result {
 	units := make([]affected.Unit, 0, len(observations))
 	pathToID := make(map[string]string, len(observations))
 	refs := make(map[string]map[string]bool, len(observations))
@@ -824,7 +834,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 				site, token := unitRefSite(*unit, sites, ref)
 				frontier.raiseToken(FrontierPathAlias, site, token)
 			}
-			target, local, unresolved := resolveImport(owner, ref, pathToID, excluded)
+			target, local, unresolved := resolveImport(owner, ref, pathToID, root.HeldIgnored())
 			if target != "" && target != unit.ID {
 				edges[target] = true
 			}
@@ -832,14 +842,14 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 				resolved[ref] = true
 			}
 			if local && unresolved {
-				// Extensionless imports can load JSON even though JSON is not
-				// an owned module. Keep the candidate after token recomputation.
 				clean := strings.SplitN(strings.SplitN(ref, "?", 2)[0], "#", 2)[0]
 				candidate := path.Clean(path.Join(path.Dir(owner), clean))
-				if path.Ext(candidate) == "" && affected.ValidRelativePath(candidate) {
-					dataTokens[unit.ID] = append(dataTokens[unit.ID], candidate+".json")
-				} else if path.Ext(candidate) == ".json" && affected.ValidRelativePath(candidate) {
-					dataTokens[unit.ID] = append(dataTokens[unit.ID], candidate)
+				// A literal path outside the repository cannot name a tracked
+				// foreign file; retain its existing unresolved-import claim.
+				if affected.ValidRelativePath(candidate) {
+					tokens, bounded := foreignModuleCandidates(root, candidate)
+					dataTokens[unit.ID] = append(dataTokens[unit.ID], tokens...)
+					unit.PathTokensBounded = unit.PathTokensBounded || bounded
 				}
 				site, token := unitRefSite(*unit, sites, ref)
 				frontier.raiseToken(FrontierUnresolvedImport, site, token)

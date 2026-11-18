@@ -294,14 +294,9 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 		// Source resolution certifies only its source edge, not the absence of
 		// other reads. Keep every substituted candidate, regardless of file
 		// type or whether a source fallback resolved (AZU-V1-960).
-		if claimed {
-			for _, candidate := range nearest.candidates(ref) {
-				targets = append(targets, candidate)
-				if path.Ext(candidate) == "" {
-					targets = append(targets, candidate+".json")
-				}
-			}
-		}
+		// baseUrl's resolve boolean describes source ambiguity, not whether
+		// the config contributes read candidates. Enumerate independently.
+		targets = append(targets, nearest.candidates(ref)...)
 		if target == "" {
 			if claimed {
 				sites.raiseRef(frontier, FrontierPathAlias, owner, ref)

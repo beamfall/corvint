@@ -1185,6 +1185,15 @@ inputs, touched fixtures and path-open sites. Self-review repair witnesses are
 fallback, including unknown file types), `TestPackageImportURLReaders_AZU_V1_960` (URL query,
 fragment and percent decoding; unsupported forms retain uncertainty), and the bare, unrecorded
 overflow and unknown-site cases in `TestUnownedSourceBoundReads_AZU_V1_960` (AZU-V1-961).
+`TestForeignModuleResolutionBoundary_AZU_V1_960` covers baseUrl candidates independently of
+source lookup, extensionless and dotted-directory JSON entries, package-main redirects and
+unknown manifest/path forms. The foreign-module proof admits repository paths with ASCII letters,
+digits, spaces, slash, dot, underscore, hyphen, at-sign and hash, with arbitrary filename
+suffixes. It retains file and directory-index JSON alternatives; a directory package manifest,
+unavailable metadata or another form keeps bounded read uncertainty. This is a read-set proof,
+not an implementation of package-main resolution. These focused regressions do not establish
+zero missed tests; final-implementation accepted replay and independent truth/mutation receipts
+remain NOT_PRODUCED under the lane's whole-repository qualification prohibition.
 The package-target proof admits printable-ASCII relative file URLs whose decoded components contain only ASCII
 letters, digits, spaces, dots, underscores and hyphens, excluding empty and dot segments; all
 other target forms remain unproved. See `docs/build-log/2026-11-18-m8-frontier-self-review.md`. Historical full-suite and changed-line mutation
