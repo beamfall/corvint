@@ -9,6 +9,15 @@ Accepted by the owner on 2026-11-18 with RCF-D1 to RCF-D3 answered (see `design.
 - [x] 1.2 Write `docs/specs/release-candidate-4-v1.md` from the accepted spec delta and index it.
   Requirements: RCF-V1-001 to RCF-V1-012. Proof: `make spec-requirements-check`.
 
+## Prerequisites delivered before qualification
+
+Task numbers remain stable; these prerequisites do not depend on running qualification.
+
+- [x] 3.1 Contract tests for the three tools' schemas and the corpus format (RCF-D2).
+  Requirements: RCF-V1-011. Proof: tests fail on a renamed field.
+- [x] 4.1 Apply RCF-D1 (keep `corvint-mcp`): mark MTT-V1-010 superseded and keep V1-5473's
+  three archives. Requirements: RCF-V1-003. Proof: spec edit and V1-5473 archive list.
+
 ## 2. Docs search qualification
 
 - [x] 2.1 Commit the frozen query set and its digest; pin the three repositories.
@@ -24,8 +33,6 @@ Accepted by the owner on 2026-11-18 with RCF-D1 to RCF-D3 answered (see `design.
 
 ## 3. Promotion
 
-- [ ] 3.1 Contract tests for the three tools' schemas and the corpus format (RCF-D2).
-  Requirements: RCF-V1-011. Proof: tests fail on a renamed field.
 - [ ] 3.2 One commit: spec delivery status, `README.md`, PROD-DOCS-009 state, compatibility
   table and generated `docs/COMPATIBILITY.md`.
   Requirements: RCF-V1-006, RCF-V1-011. Proof: `make compatibility-check`, `make openspec-check`.
@@ -34,8 +41,6 @@ Accepted by the owner on 2026-11-18 with RCF-D1 to RCF-D3 answered (see `design.
 
 ## 4. Candidate
 
-- [x] 4.1 Apply RCF-D1 (keep `corvint-mcp`): mark MTT-V1-010 superseded and keep V1-5473's
-  three archives. Requirements: RCF-V1-003. Proof: spec edit and V1-5473 archive list.
 - [ ] 4.2 Write the readiness record for the candidate commit.
   Requirements: RCF-V1-003. Proof: every row `PASS` or `WAIVED`.
 - [ ] 4.3 Owner tags `v1.0.0-rc.4` and approves publish; record the draw seed.

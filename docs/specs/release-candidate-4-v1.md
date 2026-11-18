@@ -231,7 +231,12 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
 - Task 2.4 (RCF-V1-010): owner rows in `.corvint/test-selection.json` select the runner and the
   DCS-V1-404 evaluation for ranking, corpus build, corpus format and promoted-surface paths.
   Evidence: `corvint affected` on a ranking diff names both test packages.
-- Tasks 3.1 and 3.2 (RCF-V1-011): NOT_PRODUCED until the promotion commit.
+- Task 3.1 (RCF-V1-011, RCF-D2): `TestRCFV1011DocsToolSchemas`,
+  `TestRCFV1011DocsToolOutputs` and `TestRCFV1011CorpusFormat` in
+  `internal/mcp/corpusbridge/parity_test.go`, extending the existing typed schema and compact
+  receipt fixtures. Field contracts live in `internal/mcp/corpusbridge/testdata/rcf-contract/`;
+  they pin input/output fields and nested manifest/artifact types without ranking order.
+- Task 3.2 (RCF-V1-011): NOT_PRODUCED until the qualification and promotion commit.
 - Task 3.3 (RCF-V1-012): NOT_PRODUCED until the revert drill.
 
 ## Rollback
