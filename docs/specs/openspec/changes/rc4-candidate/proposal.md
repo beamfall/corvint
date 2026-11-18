@@ -1,7 +1,7 @@
 # Change proposal: 1.0.0-rc.4 and the docs search promotion
 
 Change name: `rc4-candidate`
-Ticket: none filed yet (task 1.1 files it in `.taskman/`, milestone `v1-0`)
+Ticket: V1-5679 in `.taskman/`, milestone `v1-0`
 Product requirement served: PROD-DOCS-001, PROD-DOCS-009 and PROD-DOCS-010, and the candidate
 clauses of PROD-INT-012 to PROD-INT-014 in `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: `docs/specs/release-candidate-4-v1.md`, a new spec with prefix `RCF-V1`

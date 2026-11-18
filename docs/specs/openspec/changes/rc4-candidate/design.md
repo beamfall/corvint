@@ -22,6 +22,8 @@
   - tag workflow build job (REL-V1-005);
   - three-target `binaries.json` (REL-V1-008);
   - core-set archives that `corvint-update` installs (V1-5473);
+  - the candidate-byte linux/amd64 qualification workflow (V1-0374);
+  - commit authorship on `origin/main` fixed or waived by the owner (V1-5621);
   - the docs search promotion (RCF-V1-006 to 011).
 - Promotion scope. The narrowest set an agent needs to search and quote documentation:
   - build a corpus, search it, read a passage, and ask what it was built from;
@@ -90,6 +92,7 @@ changes no shipped bytes.
 - RCF-D1: keep the `corvint-mcp` binary.
 - RCF-D2: the three tools' MCP input and output schemas and the corpus format become `stable`.
 - RCF-D3: rc.4 is the M5a qualification candidate.
+- 2026-11-18, "Yes, add them": readiness rows for V1-0374 and V1-5621; V1-5545 retired.
 
 ## Risks
 

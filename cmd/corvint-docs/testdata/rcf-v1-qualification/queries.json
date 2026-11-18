@@ -1,0 +1,425 @@
+{
+  "schema": "corvint-rcf-qualification-queries/1",
+  "requirement": "RCF-V1-007",
+  "frozen": "2026-11-18",
+  "limit": 20,
+  "repositories": [
+    {
+      "name": "corvint",
+      "url": "https://github.com/beamfall/corvint",
+      "commit": "1795bfc0dc8065d8e026738a5ffb2a557139534a",
+      "evidence": "full",
+      "scopes": [
+        "cmd/corvint-docs",
+        "internal/doccorpus",
+        "internal/mcp/corpusbridge",
+        "internal/mcp/docsserver"
+      ],
+      "queries": [
+        {
+          "id": "corvint-01",
+          "kind": "file",
+          "query": "internal/doccorpus/query.go"
+        },
+        {
+          "id": "corvint-02",
+          "kind": "file",
+          "query": "internal/doccorpus/search_rank.go"
+        },
+        {
+          "id": "corvint-03",
+          "kind": "file",
+          "query": "cmd/corvint-docs/docs_corpus.go"
+        },
+        {
+          "id": "corvint-04",
+          "kind": "file",
+          "query": "internal/mcp/corpusbridge/corpusbridge.go"
+        },
+        {
+          "id": "corvint-05",
+          "kind": "file",
+          "query": "internal/mcp/docsserver/docsserver.go"
+        },
+        {
+          "id": "corvint-06",
+          "kind": "file",
+          "query": "internal/doccorpus/encoding.go"
+        },
+        {
+          "id": "corvint-07",
+          "kind": "file",
+          "query": "internal/doccorpus/line_anchor.go"
+        },
+        {
+          "id": "corvint-08",
+          "kind": "file",
+          "query": "internal/mcp/corpusbridge/compact.go"
+        },
+        {
+          "id": "corvint-09",
+          "kind": "symbol",
+          "query": "Inventory"
+        },
+        {
+          "id": "corvint-10",
+          "kind": "symbol",
+          "query": "Build"
+        },
+        {
+          "id": "corvint-11",
+          "kind": "symbol",
+          "query": "Digest"
+        },
+        {
+          "id": "corvint-12",
+          "kind": "symbol",
+          "query": "ReadCorpusFile"
+        },
+        {
+          "id": "corvint-13",
+          "kind": "symbol",
+          "query": "OpenVerified"
+        },
+        {
+          "id": "corvint-14",
+          "kind": "symbol",
+          "query": "NewLineIndex"
+        },
+        {
+          "id": "corvint-15",
+          "kind": "symbol",
+          "query": "CompactReceipt"
+        },
+        {
+          "id": "corvint-16",
+          "kind": "symbol",
+          "query": "parseCorpusInvocation"
+        },
+        {
+          "id": "corvint-17",
+          "kind": "prose",
+          "query": "how is a corpus artifact built from a manifest"
+        },
+        {
+          "id": "corvint-18",
+          "kind": "prose",
+          "query": "where are search results ranked and ties broken"
+        },
+        {
+          "id": "corvint-19",
+          "kind": "prose",
+          "query": "how does a passage anchor pin a line span to a blob"
+        },
+        {
+          "id": "corvint-20",
+          "kind": "prose",
+          "query": "what bounds the number of search results"
+        },
+        {
+          "id": "corvint-21",
+          "kind": "prose",
+          "query": "which receipt does docs_search return by default"
+        },
+        {
+          "id": "corvint-22",
+          "kind": "prose",
+          "query": "how is the corpus artifact read from the repository root"
+        },
+        {
+          "id": "corvint-23",
+          "kind": "prose",
+          "query": "what happens when the source revision is stale"
+        },
+        {
+          "id": "corvint-24",
+          "kind": "prose",
+          "query": "how are claims included in search results"
+        },
+        {
+          "id": "corvint-25",
+          "kind": "prose",
+          "query": "how does the docs MCP server load the corpus artifact"
+        }
+      ]
+    },
+    {
+      "name": "beamfall",
+      "url": "https://github.com/beamfall/core",
+      "commit": "947a28cc384b40643f7417b334f6b3490aa2b206",
+      "evidence": "digest-only",
+      "scopes": [
+        "docs/architecture",
+        "docs/operations",
+        "internal/backup",
+        "internal/playback",
+        "internal/scan"
+      ],
+      "queries": [
+        {
+          "id": "beamfall-01",
+          "kind": "file",
+          "query": "internal/scan/scan.go"
+        },
+        {
+          "id": "beamfall-02",
+          "kind": "file",
+          "query": "internal/scan/oshash.go"
+        },
+        {
+          "id": "beamfall-03",
+          "kind": "file",
+          "query": "internal/backup/service.go"
+        },
+        {
+          "id": "beamfall-04",
+          "kind": "file",
+          "query": "internal/playback/playback.go"
+        },
+        {
+          "id": "beamfall-05",
+          "kind": "file",
+          "query": "internal/playback/ladder.go"
+        },
+        {
+          "id": "beamfall-06",
+          "kind": "file",
+          "query": "docs/architecture/ARCHITECTURE.md"
+        },
+        {
+          "id": "beamfall-07",
+          "kind": "file",
+          "query": "docs/operations/restore.md"
+        },
+        {
+          "id": "beamfall-08",
+          "kind": "file",
+          "query": "docs/architecture/search-quality.md"
+        },
+        {
+          "id": "beamfall-09",
+          "kind": "symbol",
+          "query": "OSHash"
+        },
+        {
+          "id": "beamfall-10",
+          "kind": "symbol",
+          "query": "NewService"
+        },
+        {
+          "id": "beamfall-11",
+          "kind": "symbol",
+          "query": "InspectEnvelope"
+        },
+        {
+          "id": "beamfall-12",
+          "kind": "symbol",
+          "query": "Restore"
+        },
+        {
+          "id": "beamfall-13",
+          "kind": "symbol",
+          "query": "SubtitleTrackKinds"
+        },
+        {
+          "id": "beamfall-14",
+          "kind": "symbol",
+          "query": "Rung"
+        },
+        {
+          "id": "beamfall-15",
+          "kind": "symbol",
+          "query": "CapabilityProfile"
+        },
+        {
+          "id": "beamfall-16",
+          "kind": "symbol",
+          "query": "JobRequest"
+        },
+        {
+          "id": "beamfall-17",
+          "kind": "prose",
+          "query": "how is a media file hashed during a scan"
+        },
+        {
+          "id": "beamfall-18",
+          "kind": "prose",
+          "query": "how is a backup envelope encrypted and restored"
+        },
+        {
+          "id": "beamfall-19",
+          "kind": "prose",
+          "query": "how does playback choose a transcoding ladder rung"
+        },
+        {
+          "id": "beamfall-20",
+          "kind": "prose",
+          "query": "where are subtitle tracks selected"
+        },
+        {
+          "id": "beamfall-21",
+          "kind": "prose",
+          "query": "how does a scan resume from a checkpoint"
+        },
+        {
+          "id": "beamfall-22",
+          "kind": "prose",
+          "query": "how is a backup replicated to an S3 bucket"
+        },
+        {
+          "id": "beamfall-23",
+          "kind": "prose",
+          "query": "what does the operator do to restore from a backup"
+        },
+        {
+          "id": "beamfall-24",
+          "kind": "prose",
+          "query": "how is search quality measured"
+        },
+        {
+          "id": "beamfall-25",
+          "kind": "prose",
+          "query": "how does playback pick an audio track"
+        }
+      ]
+    },
+    {
+      "name": "prometheus",
+      "url": "https://github.com/prometheus/prometheus",
+      "commit": "cb4e01dd1cb1673d4bcde6f3a16fb767b7f8eb88",
+      "evidence": "full",
+      "scopes": [
+        "docs",
+        "model/labels",
+        "promql"
+      ],
+      "queries": [
+        {
+          "id": "prometheus-01",
+          "kind": "file",
+          "query": "promql/engine.go"
+        },
+        {
+          "id": "prometheus-02",
+          "kind": "file",
+          "query": "promql/functions.go"
+        },
+        {
+          "id": "prometheus-03",
+          "kind": "file",
+          "query": "promql/parser/lex.go"
+        },
+        {
+          "id": "prometheus-04",
+          "kind": "file",
+          "query": "promql/parser/parse.go"
+        },
+        {
+          "id": "prometheus-05",
+          "kind": "file",
+          "query": "model/labels/matcher.go"
+        },
+        {
+          "id": "prometheus-06",
+          "kind": "file",
+          "query": "model/labels/regexp.go"
+        },
+        {
+          "id": "prometheus-07",
+          "kind": "file",
+          "query": "docs/storage.md"
+        },
+        {
+          "id": "prometheus-08",
+          "kind": "file",
+          "query": "docs/federation.md"
+        },
+        {
+          "id": "prometheus-09",
+          "kind": "symbol",
+          "query": "NewEngine"
+        },
+        {
+          "id": "prometheus-10",
+          "kind": "symbol",
+          "query": "NewInstantQuery"
+        },
+        {
+          "id": "prometheus-11",
+          "kind": "symbol",
+          "query": "NewRangeQuery"
+        },
+        {
+          "id": "prometheus-12",
+          "kind": "symbol",
+          "query": "NewActiveQueryTracker"
+        },
+        {
+          "id": "prometheus-13",
+          "kind": "symbol",
+          "query": "NewMatcher"
+        },
+        {
+          "id": "prometheus-14",
+          "kind": "symbol",
+          "query": "FindMinMaxTime"
+        },
+        {
+          "id": "prometheus-15",
+          "kind": "symbol",
+          "query": "PrometheusQueryOpts"
+        },
+        {
+          "id": "prometheus-16",
+          "kind": "symbol",
+          "query": "ErrTooManySamples"
+        },
+        {
+          "id": "prometheus-17",
+          "kind": "prose",
+          "query": "how does the query engine enforce a query timeout"
+        },
+        {
+          "id": "prometheus-18",
+          "kind": "prose",
+          "query": "how are label matchers compiled into regular expressions"
+        },
+        {
+          "id": "prometheus-19",
+          "kind": "prose",
+          "query": "how is local storage retention configured"
+        },
+        {
+          "id": "prometheus-20",
+          "kind": "prose",
+          "query": "how does federation select the series to scrape"
+        },
+        {
+          "id": "prometheus-21",
+          "kind": "prose",
+          "query": "how is the lookback delta applied to instant queries"
+        },
+        {
+          "id": "prometheus-22",
+          "kind": "prose",
+          "query": "how are active queries logged for crash recovery"
+        },
+        {
+          "id": "prometheus-23",
+          "kind": "prose",
+          "query": "what does the stability guarantee cover"
+        },
+        {
+          "id": "prometheus-24",
+          "kind": "prose",
+          "query": "how does the PromQL lexer read a number"
+        },
+        {
+          "id": "prometheus-25",
+          "kind": "prose",
+          "query": "how are histogram quantiles computed"
+        }
+      ]
+    }
+  ]
+}

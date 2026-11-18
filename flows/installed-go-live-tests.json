@@ -48,7 +48,7 @@
         "type": "source",
         "path": "cmd/corvint-go-test-provider/main.go"
       },
-      "reviewed_at": "c60a0d2bdd2aafc90d09ca09e78e6ffa03af7270"
+      "reviewed_at": "27cb4ca6804393269f49b2300462af2747a69c98"
     },
     {
       "from": "go-session",
@@ -57,7 +57,7 @@
         "type": "source",
         "path": "internal/gotestrun/run.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "go-session",
@@ -66,7 +66,7 @@
         "type": "source",
         "path": "internal/liveverify/godiscovery/decode.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "go-session",
@@ -75,7 +75,7 @@
         "type": "source",
         "path": "internal/liveverify/gorunner/coverage.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "installed-go-live-tests.default",
@@ -85,7 +85,7 @@
         "path": "conformance/interactive-alpha/core-provider-proof.mjs",
         "test_key": "conformance/interactive-alpha/core-provider-proof.mjs"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "installed-go-live-tests.default",
@@ -95,7 +95,7 @@
         "path": "extensions/vscode/test/installed/run.mjs",
         "test_key": "extensions/vscode/test/installed/run.mjs"
       },
-      "reviewed_at": "6f13561f3836ecea0fc4b9ed4898bf0aeb3df0df"
+      "reviewed_at": "bc58d11a7e8d5a09dce781368c2fc1bdc9e92f9d"
     }
   ]
 }

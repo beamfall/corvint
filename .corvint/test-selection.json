@@ -145,6 +145,30 @@
       ]
     },
     {
+      "paths": "cmd/corvint-docs/docs.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-docs/docs_corpus.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-docs/main.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-docs/testdata/rcf-v1-qualification/**",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "cmd/corvint-test-runner/README.md",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -677,9 +701,79 @@
       ]
     },
     {
+      "paths": "internal/doccorpus/artifact_*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/compile.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/encoding.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/line_anchor.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/query*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/read.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/search_*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
       "paths": "internal/doccorpus/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/typed_query.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/types.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/verified.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
       ]
     },
     {
@@ -755,9 +849,22 @@
       ]
     },
     {
+      "paths": "internal/mcp/corpusbridge/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+      ]
+    },
+    {
       "paths": "internal/mcp/corpusbridge/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/mcp/docsserver/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {

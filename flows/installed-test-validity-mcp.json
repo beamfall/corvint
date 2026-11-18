@@ -48,7 +48,7 @@
         "type": "source",
         "path": "cmd/corvint-test-validity-mcp/main.go"
       },
-      "reviewed_at": "e6bfa060f575ae3503cd862850f84b20dec1b78d"
+      "reviewed_at": "0676a45d30eb5c9d382b987ab73da299428b45cb"
     },
     {
       "from": "mcp-discover",
@@ -57,7 +57,7 @@
         "type": "source",
         "path": "internal/mcp/protocol/decode.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "mcp-discover",
@@ -66,7 +66,7 @@
         "type": "source",
         "path": "internal/mcp/server/server.go"
       },
-      "reviewed_at": "45dd59cee522a32b44e370366350283ec88596e4"
+      "reviewed_at": "157d0c45037c198f6eb5efd853084521f5a3a3a1"
     },
     {
       "from": "mcp-discover",
@@ -75,7 +75,7 @@
         "type": "source",
         "path": "internal/mcp/testvaliditybridge/testvaliditybridge.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "installed-test-validity-mcp.default",
@@ -85,7 +85,7 @@
         "path": "conformance/interactive-alpha/core-provider-proof.mjs",
         "test_key": "conformance/interactive-alpha/core-provider-proof.mjs"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "4714d010959b84380e8f14c0bdf88c7b4f7ff283"
     },
     {
       "from": "installed-test-validity-mcp.default",
@@ -95,7 +95,7 @@
         "path": "extensions/vscode/test/installed/run.mjs",
         "test_key": "extensions/vscode/test/installed/run.mjs"
       },
-      "reviewed_at": "6f13561f3836ecea0fc4b9ed4898bf0aeb3df0df"
+      "reviewed_at": "bc58d11a7e8d5a09dce781368c2fc1bdc9e92f9d"
     }
   ]
 }
