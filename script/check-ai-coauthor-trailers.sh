@@ -103,12 +103,15 @@ scan() {
 identity_scan() {
   local value lower field=0 labels=('author name' 'author email' 'committer name' 'committer email')
   while IFS= read -r value; do
+    # Only the four raw fields are understood; presentation or truncated output refuses.
+    ((field < ${#labels[@]})) || return 2
     lower=$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')
     if [[ $lower == claude || $lower =~ ^[^@[:space:]]+@([^@[:space:]]+\.)?anthropic\.com$ ]]; then
       printf '    %s: %s\n' "${labels[$field]}" "$value"
     fi
     field=$((field + 1))
   done
+  ((field == ${#labels[@]}))
 }
 
 # Git supplies the destination URL/path as $2 even when $1 is a remote name with a pushurl.
@@ -267,15 +270,15 @@ fi
 bad=0
 identity_bad=0
 for sha in $shas; do
-  if ! message=$(git show -s --format=%B "$sha"); then
+  if ! message=$(git show --no-show-signature -s --format=%B "$sha"); then
     printf '%s: refused: git show could not read the message of %s, so the range was not checked\n' "$me" "$sha" >&2
     exit 2
   fi
-  if ! identities=$(git show -s --format='%an%n%ae%n%cn%n%ce' "$sha"); then
+  if ! identities=$(git show --no-show-signature -s --format='%an%n%ae%n%cn%n%ce' "$sha") ||
+     ! identity_found=$(printf '%s\n' "$identities" | identity_scan); then
     printf '%s: refused: git show could not read the identity of %s\n' "$me" "$sha" >&2
     exit 2
   fi
-  identity_found=$(printf '%s\n' "$identities" | identity_scan)
   if [[ -n $identity_found ]]; then
     printf '%s: refused (ASD-V0-560): commit %s has a prohibited identity:\n%s\n' "$me" "$sha" "$identity_found" >&2
     identity_bad=$((identity_bad + 1))
@@ -284,7 +287,7 @@ for sha in $shas; do
   [[ -z $found ]] && continue
   ((bad == 0)) && printf '%s: refused (ASD-V0-560): %s..%s has commits crediting an AI agent as a GitHub co-author:\n' "$me" "$base" "$head"
   bad=$((bad + 1))
-  printf '  %s %s\n' "$sha" "$(git show -s --format=%s "$sha")"
+  printf '  %s %s\n' "$sha" "$(git show --no-show-signature -s --format=%s "$sha")"
   printf '%s\n' "$found" | while IFS=$'\t' read -r reason trailer; do printf '    %s  (%s)\n' "$trailer" "$reason"; done
 done
 ((bad == 0 && identity_bad > 0)) && exit 1

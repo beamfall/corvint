@@ -210,6 +210,50 @@ for role in AUTHOR COMMITTER; do
   done
 done
 
+# Signature presentation must not shift the four raw identity fields. Only the committer
+# email is prohibited; a real SSH-signed commit exercises Git's log.showSignature setting.
+git reset -q --hard "$ibase" || fail "reset signed fixture"
+ssh-keygen -q -t ed25519 -N '' -f "$tmp/signing-key" || fail "signing key"
+printf 't@example.invalid %s\n' "$(cat "$tmp/signing-key.pub")" > "$tmp/allowed-signers"
+git config gpg.format ssh
+git config user.signingKey "$tmp/signing-key"
+git config gpg.ssh.allowedSignersFile "$tmp/allowed-signers"
+git config log.showSignature true
+GIT_COMMITTER_EMAIL=person@anthropic.com git commit -q -S --allow-empty -m signed ||
+  fail "signed identity commit"
+signed_sha=$(git rev-parse HEAD)
+git verify-commit "$signed_sha" > "$tmp/signature" 2>&1 || fail "verify signed fixture"
+git show -s --format='%an%n%ae%n%cn%n%ce' "$signed_sha" > "$tmp/signed-output" 2>&1
+[[ $(wc -l < "$tmp/signed-output") -gt 4 ]] || fail "signature presentation not exercised"
+"$check" "$ibase" "$signed_sha" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q 'committer email: person@anthropic.com' "$tmp/out" ||
+  fail "signed committer email bypass: $(cat "$tmp/out")"
+git config --unset log.showSignature
+
+# Unknown output shapes fail closed even when every presented identity is otherwise clean.
+# The stub represents arbitrary extra presentation and truncation, not known signature text.
+cat > "$tmp/stub/git" <<'STUB'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  if [[ $arg == '--format=%an%n%ae%n%cn%n%ce' ]]; then
+    printf 'Human\nhuman@example.org\nHuman\n'
+    if [[ $IDENTITY_SHAPE == extra ]]; then
+      printf 'human@example.org\nunknown presentation\n'
+    fi
+    exit 0
+  fi
+done
+exec "$REAL_GIT" "$@"
+STUB
+chmod +x "$tmp/stub/git"
+for shape in extra truncated; do
+  REAL_GIT="$real_git" IDENTITY_SHAPE="$shape" PATH="$tmp/stub:$PATH" \
+    "$check" "$ibase" "$signed_sha" > "$tmp/out" 2>&1
+  [[ $? == 2 ]] && grep -q "git show could not read the identity of $signed_sha" "$tmp/out" ||
+    fail "$shape identity output accepted: $(cat "$tmp/out")"
+  grep -q 'no AI co-author trailer' "$tmp/out" && fail "$shape output reported clean"
+done
+
 # A clean commit passes on top of historical violations, including lookalike domains/names.
 git reset -q --hard "$ibase" || fail "reset clean"
 GIT_AUTHOR_NAME='Claude Monet' GIT_AUTHOR_EMAIL=claude@example.org \
