@@ -72,7 +72,8 @@ with the code.
 | Affected test selection | The tests to run for a branch, the mandatory checks, and an explicit unknown frontier instead of a silent full run | `corvint affected --base FULL_SHA` | core |
 | Impact of a change | What a path or a committed range reaches, with uncertainty where a rule is missing | `corvint impact internal/date/parse.go` | core |
 | Application map | A checked map of a web application that E2E-safe test selection reads | `corvint flows appmap build --manifest appmap.json --revision HEAD` | experimental |
-| Documentation corpus | Source-pinned documentation you can build, search and serve to agents | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
+| Documentation search | Search source-pinned documentation and read passages verified against the pinned commit, from the CLI (corpus build, search, get and info) or MCP; result order is preview | `corvint.docs_search` on `corvint-docs mcp --corpus-artifact corpus.json` | stable |
+| Documentation corpus | Drafting, generated pages, flows and claims over the corpus, and every other corpus verb and tool | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
 | Application flows | Flows, assertions, coverage and gaps for a web application | `corvint flows --manifest flows.json` | experimental |
 | Language support | Impact rules for Go, Ruby, JavaScript and TypeScript; affected-test providers for eleven ecosystems from Go to Swift and .NET; everything else is reported as unknown | `corvint affected --base FULL_SHA --full` | core verb; individual language providers are experimental |
 | Path brief | The instructions, tests and requirements linked to a file or directory, each section with its state; nothing is ranked | `corvint context --path internal/date/parse.go` | core verb; the path brief is experimental |

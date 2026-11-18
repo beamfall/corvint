@@ -82,3 +82,29 @@ Limit: a selected package runs `TestRCFV1007FrozenQuerySet` and the unit checks 
 three-repository run needs `CORVINT_RCF_QUALIFY` and pinned clones, so an affected selection
 signals the rerun but does not perform it. RCF-V1-010 keeps that rerun as a precondition of the
 promotion commit.
+
+## Promotion (RCF-V1-011, task 3.2)
+
+The promotion commit changes labels only. Between the qualified commit `1f35e9f28` and the
+promotion base, the only change under the RCF-V1-010 trigger paths is the task 3.1 contract work
+in `internal/mcp/corpusbridge`: tests and `testdata/rcf-contract/` fixtures, with no ranking,
+corpus build, corpus format, verb or tool code (`git diff --stat 1f35e9f28 97d5e2e4d --
+cmd/corvint-docs internal/doccorpus internal/mcp`). The qualification therefore carries to the
+promotion without a rerun.
+
+- `docs/COMPATIBILITY.md`: `docs-search-mcp-schemas` and `evidence-corpus-format` (label
+  `corvint-evidence-corpus/2`, read from `internal/doccorpus/capacity.go`) are `stable` under
+  CMP-V1-003 item 6, with the task 3.1 contract tests. `mcp-schemas` stays `preview` for every
+  other tool and for the three tools' result order.
+- `README.md`: a `stable` Documentation search row. The Documentation corpus row stays
+  `experimental` for drafting, generated pages, flows, claims and the other corpus verbs.
+- `docs/CAPABILITIES.md`: the three tool rows read `stable (schemas; result order preview)`.
+  The `corvint docs` and `corvint-docs` command rows stay `experimental`, because root help's
+  Experimental group drives that cell.
+- PROD-DOCS-009: Delivery `validated`, State `DELIVERED`, for the RCF-V1-006 scope.
+- Spec delivery: the `documentation-corpus-v1.md` header is frozen
+  (`docs/specs/INTENT-STATUS-FROZEN.tsv`). That spec and its search and reads companions still
+  hold `standing` requirements, and SRG-V0-010 reports a whole-spec `validated` as
+  NOT_PROMOTABLE. The scoped status is therefore recorded in the RCF-V1 delivery section and in
+  PROD-DOCS-009.
+- Independent external utility: `EXTERNAL_DEPENDENT`, `NOT_RUN`.

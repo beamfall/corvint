@@ -218,7 +218,11 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
 - Tasks 4.3 and 4.4 (RCF-V1-001, RCF-V1-002): NOT_PRODUCED until the owner tags rc.4.
 - Tasks 4.1 and 4.2 (RCF-V1-003): NOT_PRODUCED until the readiness record is written.
 - Task 4.4 (RCF-V1-004, RCF-V1-005): NOT_PRODUCED until the rc.4 release notes.
-- Task 3.2 (RCF-V1-006): NOT_PRODUCED until the promotion commit.
+- Task 3.2 (RCF-V1-006): delivery `validated` for exactly the promoted scope: the four CLI verbs,
+  the three MCP tools and `corvint-evidence-corpus/2`. Every other docs verb, tool and format keeps
+  its label (`docs/CAPABILITIES.md`, `docs/COMPATIBILITY.md`). The corpus spec headers are frozen
+  and their specs still hold `standing` requirements (SRG-V0-010), so the scoped status is
+  recorded here and in PROD-DOCS-009, not in those headers.
 - Task 2.1 (RCF-V1-007): `cmd/corvint-docs/testdata/rcf-v1-qualification/queries.json`
   (Corvint, `beamfall/core` and `vuejs/core`, 25 queries each, each repository pinned
   to a commit) and its digest `queries.sha256`. Evidence: `TestRCFV1007FrozenQuerySet`.
@@ -226,8 +230,10 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
   opt-in run `TestRCFV1008Qualification` under `CORVINT_RCF_QUALIFY`). Evidence:
   `TestRCFV1008QualificationPassesOnAFixture`, `TestRCFV1008UnverifiedPassageFailsTheRun`,
   `TestRCFV1008SurfaceMismatchFailsTheRun`, `TestRCFV1008DigestOnlyReport`. The run itself
-  (task 2.3) is NOT_RUN.
-- Task 2.3 (RCF-V1-009): two runs of `TestDCSV1404SearchRankingEvalFixture`. NOT_RUN.
+  (task 2.3) passed twice on `1f35e9f28` with byte-identical reports
+  (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
+- Task 2.3 (RCF-V1-009): two runs of `TestDCSV1404SearchRankingEvalFixture`, both PASS with equal
+  ranks (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
 - Task 2.4 (RCF-V1-010): owner rows in `.corvint/test-selection.json` select the runner and the
   DCS-V1-404 evaluation for ranking, corpus build, corpus format and promoted-surface paths.
   Evidence: `corvint affected` on a ranking diff names both test packages.
@@ -245,7 +251,13 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
   `internal/mcp/corpusbridge/rcf_scalar_test.go` reject named scalar retyping, unknown scalar
   forms and custom scalar encoders. Dynamic receipt results and raw JSON contents remain
   outside this static scalar check; the output fixtures above cover their exercised forms.
-- Task 3.2 (RCF-V1-011): NOT_PRODUCED until the qualification and promotion commit.
+- Task 3.2 (RCF-V1-011): the promotion commit. `tools/compatibility-table/surfaces.json` rows
+  `docs-search-mcp-schemas` and `evidence-corpus-format` are `stable` with the task 3.1 contract
+  tests; `mcp-schemas` stays `preview` for every other tool and for result order (CMP-V1-003
+  item 6 and CMP-V1-005 amended). `README.md` gains a `stable` Documentation search row;
+  PROD-DOCS-009 is `validated`, `DELIVERED`. Independent external utility is
+  `EXTERNAL_DEPENDENT` and `NOT_RUN`. Evidence: `make compatibility-check`,
+  `make capabilities-check`, `make openspec-check`.
 - Task 3.3 (RCF-V1-012): NOT_PRODUCED until the revert drill.
 
 ## Rollback

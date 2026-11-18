@@ -33,7 +33,7 @@ Task numbers remain stable; these prerequisites do not depend on running qualifi
 
 ## 3. Promotion
 
-- [ ] 3.2 One commit: spec delivery status, `README.md`, PROD-DOCS-009 state, compatibility
+- [x] 3.2 One commit: spec delivery status, `README.md`, PROD-DOCS-009 state, compatibility
   table and generated `docs/COMPATIBILITY.md`.
   Requirements: RCF-V1-006, RCF-V1-011. Proof: `make compatibility-check`, `make openspec-check`.
 - [ ] 3.3 Revert drill on a scratch branch.
