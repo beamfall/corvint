@@ -233,7 +233,13 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
 - Task 2.2 (RCF-V1-008): `cmd/corvint-docs/rcf_qualification_test.go` (`rcfQualify`, and the
   opt-in run `TestRCFV1008Qualification` under `CORVINT_RCF_QUALIFY`). Evidence:
   `TestRCFV1008QualificationPassesOnAFixture`, `TestRCFV1008UnverifiedPassageFailsTheRun`,
-  `TestRCFV1008SurfaceMismatchFailsTheRun`, `TestRCFV1008DigestOnlyReport`. The run itself
+  `TestRCFV1008SurfaceMismatchFailsTheRun`, `TestRCFV1008DigestOnlyReport`,
+  `TestRCFV1008LiveSymbolSpanFailsTheRun`, `TestRCFV1008UnknownReceiptFormFailsClosed`,
+  `TestRCFV1008ArtifactReplacementFailsTheRun`, `TestRCFV1008CheckoutMutationFailsTheRun`,
+  `TestRCFV1008UnknownCheckoutFormFailsClosed`. Search receipts are decoded as closed subject
+  results, every live symbol span is verified, receipts bind the admitted artifact content digest,
+  and before/after checks compare artifact bytes, HEAD, index entries and worktree contents.
+  The earlier run itself
   (task 2.3) passed twice on `1f35e9f28` with byte-identical reports
   (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
 - Task 2.3 (RCF-V1-009): two runs of `TestDCSV1404SearchRankingEvalFixture`, both PASS with equal

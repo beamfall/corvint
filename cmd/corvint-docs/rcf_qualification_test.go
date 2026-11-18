@@ -3,11 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/json/jsontext"
+	jsonv2 "encoding/json/v2"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -318,42 +321,72 @@ func (v *rcfVerifier) verify(a lineanchor.Anchor) string {
 	return ""
 }
 
-// rcfAnchors collects anchors from the receipt's defined locations, even
-// when required fields are missing: citations, result evidence, rank match
-// anchors and envelope citations. verify rejects incomplete anchors.
-func rcfAnchors(value any, out *[]lineanchor.Anchor) error {
-	switch v := value.(type) {
-	case map[string]any:
-		for key, child := range v {
-			if key == "citations" || key == "anchors" || key == "match_anchor" {
-				raw, err := json.Marshal(child)
-				if err != nil {
-					return err
-				}
-				if key == "match_anchor" {
-					var a lineanchor.Anchor
-					if err := json.Unmarshal(raw, &a); err != nil {
-						return err
-					}
-					*out = append(*out, a)
-				} else {
-					var anchors []lineanchor.Anchor
-					if err := json.Unmarshal(raw, &anchors); err != nil {
-						return err
-					}
-					*out = append(*out, anchors...)
-				}
-				continue
-			}
-			if err := rcfAnchors(child, out); err != nil {
-				return err
-			}
+// rcfSearchReceipt is the closed allowlist for the qualification's plain
+// search requests (no include=claims or other operation). Dynamic results
+// must be Subjects. Unknown fields and forms fail qualification, even when
+// all three receipt copies agree. Extending the allowed forms requires
+// extending their passage verification here as well.
+type rcfSearchReceipt struct {
+	Envelope       *doccorpus.TrustEnvelope                   `json:"trust_envelope,omitempty"`
+	Meaning        string                                     `json:"meaning,omitempty"`
+	Offset         int                                        `json:"offset,omitempty"`
+	NextOffset     *int                                       `json:"next_offset,omitempty"`
+	Details        map[string]doccorpus.RecordDetails         `json:"details,omitempty"`
+	Schema         string                                     `json:"schema"`
+	Operation      string                                     `json:"operation"`
+	ArtifactSHA256 string                                     `json:"artifact_sha256"`
+	Repository     doccorpus.Repository                       `json:"repository"`
+	Tree           string                                     `json:"tree"`
+	Trust          string                                     `json:"trust"`
+	Freshness      string                                     `json:"freshness"`
+	State          string                                     `json:"state"`
+	Miss           string                                     `json:"miss"`
+	Results        []doccorpus.Subject                        `json:"results"`
+	Citations      []lineanchor.Anchor                        `json:"citations"`
+	Capabilities   []doccorpus.Capability                     `json:"capabilities"`
+	Limitations    []string                                   `json:"limitations"`
+	Omitted        int                                        `json:"omitted"`
+	SymbolAnchors  []doccorpus.SymbolAnchorCheck              `json:"symbol_anchors,omitempty"`
+	TextOrigins    map[string]map[string]doccorpus.TextOrigin `json:"text_origins,omitempty"`
+	ResultRanks    map[string]doccorpus.ResultRank            `json:"result_ranks,omitempty"`
+	UnmatchedTerms []string                                   `json:"unmatched_terms,omitempty"`
+	SearchQuality  *doccorpus.SearchQuality                   `json:"search_quality,omitempty"`
+}
+
+// rcfAnchors verifies the closed receipt shape before enumerating every
+// passage-bearing field, including live symbol locations.
+func rcfAnchors(raw []byte, out *[]lineanchor.Anchor) error {
+	var receipt rcfSearchReceipt
+	if err := jsonv2.Unmarshal(raw, &receipt, jsonv2.RejectUnknownMembers(true)); err != nil {
+		return err
+	}
+	if receipt.Schema != doccorpus.ReceiptSchema {
+		return fmt.Errorf("unsupported receipt schema")
+	}
+	*out = append(*out, receipt.Citations...)
+	for _, result := range receipt.Results {
+		if result.ID == "" || result.Kind == "" {
+			return fmt.Errorf("unsupported search result")
 		}
-	case []any:
-		for _, child := range v {
-			if err := rcfAnchors(child, out); err != nil {
-				return err
-			}
+		*out = append(*out, result.Evidence.Anchors...)
+	}
+	for _, rank := range receipt.ResultRanks {
+		if rank.MatchAnchor != nil {
+			*out = append(*out, *rank.MatchAnchor)
+		}
+	}
+	if receipt.Envelope != nil {
+		for _, citation := range receipt.Envelope.Citations {
+			*out = append(*out, citation.Anchor)
+		}
+	}
+	for _, symbol := range receipt.SymbolAnchors {
+		if live := symbol.Live; live != nil {
+			*out = append(*out, lineanchor.Anchor{
+				Revision: live.Revision, Path: live.Path, Blob: live.Blob,
+				SHA256: live.SHA256, Start: live.Start, End: live.End,
+				SpanSHA256: live.SpanSHA256,
+			})
 		}
 	}
 	return nil
@@ -377,7 +410,7 @@ func rcfPassageName(a lineanchor.Anchor, digestOnly bool) string {
 // MCP result, byte-equal canonical records, the result and frame bounds, the
 // pinned source revision, and every returned passage verified. It returns the
 // failures and fills the report's counts and per-query records.
-func rcfCheck(root, commit string, limit int, digestOnly bool, queries []rcfQuery, answers map[string]rcfAnswer, report *rcfRepositoryReport) {
+func rcfCheck(root, commit, artifactDigest string, limit int, digestOnly bool, queries []rcfQuery, answers map[string]rcfAnswer, report *rcfRepositoryReport) {
 	verifier := &rcfVerifier{root: root, entries: map[string]string{}, blobs: map[string][]byte{}}
 	fail := func(query, passage, reason string) {
 		report.Failures = append(report.Failures, rcfFailure{Query: query, Passage: passage, Reason: reason})
@@ -436,14 +469,13 @@ func rcfCheck(root, commit string, limit int, digestOnly bool, queries []rcfQuer
 			}
 		}
 		var receipt doccorpus.Receipt
-		var tree any
 		if err := json.Unmarshal(a.CLI, &receipt); err != nil {
 			fail(q.ID, "", "CLI record is not a corpus receipt")
 			continue
 		}
-		if err := json.Unmarshal(a.CLI, &tree); err != nil {
-			fail(q.ID, "", "CLI record is not a corpus receipt")
-			continue
+		// Parity binds the MCP structured and text copies to this same digest.
+		if artifactDigest == "" || receipt.ArtifactSHA256 != artifactDigest {
+			fail(q.ID, "", "receipt artifact digest differs from the admitted artifact")
 		}
 		if receipt.Operation != "search" || receipt.Repository.Revision != commit {
 			fail(q.ID, "", "receipt is not a search of the pinned commit")
@@ -452,7 +484,7 @@ func rcfCheck(root, commit string, limit int, digestOnly bool, queries []rcfQuer
 			fail(q.ID, "", fmt.Sprintf("%d results exceed the limit %d", len(receipt.Results), limit))
 		}
 		var anchors []lineanchor.Anchor
-		if err := rcfAnchors(tree, &anchors); err != nil {
+		if err := rcfAnchors(a.CLI, &anchors); err != nil {
 			fail(q.ID, "", "receipt anchors cannot be read")
 			continue
 		}
@@ -478,12 +510,88 @@ func rcfCheck(root, commit string, limit int, digestOnly bool, queries []rcfQuer
 // rcfStatus is `git status --porcelain` of the repository, untracked files included.
 func rcfStatus(root string) ([]byte, error) {
 	command := exec.Command("git", "-C", root, "status", "--porcelain=v1", "--untracked-files=all", "--ignored=no")
-	command.Env = fixtureGitEnvironment()
+	command.Env = append(fixtureGitEnvironment(), "GIT_OPTIONAL_LOCKS=0")
 	return command.Output()
 }
 
-// rcfQualify runs one repository's queries on both surfaces and
-// checks them (RCF-V1-008). `git status --porcelain` must not change.
+// rcfCheckoutSnapshot preserves the porcelain report fields while comparing
+// HEAD, the logical index and actual tracked/untracked worktree bytes. Index
+// serialization is read-only (no write-tree or refresh). Only regular files,
+// symlinks and absent tracked paths are understood; special files and nested
+// checkouts fail closed rather than receiving an incomplete content digest.
+type rcfCheckoutSnapshot struct {
+	status   []byte
+	identity string
+}
+
+func rcfSnapshot(root string) (rcfCheckoutSnapshot, error) {
+	var snapshot rcfCheckoutSnapshot
+	var err error
+	snapshot.status, err = rcfStatus(root)
+	if err != nil {
+		return snapshot, err
+	}
+	git := &rcfVerifier{root: root}
+	hash := sha256.New()
+	for _, args := range [][]string{{"rev-parse", "--verify", "HEAD"}, {"ls-files", "--stage", "-z"}} {
+		data, err := git.git(args...)
+		if err != nil {
+			return snapshot, err
+		}
+		fmt.Fprintf(hash, "%d:", len(data))
+		hash.Write(data)
+	}
+	paths, err := git.git("ls-files", "--cached", "--others", "--exclude-standard", "-z")
+	if err != nil {
+		return snapshot, err
+	}
+	for _, path := range bytes.Split(paths, []byte{0}) {
+		if len(path) == 0 {
+			continue
+		}
+		name := filepath.Join(root, string(path))
+		info, err := os.Lstat(name)
+		fmt.Fprintf(hash, "%d:%s:", len(path), path)
+		if os.IsNotExist(err) {
+			hash.Write([]byte("absent;"))
+			continue
+		}
+		if err != nil {
+			return snapshot, err
+		}
+		fmt.Fprintf(hash, "%d:", info.Mode())
+		switch {
+		case info.Mode().IsRegular():
+			file, err := os.Open(name)
+			if err != nil {
+				return snapshot, err
+			}
+			content := sha256.New()
+			_, readErr := io.Copy(content, file)
+			closeErr := file.Close()
+			if readErr != nil {
+				return snapshot, readErr
+			}
+			if closeErr != nil {
+				return snapshot, closeErr
+			}
+			hash.Write(content.Sum(nil))
+		case info.Mode()&os.ModeSymlink != 0:
+			target, err := os.Readlink(name)
+			if err != nil {
+				return snapshot, err
+			}
+			fmt.Fprintf(hash, "%d:%s", len(target), target)
+		default:
+			return snapshot, fmt.Errorf("unsupported checkout entry kind")
+		}
+	}
+	snapshot.identity = hex.EncodeToString(hash.Sum(nil))
+	return snapshot, nil
+}
+
+// rcfQualify runs one repository's queries on both surfaces and checks them
+// (RCF-V1-008). Artifact bytes and checkout content must remain unchanged.
 func rcfQualify(t *testing.T, repo rcfRepository, limit int, root, artifact string, tamper func(map[string]rcfAnswer)) rcfRepositoryReport {
 	t.Helper()
 	report := rcfRepositoryReport{Name: repo.Name, Commit: repo.Commit, Evidence: repo.Evidence, Failures: []rcfFailure{}, Records: []rcfRecord{}}
@@ -493,9 +601,14 @@ func rcfQualify(t *testing.T, repo rcfRepository, limit int, root, artifact stri
 		return report
 	}
 	report.ArtifactSHA256 = rcfDigest(raw)
-	before, err := rcfStatus(root)
+	admitted, err := doccorpus.ParseArtifact(raw)
 	if err != nil {
-		report.Verdict, report.Reason = "FAIL", "git status failed"
+		report.Verdict, report.Reason = "FAIL", "corpus artifact cannot be admitted"
+		return report
+	}
+	before, err := rcfSnapshot(root)
+	if err != nil {
+		report.Verdict, report.Reason = "FAIL", "checkout snapshot failed"
 		return report
 	}
 	answers, err := rcfCollect(t, root, artifact, limit, repo.Queries)
@@ -503,17 +616,24 @@ func rcfQualify(t *testing.T, repo rcfRepository, limit int, root, artifact stri
 		report.Verdict, report.Reason = "FAIL", "corvint-docs mcp session failed"
 		return report
 	}
-	after, err := rcfStatus(root)
-	if err != nil {
-		report.Verdict, report.Reason = "FAIL", "git status failed"
-		return report
-	}
-	report.StatusBefore, report.StatusAfter = rcfDigest(before), rcfDigest(after)
 	if tamper != nil {
 		tamper(answers)
 	}
-	rcfCheck(root, repo.Commit, limit, repo.Evidence == rcfDigestOnly, repo.Queries, answers, &report)
-	if !bytes.Equal(before, after) {
+	after, err := rcfSnapshot(root)
+	if err != nil {
+		report.Verdict, report.Reason = "FAIL", "checkout snapshot failed"
+		return report
+	}
+	report.StatusBefore, report.StatusAfter = rcfDigest(before.status), rcfDigest(after.status)
+	final, err := doccorpus.ReadCorpusFile(root, artifact)
+	if err != nil || rcfDigest(final) != report.ArtifactSHA256 {
+		report.Failures = append(report.Failures, rcfFailure{Query: "*", Reason: "corpus artifact changed during collection"})
+	}
+	rcfCheck(root, repo.Commit, admitted.SHA256, limit, repo.Evidence == rcfDigestOnly, repo.Queries, answers, &report)
+	if before.identity != after.identity {
+		report.Failures = append(report.Failures, rcfFailure{Query: "*", Reason: "checkout HEAD, index or worktree content changed"})
+	}
+	if !bytes.Equal(before.status, after.status) {
 		report.Failures = append(report.Failures, rcfFailure{Query: "*", Reason: "git status --porcelain changed"})
 	}
 	report.Verdict = "PASS"
@@ -655,7 +775,7 @@ func TestRCFV1008IncompleteAnchorFailsTheRun(t *testing.T) {
 						location.put(doc, doc["citations"].([]any)[0])
 					})
 					var baseline rcfRepositoryReport
-					rcfCheck(root, repo.Commit, 20, false, repo.Queries, answers, &baseline)
+					rcfCheck(root, repo.Commit, rcfFixtureArtifactDigest(t, root), 20, false, repo.Queries, answers, &baseline)
 					if len(baseline.Failures) != 0 || baseline.PassagesVerified == 0 {
 						t.Fatalf("RCF-V1-008: invalid baseline: %+v", baseline)
 					}
@@ -717,7 +837,7 @@ func TestRCFV1008InvalidSpanFailsTheRun(t *testing.T) {
 					a["start_line"], a["end_line"], a["span_sha256"] = 1, 1, doccorpus.Digest([]byte("valid\n"))
 				})
 				var baseline rcfRepositoryReport
-				rcfCheck(root, repo.Commit, 20, false, repo.Queries, answers, &baseline)
+				rcfCheck(root, repo.Commit, rcfFixtureArtifactDigest(t, root), 20, false, repo.Queries, answers, &baseline)
 				if len(baseline.Failures) != 0 || baseline.PassagesVerified == 0 {
 					t.Fatalf("RCF-V1-008: invalid baseline: %+v", baseline)
 				}
@@ -894,4 +1014,222 @@ func TestRCFV1008Qualification(t *testing.T) {
 		}
 		t.Fatalf("RCF-V1-008: qualification %s (report %s): %s", report.Verdict, config.Report, strings.Join(failures, "; "))
 	}
+}
+
+// rcfFixtureArtifactDigest is the admitted content digest, which deliberately
+// differs from the report's SHA-256 of the encoded artifact file.
+func rcfFixtureArtifactDigest(t *testing.T, root string) string {
+	t.Helper()
+	raw, err := doccorpus.ReadCorpusFile(root, "corpus.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := doccorpus.ParseArtifact(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return artifact.SHA256
+}
+
+// RCF-V1-008: agreement between surfaces cannot excuse a bad live span.
+func TestRCFV1008LiveSymbolSpanFailsTheRun(t *testing.T) {
+	root, repo := rcfFixtureRepository(t, "full")
+	baseline := rcfQualify(t, repo, 20, root, "corpus.json", func(answers map[string]rcfAnswer) {
+		answers["fixture-01"] = rcfRewriteAnswer(t, answers["fixture-01"], func(doc map[string]any) { rcfAddLiveSymbol(doc) })
+	})
+	if baseline.Verdict != "PASS" {
+		t.Fatalf("invalid live location baseline: %+v", baseline)
+	}
+	report := rcfQualify(t, repo, 20, root, "corpus.json", func(answers map[string]rcfAnswer) {
+		answers["fixture-01"] = rcfRewriteAnswer(t, answers["fixture-01"], func(doc map[string]any) {
+			live := rcfAddLiveSymbol(doc)
+			live["span_sha256"] = doccorpus.Digest([]byte("corrupt live span"))
+		})
+	})
+	if report.Verdict != "FAIL" || report.Unverified != 1 || len(report.Failures) != 1 {
+		t.Fatalf("RCF-V1-008: live span corruption passed: %+v", report)
+	}
+	if f := report.Failures[0]; f.Query != "fixture-01" || f.Passage != "proof.go:2-2" || !strings.Contains(f.Reason, "span digest") {
+		t.Fatalf("RCF-V1-008: failure lacks query and passage: %+v", f)
+	}
+}
+
+// RCF-V1-008: unknown receipt forms are unproven even when all copies agree.
+func TestRCFV1008UnknownReceiptFormFailsClosed(t *testing.T) {
+	root, repo := rcfFixtureRepository(t, "full")
+	for _, location := range []string{"receipt", "result", "evidence", "live", "result variant", "null result", "schema"} {
+		t.Run(location, func(t *testing.T) {
+			report := rcfQualify(t, repo, 20, root, "corpus.json", func(answers map[string]rcfAnswer) {
+				answers["fixture-01"] = rcfRewriteAnswer(t, answers["fixture-01"], func(doc map[string]any) {
+					target := doc
+					result := doc["results"].([]any)[0].(map[string]any)
+					switch location {
+					case "result":
+						target = result
+					case "evidence":
+						target = result["evidence"].(map[string]any)
+					case "live":
+						target = rcfAddLiveSymbol(doc)
+					case "schema":
+						doc["schema"] = "unknown-receipt/99"
+						return
+					case "null result":
+						doc["results"] = []any{nil}
+						return
+					case "result variant":
+						doc["results"] = []any{map[string]any{"unexpected_variant": "unproven", "evidence": result["evidence"]}}
+						return
+					}
+					target["future_passage"] = map[string]any{"span": "unverified"}
+				})
+			})
+			if report.Verdict != "FAIL" || len(report.Failures) != 1 || report.Failures[0].Query != "fixture-01" || report.Failures[0].Reason != "receipt anchors cannot be read" {
+				t.Fatalf("RCF-V1-008: unknown form passed: %+v", report)
+			}
+		})
+	}
+}
+
+// RCF-V1-008: valid replacement corpora with the same source revision must
+// neither change the collected artifact nor masquerade as the admitted one.
+func TestRCFV1008ArtifactReplacementFailsTheRun(t *testing.T) {
+	for _, mode := range []string{"after collection", "replacement answers", "restored after replacement answers"} {
+		t.Run(mode, func(t *testing.T) {
+			root, repo := rcfFixtureRepository(t, "full")
+			original, err := doccorpus.ReadCorpusFile(root, "corpus.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			admitted, err := doccorpus.ParseArtifact(original)
+			if err != nil {
+				t.Fatal(err)
+			}
+			manifest := admitted.Manifest
+			manifest.BuiltAt = "2026-10-01T00:00:00Z"
+			replacement, err := doccorpus.Build(context.Background(), root, manifest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := doccorpus.Encode(replacement)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if replacement.SHA256 == admitted.SHA256 || replacement.Manifest.Repository.Revision != repo.Commit {
+				t.Fatal("replacement must differ at the same repository revision")
+			}
+			// Inside .git, the review's replacement leaves porcelain unchanged.
+			cemWrite(t, root, ".git/corpus.json", string(original))
+			report := rcfQualify(t, repo, 20, root, ".git/corpus.json", func(answers map[string]rcfAnswer) {
+				cemWrite(t, root, ".git/corpus.json", string(raw))
+				if mode != "after collection" {
+					other, err := rcfCollect(t, root, ".git/corpus.json", 20, repo.Queries)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for id, answer := range other {
+						answers[id] = answer
+					}
+				}
+				if mode == "restored after replacement answers" {
+					cemWrite(t, root, ".git/corpus.json", string(original))
+				}
+			})
+			if report.Verdict != "FAIL" || report.StatusBefore != report.StatusAfter || report.ArtifactSHA256 != rcfDigest(original) {
+				t.Fatalf("RCF-V1-008: artifact replacement passed: %+v", report)
+			}
+			want := "corpus artifact changed during collection"
+			count := 1
+			if mode != "after collection" {
+				want = "receipt artifact digest differs from the admitted artifact"
+				count = len(repo.Queries)
+			}
+			found := 0
+			for _, failure := range report.Failures {
+				if failure.Reason == want {
+					found++
+				}
+			}
+			if found != count {
+				t.Fatalf("RCF-V1-008: missing binding failures: %+v", report)
+			}
+		})
+	}
+}
+
+// RCF-V1-008: porcelain-equivalent changes to HEAD, the logical index or
+// already dirty/untracked bytes cannot pass the read-only check.
+func TestRCFV1008CheckoutMutationFailsTheRun(t *testing.T) {
+	for _, mode := range []string{"dirty tracked bytes", "untracked bytes", "index", "HEAD"} {
+		t.Run(mode, func(t *testing.T) {
+			root, repo := rcfFixtureRepository(t, "full")
+			switch mode {
+			case "dirty tracked bytes":
+				cemWrite(t, root, "proof.go", "package cache\nfunc Checkout() {} // dirty one\n")
+			case "untracked bytes":
+				cemWrite(t, root, "untracked.txt", "one")
+			case "index":
+				cemWrite(t, root, "proof.go", "package cache\nfunc Checkout() {} // staged one\n")
+				cemGit(t, root, "add", "proof.go")
+				cemWrite(t, root, "proof.go", "package cache\nfunc Checkout() {} // unstaged\n")
+			}
+			report := rcfQualify(t, repo, 20, root, "corpus.json", func(_ map[string]rcfAnswer) {
+				switch mode {
+				case "dirty tracked bytes":
+					cemWrite(t, root, "proof.go", "package cache\nfunc Checkout() {} // dirty two\n")
+				case "untracked bytes":
+					cemWrite(t, root, "untracked.txt", "two")
+				case "index":
+					cemWrite(t, root, "proof.go", "package cache\nfunc Checkout() {} // staged two\n")
+					cemGit(t, root, "add", "proof.go")
+					// Restore the worktree bytes; only the index changes identity.
+					cemWrite(t, root, "proof.go", "package cache\nfunc Checkout() {} // unstaged\n")
+				case "HEAD":
+					cemGit(t, root, "commit", "--allow-empty", "-qm", "move clean HEAD")
+				}
+			})
+			if report.Verdict != "FAIL" {
+				t.Fatalf("RCF-V1-008: checkout mutation passed: %+v", report)
+			}
+			if report.StatusBefore != report.StatusAfter {
+				t.Fatalf("regression must preserve porcelain: %+v", report)
+			}
+			found := false
+			for _, f := range report.Failures {
+				if f.Reason == "checkout HEAD, index or worktree content changed" {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("RCF-V1-008: missing identity failure: %+v", report)
+			}
+		})
+	}
+}
+
+// RCF-V1-008: directories replacing tracked files (including gitlinks) are
+// not silently hashed as empty files. Unsupported checkout forms fail closed.
+func TestRCFV1008UnknownCheckoutFormFailsClosed(t *testing.T) {
+	root, repo := rcfFixtureRepository(t, "full")
+	if err := os.Remove(filepath.Join(root, "proof.go")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "proof.go"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	report := rcfQualify(t, repo, 20, root, "corpus.json", nil)
+	if report.Verdict != "FAIL" || report.Reason != "checkout snapshot failed" || report.Queries != 0 {
+		t.Fatalf("RCF-V1-008: unknown checkout form passed: %+v", report)
+	}
+}
+
+// rcfAddLiveSymbol injects a valid live location from a pinned fixture
+// citation. The provider fixture otherwise reports an unresolved symbol.
+func rcfAddLiveSymbol(doc map[string]any) map[string]any {
+	citation := doc["citations"].([]any)[0].(map[string]any)
+	live := map[string]any{}
+	for _, key := range []string{"revision", "path", "blob", "sha256", "start_line", "end_line", "span_sha256"} {
+		live[key] = citation[key]
+	}
+	doc["symbol_anchors"] = []any{map[string]any{"anchor": "fixture-live", "state": "live", "reason": "pinned fixture location", "live": live}}
+	return live
 }
