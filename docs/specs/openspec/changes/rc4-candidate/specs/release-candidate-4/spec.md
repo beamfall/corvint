@@ -143,9 +143,10 @@ candidate tag.
 
 When RCF-V1-008 and RCF-V1-009 pass, one commit MUST set the promoted scope's delivery status to
 `validated` naming the qualification build-log entry; change the `README.md` row for the promoted
-scope; set PROD-DOCS-009's state; and mark the three tools' input and output schemas and the corpus format
-`stable` in `tools/compatibility-table/surfaces.json` with contract tests (CMP-V1-002). Result order SHALL stay `preview`. Independent external utility MUST
-be reported `EXTERNAL_DEPENDENT` and `NOT_RUN`, never as passed.
+scope; set PROD-DOCS-009's state; and mark the three tools' input and output schemas and the
+corpus format `stable` in `tools/compatibility-table/surfaces.json` with contract tests
+(CMP-V1-002). Result order SHALL stay `preview`. Independent external utility MUST be reported
+`EXTERNAL_DEPENDENT` and `NOT_RUN`, never as passed.
 
 #### Scenario: Promotion lands
 
