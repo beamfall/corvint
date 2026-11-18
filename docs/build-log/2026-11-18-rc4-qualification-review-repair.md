@@ -107,3 +107,12 @@ known soundness gaps and does not authorize promotion. Production binaries and c
 unchanged. Current-candidate ranking qualification and independent review remain orchestrator
 work. CEM binding and dogfood-check cannot run in this tree: `docs/DOGFOOD.md` records their
 removal under decision 0594. No workflow was recreated and no seal was attempted.
+
+## Fix-only re-review outcome
+
+The fix-only re-review (gpt-6.1-sol, high, read-only, FIX_BASE `ccaa6b659`) confirmed that
+live-span verification, artifact binding and checkout identity are fixed, each with a regression
+test that would fail without the fix. P1-3, executable enforcement of the RCF-V1-010 rerun,
+remains open. Two review-fix rounds have run, so it is rescoped rather than repaired again.
+V1-5692 tracks a fail-closed release-candidate gate. Until that gate lands, readiness row 13 keeps
+the rc.4 tag on HOLD.

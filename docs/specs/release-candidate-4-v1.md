@@ -220,6 +220,11 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
 - Task 4.2 (RCF-V1-003): first-pass record `docs/build-log/2026-11-18-rc4-readiness.md` is HOLD:
   rows M4, removals, flow links, held-out pools and V1-0374 are `NOT_RUN`, and release gates are
   `FAIL`. The task completes only when every row is `PASS` or `WAIVED` on the candidate commit.
+- Task 5.1 (all): independent review (gpt-6.1-sol, high) found three P1s and one P2. The repair
+  (`e86fc10a2`) fixed live-span verification, artifact binding and checkout identity; the
+  fix-only re-review confirmed all three. P1-3, executable enforcement of the RCF-V1-010 rerun,
+  stayed open after two rounds. It is rescoped to V1-5692 under the lane convergence cap, and until
+  then readiness row 13 holds the tag. Record: `docs/build-log/2026-11-18-rc4-qualification-review-repair.md`.
 - Task 4.4 (RCF-V1-004, RCF-V1-005): draft section "1.0.0-rc.4 release candidate" in
   `docs/RELEASE-NOTES.md`, with V1-0019 `NOT_RUN`. It is final once the tag is published.
 - Task 3.2 (RCF-V1-006): delivery `validated` for exactly the promoted scope: the four CLI verbs,

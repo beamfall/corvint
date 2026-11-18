@@ -23,7 +23,7 @@ nothing for rc.4.
 | 9 | RCF-D1 applied; V1-5545 retired | PASS | Task 4.1 is done: MTT-V1-010 is superseded and the three archives are kept. V1-5545 is COMPLETED. |
 | 10 | Candidate-byte linux/amd64 qualification workflow (V1-0374) | NOT_RUN | V1-0374 is OPEN with no workflow delivered. |
 | 11 | Commit authorship on `origin/main` (V1-5621) | PASS | The history rewrite was force-pushed on 2026-11-18 with owner approval ("Rewrite and force-push"). The backup ref is `backup/main-pre-authorfix-2026-11-18`. The ticket stays OPEN for closeout. |
-| 12 | RCF-V1-006 to RCF-V1-011 delivered | PASS | See `2026-11-18-rc4-docs-qualification.md`: the qualification, the DCS-V1-404 twin run, the rerun trigger, the schema and format pins, the promotion, and the revert drill (RCF-V1-012). The independent review (task 5.1) is still open. |
+| 12 | RCF-V1-006 to RCF-V1-011 delivered | PASS | See `2026-11-18-rc4-docs-qualification.md`: the qualification, the DCS-V1-404 twin run, the rerun trigger, the schema and format pins, the promotion, and the revert drill (RCF-V1-012). Task 5.1 is closed: three findings fixed, and P1-3 is rescoped to V1-5692 and held by row 13. |
 | 13 | Qualification current for the candidate (RCF-V1-010) | NOT_RUN | Run the three-repository qualification on the candidate commit, or show that `git diff --stat 1f35e9f28 <candidate> -- cmd/corvint-docs internal/doccorpus internal/mcp` touches no ranking, corpus build, corpus format, verb or tool code. The selected unit tests skip the live run without `CORVINT_RCF_QUALIFY`, so a green affected run does not prove this row (independent review 5.1, P1-3). The 5.1 repair changes the runner, so the qualification reruns before this row can PASS. |
 
 ## What frees the tag
