@@ -179,6 +179,12 @@ provenance assets needed for a deliberate source-release policy. No sdist is in 
   corresponding archive MUST be assembled twice in separate temporary directories. Both binary
   pairs and both archive pairs MUST be byte-identical. The checker records SHA-256 and byte count
   for every retained binary and archive; a mismatch retains no candidate output.
+  V1-4733 amendment (owner lane charter, 2026-11-18): the caches start empty for each target's
+  loose A/B builds. After that gate passes, raw-export A/B builds MAY continue their respective
+  same-target caches within that run, relying on the pinned Go toolchain's action-input validation.
+  No cache crosses sides, targets or runs. Raw source exports, build commands, private indexes,
+  temporary directories, byte comparisons and independent assemblies remain mandatory. A changed
+  source must rebuild instead of substituting the previously verified loose binary.
 - `ARTIFACT-GO-V0-006`: verification MUST be offline and independent of the assembler. From archive
   bytes plus the pinned manifest and exact commit, it rechecks the closed member inventory,
   container framing and metadata, every legal-file byte, `SHA256SUMS`, the binary digest/build info,
@@ -397,14 +403,18 @@ recorded by the current assessment; that evidence is not a legal conclusion or r
   `false`, so no such path is disjoint from the gated binary. Failure modes: any listed untracked
   path fails the loose gate as `dirty-worktree`. It fails the archive builder as `git-state-invalid`
   ("worktree is not clean"), and, when it appears after capture, as `git-state-changed`
-  (`conformance/release-artifact-v0/archive_run.go:471@f0223702`). A path excluded by ignore rules is never
-  listed, leaves the stamp `false`, and does not refuse.
+  (`conformance/release-artifact-v0/archive_run.go:480@f0223702`). A path excluded by ignore rules
+  is never listed, leaves the stamp `false`, and does not refuse.
 
 Acceptance requires adversarial fixtures for every forbidden member/container form, notice or
 checksum mutation, target/build-info mismatch, cold-cache and temporary-directory independence,
 binary/archive nondeterminism, partial-output cleanup, offline denial, and byte-identical repeated
 assembly for all five target rows. Rollback is deletion of the unaccepted assembler/checker and its
 outside-repository outputs; the existing loose-binary and Python-wheel gates remain unchanged.
+
+Cache continuation acceptance, failure modes and rollback are specified by `GAG-V0-9963` in
+`go-archive-gate-v0.md`: changed ignored input must still refuse the loose binding; restore fresh
+raw-build cache roots to roll back. This changes neither the wire contract nor any refusal code.
 
 ### Go archive implementation traceability
 
@@ -414,7 +424,7 @@ outside-repository outputs; the existing loose-binary and Python-wheel gates rem
 | `ARTIFACT-GO-V0-002` | `archivebuild`; fixed five-target naming and six-member inventory | raw tar.gz/ZIP inventory and full five-target gate |
 | `ARTIFACT-GO-V0-003` | canonical inner checksum generation plus byte/report binding to the existing loose reproducibility gate | hostile loose-gate report/byte mismatch and checksum/member mutation tests; `TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses` (a `.go` source hidden by a committed `.gitignore` and by `.git/info/exclude` changes the live-root loose binary while its per-target report still passes with `vcs.modified=false`; the raw-commit archive build omits it and the binding refuses with `loose-gate-report-mismatch`, decision 0158) |
 | `ARTIFACT-GO-V0-004` | canonical ustar/gzip and raw stored ZIP encoders; independent exact-byte reconstruction | raw framing, metadata, path, special-type, collision, and resource fixtures |
-| `ARTIFACT-GO-V0-005` | existing loose-gate pair plus separate raw-export builds, cold caches, build directories, and assembly directories | descriptor-derived pair separation and five real byte-identical build/assembly pairs |
+| `ARTIFACT-GO-V0-005` | loose and raw-export builds continue independent initially cold per-target A/B caches; separate build and assembly directories | `TestArchiveCacheContinuationPreservesIndependentBuilds`; `TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses`; descriptor-derived pair separation and five real byte-identical build/assembly pairs |
 | `ARTIFACT-GO-V0-006` | separately compiled `archive-verifier` with stable no-follow reads, immutable caps, and no assembler/execution/network import | process/import boundary, strict request/result, resource, build-info/target/legal/checksum/raw-container rejection matrix |
 | `ARTIFACT-GO-V0-007` | external `0700` scratch, descriptor-rooted stage, fsync, atomic no-replace promotion, path-free report, private witness | racing-destination/collision/cleanup/cancellation tests; strict status/checklist validation |
 | `ARTIFACT-GO-V0-009` | unchanged empty-status checks in `checkCommit` (`gate.go`) and `resolveCleanState` (`archive_run.go`) | `TestCleanStateAllowsIgnoredButRefusesAnyUntrackedPath`, `TestFinalGitRecheckRejectsDirtyStagedUntrackedAndHeadMovement` |
