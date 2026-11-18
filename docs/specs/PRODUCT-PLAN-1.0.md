@@ -1987,6 +1987,7 @@ are written alongside this revision; each is proposed only. The order and prereq
 | `jest-provider` | PROD-TEST-006, 008, 011 | R7, R8 |
 | `per-test-durations` | PROD-TEST-016 | R19 |
 | `release-process` | PROD-INT-012, 013, 017; milestones M0 and M5a | R2, R3 |
+| `rc4-candidate` | PROD-DOCS-001, 009, 010; PROD-INT-012 to 014; tag rc.4 at M5a | R2, H3, H7, answer 8 |
 | `openspec-check` | PROD-INT-011 | G14, R41, H9, H12 |
 | `flow-schema-version` | PROD-INT-016 | G5 |
 | `macos-required-shards` | PROD-INT-015 | answer 16, R36, H11 |
@@ -2091,6 +2092,7 @@ for each of the 45 folders on disk, and `docs/specs/openspec/README.md` lists th
 | `acceptance-record` | existing | this plan reconciled with the proposal headers (O31) | acceptance of every other folder; the R9 Python release exception |
 | `tasks-policy-v15` | existing | none | `release-process` (M0) |
 | `release-process` | existing | `tasks-policy-v15` for M0; `proof-repositories`, `fault-injection-harness`, `narrowing-measurement` and `per-test-durations` for M5a qualification | M5a, M8 publish; the signed decision file |
+| `rc4-candidate` | new | `release-process`, `proof-repositories`, `compatibility-promise` | M5a tag, the docs search promotion |
 | `openspec-check` | existing | none | `spec-set-cleanup`; the archive stage of every later change |
 | `source-removal` | existing | none (RMV-V1-034 alone waits for SLF-V1-007 and is in no batch B0 to B11) | `spec-set-cleanup`; `runner-contract` (external protocol removed, G23); `user-docs` (upgrade notes) |
 | `spec-set-cleanup` | existing | `openspec-check`, `source-removal` | one workflow document; finished by 2026-12-01 |
