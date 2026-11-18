@@ -284,140 +284,139 @@
       ]
     },
     {
-      "name": "prometheus",
-      "url": "https://github.com/prometheus/prometheus",
-      "commit": "cb4e01dd1cb1673d4bcde6f3a16fb767b7f8eb88",
+      "name": "vue",
+      "url": "https://github.com/vuejs/core",
+      "commit": "148fdacdc3a67aaa2b8d1b615da227c3fcc2df53",
       "evidence": "full",
       "scopes": [
-        "docs",
-        "model/labels",
-        "promql"
+        "packages/reactivity",
+        "packages/runtime-core"
       ],
       "queries": [
         {
-          "id": "prometheus-01",
+          "id": "vue-01",
           "kind": "file",
-          "query": "promql/engine.go"
+          "query": "packages/reactivity/src/effect.ts"
         },
         {
-          "id": "prometheus-02",
+          "id": "vue-02",
           "kind": "file",
-          "query": "promql/functions.go"
+          "query": "packages/reactivity/src/computed.ts"
         },
         {
-          "id": "prometheus-03",
+          "id": "vue-03",
           "kind": "file",
-          "query": "promql/parser/lex.go"
+          "query": "packages/reactivity/src/dep.ts"
         },
         {
-          "id": "prometheus-04",
+          "id": "vue-04",
           "kind": "file",
-          "query": "promql/parser/parse.go"
+          "query": "packages/reactivity/src/ref.ts"
         },
         {
-          "id": "prometheus-05",
+          "id": "vue-05",
           "kind": "file",
-          "query": "model/labels/matcher.go"
+          "query": "packages/reactivity/README.md"
         },
         {
-          "id": "prometheus-06",
+          "id": "vue-06",
           "kind": "file",
-          "query": "model/labels/regexp.go"
+          "query": "packages/runtime-core/src/apiCreateApp.ts"
         },
         {
-          "id": "prometheus-07",
+          "id": "vue-07",
           "kind": "file",
-          "query": "docs/storage.md"
+          "query": "packages/runtime-core/src/scheduler.ts"
         },
         {
-          "id": "prometheus-08",
+          "id": "vue-08",
           "kind": "file",
-          "query": "docs/federation.md"
+          "query": "packages/runtime-core/README.md"
         },
         {
-          "id": "prometheus-09",
+          "id": "vue-09",
           "kind": "symbol",
-          "query": "NewEngine"
+          "query": "ReactiveEffect"
         },
         {
-          "id": "prometheus-10",
+          "id": "vue-10",
           "kind": "symbol",
-          "query": "NewInstantQuery"
+          "query": "EffectScope"
         },
         {
-          "id": "prometheus-11",
+          "id": "vue-11",
           "kind": "symbol",
-          "query": "NewRangeQuery"
+          "query": "defineAsyncComponent"
         },
         {
-          "id": "prometheus-12",
+          "id": "vue-12",
           "kind": "symbol",
-          "query": "NewActiveQueryTracker"
+          "query": "withDirectives"
         },
         {
-          "id": "prometheus-13",
+          "id": "vue-13",
           "kind": "symbol",
-          "query": "NewMatcher"
+          "query": "triggerRef"
         },
         {
-          "id": "prometheus-14",
+          "id": "vue-14",
           "kind": "symbol",
-          "query": "FindMinMaxTime"
+          "query": "markRaw"
         },
         {
-          "id": "prometheus-15",
+          "id": "vue-15",
           "kind": "symbol",
-          "query": "PrometheusQueryOpts"
+          "query": "useModel"
         },
         {
-          "id": "prometheus-16",
+          "id": "vue-16",
           "kind": "symbol",
-          "query": "ErrTooManySamples"
+          "query": "onScopeDispose"
         },
         {
-          "id": "prometheus-17",
+          "id": "vue-17",
           "kind": "prose",
-          "query": "how does the query engine enforce a query timeout"
+          "query": "how does the scheduler flush pre and post jobs"
         },
         {
-          "id": "prometheus-18",
+          "id": "vue-18",
           "kind": "prose",
-          "query": "how are label matchers compiled into regular expressions"
+          "query": "how does a computed value track its dependencies"
         },
         {
-          "id": "prometheus-19",
+          "id": "vue-19",
           "kind": "prose",
-          "query": "how is local storage retention configured"
+          "query": "how is an effect scope disposed with its effects"
         },
         {
-          "id": "prometheus-20",
+          "id": "vue-20",
           "kind": "prose",
-          "query": "how does federation select the series to scrape"
+          "query": "how does an async component handle loading delay and errors"
         },
         {
-          "id": "prometheus-21",
+          "id": "vue-21",
           "kind": "prose",
-          "query": "how is the lookback delta applied to instant queries"
+          "query": "how does KeepAlive cache component instances"
         },
         {
-          "id": "prometheus-22",
+          "id": "vue-22",
           "kind": "prose",
-          "query": "how are active queries logged for crash recovery"
+          "query": "how does useModel keep a prop and local ref in sync"
         },
         {
-          "id": "prometheus-23",
+          "id": "vue-23",
           "kind": "prose",
-          "query": "what does the stability guarantee cover"
+          "query": "how are lifecycle hooks registered on the current instance"
         },
         {
-          "id": "prometheus-24",
+          "id": "vue-24",
           "kind": "prose",
-          "query": "how does the PromQL lexer read a number"
+          "query": "how does the app provide values for inject"
         },
         {
-          "id": "prometheus-25",
+          "id": "vue-25",
           "kind": "prose",
-          "query": "how are histogram quantiles computed"
+          "query": "how does triggering a shallow ref notify its subscribers"
         }
       ]
     }

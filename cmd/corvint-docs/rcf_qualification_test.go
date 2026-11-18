@@ -173,7 +173,7 @@ func TestRCFV1007FrozenQuerySet(t *testing.T) {
 			t.Errorf("RCF-V1-007: %s query kinds %v", repo.Name, kinds)
 		}
 	}
-	if !slices.Equal(names, []string{"corvint", "beamfall", "prometheus"}) {
+	if !slices.Equal(names, []string{"corvint", "beamfall", "vue"}) {
 		t.Fatalf("RCF-V1-007: repositories %v", names)
 	}
 	if set.Repositories[1].Evidence != rcfDigestOnly {

@@ -220,7 +220,7 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
 - Task 4.4 (RCF-V1-004, RCF-V1-005): NOT_PRODUCED until the rc.4 release notes.
 - Task 3.2 (RCF-V1-006): NOT_PRODUCED until the promotion commit.
 - Task 2.1 (RCF-V1-007): `cmd/corvint-docs/testdata/rcf-v1-qualification/queries.json`
-  (Corvint, `beamfall/core` and `prometheus/prometheus`, 25 queries each, each repository pinned
+  (Corvint, `beamfall/core` and `vuejs/core`, 25 queries each, each repository pinned
   to a commit) and its digest `queries.sha256`. Evidence: `TestRCFV1007FrozenQuerySet`.
 - Task 2.2 (RCF-V1-008): `cmd/corvint-docs/rcf_qualification_test.go` (`rcfQualify`, and the
   opt-in run `TestRCFV1008Qualification` under `CORVINT_RCF_QUALIFY`). Evidence:
