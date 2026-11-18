@@ -298,7 +298,12 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 				// data file the adapter does not observe, such as JSON, is
 				// then read by the importer through its path token
 				// (TJAA-V0-1161, V1-4683).
-				targets = append(targets, nearest.candidates(ref)...)
+				for _, candidate := range nearest.candidates(ref) {
+					targets = append(targets, candidate)
+					if path.Ext(candidate) == "" {
+						targets = append(targets, candidate+".json")
+					}
+				}
 			}
 			continue
 		}

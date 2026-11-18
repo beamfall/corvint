@@ -102,6 +102,7 @@ type observation struct {
 	// aliasTargets are the paths an unresolved tsconfig alias of the module
 	// could load, added to its path tokens (TJAA-V0-1161).
 	aliasTargets []string
+	aliasBounded bool
 	// dataTokens are the path-shaped strings of the JSON modules the module
 	// imports (TJAA-V0-622), candidate reads beside its own literals.
 	dataTokens []string
@@ -630,6 +631,14 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		if ref, unresolved := unresolvedBareImport(root, observation.path, observation.refs, scopes); unresolved {
 			sites.raiseRef(frontier, reason(observation.path, ref), observation.path, ref)
 		}
+		for _, ref := range observation.refs {
+			targets, bounded := packageImportTargets(observation.path, ref, bodies)
+			observation.aliasTargets = append(observation.aliasTargets, targets...)
+			observation.aliasBounded = observation.aliasBounded || bounded
+			if bounded {
+				sites.raiseRef(frontier, reason(observation.path, ref), observation.path, ref)
+			}
+		}
 		observation.dataTokens = jsonModuleTokens(root, observation.path, observation.refs, frontier)
 	}
 	var e2eConfigs []string
@@ -745,7 +754,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 			}
 			unit.Tests = append(unit.Tests, observation.path)
 			tokens, bounded := pathTokens(observation.body)
-			unit.PathTokensBounded = unit.PathTokensBounded || bounded
+			unit.PathTokensBounded = unit.PathTokensBounded || bounded || observation.aliasBounded
 			for _, token := range tokens {
 				storybookTokens[groupID][token] = true
 			}
@@ -754,25 +763,17 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 				storybookRefs[groupID][ref] = true
 			}
 			dataTokens[groupID] = append(dataTokens[groupID], observation.dataTokens...)
+			dataTokens[groupID] = append(dataTokens[groupID], observation.aliasTargets...)
 			continue
 		}
 		id := unitID(observation.runner, observation.path)
 		unit := affected.Unit{ID: id}
 		unit.PathTokens, unit.PathTokensBounded = pathTokens(observation.body)
-		if len(observation.aliasTargets) != 0 && !unit.PathTokensBounded {
-			merged := make(map[string]bool, len(unit.PathTokens)+len(observation.aliasTargets))
-			for _, token := range unit.PathTokens {
-				merged[token] = true
-			}
-			for _, target := range observation.aliasTargets {
-				merged[target] = true
-			}
-			if len(merged) > maxPathTokens {
-				unit.PathTokens, unit.PathTokensBounded = nil, true
-			} else {
-				unit.PathTokens = sortedKeys(merged)
-			}
+		unit.PathTokensBounded = unit.PathTokensBounded || observation.aliasBounded
+		if unit.PathTokensBounded {
+			unit.PathTokens = nil
 		}
+
 		if observation.test {
 			unit.Tests = []string{observation.path}
 		} else {
@@ -783,7 +784,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		}
 		units = append(units, unit)
 		pathToID[observation.path] = id
-		dataTokens[id] = observation.dataTokens
+		dataTokens[id] = append(append([]string(nil), observation.dataTokens...), observation.aliasTargets...)
 		refs[id] = stringSet(observation.refs)
 		direct[id] = make(map[string]bool)
 		for _, configPath := range observation.configs {
@@ -831,6 +832,15 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 				resolved[ref] = true
 			}
 			if local && unresolved {
+				// Extensionless imports can load JSON even though JSON is not
+				// an owned module. Keep the candidate after token recomputation.
+				clean := strings.SplitN(strings.SplitN(ref, "?", 2)[0], "#", 2)[0]
+				candidate := path.Clean(path.Join(path.Dir(owner), clean))
+				if path.Ext(candidate) == "" && affected.ValidRelativePath(candidate) {
+					dataTokens[unit.ID] = append(dataTokens[unit.ID], candidate+".json")
+				} else if path.Ext(candidate) == ".json" && affected.ValidRelativePath(candidate) {
+					dataTokens[unit.ID] = append(dataTokens[unit.ID], candidate)
+				}
 				site, token := unitRefSite(*unit, sites, ref)
 				frontier.raiseToken(FrontierUnresolvedImport, site, token)
 			}
@@ -847,7 +857,9 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		// SLF-V1-004: an importer of a module, or of a bare package, also reads its manual mock.
 		mocks.add(owner, refs[unit.ID], edges, unit.ID)
 		unit.Imports = sortedKeys(edges)
-		unresolvedSpecifierTokens(unit, sites, resolved)
+		if !unit.PathTokensBounded {
+			unresolvedSpecifierTokens(unit, sites, resolved)
+		}
 		mergeDataTokens(unit, dataTokens[unit.ID])
 	}
 	units = append(units, packages.built()...)

@@ -68,6 +68,24 @@ participation, and inbound shell callers. The remaining classes are small and lo
 
 ## Requirements
 
+- `AZU-V1-960`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4679)
+  A source-bound frontier declaration SHALL NOT discard a site that names an unowned dirty path.
+  Located sites SHALL retain their literal and resolved alias targets, including exact tsconfig
+  aliases, package.json imports mappings, extensionless JSON loads and recorded overflow sites.
+  Resolving another import SHALL NOT erase these targets. Unsupported mappings, unavailable
+  resolution tables, unowned located sites and bounded token sets SHALL retain uncertainty.
+  This strengthens the negative proof in AFP-V0-511 without changing the wire contract.
+- `AZU-V1-961`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4679)
+  The AZU-V0-211 hosted-fixture proof SHALL apply to nonparticipating plugins on unowned changes
+  as well as participating plugins. Every site must be in an untouched, unreached Go-hosted
+  fixture and either bind only local source or runner configuration, or have its host selected.
+  A named dirty read or dirty resolution input defeats this proof. Computed, unlocated and
+  unclassified edges SHALL remain unknown without a proof. TypeScript SHALL treat YAML as a
+  resolution input only at supported runner configurations or test-asset paths, retaining
+  literal readers and driver-input uncertainty independently. This amends AFP-V0-511's use of
+  the scan predicate for YAML: scanning bytes alone does not establish a resolution dependency.
+
+
 - **AZU-V0-001:** **Driver claimant.** A built-in claimant SHALL own every driver input that
   `driverInput` recognises (make files at any depth, `.github/workflows/**`, `.github/actions/**`),
   so such a path is never `UNOWNED_DIRTY_PATH` and never triggers the AFP-V0-511 cascade. Its units
@@ -1089,6 +1107,13 @@ tree reader, a tested wrapper is followed, and the guard's marker is a tested li
 
 ## Failure modes
 
+The V1-4679 narrowing fails closed for a missing site, unowned resolution table, unsupported
+package import target, bounded token set or unclassified hidden edge. A fixture that names the
+changed path stays live even when its other edges are fixture-local. JSON candidates preserve
+all matching mapping alternatives; no runtime condition is guessed. Package imports are bounded
+by the existing source and token limits and a 16-level conditional nesting limit.
+
+
 - A plugin reports an `OUTBOUND` reason whose hidden edge can start outside its site. Then
   AZU-V0-003 is unsound. Mitigation: each `OUTBOUND` declaration needs a fixture test showing that
   the edge's start is the site file, and review rejects an `OUTBOUND` label without one.
@@ -1151,6 +1176,13 @@ tree reader, a tested wrapper is followed, and the guard's marker is a tested li
   action's own `GITHUB_ENV` write, is not modelled.
 
 ## Acceptance evidence
+
+V1-4679 evidence is retained in `docs/build-log/2026-11-18-m8-frontier.md`. The new reader fixtures
+combine resolved source imports with JSON aliases and exceed the displayed frontier-site bound.
+Negative cases cover unrelated data; fixture fault injections cover named reads, resolution
+inputs, touched fixtures and path-open sites. Historical full-suite and changed-line mutation
+qualification remains required by AZU-V0-009; a seven-merge plan comparison cannot replace it.
+
 
 V1-4729 witnesses AZU-V0-9900 with `TestOwnershipMembershipSelection_AZU_V0_9900` and
 `TestOwnershipContentOnlyBytes_AZU_V0_9900`, AZU-V0-9901 with
@@ -1316,6 +1348,11 @@ AFP-V0-9620 to AFP-V0-9628 (V1-5000, 2026-11-08) are accepted by the `AFP_V0_962
 
 ## Rollback
 
+For V1-4679, revert the selector's fixture proof and TypeScript YAML narrowing to restore wider
+unknowns. Retain the additive JSON-reader fixes when rolling back precision: dropping them
+reintroduces missed reads. No wire migration, new authority file or cache encoding is introduced.
+
+
 Each requirement only turns an unknown into a selection, behind its own code path. Reverting its
 commit restores the earlier `UNKNOWN` plan, which consumers already treat as a wide or full run.
 Reverting the AFP-V0-9620 to AFP-V0-9628 commits restores the scanner's prior behaviour, with
@@ -1334,12 +1371,14 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 
 | Requirement | Tickets | Evidence |
 |---|---|---|
+| AZU-V1-960 | V1-4679 | `TestUnownedSourceBoundReads_AZU_V1_960`; `TestForeignJSONFrontierReaders_AZU_V1_960`; `TestPackageImportTargetFailures_AZU_V1_960` |
+| AZU-V1-961 | V1-4679 | `TestUnownedHostedFrontier_AZU_V1_961`; `TestYAMLResolutionInputs_AZU_V1_961` |
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
 | AZU-V0-8920 to AZU-V0-8926 | V1-4685 | `TestParameterDefaultFormsAreTokens_AZU_V0_8920`, `TestNestedParameterDefaultsAreTokens_AZU_V0_8920`, `TestParameterDefaultPathSelectsItsMakeTarget_AZU_V0_8920`, `TestNestedParameterDefaultSelectsItsMakeTarget_AZU_V0_8920`, `TestValueWordsOnlyAddTokens_AZU_V0_8920`, `TestValueWordsMatchBraces_AZU_V0_8920`, `TestTreeReaderDeclarationRefusals_AZU_V0_8921`, `TestCMPV1004TestSelectionProfilesAcrossReaders`, `TestDeclaredTreeReaderSelectsItsDrivers_AZU_V0_8922`, `TestDeclaredTreeReaderReadsExcludedPaths_AZU_V0_8922`, `TestTreeReaderFollowsTestedWrapper_AZU_V0_8922`, `TestNewChangeEvidenceSelectsTreeReaders_AZU_V0_8922`, `TestDriverRunWholeTreeScriptsAreDeclared_AZU_V0_8923`, `TestWholeTreeMarkerForms_AZU_V0_8923`, `TestOwnedPathNamersAreReached_AZU_V0_8924`, `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925`, `TestOwnershipReaderMissClasses_AZU_V0_8926`; head proof over the 160 audited paths in `docs/build-log/2026-11-16-r1replay-ownership-replay-complete.md` |
 | AZU-V0-8927 | V1-5628 | `TestDriverRecipeParameterDefaultIsRead_V1_5628`, `TestDriverPathTokensReadValueWords_AZU_V0_8927`, `TestDriverPathTokensKeepNonValueFormsBlank_AZU_V0_8927`, `TestDriverJoinedReadIsLinear_AZU_V0_8927`, `TestDriverJoinedReadKeepsTextAfterAnUnclosedOpener_AZU_V0_8927`, `TestDriverJoinedReadIgnoresAnEarlierLiteralOpener_AZU_V0_8927`, `TestDriverPathTokensReadPastTheDepthBound_AZU_V0_8927`, `TestDriverPathTokensOnlyAdd_AZU_V0_8927`; replay over this repository at `964535021`: 250 driver units (195 of the Makefile) and the driver readers of 10540 tracked paths unchanged |
 | AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
-| AZU-V0-003 | V1-4686 | AZU-V0-212: `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`, `TestFrontierSiteRecordIsComplete_TJAA_V0_1161` (frontierSites count equals the recorded sites), `TestFrontierDirections_TJAA_V0_1161`; one-file TypeScript probe in `docs/build-log/2026-11-09-frontier.md` |
+| AZU-V0-003 | V1-4686, V1-4679 | `TestFrontierCountsEveryPlugin_AZU_V0_003`; `TestOutboundKindsSelectTheirSites_AZU_V0_003`; AZU-V0-212: `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`, `TestFrontierSiteRecordIsComplete_TJAA_V0_1161` (frontierSites count equals the recorded sites), `TestFrontierDirections_TJAA_V0_1161`; one-file TypeScript probe in `docs/build-log/2026-11-09-frontier.md` |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestRawStringJoinRetainsUnknown_AZU_V0_8901`, `TestConstructedDirectoryRetainsUnknown_AZU_V0_8901` (raw formatted paths, split separators, trailing-slash joins and backticks without format markers), `TestConstructedBasenameSpellings_AZU_V0_8901` (shared root/nested substitution, quote, format, concatenation and join matrix; known callers remain selected), `TestNormalizedJoinRetainsUnknown_AZU_V0_8901` (normalized literal components and unresolved suffixes retain UNKNOWN), `TestTraversalJoinRetainsUnknown_AZU_V0_8901` (an unresolved intermediate ancestor operand cancels an unrelated prefix; integrated selection retains UNKNOWN and known callers), `TestTraversalJoinSuffixBounds_AZU_V0_8901` (only a fixed non-shell suffix proves exclusion; shell suffixes, partial suffixes and cleaned components retain uncertainty, grouped or not, and a suffix on one branch of a conditional or boolean expression proves nothing), `TestGroupedSuffixJoinRetainsUnknown_AZU_V0_8901` (an undeclared `name + (".sh")` caller retains UNKNOWN), `TestNormalizedJoinBounds_AZU_V0_8901`, `TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901` (two declared scripts share a directory; embedded Python with an escaped basename retains UNKNOWN and known caller selection), `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904`, `TestInboundRevisionRejectsInvalidSnapshots_AZU_V0_8904` (invalid base with valid HEAD and invalid HEAD retain changed-declaration uncertainty) |
 | AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestHiddenPackageImportSetSelectsObserver_AFPV02202`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; `TestAZUV0005RunnerExecutesHiddenPackages`; `TestHiddenUnrepresentableNames_AZU_V0_005`; `TestHiddenHelperScopes_AZU_V0_9920` (declared output); [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
 | AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006TestlessScopedReaderCallers`; `TestAZUV0006CoverageCountsOnlyRunCallers`; `TestAZUV0006ReaderCallerUncertainty`; `TestAZUV0006MultipleChangedPathsReaderUncertainty`; `TestAZUV0006MultipleChangedFilesDeclaredReader`; `TestAZUV0006ReaderOwnFilesFrontierInBatch`; `TestShortFragmentsKeepConcatenatedReaders_V1_1818`; `TestAZUV0006DeclaredReaderUnownedCaller`; `TestAZUV0006OwnedTestlessReaderCallers`; `TestAZUV0006OwnedSourceReaderCaller`; `TestAffectedUntestedGoPackageIsUnknownScope`; `TestUseCaseHostileChangeConsequence`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md); [self-review repair](../build-log/2026-11-05-azu-small-self-review-reader-callers.md) |
