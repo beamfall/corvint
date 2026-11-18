@@ -793,7 +793,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		participating[name] = true
 		steered := graph.steeredBy(name, dirty)
 		for _, reason := range graph.frontierBy[name] {
-			if !steered {
+			if !steered && !graph.entryNamesAny(name, reason, dirty) {
 				if verdict := graph.frontierEntryVerdict(name, reason, hosted, reached, followed, dirty, false); verdict.closed && verdict.fixture {
 					fixtureClosed[name] = append(fixtureClosed[name], reason)
 					if hostedBy[name] == nil {
@@ -852,7 +852,20 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			}
 			steered := graph.readsResolutionInput(name, unowned)
 			for _, entry := range graph.frontierBy[name] {
-				if steered || (graph.bearsOnUnowned(name, entry, closed) && !graph.unownedOutsideRunnerSite(name, entry, unowned)) {
+				if !steered && !graph.entryNamesAny(name, entry, unowned) {
+					verdict := graph.frontierEntryVerdict(name, entry, hosted, reached, followed, dirty, false)
+					if verdict.closed && verdict.fixture {
+						fixtureClosed[name] = append(fixtureClosed[name], entry)
+						if hostedBy[name] == nil {
+							hostedBy[name] = make(map[string]bool)
+						}
+						for _, host := range verdict.hosts {
+							hostedBy[name][host] = true
+						}
+						continue
+					}
+				}
+				if steered || (graph.bearsOnUnowned(name, entry, closed, unowned) && !graph.unownedOutsideRunnerSite(name, entry, unowned)) {
 					bear(FrontierBearer{Detail: entry, Via: FrontierBearerUnownedPath, Language: name, DirtyPath: unowned[0]})
 					if !reasons[entry] {
 						reasons[entry] = true
@@ -1212,14 +1225,14 @@ func (graph *Graph) hostedFixtureDirectories(unowned []string) []string {
 // `testdata` directories, below which the plugin lists no path, and the entry
 // locates no site there. A `+N` bound hides sites the rule cannot inspect, so
 // it is kept.
-func (graph *Graph) bearsOnUnowned(name, entry string, fixtures []string) bool {
+func (graph *Graph) bearsOnUnowned(name, entry string, fixtures, unowned []string) bool {
 	fields := strings.SplitN(entry, ":", 4)
 	if len(fields) < 2 {
 		return true
 	}
 	reason := fields[0] + ":" + fields[1]
 	if graph.sourceBound[name][reason] {
-		return false
+		return graph.entryNamesAny(name, entry, unowned)
 	}
 	if !graph.fixtureClosed[name][reason] || len(fixtures) == 0 {
 		return true
@@ -1234,6 +1247,44 @@ func (graph *Graph) bearsOnUnowned(name, entry string, fixtures []string) bool {
 	for _, directory := range fixtures {
 		if strings.HasPrefix(site, directory+"/") {
 			return true
+		}
+	}
+	return false
+}
+
+// entryNamesAny preserves a source-bound site's explicit reads before applying
+// the declaration's negative proof (AZU-V1-960). Alias targets live in the
+// unit's tokens; overflow entries use the complete site record. A located
+// site with no owner, a missing site record, or a bounded token set cannot
+// prove absence of a read. Only nonempty, owned site lists with complete token sets can.
+func (graph *Graph) entryNamesAny(name, entry string, dirty []string) bool {
+	sites := graph.frontierEntrySites(name, entry)
+	if len(sites) == 0 {
+		return true
+	}
+	for _, site := range sites {
+		file := graph.siteFile(site)
+		id, owned := graph.owner[file]
+		if !owned || graph.units[id].PathTokensBounded {
+			return true
+		}
+		tokens := graph.units[id].PathTokens
+		// Display tokens also retain unresolved literal references that an
+		// adapter did not put in its path-token index.
+		if _, token, found := strings.Cut(site, "`"); found {
+			if token, _, closed := strings.Cut(token, "`"); closed {
+				tokens = append(slices.Clone(tokens), token)
+			}
+		}
+		for _, path := range dirty {
+			if path == file {
+				return true
+			}
+			for _, token := range tokens {
+				if namesPath(token, strings.Split(path, "/")) {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -1262,7 +1313,7 @@ func (graph *Graph) unownedOutsideRunnerSite(name, entry string, unowned []strin
 		}
 		if fixtureDirectory(dirtyPath) != "" {
 			fixtures := graph.hostedFixtureDirectories([]string{dirtyPath})
-			if len(fixtures) == 0 || graph.listsBelowAny(name, fixtures) || graph.bearsOnUnowned(name, entry, fixtures) {
+			if len(fixtures) == 0 || graph.listsBelowAny(name, fixtures) || graph.bearsOnUnowned(name, entry, fixtures, unowned) {
 				return false
 			}
 			continue
