@@ -260,8 +260,6 @@ var coreN1Skips = map[string]string{
 	"TestCoreVerbsEmitTheFrozenProfiles/index_if_stale_when_fresh":   "its setup writes the snapshot with this build, and an engine mismatch is a miss by design (CCF-V1-007 (a))",
 	"TestCoreVerbsEmitTheFrozenProfiles/context_path":                "0.8.1 has no path brief; TBC-V1-009 added context --path after it, and decision 0597 removed the task packet it froze",
 	"TestCoreVerbsEmitTheFrozenProfiles/impact_path_non-utf8_source": "0.8.1 refused a repository with a non-UTF-8 path; IDX-SNAP-V0-024 added the exclusion after it",
-	"TestCoreVerbsEmitTheFrozenProfiles/affected_worktree":           "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full worktree mode",
-	"TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range":    "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full committed range mode",
 	"TestCoreVerbsEmitTheFrozenProfiles/cem_status":                  coreN1CEMOnlySkip,
 	"TestCoreVerbsEmitTheFrozenProfiles/cem_verify":                  coreN1CEMOnlySkip,
 }
@@ -271,11 +269,27 @@ var coreN1Skips = map[string]string{
 // superseded the cem/0.2 freeze and its N-1 reader.
 const coreN1CEMOnlySkip = "decision 0525 §6 superseded the cem/0.2 freeze and its N-1 reader; the cem/1.0 fixture map is unreadable to 0.8.1"
 
-// coreN1WithoutFull names the modes whose N-1 equivalent is the same command line without
-// `--full`: N-1 had no such option and emitted the affected-plan/0 wire by default (AFP-V0-035).
+// coreN1WithoutFull names the modes whose N-1 equivalent, when N-1 predates `affected --full`
+// (0.8.1), is the same command line without `--full`: such an N-1 emitted the affected-plan/0 wire
+// by default (AFP-V0-035).
 var coreN1WithoutFull = map[string]bool{
 	"TestCoreVerbsEmitTheFrozenProfiles/affected_full_worktree":        true,
 	"TestCoreVerbsEmitTheFrozenProfiles/affected_full_committed_range": true,
+}
+
+// coreN1PlanZeroSkips names the affected-plan/1 default modes an N-1 that predates `affected --full`
+// cannot replay; its affected-plan/0 default replays against the affected full modes instead.
+var coreN1PlanZeroSkips = map[string]string{
+	"TestCoreVerbsEmitTheFrozenProfiles/affected_worktree":        "the affected-plan/1 default is newer than this N-1 (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full worktree mode",
+	"TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range": "the affected-plan/1 default is newer than this N-1 (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full committed range mode",
+}
+
+// coreN1HasAffectedFull reports whether the N-1 binary's `affected` usage offers `--full`. From
+// 1.0.0-rc.3, the first release of this repository, the default is affected-plan/1 and `--full`
+// keeps affected-plan/0, so every affected mode replays unchanged (CCF-V1-007, V1-3177).
+func coreN1HasAffectedFull(binary string) bool {
+	output, _ := exec.Command(binary, "affected", "--help").CombinedOutput()
+	return bytes.Contains(output, []byte("affected [--full"))
 }
 
 // replayCoreModeN1 is the opt-in CCF-V1-007 N-1 replay (accepted 2026-09-26, decision 0422; from
@@ -287,9 +301,16 @@ func replayCoreModeN1(t *testing.T, caseKey, binary string, invoke func(*testing
 	if reason, skipped := coreN1Skips[caseKey]; skipped {
 		t.Skip(reason)
 	}
+	planZero := false
+	if _, affected := coreN1PlanZeroSkips[caseKey]; affected || coreN1WithoutFull[caseKey] {
+		planZero = !coreN1HasAffectedFull(binary)
+	}
+	if reason, skipped := coreN1PlanZeroSkips[caseKey]; skipped && planZero {
+		t.Skip(reason)
+	}
 	var stdout, stderr bytes.Buffer
 	arguments := invoke(t)
-	if coreN1WithoutFull[caseKey] {
+	if planZero && coreN1WithoutFull[caseKey] {
 		arguments = slices.DeleteFunc(arguments, func(argument string) bool { return argument == "--full" })
 	}
 	command := exec.Command(binary, arguments...)
