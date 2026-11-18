@@ -4,7 +4,7 @@ Requirements: RCF-V1-003. Change: `rc4-candidate`, task 4.2.
 
 ## Result
 
-HOLD. The tag `v1.0.0-rc.4` MUST NOT be pushed: eight rows are `NOT_RUN` or `FAIL`. No candidate
+HOLD. The tag `v1.0.0-rc.4` MUST NOT be pushed: five rows are `NOT_RUN` and one is `FAIL`. No candidate
 commit is chosen yet. This pass reads `origin/main` at `55decc6a0` plus branch
 `claude/rc4-qual-run` (promotion commits `101d0951a`, `e3f988b98`, `9c7e969a9`). It must be
 redone on the candidate commit before the tag. No row is `WAIVED`, because the owner has waived
