@@ -258,7 +258,9 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
   PROD-DOCS-009 is `validated`, `DELIVERED`. Independent external utility is
   `EXTERNAL_DEPENDENT` and `NOT_RUN`. Evidence: `make compatibility-check`,
   `make capabilities-check`, `make openspec-check`.
-- Task 3.3 (RCF-V1-012): NOT_PRODUCED until the revert drill.
+- Task 3.3 (RCF-V1-012): reverting the two promotion commits restores the pre-promotion tree
+  byte for byte, and the compatibility, capabilities, openspec and spec-requirements checks pass
+  on it (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
 
 ## Rollback
 

@@ -108,3 +108,16 @@ promotion without a rerun.
   NOT_PROMOTABLE. The scoped status is therefore recorded in the RCF-V1 delivery section and in
   PROD-DOCS-009.
 - Independent external utility: `EXTERNAL_DEPENDENT`, `NOT_RUN`.
+
+## Revert drill (RCF-V1-012, task 3.3)
+
+On a scratch worktree at `e3f988b98`, `git revert e3f988b98 101d0951a` produced a tree with no
+difference from the pre-promotion commit `97d5e2e4d` (`git diff --stat` empty). No data
+migration was involved.
+- `docs/COMPATIBILITY.md` and `surfaces.json` hold neither promoted row.
+- PROD-DOCS-009 reads `Delivery: experimental. State: PARTIAL.`
+- `README.md` has no Documentation search row.
+
+`make compatibility-check`, `make capabilities-check`, `make openspec-check` and
+`make spec-requirements-check` all exited 0 on the reverted tree. The scratch worktree was
+removed afterwards.
