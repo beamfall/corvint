@@ -366,6 +366,9 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		frontier, excluded, bearers, involved, closable = graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
 	}
 	plan.Unknown = append(frontier, unknown...)
+	for _, edge := range graph.degradedRuntimeEdges {
+		plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: runtimeEdgeDegradation(edge)})
+	}
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
@@ -566,6 +569,15 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.testEmbedReadersOf(reached, normalized)
 	graph.inboundRuntimeCallers(reached, followed, normalized)
 	graph.inboundRevisionCallers(reached, followed, normalized)
+	// The widening is independent of dirty-path ownership and semantic pruning.
+	// Even a changed holder test or a newly analyzable source keeps the whole closure.
+	if len(normalized) != 0 {
+		for id, witness := range graph.runtimeWidening {
+			witness.DirtyPath = normalized[0]
+			reached[id] = witness
+			followed[id] = true
+		}
+	}
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 

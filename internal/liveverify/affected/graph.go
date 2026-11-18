@@ -102,7 +102,9 @@ type Graph struct {
 	// (AFP-V0-160), sorted; it is part of the digest when present.
 	documentation []string
 	// runtimeEdges is the repository's declared runtime edges (AFP-V0-819).
-	runtimeEdges []RuntimeEdge
+	runtimeEdges         []RuntimeEdge
+	degradedRuntimeEdges []RuntimeEdge
+	runtimeWidening      map[string]Witness
 	// runtimeReaders is the repository's declared runtime-readers entries
 	// (AFP-V0-602), sorted by path; it is part of the digest when present.
 	runtimeReaders []RuntimeReader
@@ -352,10 +354,19 @@ func BuildPartial(ctx context.Context, root string, languages ...Language) (*Gra
 // buildDisk is Build over an explicit disk reader, which may record what the
 // observation read (AFP-V0-391). It also returns each plugin's result in
 // language order, the input a cached graph is restored from.
-func buildDisk(ctx context.Context, reader *Source, languages []Language, partial bool) (*Graph, []Result, error) {
+func buildDisk(ctx context.Context, reader *Source, languages []Language, partial bool, widenRuntimeEdges ...bool) (*Graph, []Result, error) {
 	root := reader.root
 	results := make([]Result, 0, len(languages))
-	graph, err := build(ctx, languages, declarationsOf(reader, partial), func(language Language) (Result, error) {
+	declared := declarationsOf(reader, partial)
+	if len(widenRuntimeEdges) != 0 && widenRuntimeEdges[0] {
+		strict := declared
+		declared = func() (declarations, error) {
+			value, err := strict()
+			value.widenRuntimeEdges = true
+			return value, err
+		}
+	}
+	graph, err := build(ctx, languages, declared, func(language Language) (Result, error) {
 		if err := ctx.Err(); err != nil {
 			return Result{}, err
 		}
@@ -396,7 +407,8 @@ type declarations struct {
 	readScopeTreesDigest string
 	// partial marks a graph built from a subset of the plugins, which skips
 	// the runtime edges it does not hold instead of refusing them (AFP-V0-819).
-	partial bool
+	partial           bool
+	widenRuntimeEdges bool
 }
 
 // declarationsOf reads the declarations through reader.
@@ -494,7 +506,7 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	graph.runtimeReaders = repository.runtimeReaders
 	graph.nonSource = repository.nonSource
 	graph.runtimeEdges = repository.runtimeEdges
-	if err := graph.applyRuntimeEdges(repository.partial); err != nil {
+	if err := graph.applyRuntimeEdges(repository.partial, repository.widenRuntimeEdges); err != nil {
 		return nil, err
 	}
 	graph.existenceReaders = repository.existenceReaders
@@ -503,6 +515,13 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	if graph.existenceUnits, err = graph.existenceReaderUnits(); err != nil {
 		return nil, err
 	}
+	graph.runtimeWidening = graph.runtimeEdgeWidening()
+	// Bind the conservative build mode as well as the declarations: a partial
+	// graph skipping the same unresolved edges must have a different digest.
+	for _, edge := range graph.degradedRuntimeEdges {
+		graph.frontier = append(graph.frontier, runtimeEdgeDegradation(edge))
+	}
+	sort.Strings(graph.frontier)
 	graph.testSelection = repository.testSelection
 	if err := graph.resolveTestSelection(repository.partial); err != nil {
 		return nil, err

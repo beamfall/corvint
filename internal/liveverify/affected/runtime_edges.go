@@ -2,10 +2,12 @@ package affected
 
 import (
 	"bytes"
+	"context"
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"slices"
 	"strings"
 	"unicode"
@@ -106,13 +108,16 @@ func runtimeEdgeHolds(entry, path string) bool {
 // selecting. A partial graph, built from a subset of the plugins, cannot tell
 // a stale edge from one whose other side an absent plugin observes, so it
 // skips such an edge instead.
-func (graph *Graph) applyRuntimeEdges(partial bool) error {
+func (graph *Graph) applyRuntimeEdges(partial, widen bool) error {
 	for _, edge := range graph.runtimeEdges {
-		if _, exists := graph.units[edge.Runs]; !exists {
+		_, exists := graph.units[edge.Runs]
+		if !exists {
 			if partial {
 				continue
 			}
-			return fmt.Errorf("%s: runs %q names no unit", RuntimeEdgesPath, edge.Runs)
+			if !widen {
+				return &unknownRuntimeUnit{runs: edge.Runs}
+			}
 		}
 		var holders []string
 		for _, id := range graph.order {
@@ -125,6 +130,10 @@ func (graph *Graph) applyRuntimeEdges(partial bool) error {
 				continue
 			}
 			return fmt.Errorf("%s: tests %q holds no test file", RuntimeEdgesPath, edge.Tests)
+		}
+		if !exists {
+			graph.degradedRuntimeEdges = append(graph.degradedRuntimeEdges, edge)
+			continue
 		}
 		for _, id := range holders {
 			unit := graph.units[id]
@@ -165,4 +174,97 @@ func (graph *Graph) crossLanguageEntries(name string) []string {
 		entries = append(entries, entry)
 	}
 	return entries
+}
+
+// unknownRuntimeUnit preserves the strict AFP-V0-819 refusal text while
+// distinguishing it from malformed declarations and unrelated plugin failures.
+type unknownRuntimeUnit struct{ runs string }
+
+func (err *unknownRuntimeUnit) Error() string {
+	return fmt.Sprintf("%s: runs %q names no unit", RuntimeEdgesPath, err.runs)
+}
+
+// IsUnknownRuntimeUnit admits only the typed strict runtime-unit refusal.
+func IsUnknownRuntimeUnit(err error) bool {
+	var unknown *unknownRuntimeUnit
+	return errors.As(err, &unknown)
+}
+
+// BuildWithRuntimeEdgeWidening revalidates the complete graph and widens only
+// unresolved runtime targets with known test holders (CIN-V1-940). Build and
+// BuildPartial retain their existing contracts. This path is deliberately
+// uncached: a failed strict build never publishes a successful cache entry.
+func BuildWithRuntimeEdgeWidening(ctx context.Context, root string, languages ...Language) (*Graph, error) {
+	graph, _, err := buildDisk(ctx, DiskSourceContext(ctx, root), languages, false, true)
+	return graph, err
+}
+
+func runtimeEdgeDegradation(edge RuntimeEdge) string {
+	return fmt.Sprintf("runtime:unresolved-edge: tests=%q runs=%q: runs names no unit; reason=%q", edge.Tests, edge.Runs, edge.Reason)
+}
+
+// runtimeEdgeWidening computes the full reverse closure, including terminal
+// test/exec edges and file readers. Unlike normal change propagation it never
+// stops at a test-only edge or a reader: uncertainty must cover that whole area.
+// Every round adds a unit, bounding the closure by the observed unit count.
+// It runs on the fresh graph before change-status or semantic pruning inputs.
+func (graph *Graph) runtimeEdgeWidening() map[string]Witness {
+	if len(graph.degradedRuntimeEdges) == 0 {
+		return nil
+	}
+	widened := map[string]Witness{}
+	for _, edge := range graph.degradedRuntimeEdges {
+		cause := runtimeEdgeDegradation(edge)
+		reached := map[string]Witness{}
+		for _, id := range graph.order {
+			if slices.ContainsFunc(graph.units[id].Tests, func(p string) bool { return runtimeEdgeHolds(edge.Tests, p) }) {
+				reached[id] = Witness{Via: []string{id}}
+			}
+		}
+		expanded := map[string]bool{}
+		for {
+			var paths []string
+			var next []string
+			for _, id := range slices.Sorted(maps.Keys(reached)) {
+				if !expanded[id] {
+					next = append(next, id)
+				}
+			}
+			if len(next) == 0 {
+				break
+			}
+			for _, id := range next {
+				expanded[id] = true
+				unit := graph.units[id]
+				paths = append(paths, unit.Sources...)
+				paths = append(paths, unit.Tests...)
+				for _, reverse := range []map[string][]string{graph.dependents, graph.advisory, graph.routed, graph.testUsers, graph.execUsers} {
+					for _, user := range reverse[id] {
+						if _, exists := reached[user]; !exists {
+							reached[user] = Witness{Via: []string{user}}
+						}
+					}
+				}
+			}
+			paths = NormalizePaths(paths)
+			for _, p := range paths {
+				for _, user := range graph.embedded[p] {
+					if _, exists := reached[user]; !exists {
+						reached[user] = Witness{Via: []string{user}}
+					}
+				}
+			}
+			graph.readers(reached, paths)
+			graph.scopedReadersOf(reached, paths)
+			graph.existenceReadersOf(reached, paths)
+			graph.testEmbedReadersOf(reached, paths)
+			graph.importGraphReadersOf(reached, paths)
+		}
+		for _, id := range slices.Sorted(maps.Keys(reached)) {
+			if _, exists := widened[id]; !exists {
+				widened[id] = Witness{Kind: WitnessUnboundedReader, Via: []string{id}, Cause: &UnboundedCause{Unit: id, Reads: cause}}
+			}
+		}
+	}
+	return widened
 }
