@@ -13,13 +13,13 @@ promoted scope only; the CMP-V1-005 preview list (MCP schemas), for three tools 
 Owner answers this change implements: the owner's request of 2026-11-18 ("I'd like to see Docs
 corpus and MCP search out of experimental"); R2, H1, H3, H6 and H7 as carried by
 `release-process`; answer 8 (docs search for agents in 1.0); R30 (one `corvint-docs mcp` server)
-Intent status: proposed (written 2026-11-18; only the owner can accept it)
+Intent status: accepted by the owner on 2026-11-18 (RCF-D1 to RCF-D3 answered; logged `owner`)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
 
 This change follows the G14 layout: `proposal.md` (this file), `design.md`, `tasks.md` and
-`specs/release-candidate-4/spec.md`. It changes the release bar, so its acceptance-log row is
-`pending-owner` until the owner accepts it.
+`specs/release-candidate-4/spec.md`. It changes the release bar; the owner accepted it on
+2026-11-18, logged `owner` in `../../acceptance-log.tsv`.
 
 ## Why
 
@@ -81,7 +81,8 @@ Read on `origin/main` 1795bfc0d, 2026-11-18:
 - On promotion, the specs' delivery status, the README row, the plan's PROD-DOCS-009 state and the
   compatibility table (the three tools' input and output schemas and the artifact format become
   `stable`) change in one commit.
-- One owner decision settles the MTT-V1-010 and V1-5473 conflict before the rc.4 tag.
+- `corvint-mcp` stays a product binary (RCF-D1): MTT-V1-010's removal is superseded and V1-5473
+  keeps its three archives.
 
 ## Capabilities
 

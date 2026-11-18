@@ -46,20 +46,16 @@
   judge that is the owner's agent is not independent. The verified-passage rule has no threshold:
   one unverified passage fails. Ranking quality keeps its existing frozen fixture (DCS-V1-404)
   rather than gaining a new metric in this change.
-- Binaries (MTT-V1-010 and V1-5473). Owner decision RCF-D1, with this recommendation:
-  - retire the `corvint-mcp` binary, as MTT-V1-010 already requires, and amend PROD-INT-006 to
-    drop it;
-  - keep `corvint-docs-mcp` as a product binary, because the plan's 1.0 bar lists it under the
-    documentation product;
-  - narrow V1-5473 to `corvint`, `corvint-docs` and `corvint-docs-mcp`.
-  If the owner keeps `corvint-mcp`, MTT-V1-010 is superseded instead and V1-5473 keeps all three
-  archives. Either way it is settled before the rc.4 tag, because REL-V1-008 fixes the artifact
-  list.
+- Binaries (MTT-V1-010 and V1-5473). Owner decision RCF-D1 (2026-11-18): keep `corvint-mcp`
+  ("I like the MCP as its a good way to query the docs"). MTT-V1-010's removal of `corvint-mcp`
+  from `binaries.json` is superseded, PROD-INT-006 is unchanged, and V1-5473 keeps all three
+  archives (`corvint-docs`, `corvint-docs-mcp`, `corvint-mcp`). Settled before the rc.4 tag,
+  because REL-V1-008 fixes the artifact list. The promoted docs tools are served by
+  `corvint-docs mcp` either way.
 - Schemas become `stable` additively. The three tools keep every documented output field's name,
   type and meaning within 1.x; result order is `preview` (non-goal). This narrows CMP-V1-005's
-  "MCP input and output schemas are preview" for these three tools only. The owner decides whether
-  to accept that (RCF-D2); if declined, only the delivery status and README row change and the
-  schemas stay `preview`.
+  "MCP input and output schemas are preview" for these three tools only. The owner accepted this
+  (RCF-D2, 2026-11-18).
 
 ## Failure modes
 
@@ -89,11 +85,11 @@ and `preview`, and no data migration is needed. After publication: the surfaces 
 removal follows the CMP-V1-004 notice rule. Reverting the readiness record or the rc.4 numbering
 changes no shipped bytes.
 
-## Open owner decisions
+## Owner decisions (answered 2026-11-18)
 
-- RCF-D1: the `corvint-mcp` binary, retire or keep (recommendation above).
-- RCF-D2: the three tools' MCP schemas `stable` (recommended) or `preview`.
-- RCF-D3: accept this change's numbering (rc.4 = M5a), or cut an interim rc.4 sooner.
+- RCF-D1: keep the `corvint-mcp` binary.
+- RCF-D2: the three tools' MCP input and output schemas and the corpus format become `stable`.
+- RCF-D3: rc.4 is the M5a qualification candidate.
 
 ## Risks
 

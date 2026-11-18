@@ -110,7 +110,7 @@ the proposal header serves.
 | `per-test-durations` | Per-test durations in every runner's receipt (R19) | PROD-TEST-016 | waiting for owner |
 | `proof-repositories` | Pinned public repositories per runner; held-out repositories drawn by seed from sealed pools (R21, H3) | PROD-TEST-002, 011; PROD-INT-008 | waiting for owner |
 | `pytest-provider` | pytest runner provider, file-level selection with a tier label (R8, R9) | PROD-TEST-006, 008, 011 | waiting for owner |
-| `rc4-candidate` | Tag `v1.0.0-rc.4` as the M5a candidate with a readiness record; promote docs corpus search (CLI and three MCP tools) out of experimental | PROD-DOCS-001, 009, 010; PROD-INT-012 to 014 | waiting for owner |
+| `rc4-candidate` | Tag `v1.0.0-rc.4` as the M5a candidate with a readiness record; promote docs corpus search (CLI and three MCP tools) out of experimental | PROD-DOCS-001, 009, 010; PROD-INT-012 to 014 | accepted |
 | `release-process` | Milestones M0 and M5a, tag-started release and owner approval (R2, R3) | PROD-INT-012, 013, 017 | waiting for owner |
 | `review-evidence-check` | Review evidence check behind `corvint review` (advisory by default, R4) | PROD-TEST-010, 012; PROD-INT-001 | waiting for owner |
 | `ruby-providers` | RSpec and Minitest runner providers, line-exact (R8) | PROD-TEST-006, 008, 011 | waiting for owner |
