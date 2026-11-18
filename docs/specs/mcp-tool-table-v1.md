@@ -16,7 +16,7 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/mcp-tool-table/
 - Claim: One table fixes every MCP tool; MCP-SERVER.md is generated from it; corvint-docs mcp serves docs tools, corvint mcp testing and flow tools.
 - Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5447) / experimental; partially delivered
 - Exists: the table in `internal/capcatalog/mcp.go` with its rules, the generated `docs/MCP-SERVER.md` and its doc gate, the drift and parity tests, `corvint-docs mcp` (`internal/mcp/docsserver`), the narrowed `corvint mcp`, the renamed flow tools, and the `affected` select-all for `CORVINT_SELECTION` and a stale binary (tasks 2.1 to 2.8; the no-Tasks-tool half of 2.9); PROD-DOCS-001 marked `DELIVERED` in the plan (task 3.1).
-- Blocked on: the removal batch that takes `corvint-mcp` and `corvint-test-validity-mcp` off the release list (MTT-V1-010, task 2.9), which needs an owner decision because PROD-INT-006 (decision 0596) and `AGENTS.md` still name `corvint-mcp` and `corvint-docs-mcp` as 1.0 product binaries.
+- Blocked on: nothing for the release list: MTT-V1-010 (taking `corvint-mcp` off it, task 2.9) is superseded by owner decision RCF-D1 (2026-11-18, change `rc4-candidate`): `corvint-mcp` stays a product binary and the release keeps its archives (V1-5473).
 - Read next: Requirements; Superseded requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
@@ -211,7 +211,12 @@ value (MTT-V1-008) and a stale binary (MTT-V1-011; decided 2026-11-09 under R42,
 - WHEN the `affected` tool and `corvint affected --base FULL_SHA` run
 - THEN both return the same selections
 
-- `MTT-V1-010`: (accepted automatically under G14, decision 0596; V1-5447) Retired MCP binaries leave the release list
+- `MTT-V1-010`: (accepted automatically under G14, decision 0596; V1-5447) (superseded by owner decision RCF-D1, 2026-11-18; V1-5473) Retired MCP binaries leave the release list
+
+Superseded: owner decision RCF-D1 (2026-11-18, `docs/specs/openspec/changes/rc4-candidate`) keeps
+`corvint-mcp` a product binary in the `core` version set, so it stays in
+`tools/release-binary/binaries.json` and every release publishes its archives beside corvint's
+(V1-5473). The text below is history; the ID is not reused.
 
 `corvint-mcp` and `corvint-test-validity-mcp` MUST leave `tools/release-binary/binaries.json` in the
 removal batch that retires them. (owner decision R14 (2026-11-09); owner decision R30 (2026-11-09))
@@ -281,7 +286,7 @@ not reused and their text stays in their own specs as history.
 | MTT-V1-007 | 2.5 | `internal/mcp/bridge/flows.go` (renamed constants), `internal/capcatalog/mcp.go` (`toolName`, `Replaces`), `internal/mcp/toolgroup/invalid_params.go` (`replacedBy`, the old-name rule) | `TestMTTV1007OneNamingConvention`, `TestMTTV1007OldFlowsNameNamesTheNewTool`, `TestMTTV1001TableRulesNameTheBrokenRow/two_dots` |
 | MTT-V1-008 | 2.6 | `internal/selectionswitch` (grammar), `internal/mcp/toolgroup/affected.go` (`selectAll`, `echoValue`, `affected-select-all/1`) | `TestMTTV1008Grammar`, `TestMTTV1008AffectedToolReadsTheKillSwitch`, `TestMTTV1008AffectedToolAgreesWithTheOneParser`, `TestMTTV1008RunnerSwitchWidensAndEchoesItsRunners`, `TestMTTV1008EchoedValueIsBounded`, `TestMTTV1008UnknownSelectionThroughTheServer`, `TestMTTV1008UnknownRunnerNameIsAnUnknownValue`, `TestMTTV1008EchoBoundsInvalidUTF8` |
 | MTT-V1-009 | 2.7 | table column `ParityTest` (a binary name and a test name) and its rule in `internal/capcatalog/mcp.go`; `MissingParityTests` and `definesTest` (go/parser) in `tools/mcp-server-doc` (doc gate) | `TestMTTV1009HelpToolMatchesCLI`, `TestMTTV1009ImpactToolMatchesCLI`, `TestMTTV1009TestEvidenceToolMatchesCLI`, `TestV15254MCPAffectedMatchesCLI` (cmd/corvint); `TestMTTV1009FlowsToolsMatchCLI`, `TestMTTV1009DocsConsumeToolMatchesCLI`, `TestDocsToolVerbAnswersInOneEnvelope`, `TestCorpusTypedCLIMCPEndToEnd` (cmd/corvint-docs); `TestMTTV1009MissingParityTestIsNamed` |
-| MTT-V1-010 | 2.9 | not built here: `corvint-mcp` and `corvint-test-validity-mcp` leave `tools/release-binary/binaries.json` in their removal batch | NOT_PRODUCED until that batch |
+| MTT-V1-010 | 2.9 | superseded by owner decision RCF-D1 (2026-11-18): `corvint-mcp` stays in `tools/release-binary/binaries.json`; `TestCoreReleaseTagPublishesEveryCoreSetArchive` in `tools/release-binary` | SUPERSEDED |
 | MTT-V1-011 | 2.8 | `internal/mcp/toolgroup/affected.go` (`AffectedStaleCode`, select-all on the planner's refusal); `cmd/corvint/mcp.go` help | `TestMTTV1011AffectedToolOnAStaleBinarySelectsAll`; `TestV15254MCPAffectedStaleBinaryDegrades` (tool select-all and CLI exit 2 on one stale binary); `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` |
 
 ## Rollback
