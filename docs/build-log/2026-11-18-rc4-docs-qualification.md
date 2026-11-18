@@ -121,3 +121,21 @@ migration was involved.
 `make compatibility-check`, `make capabilities-check`, `make openspec-check` and
 `make spec-requirements-check` all exited 0 on the reverted tree. The scratch worktree was
 removed afterwards.
+
+## Rerun with the repaired runner (task 5.1 repair, `e86fc10a2`)
+
+The repaired verifier was rerun on WSL at commit `0bc3087bd1ef475c832eb7cfbb59f2a5ce35d949`
+(go1.27.4, `script/heavy.sh` local slot). It checks live symbol spans, receipt-to-artifact binding
+and checkout identity. The pinned checkouts and artifact digests are unchanged from the table above.
+
+| Check | Run 1 | Run 2 |
+| --- | --- | --- |
+| `TestRCFV1007FrozenQuerySet` | PASS | (not repeated) |
+| `TestRCFV1008Qualification` | PASS, 165.48 s | PASS, 189.26 s |
+| Report sha256 | `51800e0dcdfb250e23acf0deab35e9a75a533283022b7f6ffb3f69bab92138bd` | identical |
+| `TestDCSV1404SearchRankingEvalFixture` | PASS, 0.45 s | PASS, 0.30 s |
+
+The report digest differs from `dea19bdf…` because the repaired runner records more evidence;
+the qualification inputs are the same. This result is evidence for readiness row 13 only for
+commits that have no RCF-V1-010 trigger-path diff from `0bc3087bd`. The row stays `NOT_RUN` until
+a candidate commit is chosen and checked that way. V1-5692 tracks making this check executable.
