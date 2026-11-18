@@ -91,7 +91,8 @@ type Witness struct {
 	DirtyPath string   `json:"dirtyPath"`
 	Via       []string `json:"via"`
 	// Cause is set on an UNBOUNDED_READER witness only: the unit whose own
-	// file makes the selected unit's reads unbounded, and why (AFP-V0-192).
+	// file or unresolved runtime edge makes the selected unit's reads
+	// unbounded, and why (AFP-V0-192, CIN-V1-941).
 	Cause *UnboundedCause `json:"cause,omitempty"`
 	// Glob is set on a PATH_GLOB_READER witness only: the unit's literal glob
 	// pattern that matches DirtyPath (AFP-V0-401), and on a
@@ -121,7 +122,8 @@ type ReadScopeCause struct {
 
 // UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:
 // Unit is the unit itself, or the root-locating unit it depends on or whose
-// dependent its tests import, and Reads is that unit's unboundedReads.
+// dependent its tests import, and Reads is that unit's unboundedReads or its
+// unresolved runtime-edge degradation (CIN-V1-941).
 type UnboundedCause struct {
 	Unit  string `json:"unit"`
 	Reads string `json:"reads"`
@@ -366,6 +368,9 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		frontier, excluded, bearers, involved, closable = graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
 	}
 	plan.Unknown = append(frontier, unknown...)
+	for _, edge := range graph.degradedRuntimeEdges {
+		plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: runtimeEdgeDegradation(edge)})
+	}
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
@@ -566,6 +571,19 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.testEmbedReadersOf(reached, normalized)
 	graph.inboundRuntimeCallers(reached, followed, normalized)
 	graph.inboundRevisionCallers(reached, followed, normalized)
+	// The widening is independent of dirty-path ownership and semantic pruning.
+	// Even a changed holder test or a newly analyzable source keeps the whole closure.
+	if len(normalized) != 0 {
+		for id, witness := range graph.runtimeWidening {
+			witness.DirtyPath = normalized[0]
+			reached[id] = witness
+			followed[id] = true
+			// An unresolved edge cannot prove that a command's build is
+			// unaffected, even when the dirty path is only a holder test.
+			// Carry the whole closure into runnable consumers and warnings.
+			rebuilt[id] = witness
+		}
+	}
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
