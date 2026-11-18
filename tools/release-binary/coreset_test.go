@@ -60,6 +60,55 @@ func TestAppPlatformsMatchTheCatalogTargets(t *testing.T) {
 	}
 }
 
+// V1-5473, UPD-V0-920: `corvint-update apply --component core` installs corvint and every
+// CoreSetApps member from the release's `<app>_<goos>_<goarch>.tar.gz` archives, so both a
+// `vX.Y.Z` tag and a `core/vX.Y.Z` tag must build every core member (corvint-mcp included,
+// owner decision RCF-D1 of 2026-11-18, which supersedes MTT-V1-010) for every catalog target,
+// under exactly the names the updater fetches. runRelease writes SHA256SUMS over every archive
+// it builds (TestReleaseCoreTagBindsTheGateReportAndWritesTheChecksums).
+func TestCoreReleaseTagPublishesEveryCoreSetArchive(t *testing.T) {
+	catalog, err := loadCatalog("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	core := append([]string{"corvint"}, releasecandidate.CoreSetApps...)
+	if !slices.Contains(core, "corvint-mcp") || !slices.Contains(core, "corvint-docs-mcp") || !slices.Contains(core, "corvint-docs") {
+		t.Fatalf("core set %v lacks corvint-docs, corvint-docs-mcp or corvint-mcp", core)
+	}
+	var want []string
+	for _, name := range core {
+		for _, platform := range releasecandidate.AppPlatforms {
+			want = append(want, name+"_"+platform+".tar.gz")
+		}
+	}
+	slices.Sort(want)
+	if len(want) != 12 {
+		t.Fatalf("core archives %v; want 4 binaries x 3 platforms", want)
+	}
+	for _, tag := range []string{"v1.0.0", "core/v1.0.0"} {
+		selection, err := selectTag(catalog, tag)
+		if err != nil {
+			t.Fatalf("%s: %v", tag, err)
+		}
+		var got []string
+		for _, name := range selection.Binaries {
+			if !slices.Contains(core, name) {
+				continue
+			}
+			for _, target := range catalog.Targets {
+				got = append(got, archiveName(name, target))
+			}
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, want) {
+			t.Fatalf("%s builds core archives %v; want %v", tag, got, want)
+		}
+		if tag == "core/v1.0.0" && len(selection.Binaries) != len(core) {
+			t.Fatalf("%s selects %v; want exactly the core set %v", tag, selection.Binaries, core)
+		}
+	}
+}
+
 // ARTIFACT-BIN-V0-508, -002: every stamped product binary declares the variables the release
 // builder stamps (main.build and main.sourceCommit; main.version too when it is released outside
 // the core set), so the -X stamps bind and --version reports them. A `stamp: none` product may

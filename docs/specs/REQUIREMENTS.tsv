@@ -6759,7 +6759,7 @@ MTT-V1-006	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, de
 MTT-V1-007	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) One naming convention	owner	decision 0596; V1-5447
 MTT-V1-008	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) `CORVINT_SELECTION` i	owner	decision 0596; V1-5447
 MTT-V1-009	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) Same answer as the co	owner	decision 0596; V1-5447
-MTT-V1-010	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) Retired MCP binaries	owner	decision 0596; V1-5447
+MTT-V1-010	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) (superseded by owner	owner	decision 0596; V1-5447
 MTT-V1-011	docs/specs/mcp-tool-table-v1.md	(accepted automatically under G14, decision 0596; V1-5447) The `affected` tool o	owner	decision 0596; V1-5447
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
