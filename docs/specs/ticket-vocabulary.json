@@ -375,6 +375,7 @@
     "2026-11-13-per-test-durations": "run-evidence",
     "proof-repositories": "measurement",
     "pytest-provider": "runner",
+    "rc4-candidate": "release",
     "release-process": "release",
     "review-evidence-check": "preview",
     "ruby-providers": "runner",
