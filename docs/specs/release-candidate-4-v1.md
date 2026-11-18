@@ -220,7 +220,8 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
 - Task 4.2 (RCF-V1-003): first-pass record `docs/build-log/2026-11-18-rc4-readiness.md` is HOLD:
   rows M4, removals, flow links, held-out pools and V1-0374 are `NOT_RUN`, and release gates are
   `FAIL`. The task completes only when every row is `PASS` or `WAIVED` on the candidate commit.
-- Task 4.4 (RCF-V1-004, RCF-V1-005): NOT_PRODUCED until the rc.4 release notes.
+- Task 4.4 (RCF-V1-004, RCF-V1-005): draft section "1.0.0-rc.4 release candidate" in
+  `docs/RELEASE-NOTES.md`, with V1-0019 `NOT_RUN`. It is final once the tag is published.
 - Task 3.2 (RCF-V1-006): delivery `validated` for exactly the promoted scope: the four CLI verbs,
   the three MCP tools and `corvint-evidence-corpus/2`. Every other docs verb, tool and format keeps
   its label (`docs/CAPABILITIES.md`, `docs/COMPATIBILITY.md`). The corpus spec headers are frozen
