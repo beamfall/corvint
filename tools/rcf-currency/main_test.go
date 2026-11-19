@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 func write(t *testing.T, name string, data []byte) {
@@ -52,12 +54,21 @@ func selection(patterns ...string) []byte {
 	return b
 }
 
+// Model the release entry point and target matrix in each private checkout.
+func writeBuildFixture(t *testing.T, root string) {
+	t.Helper()
+	write(t, filepath.Join(root, "go.mod"), []byte("module fixture\n\ngo 1.27.4\n")) //corvint:fixture-path
+	write(t, filepath.Join(root, releaseCatalog), []byte(`{"targets":[{"goos":"linux","goarch":"amd64"},{"goos":"linux","goarch":"arm64"},{"goos":"darwin","goarch":"arm64"}]}`))
+	write(t, filepath.Join(root, "cmd", "corvint-docs", "main.go"), []byte("package main\nfunc main() {}\n")) //corvint:fixture-path
+}
+
 // Fixtures use private temporary repositories, never the enclosing checkout.
 func currencyFixture(t *testing.T) (gate, string, string, []byte) {
 	t.Helper()
 	root := t.TempDir()
 	fixtureGit(t, root, "init", "-q")
-	write(t, filepath.Join(root, selectionPath), selection("rank/*.go", "corpus/**"))
+	writeBuildFixture(t, root)
+	write(t, filepath.Join(root, selectionPath), selection("rank/*.go", "corpus/**", "cmd/corvint-docs/*.go", "go.mod", releaseCatalog)) //corvint:fixture-path
 	write(t, filepath.Join(root, "rank", "old.go"), []byte("old\n"))
 	repos, reports := []any{}, []any{}
 	for i := range 3 {
@@ -349,9 +360,10 @@ func TestCurrencyPromotedSourceChange(t *testing.T) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			g := gate{root: t.TempDir()}
 			fixtureGit(t, g.root, "init", "-q")
+			writeBuildFixture(t, g.root)
 			write(t, filepath.Join(g.root, selectionPath), owners)
 			source := filepath.Join(g.root, filepath.FromSlash(path))
-			write(t, source, []byte("package fixture\nfunc value() int { return 1 }\n"))
+			write(t, source, []byte("package main\nfunc value() int { return 1 }\n"))
 			qualified := commit(t, g.root)
 			pin, err := json.Marshal(qualificationPin{Commit: qualified, ReportSHA256: strings.Repeat("c", 64)})
 			if err != nil {
@@ -363,11 +375,112 @@ func TestCurrencyPromotedSourceChange(t *testing.T) {
 				t.Fatalf("pin alone: result=%q err=%v", result, err)
 			}
 
-			write(t, source, []byte("package fixture\nfunc value() int { return 2 }\n"))
+			write(t, source, []byte("package main\nfunc value() int { return 2 }\n"))
 			result, err = g.check(commit(t, g.root), "")
 			if result != "" || err == nil || !strings.Contains(err.Error(), "trigger diff requires CORVINT_RCF_QUALIFY") {
 				t.Fatalf("%s alone: result=%q err=%v; want live qualification required", path, result, err)
 			}
 		})
+	}
+}
+
+// RCF-V1-013: identical declarations on both sides of a new pin must cover the
+// candidate's actual closure, including target-specific transitive imports.
+func TestCurrencyProductionCoverage(t *testing.T) {
+	owners, err := readFile(filepath.Join("..", "..", selectionPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const (
+		pkg    = "internal/doccorpus/"                                                 //corvint:fixture-path
+		dep    = "internal/relevance/rank.go"                                          //corvint:fixture-path
+		schema = "internal/gokernel/host-schema.json"                                  //corvint:fixture-path
+		cases  = "internal/mcp/corpusbridge/testdata/search-ranking-gh1597/cases.json" //corvint:fixture-path
+	)
+	decl, err := affected.ParseTestSelection(owners)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{schema, cases, filepath.ToSlash(filepath.Join(filepath.Dir(cases), "extra", "new.fixture"))} {
+		var tests []string
+		for _, owner := range decl.Owners {
+			if affected.OwnerPatternMatches(owner.Paths, path) {
+				tests = append(tests, owner.Tests...)
+			}
+		}
+		if !slices.Contains(tests, qualificationSource) || (path != schema && !slices.Contains(tests, "internal/mcp/corpusbridge/search_ranking_eval_test.go")) { //corvint:fixture-path
+			t.Fatalf("%s lacks required qualification or ranking owner: %v", path, tests)
+		}
+	}
+	for _, tc := range []struct {
+		name, importer, source, path, before, after string
+	}{
+		{"transitive dependency", "corpus.go", "import _ \"fixture/internal/relevance\"", dep, "package relevance\nconst Rank = 1", "package relevance\nconst Rank = 2"},
+		{"linux arm64 dependency", "rank_linux_arm64.go", "import _ \"fixture/internal/relevance\"", dep, "package relevance\nconst Rank = 1", "package relevance\nconst Rank = 2"},
+		{"darwin arm64 dependency", "rank_darwin_arm64.go", "import _ \"fixture/internal/relevance\"", dep, "package relevance\nconst Rank = 1", "package relevance\nconst Rank = 2"},
+		{"owned embedded asset", "corpus.go", "import _ \"fixture/internal/gokernel\"", schema, `{"version":"0"}`, `{"version":"1"}`},
+		{"new embedded asset", "corpus.go", "import _ \"embed\"\n//go:embed payload.bin\nvar payload string", pkg + "payload.bin", "a", "b"},
+		{"removed globbed embed", "corpus.go", "import \"embed\"\n//go:embed common*\nvar files embed.FS", pkg + "common.asset", "previously embedded", ""},
+		{"ranking fixture", "corpus.go", "", cases, `{"cases":[{"id":"file-cancel","expect":{"subjects":["native:file:cancel"]}}]}`, `{"cases":[{"id":"file-cancel","expect":{"subjects":["nonexistent"]}}]}`},
+		{"unknown build input", "corpus.go", "", pkg + "probe.s", "// assembly\n", "// modified assembly\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g := gate{root: t.TempDir()}
+			fixtureGit(t, g.root, "init", "-q")
+			writeBuildFixture(t, g.root)
+			put := func(path, data string) { write(t, filepath.Join(g.root, filepath.FromSlash(path)), []byte(data)) }
+			write(t, filepath.Join(g.root, selectionPath), owners)
+			put("cmd/corvint-docs/main.go", "package main\nimport _ \"fixture/internal/doccorpus\"\nfunc main() {}\n") //corvint:fixture-path
+			put(pkg+"common.go", "package doccorpus\n")
+			put(pkg+tc.importer, "package doccorpus\n"+tc.source+"\n")
+			if tc.path == schema {
+				put("internal/gokernel/embed.go", "package gokernel\nimport _ \"embed\"\n//go:embed host-schema.json\nvar schema string\n") //corvint:fixture-path
+			}
+			put(tc.path, tc.before)
+			pin, err := json.Marshal(qualificationPin{Commit: commit(t, g.root), ReportSHA256: strings.Repeat("c", 64)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			write(t, filepath.Join(g.root, pinPath), pin)
+			pinned := commit(t, g.root)
+			if tc.path == schema || tc.path == cases {
+				result, err := g.check(pinned, "")
+				if err != nil || !strings.Contains(result, "reason=no-trigger-diff") {
+					t.Fatalf("covered pin alone: result=%q err=%v", result, err)
+				}
+			}
+			if tc.after == "" {
+				if err := os.Remove(filepath.Join(g.root, filepath.FromSlash(tc.path))); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				put(tc.path, tc.after)
+			}
+			result, err := g.check(commit(t, g.root), "")
+			if result != "" || err == nil || !strings.Contains(err.Error(), "trigger diff requires CORVINT_RCF_QUALIFY") {
+				t.Fatalf("edit to %s reused pin: result=%q err=%v", tc.path, result, err)
+			}
+		})
+	}
+}
+
+// RCF-V1-013: an unrecognized input kind must widen even when all named Go
+// files have owners and the new kind has never appeared in this repository.
+func TestCurrencyUnknownPackageField(t *testing.T) {
+	root := t.TempDir()
+	pkg := map[string]any{"Name": "main", "Dir": filepath.Join(root, "cmd", "corvint-docs"), "Module": map[string]bool{"Main": true}, "GoFiles": []string{"main.go"}} //corvint:fixture-path
+	covered := func() bool {
+		raw, err := json.Marshal(pkg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return coveredPackages(root, raw, []string{"cmd/corvint-docs/*.go"}, nil)
+	}
+	if !covered() {
+		t.Fatal("plain Go command lacks coverage")
+	}
+	pkg["FutureInputs"] = []string{"input.blob"}
+	if covered() {
+		t.Fatal("unrecognized build metadata allowed reuse")
 	}
 }

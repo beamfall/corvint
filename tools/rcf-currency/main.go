@@ -86,6 +86,10 @@ func readFile(name string) ([]byte, error) {
 func (g gate) git(args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = g.root
+	return commandOutput(cmd, "git "+strings.Join(args, " "))
+}
+
+func commandOutput(cmd *exec.Cmd, label string) ([]byte, error) {
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -104,7 +108,7 @@ func (g gate) git(args ...string) ([]byte, error) {
 		return nil, readErr
 	}
 	if err != nil {
-		return nil, fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, stderr.String())
+		return nil, fmt.Errorf("%s: %w: %s", label, err, stderr.String())
 	}
 	return b, nil
 }
@@ -205,11 +209,12 @@ func (g gate) check(candidate, config string) (string, error) {
 	}
 	changed := !bytes.Equal(selections[0], selections[1])
 	for _, name := range strings.Split(string(diff), "\x00") {
-		for _, p := range patterns {
-			changed = changed || affected.OwnerPatternMatches(p, name)
-		}
+		changed = changed || qualificationOwns(patterns, name)
 	}
-	if !changed {
+	if !changed && g.productionCovered(patterns, pin.Commit, candidate) {
+		if err := g.cleanCandidate(candidate); err != nil {
+			return "", err
+		}
 		return fmt.Sprintf("PASS candidate=%s qualified=%s report_sha256=%s reason=no-trigger-diff", candidate, pin.Commit, pin.ReportSHA256), nil
 	}
 	if config == "" {

@@ -571,6 +571,7 @@
         ".github/testconfine/",
         "benchmarks/selfuse-batch/",
         "cmd/",
+        "cmd/corvint-docs/rcf_qualification_test.go",
         "conformance/",
         "examples/evidence-provider/v0/",
         "experimental/analyzers/sqlnative/",
@@ -691,13 +692,8 @@
     {
       "paths": "internal/capcatalog/**",
       "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
         "internal/capcatalog/"
-      ]
-    },
-    {
-      "paths": "internal/capcatalog/*.go",
-      "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -779,6 +775,12 @@
       ]
     },
     {
+      "paths": "internal/doccompiler/trusted_nav_probe.py",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/doccorpus/*.go",
       "tests": [
         "cmd/corvint-docs/rcf_qualification_test.go",
@@ -816,7 +818,7 @@
       ]
     },
     {
-      "paths": "internal/gokernel/*.go",
+      "paths": "internal/gokernel/*",
       "tests": [
         "cmd/corvint-docs/rcf_qualification_test.go"
       ]
@@ -952,6 +954,13 @@
       "paths": "internal/mcp/corpusbridge/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/mcp/corpusbridge/testdata/search-ranking-gh1597/**",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
       ]
     },
     {
@@ -1522,6 +1531,12 @@
       "paths": "tools/lsp-editors/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/release-binary/binaries.json",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {

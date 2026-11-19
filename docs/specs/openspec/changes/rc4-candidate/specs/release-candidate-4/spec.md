@@ -176,7 +176,10 @@ The release-candidate currency check MUST derive trigger patterns from the owner
 qualified and candidate commits. Those owners MUST cover every non-test Go source file in the
 repository packages serving the promoted CLI verbs and MCP tools, including their transitive
 implementation dependencies. Use package-wide patterns so a newly added file is covered.
-When adding a package dependency, extend the owners to cover it. The gate MUST use the
+Before pin reuse the gate MUST verify owner coverage of the production import closure and
+resolved embedded inputs for every shipped target. Uncovered inputs, unsupported build inputs
+or an incomplete closure MUST require fresh qualification. The DCS-V1-404 ranking fixture
+directory MUST select both qualification and ranking tests. The gate MUST use the
 existing owner-pattern dialect and include deleted and renamed paths. Missing or invalid
 selection or qualification pins MUST fail closed.
 The committed `docs/specs/rcf-qualification.json` MUST pin the last qualified commit and report
@@ -199,5 +202,5 @@ Only a dispatched release-candidate gate SHALL invoke the check, never ordinary 
 #### Scenario: Unchanged promoted scope
 
 - GIVEN a valid qualification pin and selection at both immutable commits
-- WHEN no trigger path or selection declaration changed
+- WHEN the gate proves production owner coverage for all shipped targets and no trigger path or selection declaration changed
 - THEN the check passes and names the reused commit and report digest

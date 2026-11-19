@@ -217,7 +217,10 @@ the CMP-V1-004 notice rule.
   qualified and candidate commits. Those owners MUST cover every non-test Go source file in the
   repository packages serving the promoted CLI verbs and MCP tools, including their transitive
   implementation dependencies. Use package-wide patterns so a newly added file is covered.
-  When adding a package dependency, extend the owners to cover it. The gate MUST use the
+  Before pin reuse the gate MUST verify owner coverage of the production import closure and
+  resolved embedded inputs for every shipped target. Uncovered inputs, unsupported build inputs
+  or an incomplete closure MUST require fresh qualification. The DCS-V1-404 ranking fixture
+  directory MUST select both qualification and ranking tests. The gate MUST use the
   existing owner-pattern dialect and include deleted and renamed paths. Missing or invalid
   selection or qualification pins MUST fail closed.
   The committed `docs/specs/rcf-qualification.json` MUST pin the last qualified commit and report
@@ -240,7 +243,7 @@ the CMP-V1-004 notice rule.
 **Scenario: Unchanged promoted scope**
 
 - GIVEN a valid qualification pin and selection at both immutable commits
-- WHEN no trigger path or selection declaration changed
+- WHEN the gate proves production owner coverage for all shipped targets and no trigger path or selection declaration changed
 - THEN the check passes and names the reused commit and report digest
 
 ## Currency gate failure modes and acceptance
@@ -328,7 +331,7 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
 
 | Requirement | Implementation | Acceptance evidence |
 |---|---|---|
-| RCF-V1-013, RCF-V1-010 | `tools/rcf-currency`, `docs/specs/rcf-qualification.json` | `TestCurrency`, `TestCurrencyPromotedSourceChange`, `TestNamedTestPass`, `TestTriggerPatterns` in `tools/rcf-currency/main_test.go`; `docs/build-log/2026-11-18-rcf-currency-gate.md`, `docs/build-log/2026-11-19-rcf-trigger-fail-closed.md` |
+| RCF-V1-013, RCF-V1-010 | `tools/rcf-currency`, `docs/specs/rcf-qualification.json` | `TestCurrency`, `TestCurrencyPromotedSourceChange`, `TestCurrencyProductionCoverage`, `TestCurrencyUnknownPackageField`, `TestNamedTestPass`, `TestTriggerPatterns` in `tools/rcf-currency/main_test.go`; `docs/build-log/2026-11-18-rcf-currency-gate.md`, `docs/build-log/2026-11-19-rcf-trigger-fail-closed.md` |
 
 ## Rollback
 

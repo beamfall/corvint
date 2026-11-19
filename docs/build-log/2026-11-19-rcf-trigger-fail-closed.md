@@ -19,10 +19,9 @@ compile into `corvint-docs` are covered.
 
 The qualification owners match `*.go` in each package, including test files and new source
 filenames. Related package directories share patterns to fit the existing 256-owner limit.
-These patterns can select sibling packages as well. The declaration has 253 owners. The frozen
+These patterns can select sibling packages as well. The initial declaration had 253 owners. The frozen
 query-set directory keeps its owner. Source changes anywhere in `internal/doccorpus` or
-`internal/mcp/corpusbridge` also select the existing ranking test. When imports change, check
-the new package closure before refreshing the qualification pin.
+`internal/mcp/corpusbridge` also select the existing ranking test. The gate now checks that closure before pin reuse.
 
 ## Verification
 
@@ -44,3 +43,23 @@ the new package closure before refreshing the qualification pin.
 
 Reverting these owners reopens the stale-pin path. If a rollback is needed, require a fresh
 RCF-V1-008 qualification and both RCF-V1-009 ranking runs before accepting another candidate.
+
+## Self-review repair
+
+A newly pinned import of an unowned package left later body edits eligible for reuse. The
+release gate now runs offline `go list -deps -json` for `cmd/corvint-docs` on each target in
+the committed release catalog. Both the catalog and `go.mod` require qualification owners.
+Only main-module Go source and resolved embedded assets qualify as repository build inputs.
+Standard-library packages come from the release toolchain. The gate also checks ownership
+of Go files omitted by build constraints. Unknown package fields, native inputs, list errors
+and uncovered files require fresh qualification. A deletion below a reachable package also
+requires qualification because a removed wildcard embed can disappear from the candidate list.
+
+The 255 owners cover the host schema, the trusted-navigation probe and the capability catalog's
+embedded files. The complete DCS-V1-404 fixture directory selects both qualification and ranking.
+In an isolated checkout of the actual source with a synthetic pin, a pin-only diff reused the
+pin. Changing only the schema version, the `file-cancel` expected subject, or the body of a
+newly pinned unowned dependency each produced the existing missing-configuration refusal.
+`TestCurrencyProductionCoverage` exercises these edits in private Git fixtures, including
+target-specific imports and removal of an embedded file. `TestCurrencyUnknownPackageField`
+checks the default for a future Go input kind. The report and the pin format are unchanged.
