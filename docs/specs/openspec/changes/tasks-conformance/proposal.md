@@ -11,7 +11,7 @@ Requirement IDs this change modifies: none (TIN-V1-002, TIN-V1-004 and TIN-V1-01
 `tasks-integration` already defer the record format, schema files and command list to this change)
 Owner answers this change implements: G9, owner decision R17 (2026-11-09), owner decision R18
 (2026-11-09), answer 12, answer 13, owner decision H1 (2026-11-10)
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
 

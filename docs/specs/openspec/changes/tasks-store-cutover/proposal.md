@@ -14,7 +14,7 @@ impact), `design.md` (owner decisions applied, facts and their verification, cut
 rollback, losses, other hosts, failure modes, open decisions), `tasks.md` (ordered tasks and
 acceptance evidence), `specs/tasks-store-cutover/spec.md` (ADDED Requirements).
 Owner decisions applied: 2026-11-09 purge of old closed tickets, T1, T2 and T3; see `design.md`.
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes. Nothing in the live store has been changed.
 

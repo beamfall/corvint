@@ -11,7 +11,7 @@ decision R30; HOW-V1-012, formerly DMF-V1-012, for R42 (panel pick) B1)
 Owner answers and decisions this change implements: decision 0595 (CMS-V0-912 to 916), G5
 (`owner-answers-2026-11-09.md`), owner decision R30 (2026-11-09) and owner decision R31
 (2026-11-09)
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
 

@@ -9,7 +9,7 @@ exist yet; the lane creates it in its first commit.
 Requirement IDs this change adds: LEV-V1-001 to LEV-V1-015. `LEV-` has no entry in
 `docs/specs/REQUIREMENTS.tsv` and appears in no other folder under `docs/specs/openspec/changes/`
 (checked 2026-11-09).
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes.
 

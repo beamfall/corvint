@@ -12,7 +12,7 @@ Owner answers this change implements: answer 16 (Windows statement), owner decis
 ship as pages in the repository (Q35; NEW-PROC-1 to 3; checklist O30, O64, O27, O28). The content
 of the compatibility statement (g) is the table of change `compatibility-promise` (decided
 2026-11-09 under R42, D10 and D10a).
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
 

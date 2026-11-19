@@ -10,7 +10,7 @@ Requirement IDs this change adds: FIH-V1-001 to FIH-V1-015
 Owner answers this change implements: G1, G2, G3, G12, G15b, G23, G26
 (`owner-answers-2026-11-09.md`), and owner decisions R7, R9, R16, R19 and R21 (2026-11-09) and
 H3 (2026-11-10)
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (G14 auto, 2026-11-11; V1-5405; owner confirmed 2026-11-18)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
 Layout: this folder follows G14 (`proposal.md`, `design.md`, `tasks.md`,
