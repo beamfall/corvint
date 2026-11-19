@@ -1,0 +1,16 @@
+flows
+kinds[].kind
+kinds[].path
+links[].accepted_at
+links[].accepted_by
+links[].confidence
+links[].confidenceFormula
+links[].evidence
+links[].pinned_commit
+links[].routes_digest
+links[].test_content_hash
+links[].test_id
+links[].variation_id
+playwright.config
+playwright.discovery
+profile

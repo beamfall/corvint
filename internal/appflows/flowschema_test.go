@@ -225,6 +225,10 @@ func goldenMembers(prefix string, value any) []string {
 		for _, element := range v {
 			out = append(out, goldenMembers(prefix, element)...)
 		}
+	default:
+		// A scalar array (version 1's evidence citations) is one leaf
+		// member, just as flowsMembers records a []string field.
+		out = append(out, strings.TrimSuffix(prefix, "[]."))
 	}
 	slices.Sort(out)
 	return slices.Compact(out)

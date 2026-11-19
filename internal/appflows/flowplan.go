@@ -64,6 +64,9 @@ type FlowsDeclaration struct {
 	// `playwright` member (AFU-V1-140).
 	PlaywrightConfig    string
 	PlaywrightDiscovery string
+	// Links are version 1 records; they confer no selection authority until
+	// the FLP inventory, route and tier integration is available.
+	Links []FlowTestLink
 }
 
 // KindRule assigns Kind to every path at or under Path; "." is the whole
@@ -167,6 +170,19 @@ func JoinFlowPlan(ctx context.Context, root string, graph *affected.Graph, plan 
 	}
 	if err != nil {
 		return flowsDeclarationInvalid(plan, "", err.Error())
+	}
+	if declared.Version == 1 {
+		// FLP-V1-007: do not let the legacy path-level join interpret version
+		// 1 records. The required route and tier contracts are not on this
+		// base. FULL is the existing runner fallback, including tests not
+		// listed by legacy flow intents; no partial inventory is trusted.
+		plan.E2E = &affected.E2EPlan{Flows: declared.Dir, Scope: affected.E2EScopeFull,
+			Inventory: affected.E2EInventory{Source: affected.E2EInventoryFlows, State: "n/a"},
+			Selected:  []affected.E2ESelection{},
+			Unknown: []affected.Unknown{{Reason: affected.UnknownE2EInventoryUnderivable,
+				Detail: FlowsDeclarationPath,
+				Hint:   "version 1 link selection awaits the canonical inventory, route and tier integration; every E2E test must run"}}}
+		return plan
 	}
 	for i, s := range plan.Selected {
 		paths := s.Tests

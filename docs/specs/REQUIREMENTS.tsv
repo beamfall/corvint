@@ -5531,6 +5531,17 @@ FDM-V0-004	docs/specs/flow-document-maintenance-v0.md	Stage both files before pu
 FDM-V0-005	docs/specs/flow-document-maintenance-v0.md	Only after both publications succeed may stdout contain the canonical versioned	unrecorded	-
 FDM-V0-006	docs/specs/flow-document-maintenance-v0.md	With identical material inputs, options and outputs, apply MUST return the previ	unrecorded	-
 FDM-V0-007	docs/specs/flow-document-maintenance-v0.md	Maintenance MUST preserve existing AFU fixed-template rendering and claim semant	unrecorded	-
+FLP-V1-001	docs/specs/flow-link-proposals-v1.md	Propose links, with a bulk bootstrap	unrecorded	-
+FLP-V1-002	docs/specs/flow-link-proposals-v1.md	Proposals are private	unrecorded	-
+FLP-V1-003	docs/specs/flow-link-proposals-v1.md	Confidence score	unrecorded	-
+FLP-V1-004	docs/specs/flow-link-proposals-v1.md	Only a person accepts, per flow	unrecorded	-
+FLP-V1-005	docs/specs/flow-link-proposals-v1.md	Accept refuses without a terminal	unrecorded	-
+FLP-V1-006	docs/specs/flow-link-proposals-v1.md	Link record fields	unrecorded	-
+FLP-V1-007	docs/specs/flow-link-proposals-v1.md	Only accepted links narrow	unrecorded	-
+FLP-V1-008	docs/specs/flow-link-proposals-v1.md	Source tags are evidence only	unrecorded	-
+FLP-V1-009	docs/specs/flow-link-proposals-v1.md	Stale links return the test to unassigned	unrecorded	-
+FLP-V1-010	docs/specs/flow-link-proposals-v1.md	Reachability agreement and dangling links	unrecorded	-
+FLP-V1-011	docs/specs/flow-link-proposals-v1.md	Browser tests outside Playwright	unrecorded	-
 FSV-V1-001	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) The profile carries t	owner	decision 0596; V1-5410
 FSV-V1-002	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) A closed list of supp	owner	decision 0596; V1-5410
 FSV-V1-003	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) One shared reader	owner	decision 0596; V1-5410

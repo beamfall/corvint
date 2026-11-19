@@ -45,6 +45,9 @@ var flowsSchemas = [...]flowsSchema{
 	{version: 0, profile: "corvint-flows/0", file: reflect.TypeFor[flowsDeclarationFile](), validate: func(file any) (*FlowsDeclaration, error) {
 		return validateFlowsV0(file.(*flowsDeclarationFile))
 	}},
+	{version: 1, profile: "corvint-flows/1", file: reflect.TypeFor[flowsDeclarationV1File](), validate: func(file any) (*FlowsDeclaration, error) {
+		return validateFlowsV1(file.(*flowsDeclarationV1File))
+	}},
 }
 
 // FlowsSupportedVersions lists, ascending, the versions this build reads.
@@ -222,7 +225,7 @@ func EncodeFlowsDeclaration(d FlowsDeclaration) ([]byte, error) {
 	if d.Version != 0 && d.Version != FlowsWriteVersion() {
 		return nil, fmt.Errorf("%s: this build writes version %d, not %d", FlowsDeclarationPath, FlowsWriteVersion(), d.Version)
 	}
-	file := flowsDeclarationFile{Profile: FlowsProfile(FlowsWriteVersion()), Flows: d.Dir}
+	file := flowsDeclarationV1File{Profile: FlowsProfile(FlowsWriteVersion()), Flows: d.Dir, Links: d.Links}
 	for _, rule := range d.Kinds {
 		file.Kinds = append(file.Kinds, flowsKindRule{Path: rule.Path, Kind: rule.Kind})
 	}
@@ -232,6 +235,9 @@ func EncodeFlowsDeclaration(d FlowsDeclaration) ([]byte, error) {
 	body, err := json.Marshal(file, json.Deterministic(true))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", FlowsDeclarationPath, err)
+	}
+	if len(body)+1 > maxFlowsDeclarationBytes {
+		return nil, flowsInvalid("larger than %d bytes", maxFlowsDeclarationBytes)
 	}
 	if _, err := decodeFlowsDeclaration(body); err != nil {
 		return nil, err
