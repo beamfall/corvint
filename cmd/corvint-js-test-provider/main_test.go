@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -468,5 +469,41 @@ func TestPWPV0038WatchRefusalWritesNoStatusLine(t *testing.T) {
 	}
 	if stdout.Len() != 0 || stderr.Len() != 0 {
 		t.Fatalf("watch wrote before refusing: stdout %q stderr %q", stdout.String(), stderr.String())
+	}
+}
+
+// RMV-V1-009: exercise the qualification reader against two actual provider emissions.
+func TestQualificationReadsSuccessiveRetentions(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("retained qualification requires Node.js")
+	}
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	digest := strings.Repeat("a", 64)
+	identity := jstestprovider.Identity{
+		TestFileDigests: map[string]string{"adds.js": digest}, ConfigFile: "vitest.config.js",
+		ConfigDigest: digest, PackageDigest: digest, NodeVersion: "v22.0.0", RunnerName: "vitest",
+		RunnerVersion: "5.0.3", Environment: map[string]string{}, Argv: []string{"npx", "vitest"},
+	}
+	for _, state := range []jstestprovider.ExecutionState{jstestprovider.StatePassed, jstestprovider.StateFailed} {
+		receipt := jstestprovider.Receipt{Kind: "unit", Identity: identity, Tests: []jstestprovider.TestOutcome{{Name: "adds", State: state}}}
+		var stdout, stderr bytes.Buffer
+		if err := emit(&stdout, &stderr, receipt, root); err != nil {
+			t.Fatalf("%s: %v: %s", state, err, &stderr)
+		}
+		const read = `require(process.argv[1]).readRetainedEvidence(process.argv[2])
+			.then(row => process.stdout.write(row.raw))
+			.catch(err => { console.error(err); process.exitCode = 1; });`
+		cmd := exec.CommandContext(t.Context(), node, "-e", read, "../../conformance/interactive-alpha/retained-evidence.cjs", root)
+		got, err := cmd.CombinedOutput()
+		if err != nil || !bytes.Equal(got, stdout.Bytes()) {
+			t.Fatalf("%s: qualification read %q, want provider stdout, err=%v", state, got, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, ".corvint", "test-evidence", ".gitignore")); err != nil {
+		t.Fatal(err)
 	}
 }

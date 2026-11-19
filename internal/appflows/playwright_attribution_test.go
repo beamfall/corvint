@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
-	"github.com/Beamfall/corvint/internal/playwrightruns"
 )
 
 // attribution is one test as a decoder attributes it (AFU-V1-950).
@@ -18,7 +17,7 @@ type attribution struct {
 	passed               bool
 }
 
-// TestAFUV1950PlaywrightDecodersAgree decodes one real Playwright 1.61.1 report through the three
+// TestAFUV1950PlaywrightDecodersAgree decodes one real Playwright 1.61.1 report through the two retained
 // decoders and requires the same tests, attempts and pass verdicts from each. The report holds a
 // plain pass, a test.fail() test that fails, a test.fail() test that passes on both attempts, and
 // a test that passes on retry.
@@ -55,23 +54,6 @@ func TestAFUV1950PlaywrightDecodersAgree(t *testing.T) {
 		providerAttempts = append(providerAttempts, states)
 	}
 
-	run, err := playwrightruns.Parse(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var runs []attribution
-	for _, test := range run.Tests {
-		last := ""
-		if len(test.Results) > 0 {
-			last = test.Results[len(test.Results)-1].Status
-		}
-		passed := test.Executed && last == "passed" && !test.ExpectedFail && test.Status != "unexpected"
-		runs = append(runs, attribution{test.File, test.TitlePath[len(test.TitlePath)-1], test.Project, len(test.Results), passed})
-		if got := test.TitlePath[0]; got != "group" {
-			t.Errorf("playwrightruns title path %v lacks the describe block", test.TitlePath)
-		}
-	}
-
 	ingested, err := parsePlaywrightRun(raw)
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +70,7 @@ func TestAFUV1950PlaywrightDecodersAgree(t *testing.T) {
 		ingestAttempts = append(ingestAttempts, outcomes)
 	}
 
-	for name, got := range map[string][]attribution{"ParsePlaywrightJSON": provider, "playwrightruns": runs, "appflows run ingest": ingest} {
+	for name, got := range map[string][]attribution{"ParsePlaywrightJSON": provider, "appflows run ingest": ingest} {
 		if !slices.Equal(got, want) {
 			t.Errorf("%s attributes\n%+v\nwant\n%+v", name, got, want)
 		}

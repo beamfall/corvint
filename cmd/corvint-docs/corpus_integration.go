@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -76,14 +75,8 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		return 2, true
 	}
 	command := original[pos]
-	// The context task packet is removed (decision 0597); its corpus search join goes with it.
-	allowed := command == "impact" || command == "affected" || command == "test-validity"
-	if !allowed {
+	if command != "impact" && command != "affected" {
 		emitError(stderr, argumentError("--corpus is supported only on native evidence reads"))
-		return 2, true
-	}
-	if depth != 0 && command != "impact" && command != "affected" {
-		emitError(stderr, argumentError("--corpus-depth applies only to impact and affected"))
 		return 2, true
 	}
 	root := "."
@@ -95,12 +88,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 			root = strings.TrimPrefix(original[i], "--root=")
 		}
 	}
-	lexicalRoot, err := filepath.Abs(root)
-	if err != nil {
-		emitCorpusError(stderr, err)
-		return 2, true
-	}
-	root, err = resolveExplicitRoot(root)
+	root, err := resolveExplicitRoot(root)
 	if err != nil {
 		emitError(stderr, err)
 		return 2, true
@@ -113,25 +101,6 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		return 2, true
 	}
 
-	var receiptBytes []byte
-	receiptPath := flagValue(original, "--receipt")
-	if command == "test-validity" && receiptPath != "" {
-		absolute, pathErr := filepath.Abs(receiptPath)
-		if pathErr != nil {
-			emitCorpusError(stderr, pathErr)
-			return 2, true
-		}
-		relative, pathErr := filepath.Rel(lexicalRoot, absolute)
-		if pathErr != nil {
-			emitCorpusError(stderr, pathErr)
-			return 2, true
-		}
-		receiptBytes, err = doccorpus.ReadFile(root, relative)
-		if err != nil {
-			emitCorpusError(stderr, err)
-			return 2, true
-		}
-	}
 	var captured corpusCapture
 	exit := runCoreRead(ctx, original, stdin, &captured, stderr)
 	if exit != 0 {
@@ -199,45 +168,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		_ = json.Unmarshal(native["plan"], &plan)
 		paths = append(paths, plan.Dirty...)
 	}
-	if command == "impact" || command == "affected" || len(paths) > 0 {
-		section["impact"] = doccorpus.Impact(corpus, paths, overlay.State, depth)
-	}
-	if command == "test-validity" {
-		// The native document stays intact; exact retained input digests alone join
-		// its observations to the corpus. Similar test names never establish a link.
-		linked := []doccorpus.Observation{}
-		if receiptPath != "" {
-			absolute, _ := filepath.Abs(receiptPath)
-			relative, _ := filepath.Rel(lexicalRoot, absolute)
-			after, readErr := doccorpus.ReadFile(root, relative)
-			if readErr != nil || !bytes.Equal(after, receiptBytes) {
-				emitError(stderr, argumentError("retained receipt changed during corpus join"))
-				return 2, true
-			}
-			digest := doccorpus.Digest(receiptBytes)
-			for _, o := range corpus.Observations {
-				if o.InputSHA256 == digest {
-					linked = append(linked, o)
-				}
-			}
-		}
-		if corpus.Schema == doccorpus.SchemaV2 {
-			total := len(linked)
-			if len(linked) > doccorpus.MaxResults {
-				linked = linked[:doccorpus.MaxResults]
-			}
-			for len(linked) > 0 {
-				raw, err := doccorpus.Encode(linked)
-				if err == nil && len(raw) <= 1<<20 {
-					break
-				}
-				linked = linked[:len(linked)/2]
-			}
-			section["observations_omitted"] = total - len(linked)
-		}
-		section["observations"] = linked
-		section["observation_limitations"] = []string{"only an exact explicitly supplied receipt is joined; discovery and missing matches remain unlinked"}
-	}
+	section["impact"] = doccorpus.Impact(corpus, paths, overlay.State, depth)
 	encoded, err := doccorpus.Encode(section)
 	if err != nil {
 		emitCorpusError(stderr, err)

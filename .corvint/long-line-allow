@@ -16,7 +16,6 @@ docs/specs/corvint-tasks-attempt-runner-v0.md
 docs/specs/daily-change-evidence-workflow-v0.md
 docs/specs/documentation-corpus-v1.md
 docs/specs/falsifiable-packet-v0.md
-docs/worklist.json
 internal/analyzergo/analyzer_test.go
 internal/analyzershader/corpus_test.go
 internal/analyzershell/pinned_corpus_test.go

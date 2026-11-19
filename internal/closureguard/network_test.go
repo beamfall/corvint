@@ -164,7 +164,7 @@ func TestTestValidityToolNetworkImportersAreAllowlisted(t *testing.T) {
 			reviewed[pkg] = true
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-		command := exec.CommandContext(ctx, "go", "list", "-deps", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./internal/mcp/testvaliditybridge")
+		command := exec.CommandContext(ctx, "go", "list", "-deps", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./internal/testvaliditydoc")
 		command.Dir = validityRoot
 		switch config {
 		case "darwin/arm64":
@@ -182,7 +182,7 @@ func TestTestValidityToolNetworkImportersAreAllowlisted(t *testing.T) {
 		output, err := command.Output()
 		cancel()
 		if err != nil {
-			t.Fatalf("go list ./internal/mcp/testvaliditybridge for %s: %v: %s", config, err, strings.TrimSpace(stderr.String()))
+			t.Fatalf("go list ./internal/testvaliditydoc for %s: %v: %s", config, err, strings.TrimSpace(stderr.String()))
 		}
 		found := []string{}
 		for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {

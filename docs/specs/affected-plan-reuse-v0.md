@@ -190,6 +190,10 @@ per package, and skip per job, only where the inputs the result depends on are p
   `fullN` output stays empty, so it never writes an AFP-V0-170 tested-tree record and the merge
   queue, which never reads reuse records, runs in full; (5) any failure in (1) to (3) leaves the
   shard on its existing path.
+
+Retirement status: AFP-V0-2333 is retired by source-removal B1 (owner, 2026-11-18).
+The clause and trace row remain as history; the measurement tool is removed.
+
 - **AFP-V0-2333:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness; V1-1097)
   Acceptance replay: `tools/ci-reuse-replay` decides every pull-request re-push of at least 50
   merged pull requests that have retained outcomes against records of the previous push and of
@@ -254,6 +258,10 @@ per package, and skip per job, only where the inputs the result depends on are p
   `artifact-integrity` was skipped writes no integrity record and its queue entry runs the gate.
   The `containment` job of `intake-containment.yml` is declared and evaluated but not wired: its
   run (about two minutes) costs about what building `corvint` for its plan would.
+
+Retirement status: AFP-V0-2346 is retired by source-removal B1 (owner, 2026-11-18).
+The clause and trace row remain as history; the measurement tool is removed.
+
 - **AFP-V0-2346:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness; V1-1099)
   Acceptance replay: `tools/ci-reuse-replay jobs` evaluates the declaration with the branch's own
   `corvint` over each of the last 100 completed `pull_request` and `push` runs of `ci.yml` at the

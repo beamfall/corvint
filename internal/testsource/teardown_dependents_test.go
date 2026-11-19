@@ -490,7 +490,7 @@ func TestTeardownFrameworksAndFiles(t *testing.T) {
 	if err != nil || string(first) != string(second) {
 		t.Error("the report must be deterministic")
 	}
-	many := make([]string, MaxValidityFiles+1)
+	many := make([]string, maxTeardownFiles+1)
 	for i := range many {
 		many[i] = "spec/" + strings.Repeat("x", i+1) + "_spec.rb"
 	}

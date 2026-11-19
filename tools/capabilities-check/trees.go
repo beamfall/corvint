@@ -39,7 +39,7 @@ corvint-analyzer-shader corvint-analyzer-shell corvint-analyzer-sql-native
 corvint-analyzer-structured-data corvint-analyzer-swift corvint-docs-mcp
 corvint-go-test-provider corvint-go-toolchain-receipt corvint-js-test-provider corvint-mcp
 corvint-readiness-record corvint-release-candidate corvint-release-install
-corvint-ruby-test-provider corvint-test-runner corvint-test-validity-mcp corvint-update
+corvint-ruby-test-provider corvint-test-runner corvint-update
 corvint-web-flows
 `)
 

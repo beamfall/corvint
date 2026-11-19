@@ -93,34 +93,6 @@ func exportHead(ctx context.Context, root, commit, destination string) error {
 	return nil
 }
 
-// buildEnvironment is a closed allowlist over the inherited environment: the module and build
-// caches are reused for speed, but no inherited GOFLAGS, GOPROXY, GOTOOLCHAIN or GOWORK can
-// change the profile.
-func buildEnvironment(target Target) []string {
-	environment := map[string]string{
-		"CGO_ENABLED": "0",
-		"GOENV":       "off",
-		"GOFLAGS":     "-mod=readonly",
-		"GOPROXY":     "off",
-		"GOSUMDB":     "off",
-		"GOTOOLCHAIN": "local",
-		"GOWORK":      "off",
-		"GOOS":        target.GOOS,
-		"GOARCH":      target.GOARCH,
-	}
-	for _, key := range []string{"HOME", "PATH", "TMPDIR", "TEMP", "TMP", "GOCACHE", "GOMODCACHE", "GOPATH", "GOROOT", "SystemRoot", "USERPROFILE"} {
-		if value, set := os.LookupEnv(key); set {
-			environment[key] = value
-		}
-	}
-	pairs := make([]string, 0, len(environment))
-	for key, value := range environment {
-		pairs = append(pairs, key+"="+value)
-	}
-	sort.Strings(pairs)
-	return pairs
-}
-
 // stampFlags is the -ldflags argument that sets the main package's stamp variables: none for a
 // `stamp: none` binary, the build number and source commit for a core-set binary, and the
 // release version too for an independent binary (ARTIFACT-BIN-V0-002).
@@ -184,9 +156,9 @@ func declaredStampVariables(source string, binary Binary) error {
 
 func buildTarget(ctx context.Context, root string, binary Binary, target Target, version, build, commit, output string) error {
 	ldflags := stampFlags(binary, version, build, commit)
-	command := exec.CommandContext(ctx, "go", "build", "-trimpath", ldflags, "-o", output, binary.Package)
+	command := exec.CommandContext(ctx, "go", "build", archivebuild.ReleaseTrimpath, ldflags, "-o", output, binary.Package)
 	command.Dir = root
-	command.Env = buildEnvironment(target)
+	command.Env = archivebuild.ReleaseEnvironment(target.GOOS, target.GOARCH)
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
@@ -227,7 +199,7 @@ func verifyBuildInfo(path string, target Target, commit, goVersion string) error
 func hostGoVersion(ctx context.Context, root string) (string, error) {
 	command := exec.CommandContext(ctx, "go", "env", "GOVERSION")
 	command.Dir = root
-	command.Env = buildEnvironment(Target{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH})
+	command.Env = archivebuild.ReleaseEnvironment(runtime.GOOS, runtime.GOARCH)
 	out, err := command.Output()
 	if err != nil {
 		return "", fmt.Errorf("go env GOVERSION: %w", err)

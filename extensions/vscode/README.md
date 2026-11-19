@@ -97,11 +97,16 @@ named `corvint-js-test-provider` with `unit` or `e2e`; wrapping it in a shell di
 and is refused when retention is enabled. Toolchain directories affect only the live provider;
 on macOS a Homebrew Node installation commonly needs `/opt/homebrew/bin` explicitly.
 
-With retention enabled, agents can use the separate `corvint-test-validity-mcp` discovery tool to
-inspect the same completed provider documents. Passing execution does not establish freshness,
-test adequacy or authority. Unsupported, stale and unmeasured axes remain visible; retained Go
-freshness and some JavaScript identity components remain `UNKNOWN`. See the exact installed
-qualification record before treating a host/platform tuple as supported.
+With retention enabled, the provider saves its completed JSON documents under
+`.corvint/test-evidence/` in the workspace. Open a `corvint-js-test-provider-*.json` or
+`corvint-go-test-provider-*.json` file to inspect the original observations and projections.
+Test Explorer shows the editor’s per-test results, and Diagnostics shows reported failure
+locations. For revision-bound test dependency records, use `corvint test-evidence PATH` or
+the `corvint.test_evidence` tool with `--tool-profile test-evidence`.
+
+A passing observation establishes execution only. Retained Go freshness and some JavaScript
+identity components remain `UNKNOWN`. Consult the installed qualification record for the
+specific host and platform.
 
 ## Settings
 
@@ -114,7 +119,7 @@ qualification record before treating a host/platform tuple as supported.
 | `corvint.timeoutMilliseconds` | `15000` | Explicit operation timeout; range 1–30 seconds. |
 | `corvint.liveTests.enabled` | `false` | Start the explicitly configured provider in this trusted workspace. |
 | `corvint.liveTests.command` | `[]` | Executable and literal argument array; no shell expansion. |
-| `corvint.liveTests.retainEvidence` | `false` | Ask a supported provider to retain completed local evidence for MCP discovery. |
+| `corvint.liveTests.retainEvidence` | `false` | Ask a supported provider to save completed JSON documents under `.corvint/test-evidence/`. |
 | `corvint.liveTests.watchPaths` | `["."]` | Up to 64 relative files/directories whose saves rerun the configured JS suite. |
 | `corvint.liveTests.toolchainPaths` | `[]` | Up to 16 absolute directories for the live provider's Node/npm/Go tools. |
 

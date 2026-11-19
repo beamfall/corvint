@@ -1,14 +1,12 @@
 package testsource
 
 import (
-	"fmt"
 	"maps"
 	"path"
 	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
-	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
 // The `corvint tests unselected` reading (TSA-V0-140..146): every committed test-looking JS/TS file
@@ -354,75 +352,4 @@ func moduleBinding(s *source, i int) ([2]int, bool) {
 		return [2]int{}, true
 	}
 	return [2]int{}, false
-}
-
-// SelectedSourceValidity is SourceValidity with witness credit refused to the tests of every named
-// JS/TS file that no configured runner selects (TSA-V0-146): each such test gets an invalid
-// TEST-FILE-UNSELECTED finding, so its hygiene axis is INELIGIBLE. An uncertain selection changes
-// nothing.
-func SelectedSourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport, error) {
-	report, err := SourceValidity(r, options)
-	if err != nil {
-		return report, err
-	}
-	var set *runnerSet
-	resolver := newRepoResolver(r, report.Revision)
-	for fi := range report.Files {
-		file := &report.Files[fi]
-		if !isTestCandidatePath(file.Path) {
-			continue
-		}
-		if set == nil {
-			configs, _, err := readFiles(r, report.Revision, isRunnerConfigPath)
-			if err != nil {
-				return SourceValidityReport{}, err
-			}
-			discovered := discoverRunners(configs)
-			set = &discovered
-		}
-		data, _, err := readOne(r, report.Revision, file.Path, MaxFileBytes)
-		if err != nil {
-			return SourceValidityReport{}, err
-		}
-		s := parseSource(file.Path, string(data))
-		selection, ok := classifyFile(file.Path, s, *set, resolver)
-		if !ok || selection.Selection != SelectionUnselected {
-			continue
-		}
-		refuseUnselectedTests(&report, file, s, selection)
-	}
-	return report, nil
-}
-
-// refuseUnselectedTests adds one invalid finding per test of the unselected file and applies it.
-func refuseUnselectedTests(report *SourceValidityReport, file *SourceValidityFile, s *source, selection SelectionFile) {
-	cause := selection.Reason
-	if selection.Pattern != "" {
-		cause += ": " + selection.Pattern
-	}
-	finding := func(test string) testvalidity.SourceFinding {
-		return testvalidity.SourceFinding{Rule: CodeTestFileUnselected, Severity: testvalidity.SeverityInvalid, Test: test, Location: test,
-			Cause: cause, Message: fmt.Sprintf("no configured runner selects %s (%s), so its tests cannot witness a claim", file.Path, cause)}
-	}
-	seen := map[string]bool{}
-	for ti := range report.Tests {
-		test := &report.Tests[ti]
-		if !strings.HasPrefix(test.Test, file.Path+":") {
-			continue
-		}
-		seen[test.Test] = true
-		f := finding(test.Test)
-		file.Findings = append(file.Findings, f)
-		test.Hygiene = testvalidity.ApplySourceFindings(testvalidity.Projection{Hygiene: test.Hygiene}, []testvalidity.SourceFinding{f}).Hygiene
-	}
-	for _, d := range s.Decls {
-		test := fmt.Sprintf("%s:%d", file.Path, d.Line)
-		if d.Kind != "test" || seen[test] {
-			continue
-		}
-		seen[test] = true
-		f := finding(test)
-		file.Findings = append(file.Findings, f)
-		report.Tests = append(report.Tests, sourceTest(test, []testvalidity.SourceFinding{f}))
-	}
 }

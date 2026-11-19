@@ -67,7 +67,7 @@ try {
   const extractedRoot = await realpath(requiredEnvironment("CORVINT_RELEASE_EXTRACTED_ROOT"));
   const releaseArchive = await realpath(requiredEnvironment("CORVINT_RELEASE_ARCHIVE"));
   const vsix = await realpath(requiredEnvironment("CORVINT_VSIX"));
-  for (const name of ["CORVINT_JS_PROVIDER", "CORVINT_GO_PROVIDER", "CORVINT_TEST_VALIDITY_MCP"]) {
+  for (const name of ["CORVINT_JS_PROVIDER", "CORVINT_GO_PROVIDER"]) {
     const candidate = requiredEnvironment(name);
     assertEqual(candidate, await realpath(candidate), `${name} canonical path`);
     await requireExecutable(candidate);
@@ -256,7 +256,8 @@ async function captureToolIdentities(browserExecutable, browserVersion, releaseA
     npm: npmCli,
     jsProvider: requiredEnvironment("CORVINT_JS_PROVIDER"),
     goProvider: requiredEnvironment("CORVINT_GO_PROVIDER"),
-    testValidityMcp: requiredEnvironment("CORVINT_TEST_VALIDITY_MCP"),
+    // Legacy report key: identifies the local evidence reader, not an MCP server.
+    testValidityMcp: resolve(here, "../../../../conformance/interactive-alpha/retained-evidence.cjs"),
     browser: browserExecutable,
     releaseArchive,
     vsix,

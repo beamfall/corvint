@@ -28,7 +28,7 @@ Usage:
 
 The docs commands are not in the corvint binary (decision 0594); it keeps only the corpus
 tools its MCP server serves in process. This group and a --corpus=FILE [--corpus-depth=N]
-option before impact, affected, context or test-validity run the corvint-docs executable
+option before impact or affected run the corvint-docs executable
 beside corvint or on PATH with the same arguments, pass it no authority, and print its
 bytes. When it is absent the shim refuses with code not-installed and names the
 NOT_INSTALLED gap. The subcommands (nav, draft, consume, citations, corpus, pages, and the

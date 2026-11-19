@@ -3,16 +3,19 @@
 Owner: Russell Lewis
 Date: 2026-10-31
 Requirement prefix: `GTE-V0`
-Intent status: proposed
-Delivery status: experimental
-Health: KEEP
+Intent status: retired 2026-11-18 (source-removal)
+Delivery status: retired
+Health: RETIRE
 Authoritative inputs: ticket V1-0819 (idea reviewed 2026-10-05; clean-room, no third-party code, text or tests); `AGENTS.md` invariants 2, 4, 5 and 6; `gate-ledger-v0.md` (V1-0245) for the gate's own per-package pass memory, which this ledger does not replace.
+
+Retirement note: owner acceptance of source-removal under G14 on 2026-11-18 removes this
+experimental tool in B1. The requirements below remain as history; none ships in 1.0.
 
 ## Agent digest
 - Claim: An operator tool derives test records from `go test -json` under a stable per-test identity, so flaky tests gain a measured cross-run history.
-- Status: proposed/experimental
-- Exists: `tools/gotest-evidence` (`record`, `summary`), its tests and two captured `go test -json` fixtures.
-- Blocked on: owner acceptance of the intent; nothing records the gate's or CI's streams into a ledger yet.
+- Status: retired 2026-11-18 (source-removal) / retired
+- Exists: none; source-removal B1 removes the tool and its fixtures.
+- Blocked on: nothing; retired history only.
 - Read next: Requirements; Identity rules; Non-goals; Rollback.
 
 ## User and measurable job

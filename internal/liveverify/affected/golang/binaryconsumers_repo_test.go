@@ -29,7 +29,7 @@ func TestRepositoryDeclaresWebFlowsConsumers_AFPV0762(t *testing.T) {
 	// V1-5200: the installed-host proofs exec the two live test providers and
 	// the test-validity MCP from an extracted release, so a change reaching any
 	// of those builds names them (no `run`: they need the pinned macOS host).
-	providers := []string{"cmd/corvint-go-test-provider", "cmd/corvint-js-test-provider", "cmd/corvint-test-validity-mcp"}
+	providers := []string{"cmd/corvint-go-test-provider", "cmd/corvint-js-test-provider"}
 	for _, script := range []string{"conformance/interactive-alpha/core-provider-proof.mjs", "extensions/vscode/test/installed/run.mjs"} {
 		if !slices.Equal(consumers[script], providers) {
 			t.Errorf("%s consumes %v, want %v", script, consumers[script], providers)

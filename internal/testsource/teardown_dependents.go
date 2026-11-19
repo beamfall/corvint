@@ -19,6 +19,8 @@ const (
 	TeardownSchema = "corvint-test-teardown-dependents/0"
 	// TeardownRule names the finding.
 	TeardownRule = "TEARDOWN-DEPENDENT-LEFTOVER"
+	// maxTeardownFiles bounds the committed source files one teardown report reads.
+	maxTeardownFiles = 256
 	// MaxTeardownReceipts bounds the receipts one report reads.
 	MaxTeardownReceipts = 16
 
@@ -163,8 +165,8 @@ func TeardownDependents(r Repo, options TeardownOptions) (TeardownReport, error)
 	switch {
 	case len(files) == 0:
 		return TeardownReport{}, refuse("tests-invalid-arguments", "no test file was named")
-	case len(files) > MaxValidityFiles:
-		return TeardownReport{}, refuse("tests-bound-exceeded", "more than %d files", MaxValidityFiles)
+	case len(files) > maxTeardownFiles:
+		return TeardownReport{}, refuse("tests-bound-exceeded", "more than %d files", maxTeardownFiles)
 	case len(options.Receipts) > MaxTeardownReceipts:
 		return TeardownReport{}, refuse("tests-bound-exceeded", "more than %d receipts", MaxTeardownReceipts)
 	}

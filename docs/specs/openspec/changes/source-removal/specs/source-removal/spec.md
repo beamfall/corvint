@@ -59,7 +59,16 @@ per batch):
    exclusion list: `docs/build-log/`, `docs/decisions/`, spec files carrying a retirement status
    line, `benchmarks/results/`, `docs/specs/openspec/changes/` (active and archived change folders,
    which are the removal's own plan and record), `.agent-evidence/` and `.corvint/changes/` (the
-   last two only until B6 removes them);
+   last two only until B6 removes them), `.taskman/` (the append-only task store), and
+   frozen, digest-bound fixtures recording historical trees or base pins: the retained
+   FIH-V1-011 corpus under `tools/affected-edit-oracle/testdata/` and CI outcome/selection
+   fixtures whose data are bound by a digest; frozen measurement and receipt records under
+   `benchmarks/**/runs/**`, `benchmarks/**/*summary*.json`, `benchmarks/**/corpus.json`,
+   `benchmarks/**/admission.json`, `conformance/**/receipts/**` and `.github/cishards/testdata/**`;
+   and `.corvint/requirement-links.json`, the pinned TBC-V1-012 historical export. For this
+   branch the proof excludes `.github/`, whose active remainder ships in a separate PR.
+   Each batch build log SHALL list every remaining
+   hit in those excluded files by path (owner-delegated decision, 2026-11-18);
 5. `GOTOOLCHAIN=local go test -count=1 ./tools/import-ratchet/...` passing, with
    `tools/import-ratchet/areas.json` and `baseline.json` edited in the same batch: every prefix
    naming a deleted package is removed (the ratchet reports STALE_AREA_PREFIX otherwise), every
@@ -129,8 +138,16 @@ names these paths one by one.
 B2 SHALL remove `corvint test-plan`, `corvint tests lint`, `corvint tests duplicates`,
 `internal/testplan`, `corvint runs`, `internal/playwrightruns`, the `test-validity` and
 `tests validity` verbs, `cmd/corvint-test-validity-mcp` (and its `binaries.json` row),
-`internal/mcp/testvaliditybridge`, the `test-validity` MCP group, the rule set in
-`internal/testsource/validity*.go`, and the `internal/tcq` code nothing outside `tcq` uses. Because `internal/testplan` is one of the three
+`internal/mcp/testvaliditybridge`, the `test-validity` MCP group, and the `internal/tcq` code
+nothing outside `tcq` uses. Production builds SHALL exclude the source-validity command report,
+its selection and environment projections, and its seed-rule evaluator. The existing rule tests
+may exercise those components as test fixtures. B2 SHALL keep the JS/TS and RSpec example readers
+and their shared findings for `tests example-join`, and teardown's independent 256-file limit.
+`tests unselected` uses `UnselectedFiles` directly. Under the owner-delegated V1-5694 decision,
+B2 SHALL remove `test-validity`, `test-plan` and `runs` from the advertised `corvint.help`
+command enum on every profile. Help calls for all three SHALL still return `invalid-arguments`.
+
+Because `internal/testplan` is one of the three
 tests-layer flow readers that `tools/import-ratchet/flows_layer_test.go` pins for CMS-V0-915
 (decision 0595), B2 SHALL drop it from that test's reader set and amend the CMS-V0-915 trace row
 in `docs/specs/core-bundled-apps-v0.md` in the same batch; the remaining readers, `cmd/corvint` and
@@ -729,7 +746,8 @@ speaking `corvint-runner/1`, is removed. The selector, the store and the conform
 every compiled-in runner alike. The previous text allowed both forms.
 
 #### Scenario: an out-of-process runner is declared
-- GIVEN a repository's `.corvint/runner-plugins.json` names a `corvint-runner/1` plugin
+- GIVEN the runner inventory or a test-command declaration names a runner with no compiled-in
+  implementation (a legacy `.corvint/runner-plugins.json` alone does not declare one to the planner)
 - WHEN `corvint test` plans a change after B3
 - THEN no plugin process starts, and a runner with no compiled-in implementation runs all tests
   with reason `runner-removed` (RNC-V1-004)

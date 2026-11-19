@@ -17,8 +17,7 @@
       "paths": ".github/cishards/**",
       "tests": [
         ".github/cishards/",
-        ".github/macos/shard_test.py",
-        "tools/ci-reuse-replay/replay_test.py"
+        ".github/macos/shard_test.py"
       ]
     },
     {
@@ -135,7 +134,7 @@
     {
       "paths": "benchmarks/**",
       "tests": [
-        "benchmarks/selfuse-batch/"
+        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
     },
     {
@@ -145,19 +144,7 @@
       ]
     },
     {
-      "paths": "cmd/corvint-docs/docs.go",
-      "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go"
-      ]
-    },
-    {
-      "paths": "cmd/corvint-docs/docs_corpus.go",
-      "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go"
-      ]
-    },
-    {
-      "paths": "cmd/corvint-docs/main.go",
+      "paths": "cmd/corvint-docs/*.go",
       "tests": [
         "cmd/corvint-docs/rcf_qualification_test.go"
       ]
@@ -423,19 +410,13 @@
     {
       "paths": "conformance/interactive-alpha/fixture/**",
       "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+        "conformance/interactive-alpha/retained-evidence.test.mjs"
       ]
     },
     {
       "paths": "conformance/mcp-2026-07-28/**",
       "tests": [
         "conformance/mcp-2026-07-28/"
-      ]
-    },
-    {
-      "paths": "conformance/mcp-test-validity-v0/cases.json",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
     },
     {
@@ -454,6 +435,12 @@
       "paths": "conformance/release-artifact-v0/**",
       "tests": [
         "conformance/release-artifact-v0/"
+      ]
+    },
+    {
+      "paths": "conformance/release-artifact-v0/archivebuild/**",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -523,18 +510,6 @@
       ]
     },
     {
-      "paths": "conformance/work-queue-v0/README.md",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/work-queue-v0/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "docs/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -581,8 +556,8 @@
       "tests": [
         ".github/cishards/",
         ".github/testconfine/",
-        "benchmarks/selfuse-batch/",
         "cmd/",
+        "cmd/corvint-docs/rcf_qualification_test.go",
         "conformance/",
         "examples/evidence-provider/v0/",
         "experimental/analyzers/sqlnative/",
@@ -629,6 +604,18 @@
       ]
     },
     {
+      "paths": "internal/*dialect/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/*testreceipt/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/analyzergo/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -665,6 +652,12 @@
       ]
     },
     {
+      "paths": "internal/app*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/appflows/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -685,7 +678,20 @@
     {
       "paths": "internal/capcatalog/**",
       "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go",
         "internal/capcatalog/"
+      ]
+    },
+    {
+      "paths": "internal/cem/gitauth/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/cem/patch/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -695,55 +701,73 @@
       ]
     },
     {
+      "paths": "internal/cem/wire/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/cemcode/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/cliapp/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/clitree/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/command/flows/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/companioncli/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/contextindex/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/contextindex/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
     },
     {
-      "paths": "internal/doccorpus/artifact_*.go",
+      "paths": "internal/diagnostic/*.go",
       "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
-      "paths": "internal/doccorpus/compile.go",
+      "paths": "internal/doc*/*.go",
       "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
-      "paths": "internal/doccorpus/encoding.go",
+      "paths": "internal/doccompiler/trusted_nav_probe.py",
       "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
-      "paths": "internal/doccorpus/line_anchor.go",
-      "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
-      ]
-    },
-    {
-      "paths": "internal/doccorpus/query*.go",
-      "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
-      ]
-    },
-    {
-      "paths": "internal/doccorpus/read.go",
-      "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
-      ]
-    },
-    {
-      "paths": "internal/doccorpus/search_*.go",
+      "paths": "internal/doccorpus/*.go",
       "tests": [
         "cmd/corvint-docs/rcf_qualification_test.go",
         "internal/mcp/corpusbridge/search_ranking_eval_test.go"
@@ -756,24 +780,9 @@
       ]
     },
     {
-      "paths": "internal/doccorpus/typed_query.go",
+      "paths": "internal/extevidence/*.go",
       "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
-      ]
-    },
-    {
-      "paths": "internal/doccorpus/types.go",
-      "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
-      ]
-    },
-    {
-      "paths": "internal/doccorpus/verified.go",
-      "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go",
-        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -783,9 +792,33 @@
       ]
     },
     {
+      "paths": "internal/flow*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/git*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/gokernel/*",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/gokernel/host-schema.json",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/groupreap/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -795,15 +828,51 @@
       ]
     },
     {
+      "paths": "internal/jsonend/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/jstestprovider/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
     },
     {
+      "paths": "internal/langplugin/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/langplugin/*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/lineanchor/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/linecov/v8/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/liveverify/affected/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/liveverify/affected/*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -816,6 +885,12 @@
       "paths": "internal/liveverify/affected/golang/typedreach/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/liveverify/affected/java/javalex/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -843,6 +918,12 @@
       ]
     },
     {
+      "paths": "internal/mcp/*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/mcp/cli/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -862,9 +943,10 @@
       ]
     },
     {
-      "paths": "internal/mcp/docsserver/*.go",
+      "paths": "internal/mcp/corpusbridge/testdata/search-ranking-gh1597/**",
       "tests": [
-        "cmd/corvint-docs/rcf_qualification_test.go"
+        "cmd/corvint-docs/rcf_qualification_test.go",
+        "internal/mcp/corpusbridge/search_ranking_eval_test.go"
       ]
     },
     {
@@ -874,21 +956,87 @@
       ]
     },
     {
+      "paths": "internal/observations/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/observedstale/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/perfbudget/budgets.json",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
     },
     {
-      "paths": "internal/playwrightruns/testdata/**",
+      "paths": "internal/pinnedread/*.go",
       "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/plansnapshot/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/procgroup/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/procprofile/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/project*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/python*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
       "paths": "internal/pythonsyntax/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/repo*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/requestpath/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/rootalias/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/rubyautoload/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -904,9 +1052,39 @@
       ]
     },
     {
+      "paths": "internal/runevidence/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/runhygiene/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/runtimeenv/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/secretscreen/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/secretscreen/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/selectionswitch/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -922,19 +1100,37 @@
       ]
     },
     {
+      "paths": "internal/taskprojection/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/tcq/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/tcq/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
     },
     {
-      "paths": "internal/testid/testdata/**",
+      "paths": "internal/testdiscovery/*.go",
       "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
-      "paths": "internal/testplan/testdata/**",
+      "paths": "internal/testid/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testid/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
@@ -1000,6 +1196,12 @@
       ]
     },
     {
+      "paths": "internal/testvalidity*/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/testvaliditydoc/externalorigins/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -1009,6 +1211,24 @@
       "paths": "internal/testvaliditydoc/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/untrackedallowance/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/versionline/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
+      "paths": "internal/workspace/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {
@@ -1276,15 +1496,15 @@
       ]
     },
     {
-      "paths": "tools/gotest-evidence/testdata/**",
+      "paths": "tools/lsp-editors/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
     },
     {
-      "paths": "tools/lsp-editors/**",
+      "paths": "tools/release-binary/**",
       "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+        "cmd/corvint-docs/rcf_qualification_test.go"
       ]
     },
     {

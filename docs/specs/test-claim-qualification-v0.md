@@ -3,17 +3,20 @@
 Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: proposed
-Delivery status: implementation-candidate; promotion evidence NOT_RUN
-Health: KEEP
+Delivery status: retired
+Health: RETIRE
 Freeze note: the 60-edge labelled corpus and reporter-compatibility runs are deferred until a WP6
 authority root is specified; absent that root, the corpus would measure a relation nobody may act on.
 Authoritative inputs: `docs/specs/ocm-v0-dogfood.md`,
 `docs/specs/cem-0.2-canonical-binding.md`, `docs/specs/change-frontier-v0.md`,
 `docs/PRODUCT.md`, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`
 
+Retirement status: source-removal B2, RMV-V1-008/009 (owner, 2026-11-18).
+Shared projection constants and the provider flake rule remain under RMV-V1-009.
+
 ## Agent digest
 - Claim: TCQ deterministically qualifies selected OCM test anchors and caller-supplied JUnit matches without proving adequacy or correctness.
-- Status: proposed/implementation-candidate; promotion evidence NOT_RUN
+- Status: proposed / retired
 - Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`); a bounded per-hunk mutation discrimination witness reusing the `prove --mutate` runner, with survivors as a visible downgrade that never fails the build (`TCQ-V0-055..058`); a fixed sandbox-unavailable not-run reason when the macOS launcher refuses a nested profile (`TCQ-V0-059`, accepted by decision 0463); an offered "cite the guarding test" producer step whose cited span alone names the tests the consumer hunk-revert falsifier runs (`TCQ-V0-060..061`, V1-1266); one compiled-in runner contract and fold for the Go and Ruby `discriminate` arms, and an execution-only same-change test witness (`TCQ-V0-067..071`, experimental, V1-2798).
 - Blocked on: a WP6 authority root, 60-edge labelled corpus, reporter compatibility, and promotion gates.
 - Read next: Threat model and claim boundary; Requirements; Acceptance and adversarial matrix.

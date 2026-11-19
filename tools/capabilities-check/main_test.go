@@ -100,7 +100,7 @@ func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 			t.Errorf("binary %q not collected", b)
 		}
 	}
-	for _, tool := range []string{"corvint.impact", "corvint.flows_navigate", "corvint.docs_draft", "corvint.test_validity", "corvint.docs_trace"} {
+	for _, tool := range []string{"corvint.impact", "corvint.flows_navigate", "corvint.docs_draft", "corvint.test_evidence", "corvint.docs_trace"} {
 		if !contains(inv.Tools, tool) {
 			t.Errorf("MCP tool %q not collected", tool)
 		}
@@ -525,7 +525,7 @@ func replaceOnce(t *testing.T, doc []byte, old, new string) []byte {
 // the fix: a subcommand dropped from its verb's row, or one registered in code but never listed.
 func TestCAPV0007UndocumentedSubcommandFails(t *testing.T) {
 	inv, catalog, readme := load(t)
-	for _, verb := range []string{"flows", "runs", "tests", "test-plan", "affected"} {
+	for _, verb := range []string{"flows", "tests", "test", "inventory", "affected"} {
 		if len(inv.Subcommands[verb]) == 0 {
 			t.Errorf("no subcommands collected for %q: %v", verb, inv.Subcommands)
 		}
@@ -535,13 +535,13 @@ func TestCAPV0007UndocumentedSubcommandFails(t *testing.T) {
 	if got := strings.Join(inv.Subcommands["flows"], ","); got != "appmap,gaps,impact,status,test-evidence" {
 		t.Errorf("flows subcommands %q, want the five corvint answers itself", got)
 	}
-	dropped := replaceOnce(t, catalog, "`compare`, ", "")
-	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "runs compare") || len(got) != 1 {
-		t.Errorf("dropped runs subcommand: subcommand-undocumented %v", got)
+	dropped := replaceOnce(t, catalog, "`teardown`, ", "")
+	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "tests teardown") || len(got) != 1 {
+		t.Errorf("dropped tests subcommand: subcommand-undocumented %v", got)
 	}
-	inv.Subcommands["runs"] = append(inv.Subcommands["runs"], "transfer")
-	if got := kinds(Check(catalog, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "runs transfer") || len(got) != 1 {
-		t.Errorf("new runs subcommand: subcommand-undocumented %v", got)
+	inv.Subcommands["tests"] = append(inv.Subcommands["tests"], "transfer")
+	if got := kinds(Check(catalog, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "tests transfer") || len(got) != 1 {
+		t.Errorf("new tests subcommand: subcommand-undocumented %v", got)
 	}
 }
 
@@ -599,15 +599,15 @@ func TestCAPV0008ExperimentalMaturityMismatchFails(t *testing.T) {
 // fails: a code renamed in the row, and a code removed from the code while the row keeps it.
 func TestCAPV0009RemovedRefusalCodeFails(t *testing.T) {
 	inv, catalog, readme := load(t)
-	stale := replaceOnce(t, catalog, "`runs-baseline-unavailable`", "`baseline-unavailable`")
-	if got := kinds(Check(stale, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint runs") || len(got) != 1 {
+	stale := replaceOnce(t, catalog, "`tests-declaration-invalid`", "`baseline-unavailable`")
+	if got := kinds(Check(stale, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint tests") || len(got) != 1 {
 		t.Errorf("renamed code: refusal-unknown %v", got)
 	}
-	if !inv.Literals["runs-baseline-unavailable"] {
+	if !inv.Literals["tests-declaration-invalid"] {
 		t.Fatal("refusal code literal not scanned")
 	}
-	delete(inv.Literals, "runs-baseline-unavailable")
-	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint runs") || len(got) != 1 {
+	delete(inv.Literals, "tests-declaration-invalid")
+	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint tests") || len(got) != 1 {
 		t.Errorf("removed code: refusal-unknown %v", got)
 	}
 	for _, prose := range []string{"--mutate", "cem/0.x", "context --task TASK --limit 5", ".corvint/x.json", "exit"} {
@@ -626,18 +626,18 @@ func TestCAPV0960TreeSubcommandUndocumentedFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if contains(declared["runs"], "server-errors") || contains(declared["flows"], "test-evidence") {
-		t.Fatal("runs server-errors or flows test-evidence is now in a declared table; pick another tree-only subcommand")
+	if contains(declared["tests"], "example-join") || contains(declared["flows"], "test-evidence") {
+		t.Fatal("tests example-join or flows test-evidence is now in a declared table; pick another tree-only subcommand")
 	}
 	inv, catalog, readme := load(t)
-	if !contains(inv.Subcommands["flows"], "test-evidence") || !contains(inv.Subcommands["runs"], "server-errors") {
-		t.Fatalf("tree subcommands not merged: flows %v, runs %v", inv.Subcommands["flows"], inv.Subcommands["runs"])
+	if !contains(inv.Subcommands["flows"], "test-evidence") || !contains(inv.Subcommands["tests"], "example-join") {
+		t.Fatalf("tree subcommands not merged: flows %v, tests %v", inv.Subcommands["flows"], inv.Subcommands["tests"])
 	}
-	dropped := replaceOnce(t, catalog, ", `server-errors`.", ".")
-	if shadows := proseShadows(t, dropped, "runs", "server-errors"); len(shadows) != 0 {
-		t.Fatalf("%s", shadowMessage("runs", "server-errors", shadows))
+	dropped := replaceOnce(t, catalog, ", `example-join`.", ".")
+	if shadows := proseShadows(t, dropped, "tests", "example-join"); len(shadows) != 0 {
+		t.Fatalf("%s", shadowMessage("tests", "example-join", shadows))
 	}
-	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "runs server-errors") || len(got) != 1 {
+	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "tests example-join") || len(got) != 1 {
 		t.Errorf("dropped tree subcommand: subcommand-undocumented %v", got)
 	}
 	if err := MergeSubcommands(&Inventory{}, t.TempDir()); err == nil {
@@ -691,20 +691,20 @@ func shadowMessage(verb, sub string, shadows []string) string {
 // instead of failing on an empty finding list; the committed catalog has no such shadow.
 func TestCAPV0080BacktickedProseWordIsNamed(t *testing.T) {
 	inv, catalog, readme := load(t)
-	if shadows := proseShadows(t, catalog, "runs", "server-errors"); len(shadows) != 0 {
-		t.Fatalf("committed catalog: %s", shadowMessage("runs", "server-errors", shadows))
+	if shadows := proseShadows(t, catalog, "tests", "example-join"); len(shadows) != 0 {
+		t.Fatalf("committed catalog: %s", shadowMessage("tests", "example-join", shadows))
 	}
-	prose := replaceOnce(t, catalog, ", `server-errors`.", ".")
-	prose = replaceOnce(t, prose, "questions over report files.", "questions over report files; read the `server-errors` column first.")
-	if got := kinds(Check(prose, readme, inv, linkBase))["subcommand-undocumented"]; contains(got, "runs server-errors") {
+	prose := replaceOnce(t, catalog, ", `example-join`.", ".")
+	prose = replaceOnce(t, prose, "Questions over committed test sources.", "Questions over committed test sources; read the `example-join` column first.")
+	if got := kinds(Check(prose, readme, inv, linkBase))["subcommand-undocumented"]; contains(got, "tests example-join") {
 		t.Fatalf("a backticked prose word no longer documents the subcommand (CAP-V0-007 changed): %v", got)
 	}
-	shadows := proseShadows(t, prose, "runs", "server-errors")
-	if len(shadows) != 1 || !strings.HasSuffix(shadows[0], "`server-errors`") {
-		t.Fatalf("shadows %v, want the one prose `server-errors` span", shadows)
+	shadows := proseShadows(t, prose, "tests", "example-join")
+	if len(shadows) != 1 || !strings.HasSuffix(shadows[0], "`example-join`") {
+		t.Fatalf("shadows %v, want the one prose `example-join` span", shadows)
 	}
-	for _, want := range []string{"`server-errors`", "CAP-V0-007", "outside its Subcommands sentence", "without backticks"} {
-		if msg := shadowMessage("runs", "server-errors", shadows); !strings.Contains(msg, want) {
+	for _, want := range []string{"`example-join`", "CAP-V0-007", "outside its Subcommands sentence", "without backticks"} {
+		if msg := shadowMessage("tests", "example-join", shadows); !strings.Contains(msg, want) {
 			t.Errorf("message %q lacks %q", msg, want)
 		}
 	}
@@ -714,14 +714,14 @@ func TestCAPV0080BacktickedProseWordIsNamed(t *testing.T) {
 // dropped it is reported, while option spans and parenthesised detail are not read as subcommands.
 func TestCAPV0961StaleDocumentedSubcommandFails(t *testing.T) {
 	inv, catalog, readme := load(t)
-	stale := replaceOnce(t, catalog, "Subcommands `stability`, `compare`,", "Subcommands `stability`, `transfer`, `compare`,")
-	if got := kinds(Check(stale, readme, inv, linkBase))["subcommand-stale"]; !contains(got, "runs transfer") || len(got) != 1 {
-		t.Errorf("stale runs subcommand: subcommand-stale %v", got)
+	stale := replaceOnce(t, catalog, "Subcommands `setup-select`, `teardown`,", "Subcommands `setup-select`, `transfer`, `teardown`,")
+	if got := kinds(Check(stale, readme, inv, linkBase))["subcommand-stale"]; !contains(got, "tests transfer") || len(got) != 1 {
+		t.Errorf("stale tests subcommand: subcommand-stale %v", got)
 	}
-	inv.Subcommands["runs"] = slices.DeleteFunc(slices.Clone(inv.Subcommands["runs"]), func(s string) bool { return s == "compare" })
+	inv.Subcommands["tests"] = slices.DeleteFunc(slices.Clone(inv.Subcommands["tests"]), func(s string) bool { return s == "teardown" })
 	got := kinds(Check(catalog, readme, inv, linkBase))
-	if !contains(got["subcommand-stale"], "runs compare") || len(got["subcommand-stale"]) != 1 {
-		t.Errorf("removed runs subcommand: subcommand-stale %v", got["subcommand-stale"])
+	if !contains(got["subcommand-stale"], "tests teardown") || len(got["subcommand-stale"]) != 1 {
+		t.Errorf("removed tests subcommand: subcommand-stale %v", got["subcommand-stale"])
 	}
 }
 
@@ -745,16 +745,16 @@ func TestCAPV0965SubcommandSpansAreNames(t *testing.T) {
 		t.Fatalf("committed catalog: subcommand-span-malformed %v", got)
 	}
 	for _, c := range []struct{ span, want string }{
-		{"`stability --runs FILE`", "runs `stability --runs FILE`"},
-		{"`--json`", "runs `--json`"},
-		{"`corvint runs stability`", "runs `corvint runs stability`"},
+		{"`setup-select --tests FILE`", "tests `setup-select --tests FILE`"},
+		{"`--json`", "tests `--json`"},
+		{"`corvint tests setup-select`", "tests `corvint tests setup-select`"},
 	} {
-		bad := replaceOnce(t, catalog, "Subcommands `stability`, `compare`,", "Subcommands `stability`, "+c.span+", `compare`,")
+		bad := replaceOnce(t, catalog, "Subcommands `setup-select`, `teardown`,", "Subcommands `setup-select`, "+c.span+", `teardown`,")
 		if got := kinds(Check(bad, readme, inv, linkBase))["subcommand-span-malformed"]; !contains(got, c.want) || len(got) != 1 {
 			t.Errorf("%s: subcommand-span-malformed %v", c.span, got)
 		}
 	}
-	parenthesised := replaceOnce(t, catalog, "Subcommands `stability`, `compare`,", "Subcommands `stability` (`stability --runs FILE`), `compare`,")
+	parenthesised := replaceOnce(t, catalog, "Subcommands `setup-select`, `teardown`,", "Subcommands `setup-select` (`setup-select --tests FILE`), `teardown`,")
 	if got := kinds(Check(parenthesised, readme, inv, linkBase))["subcommand-span-malformed"]; len(got) != 0 {
 		t.Errorf("parenthesised detail: subcommand-span-malformed %v", got)
 	}
@@ -764,9 +764,9 @@ func TestCAPV0965SubcommandSpansAreNames(t *testing.T) {
 // longer literal contains it as a word; only a literal equal to the code keeps it accepted.
 func TestCAPV0962RefusalCodeMatchesWholeLiteral(t *testing.T) {
 	inv, catalog, readme := load(t)
-	delete(inv.Literals, "runs-baseline-unavailable")
-	inv.Literals["refused: runs-baseline-unavailable for this run"] = true
-	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint runs") || len(got) != 1 {
+	delete(inv.Literals, "tests-declaration-invalid")
+	inv.Literals["refused: tests-declaration-invalid for this run"] = true
+	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint tests") || len(got) != 1 {
 		t.Errorf("code only inside prose: refusal-unknown %v", got)
 	}
 	dir := t.TempDir()

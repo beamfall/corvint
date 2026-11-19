@@ -15,6 +15,10 @@ func (Language) SourceBoundFrontiers() []string {
 	return []string{FrontierUnparsedSource}
 }
 
+// SourceOnlyFrontiers preserves the source-only type-reference proof for bare
+// reasons without requiring located sites (AFP-V0-511, AZU-V1-960).
+func (language Language) SourceOnlyFrontiers() []string { return language.SourceBoundFrontiers() }
+
 // FixtureClosedFrontiers names the path-open reasons whose hidden edge is the
 // test runner (AFP-V0-511): dynamic test discovery and an unresolved VSTest
 // filter bind the set of tests `dotnet test` executes for a project, never a

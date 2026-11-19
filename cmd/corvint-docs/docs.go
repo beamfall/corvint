@@ -412,7 +412,7 @@ coverage, gaps [--id ID]. Optional --limit 1..256. All require --artifact.
 Local input files (--manifest, --artifact, --input, --previous, --retirement, --migration,
 --playwright-list, --receipt, --report) are canonical paths relative to --root and must sit under
 it: no leading /, no .., no ./ or //. Absolute paths are refused (corpus-refused, naming the flag).
-Native context/impact/affected/test-validity accept --corpus=CORPUS.json. Generated evidence grants no task
+Native impact and affected accept --corpus=CORPUS.json. Generated evidence grants no task
 or test-selection authority. Read commands print bounded JSON and never collect tests.
 Every operation: corvint help docs corpus; its options: corvint docs corpus OPERATION --help.
 Guide: docs/DOCUMENTATION-CORPUS.md; contract: docs/specs/documentation-corpus-v1.md

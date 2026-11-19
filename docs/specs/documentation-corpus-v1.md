@@ -69,7 +69,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `related_to`, `conflicts_with`, `supersedes`, retaining direction and evidence. Co-citation creates
   no relation; declarations create no test observation or journey.
 - `DCP-V1-007`: Native providers reuse indexed source/symbol/document evidence and explicitly distinguish
-  test declarations from native retained observations. Observation inputs pass `testvaliditydoc.Decode`
+  test declarations from native retained observations in the compiled corpus. Observation inputs pass `testvaliditydoc.Decode`
   and `ProjectPinned`; carried projections are ignored. Preserve exact receipt digest, test package/name,
   run/source identity, omissions, native execution/association/hygiene/adequacy axes and preview limits.
   Freshness separately rebinds original source digests; opaque Go identity and E2E app-build identity
@@ -100,8 +100,9 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   revisions, trust, freshness, citations, limitations and typed misses. Reads never write repository,
   trace, index, observation or task state.
 - `DCP-V1-013`: Explicit native corpus integration supplies first-class separately attributed
-  documentation to query/context, path/symbol-to-subject/relationship/test/journey evidence to impact,
-  and retained observation links to test-validity. No-corpus invocations retain previous bytes and
+  documentation to impact and affected, including path/symbol-to-subject, relationship, test and
+  journey evidence for impact. Only these two commands admit the join. Other commands refuse before
+  opening the corpus or invoking the core. No-corpus invocations retain previous bytes and
   behavior. Affected advice refuses narrowing when source-to-obligation/test/journey evidence is
   incomplete or stale and always preserves mandatory repository checks; it executes no test.
 - `DCP-V1-014`: CEM integration projects original Git documentation spans at the CEM base through
@@ -250,7 +251,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   offset pagination tied to the artifact digest, explicit total omissions and `next_offset`.
   Every normalized record family is retrievable. Typed details and citations describe only the
   returned page. Capability summaries retain totals with explicit omitted-ID counts; use inventory
-  for the full list. Freshness reason lists are deduplicated and bounded with explicit omissions. CLI, all existing `--corpus` consumers and corpus MCP open the larger artifact;
+  for the full list. Freshness reason lists are deduplicated and bounded with explicit omissions. CLI, the impact and affected `--corpus` consumers and corpus MCP open the larger artifact;
   receipt bytes remain 4 MiB and result pages at most 256 records. Impact omissions retain the
   mandatory full-check fallback and never silently narrow tests. Old profiles retain their wire
   and capability behavior; inventory and MCP offset are advertised only for `/2`.

@@ -182,6 +182,12 @@ func (goRunner) Command(request Request) (Command, error) {
 		}
 		run = "^(" + strings.Join(quoted, "|") + ")$"
 	}
+	// LEV-V1-014: Go has no argument-file syntax for -run. Retain the
+	// selected packages whole if the pattern would exceed the host bound.
+	if run != "" && !ArgvFits(append(slices.Clone(flags), "-run", run)) {
+		run = ""
+		reasons = append(reasons, ReasonArgvLimit)
+	}
 	argv := flags
 	if run != "" {
 		argv = append(argv, "-run", run)
@@ -189,7 +195,14 @@ func (goRunner) Command(request Request) (Command, error) {
 	for _, dir := range dirs {
 		argv = append(argv, goPackageArg(request.Instance.Root, dir))
 	}
+	if !ArgvFits(argv) {
+		whole.Exact, whole.Reason = false, ReasonArgvLimit
+		return whole, nil
+	}
 	command := Command{Argv: argv, Dir: request.Instance.Root, Report: request.Report, Tier: tierOf(request), Exact: len(reasons) == 0}
+	if slices.Contains(reasons, ReasonArgvLimit) {
+		command.Tier = TierFile
+	}
 	if !command.Exact {
 		command.Reason = strings.Join(slices.Compact(reasons), "; ")
 	}

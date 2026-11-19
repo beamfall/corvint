@@ -1,5 +1,8 @@
 # Application Navigation Ledger V0
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: accepted (decision 0518)
@@ -637,10 +640,10 @@ unknown `remedy` (the declaration that would resolve it, or the stated uncertain
 | ANL-V0-008 | `internal/appmap/observe.go` `trimToBudget` | `TestANLV0008InputsAndBudget`, `TestANLV0008BudgetTrimIsLinear` |
 | ANL-V0-009 | `internal/appmap/prefixes.go` | `TestANLV0009FlagsProvenPrefix` |
 | ANL-V0-010 | `internal/appmap/prefixes.go` | `TestANLV0010NeverFlagsTargetsOrChanges`, `TestANLV0010RefusesDuplicateFactsAndForeignLedger` |
-| ANL-V0-011 | `internal/appmap/prefixes.go`, `cmd/corvint/test_plan_prefixes.go` | `TestANLV0011StaleEntryAndBudget`, `TestANLV0011PrefixesCLI` |
-| ANL-V0-012 | `internal/testplan/pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0012RequiredSetsStayDistinct` |
-| ANL-V0-013 | `internal/testplan/pagestate.go` | `TestANLV0013BlocksAndSeparates` |
-| ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0014PageStateCLI` |
+| ANL-V0-011 | `internal/appmap/prefixes.go`, `cmd/corvint/test_plan_prefixes.go` | `TestANLV0011StaleEntryAndBudget`, `TestANLV0011PrefixesCLI` (removed) |
+| ANL-V0-012 | `internal/testplan/pagestate.go` | `TestANLV0012GroupsSharedPageState` (removed), `TestANLV0012RequiredSetsStayDistinct` (removed) (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
+| ANL-V0-013 | `internal/testplan/pagestate.go` | `TestANLV0013BlocksAndSeparates` (removed) (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
+| ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState` (removed), `TestANLV0014PageStateCLI` (removed) (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
 | ANL-V0-015 | `internal/appmap/impact.go`, `internal/command/flows/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
 | ANL-V0-021 | `internal/appmap/observe.go` | `TestANLV0021TypedTriggersAndAnnotations` |
@@ -649,7 +652,7 @@ unknown `remedy` (the declaration that would resolve it, or the stated uncertain
 | ANL-V0-024 | `internal/appmap/ledger.go` | `TestANLV0024SelfProofExcluded`, `TestANLV0004EdgesCLI` |
 | ANL-V0-031 | `internal/appmap/impact.go`, `cmd/corvint/affected_appmap.go` | `TestANLV0031AffectedRoutesImpactVerdict` |
 | ANL-V0-032 | `internal/appmap/impacthop.go`, `internal/appmap/impact.go` | `TestANLV0032TemplateHopPlacesReferencedFiles` |
-| ANL-V0-033 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0033PageStateDrift` |
+| ANL-V0-033 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0033PageStateDrift` (removed) (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
 | ANL-V0-034 | `cmd/corvint/affected_appmap.go` | `TestANLV0034AffectedAggregatesMapsPerApp` |
 | ANL-V0-035 | `internal/appmap/effects.go`, `internal/appmap/compile.go` | `TestANLV0035StepEffects` |
 | ANL-V0-036 | `internal/appmap/prefixes.go` | `TestANLV0036PrefixesUseStepEffects` |

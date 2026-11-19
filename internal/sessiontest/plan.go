@@ -151,6 +151,10 @@ type Input struct {
 	// that is not current (RNC-V1-002, TIV-V1-006 to TIV-V1-009) or the kill
 	// switch (RNC-V1-008).
 	FullInstances map[string]string
+	// FullGoInstances carries explicit line-evidence obligations, independently
+	// of inventory fallbacks: Go does not use contract-runner inventory narrowing.
+	// This is planner state, not a manifest or receipt member (LEV-V1-003).
+	FullGoInstances map[string]string
 	// ListedTests maps a runner instance key to the canonical test IDs the
 	// committed inventory lists per unchanged test file, keyed by its
 	// repository-relative path (testinventory.Listed). A contract unit of
@@ -399,12 +403,17 @@ func Build(input Input) (Manifest, error) {
 	}
 	manifest.Scope = ScopeNarrowed
 	manifest.LineIndex = input.LineIndex
+	if input.FullGoInstances["go@."] != "" {
+		goRun = append([]string{}, input.Universe...)
+		input.GoSlices = nil
+		input.LineUnits = nil
+	}
 	if fullReason == "" && len(input.LineUnits) != 0 {
 		goRun = applyLineUnits(&manifest, &input, goRun)
 	}
 	// RNC-V1-008: `full:<runner>` makes each named runner run its full
 	// command on every instance; the other runners stay narrowed.
-	goKilled := fullReason == "" && input.KillSwitch.Full(testid.Go)
+	goKilled := fullReason == "" && (input.KillSwitch.Full(testid.Go) || input.FullGoInstances["go@."] != "")
 	if goKilled {
 		goRun = append([]string{}, input.Universe...)
 		input.GoSlices = nil
@@ -414,7 +423,7 @@ func Build(input Input) (Manifest, error) {
 		if instance.Runner == testid.Go {
 			// RNC-V1-008: the root universe is one Go instance; each nested
 			// module's own go test ./... is another, run from its directory.
-			if input.KillSwitch.Full(testid.Go) && instance.Root != "." {
+			if (input.KillSwitch.Full(testid.Go) || input.FullGoInstances[instance.Key()] != "") && instance.Root != "." {
 				if input.RunnerProfile != ProfileCI {
 					modules[instance.Root] = true
 				} else if check := ModuleCheck(instance.Root); !slices.Contains(manifest.Checks, check) {

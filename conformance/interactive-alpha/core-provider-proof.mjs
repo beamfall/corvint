@@ -1,12 +1,13 @@
-import { readFile, writeFile, readdir, mkdir, cp, symlink, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, cp, symlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createServer } from 'node:net';
-import { coreBrowserExecutable, Child, run, cleanup, until, delay, sha, fileSHA, treeSHA, save, assert, mcp, processTable, fixtureIdentity } from './core-process.mjs';
+import { coreBrowserExecutable, Child, run, cleanup, until, delay, sha, fileSHA, treeSHA, save, assert, processTable, fixtureIdentity } from './core-process.mjs';
+
+import { retainedDocuments, readRetainedEvidence, selectedEvidence } from './retained-evidence.cjs';
 
 const [bin, source, root, attachment, output, mode] = process.argv.slice(2);
 for (const path of [bin, source, root, attachment, output]) assert(path?.startsWith('/'), 'core provider needs absolute paths');
 assert(['sessions', 'interrupt'].includes(mode), 'unknown core provider mode');
-const mcpPath = join(bin, 'corvint-test-validity-mcp');
 const evidence = async (name, raw) => writeFile(join(output, name + '.json'), raw, { flag: 'wx', mode: 0o600 });
 const fixtureSource = join(source, 'conformance/interactive-alpha/fixture');
 const configs = new Map();
@@ -49,19 +50,10 @@ async function prepare(kind) {
   const original = await readFile(watched); const broken = Buffer.from(original.toString().replace(kind === 'e2e' ? ' + 1' : 'left + right', kind === 'e2e' ? ' + 2' : 'left - right')); assert(!broken.equals(original), 'fixture mutation missing');
   const config = { kind, dir, argv, watched, original, broken }; configs.set(kind, config); return config;
 }
-async function documents(dir) {
-  const path = join(dir, '.corvint/test-evidence'); let names; try { names = await readdir(path); } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
-  const rows = await Promise.all(names.filter(n => n.endsWith('.json')).map(async name => ({ name, raw: await readFile(join(path, name)), time: (await stat(join(path, name))).mtimeMs })));
-  return rows.sort((a, b) => a.time - b.time || a.name.localeCompare(b.name));
-}
 const providerState = row => { const doc = JSON.parse(row.raw); return doc.receipt ? doc.receipt.tests[0]?.state : doc.state; };
 async function selected(config, child, name, expectedRow, expectedState) {
-  const response = await mcp(mcpPath, config.dir); const doc = response.result.structuredContent.document;
-  assert(!response.result.isError && doc.discovery.evidence.endsWith('/' + expectedRow.name), 'MCP did not select original retained document');
-  assert(doc.discovery.freshness.state === 'UNKNOWN', 'MCP promoted unmeasured freshness');
-  assert(doc.tests.length > 0 && doc.tests.every(t => t.projection.execution.state === expectedState.toUpperCase() && t.projection.freshness.state === 'UNKNOWN' && t.projection.strength.state === 'NOT_MEASURED'), 'MCP axes differ from actual execution');
-  if (config.kind === 'go') assert(doc.tier === 'preview' && doc.promotable === false, 'Go tier promoted');
-  assert(child.stdout.includes(expectedRow.raw), 'retention did not preserve stdout bytes'); if (name) await evidence(name, response.raw); return sha(response.raw);
+  const response = await selectedEvidence(config, child, expectedRow, expectedState);
+  if (name) await evidence(name, response.raw); return sha(response.raw);
 }
 async function active(child, kind) {
   return until(() => { child.observe(); const current = processTable(); const rows = [...child.observed.values()].filter(x => current.get(x.pid)?.startTime === x.startTime);
@@ -76,29 +68,28 @@ async function sessions() {
     await save(join(output, 'fixture-' + kind + '.json'), await fixtureIdentity('js-' + kind === 'js-go' ? 'go' : 'js-' + kind, c.dir, kind === 'go' ? { package: 'go.mod', test: 'go/calc_test.go' } : { package: 'package.json', lock: 'package-lock.json', config: kind === 'unit' ? 'vitest.config.js' : 'playwright.config.js', test: kind === 'unit' ? 'unit.test.js' : 'e2e.spec.js' }));
     const fixtureBeforeSha256 = await fileSHA(c.watched); const child = new Child(c.argv, c.dir, 240000);
     try {
-      const initial = await until(async () => (await documents(c.dir))[0], child, 120000); assert(providerState(initial) === 'passed', 'initial provider did not pass');
+      const initial = await until(async () => (await retainedDocuments(c.dir))[0], child, 120000); assert(providerState(initial) === 'passed', 'initial provider did not pass');
       await evidence(prefix + '-initial-provider', initial.raw); await selected(c, child, prefix + '-initial-mcp', initial, 'passed');
-      if (kind === 'unit') for (const [method, name] of [['server/discover', 'test-validity-discover'], ['tools/list', 'test-validity-list']]) await evidence(name, (await mcp(mcpPath, c.dir, method, {})).raw);
       await writeFile(c.watched, c.broken); const pendingFailSha256 = await selected(c, child, prefix + '-pending-fail-mcp', initial, 'passed');
-      const failed = await until(async () => (await documents(c.dir))[1], child, 90000); assert(providerState(failed) === 'failed', 'saved failing source did not fail');
+      const failed = await until(async () => (await retainedDocuments(c.dir))[1], child, 90000); assert(providerState(failed) === 'failed', 'saved failing source did not fail');
       await evidence(prefix + '-fail-provider', failed.raw); await selected(c, child, prefix + '-fail-mcp', failed, 'failed');
       await writeFile(c.watched, c.original); const pendingFixSha256 = await selected(c, child, prefix + '-pending-fix-mcp', failed, 'failed');
-      const fixed = await until(async () => (await documents(c.dir))[2], child, 90000); assert(providerState(fixed) === 'passed', 'saved correction did not pass');
+      const fixed = await until(async () => (await retainedDocuments(c.dir))[2], child, 90000); assert(providerState(fixed) === 'passed', 'saved correction did not pass');
       await evidence(prefix + '-fix-provider', fixed.raw); await selected(c, child, prefix + '-fix-mcp', fixed, 'passed');
       await writeFile(c.watched, c.broken); const old = await active(child, kind); const streamBefore = child.stdout.length; const diagnosticsBefore = child.stderr.length;
       await writeFile(c.watched, c.original);
-      let replacement = await until(async () => (await documents(c.dir))[3], child, 90000); let supersededProviderRaw = '', supersededMcpRaw = '';
+      let replacement = await until(async () => (await retainedDocuments(c.dir))[3], child, 90000); let supersededProviderRaw = '', supersededMcpRaw = '';
       if (kind === 'go') {
         const stale = JSON.parse(replacement.raw); assert(stale.state === 'stale' && stale.projection.freshness.state === 'STALE' && stale.projection.execution.state !== 'PASSED' && stale.testProjections.length > 0 && stale.testProjections.every(t => t.projection.freshness.state === 'STALE' && t.projection.execution.state !== 'PASSED'), 'Go supersession did not preserve explicit stale negative');
-        const staleMCP = await mcp(mcpPath, c.dir), projected = staleMCP.result.structuredContent.document;
-        assert(projected.discovery.evidence.endsWith('/' + replacement.name) && projected.run.freshness.state === 'STALE' && projected.run.execution.state !== 'PASSED' && projected.tests.every(t => t.projection.freshness.state === 'STALE' && t.projection.execution.state !== 'PASSED'), 'MCP lost Go stale negative');
+        const staleMCP = await readRetainedEvidence(c.dir), projected = staleMCP.document;
+        assert(projected.discovery.evidence.endsWith('/' + replacement.name) && projected.run.freshness.state === 'STALE' && projected.run.execution.state !== 'PASSED' && projected.tests.every(t => t.projection.freshness.state === 'STALE' && t.projection.execution.state !== 'PASSED'), 'retained reader lost Go stale negative');
         supersededProviderRaw = replacement.raw.toString(); supersededMcpRaw = staleMCP.raw.toString();
-        replacement = await until(async () => (await documents(c.dir))[4], child, 90000); assert(JSON.parse(replacement.raw).sequence > stale.sequence, 'Go replacement sequence did not advance');
+        replacement = await until(async () => (await retainedDocuments(c.dir))[4], child, 90000); assert(JSON.parse(replacement.raw).sequence > stale.sequence, 'Go replacement sequence did not advance');
       }
       assert(providerState(replacement) === 'passed', 'superseded success boundary failed');
       await selected(c, child, null, replacement, 'passed');
       if (kind === 'go') assert(JSON.parse(replacement.raw).identity === JSON.parse(fixed.raw).identity, 'Go replacement identity differs from restored fixture');
-      assert((await documents(c.dir)).length === (kind === 'go' ? 5 : 4), 'extra late result published');
+      assert((await retainedDocuments(c.dir)).length === (kind === 'go' ? 5 : 4), 'extra late result published');
       const newer = kind === 'go' ? child.stdout.subarray(streamBefore).toString().includes('"state":"running"') : child.stderr.subarray(diagnosticsBefore).toString().includes('source changed'); assert(newer, 'no newer generation observed');
       await until(() => { const now = processTable(); return old.every(row => now.get(row.pid)?.startTime !== row.startTime); }, child, 10000);
       transitions.push({ kind, commandSha256: sha(JSON.stringify(c.argv)), fixtureBeforeSha256, fixtureFailedSha256: sha(c.broken), fixtureFixedSha256: sha(c.original), initialSha256: sha(initial.raw), failedSha256: sha(failed.raw), fixedSha256: sha(fixed.raw), pendingFailSha256, pendingFixSha256, retainedBytesMatch: true, supersededSuccessAbsent: true, supersededProviderRaw, supersededMcpRaw });
@@ -110,8 +101,8 @@ async function sessions() {
 async function interruptions() {
   const runs = [];
   for (const kind of ['unit', 'e2e', 'go']) for (const signal of ['SIGTERM', 'SIGINT']) {
-    const c = await prepare(kind), before = (await documents(c.dir)).length, child = new Child(c.argv, c.dir, 120000);
-    try { await active(child, kind); await child.stop(signal); assert((await documents(c.dir)).length === before, 'cancelled receipt published');
+    const c = await prepare(kind), before = (await retainedDocuments(c.dir)).length, child = new Child(c.argv, c.dir, 120000);
+    try { await active(child, kind); await child.stop(signal); assert((await retainedDocuments(c.dir)).length === before, 'cancelled receipt published');
       runs.push({ kind, signal: signal.slice(3), exitCode: child.code, observedIdentities: [...child.observed.values()].map(({ pid, startTime, observation }) => ({ pid, startTime, observation })), remainingIdentities: [], cancelledReceiptPublished: false });
     } finally { await child.stop(); }
   }

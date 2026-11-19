@@ -149,7 +149,7 @@ func TestCAPV0017RequiredFlagsAreDerivedFromUsageForms(t *testing.T) {
 	}
 }
 
-// The shipped catalog requires the options of runs response-wait, so a guide
+// The shipped catalog requires the options of instructions, so a guide
 // example must carry them (gh#1590 review).
 func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 	t.Parallel()
@@ -160,9 +160,9 @@ func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 	if problems := GuideProblems(catalog, Guide()); len(problems) != 0 {
 		t.Fatalf("shipped guide problems: %v", problems)
 	}
-	problems := GuideProblems(catalog, "  corvint runs response-wait --log server.log\n"+Guide())
-	if len(problems) != 3 || !strings.Contains(strings.Join(problems, "\n"), "required option --timeout-ms of runs response-wait") {
-		t.Fatalf("a runs response-wait example with only --log: problems = %v", problems)
+	problems := GuideProblems(catalog, "  corvint instructions --subject src/main.go --host example\n"+Guide())
+	if len(problems) != 3 || !strings.Contains(strings.Join(problems, "\n"), "required option --host-version of instructions") {
+		t.Fatalf("an instructions example missing three options: problems = %v", problems)
 	}
 	// CAP-V0-018 against the shipped catalog: the --root preamble and nested
 	// help topics are checked, not skipped.

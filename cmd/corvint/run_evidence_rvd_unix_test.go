@@ -339,9 +339,8 @@ const rvdV1008Gate = "gated on change source-removal: `corvint runs` still exist
 // source-removal. It is gated on that change, which run-evidence precedes (R38), so it is skipped
 // until source-removal lands; the check below is what it then proves.
 func TestRVDV1008RunsVerbIsUnknown(t *testing.T) {
-	t.Skip(rvdV1008Gate)
 	code, _, stderr := runCLI(t, "runs")
-	if code != 2 || !strings.Contains(stderr, "unknown") {
+	if code != 2 || !strings.Contains(stderr, "invalid choice: 'runs'") {
 		t.Fatalf("corvint runs exited %d: %s", code, stderr)
 	}
 }

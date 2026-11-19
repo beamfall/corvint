@@ -10,8 +10,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/pinnedread"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
 func Runners() []string { return []string{"sql-pgtap", "sql-sqllogictest-sqlite"} }
@@ -47,7 +47,7 @@ func readConnection(r tr.Request) (Connection, error) {
 	if filepath.Clean(name) != name {
 		return c, fmt.Errorf("noncanonical connection file path")
 	}
-	b, e := testvaliditydoc.ReadAbsoluteFileBounded(name, 16<<10)
+	b, e := pinnedread.ReadAbsoluteFileBounded(name, 16<<10)
 	if e != nil {
 		return c, e
 	}

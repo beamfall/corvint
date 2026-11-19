@@ -47,7 +47,7 @@ cat > "$base" << 'EOF'
  "acceptanceCriteria": ["The plan leaves out unindexed source paths."],
  "requirementRefs": ["PROD-TEST-001"], "source": null,
  "effects": {"coverage": "QUALIFIED", "externalUnbounded": false, "resources": [],
-   "touchPaths": ["internal/testplan/plan.go"]},
+   "touchPaths": ["internal/exampleplan/plan.go"]},
  "capabilities": [], "requiredGates": [], "executionClass": null, "dueDate": null,
  "estimateMinutes": null, "supersedes": [], "supersededBy": [],
  "identityKey": "affected.over.c-unindexed-source-path"}

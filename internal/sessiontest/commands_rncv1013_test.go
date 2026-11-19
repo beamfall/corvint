@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/testinventory"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func writeTree(t *testing.T, files map[string]string) string {
@@ -164,5 +166,39 @@ func TestRNCV1004RemovedRunners(t *testing.T) {
 	}
 	if got := RemovedRunners(BuiltInDeclared(), instances, nil); len(got) != 0 {
 		t.Fatalf("nothing removed: %v", got)
+	}
+}
+
+// RSP-V0-025, RNC-V1-004: a committed legacy plugin declaration alone
+// supplies neither a runner instance nor a reason to run the full suite.
+func TestRNCV1004CommittedLegacyPluginFile(t *testing.T) {
+	const path = ".corvint/runner-plugins.json"
+	root := writeTree(t, map[string]string{path: `{
+		"schema": "corvint-runner-plugins/1",
+		"plugins": [{
+			"name": "reference", "protocol": "corvint-runner/1", "executable": "./corvint-runner-reference",
+			"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			"runners": ["reference-go-test"]
+		}]
+	}`})
+	testsupport.RunGit(t, "git", root, "init", "-q")
+	testsupport.RunGit(t, "git", root, "add", "--", path)
+	testsupport.RunGit(t, "git", root, "commit", "-qm", "Legacy runner declaration")
+	tree, err := testinventory.NewCommitTree(t.Context(), testinventory.Git{Executable: "git", Root: root}, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory := testinventory.Judge(tree)
+	if inventory.State != testinventory.StateAbsent || len(inventory.Instances) != 0 {
+		t.Fatalf("inventory for the legacy plugin file: %+v", inventory)
+	}
+	declared := ReadDeclared(root)
+	removed := RemovedRunners(declared, nil, inventory.Undeclared)
+	plan, err := Build(Input{Declared: declared, Removed: removed, GoSelection: "NOTHING no selected tests", ShardCount: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Scope != ScopeNothing || len(plan.Units) != 0 {
+		t.Fatalf("legacy plugin file alone: scope=%s reason=%q units=%v", plan.Scope, plan.Reason, plan.Units)
 	}
 }

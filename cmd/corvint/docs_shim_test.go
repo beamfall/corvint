@@ -77,6 +77,9 @@ func TestDocsShimDoesNotForwardHelpOrNativeFlags(t *testing.T) {
 		if code := run(test.args, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.String() != helpText("docs") || !strings.HasPrefix(stdout.String(), test.want) {
 			t.Errorf("%q: exit %d stdout matches=%v stderr %q", test.args, code, stdout.String() == helpText("docs"), &stderr)
 		}
+		if !strings.Contains(stdout.String(), "option before impact or affected") || strings.Contains(stdout.String(), "test-validity") {
+			t.Errorf("%q: incorrect corpus join help: %s", test.args, &stdout)
+		}
 	}
 	for _, args := range [][]string{{"impact", "--corpus", "x.json"}, {"mcp", "--corpus=x.json"}} {
 		var stdout, stderr bytes.Buffer

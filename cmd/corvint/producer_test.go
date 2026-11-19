@@ -98,36 +98,13 @@ func TestPUBV0027ImpactProducerIsAdditive(t *testing.T) {
 
 // TestPUBV0027TestValidityProducerIsAdditive covers the test-validity
 // receipt: the producer member follows the unchanged document members.
-func TestPUBV0027TestValidityProducerIsAdditive(t *testing.T) {
-	t.Parallel()
-	invoke := func(arguments ...string) string {
-		var stdout, stderr bytes.Buffer
-		if code := run(append([]string{"test-validity"}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 0 {
-			t.Fatalf("test-validity %v exit %d: %s", arguments, code, stderr.String())
-		}
-		return stdout.String()
-	}
-	plain := invoke()
-	with := invoke("--producer")
-	member, err := json.Marshal(currentProducer())
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertProducerAdditive(t, plain, with, strings.Replace(with, `,"producer":`+string(member)+"}\n", "}\n", 1))
-	for _, arguments := range [][]string{{"--producer", "--producer"}, {"--producer=yes"}} {
-		var stdout, stderr bytes.Buffer
-		if code := run(append([]string{"test-validity"}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 {
-			t.Fatalf("test-validity %v: exit %d stdout %q", arguments, code, stdout.String())
-		}
-	}
-}
 
 // TestPUBV0030DefaultReceiptsCarryNoProducer pins the frozen default bytes
 // (CCF-V1-006): without --producer neither receipt names a producer.
 func TestPUBV0030DefaultReceiptsCarryNoProducer(t *testing.T) {
 	t.Parallel()
 	root := impactCLIRepository(t)
-	for _, arguments := range [][]string{{"--root", root, "impact", "pkg/main.go"}, {"test-validity"}} {
+	for _, arguments := range [][]string{{"--root", root, "impact", "pkg/main.go"}} {
 		var stdout, stderr bytes.Buffer
 		if code := run(arguments, strings.NewReader(""), &stdout, &stderr); code != 0 {
 			t.Fatalf("%v exit %d: %s", arguments, code, stderr.String())

@@ -29,7 +29,7 @@ Usage:
   corvint [--root PATH] watch --index FILE [--once | --events-stdin] [--dry-run]
       [--packages a,b] [--go-wrapper PATH]
 
-FILE is a Go line index collected at the last recorded commit (linecov
+FILE is a line index collected at the last recorded commit (linecov
 collect, linecov-index/4), resolved from the current directory. On each save
 every staged, unstaged and untracked edit under the root is replanned against
 that commit with the same analyzers and fallbacks as a committed range
@@ -54,8 +54,10 @@ time from the save to the plan.
 
 --packages a,b restricts the plan to these module-relative directories
 (default: every package of the module). --go-wrapper PATH prefixes each go
-test invocation with PATH (for example script/heavy.sh). A non-Go index is
-refused: linecov watch -command runs those suites.
+test invocation with PATH (for example script/heavy.sh). These two flags apply
+to legacy Go indexes. Private line-evidence indexes and non-Go indexes use
+the shared affected planner; absent or unqualified evidence runs whole files.
+No runner has an admitted FIH record, so tier line remains disabled there.
 
 Exit status: 0 when the loop ends by signal or every --once run passed, 1
 when a --once run failed, 2 for a refusal or an event source failure.
@@ -149,9 +151,7 @@ func runWatch(ctx context.Context, root string, args []string, stdin io.Reader, 
 		return watchRefuse(diagnostic, "watch-index-unavailable", fmt.Sprintf("index %s: %v", *index, err))
 	}
 	defer ix.Close()
-	if ix.Language != "" && ix.Language != (golang.Language{}).Name() {
-		return watchRefuse(diagnostic, "watch-index-language", fmt.Sprintf("index %s records %s tests; corvint watch plans Go indexes, linecov watch -command runs other suites", *index, ix.Language))
-	}
+
 	var source *watch.Source
 	switch {
 	case *once:
@@ -162,6 +162,12 @@ func runWatch(ctx context.Context, root string, args []string, stdin io.Reader, 
 		if source, err = watch.Native(ctx, resolved); err != nil {
 			return watchRefuse(diagnostic, "watch-events-unavailable", err.Error())
 		}
+	}
+	if ix.Language != "" && ix.Language != (golang.Language{}).Name() || strings.HasPrefix(ix.Runner, "line-evidence/1:") {
+		if *packages != "" || *wrapper != "" {
+			return watchRefuse(diagnostic, "watch-invalid-arguments", "--packages and --go-wrapper apply to legacy Go indexes only")
+		}
+		return runLineEvidenceWatch(ctx, resolved, *index, ix, source, *once, *dryRun, out, diagnostic)
 	}
 	var static []string
 	if *packages != "" {

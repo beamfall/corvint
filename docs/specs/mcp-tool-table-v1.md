@@ -1,5 +1,8 @@
 # MCP Tool Table V1
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Owner: Russell Lewis
 Date: 2026-11-11
 Requirement prefix: `MTT-V1`
@@ -279,7 +282,7 @@ not reused and their text stays in their own specs as history.
 |---|---|---|---|
 | MTT-V1-001 | 2.1 | `internal/capcatalog/mcp.go` (`MCPTools`, `CheckMCPTools`); `internal/mcp/toolgroup/affected.go` (`AffectedErrors`, the closed error list the affected row advertises) | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow`, `TestCAPV08800MCPToolsReachable`, `TestMTTV1001AffectedErrorsAreAdvertised` |
 | MTT-V1-002 | 2.2 | `tools/mcp-server-doc`, `make mcp-server-doc`, doc gate `mcp-server-doc-check` | `TestMTTV1002StalenessCheckFailsOnAHandEdit`, `TestMTTV1002DocumentCarriesEveryRow` |
-| MTT-V1-003 | 2.3 | `internal/capcatalog/mcp_drift.go` (`MCPDrift`, input property names only), compared with each server's real `tools/list` response | `TestMTTV1003CoreServerRegistersExactlyTheTable`, `TestMTTV1003TestValidityServerRegistersExactlyTheTable` (cmd/corvint-test-validity-mcp), `TestMTTV1003DriftNamesTheTool` |
+| MTT-V1-003 | 2.3 | `internal/capcatalog/mcp_drift.go` (`MCPDrift`, input property names only), compared with each server's real `tools/list` response | `TestMTTV1003CoreServerRegistersExactlyTheTable`, `TestMTTV1003TestValidityServerRegistersExactlyTheTable` (removed) (cmd/corvint-test-validity-mcp), `TestMTTV1003DriftNamesTheTool` |
 | MTT-V1-004 | 2.4 | `internal/mcp/docsserver`, `corvint-docs mcp` (`cmd/corvint-docs/main.go`, `help.go`) | `TestMTTV1004DocsServerToolList`, `TestMTTV1004DocsServerAnswers`, `TestMTTV1004DocsServerRefusesArguments`, `TestMTTV1004CorvintDocsMCPAnswersOnAFixture`, `TestMTTV1004CorvintDocsMCPLeavesTheRepositoryUnchanged`, `TestMTTV1004CorvintDocsMCPHelp` |
 | MTT-V1-005 | 2.5 | `internal/mcp/cli/groups.go` (`removedGroups`), `main.go`, `unavailable.go`; `internal/mcp/toolgroup/test_evidence.go` (preview label) | `TestMTTV1005RemovedGroupsRefuseWithATypedReason`, `TestMTTV1005RemovedGroupMatchesOnlyFlagPosition`, `TestMTTV1005TestValidityIsAnUnknownTool`, `TestMTTV1003CoreServerRegistersExactlyTheTable` |
 | MTT-V1-006 | 2.1, 2.9 | the `corvint-tasks` no-MCP-tool row and the Tasks-name rule in `internal/capcatalog/mcp.go` | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow/tasks_tool_on_a_server`, `TestMTTV1006CoreServerServesNoTasksTool`, `TestMTTV1006DocsServerServesNoTasksTool` |

@@ -1,5 +1,8 @@
 # MCP multi-root profile V0
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Owner: Russell Lewis
 Date: 2026-10-07
 Requirement prefix: `MMR-V0`
@@ -33,7 +36,7 @@ into the tool catalogue.
 
 ## Requirements
 
-- `MMR-V0-001`: (accepted by decision 0441; V1-0938) `corvint-mcp` MUST accept
+- `MMR-V0-001`: (accepted by decision 0441; V1-0938; enum amended by owner delegation 2026-11-19, V1-5694) `corvint-mcp` MUST accept
   `--root ALIAS=ABSOLUTE_ROOT`, repeated, as the multi-root form. One aliased root already selects
   multi-root mode. A value is aliased only when the text before its first `=` is a valid alias
   (`MMR-V0-002`); otherwise the whole value is a plain root. A plain root MUST appear alone: exactly
@@ -41,6 +44,9 @@ into the tool catalogue.
   byte-identical to the server before this profile, and a plain root combined with any other root is
   refused. An aliased declaration with an empty root is refused. The form composes with
   `--protocol-version`, `--tool-profile` and `--error-profile` exactly as the single-root form does.
+  RMV-V1-008 removes `test-validity`, `test-plan` and `runs` from the frozen `corvint.help`
+  command enum on every profile. A help call for any of them returns `invalid-arguments`.
+  Serving a command receipt requires its current catalog entry.
 - `MMR-V0-002`: (accepted by decision 0441; V1-0938) An alias MUST match
   `^[a-z][a-z0-9-]{0,31}$`, aliases MUST be unique, and at most 32 roots may be declared. Each root
   keeps the `MCPV0-001` bounds (absolute, clean, at most 4,096 UTF-8 bytes). A duplicate alias, more

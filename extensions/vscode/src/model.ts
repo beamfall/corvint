@@ -253,12 +253,11 @@ export function isRepositoryRelativePath(value: string): boolean {
 }
 
 export function display(value: string, maximumScalars: number): string {
-  // Mirrors internal/workqueue/grammar.go's forbiddenIdentifierRune (C0/C1,
-  // U+061C, U+200E/F, U+202A-E, U+2066-9) plus U+FEFF, which that Go set
-  // already covers but this class previously omitted, extended with the
+  // Rejects control and directional characters (C0/C1, U+061C, U+200E/F,
+  // U+202A-E, U+2066-9), plus U+FEFF, extended with the
   // line/paragraph separators (U+2028/9) and the invisible-format block
   // (U+200B-D zero-width space/non-joiner/joiner, U+2060-4 word joiner and
-  // invisible operators) that neither set covered.
+  // invisible operators).
   const stripped = value
     .replace(/\u001b\[[0-?]*[ -/]*[@-~]/gu, "")
     .replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069\u2028\u2029\u200b-\u200d\u2060-\u2064\ufeff]/gu, "�");
