@@ -28,7 +28,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // QualificationProfile names the qualify report (GLS-V0-033) and
@@ -203,8 +205,8 @@ func qualify(args []string) error {
 	if err != nil {
 		return err
 	}
-	for _, pkg := range excludedControls {
-		fmt.Fprintf(os.Stderr, "linecov qualify: no controls in %s: an unrecorded test of it or of a suite importer could execute any body (GLS-V0-032)\n", pkg)
+	for _, exclusion := range excludedControls {
+		fmt.Fprintf(os.Stderr, "linecov qualify: no controls in %s: %s\n", exclusion.pkg, exclusion.reason)
 	}
 	sites, controlSites, err := mutationSites(*root, ix, dirs, *seed, controlOK)
 	if err != nil {
@@ -447,13 +449,21 @@ func (q qualifier) mutant(s Site) (MutantResult, error) {
 	return res, nil
 }
 
+type controlExclusion struct {
+	pkg, reason string
+}
+
 // controlEligibility reports, per package, whether a body no record executed
 // is known unexecuted: every declared test of the package, and of every suite
 // package that depends on it, has a record. An unrecorded test (divergent,
 // timed out, a starter of an uninstrumented child) could execute any body, so
 // a control there proves nothing (GLS-V0-032). It also lists the ineligible
-// suite packages.
-func controlEligibility(root string, ix *linecov.Index, suite []string) (func(pkg string) bool, []string, error) {
+// suite packages, including those another suite package reads as data (GLS-V0-060).
+func controlEligibility(root string, ix *linecov.Index, suite []string) (func(pkg string) bool, []controlExclusion, error) {
+	scoped, err := readScopedControlPackages(root, suite)
+	if err != nil {
+		return nil, nil, err
+	}
 	heads, err := linecov.HeadTestNames(root, suite)
 	if err != nil {
 		return nil, nil, err
@@ -500,7 +510,7 @@ func controlEligibility(root string, ix *linecov.Index, suite []string) (func(pk
 		}
 	}
 	eligible := map[string]bool{}
-	var excluded []string
+	var excluded []controlExclusion
 	for _, pkg := range suite {
 		ok := !unrecorded[pkg]
 		for other := range dependsOn {
@@ -508,13 +518,63 @@ func controlEligibility(root string, ix *linecov.Index, suite []string) (func(pk
 				ok = false
 			}
 		}
-		eligible[pkg] = ok
-		if !ok {
-			excluded = append(excluded, pkg)
+		eligible[pkg] = ok && !scoped[pkg]
+		switch {
+		case !ok:
+			excluded = append(excluded, controlExclusion{pkg, "an unrecorded test of it or of a suite importer could execute any body (GLS-V0-032)"})
+		case scoped[pkg]:
+			excluded = append(excluded, controlExclusion{pkg, "another suite package's declared test read scope covers it (GLS-V0-060)"})
 		}
 	}
-	sort.Strings(excluded)
+	slices.SortFunc(excluded, func(a, b controlExclusion) int { return strings.Compare(a.pkg, b.pkg) })
 	return func(pkg string) bool { return eligible[pkg] }, excluded, nil
+}
+
+// readScopedControlPackages finds packages whose files another suite package can
+// read as data, even when no coverage record reaches their statements.
+func readScopedControlPackages(root string, suite []string) (map[string]bool, error) {
+	body, err := affected.DiskSource(root).ReadBounded(affected.ReadScopesPath, 1<<20)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("qualify: %s: %w", affected.ReadScopesPath, err)
+	}
+	scopes, err := gateselect.ParseReadScopes(body)
+	if err != nil {
+		return nil, fmt.Errorf("qualify: %s: %w", affected.ReadScopesPath, err)
+	}
+
+	scoped := map[string]bool{}
+	for _, pkg := range suite {
+		// The matcher covers a directory that is an ancestor of a declared
+		// file. Root files have no directory prefix, so check them by name.
+		paths := []string{pkg}
+		if pkg == "." {
+			files, err := os.ReadDir(root)
+			if err != nil {
+				return nil, err
+			}
+			for _, file := range files {
+				if !file.IsDir() {
+					paths = append(paths, file.Name())
+				}
+			}
+		}
+		for _, other := range suite {
+			scope, declared := scopes[other]
+			// A package's own scope does not exclude it: its own test records
+			// already decide whether its bodies are eligible for controls.
+			if other == pkg || !declared {
+				continue
+			}
+			if slices.ContainsFunc(paths, func(p string) bool { return affected.InReadScope(other, scope, p) }) {
+				scoped[pkg] = true
+				break
+			}
+		}
+	}
+	return scoped, nil
 }
 
 // mutationSites returns the seeded order of mutation sites in executed

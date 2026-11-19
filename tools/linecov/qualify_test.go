@@ -9,11 +9,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // qualifyFixture has a site of every kind: a tagless case, an else-if, a
@@ -370,5 +372,57 @@ func TestMaxRSSFlag(t *testing.T) {
 		if err := b.Set(in); err == nil {
 			t.Errorf("Set(%q) accepted %d", in, b)
 		}
+	}
+}
+
+func TestGLSV0060ControlReadScopes(t *testing.T) {
+	for _, tc := range []struct {
+		name, packages, excluded string
+	}{
+		{"directory and reader's own scope", `{"reader":["lib/","reader/"]}`, "lib"},
+		{"exact file", `{"reader":["lib/data.txt"]}`, "lib"},
+		{"root file", `{"reader":["root.go"]}`, "."},
+		{"outside suite", `{"other":["lib/"]}`, ""},
+		{"missing declaration", "", ""},
+		{"invalid JSON", "{", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			suite := []string{".", "lib", "reader"}
+			ix := &linecov.Index{Module: "example.com/fixture"}
+			write(t, root, "go.mod", "module "+ix.Module+"\n\ngo 1.22\n")
+			for _, pkg := range suite {
+				write(t, root, filepath.Join(pkg, "root.go"), "package fixture\n")
+				write(t, root, filepath.Join(pkg, "root_test.go"), "package fixture\nimport \"testing\"\nfunc TestOne(t *testing.T) {}\n")
+				ix.Tests = append(ix.Tests, linecov.Test{Package: pkg, Name: "TestOne"})
+			}
+			write(t, root, "lib/data.txt", "fixture data")
+			if tc.packages != "" {
+				write(t, root, affected.ReadScopesPath, `{"profile":"corvint-test-read-scopes/0","packages":`+tc.packages+`}`)
+			}
+
+			ok, excluded, err := controlEligibility(root, ix, suite)
+			if tc.name == "invalid JSON" {
+				if err == nil || !strings.Contains(err.Error(), affected.ReadScopesPath) || ok != nil {
+					t.Fatalf("invalid declaration returned eligibility %t, error %v", ok != nil, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, pkg := range suite {
+				if want := pkg != tc.excluded; ok(pkg) != want {
+					t.Errorf("eligible(%q) = %t, want %t", pkg, ok(pkg), want)
+				}
+			}
+			var want []controlExclusion
+			if tc.excluded != "" {
+				want = []controlExclusion{{tc.excluded, "another suite package's declared test read scope covers it (GLS-V0-060)"}}
+			}
+			if !slices.Equal(excluded, want) {
+				t.Errorf("exclusions = %v, want %v", excluded, want)
+			}
+		})
 	}
 }
