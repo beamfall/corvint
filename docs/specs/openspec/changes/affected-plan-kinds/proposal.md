@@ -11,7 +11,7 @@ decision R12 (2026-11-09)), APK-V0-009 and APK-V0-010 (added 2026-11-09 after re
 is superseded by APK-V0-009 and retired, not reused, because integ `9ec3a29d0` already carries rows
 for APK-V0-001 to 007.
 Requirement IDs this change modifies: AFU-V1-1651 and AFU-V1-1655 (G6 renames their file)
-Intent status: proposed (rewritten 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: experimental code exists on `claude/layers-integ` (lane `oneplan`, head
 `1f23ed3ed`, merged compile-only, tests and review not run). That code predates G6, G11, G13 and
 the review-round decisions and must be reworked to this text before any promotion.

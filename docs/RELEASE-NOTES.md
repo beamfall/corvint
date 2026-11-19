@@ -1,5 +1,51 @@
 # Release notes
 
+## 1.0.0-rc.4 release candidate (draft; not tagged)
+
+Status: draft. `v1.0.0-rc.4` is not tagged. The readiness record
+(`docs/build-log/2026-11-18-rc4-readiness.md`, RCF-V1-003) holds the tag while any row is
+`NOT_RUN` or `FAIL`. rc.4 is the M5a qualification candidate (owner decision RCF-D3).
+
+### Promoted (RCF-V1-006, RCF-V1-011)
+
+- Delivery `validated` (PROD-DOCS-009) for the four documentation-search CLI verbs:
+  `corvint-docs docs corpus build`, `search`, `get` and `info`. Their command-catalog label stays
+  `experimental`, because root help keeps `corvint docs` and `corvint-docs` in its Experimental
+  group.
+- The input and output schemas of the MCP tools `corvint.docs_search`, `corvint.docs_get` and
+  `corvint.docs_info` on `corvint-docs mcp` (`docs-search-mcp-schemas`, CMP-V1-003 item 6). Their
+  result order stays `preview`.
+- The corpus format `corvint-evidence-corpus/2` (`evidence-corpus-format`).
+
+The promotion rests on the frozen three-repository qualification: Corvint, `beamfall/core`
+(digest-only) and `vuejs/core`, 25 queries each. Two runs on one commit gave byte-identical reports
+with every passage verified, and the DCS-V1-404 ranking evaluation was identical in both runs
+(`docs/build-log/2026-11-18-rc4-docs-qualification.md`). Independent external utility is
+`EXTERNAL_DEPENDENT` and `NOT_RUN`.
+
+### Still experimental or preview
+
+- `corvint docs` and the other `corvint-docs` verbs and tools stay `experimental`: drafting,
+  generated pages, flows, claims, subjects, relations, journeys, coverage, gaps and stability.
+- `preview`: the MCP schemas of every other tool, and the result order of the three promoted tools
+  (CMP-V1-005).
+- `corvint-mcp` is kept (owner decision RCF-D1), so MTT-V1-010 is superseded and V1-5545 is
+  retired.
+
+### Known limitations
+
+- Multi-root repositories (V1-5688): `docs corpus manifest` refuses a repository whose history has
+  more than one root commit ("corpus requires one unambiguous root commit"). This refusal is
+  deliberate and fail-closed. `prometheus/prometheus` and `pydantic/pydantic` are examples, and
+  the qualification replaced prometheus with `vuejs/core` for this reason.
+- Corpus setup (V1-5689): use a binary built with `-buildvcs=false`, and pass a `--manifest` path
+  relative to `--root`.
+
+### Untouched-repository validation (V1-0019, RCF-V1-004)
+
+`NOT_RUN`. V1-0019 must run on the archives published for this tag, verified against `SHA256SUMS`.
+Until it does, it blocks 1.0 stable and is not reported as a pass.
+
 ## 1.0.0-rc.3 release candidate
 
 `v1.0.0-rc.3` is the third 1.0 release candidate, cut from `main` after `1.0.0-rc.2` (build 360).

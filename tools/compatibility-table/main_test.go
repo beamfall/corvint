@@ -105,7 +105,7 @@ func TestCMPV1002RegenerationIsByteIdentical(t *testing.T) {
 	if code != 0 || !strings.Contains(stdout, "compatibility-check: PASS") {
 		t.Fatalf("check: %d %q %q", code, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "1 stable, 1 preview without a contract test, 20 not-promised; CMP-V1-005 preview surfaces: 10") {
+	if !strings.Contains(stdout, "1 stable, 1 preview without a contract test, 22 not-promised; CMP-V1-005 preview surfaces: 10") {
 		t.Fatalf("check output lacks the counts: %q", stdout)
 	}
 }

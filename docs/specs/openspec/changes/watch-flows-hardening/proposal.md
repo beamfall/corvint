@@ -9,7 +9,7 @@ does not exist yet; the lane creates it in its first commit.
 Requirement IDs this change adds: WFF-V1-001 to WFF-V1-008. `WFF-` has no entry in
 `docs/specs/REQUIREMENTS.tsv` and no use in any change folder (checked 2026-11-09 on
 `claude/layers-integ` at `9ec3a29d0`).
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes.
 Layout: this folder follows G14 (`proposal.md`, `design.md`, `tasks.md`,

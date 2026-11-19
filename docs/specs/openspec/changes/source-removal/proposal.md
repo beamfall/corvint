@@ -24,7 +24,7 @@ made 2026-11-09 under R42: D11, D14, D15, E1, E5, E6, E9, M6 and N11; see `desig
 Removals finish by 2026-12-01 (owner plan line, before the 2026-12-15 freeze), except the two
 batches whose gates fall later: B8b (after the layering merge, about 2026-12-08; by 2026-12-10
 or it moves to 1.0.x, E5) and B11 (action cut-over, by 2026-12-15).
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes. No removal lane has been started.
 
