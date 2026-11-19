@@ -132,6 +132,12 @@
       ]
     },
     {
+      "paths": "benchmarks/**",
+      "tests": [
+        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "cmd/corvint-analyzer-go/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
