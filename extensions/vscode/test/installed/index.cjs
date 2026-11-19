@@ -3,7 +3,7 @@ const { createHash } = require("node:crypto");
 const { readFile, readdir, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const vscode = require("vscode");
-const { callMcpDiscover } = require("./mcp-client.cjs");
+const { readRetainedEvidence } = require("../../../../conformance/interactive-alpha/retained-evidence.cjs");
 
 const root = process.env.CORVINT_FIXTURE_ROOT;
 const rootUri = vscode.Uri.file(root);
@@ -35,24 +35,24 @@ exports.run = async function run() {
   await configure(goCommand(), true);
   const initialGo = await completedAfter(api, undefined, "initial Go pass");
   assertSnapshotState(initialGo, "passed");
-  observations.push(await compareMcp(initialGo));
+  observations.push(await compareRetained(initialGo));
   await editDocument("go/calc.go", "return left + right", "return left - right");
   const failedGo = await waitSnapshot(api, (snapshot) => snapshot.phase === "completed" && snapshot.inputIdentity !== initialGo.inputIdentity, "Go failure");
   assertSnapshotState(failedGo, "failed");
   await assertDiagnostics("go/calc_test.go", true);
-  observations.push(await compareMcp(failedGo));
+  observations.push(await compareRetained(failedGo));
   await editDocument("go/calc.go", "return left - right", "return left + right");
   const fixedGo = await waitSnapshot(api, (snapshot) => snapshot.phase === "completed" && snapshot.inputIdentity !== failedGo.inputIdentity, "Go fix");
   assertSnapshotState(fixedGo, "passed");
   await assertDiagnostics("go/calc_test.go", false);
-  observations.push(await compareMcp(fixedGo));
+  observations.push(await compareRetained(fixedGo));
 
   const document = await editDocument("go/calc.go", "return left + right", "return left + right // stale trigger");
   const running = await waitSnapshot(api, (snapshot) => snapshot.phase === "running" && snapshot.inputIdentity !== fixedGo.inputIdentity, "Go running before stale edit");
   await replaceAndSave(document, "return left + right // stale trigger", "return left + right // changed during run");
   const stale = await waitSnapshot(api, (snapshot) => snapshot.phase === "completed" && snapshot.inputIdentity === running.inputIdentity && snapshot.items.some((item) => item.state === "errored"), "Go stale terminal");
   await configure([], false);
-  observations.push(await compareMcp(stale));
+  observations.push(await compareRetained(stale));
 
   const disabled = await waitSnapshot(api, (snapshot) => snapshot.phase === "disabled", "disabled shutdown");
   assert.equal(disabled.items.length, 0);
@@ -64,15 +64,15 @@ async function qualifyCycle(api, provider, source, passingText, failingText, dia
   const initial = await completedAfter(api, undefined, `initial ${provider} pass`);
   assert.equal(initial.provider, provider === "unit" ? "js-unit" : "js-e2e");
   assertSnapshotState(initial, "passed");
-  const initialMcp = await compareMcp(initial);
+  const initialMcp = await compareRetained(initial);
   const failed = await saveAndWait(api, source, passingText, failingText, initial.generation, `${provider} failure`);
   assertSnapshotState(failed, "failed");
   await assertDiagnostics(diagnosticFile, true);
-  const failedMcp = await compareMcp(failed);
+  const failedMcp = await compareRetained(failed);
   const fixed = await saveAndWait(api, source, failingText, passingText, failed.generation, `${provider} fix`);
   assertSnapshotState(fixed, "passed");
   await assertDiagnostics(diagnosticFile, false);
-  const fixedMcp = await compareMcp(fixed);
+  const fixedMcp = await compareRetained(fixed);
   return { provider, generations: [initial.generation, failed.generation, fixed.generation], mcp: [initialMcp, failedMcp, fixedMcp] };
 }
 
@@ -155,40 +155,33 @@ function isCorvintDiagnostic(diagnostic) {
   return diagnostic.source === "corvint-live-tests";
 }
 
-async function compareMcp(snapshot) {
+async function compareRetained(snapshot) {
+  assert.ok(["go-session", "js-unit", "js-e2e"].includes(snapshot.provider), "unsupported editor provider");
   assert.match(snapshot.documentDigest ?? "", /^sha256:[0-9a-f]{64}$/);
   assert.equal(snapshot.omitted, 0, "editor snapshot omitted test items");
   assertUnique(snapshot.items.map((item) => item.id), "editor snapshot item IDs");
   await waitForRetainedDocument(snapshot.documentDigest);
-  const response = await callMcpDiscover(process.env.CORVINT_TEST_VALIDITY_MCP, root);
-  assert.equal(response.jsonrpc, "2.0");
-  assert.equal(response.id, 1);
-  assert.equal(response.error, undefined, JSON.stringify(response));
-  const result = response.result;
-  assert.equal(result.isError, false, JSON.stringify(result));
-  const structured = result.structuredContent;
-  assert.equal(structured.schema, "corvint-mcp-test-validity-result/0");
-  const document = structured.document;
+  const { document } = await readRetainedEvidence(root);
   const evidence = document.discovery?.evidence;
-  assert.ok(evidence, "MCP discover did not select retained evidence");
+  assert.ok(evidence, "retained reader discover did not select retained evidence");
   const retainedBytes = await readFile(path.join(root, evidence), "utf8");
   const retained = JSON.parse(retainedBytes);
   const valueSpan = retainedBytes.trim();
   const digest = `sha256:${createHash("sha256").update(valueSpan).digest("hex")}`;
-  assert.equal(digest, snapshot.documentDigest, "editor terminal document differs from MCP-selected retained evidence");
+  assert.equal(digest, snapshot.documentDigest, "editor terminal document differs from retained reader-selected retained evidence");
   if (snapshot.provider === "go-session") assert.equal(retained.identity, snapshot.inputIdentity, "editor Go input identity differs from retained evidence");
-  assert.equal(document.tests.length > 0, true, "MCP document has no test projections");
+  assert.equal(document.tests.length > 0, true, "retained reader document has no test projections");
   const expectedKind = snapshot.provider === "go-session" ? "go-session" : snapshot.provider === "js-unit" ? "unit" : "e2e";
-  assert.equal(document.kind, expectedKind, "editor/MCP provider kind differs");
+  assert.equal(document.kind, expectedKind, "editor/retained reader provider kind differs");
   const projected = document.tests.map((test) => [document.kind === "go-session" ? `${test.package}#${test.name}` : test.name, classifyProjection(test.projection)]);
   const runState = classifyProjection(document.run);
   const supplemental = document.kind === "go-session"
     ? retained.scope.map((scope) => [scope, runState])
     : runState === "errored" ? [[`js-run:${document.kind}`, "errored"]] : [];
   const expected = [...projected, ...supplemental];
-  assertUnique(expected.map(([name]) => name), "MCP test and run item IDs");
+  assertUnique(expected.map(([name]) => name), "retained reader test and run item IDs");
   const editor = snapshot.items.map((item) => [item.id, item.state]);
-  assert.deepEqual(editor.sort(compareEntries), expected.sort(compareEntries), "complete editor/MCP test and run state sets differ");
+  assert.deepEqual(editor.sort(compareEntries), expected.sort(compareEntries), "complete editor/retained reader test and run state sets differ");
   return { evidence, digest, source: document.source, kind: document.kind, runExecution: document.run.execution.state, runFreshness: document.run.freshness.state, freshness: document.discovery?.freshness?.state ?? null };
 }
 

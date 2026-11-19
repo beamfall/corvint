@@ -1,7 +1,9 @@
 import { readFile, writeFile, readdir, mkdir, cp, symlink, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createServer } from 'node:net';
-import { coreBrowserExecutable, Child, run, cleanup, until, delay, sha, fileSHA, treeSHA, save, assert, mcp, processTable, fixtureIdentity } from './core-process.mjs';
+import { coreBrowserExecutable, Child, run, cleanup, until, delay, sha, fileSHA, treeSHA, save, assert, processTable, fixtureIdentity } from './core-process.mjs';
+
+import { readRetainedEvidence, selectedEvidence } from './retained-evidence.cjs';
 
 const [bin, source, root, attachment, output, mode] = process.argv.slice(2);
 for (const path of [bin, source, root, attachment, output]) assert(path?.startsWith('/'), 'core provider needs absolute paths');
@@ -55,12 +57,8 @@ async function documents(dir) {
 }
 const providerState = row => { const doc = JSON.parse(row.raw); return doc.receipt ? doc.receipt.tests[0]?.state : doc.state; };
 async function selected(config, child, name, expectedRow, expectedState) {
-  const response = await mcp(mcpPath, config.dir); const doc = response.result.structuredContent.document;
-  assert(!response.result.isError && doc.discovery.evidence.endsWith('/' + expectedRow.name), 'MCP did not select original retained document');
-  assert(doc.discovery.freshness.state === 'UNKNOWN', 'MCP promoted unmeasured freshness');
-  assert(doc.tests.length > 0 && doc.tests.every(t => t.projection.execution.state === expectedState.toUpperCase() && t.projection.freshness.state === 'UNKNOWN' && t.projection.strength.state === 'NOT_MEASURED'), 'MCP axes differ from actual execution');
-  if (config.kind === 'go') assert(doc.tier === 'preview' && doc.promotable === false, 'Go tier promoted');
-  assert(child.stdout.includes(expectedRow.raw), 'retention did not preserve stdout bytes'); if (name) await evidence(name, response.raw); return sha(response.raw);
+  const response = await selectedEvidence(config, child, expectedRow, expectedState);
+  if (name) await evidence(name, response.raw); return sha(response.raw);
 }
 async function active(child, kind) {
   return until(() => { child.observe(); const current = processTable(); const rows = [...child.observed.values()].filter(x => current.get(x.pid)?.startTime === x.startTime);
@@ -88,8 +86,8 @@ async function sessions() {
       let replacement = await until(async () => (await documents(c.dir))[3], child, 90000); let supersededProviderRaw = '', supersededMcpRaw = '';
       if (kind === 'go') {
         const stale = JSON.parse(replacement.raw); assert(stale.state === 'stale' && stale.projection.freshness.state === 'STALE' && stale.projection.execution.state !== 'PASSED' && stale.testProjections.length > 0 && stale.testProjections.every(t => t.projection.freshness.state === 'STALE' && t.projection.execution.state !== 'PASSED'), 'Go supersession did not preserve explicit stale negative');
-        const staleMCP = await mcp(mcpPath, c.dir), projected = staleMCP.result.structuredContent.document;
-        assert(projected.discovery.evidence.endsWith('/' + replacement.name) && projected.run.freshness.state === 'STALE' && projected.run.execution.state !== 'PASSED' && projected.tests.every(t => t.projection.freshness.state === 'STALE' && t.projection.execution.state !== 'PASSED'), 'MCP lost Go stale negative');
+        const staleMCP = await readRetainedEvidence(c.dir), projected = staleMCP.document;
+        assert(projected.discovery.evidence.endsWith('/' + replacement.name) && projected.run.freshness.state === 'STALE' && projected.run.execution.state !== 'PASSED' && projected.tests.every(t => t.projection.freshness.state === 'STALE' && t.projection.execution.state !== 'PASSED'), 'retained reader lost Go stale negative');
         supersededProviderRaw = replacement.raw.toString(); supersededMcpRaw = staleMCP.raw.toString();
         replacement = await until(async () => (await documents(c.dir))[4], child, 90000); assert(JSON.parse(replacement.raw).sequence > stale.sequence, 'Go replacement sequence did not advance');
       }

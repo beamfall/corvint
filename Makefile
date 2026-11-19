@@ -1421,7 +1421,7 @@ host-adapter-test: typescript-test
 # release-host qualification, declared as binary consumers in .corvint/test-binary-consumers.json.
 .PHONY: interactive-alpha-test
 interactive-alpha-test: ## Run the interactive-alpha process harness tests (node:test)
-	node --test conformance/interactive-alpha/core-process.test.mjs
+	node --test conformance/interactive-alpha/*.test.mjs
 
 # test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a
 # package over the agent's 600 s foreground limit runs as bounded pieces that together cover every

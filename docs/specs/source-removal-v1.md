@@ -196,6 +196,13 @@ test-evidence` and their MCP group, labelled preview. Provider output formats SH
 - WHEN B2 lands
 - THEN their output for the same input is byte-identical
 
+Retained qualification consumers read the provider documents directly after removal of the
+MCP bridge. `conformance/interactive-alpha/retained-evidence.test.mjs` exercises the core
+selection check and installed-editor comparison for JS unit/E2E and Go transitions, plus
+unknown forms and observation/projection disagreements. This fixture reader admits only
+unprofiled JS unit/E2E and Go session profile `/0` pass/fail/stale documents; unsupported
+forms fail qualification. It establishes no current-input freshness or MCP transport claim.
+
 - `RMV-V1-010`: (proposed 2026-11-10) Runner protocol cut (G23)
 
 B3 SHALL remove `internal/runnerprotocol`, `internal/runnerpolicy`, `internal/runnerqualification`,
