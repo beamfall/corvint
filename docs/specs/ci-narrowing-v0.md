@@ -48,6 +48,8 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   validation with conservative edge widening. Strict `Build` and `BuildPartial` retain
   AFP-V0-819. Only unknown targets with known test holders qualify; malformed declarations,
   unknown test holders and unrelated graph failures retain their existing refusal.
+  Snapshot planning retries over its materialized root; ignored-file rebuilds retry while
+  their exclusion is held. Both use the same typed-error admission as ordinary planning.
 - `CIN-V1-941`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5087)
   Each degraded edge SHALL select every test holder and the full reverse closure of its
   imports, advisory and route edges, test imports, executions and file readers on every
@@ -55,6 +57,8 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   source/test changes and semantic or name-only narrowing cannot remove that widening.
   Unrelated units remain eligible for normal exclusion; unresolved unit IDs are never
   guessed into filesystem paths.
+  Resolve test-selection declarations before widening. Every closure round includes declared
+  test owners of reached source and test paths, then follows those owners' reverse dependents.
   The closure includes declared binary consumers of testless commands: runnable consumers
   are selected and consumers without a runner retain their existing uncertainty. Widened
   units are registered as unbounded readers with a graph-bound degradation cause, so
@@ -1323,3 +1327,5 @@ batch-precheck` and `make batch-push-check` are the checks before a push.
 | Requirements | Implementation | Evidence |
 | --- | --- | --- |
 | CIN-V1-940, CIN-V1-941, CIN-V1-942 | `runtime_edges.go`, `select.go`, `affectedBuildGraph` | `TestRuntimeEdgeWidening_CINV1940`, `TestRuntimeEdgeWideningRefusals_CINV1940`, `TestRuntimeWideningConsumersAndWitnesses_CINV1941`, `TestAffectedRuntimeEdgeWidening_CINV1940`, `TestRuntimeEdgeDegradationAdmission_CINV1942`, `TestRuntimeEdgeDegradationRecord_CINV1942`; hosted record integration pending the separate `.github` patch |
+| CIN-V1-940 | `affectedBuildGraph` in snapshot and ignored-file plans | `TestAffectedRuntimeEdgeSnapshot_CINV1940`, `TestAffectedRuntimeEdgeIgnoredRebuild_CINV1940` |
+| CIN-V1-941 | `runtimeEdgeWidening`, `resolveTestSelection` | `TestRuntimeEdgeWideningDeclaredOwners_CINV1941` |

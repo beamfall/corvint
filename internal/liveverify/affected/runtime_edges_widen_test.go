@@ -109,3 +109,54 @@ func TestRuntimeEdgeWideningRefusals_CINV1940(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntimeEdgeWideningDeclaredOwners_CINV1941(t *testing.T) {
+	root, language := runtimeWidenFixture(t, unresolvedRuntimeDeclaration)
+	language.units = append(language.units,
+		Unit{ID: "g:integration", Sources: []string{"integration.g"},
+			Tests: []string{"integration_test.g"}},
+		Unit{ID: "g:owneruser", Tests: []string{"owneruser_test.g"},
+			Imports: []string{"g:integration"}},
+		Unit{ID: "g:secondowner", Tests: []string{"secondowner_test.g"}},
+	)
+	const owners = `{"profile":"corvint-test-selection/0","owners":[
+		{"paths":"holder.g","tests":["integration_test.g"]},
+		{"paths":"integration.g","tests":["secondowner_test.g"]}
+	]}`
+	write := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, DeclaredSelectionPath), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(owners)
+	graph, err := BuildWithRuntimeEdgeWidening(t.Context(), root, language)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"g:downstream", "g:holder", "g:integration", "g:owneruser", "g:reader",
+		"g:readeruser", "g:runner", "g:secondowner", "g:testuser"}
+	// Neither dirty path matches an owner pattern. Unknown source forms must
+	// retain the same closure, including owners discovered in later rounds.
+	for _, dirty := range []string{"new/target.x", "future/input.unrecognized"} {
+		plan := Select(graph, []string{dirty})
+		if got := slices.Sorted(maps.Keys(witnesses(plan))); !slices.Equal(got, want) {
+			t.Fatalf("%s: closure = %v, want %v", dirty, got, want)
+		}
+		if plan.Scope != ScopeUnknown {
+			t.Fatalf("%s: scope = %s", dirty, plan.Scope)
+		}
+		for _, selected := range plan.Selected {
+			if selected.Witness.Kind != WitnessUnboundedReader || selected.Witness.Cause == nil {
+				t.Fatalf("owner closure lost conservative witness: %+v", selected)
+			}
+		}
+	}
+	// The declaration profile is closed: a future owner form must refuse,
+	// never silently omit a relation from a supposedly complete closure.
+	write(strings.Replace(owners, `"paths":"holder.g"`,
+		`"paths":"holder.g","futureRelation":true`, 1))
+	if _, err := BuildWithRuntimeEdgeWidening(t.Context(), root, language); err == nil {
+		t.Fatal("unknown owner form admitted")
+	}
+}

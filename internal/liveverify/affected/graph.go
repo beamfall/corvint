@@ -515,6 +515,10 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	if graph.existenceUnits, err = graph.existenceReaderUnits(); err != nil {
 		return nil, err
 	}
+	graph.testSelection = repository.testSelection
+	if err := graph.resolveTestSelection(repository.partial); err != nil {
+		return nil, err
+	}
 	graph.registerRuntimeWidening()
 	// Bind the conservative build mode as well as the declarations: a partial
 	// graph skipping the same unresolved edges must have a different digest.
@@ -522,10 +526,6 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 		graph.frontier = append(graph.frontier, runtimeEdgeDegradation(edge))
 	}
 	sort.Strings(graph.frontier)
-	graph.testSelection = repository.testSelection
-	if err := graph.resolveTestSelection(repository.partial); err != nil {
-		return nil, err
-	}
 	digest, err := graph.computeDigest()
 	if err != nil {
 		return nil, err

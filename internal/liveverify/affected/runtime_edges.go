@@ -276,6 +276,7 @@ func (graph *Graph) runtimeEdgeWidening() map[string]Witness {
 			graph.existenceReadersOf(reached, paths)
 			graph.testEmbedReadersOf(reached, paths)
 			graph.importGraphReadersOf(reached, paths)
+			graph.ownersOf(reached, paths)
 		}
 		for _, id := range slices.Sorted(maps.Keys(reached)) {
 			if _, exists := widened[id]; !exists {
