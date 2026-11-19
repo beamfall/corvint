@@ -798,10 +798,10 @@ extract-and-run tests used pipefail, so a masked pipeline failure passed the tes
   `mainmiss-confirm.sh`, `absence.jq`, `bar.sh`, `full-reasons.sh`, `infra-reclassified.txt`) or
   is one of the two workflows that run them on main (`ci-forward-bar.yml`,
   `ci-control-plane.yml`); the guard maps each to the test packages that read it, which include
-  every package whose
-  `.corvint/test-read-scopes.json` entry covers the path (`tools/ci-forward-row`;
-  `tools/tiers-replay` for `tiers.*`; `tools/capabilities-check`, `tools/ci-forward-row` and
-  `tools/ci-reuse-plan` for the workflows). The guard prints `1` and every changed input when any
+  every package whose `.corvint/test-read-scopes.json` entry covers the path
+  (`tools/ci-forward-row`; `tools/tiers-replay` for `tiers.*`; `internal/command/flows`,
+  `tools/capabilities-check`, `tools/ci-forward-row` and `tools/ci-reuse-plan` for the
+  workflows). The guard prints `1` and every changed input when any
   changed input is global, `mapped` and `INPUT CONSUMER...` lines when only mapped inputs changed,
   and `0` otherwise. An input in neither list (a new, renamed or non-ASCII forward-rows file) is
   global, so FULL. The classification lives in the trusted copy; a caller that knows only `0` and

@@ -406,6 +406,9 @@ func TestCINV08424NarrowShRequiresMappedConsumers_CINV08424(t *testing.T) {
 		a, b, c, d = "example.org/m/a", "example.org/m/b", "example.org/m/c", "example.org/m/d"
 		rows       = "example.org/m/tools/ci-forward-row"
 		tiers      = "example.org/m/tools/tiers-replay"
+		flows      = "example.org/m/internal/command/flows"
+		caps       = "example.org/m/tools/capabilities-check"
+		reuse      = "example.org/m/tools/ci-reuse-plan"
 	)
 	r := newGuardRepo(t)
 	r.write("go.mod", "module example.org/m\n\ngo 1.27.3\n")
@@ -421,7 +424,7 @@ func TestCINV08424NarrowShRequiresMappedConsumers_CINV08424(t *testing.T) {
 		writeDoc(t, filepath.Join(fake, "shadow.json"), doc{"scope": "NARROWED", "incomplete": []string{},
 			"invocations": []any{doc{"units": []any{doc{"adapter": "go", "unit": "go:" + a}, doc{"adapter": "go", "unit": "go:" + b}}}}})
 		tools := fakeNarrowTools(a, b, c, d)
-		tools["go"] = "#!/bin/sh\nprintf '%s\\n' " + a + " " + b + " " + c + " " + d + " " + rows + " " + tiers + "\n"
+		tools["go"] = "#!/bin/sh\nprintf '%s\\n' " + strings.Join([]string{a, b, c, d, rows, tiers, flows, caps, reuse}, " ") + "\n"
 		for name, body := range override {
 			tools[name] = body
 		}
@@ -466,6 +469,30 @@ func TestCINV08424NarrowShRequiresMappedConsumers_CINV08424(t *testing.T) {
 			t.Fatalf("mode %s, record %v", mode, v)
 		}
 		if mode, v, _ := narrow(t, two, []string{a, b, c, rows, tiers}, nil); mode != "NARROWED" || fmt.Sprint(v["githubMapped"]) != fmt.Sprint([]string{".github/forward-rows/tiers.sh: tools/ci-forward-row tools/tiers-replay"}) {
+			t.Fatalf("mode %s, record %v", mode, v)
+		}
+	})
+	t.Run("workflow edits require the flows reader", func(t *testing.T) {
+		for _, workflow := range []string{"ci-control-plane.yml", "ci-forward-bar.yml"} {
+			path := ".github/workflows/" + workflow
+			target := r.change(workflow, func() { r.write(path, "name: changed\n") })
+			selected := []string{a, b, c, caps, rows, reuse}
+			mode, v, _ := narrow(t, target, selected, nil)
+			if mode != "FULL" || fmt.Sprint(v["reasonCodes"]) != "[github-consumer-unselected]" ||
+				!strings.Contains(fmt.Sprint(v["reasons"]), path+": internal/command/flows") {
+				t.Fatalf("%s without flows: mode %s, record %v", workflow, mode, v)
+			}
+			if mode, v, _ := narrow(t, target, append(selected, flows), nil); mode != "NARROWED" {
+				t.Fatalf("%s with every reader: mode %s, record %v", workflow, mode, v)
+			}
+		}
+	})
+	t.Run("a mapped basename at an unknown path stays FULL", func(t *testing.T) {
+		const path = ".github/forward-rows/future/collect.sh"
+		target := r.change("unknown-collect", func() { r.write(path, "#!/bin/sh\n") })
+		mode, v, _ := narrow(t, target, []string{a, b, c, caps, rows, reuse, tiers, flows}, nil)
+		if mode != "FULL" || fmt.Sprint(v["reasonCodes"]) != "[github-input]" ||
+			fmt.Sprint(v["githubInputs"]) != fmt.Sprint([]string{path}) || fmt.Sprint(v["githubMapped"]) != "[]" {
 			t.Fatalf("mode %s, record %v", mode, v)
 		}
 	})
