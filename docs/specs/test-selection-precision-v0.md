@@ -251,6 +251,10 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   rule (`CallerCandidate`) to every tracked file, `.github` included, and SHALL run the plugin over
   the tracked files only, so an untracked scratch file cannot fail it; its check that a listed file
   still names the script is the plugin's, which counts a name a shell file builds (TSP-V0-960).
+
+Retirement status: TSP-V0-666 is retired by source-removal B1 (owner, 2026-11-18).
+The clause and trace row remain as history; the measurement tool is removed.
+
 - **TSP-V0-666:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-4118)
   `tools/plan-delta` SHALL compare two `corvint affected --format json` receipts for one path list
   (the plan before a declaration edit and, through `--worktree --path`, the plan after it) and SHALL

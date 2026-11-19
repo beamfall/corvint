@@ -2604,6 +2604,10 @@ one list, so a later class cannot reopen it.
   when the change shows no changed Go declaration at all: an empty change set never slices.
   Another package's `_test.go` files are never linked and are left out; a path outside every Go
   package directory reaches a test only through a read the conditions above refuse.
+
+Retirement status: AFP-V0-2378 is retired by source-removal B1 (owner, 2026-11-18).
+The clause and trace row remain as history; the measurement tool is removed.
+
 - **AFP-V0-2378:** (experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing
   of one package for the Go change between a base and a checked-out head and, with `-oracle`, run
   each test function alone in a test binary built at head and in one with

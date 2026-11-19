@@ -17,8 +17,7 @@
       "paths": ".github/cishards/**",
       "tests": [
         ".github/cishards/",
-        ".github/macos/shard_test.py",
-        "tools/ci-reuse-replay/replay_test.py"
+        ".github/macos/shard_test.py"
       ]
     },
     {
@@ -130,12 +129,6 @@
       "paths": "assets/brand/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "benchmarks/**",
-      "tests": [
-        "benchmarks/selfuse-batch/"
       ]
     },
     {
@@ -523,18 +516,6 @@
       ]
     },
     {
-      "paths": "conformance/work-queue-v0/README.md",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/work-queue-v0/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "docs/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -581,7 +562,6 @@
       "tests": [
         ".github/cishards/",
         ".github/testconfine/",
-        "benchmarks/selfuse-batch/",
         "cmd/",
         "conformance/",
         "examples/evidence-provider/v0/",
@@ -1271,12 +1251,6 @@
     },
     {
       "paths": "tools/flow-guide-check/unhinted-refusals.tsv",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/gotest-evidence/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]

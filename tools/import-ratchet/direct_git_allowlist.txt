@@ -52,6 +52,5 @@ tools/test-read-scopes-check/main.go:droppedDeclarations: inherits the environme
 tools/test-read-scopes-check/main.go:tracked: inherits the environment with no timeout or output bound
 tools/tiers-replay/main.go:git: inherits the environment with no timeout or output bound; the error text carries exec's error and stderr
 tools/tiers-replay/main.go:replayMerge: pipes git archive stdout into tar through StdoutPipe
-tools/typed-reach-measure/main.go:git: inherits the environment with no timeout or output bound; the error text carries exec's error and stderr
 tools/unbounded-readers/main.go:droppedDeclarations: inherits the environment with no timeout or output bound
 tools/walk-skipdir-check/main.go:run: inherits the environment with no timeout or output bound

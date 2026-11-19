@@ -14,7 +14,6 @@
         "internal/cem",
         "internal/cemcode",
         "internal/cliapp",
-        "internal/cliconformance",
         "internal/clierror",
         "internal/cliprofile",
         "internal/clitree",
@@ -79,7 +78,6 @@
         "internal/untrackedallowance",
         "internal/versionline",
         "internal/webdialect",
-        "internal/workqueue",
         "internal/workspace"
       ]
     },
@@ -195,7 +193,6 @@
       "summary": "release tooling, CI data, repository checks, benchmarks and conformance: serves the other layers and is not shipped",
       "prefixes": [
         ".github",
-        "benchmarks",
         "cmd/corvint-go-toolchain-receipt",
         "cmd/corvint-readiness-record",
         "cmd/corvint-release-candidate",
