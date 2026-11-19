@@ -246,7 +246,7 @@
     "title": "Test Consolidation Planner V0",
     "reqPrefix": "TCN-V0",
     "intent": "accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031)",
-    "delivery": "experimental",
+    "delivery": "retired",
     "claim": "A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v1.md",
@@ -257,10 +257,9 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/testplan",
       "cmd/corvint"
     ],
-    "health": "KEEP"
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/application-navigation-ledger-v0.md",
@@ -327,9 +326,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "protocol/step"
-    ],
+    "implementation": [],
     "health": "RETIRE"
   },
   {
@@ -683,7 +680,6 @@
       "cmd/corvint",
       "cmd/corvint-mcp",
       "cmd/corvint-docs-mcp",
-      "cmd/corvint-test-validity-mcp",
       "cmd/corvint-js-test-provider",
       "cmd/corvint-go-test-provider",
       "go.mod",
@@ -1348,9 +1344,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "protocol/delta"
-    ],
+    "implementation": [],
     "health": "RETIRE"
   },
   {
@@ -2076,7 +2070,7 @@
     "title": "MCP test-validity profile V0",
     "reqPrefix": "MTV-V0",
     "intent": "accepted (decision 0147, 2026-09-12)",
-    "delivery": "experimental",
+    "delivery": "retired",
     "claim": "A separate local stdio MCP tool projects repository-confined JavaScript receipts and completed Go preview-session events into the shared five-axis shape.",
     "dependsOn": [
       "docs/specs/mcp-server-2026-07-28-v0.md",
@@ -2085,12 +2079,9 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint-test-validity-mcp",
-      "internal/mcp/testvaliditybridge",
-      "internal/testvaliditydoc",
-      "conformance/mcp-test-validity-v0"
+      "internal/testvaliditydoc"
     ],
-    "health": "KEEP"
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/migration-evidence-ratchet-v0.md",
@@ -3156,7 +3147,7 @@
     "title": "Test Claim Qualification V0",
     "reqPrefix": "TCQ-V0",
     "intent": "proposed",
-    "delivery": "implementation-candidate; promotion evidence NOT_RUN",
+    "delivery": "retired",
     "claim": "TCQ deterministically qualifies selected OCM test anchors and caller-supplied JUnit matches without proving adequacy or correctness.",
     "dependsOn": [
       "docs/specs/cem-0.2-canonical-binding.md",
@@ -3168,7 +3159,7 @@
     "implementation": [
       "internal/tcq"
     ],
-    "health": "KEEP"
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/touch-set-surprise-v0.md",
@@ -3333,10 +3324,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/workqueue",
       "cmd/corvint",
-      "internal/worklistadapter",
-      "conformance/work-queue-v0"
+      "internal/worklistadapter"
     ],
     "health": "RETIRE"
   },
@@ -3545,7 +3534,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/playwrightruns",
       "cmd/corvint"
     ],
     "health": "KEEP"
@@ -3790,7 +3778,6 @@
       "cmd/corvint",
       "cmd/corvint-docs-mcp",
       "cmd/corvint-mcp",
-      "cmd/corvint-test-validity-mcp",
       "internal/perfbudget",
       "internal/procprofile"
     ],
@@ -4132,14 +4119,14 @@
     "path": "docs/specs/go-test-evidence-v0.md",
     "title": "Go Test Evidence V0",
     "reqPrefix": "GTE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-18 (source-removal)",
+    "delivery": "retired",
     "claim": "An operator tool derives test records from `go test -json` under a stable per-test identity, so flaky tests gain a measured cross-run history.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [],
-    "health": "KEEP"
+    "health": "RETIRE"
   },
   {
     "path": "docs/specs/tasks-mcp-read-profile-v0.md",
