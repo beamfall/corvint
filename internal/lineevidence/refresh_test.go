@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -156,7 +157,7 @@ func TestLEVV1003RefreshUnknownStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			executable := filepath.Join(root, "git-stub")
-			if err := os.WriteFile(executable, []byte("#!/bin/sh\n"+tc.script), 0700); err != nil {
+			if err := execfile.WriteFile(executable, []byte("#!/bin/sh\n"+tc.script), 0700); err != nil {
 				t.Fatal(err)
 			}
 			if got := refreshTreeClean(context.Background(), testinventory.Git{Executable: executable, Root: root}); got != tc.clean {
