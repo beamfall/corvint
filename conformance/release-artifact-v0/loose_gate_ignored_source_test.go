@@ -37,7 +37,8 @@ func main() {
 // ARTIFACT-GO-V0-003, decision 0158: a .go file hidden by a committed .gitignore
 // or by .git/info/exclude leaves Git status empty, so the loose gate builds it
 // from the live root and reports PASS with vcs.modified=false. The archive's
-// raw-commit builds omit it, and the loose-binary binding refuses the bytes.
+// raw-commit builds continue the matching primed caches, omit the ignored files,
+// and the loose-binary binding still refuses the bytes (GAG-V0-9963).
 func TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
@@ -69,7 +70,8 @@ func TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses(t *testing.T) 
 		Smoke: Smoke{VersionArgument: "--version", ExpectedVersion: "Fixture 1", QueryPath: "AGENTS.md", ExpectedState: "OBSERVED", FixtureInstruction: "# Agents\n"},
 	}
 	target := Target{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, Suffix: testplatform.ExeSuffix()}
-	options := Options{Root: root, Output: filepath.Join(t.TempDir(), "loose")}
+	scratch := t.TempDir()
+	options := Options{Root: root, Output: filepath.Join(scratch, "existing-loose-gate")}
 	loose := Report{}
 	if err := checkOutputLocation(options, &loose); err != nil {
 		t.Fatal(err)
@@ -88,7 +90,6 @@ func TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses(t *testing.T) 
 		t.Fatalf("loose binary did not link both ignored sources: %q", marks)
 	}
 
-	scratch := t.TempDir()
 	state, err := resolveCleanState(ctx, ArchiveOptions{Root: root, Revision: "HEAD"}, scratch)
 	if err != nil || state.commit != loose.Commit || state.tree != loose.Tree {
 		t.Fatalf("archive clean state %+v err=%v; loose commit=%s tree=%s", state, err, loose.Commit, loose.Tree)

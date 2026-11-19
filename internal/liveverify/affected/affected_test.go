@@ -22,8 +22,10 @@ type fake struct {
 	name     string
 	units    []Unit
 	frontier []string
-	owns     func(string) bool
-	err      error
+	// frontierSites supplies the complete records behind overflow entries.
+	frontierSites map[string][]string
+	owns          func(string) bool
+	err           error
 	// unobserved is the Result.Unobserved the fake reports (AFP-V0-191).
 	unobserved []string
 	// runnable is the Result.Runnable the fake reports (AFP-V0-650).
@@ -44,7 +46,7 @@ func (language fake) Owns(path string) bool {
 }
 
 func (language fake) Units(context.Context, string) (Result, error) {
-	return Result{Units: language.units, Frontier: language.frontier, Unobserved: language.unobserved, Runnable: language.runnable}, language.err
+	return Result{Units: language.units, Frontier: language.frontier, FrontierSites: language.frontierSites, Unobserved: language.unobserved, Runnable: language.runnable}, language.err
 }
 
 func chain() fake {

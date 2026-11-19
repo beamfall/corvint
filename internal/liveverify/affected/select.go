@@ -91,7 +91,8 @@ type Witness struct {
 	DirtyPath string   `json:"dirtyPath"`
 	Via       []string `json:"via"`
 	// Cause is set on an UNBOUNDED_READER witness only: the unit whose own
-	// file makes the selected unit's reads unbounded, and why (AFP-V0-192).
+	// file or unresolved runtime edge makes the selected unit's reads
+	// unbounded, and why (AFP-V0-192, CIN-V1-941).
 	Cause *UnboundedCause `json:"cause,omitempty"`
 	// Glob is set on a PATH_GLOB_READER witness only: the unit's literal glob
 	// pattern that matches DirtyPath (AFP-V0-401), and on a
@@ -121,7 +122,8 @@ type ReadScopeCause struct {
 
 // UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:
 // Unit is the unit itself, or the root-locating unit it depends on or whose
-// dependent its tests import, and Reads is that unit's unboundedReads.
+// dependent its tests import, and Reads is that unit's unboundedReads or its
+// unresolved runtime-edge degradation (CIN-V1-941).
 type UnboundedCause struct {
 	Unit  string `json:"unit"`
 	Reads string `json:"reads"`
@@ -566,6 +568,19 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.testEmbedReadersOf(reached, normalized)
 	graph.inboundRuntimeCallers(reached, followed, normalized)
 	graph.inboundRevisionCallers(reached, followed, normalized)
+	// The widening is independent of dirty-path ownership and semantic pruning.
+	// Even a changed holder test or a newly analyzable source keeps the whole closure.
+	if len(normalized) != 0 {
+		for id, witness := range graph.runtimeWidening {
+			witness.DirtyPath = normalized[0]
+			reached[id] = witness
+			followed[id] = true
+			// An unresolved edge cannot prove that a command's build is
+			// unaffected, even when the dirty path is only a holder test.
+			// Carry the whole closure into runnable consumers and warnings.
+			rebuilt[id] = witness
+		}
+	}
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
@@ -775,7 +790,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		participating[name] = true
 		steered := graph.steeredBy(name, dirty)
 		for _, reason := range graph.frontierBy[name] {
-			if !steered {
+			if !steered && !graph.entryNamesAny(name, reason, dirty) {
 				if verdict := graph.frontierEntryVerdict(name, reason, hosted, reached, followed, dirty, false); verdict.closed && verdict.fixture {
 					fixtureClosed[name] = append(fixtureClosed[name], reason)
 					if hostedBy[name] == nil {
@@ -834,7 +849,20 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			}
 			steered := graph.readsResolutionInput(name, unowned)
 			for _, entry := range graph.frontierBy[name] {
-				if steered || (graph.bearsOnUnowned(name, entry, closed) && !graph.unownedOutsideRunnerSite(name, entry, unowned)) {
+				if !steered && !graph.entryNamesAny(name, entry, unowned) {
+					verdict := graph.frontierEntryVerdict(name, entry, hosted, reached, followed, dirty, false)
+					if verdict.closed && verdict.fixture {
+						fixtureClosed[name] = append(fixtureClosed[name], entry)
+						if hostedBy[name] == nil {
+							hostedBy[name] = make(map[string]bool)
+						}
+						for _, host := range verdict.hosts {
+							hostedBy[name][host] = true
+						}
+						continue
+					}
+				}
+				if steered || (graph.bearsOnUnowned(name, entry, closed, unowned) && !graph.unownedOutsideRunnerSite(name, entry, unowned)) {
 					bear(FrontierBearer{Detail: entry, Via: FrontierBearerUnownedPath, Language: name, DirtyPath: unowned[0]})
 					if !reasons[entry] {
 						reasons[entry] = true
@@ -894,6 +922,20 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		unknown = append(unknown, entry)
 		if len(unowned) == 0 && slices.Contains(graph.frontierBy[name], reason) {
 			closable = append(closable, entry)
+		}
+	}
+	// Runtime degradation always bears on its reached test holders. Add its
+	// entry and sources together so the ordinary ordering and cap also apply.
+	for _, edge := range graph.degradedRuntimeEdges {
+		detail := runtimeEdgeDegradation(edge)
+		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: detail})
+		for id, witness := range reached {
+			if slices.ContainsFunc(graph.units[id].Tests, func(p string) bool {
+				return runtimeEdgeHolds(edge.Tests, p)
+			}) {
+				bear(FrontierBearer{Detail: detail, Via: FrontierBearerReachedUnit,
+					Unit: id, Witness: witness.Kind, DirtyPath: witness.DirtyPath})
+			}
 		}
 	}
 	var excluded []FrontierExclusion
@@ -1194,14 +1236,22 @@ func (graph *Graph) hostedFixtureDirectories(unowned []string) []string {
 // `testdata` directories, below which the plugin lists no path, and the entry
 // locates no site there. A `+N` bound hides sites the rule cannot inspect, so
 // it is kept.
-func (graph *Graph) bearsOnUnowned(name, entry string, fixtures []string) bool {
+func (graph *Graph) bearsOnUnowned(name, entry string, fixtures, unowned []string) bool {
 	fields := strings.SplitN(entry, ":", 4)
 	if len(fields) < 2 {
 		return true
 	}
 	reason := fields[0] + ":" + fields[1]
 	if graph.sourceBound[name][reason] {
-		return false
+		if len(fields) == 2 {
+			// Source-only resolution proves a bare reason cannot bind a
+			// foreign path, independently of site records (AFP-V0-511).
+			if only, ok := graph.claimants[name].(SourceOnlyFrontiers); ok &&
+				slices.Contains(only.SourceOnlyFrontiers(), reason) {
+				return false
+			}
+		}
+		return graph.entryNamesAny(name, entry, unowned)
 	}
 	if !graph.fixtureClosed[name][reason] || len(fixtures) == 0 {
 		return true
@@ -1216,6 +1266,44 @@ func (graph *Graph) bearsOnUnowned(name, entry string, fixtures []string) bool {
 	for _, directory := range fixtures {
 		if strings.HasPrefix(site, directory+"/") {
 			return true
+		}
+	}
+	return false
+}
+
+// entryNamesAny preserves a source-bound site's explicit reads before applying
+// the declaration's negative proof (AZU-V1-960). Alias targets live in the
+// unit's tokens; overflow entries use the complete site record. A located
+// site with no owner, a missing site record, or a bounded token set cannot
+// prove absence of a read. Only nonempty, owned site lists with complete token sets can.
+func (graph *Graph) entryNamesAny(name, entry string, dirty []string) bool {
+	sites := graph.frontierEntrySites(name, entry)
+	if len(sites) == 0 {
+		return true
+	}
+	for _, site := range sites {
+		file := graph.siteFile(site)
+		id, owned := graph.owner[file]
+		if !owned || graph.units[id].PathTokensBounded {
+			return true
+		}
+		tokens := graph.units[id].PathTokens
+		// Display tokens also retain unresolved literal references that an
+		// adapter did not put in its path-token index.
+		if _, token, found := strings.Cut(site, "`"); found {
+			if token, _, closed := strings.Cut(token, "`"); closed {
+				tokens = append(slices.Clone(tokens), token)
+			}
+		}
+		for _, path := range dirty {
+			if path == file {
+				return true
+			}
+			for _, token := range tokens {
+				if namesPath(token, strings.Split(path, "/")) {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -1244,7 +1332,7 @@ func (graph *Graph) unownedOutsideRunnerSite(name, entry string, unowned []strin
 		}
 		if fixtureDirectory(dirtyPath) != "" {
 			fixtures := graph.hostedFixtureDirectories([]string{dirtyPath})
-			if len(fixtures) == 0 || graph.listsBelowAny(name, fixtures) || graph.bearsOnUnowned(name, entry, fixtures) {
+			if len(fixtures) == 0 || graph.listsBelowAny(name, fixtures) || graph.bearsOnUnowned(name, entry, fixtures, unowned) {
 				return false
 			}
 			continue

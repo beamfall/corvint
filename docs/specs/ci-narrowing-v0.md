@@ -43,6 +43,62 @@ kill switch keep their thresholds; no row is seeded or synthetic.
 
 ## Requirements
 
+- `CIN-V1-940`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5087)
+  When `affected` encounters an unresolved runtime-edge target, it SHALL retry complete graph
+  validation with conservative edge widening. Strict `Build` and `BuildPartial` retain
+  AFP-V0-819. Only unknown targets with known test holders qualify; malformed declarations,
+  unknown test holders and unrelated graph failures retain their existing refusal.
+  Snapshot planning retries over its materialized root; ignored-file rebuilds retry while
+  their exclusion is held. Both use the same typed-error admission as ordinary planning.
+- `CIN-V1-941`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5087)
+  Each degraded edge SHALL select every test holder and the full reverse closure of its
+  imports, advisory and route edges, test imports, executions and file readers on every
+  nonempty change. Terminal edges do not stop this closure. Selected units run whole;
+  source/test changes and semantic or name-only narrowing cannot remove that widening.
+  Unrelated units remain eligible for normal exclusion; unresolved unit IDs are never
+  guessed into filesystem paths.
+  Resolve test-selection declarations before widening. Every closure round includes declared
+  test owners of reached source and test paths, then follows those owners' reverse dependents.
+  The closure includes declared binary consumers of testless commands: runnable consumers
+  are selected and consumers without a runner retain their existing uncertainty. Widened
+  units are registered as unbounded readers with a graph-bound degradation cause, so
+  independent witness validation can resolve both units and declared consumers. Only that
+  explicit runtime degradation may substitute for a consumer's ordinary build witness;
+  an arbitrary unbounded read is insufficient.
+- `CIN-V1-942`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5087)
+  The existing `plan.unknown` LANGUAGE_FRONTIER detail SHALL identify every degraded edge's
+  tests, runs, declaration reason and unresolved-target reason using the prefix
+  `runtime:unresolved-edge:`. Each detail retains its reached test-holder bearers under
+  TSP-V0-942, including their reaching witnesses and the normal unit-source cap.
+  The plan stays UNKNOWN. CI SHALL retain those details in the
+  optional `narrowing.json` `degradedRuntimeEdges` array without treating this widening as a
+  FULL cause. This string array is the charter-authorized record addition; normal records
+  omit it and retain their shape. Other guards remain binding. The `.github` caller patch
+  needs its own PR;
+  until integrated, hosted degradation recording is NOT_PRODUCED.
+
+### Unresolved runtime-edge compatibility (V1-5087)
+
+The trusted base tool can predate the analyzer that recognizes a newly declared target.
+The simpler baseline refuses the complete graph and runs FULL. CIN-V1-940..942 preserve
+strict library callers while allowing `affected` to revalidate and widen that edge's area.
+The failed strict graph is never cached; the retry observes declarations afresh and produces
+its own digest, whose existing runtime-edge entries bind the unresolved declaration.
+
+Non-goals: guessing target paths, weakening malformed-input checks, changing other profile shapes,
+changing existing error text or codes, modifying `.github` in this lane, or changing FULL
+backstops. Failure modes: no known holder or any other validation failure refuses; unresolved
+reach selects whole units with explicit uncertainty, independent of dirty-file ownership.
+Acceptance: the fixtures in `TestRuntimeEdgeWidening_CINV1940` and
+`TestRuntimeEdgeWideningRefusals_CINV1940`, and CLI coverage in
+`TestAffectedRuntimeEdgeWidening_CINV1940`. `TestRuntimeEdgeDegradationRecord_CINV1942`
+exercises the record projection in
+`tools/ci-forward-row/runtime-edges.jq`; hosted integration remains pending.
+Rollback: remove the retry in `affectedBuildGraph`; strict AFP-V0-819 refusal resumes. Remove
+only the corresponding CI record projection after no producer emits its detail prefix.
+Maintenance: keep the widening closure aligned with graph dependency and reader relations.
+
+
 - `CIN-V0-7620`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4355)
   `tools/ci-test-slices replay` SHALL accept `--parallel N` (1..64, default 1) and
   `--compile-link DURATION` (nonnegative, default 0). It SHALL use the existing
@@ -138,6 +194,14 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   "$BASE_SHA" HEAD` and fails with it; a make target keeps the step mirrorable by batch-precheck.
   A pull request run without `BASE_SHA` SHALL fail. A tree without the script, a merge-queue run
   and a push say so and pass; the step carries the AFP-V0-670 REUSE condition.
+  V1-5621 AC2 amendment (standing approval, 2026-11-18): the shared checker also enforces
+  ASD-V0-560 author and committer identity rules. When `GITHUB_EVENT_PATH` is supplied on a PR,
+  the make target MUST read and validate its exact `pull_request.head.sha` and use
+  `BASE_SHA..head.sha`, excluding the synthetic checkout merge. An unreadable or invalid event
+  MUST refuse; an explicit local range retains its existing behavior. Acceptance: the shell
+  guard suite exercises the actual make target with a clean PR head and an offending synthetic
+  merge, plus author and committer violations in PR commits. Rollback: restore the target
+  and range checker from the lane base; existing trailer checks remain.
 - **CIN-V0-007:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2902)
   A `go-product-shard` job SHALL NOT start when `docs-plan` succeeded with mode `DOCS` or `REUSE`,
   and `go-product` SHALL accept a skipped shard result only for that decision. A skip under any
@@ -1261,3 +1325,9 @@ batch-precheck` and `make batch-push-check` are the checks before a push.
 | `CIN-V0-7504` | `.github/workflows/ci.yml` web-flows-plan/web-flows/go-product; `TestCINV07504WebFlowsConsumerJob`, `TestCINV07504WorkflowPlanFlags` (actual CLI option parser); live PR/MQ evidence remains NOT_OBSERVED until publication is authorized. |
 | `CIN-V0-7505` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestAFPV0591CoverageGuard`. |
 | `CIN-V0-7506` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestCLIErrorContracts_ACXV0859`. |
+
+| Requirements | Implementation | Evidence |
+| --- | --- | --- |
+| CIN-V1-940, CIN-V1-941, CIN-V1-942 | `runtime_edges.go`, `select.go`, `affectedBuildGraph` | `TestRuntimeEdgeWidening_CINV1940`, `TestRuntimeEdgeWideningRefusals_CINV1940`, `TestRuntimeWideningConsumersAndWitnesses_CINV1941`, `TestAffectedRuntimeEdgeWidening_CINV1940`, `TestRuntimeEdgeDegradationAdmission_CINV1942`, `TestRuntimeEdgeDegradationRecord_CINV1942`; hosted record integration pending the separate `.github` patch |
+| CIN-V1-940 | `affectedBuildGraph` in snapshot and ignored-file plans | `TestAffectedRuntimeEdgeSnapshot_CINV1940`, `TestAffectedRuntimeEdgeIgnoredRebuild_CINV1940` |
+| CIN-V1-941 | `runtimeEdgeWidening`, `resolveTestSelection` | `TestRuntimeEdgeWideningDeclaredOwners_CINV1941` |

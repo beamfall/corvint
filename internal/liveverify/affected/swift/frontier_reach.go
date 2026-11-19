@@ -12,6 +12,10 @@ func (Language) SourceBoundFrontiers() []string {
 	return []string{FrontierConditionalCompilation}
 }
 
+// SourceOnlyFrontiers preserves the source-only conditional-compilation proof
+// for bare reasons without requiring located sites (AFP-V0-511, AZU-V1-960).
+func (language Language) SourceOnlyFrontiers() []string { return language.SourceBoundFrontiers() }
+
 // FixtureClosedFrontiers names the path-open reasons whose hidden edge is the
 // test runner (AFP-V0-511): dynamic test discovery and an unresolved test
 // framework bind which tests a target's runner executes, never a file below a

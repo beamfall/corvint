@@ -99,9 +99,10 @@ type observation struct {
 	configs   []string
 	puppeteer bool
 	test      bool
-	// aliasTargets are the paths an unresolved tsconfig alias of the module
+	// aliasTargets are the paths any tsconfig alias alternative of the module
 	// could load, added to its path tokens (TJAA-V0-1161).
 	aliasTargets []string
+	aliasBounded bool
 	// dataTokens are the path-shaped strings of the JSON modules the module
 	// imports (TJAA-V0-622), candidate reads beside its own literals.
 	dataTokens []string
@@ -345,7 +346,9 @@ type sourceIndex struct {
 	// specifiers maps the content offset of every literal import, export-from, require and
 	// literal dynamic-import specifier to its text (TJAA-V0-126).
 	specifiers map[int]string
-	starts     []int
+	// literalRequires keeps CommonJS paths before query or fragment interpretation.
+	literalRequires []string
+	starts          []int
 	// spelled maps a reference an alias rewrote to the specifier the module spelled.
 	spelled map[string]string
 }
@@ -533,7 +536,10 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			continue
 		}
 		scan := scanImportSites(relative, body)
-		sites[relative] = &sourceIndex{body: body, offsets: scan.offsets, specifiers: scan.specifiers}
+		sites[relative] = &sourceIndex{
+			body: body, offsets: scan.offsets, specifiers: scan.specifiers,
+			literalRequires: scan.literalRequires,
+		}
 		opaque[relative] = scan.err != nil || scan.dynamic >= 0 || scan.unresolved >= 0
 		if scan.err != nil {
 			frontier.at(FrontierUnparsedSource, relative, body, scan.syntax)
@@ -630,7 +636,33 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		if ref, unresolved := unresolvedBareImport(root, observation.path, observation.refs, scopes); unresolved {
 			sites.raiseRef(frontier, reason(observation.path, ref), observation.path, ref)
 		}
+		for _, ref := range observation.refs {
+			targets, bounded := packageImportTargets(observation.path, ref, bodies)
+			observation.aliasTargets = append(observation.aliasTargets, targets...)
+			observation.aliasBounded = observation.aliasBounded || bounded
+			if bounded {
+				sites.raiseRef(frontier, reason(observation.path, ref), observation.path, ref)
+			}
+		}
+		var candidates []string
+		for _, target := range observation.aliasTargets {
+			tokens, bounded := foreignModuleCandidates(root, target)
+			candidates = append(candidates, tokens...)
+			observation.aliasBounded = observation.aliasBounded || bounded
+			if bounded {
+				frontier.raiseToken(FrontierUnresolvedImport, observation.path, target)
+			}
+		}
+		observation.aliasTargets = candidates
 		observation.dataTokens = jsonModuleTokens(root, observation.path, observation.refs, frontier)
+		// Node require treats query and fragment characters as literal filename bytes.
+		// Keep that read alongside the existing URL interpretation, before token pruning.
+		for _, ref := range sites[observation.path].literalRequires {
+			candidate := path.Clean(path.Join(path.Dir(observation.path), ref))
+			tokens, bounded := commonJSLiteralCandidates(root, candidate)
+			observation.dataTokens = append(observation.dataTokens, tokens...)
+			observation.aliasBounded = observation.aliasBounded || bounded
+		}
 	}
 	var e2eConfigs []string
 	for _, config := range configs {
@@ -638,7 +670,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			e2eConfigs = append(e2eConfigs, config.directory)
 		}
 	}
-	return buildResult(observations, configs, scopes, sites, frontier, root.HeldIgnored(), reason), frontier, e2eConfigs, nil
+	return buildResult(observations, configs, scopes, sites, frontier, root, reason), frontier, e2eConfigs, nil
 }
 
 // pathAliasMarker returns the offset of the first `"paths"` or `"baseUrl"` key in a tsconfig.
@@ -721,7 +753,7 @@ func tsconfigToken(body string) int {
 	return strings.Index(clean, "tsconfig")
 }
 
-func buildResult(observations []observation, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet, excluded func(string) bool, aliasReason func(owner, ref string) string) affected.Result {
+func buildResult(observations []observation, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet, root *affected.Source, aliasReason func(owner, ref string) string) affected.Result {
 	units := make([]affected.Unit, 0, len(observations))
 	pathToID := make(map[string]string, len(observations))
 	refs := make(map[string]map[string]bool, len(observations))
@@ -745,7 +777,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 			}
 			unit.Tests = append(unit.Tests, observation.path)
 			tokens, bounded := pathTokens(observation.body)
-			unit.PathTokensBounded = unit.PathTokensBounded || bounded
+			unit.PathTokensBounded = unit.PathTokensBounded || bounded || observation.aliasBounded
 			for _, token := range tokens {
 				storybookTokens[groupID][token] = true
 			}
@@ -754,25 +786,17 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 				storybookRefs[groupID][ref] = true
 			}
 			dataTokens[groupID] = append(dataTokens[groupID], observation.dataTokens...)
+			dataTokens[groupID] = append(dataTokens[groupID], observation.aliasTargets...)
 			continue
 		}
 		id := unitID(observation.runner, observation.path)
 		unit := affected.Unit{ID: id}
 		unit.PathTokens, unit.PathTokensBounded = pathTokens(observation.body)
-		if len(observation.aliasTargets) != 0 && !unit.PathTokensBounded {
-			merged := make(map[string]bool, len(unit.PathTokens)+len(observation.aliasTargets))
-			for _, token := range unit.PathTokens {
-				merged[token] = true
-			}
-			for _, target := range observation.aliasTargets {
-				merged[target] = true
-			}
-			if len(merged) > maxPathTokens {
-				unit.PathTokens, unit.PathTokensBounded = nil, true
-			} else {
-				unit.PathTokens = sortedKeys(merged)
-			}
+		unit.PathTokensBounded = unit.PathTokensBounded || observation.aliasBounded
+		if unit.PathTokensBounded {
+			unit.PathTokens = nil
 		}
+
 		if observation.test {
 			unit.Tests = []string{observation.path}
 		} else {
@@ -783,7 +807,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		}
 		units = append(units, unit)
 		pathToID[observation.path] = id
-		dataTokens[id] = observation.dataTokens
+		dataTokens[id] = append(append([]string(nil), observation.dataTokens...), observation.aliasTargets...)
 		refs[id] = stringSet(observation.refs)
 		direct[id] = make(map[string]bool)
 		for _, configPath := range observation.configs {
@@ -823,12 +847,25 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 				site, token := unitRefSite(*unit, sites, ref)
 				frontier.raiseToken(FrontierPathAlias, site, token)
 			}
-			target, local, unresolved := resolveImport(owner, ref, pathToID, excluded)
+			target, local, unresolved := resolveImport(owner, ref, pathToID, root.HeldIgnored())
 			if target != "" && target != unit.ID {
 				edges[target] = true
 			}
 			if target != "" {
 				resolved[ref] = true
+			}
+			// A source match does not prove the runtime cannot load a foreign
+			// candidate. Preserve those reads before pruning resolved literals.
+			if local {
+				clean := strings.SplitN(strings.SplitN(ref, "?", 2)[0], "#", 2)[0]
+				candidate := path.Clean(path.Join(path.Dir(owner), clean))
+				// A literal path outside the repository cannot name a tracked
+				// foreign file; retain its existing unresolved-import claim.
+				if affected.ValidRelativePath(candidate) {
+					tokens, bounded := foreignModuleCandidates(root, candidate)
+					dataTokens[unit.ID] = append(dataTokens[unit.ID], tokens...)
+					unit.PathTokensBounded = unit.PathTokensBounded || bounded
+				}
 			}
 			if local && unresolved {
 				site, token := unitRefSite(*unit, sites, ref)
@@ -847,7 +884,9 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		// SLF-V1-004: an importer of a module, or of a bare package, also reads its manual mock.
 		mocks.add(owner, refs[unit.ID], edges, unit.ID)
 		unit.Imports = sortedKeys(edges)
-		unresolvedSpecifierTokens(unit, sites, resolved)
+		if !unit.PathTokensBounded {
+			unresolvedSpecifierTokens(unit, sites, resolved)
+		}
 		mergeDataTokens(unit, dataTokens[unit.ID])
 	}
 	units = append(units, packages.built()...)
@@ -1130,16 +1169,17 @@ func scanImports(relative, body string) ([]string, bool, error) {
 // mocks holds the offset of every jest.mock or vi.mock call whose target is not a literal
 // (SLF-V1-004); a literal target is a reference in refs.
 type importScan struct {
-	refs           []string
-	offsets        map[string]int
-	specifiers     map[int]string
-	dynamic        int
-	requireDynamic int
-	unresolved     int
-	syntax         int
-	err            error
-	globs          []loaderCall
-	mocks          []loaderCall
+	refs            []string
+	offsets         map[string]int
+	specifiers      map[int]string
+	literalRequires []string
+	dynamic         int
+	requireDynamic  int
+	unresolved      int
+	syntax          int
+	err             error
+	globs           []loaderCall
+	mocks           []loaderCall
 }
 
 func scanImportSites(relative, body string) importScan {
@@ -1194,6 +1234,9 @@ func scanImportSites(relative, body string) importScan {
 				}
 			}
 			continue
+		}
+		if ref.commonJS && strings.HasPrefix(ref.text, ".") && strings.ContainsAny(ref.text, "?#") {
+			scan.literalRequires = append(scan.literalRequires, ref.text)
 		}
 		add(ref.text, ref.offset)
 		scan.specifiers[ref.offset] = ref.text
@@ -1402,9 +1445,10 @@ func scanRequires(body string, typed bool) ([]importRef, int, bool) {
 // importRef is one literal specifier and the byte offset where it starts, or, with loader set, a
 // glob or mock call (SLF-V1-003, SLF-V1-004).
 type importRef struct {
-	text   string
-	offset int
-	loader *loaderCall
+	text     string
+	offset   int
+	loader   *loaderCall
+	commonJS bool
 }
 
 // markDynamic records the offset of the first computed loading call.
@@ -1502,7 +1546,7 @@ func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, type
 		if end > len(body) {
 			return len(body), false
 		}
-		*refs = append(*refs, importRef{text: body[after+1 : end-1], offset: after + 1})
+		*refs = append(*refs, importRef{text: body[after+1 : end-1], offset: after + 1, commonJS: true})
 		index = end
 	}
 	return len(body), !stopAtBrace
