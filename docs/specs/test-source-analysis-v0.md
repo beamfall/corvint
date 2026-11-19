@@ -855,9 +855,9 @@ tests and this section; the committed decision file is unchanged.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-660 | `internal/testsource/duplicates.go`, `cmd/corvint/tests.go` | `TestDuplicatesCallerDecisions`, `TestTestsDuplicatesDecisionsCLI` | experimental |
+| TSA-V0-660 | `internal/testsource/duplicates.go`, `cmd/corvint/tests.go` | `TestDuplicatesCallerDecisions`, `TestTestsDuplicatesDecisionsCLI` (removed) | experimental |
 | TSA-V0-661 | `internal/testsource/duplicates.go` | `TestDuplicatesCallerDecisions` | experimental |
-| TSA-V0-662 | `internal/testsource/duplicates.go` | `TestDuplicatesCallerDecisions`, `TestTestsDuplicatesDecisionsCLI` | experimental |
+| TSA-V0-662 | `internal/testsource/duplicates.go` | `TestDuplicatesCallerDecisions`, `TestTestsDuplicatesDecisionsCLI` (removed) | experimental |
 | TSA-V0-853 | `internal/testsource/duplicates.go`, `cmd/corvint/tests.go` | `TestDuplicatesUnpinnedWarningTSAV0853` | experimental |
 
 ### Assertion parity between linked tests (V1-2843)
@@ -1392,10 +1392,10 @@ the `tests validity` subcommand, the `DiscoverWithSources` callers, the pending 
 | TSA-V0-065 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleSharedOnly`, `TestApplyExampleSourceHygiene` | experimental |
 | TSA-V0-066 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleDescribedClassStub`, `TestApplyExampleSourceStrength` | experimental |
 | TSA-V0-067 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleDescribedClassStub`, `TestRSpecExampleSkippedAndFocused` | experimental |
-| TSA-V0-068 | `internal/testvaliditydoc/ruby_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverRubySourceRules`, `TestTestValidityDiscoverRSpecSourceRules`, `TestApplyExampleSourceHygiene` | experimental |
-| TSA-V0-069 | `internal/testvalidity/source_rules_rspec.go` | `TestApplyExampleSourceStrength`, `TestTestValidityDiscoverRSpecSourceRules` | experimental |
-| TSA-V0-070 | `internal/rubytestprovider/document.go` | `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestTestValidityDiscoverRSpecSourceRules` | experimental |
-| TSA-V0-071 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTestsValidityCLI`, `TestSourceValidityReport`, `TestSourceValidityRefusals` | experimental |
+| TSA-V0-068 | `internal/testvaliditydoc/ruby_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverRubySourceRules`, `TestTestValidityDiscoverRSpecSourceRules` (removed), `TestApplyExampleSourceHygiene` | experimental |
+| TSA-V0-069 | `internal/testvalidity/source_rules_rspec.go` | `TestApplyExampleSourceStrength`, `TestTestValidityDiscoverRSpecSourceRules` (removed) | experimental |
+| TSA-V0-070 | `internal/rubytestprovider/document.go` | `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestTestValidityDiscoverRSpecSourceRules` (removed) | experimental |
+| TSA-V0-071 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTestsValidityCLI` (removed), `TestSourceValidityReport`, `TestSourceValidityRefusals` | experimental |
 | TSA-V0-072 | `internal/testsource/validity_command.go`, `internal/testsource/validity_rspec_examples.go` | `TestSourceValidityReport`, `TestDiscoverRubySourceRules` | experimental |
 
 ## JS/TS example hygiene and strength in test-validity (V1-1858)
@@ -1581,8 +1581,8 @@ persisted.
 | TSA-V0-078 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
 | TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock`, `TestJSExampleBarrelAndAliasSubjects` | experimental |
 | TSA-V0-080 | `internal/testvalidity/source_rules_jsts.go` | `TestApplyJSExampleSource` | experimental |
-| TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
-| TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
+| TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` (removed) | experimental |
+| TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` (removed) | experimental |
 | TSA-V0-083 | `internal/testsource/validity_js_examples.go`, `internal/testvaliditydoc/js_source.go` | `TestJSExampleSourcesShapes`, `TestDiscoverJSSourceRules` | experimental |
 
 ## Jest test files in test-validity (V1-2041)
@@ -1827,7 +1827,7 @@ reader caches they use; callers then read the earlier rules unchanged, and nothi
 | TSA-V0-127 | `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
 | TSA-V0-128 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
 | TSA-V0-129 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestJSExampleAssertions`, `TestFlowReviewRSpec` | experimental |
-| TSA-V0-130 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestTestsValidityCLI` | experimental |
+| TSA-V0-130 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestTestsValidityCLI` (removed) | experimental |
 
 ## Ruby vacuous examples and cross-file helpers in test-validity (V1-1866)
 
@@ -3317,7 +3317,7 @@ their tests and this section. Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-100 | `internal/testsource/validity_command.go`, `internal/testsource/seed_parity.go`, `cmd/corvint/tests.go` | `TestTSAV0100SeedLinkArguments`, `TestTSAV0108SeedParityCLI` | experimental |
+| TSA-V0-100 | `internal/testsource/validity_command.go`, `internal/testsource/seed_parity.go`, `cmd/corvint/tests.go` | `TestTSAV0100SeedLinkArguments`, `TestTSAV0108SeedParityCLI` (removed) | experimental |
 | TSA-V0-101 | `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go`, `internal/testsource/validity_rspec.go` | `TestTSAV0101SeedShapeRSpec`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0101SeedNamedSubject`, `TestTSAV0101SeedOverriddenEagerLet`, `TestTSAV0101SeedYAMLQuotedComment` | experimental |
 | TSA-V0-102 | `internal/testsource/seed_parity.go` | `TestTSAV0102SeedNormalisation`, `TestTSAV0101SeedShapeRSpec` | experimental |
 | TSA-V0-103 | `internal/testsource/seed_parity.go`, `internal/testvalidity/source_rules_seed.go` | `TestTSAV0103SeedIdenticalShapesParity`, `TestTSAV0104SeedCountDivergence`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
@@ -3325,7 +3325,7 @@ their tests and this section. Nothing is persisted.
 | TSA-V0-105 | `internal/testsource/seed_parity.go` | `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
 | TSA-V0-106 | `internal/testsource/seed_parity.go` | `TestTSAV0106SeedAggregateSingleMember`, `TestTSAV0106SeedShouldAggregate` | experimental |
 | TSA-V0-107 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go` | `TestTSAV0107SeedNotAnalysed`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0107SeedFixtureOversizeNoFallback` | experimental |
-| TSA-V0-108 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0108SeedParityCLI` | experimental |
+| TSA-V0-108 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0108SeedParityCLI` (removed) | experimental |
 | TSA-V0-109 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go` | `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0100SeedLinkArguments` | experimental |
 | TSA-V0-644 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go` | `TestTSAV0644SeedHelpers` | experimental |
 
@@ -3834,12 +3834,12 @@ Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-200 | `internal/playwrightruns/response_wait.go`, `cmd/corvint/runs_response_wait.go` | `TestResponseWaitServerLog`, `TestResponseWaitAbstains`, `TestRunsResponseWaitCLI` | experimental |
-| TSA-V0-201 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitSlowResponse`, `TestResponseWaitRequestNeverSent` | experimental |
-| TSA-V0-202 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitRequestNeverSent`, `TestResponseWaitServerLog` | experimental |
-| TSA-V0-203 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitSlowResponse`, `TestResponseWaitServerLog` | experimental |
-| TSA-V0-204 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitAbstains`, `TestRunsResponseWaitCLI` | experimental |
-| TSA-V0-205 | `cmd/corvint/runs_response_wait.go` | `TestRunsResponseWaitCLI` | experimental |
+| TSA-V0-200 | `internal/playwrightruns/response_wait.go`, `cmd/corvint/runs_response_wait.go` | `TestResponseWaitServerLog` (removed), `TestResponseWaitAbstains` (removed), `TestRunsResponseWaitCLI` (removed) | experimental (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
+| TSA-V0-201 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitSlowResponse` (removed), `TestResponseWaitRequestNeverSent` (removed) | experimental (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
+| TSA-V0-202 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitRequestNeverSent` (removed), `TestResponseWaitServerLog` (removed) | experimental (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
+| TSA-V0-203 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitSlowResponse` (removed), `TestResponseWaitServerLog` (removed) | experimental (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
+| TSA-V0-204 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitAbstains` (removed), `TestRunsResponseWaitCLI` (removed) | experimental (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
+| TSA-V0-205 | `cmd/corvint/runs_response_wait.go` | `TestRunsResponseWaitCLI` (removed) | experimental (untested: V1-5694 source-removal B2/B3 retired these witnesses) |
 | TSA-V0-206 | `internal/testsource/role_locators.go`, `cmd/corvint/tests_env_contract.go` | `TestRoleLocatorsCommitted`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
 | TSA-V0-207 | `internal/testsource/role_locators.go` | `TestRoleLocatorUnrendered` | experimental |
 | TSA-V0-208 | `internal/testsource/role_locators.go` | `TestRoleLocatorUnrendered`, `TestRoleLocatorAbstains` | experimental |
