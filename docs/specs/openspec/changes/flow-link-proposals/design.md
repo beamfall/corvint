@@ -14,26 +14,29 @@
    selection.
 
 3. **Confidence score.** Each proposal holds `confidence` from 0.00 to 1.00 with two decimals and
-   `confidenceFormula` naming the formula version. The formula is deterministic: the same inputs give
+   `confidenceFormula` naming the formula version. The formula is deterministic: the same inputs
+   give
    the same score. Version 1 cites a title path matching the flow or variation name, a
    source tag naming the flow, and static reachability from the test file to declared flow files.
    Missing inputs contribute zero and are listed as `absent`. Route visits and entry-symbol
    reachability are future inputs for a later formula version. The score orders and filters
-   proposals for review; it never accepts, and never enters selection.
+   proposals for review; it never accepts, and never enters selection. The fixed weights are
+   0.35 for title, 0.25 for the source tag and 0.40 for static reach.
 
 4. **Accept.** `corvint-docs flows accept --flow ID --by NAME [--variation V] [--only TEST_ID...]`
    copies the chosen proposals of one flow into `.corvint/flows.json` as link records, with
    `accepted_by` = NAME and `accepted_at` = the current UTC time. Acceptance is per flow. It refuses
    with `flow-accept-needs-person` when standard input is not a terminal, and no MCP tool, hook,
-   Tasks gate or Action step calls it. Corvint cannot prove that a person ran the command; the review
-   of the commit that changes `.corvint/flows.json` is the check. Whether the terminal check is kept
-   is Open 2.
+   Tasks gate or Action step calls it. Corvint cannot prove that a person ran the command; the
+   review
+   of the commit that changes `.corvint/flows.json` is the check.
 
 5. **Link record.** `{test_id, variation_id, evidence[], confidence, confidenceFormula, accepted_by,
-   accepted_at, pinned_commit, test_content_hash, variation_digest}`. `test_id` is the canonical test ID
+   accepted_at, pinned_commit, test_content_hash, variation_digest}`. `test_id` is the canonical
+   test ID
    (CTI-V1-005 for Playwright, which holds the file path and title path). `pinned_commit` is HEAD at
    acceptance. `test_content_hash` is the blob digest of the test file at that commit;
-   `variation_digest` is the SHA-256 of the variation's canonical JSON record in
+   `variation_digest` is the SHA-256 of the canonical variation record resolved through
    `.corvint/flows.json` at that commit. The record stores no
    test `kind`. Kind is a property of the test: the report and the planner read it from the test
    inventory by the canonical `test_id`, with `unit` as the default and the kind source reported
@@ -45,7 +48,8 @@
    source are evidence for proposals only.
 
 7. **Staleness and agreement.** A link is stale when the test file's blob digest differs from
-   `test_content_hash` or the canonical variation digest differs from `variation_digest`; a stale link's
+   `test_content_hash` or the canonical variation digest differs from `variation_digest`; a stale
+   link's
    test runs as `unassigned` with reason `link-stale`. A link whose test is not reached by static
    reachability from the changed files while its flow is, or the reverse, does not narrow: the test
    runs with reason `link-reachability-disagrees`. If flow reachability cannot be computed at the
@@ -80,7 +84,8 @@ the base schemas; variation_digest and the reduced v1 inputs replace it, fail cl
 
 - PROD-DOCS-012 scenario: `flows propose --links` on a fixture with Playwright tests shows proposals
   with evidence and scores, and a plan made before acceptance runs every E2E test as `unassigned`.
-- After `flows accept --flow F --by NAME`, the plan narrows only through F's links, with tier `flow`.
+- After `flows accept --flow F --by NAME`, the plan narrows only through F's links, with tier
+  `flow`.
 - Stale, disagreeing and dangling fixtures each run the test with their reason.
 - A determinism test: two proposal runs on the same inputs give identical scores.
 - Proposals and acceptance recorded on Corvint's own flows (PROD-DOCS-012 acceptance evidence).
@@ -94,11 +99,6 @@ the base schemas; variation_digest and the reduced v1 inputs replace it, fail cl
 ## Rollback
 
 Revert the change's commits. Link records already in `.corvint/flows.json` stay as data; with the
-reader reverted they are ignored, and every E2E test runs as before. The private proposals file can be
+reader reverted they are ignored, and every E2E test runs as before. The private proposals file
+can be
 deleted. FLP-V1-001 to FLP-V1-011 stay listed as retired if the change is withdrawn.
-
-## Open
-
-1. The confidence formula's inputs and weights.
-2. Whether `flows accept` keeps the terminal check.
-3. The proposals file name and profile.

@@ -24,7 +24,7 @@ type FlowTestLink struct {
 	AcceptedAt        string   `json:"accepted_at"`
 	PinnedCommit      string   `json:"pinned_commit"`
 	TestContentHash   string   `json:"test_content_hash"`
-	RoutesDigest      string   `json:"routes_digest"`
+	VariationDigest   string   `json:"variation_digest"`
 }
 
 // HasAcceptance checks only the stored acceptance fields. A true result must
@@ -68,7 +68,7 @@ func validateFlowsV1(file *flowsDeclarationV1File) (*FlowsDeclaration, error) {
 			return nil, fmt.Errorf("test link %d has more than %d evidence items", i, maxFlowList)
 		}
 		fields := []string{link.TestID, link.ConfidenceFormula, link.AcceptedBy, link.AcceptedAt,
-			link.PinnedCommit, link.TestContentHash, link.RoutesDigest}
+			link.PinnedCommit, link.TestContentHash, link.VariationDigest}
 		for _, field := range append(fields, link.Evidence...) {
 			if len(field) > maxFlowText {
 				return nil, fmt.Errorf("test link %d text exceeds %d bytes", i, maxFlowText)

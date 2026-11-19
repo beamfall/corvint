@@ -8,8 +8,10 @@ canonical spec is updated in the same change (G14).
 ### Requirement: FLP-V1-001 Propose links, with a bulk bootstrap
 Source: PROD-DOCS-012; G11 (owner answer); owner decision R12 (2026-11-09).
 Status: proposed 2026-11-09; delivery not-started.
-`corvint-docs flows propose --links` MUST propose, for each unassigned E2E test in the test inventory,
-the flow variations it most likely exercises, each with cited evidence. `--all` MUST propose for every
+`corvint-docs flows propose --links` MUST propose, for each unassigned E2E test in the test
+inventory,
+the flow variations it most likely exercises, each with cited evidence. `--all` MUST propose for
+every
 E2E test in the inventory. Proposing MUST NOT run tests and MUST NOT change any file under
 `.corvint/`.
 
@@ -61,7 +63,8 @@ tool, hook, Tasks gate or GitHub Action step MAY accept a link, whatever its sco
 ### Requirement: FLP-V1-005 Accept refuses without a terminal
 Source: owner decision R12 (2026-11-09).
 Status: proposed 2026-11-09; delivery not-started.
-`flows accept` MUST refuse with `flow-accept-needs-person` when standard input is not a terminal. The
+`flows accept` MUST refuse with `flow-accept-needs-person` when standard input is not a terminal.
+The
 specification MUST state that Corvint cannot prove a person ran the command and that review of the
 commit changing `.corvint/flows.json` is the check.
 
@@ -75,7 +78,8 @@ Source: G11 (owner answer).
 Status: proposed 2026-11-09; delivery not-started.
 A link record MUST hold `test_id` (the canonical test ID, CTI-V1-001, carrying the file path and
 title path), `variation_id`, `evidence`, `confidence`, `confidenceFormula`, `accepted_by`,
-`accepted_at` (UTC), `pinned_commit`, `test_content_hash` and `variation_digest`, the SHA-256 of the canonical JSON
+`accepted_at` (UTC), `pinned_commit`, `test_content_hash` and `variation_digest`, the SHA-256 of
+the canonical JSON
 variation record in `.corvint/flows.json` at `pinned_commit`. A record missing
 `accepted_by`, `accepted_at` or `pinned_commit` MUST be treated as unaccepted. A link record MUST
 NOT hold a test `kind`; the kind is read from the test inventory by `test_id` (decided 2026-11-09
@@ -94,7 +98,8 @@ links. A browser E2E test with no accepted link MUST run and MUST be counted `un
 selection made through an accepted link MUST carry tier `flow` (LEV-V1-009).
 
 #### Scenario: after acceptance
-- **GIVEN** an accepted link from a Playwright test to variation V, and a change that reaches no file
+- **GIVEN** an accepted link from a Playwright test to variation V, and a change that reaches no
+  file
   or symbol of V
 - **WHEN** `corvint affected` plans the change
 - **THEN** that test is not selected, and every unassigned E2E test is selected

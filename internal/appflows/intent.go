@@ -112,9 +112,10 @@ type Retired struct {
 
 // IntentSet is the validated intent directory, flows sorted by ID.
 type IntentSet struct {
-	Dir     string
-	Flows   []FlowIntent
-	Retired Retired
+	variationDigests map[string]string // Canonical JSON records read from each intent file.
+	Dir              string
+	Flows            []FlowIntent
+	Retired          Retired
 	// Revision is the commit the set was read from by LoadIntentsAt; it is empty for a working-tree read.
 	Revision string
 }
@@ -199,6 +200,9 @@ func (s *IntentSet) add(name string, raw []byte) error {
 	}
 	if intent.FlowID+".json" != name {
 		return fmt.Errorf("%s: flow_id must equal the file name", name)
+	}
+	if err := s.bindVariationDigests(raw, intent); err != nil {
+		return fmt.Errorf("%s: %w", name, err)
 	}
 	s.Flows = append(s.Flows, intent)
 	return nil

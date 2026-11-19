@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/testid"
 )
 
 // The `flows status` document (AFU-V1-160 to AFU-V1-165, V1-5257): one trackable view of each flow,
@@ -158,6 +159,16 @@ func FlowStatus(ctx context.Context, root string, set IntentSet, options StatusO
 		_, unassigned := unlinkedTests(set, links, options.Inventory.Provider.Inventory)
 		report.Unassigned = &unassigned
 	}
+	records, err := linkStatus(ctx, root, set, at)
+	if err != nil {
+		return nil, err
+	}
+	if records != nil {
+		report.Inventory, report.Unassigned = records.inventory, nil
+		if records.inventory.State == InventoryComplete {
+			report.Unassigned = &records.unassigned
+		}
+	}
 	for _, intent := range flows {
 		own := flowLinks(links, intent.FlowID)
 		flow := StatusFlow{FlowID: intent.FlowID, Proposed: intent.Proposed, Reason: reasons[intent.FlowID], Variations: []StatusVariation{}}
@@ -171,6 +182,22 @@ func FlowStatus(ctx context.Context, root string, set IntentSet, options StatusO
 				projects = []string{""}
 			}
 			targets := attachedTestTargets(own, v.VariationID)
+			if records != nil {
+				targets = nil
+				for _, row := range records.rows[v.VariationID] {
+					report.Totals.Tests++
+					if report.Totals.Tests > MaxStatusTests {
+						report.Truncated = true
+						continue
+					}
+					if row.Reason == "" {
+						id, _ := testid.Parse(row.TestKey)
+						target := testTarget{key: row.TestKey, path: id.File}
+						row = store.settle(lastResultFor(evidence, target, row.Project, len(v.Projects) > 1, at), evidence, target, row.Project, len(v.Projects) > 1, at)
+					}
+					variation.Tests = append(variation.Tests, row)
+				}
+			}
 			for _, target := range targets {
 				for _, project := range projects {
 					report.Totals.Tests++
@@ -183,7 +210,7 @@ func FlowStatus(ctx context.Context, root string, set IntentSet, options StatusO
 					variation.Tests = append(variation.Tests, result)
 				}
 			}
-			if len(targets) == 0 {
+			if len(targets) == 0 && (records == nil || len(records.rows[v.VariationID]) == 0) {
 				variation.Code = GapNoTest
 			}
 			slices.SortFunc(variation.Tests, func(a, b StatusTest) int {

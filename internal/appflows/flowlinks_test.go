@@ -19,7 +19,7 @@ func fixtureFlowTestLink() FlowTestLink {
 		Evidence:   []string{"0123456789abcdef0123456789abcdef01234567:e2e/cart.spec.ts"},
 		Confidence: 0.75, ConfidenceFormula: "fixture/0", AcceptedBy: "Fixture reviewer",
 		AcceptedAt: "2026-11-18T12:00:00Z", PinnedCommit: "0123456789abcdef0123456789abcdef01234567",
-		TestContentHash: strings.Repeat("1", 40), RoutesDigest: strings.Repeat("2", 64),
+		TestContentHash: strings.Repeat("1", 40), VariationDigest: strings.Repeat("2", 64),
 	}
 }
 

@@ -223,7 +223,14 @@ func FlowGaps(ctx context.Context, root string, set IntentSet, evidence []TestRu
 		gaps := flowGaps(intent, flowLinks(links, intent.FlowID), evidence, at)
 		report.Flows = append(report.Flows, GapFlow{FlowID: intent.FlowID, Status: status(gaps), Gaps: gaps})
 	}
-	if provider != nil {
+	records, err := linkStatus(ctx, root, set, at)
+	if err != nil {
+		return nil, err
+	}
+	if records != nil {
+		report.Inventory, report.UnlinkedTests, report.UnlinkedTotal = records.inventory, records.gaps, records.unassigned
+		report.UnlinkedTruncated = len(records.gaps) < records.unassigned
+	} else if provider != nil {
 		report.Inventory = provider.state(root, at)
 		report.UnlinkedTests, report.UnlinkedTotal = unlinkedTests(set, links, provider.Provider.Inventory)
 		report.UnlinkedTruncated = report.UnlinkedTotal > len(report.UnlinkedTests)

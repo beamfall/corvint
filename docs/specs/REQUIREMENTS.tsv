@@ -376,7 +376,7 @@ AFP-V0-2374	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A d
 AFP-V0-2375	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A narrowed package SHALL run `-run ^(KEPT...)$` with	unrecorded	-
 AFP-V0-2376	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) The changed declarations SHALL be read per changed	unrecorded	-
 AFP-V0-2377	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A package SHALL be refused narrowing, with the reason	unrecorded	-
-AFP-V0-2378	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing	unrecorded	-
+AFP-V0-2378	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) The retired typed-reach harness SHALL replay	unrecorded	-
 AFP-V0-9009	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-9010	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-9011	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
@@ -721,6 +721,8 @@ AFP-V0-9208	docs/specs/affected-reader-precision-v0.md	(accepted under the owner
 AFP-V0-9209	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
 AFP-V0-9510	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5165)	standing	2026-10-11; V1-5165
 AFP-V0-9810	docs/specs/affected-reader-precision-v0.md	(experimental under the owner's standing lane auto-accept; lane affprec2	standing	-
+AZU-V1-960	docs/specs/affected-zero-unknown-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4679)	standing	2026-10-11; V1-4679
+AZU-V1-961	docs/specs/affected-zero-unknown-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4679)	standing	2026-10-11; V1-4679
 AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	**Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
 AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	**Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list	unrecorded	-
 AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	**Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTB	unrecorded	-
@@ -1154,7 +1156,7 @@ AFU-V1-130	docs/specs/application-flow-understanding-v1.md	`corvint flows --help
 AFU-V1-131	docs/specs/application-flow-understanding-v1.md	`corvint flows ingest --format playwright-json` MUST key each test the way a	unrecorded	-
 AFU-V1-251	docs/specs/application-flow-understanding-v1.md	A `playwright-list` import MUST join the listed specs that share a repository	unrecorded	-
 AFU-V1-252	docs/specs/application-flow-understanding-v1.md	A variation's `no-test` gap MUST read `only inferred test links, which count onc	unrecorded	-
-AFU-V1-950	docs/specs/application-flow-understanding-v1.md	Three decoders of a Playwright `--reporter=json` report remain, each a different	unrecorded	-
+AFU-V1-950	docs/specs/application-flow-understanding-v1.md	The JS provider's `jstestprovider.ParsePlaywrightJSON` and the	unrecorded	-
 AFU-V1-810	docs/specs/application-flow-understanding-v1.md	`e2e-safe-selection/1` MUST carry `frontier_excluded`, one entry per plan	unrecorded	-
 AFU-V1-811	docs/specs/application-flow-understanding-v1.md	When a flow's static calls are anchored in more than one path, each flow-diagram	unrecorded	-
 AFU-V1-904	docs/specs/application-flow-understanding-v1.md	`corvint flows ingest` MUST treat `--run-id`, `--runner-version`,	unrecorded	-
@@ -2395,6 +2397,9 @@ CWR-V0-013	docs/specs/change-witness-relation-v0.md	the relation MUST NOT be des
 CWR-V0-014	docs/specs/change-witness-relation-v0.md	the declared resolver is exactly Go `go/parser` plus `go/ast` over the target	unrecorded	-
 CWR-V0-015	docs/specs/change-witness-relation-v0.md	the evaluator returns exactly one outcome, `witnessed`, `withheld`, or `abstaine	unrecorded	-
 CCEP-V0-001	docs/specs/ci-control-plane-early-post-v0.md	(proposed, owner instruction 2026-11-08; V1-5102; amends AFP-V0-016/079/855	unrecorded	-
+CIN-V1-940	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5087)	standing	2026-10-11; V1-5087
+CIN-V1-941	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5087)	standing	2026-10-11; V1-5087
+CIN-V1-942	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5087)	standing	2026-10-11; V1-5087
 CIN-V0-7620	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4355)	standing	2026-10-11; V1-4355
 CIN-V0-7500	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2864) The tier	standing	2026-10-11; V1-2864
 CIN-V0-7501	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4119) The shar	standing	2026-10-11; V1-4119
@@ -5654,6 +5659,7 @@ GLS-V0-020	docs/specs/go-line-selection-v0.md	(accepted under the owner's standi
 GLS-V0-030	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365)	standing	2026-10-11; V1-4365
 GLS-V0-031	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) Each mut	standing	2026-10-11; V1-4365
 GLS-V0-032	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) Negative	standing	2026-10-11; V1-4365
+GLS-V0-060	docs/specs/go-line-selection-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-19; V1-5709)	standing	2026-11-19; V1-5709
 GLS-V0-033	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) The repo	standing	2026-10-11; V1-4365
 GLS-V0-034	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) The	standing	2026-10-11; V1-4365
 GLS-V0-035	docs/specs/go-line-selection-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-11; V1-4365)	standing	2026-11-11; V1-4365
@@ -6227,6 +6233,21 @@ LRF-V0-013	docs/specs/lexical-relevance-floor-v0.md	the profile MUST be an addit
 LRF-V0-014	docs/specs/lexical-relevance-floor-v0.md	input, deterministic work, and canonical output MUST remain within the exact fro	unrecorded	-
 LRF-V0-015	docs/specs/lexical-relevance-floor-v0.md	every corpus subject, selection, artifact, source-edge, raw-label, adjudication,	unrecorded	-
 LRF-V0-016	docs/specs/lexical-relevance-floor-v0.md	the trusted independent custodian MUST run the frozen implementation over all si	unrecorded	-
+LEV-V1-001	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One writing verb for line evidence.	owner	2026-11-18; #235
+LEV-V1-002	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Private storage per runner instance.	owner	2026-11-18; #235
+LEV-V1-003	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Evidence bound to the tree.	owner	2026-11-18; #235
+LEV-V1-004	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Missing or damaged evidence widens.	owner	2026-11-18; #235
+LEV-V1-005	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Line-exact runners.	owner	2026-11-18; #235
+LEV-V1-006	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) pytest selects by file with its tier label.	owner	2026-11-18; #235
+LEV-V1-007	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Line evidence never removes a browser E2E test.	owner	2026-11-18; #235
+LEV-V1-008	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Per-test E2E line narrowing is opt-in and experim	owner	2026-11-18; #235
+LEV-V1-009	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One tier vocabulary.	owner	2026-11-18; #235
+LEV-V1-010	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One-line reason per selection.	owner	2026-11-18; #235
+LEV-V1-011	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Tier line only after fault-injection proof.	owner	2026-11-18; #235
+LEV-V1-012	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One reader for every consumer.	owner	2026-11-18; #235
+LEV-V1-013	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) The Action builds and caches evidence.	owner	2026-11-18; #235
+LEV-V1-014	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Argument limits.	owner	2026-11-18; #235
+LEV-V1-015	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One-shot commands plan the working tree.	owner	2026-11-18; #235
 LPCV-V0-7705	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3938)	standing	2026-10-11; V1-3938
 LPCV-V0-001	docs/specs/live-proof-carrying-verification-v0.md	Every edit event MUST produce or reference one WSI before selection begins.	unrecorded	-
 LPCV-V0-002	docs/specs/live-proof-carrying-verification-v0.md	The WSI MUST cover accepted unsaved editor buffers as content-addressed overlays	unrecorded	-
@@ -6665,7 +6686,7 @@ MCJ-V0-017	docs/specs/map-coverage-join-v0.md	Shared-step exclusion runs in shad
 MCJ-V0-018	docs/specs/map-coverage-join-v0.md	A miss marks that equivalence class divergent in the next index until a blob in	unrecorded	-
 MCJ-V0-019	docs/specs/map-coverage-join-v0.md	The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 10	unrecorded	-
 MCJ-V0-025	docs/specs/map-coverage-join-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-4944
-MMR-V0-001	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) `corvint-mcp` MUST accept	owner	decision 0441; V1-0938
+MMR-V0-001	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938; enum amended by owner delegation 2026-11-19	owner	decision 0441; V1-0938; 2026-11-19; V1-5694
 MMR-V0-002	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) An alias MUST match	owner	decision 0441; V1-0938
 MMR-V0-003	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) Every declared root MUST be validated	owner	decision 0441; V1-0938
 MMR-V0-004	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) In multi-root mode `tools/list` MUST	owner	decision 0441; V1-0938
@@ -6757,7 +6778,7 @@ MTV-V0-004	docs/specs/mcp-test-validity-profile-v0.md	With neither `receipt` nor
 MTV-V0-005	docs/specs/mcp-test-validity-profile-v0.md	With a `receipt`, the document MUST be exactly what `corvint test-validity	unrecorded	-
 MTV-V0-006	docs/specs/mcp-test-validity-profile-v0.md	A successful result's `structuredContent` MUST be `{schema:	unrecorded	-
 MTV-V0-007	docs/specs/mcp-test-validity-profile-v0.md	The tool MUST open no network connection or listener, start no process, run no	unrecorded	-
-MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	`conformance/mcp-test-validity-v0/cases.json` MUST hold the profile's black-box	unrecorded	-
+MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	Retired by source-removal B2; the former black-box corpus was removed.	unrecorded	-
 MTV-V0-009	docs/specs/mcp-test-validity-profile-v0.md	`discover: true` (decision 0202) MUST return, as the result's `document`, exactl	unrecorded	-
 MTV-V0-010	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1781) The	standing	2026-10-11; V1-1781
 MTV-V0-950	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2185) The HTTP	standing	2026-10-11; V1-2185
@@ -7474,7 +7495,7 @@ PGO-V0-012	docs/specs/process-group-owner-v0.md	(accepted under the owner's stan
 PGO-V0-016	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1244). In the	standing	2026-10-11; V1-1244
 PGO-V0-017	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2111) Every Ow	standing	2026-10-11; V1-2111
 PGO-V0-018	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) `Owner.S	standing	2026-10-11; V1-1387
-PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The deve	standing	2026-10-11; V1-1387
+PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The	standing	2026-10-11; V1-1387
 PGO-V0-020	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1651) The obse	standing	2026-10-11; V1-1651
 PGO-V0-021	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0692) The POSI	standing	2026-10-11; V1-0692
 PGO-V0-022	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2399) On Linux	standing	2026-10-11; V1-2399
@@ -7695,6 +7716,7 @@ RCF-V1-009	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-
 RCF-V1-010	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Rerun on change	owner	2026-11-18
 RCF-V1-011	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Status and stability updates in one commit	owner	2026-11-18
 RCF-V1-012	docs/specs/release-candidate-4-v1.md	(accepted by the owner, 2026-11-18) Rollback	owner	2026-11-18
+RCF-V1-013	docs/specs/release-candidate-4-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5692)	standing	2026-10-11; V1-5692
 REL-V1-001	docs/specs/release-process-v1.md	Milestone M0 re-scopes the v1-0 release object. Before any removal lane starts,	unrecorded	-
 REL-V1-002	docs/specs/release-process-v1.md	Milestone M5a qualification candidate. A qualification candidate tag MUST be pus	unrecorded	-
 REL-V1-003	docs/specs/release-process-v1.md	Release calendar. The freeze MUST be 2026-12-15. Stable MUST NOT be promoted bef	unrecorded	-
@@ -7886,7 +7908,7 @@ RSP-V0-021	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's
 RSP-V0-022	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
 RSP-V0-023	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) ma	standing	2026-10-11; decision 0592
 RSP-V0-024	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
-RSP-V0-025	docs/specs/runner-selection-plugins-v0.md	(accepted, decision 0592 (owner 2026-11-07, "Yes, both forms")) A runner's piece	owner	decision 0592; 2026-11-07
+RSP-V0-025	docs/specs/runner-selection-plugins-v0.md	(accepted, decision 0596; amended 2026-11-18 under RMV-V1-010) MODIFIED:	owner	decision 0596; 2026-11-18
 RSP-V0-026	docs/specs/runner-selection-plugins-v0.md	(accepted, decision 0592 (owner 2026-11-07, "Yes, both forms")) `corvint-runner/	owner	decision 0592; 2026-11-07
 RSP-V0-027	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
 RSP-V0-028	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592

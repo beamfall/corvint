@@ -13,8 +13,8 @@ owner G14 acceptance of the change on 2026-11-18, recorded in PR #235.
 ## Agent digest
 - Claim: Propose flow links for human acceptance; only accepted, fresh links may narrow E2E tests.
 - Status: proposed / experimental
-- Exists: The canonical requirements and the version 1 link-record codec.
-- Blocked on: Variation-route contracts, observed-route evidence and the LEV-V1 selection tier.
+- Exists: Private proposals, terminal acceptance and the canonical-inventory plan join.
+- Blocked on: Owner self-use acceptance and external outcome qualification.
 - Read next: Requirements; Delivery and traceability; Compatibility and rollback.
 
 ## User and scope
@@ -98,7 +98,8 @@ commit changing `.corvint/flows.json` is the check.
 
 A link record MUST hold `test_id` (the canonical test ID, CTI-V1-001, carrying the file path and
 title path), `variation_id`, `evidence`, `confidence`, `confidenceFormula`, `accepted_by`,
-`accepted_at` (UTC), `pinned_commit`, `test_content_hash` and `variation_digest`, the SHA-256 of the canonical JSON
+`accepted_at` (UTC), `pinned_commit`, `test_content_hash` and `variation_digest`, the SHA-256 of
+the canonical JSON
 variation record in `.corvint/flows.json` at `pinned_commit`. A record missing
 `accepted_by`, `accepted_at` or `pinned_commit` MUST be treated as unaccepted. A link record MUST
 NOT hold a test `kind`; the kind is read from the test inventory by `test_id` (decided 2026-11-09
@@ -179,64 +180,53 @@ MUST select its whole group with a printed reason, and an accepted link MUST NOT
 
 ## Delivery and traceability
 
-Task 2 stores records only. No propose or accept command is delivered. Version 1 planning remains
-FULL while the route, inventory join and tier contracts are unavailable; record presence or a score
-cannot enable narrowing. The existing runner marks this unenumerated E2E obligation incomplete;
-it does not claim an empty successful run. Version 0 retains its existing behavior.
+The plan joins committed inventory IDs to accepted variation records and checks the candidate
+test blob, variation and static graph. Unassigned IDs stay selected inside mixed Playwright files.
+Independent full-instance or static obligations may widen execution.
 
 | Requirement | Implementation | Evidence |
 | --- | --- | --- |
-| FLP-V1-001 | Blocked: route inputs absent | (untested: proposal integration blocked) |
-| FLP-V1-002 | Blocked with proposal command | (untested: no private writer delivered) |
-| FLP-V1-003 | Blocked with proposal inputs | (untested: no formula delivered) |
-| FLP-V1-004 | Blocked with proposal command | (untested: acceptance not delivered) |
-| FLP-V1-005 | Blocked with acceptance command | (untested: terminal refusal not delivered) |
-| FLP-V1-006 | `internal/appflows/flowlinks.go` | `TestFLPV1006LinkRecordRoundTrip`, `TestFLPV1006MissingAcceptance`, `TestFLPV1006ClosedRecord` |
-| FLP-V1-007 | Conservative version 1 guard only | `TestFLPV1007PendingIntegrationNeverNarrows` (partial; accepted-link narrowing untested) |
-| FLP-V1-008 | No proposal or tag selection path added | (untested: tag fixture awaits integration) |
-| FLP-V1-009 | Blocked: no variation route contract | (untested: stale fixtures await integration) |
-| FLP-V1-010 | Blocked: canonical inventory join | (untested: disagreeing and dangling fixtures await integration) |
-| FLP-V1-011 | Blocked: canonical inventory join | (untested: pytest group fixture awaits integration) |
-
-The eventual acceptance matrix is the scenarios above, including the mixed linked/unlinked file,
-one fixture per stale/disagreeing/dangling case, formula determinism and each evidence input, and
-CLI refusal and automation-reachability tests. Task 8 stays unticked: owner acceptance is required.
-The lane must never run acceptance on Corvint itself.
+| FLP-V1-001 | Unassigned, bulk and per-flow proposals | `TestFLPV1001PrivateBulkProposals` |
+| FLP-V1-002 | Private replacement, isolated from selection | `TestFLPV1001PrivateBulkProposals`, `TestFLPV1007AcceptedOnly` |
+| FLP-V1-003 | Versioned weights, pinned citations and absent inputs | `TestFLPV1003ConfidenceInputs`, `TestFLPV1001PrivateBulkProposals` |
+| FLP-V1-004 | Per-flow acceptance, absent and stale refusals | `TestFLPV1004AcceptanceCLI`, `TestFLPV1005NoAutomationAccepts` |
+| FLP-V1-005 | Terminal check before acceptance | `TestFLPV1004AcceptanceCLI`, `TestFLPV1005NoAutomationAccepts` |
+| FLP-V1-006 | Closed record and acceptance fields | `TestFLPV1006LinkRecordRoundTrip`, `TestFLPV1006MissingAcceptance`, `TestFLPV1006ClosedRecord` |
+| FLP-V1-007 | Mixed-file selection and flow tier, full fallback without inventory | `TestFLPV1007AcceptedOnly`, `TestFLPV1007PendingIntegrationNeverNarrows` |
+| FLP-V1-008 | Tags affect proposal order only | `TestFLPV1007AcceptedOnly`, `TestFLPV1003ConfidenceInputs` |
+| FLP-V1-009 | Test blob and canonical variation bindings | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1009CanonicalVariationDigest` |
+| FLP-V1-010 | Disagreement, unknown reach, missing test or variation | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1010DanglingTest` |
+| FLP-V1-011 | Browser pytest instance keeps its whole-group execution obligation | `TestFLPV1007AcceptedOnly` |
 
 ## Storage, trust boundary and limits
 
-Version 1 of `corvint-flows/N` adds `links`, an array of records with exactly the FLP-V1-006 fields.
-Variation IDs are already unique across the intent set; they identify the owning flow without a
-second flow ID. `evidence` is an array of opaque citation strings retained verbatim. This codec
-does not interpret a citation as proof. The variation digest binds the entire canonical variation record. Missing acceptance fields decode as unaccepted. A malformed timestamp, non-UTC offset,
-invalid commit ID or blank acceptor also grants no acceptance.
+G6 resolves the flow directory from `.corvint/flows.json`. The SHA-256 binds the canonical JSON
+of the complete variation object in the declared intent file at the reviewed commit. Canonical
+JSON ignores member order and whitespace and preserves absent members, nulls and array order.
+Test hashes are Git blob object IDs. The planner never opens the private proposal file.
 
-Confidence is a finite number in [0, 1]; the later proposal formula owns scoring and two-decimal
-rendering. It never participates in the acceptance predicate. The existing 64 KiB declaration
-limit remains; each record has at most 256 evidence items, each at most 4096 bytes, and text fields
-have the same 4096-byte bound. Unknown fields, including a test `kind`, are refused.
+Version 1 of `corvint-flows/N` adds `links`, an array with the FLP-V1-006 fields. Variation IDs
+are unique throughout the intent set. The 64 KiB declaration limit, 256 citations per record
+and 4096 bytes per text field apply. Unknown members are refused. Missing acceptance fields,
+invalid pins or invalid timestamps cannot authorize narrowing.
 
-Future proposals use `<git-dir>/corvint/flow-link-proposals.json` and profile
-`corvint-flow-link-proposals/0`. Absence and a different pinned commit refuse acceptance with
-`flow-proposals-absent` and `flow-proposals-stale`; nonterminal input refuses with
-`flow-accept-needs-person`. Selection never reads that private file. Missing or doubtful evidence
-widens selection. The formula weights remain unresolved because proposal inputs are blocked.
+Formula `flow-link-confidence/1` gives 0.35 for a matching title segment, 0.25 for a delimited
+`@flow:ID` token in the test source and 0.40 for static reach to a declared flow source.
+Proposal generation reads immutable Git objects. It keeps the highest scores for each eligible
+test within the requested flow scope, including ties. It limits comparisons to 16,384 and output
+to 5 MiB. Equal scores sort by canonical test ID and then variation ID.
+
+The private profile is `corvint-flow-link-proposals/0`. The writer replaces the worktree's
+`<git-dir>/corvint/flow-link-proposals.json` atomically. The terminal-only command rechecks the
+reviewed records at HEAD, writes the selected records together and preserves other links.
+A missing declaration has zero eligible flow variations. A declaration without readable inventory
+cannot produce a verified candidate set.
 
 ## Compatibility and rollback
 
-The G6 version table gains version 1; version 0 and its released member list and golden remain
-unchanged. The writer emits version 1, the highest supported version. Unsupported-version details
-list both supported versions, as FSV-V1-004 requires. Existing recordless version 0 plans retain
-their behavior. Version 1 plans cannot narrow until full integration is available.
+The writer emits version 1. The version 0 discovery path still serves repositories without
+canonical inventory. With canonical inventory, every unassigned browser test remains an obligation
+before the first acceptance. A reader that cannot interpret the schema widens to FULL.
 
-Revert this change to withdraw the codec. An older reader refuses version 1 and selects FULL;
-it does not silently read it as version 0. Keep the FLP-V1 IDs reserved. Promotion requires the
-entire acceptance matrix and a person's self-use acceptance, not just a schema round trip.
-
-## Recorded blockers
-
-At base `a359919975da48761fd263869cc2f000dae1fb79`, `FlowVariation` has no routes member;
-`TestRunEvidence`, `RunAttempt` and `runevidence.Row` have no observed-route member. Their closed
-contracts cannot be expanded by this lane. No LEV-V1 requirement is registered, and `E2ESelection`
-has no tier. The charter requires stopping a step whose design premise is absent. The evidence
-and restart conditions are in `../build-log/2026-11-18-flow-link-proposals.md`.
+Revert the implementation commits and remove the private proposal file to roll back. Retain the
+FLP-V1 IDs. Task 8 remains open for a person's self-use acceptance.

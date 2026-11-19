@@ -65,8 +65,7 @@ type FlowsDeclaration struct {
 	// `playwright` member (AFU-V1-140).
 	PlaywrightConfig    string
 	PlaywrightDiscovery string
-	// Links are version 1 records; they confer no selection authority until
-	// the FLP inventory, route and tier integration is available.
+	// Links are reviewed against canonical inventory and candidate reachability.
 	Links []FlowTestLink
 }
 
@@ -179,18 +178,8 @@ func JoinFlowPlan(ctx context.Context, root string, graph *affected.Graph, plan 
 		}
 		plan.Selected[i].TestKind = declared.KindOf(paths)
 	}
-	if declared.Version == 1 {
-		// FLP-V1-007: do not let the legacy path-level join interpret version
-		// 1 records. The required route and tier contracts are not on this
-		// base. FULL is the existing runner fallback, including tests not
-		// listed by legacy flow intents; no partial inventory is trusted.
-		plan.E2E = &affected.E2EPlan{Flows: declared.Dir, Scope: affected.E2EScopeFull,
-			Inventory: affected.E2EInventory{Source: affected.E2EInventoryFlows, State: "n/a"},
-			Selected:  []affected.E2ESelection{},
-			Unknown: []affected.Unknown{{Reason: affected.UnknownE2EInventoryUnderivable,
-				Detail: FlowsDeclarationPath,
-				Hint:   "version 1 link selection awaits the canonical inventory, route and tier integration; every E2E test must run"}}}
-		return plan
+	if usesCanonicalLinks(root, declared) {
+		return joinAcceptedLinks(ctx, root, graph, plan, declared)
 	}
 	if graph == nil {
 		return flowsDeclarationInvalid(plan, declared.Dir, "no graph to join the flows over")
@@ -255,7 +244,7 @@ type flowJoiner struct {
 func (j *flowJoiner) join() *affected.E2EPlan {
 	out := &affected.E2EPlan{Flows: j.declared.Dir, Selected: []affected.E2ESelection{}}
 	out.Inventory = j.deriveInventory()
-	j.checkBounds()
+	j.checkBounds(len(j.inventory))
 	j.checkGlobal()
 	j.checkPlanUnbounded()
 	for _, key := range slices.Sorted(maps.Keys(j.plan.FullInstances)) {
@@ -510,11 +499,11 @@ func (j *flowJoiner) fullReason() string {
 	return affected.E2EReasonBoundExceeded
 }
 
-func (j *flowJoiner) checkBounds() {
-	if len(j.plan.Dirty) > maxFlowPlanDirty || len(j.inventory) > maxFlowPlanInventory {
+func (j *flowJoiner) checkBounds(inventorySize int) {
+	if len(j.plan.Dirty) > maxFlowPlanDirty || inventorySize > maxFlowPlanInventory {
 		j.full = true
 		j.unknown = append(j.unknown, affected.Unknown{Reason: affected.UnknownE2EBoundExceeded,
-			Detail: fmt.Sprintf("changed-paths=%d inventory=%d", len(j.plan.Dirty), len(j.inventory)),
+			Detail: fmt.Sprintf("changed-paths=%d inventory=%d", len(j.plan.Dirty), inventorySize),
 			Hint:   fmt.Sprintf("the join is bounded at %d changed paths and %d inventory files; every E2E test is selected (APK-V0-004)", maxFlowPlanDirty, maxFlowPlanInventory)})
 	}
 }
