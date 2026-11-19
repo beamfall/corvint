@@ -81,7 +81,7 @@ the proposal header serves.
 |---|---|---|---|
 | `acceptance-record` | The one decision record that accepts the plan as amended, including the Python file-level release exception (R1, R9) | checklist O19 | auto-accepted |
 | `affected-change-status` | Base change status as a plan input, so name-listing shell readers stop selecting on edits (V1-5193, V1-5194) | PROD-TEST-001 | waiting for owner |
-| `affected-plan-kinds` | Test kind and kind source in the `affected` plan, reporting only (G13) | PROD-TEST-003, 004 | waiting for owner |
+| `affected-plan-kinds` | Test kind and kind source in the `affected` plan, reporting only (G13) | PROD-TEST-003, 004 | accepted |
 | `agent-packages` | Claude Code and Codex packages (blocking) and OpenCode and Pi packages (preview) in `beamfall/corvint-agents` | PROD-TEST-009, PROD-DOCS-001, PROD-TASK-007; PROD-INT-023 to 027 | waiting for owner |
 | `appmap-usable-ui-map` | A usable UI map for a react-router web app: mapped React routes, loop and helper gotos, subcommand help and a working-tree build (V1-5467, V1-5468, V1-5471, V1-5472) | PROD-DOCS-006 | auto-accepted |
 | `canonical-test-id` | One canonical test ID for every runner (RNC-V1-012, fresh IDs per R11) | PROD-TEST-006 | waiting for owner |
@@ -91,16 +91,16 @@ the proposal header serves.
 | `deadcode-ratchet` | A pinned dead-function report with a shrinking baseline, then deletion of what it lists (V1-4801, V1-4827) | none named (owner decision R33, checklist O42) | waiting for owner |
 | `docs-mcp-hardening` | Honest docs checks and usable docs MCP tools | PROD-DOCS-001, 003, 005, 007, 009 | waiting for owner |
 | `e2e-inventory-discovery` | Discovery of browser E2E tests into the inventory | PROD-TEST-004 | waiting for owner |
-| `fault-injection-harness` | Planted faults on the held-out repositories to test the no-missed-test claim (R19) | PROD-TEST-002, 011; PROD-INT-008 | waiting for owner |
-| `feature-map-from-flows` | Feature map generated from `.corvint/flows.json` (preview) | PROD-DOCS-004, 006, 011 | waiting for owner |
-| `flow-link-proposals` | Proposed links between tests and flows with a confidence score, accepted by a human only (R12) | PROD-DOCS-012; PROD-TEST-018 | waiting for owner |
+| `fault-injection-harness` | Planted faults on the held-out repositories to test the no-missed-test claim (R19) | PROD-TEST-002, 011; PROD-INT-008 | auto-accepted |
+| `feature-map-from-flows` | Feature map generated from `.corvint/flows.json` (preview) | PROD-DOCS-004, 006, 011 | accepted |
+| `flow-link-proposals` | Proposed links between tests and flows with a confidence score, accepted by a human only (R12) | PROD-DOCS-012; PROD-TEST-018 | accepted |
 | `flow-schema-version` | Schema version for the flow file | PROD-INT-016 | waiting for owner |
 | `flows-status-report` | `corvint flows status`, joining run results to flows | PROD-TEST-010 | waiting for owner |
-| `flows-unlinked-tests-report` | Report of E2E tests with no flow link; those tests always run | PROD-TEST-005 | waiting for owner |
+| `flows-unlinked-tests-report` | Report of E2E tests with no flow link; those tests always run | PROD-TEST-005 | accepted |
 | `github-action` | The GitHub Action in `beamfall/corvint-action` (R22 to R25) | PROD-TEST-012; PROD-INT-006 | waiting for owner |
-| `how-rewrite` | Rewrite of `corvint how` | PROD-DOCS-007; PROD-INT-004 | waiting for owner |
+| `how-rewrite` | Rewrite of `corvint how` | PROD-DOCS-007; PROD-INT-004 | accepted |
 | `jest-provider` | Jest runner provider, line-exact (R7, R8) | PROD-TEST-006, 008, 011 | waiting for owner |
-| `line-evidence` | Line-level evidence behind line-exact selection (R8, R9) | PROD-TEST-008 | waiting for owner |
+| `line-evidence` | Line-level evidence behind line-exact selection (R8, R9) | PROD-TEST-008 | accepted |
 | `hub-read-scopes` | Declared read scopes for the hub test packages, with whole-repository tests moved out (V1-5201, V1-5234) | PROD-TEST-001, 002 | waiting for owner |
 | `macos-required-shards` | Required macOS checks on the release candidate | PROD-INT-015 | waiting for owner |
 | `mcp-tool-table` | One table of MCP tool names and schemas; one `corvint-docs mcp` server (R13, R30) | PROD-DOCS-001, 010; PROD-TEST-009 | waiting for owner |
@@ -117,18 +117,18 @@ the proposal header serves.
 | `run-evidence` | Append-only record of test run results (R7) | PROD-TEST-020, 010 | waiting for owner |
 | `runner-contract` | Built-in runner contract for the seven blocking runners | PROD-TEST-006, 011 | waiting for owner |
 | `selection-hardening` | Close Python and JavaScript selection misses and give one verdict per plan | PROD-TEST-001, 002, 009, 014, 015, 016 | accepted (G14 auto, 2026-11-11; V1-5401); in delivery |
-| `source-removal` | Removal of the code, commands and files cut from 1.0, in batches (R34, R36) | PROD-TEST-002; PROD-INT-009, 010 | waiting for owner |
+| `source-removal` | Removal of the code, commands and files cut from 1.0, in batches (R34, R36) | PROD-TEST-002; PROD-INT-009, 010 | accepted |
 | `spec-set-cleanup` | A verdict for every older spec and process document, archived, rewritten or removed with the removal batches; one workflow document; done by 2026-12-01 (R37, R41). Needs `openspec-check` and `source-removal` first | PROD-INT-010, 011 | waiting for owner |
-| `tasks-conformance` | Conformance of the Tasks repository and the 21-day trial on `beamfall/core` (R17, R18); written in the Tasks repository | PROD-TASK-010 | waiting for owner |
-| `tasks-hardening` | `corvint-tasks` lease, read and status corrections before 1.0; built in the Tasks repository | PROD-TASK-002, 003, 005, 007 | waiting for owner |
+| `tasks-conformance` | Conformance of the Tasks repository and the 21-day trial on `beamfall/core` (R17, R18); written in the Tasks repository | PROD-TASK-010 | accepted |
+| `tasks-hardening` | `corvint-tasks` lease, read and status corrections before 1.0; built in the Tasks repository | PROD-TASK-002, 003, 005, 007 | accepted |
 | `tasks-integration` | Integration between Corvint and Tasks by files and IDs | PROD-TASK-003, 004, 006 to 013; PROD-INT-004 | waiting for owner |
-| `tasks-policy-v15` | Tasks queue policy v15 without `cemRequired`, `ocmRequired`, `cem-verdict` and `context-focused` (R3) | milestone M0 | waiting for owner |
-| `tasks-store-cutover` | Cut the Corvint task store over to a fresh store of 1.0 tickets (R42, C11 to C17) | milestone M0 | waiting for owner |
+| `tasks-policy-v15` | Tasks queue policy v15 without `cemRequired`, `ocmRequired`, `cem-verdict` and `context-focused` (R3) | milestone M0 | accepted |
+| `tasks-store-cutover` | Cut the Corvint task store over to a fresh store of 1.0 tickets (R42, C11 to C17) | milestone M0 | accepted |
 | `test-inventory` | One committed inventory under `.corvint/` for all seven runners, written by `corvint inventory refresh` (R10) | PROD-TEST-017 | waiting for owner |
 | `ticket-brief-context` | Ticket brief through `corvint context`, non-blocking (R28, R29) | PROD-TASK-006; PROD-INT-002 | waiting for owner |
 | `ticket-taxonomy` | Ticket categories, identity key, required fields and search; built in the Tasks repository (R42, C18 to C21) | PROD-TASK-005, 006, 007; PROD-INT-005, 011 | waiting for owner |
 | `traceability-gate-upgrade` | The traceability gate resolves `TestX/REQ-ID` citations against the test body and refuses the removal of a requirement's last test citation (V1-4803) | PROD-INT-005 | waiting for owner |
 | `trusted-shell-selection` | CI shell-test selection and the doc-gates target list come from the base tree, so a PR cannot weaken its own checks (V1-5097) | none named (V1-5097 acceptance criteria) | waiting for owner |
-| `user-docs` | User documents: first run, configuration, upgrade, errors, release notes and policy statements (product gaps) | PROD-INT-004, 006, 015, 017, 018 | waiting for owner |
-| `watch-flows-hardening` | Watch survives planning errors; flow-linked E2E selection leaves no linked test out | PROD-TEST-002, 003, 004, 005, 007 | waiting for owner |
+| `user-docs` | User documents: first run, configuration, upgrade, errors, release notes and policy statements (product gaps) | PROD-INT-004, 006, 015, 017, 018 | accepted |
+| `watch-flows-hardening` | Watch survives planning errors; flow-linked E2E selection leaves no linked test out | PROD-TEST-002, 003, 004, 005, 007 | accepted |
 | `watch-seven-runners` | Watch mode for the seven blocking runners | PROD-TEST-007 | waiting for owner |

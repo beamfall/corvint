@@ -8,7 +8,7 @@ Owning capability spec: `docs/specs/tasks-policy-v15.md`, a new spec with prefix
 Requirement IDs this change adds: TPV-V1-001 to TPV-V1-008
 Requirement IDs this change modifies: none
 Owner answers this change implements: owner decision R3 (2026-11-09)
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
 

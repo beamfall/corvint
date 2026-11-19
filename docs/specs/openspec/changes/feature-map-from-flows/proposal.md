@@ -12,7 +12,7 @@ decision R30). `FMP-` has no entry in
 `docs/specs/REQUIREMENTS.tsv` (checked 2026-11-09 on `claude/layers-integ` at `9ec3a29d0`).
 Owner answers and decisions this change implements: G6, G25 items 4 and 6, owner answer 10, owner
 decision R12 (2026-11-09) and owner decision R30 (2026-11-09)
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started. Release label: preview for 1.0; it never blocks the release. G25
 labels only items 1 and 2 as preview explicitly; this proposal applies the same label to item 4 as
 the task directs.
