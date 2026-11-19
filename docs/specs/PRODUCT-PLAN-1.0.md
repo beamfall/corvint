@@ -1,5 +1,8 @@
 # Corvint 1.0 product plan
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Owner: Russell Lewis (repository owner). This file proposes a plan. It accepts nothing.
 Date: 2026-11-09 (revision 3: folds in the owner answers of 2026-11-09, answers 1 to 18, G1 to G27,
 the review-round decisions R1 to R41 and the final-round delegation R42; owner decisions H1 to
@@ -529,7 +532,7 @@ Also part of the bar (owner decisions of 2026-11-09).
     `corvint` command (`cmd/corvint/watch.go` on integ `9ec3a29d0`). It is Go-only: the command
     refuses a non-Go index. It runs tests unless `--dry-run` is given, the opposite of G7's
     default. The macOS kqueue source is compile-checked only, `NOT_OBSERVED` live
-    (`docs/specs/live-proof-carrying-verification-v0.md:15@3bb12604`). (integ) The integ copy of
+    (`docs/specs/live-proof-carrying-verification-v0.md:18@3bb12604`). (integ) The integ copy of
     `internal/perfbudget/budgets.json` holds scenario `watch-replan` with an advisory p95
     target of 1000 ms and enforced provisional ceilings of 2500 ms and 64 MiB, and scenario
     `watch-replan-self`, followed by baseline samples (first sample 696.74 ms). No p50 target
@@ -2156,7 +2159,7 @@ The first draft of this file (commit `1d9dc4c90`) contained these errors or omis
 2. Watch is a `corvint` command and Go-only. The draft said the loop was the tool `linecov watch`.
    On the integration branch it is `corvint watch` (`cmd/corvint/watch.go`), Go-only (the command
    refuses a non-Go index), running tests by default unless `--dry-run`, with the macOS kqueue
-   source not observed live (`docs/specs/live-proof-carrying-verification-v0.md:15@3bb12604`;
+   source not observed live (`docs/specs/live-proof-carrying-verification-v0.md:18@3bb12604`;
    the first draft cited line 1285, which is wrong). G7 needs all seven runners and
    list-by-default.
 3. `AGENTS.md` licence text. `LICENSING.md:5-10@6536f97b` says the whole repository is Apache-2.0 since

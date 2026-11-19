@@ -15,7 +15,6 @@
     {"name": "corvint-cli", "package": "./cmd/corvint-cli", "role": "withheld", "decision": "0596"},
     {"name": "corvint-mcp", "package": "./cmd/corvint-mcp", "role": "product", "versionSet": "core", "decision": "0594"},
     {"name": "corvint-docs-mcp", "package": "./cmd/corvint-docs-mcp", "role": "product", "versionSet": "core", "decision": "0594"},
-    {"name": "corvint-test-validity-mcp", "package": "./cmd/corvint-test-validity-mcp", "role": "withheld", "decision": "0596"},
     {"name": "corvint-web-flows", "package": "./cmd/corvint-web-flows", "role": "withheld", "decision": "0596"},
     {"name": "corvint-test-runner", "package": "./cmd/corvint-test-runner", "role": "withheld", "decision": "0596"},
     {"name": "corvint-go-test-provider", "package": "./cmd/corvint-go-test-provider", "role": "withheld", "decision": "0596"},

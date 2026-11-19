@@ -13,7 +13,6 @@ conformance/release-artifact-v0/README.md
 conformance/tcq-0/README.md
 conformance/use-cases-v0/README.md
 conformance/vscode-extension-v0/README.md
-conformance/work-queue-v0/README.md
 docs/AGENT-ROUTES.md
 docs/DOGFOOD.md
 docs/SELF-DEVELOPMENT.md

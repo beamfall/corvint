@@ -75,10 +75,11 @@ func TestOwnershipReaderMissClasses_AZU_V0_8926(t *testing.T) {
 		class, path string
 		units       []string
 	}{
-		// N1: the Python tests read the cost and split tables; the Python
-		// plugin carries no path literal, so the owner names them.
-		{"N1", ".github/cishards/package-costs.json", []string{"python:.github.macos.shard_test", "python:tools.ci-reuse-replay.replay_test"}},
-		{"N1", ".github/cishards/test-split-allow.json", []string{"python:tools.ci-reuse-replay.replay_test"}},
+		// N1: the Python shard test reads the cost table; the Python plugin
+		// carries no path literal, so the owner names it. The Go shard package
+		// embeds both tables and survives the replay tool's retirement.
+		{"N1", ".github/cishards/package-costs.json", []string{"python:.github.macos.shard_test", "go:github.com/Beamfall/corvint/.github/cishards"}},
+		{"N1", ".github/cishards/test-split-allow.json", []string{"go:github.com/Beamfall/corvint/.github/cishards"}},
 		// N2: dr-numbers-check runs a script that reads the register as
 		// the default word of ${1:-...}.
 		{"N2", "conformance/divergence-register.md", []string{"driver:make:Makefile#dr-numbers-check"}},
@@ -256,20 +257,24 @@ type wholeTreeException struct {
 // reads the content or the name of every tracked path is a treeReaders entry
 // instead.
 var wholeTreeExceptions = map[string]wholeTreeException{
-	".github/consumers/gate.py":                  {nil, "git diff --name-only lists the paths the pull request merge commit changed, only to decide whether the VS Code extension suite runs; any doubt runs it, and it reads no ownership-rule path"},
-	".github/forward-rows/collect.sh":            {nil, "find runs over the downloaded artifact directory, never the repository"},
-	"script/acceptance-log-audit.sh":             {[]string{"docs/specs/openspec/changes/**"}, "find lists the change folders under docs/specs/openspec/changes"},
-	"script/analyzer-inputs.sh":                  {nil, "git diff --name-only lists go.mod, go.sum and the audited internal Go files that differ from a revision; its one caller in a recipe, the analyzer schema check, prints the list as a note that never changes the exit status"},
-	"script/batch-assemble.sh":                   {nil, "git merge-tree --name-only prints the conflicted paths of the lane merges it assembles: the result of merging other branches, never a read of this tree"},
-	"script/batch-regen.sh":                      {nil, "git ls-files lists only untracked files, to report what the regeneration wrote"},
-	"script/batch-review-packet.sh":              {nil, "git diff --name-only lists the paths each first-parent merge of the reviewed range changed, to print the overlap table of a review packet: it reads the range's history, judges nothing, and no path changes its exit status"},
-	"script/check-ci-least-privilege.sh":         {[]string{".github/workflows/*.yml", ".github/workflows/*.yaml"}, "git ls-files lists the workflow files; its exception table is a named path"},
-	"script/check-decision-numbers.sh":           {[]string{"docs/decisions/**"}, "git ls-files lists docs/decisions"},
-	"script/check-spec-claims.sh":                {[]string{"docs/specs/**"}, "git ls-files lists docs/specs"},
-	"script/check-test-script-refs.sh":           {[]string{"**/*_test.sh"}, "git ls-files lists the shell tests"},
-	"script/doc-gates-summary.sh":                {nil, "git diff --name-only decides only whether a hint about changed help sources is printed; the exit status is the wrapped command's"},
-	"script/gate-receipt":                        {nil, "git ls-files -v reads the index flags, which no path edit changes, and lists ignored Go files"},
-	"script/gen-documentation-paths.sh":          {[]string{"docs/*.md", "integrations/README.md", "integrations/*/README.md", "AGENTS.md", "CLAUDE.md", "internal/nativelinecov/README.md", "internal/runnerprotocol/README.md", "tools/runner-plugin/README.md", "tools/runner-reference/README.md"}, "git ls-files lists the documentation paths it generates the declaration from"},
+	".github/consumers/gate.py":          {nil, "git diff --name-only lists the paths the pull request merge commit changed, only to decide whether the VS Code extension suite runs; any doubt runs it, and it reads no ownership-rule path"},
+	".github/forward-rows/collect.sh":    {nil, "find runs over the downloaded artifact directory, never the repository"},
+	"script/acceptance-log-audit.sh":     {[]string{"docs/specs/openspec/changes/**"}, "find lists the change folders under docs/specs/openspec/changes"},
+	"script/analyzer-inputs.sh":          {nil, "git diff --name-only lists go.mod, go.sum and the audited internal Go files that differ from a revision; its one caller in a recipe, the analyzer schema check, prints the list as a note that never changes the exit status"},
+	"script/batch-assemble.sh":           {nil, "git merge-tree --name-only prints the conflicted paths of the lane merges it assembles: the result of merging other branches, never a read of this tree"},
+	"script/batch-regen.sh":              {nil, "git ls-files lists only untracked files, to report what the regeneration wrote"},
+	"script/batch-review-packet.sh":      {nil, "git diff --name-only lists the paths each first-parent merge of the reviewed range changed, to print the overlap table of a review packet: it reads the range's history, judges nothing, and no path changes its exit status"},
+	"script/check-ci-least-privilege.sh": {[]string{".github/workflows/*.yml", ".github/workflows/*.yaml"}, "git ls-files lists the workflow files; its exception table is a named path"},
+	"script/check-decision-numbers.sh":   {[]string{"docs/decisions/**"}, "git ls-files lists docs/decisions"},
+	"script/check-spec-claims.sh":        {[]string{"docs/specs/**"}, "git ls-files lists docs/specs"},
+	"script/check-test-script-refs.sh":   {[]string{"**/*_test.sh"}, "git ls-files lists the shell tests"},
+	"script/doc-gates-summary.sh":        {nil, "git diff --name-only decides only whether a hint about changed help sources is printed; the exit status is the wrapped command's"},
+	"script/gate-receipt":                {nil, "git ls-files -v reads the index flags, which no path edit changes, and lists ignored Go files"},
+	"script/gen-documentation-paths.sh": {
+		[]string{"docs/*.md", "integrations/README.md", "integrations/*/README.md",
+			"AGENTS.md", "CLAUDE.md", "internal/nativelinecov/README.md"},
+		"git ls-files lists the documentation paths it generates the declaration from",
+	},
 	"script/gen-spec-requirements.sh":            {[]string{"docs/specs/**"}, "git ls-files lists docs/specs; its one other input is a path literal, which selects it"},
 	"script/go-archive-gate":                     {nil, "find counts the files of its temporary release directory"},
 	"script/go-cache-trim.sh":                    {nil, "find walks the Go build cache outside the repository"},

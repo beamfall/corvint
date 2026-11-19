@@ -13,7 +13,7 @@ No test in the current source gate starts the retired implementation or requires
 | Genesis inventory | `internal/genesis`, native init/adopt CLI cases and frozen CLI corpus |
 | Source handoff | `cmd/corvint` source-handoff tests; `internal/gokernel` closed harness protocol tests (the host adapters were removed by decision 0594) |
 | Legacy Python wrapper process/forged-child output | Wrapper retired; Go adapters call the linked kernel directly. Strict host input and kernel response tests replace the removed IPC boundary; `internal/procgroup` retains native interruption/ownership regressions |
-| Source views | `cmd/corvint/source_handoff_test.go`; `benchmarks/selfuse-batch` is historical (the batch command was removed by decision 0594) |
+| Source views | `cmd/corvint/source_handoff_test.go`; batch retired by decision 0594 |
 | Benchmark contract/learned arm | `benchmarks/runner` independent case accounting, source proof, frozen provenance and threshold tests |
 | External CEM interop | `interop/cem01-go` verifies `cem/1.0` only; the `cem/0.1` runner and packet were removed by V1-1278 S3 and remain in Git history |
 | CEM 30×30 experiment | `experiments/cem-30x30`; frozen synthetic gate controls, exact rational arithmetic, bound human task registry and blinded ingestion |

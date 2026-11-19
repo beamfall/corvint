@@ -13,7 +13,6 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
-	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 )
 
 const machineCatalogPath = "internal/capcatalog/catalog.json"
@@ -32,7 +31,6 @@ func offlineToolNames() []string {
 	descriptors := (bridge.Profile{Flows: true}).Tools()
 	descriptors = append(descriptors, corpusbridge.AllTools()...)
 	descriptors = append(descriptors, (&docsbridge.Registry{}).Tools()...)
-	descriptors = append(descriptors, (&testvaliditybridge.Registry{}).Tools()...)
 	var names []string
 	for _, descriptor := range descriptors {
 		names = append(names, descriptor.Name)

@@ -147,9 +147,8 @@ Each MCP server is a local stdio process bound to one repository root and is rea
 |---|---|
 | `corvint-mcp` | `corvint.impact`, `corvint.status` and `corvint.help` |
 | `corvint-docs-mcp` | `corvint.docs_draft` drafts source-pinned documentation; `corvint.docs_consume` rechecks a draft against source |
-| `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
 
-`corvint mcp ARGS` serves the `corvint-mcp` server from the core binary (AHI-373); build the others with `GOTOOLCHAIN=local go build -o "$HOME/.local/bin/NAME" ./cmd/NAME`.
+`corvint mcp ARGS` serves the `corvint-mcp` server from the core binary (AHI-373); build the standalone servers with `GOTOOLCHAIN=local go build -o "$HOME/.local/bin/NAME" ./cmd/NAME`.
 
 The [Claude Code](integrations/claude-code/README.md) and [Codex](integrations/codex/README.md)
 plugins run `corvint` from `PATH` and drive kept reads such as `affected`, `impact`, `index` and `review`.

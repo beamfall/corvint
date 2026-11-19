@@ -32,7 +32,6 @@ internal/perfbudget/fixture.go:gitCommand: returns the *exec.Cmd for outputConta
 internal/releasecandidate/candidate.go:runSourceGit: fixed release environment with HOME in scratch and unbounded stdout; returns exec's error unchanged
 internal/rubylinecov/collect.go:collectOnce: inherits the environment with no output bound; the error wraps exec's error text
 internal/rubylinecov/isolate.go:bindState: rev-parse HEAD inheriting the environment with no output bound; the error wraps exec's error text
-internal/runnerprotocol/snapshot.go:repositorySnapshot: own contained runner: groupreap.Contain, bounded buffers, WaitDelay and PATH limited to the Git directory
 tools/affected-zero-unknown-replay/main.go:git: CombinedOutput with the inherited environment and no timeout
 tools/beamfall-shadow/main.go:gitLimitedBytes: fixed minimal environment with its own byte limits and git output limit exceeded error text
 tools/cem-release-suites/main.go:gitCommand: inherits the environment minus Git selection variables with no timeout; callers wire the command
@@ -47,12 +46,10 @@ tools/py-signal-lint/main.go:main: inherits the environment with no timeout or o
 tools/rcf-currency/main.go:gate.git: inherited environment with no timeout; stdout read through readBounded at maxInput and stderr captured for the error
 tools/release-binary/build.go:gitOutput: inherits the environment with no output bound; the error text carries exec's error and stderr
 tools/requirement-id-collisions/main.go:git: maps exec.ExitError to its own exit code and stderr error and passes the caller environment minus GIT_ variables
-tools/runner-qualification/main.go:gitOutput: the git-pin-check-failed message wraps exec's error text and the environment is inherited
 tools/test-exec-writes-check/main.go:run: inherits the environment with no timeout or output bound
 tools/test-read-scopes-check/main.go:droppedDeclarations: inherits the environment with no timeout or output bound
 tools/test-read-scopes-check/main.go:tracked: inherits the environment with no timeout or output bound
 tools/tiers-replay/main.go:git: inherits the environment with no timeout or output bound; the error text carries exec's error and stderr
 tools/tiers-replay/main.go:replayMerge: pipes git archive stdout into tar through StdoutPipe
-tools/typed-reach-measure/main.go:git: inherits the environment with no timeout or output bound; the error text carries exec's error and stderr
 tools/unbounded-readers/main.go:droppedDeclarations: inherits the environment with no timeout or output bound
 tools/walk-skipdir-check/main.go:run: inherits the environment with no timeout or output bound

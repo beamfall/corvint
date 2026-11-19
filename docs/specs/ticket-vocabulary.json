@@ -19,7 +19,6 @@
       "product": "testing",
       "roots": [
         "cmd/corvint/affected.go",
-        "internal/testplan/",
         "internal/gateselect/",
         "internal/runnerselection/"
       ]
@@ -52,20 +51,12 @@
     },
     "runner": {
       "product": "testing",
-      "roots": [
-        "internal/runnerprotocol/",
-        "internal/runnerpolicy/",
-        "internal/runnerqualification/",
-        "tools/runner-plugin/",
-        "tools/runner-qualification/",
-        "tools/runner-reference/"
-      ]
+      "roots": []
     },
     "run-evidence": {
       "product": "testing",
       "roots": [
-        "internal/testevidence/",
-        "tools/gotest-evidence/"
+        "internal/testevidence/"
       ]
     },
     "measurement": {

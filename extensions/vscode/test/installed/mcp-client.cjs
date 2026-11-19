@@ -2,11 +2,6 @@ const { spawn } = require("node:child_process");
 
 const outputLimit = 1 << 20;
 
-exports.callMcpDiscover = function callMcpDiscover(executable, root, timeoutMilliseconds = 15_000) {
-  const request = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} }, name: "corvint.test_validity", arguments: { discover: true } } };
-  return runJsonLineProcess(executable, ["--root", root], request, timeoutMilliseconds);
-};
-
 exports.runJsonLineProcess = runJsonLineProcess;
 
 function runJsonLineProcess(executable, args, request, timeoutMilliseconds) {

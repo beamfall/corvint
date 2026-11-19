@@ -286,8 +286,7 @@ proposed, experimental; GitHub #1598.
 - `DCR-V1-432`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/corpusindex`, `internal/corpusrepublish`) Every remaining reader of a retained artifact either takes the verified read of
   `DCR-V1-410` or rederives for a recorded reason (the `delta` exception of `DCR-V1-410` is
   amended by `DCR-V1-460`, not here):
-  - a native read joined with `--corpus=FILE` (`query`, `context`, `impact`, `affected`,
-    `test-validity`, `work` and `cem` reads) takes the streamed verified read: it attaches a
+  - a native read joined with `--corpus=FILE` (`impact` or `affected`) takes the streamed verified read: it attaches a
     `generated-documentation` receipt with no task authority, as a `docs corpus` read does;
   - the current side of `docs corpus delta --artifact` is superseded by `DCR-V1-460..464` (GitHub
     #1634), which deliver its verified read, `--verify-rederive`, `--timings` and the input blob

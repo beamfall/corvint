@@ -219,8 +219,6 @@ func topicText(topic string) string {
 		return flowsHelp
 	case "how":
 		return howHelp
-	case "runs":
-		return runsHelp
 	case "mcp":
 		return mcpHelp
 	case "test":
@@ -243,10 +241,6 @@ func topicText(topic string) string {
 		return activationHelp
 	case "test-evidence":
 		return testEvidenceHelp
-	case "test-validity":
-		return testValidityHelp
-	case "test-plan":
-		return testPlanHelp
 	default:
 		return capabilityHelpText(topic)
 	}
@@ -284,10 +278,7 @@ Commands:
     watch  rerun the tests a save can affect (LPCV-V0)
     line-evidence  refresh private line evidence (LEV-V1)
     inventory  refresh the committed test inventory (TIV-V1)
-    test-plan  test consolidation plan (TCN-V0)
     test-evidence  read retained test dependencies (RSP-V0)
-    test-validity  project a live-test receipt (MTV-V0)
-    runs  Playwright verdicts (PWR-V0)
   Experimental, agent hosts and local records:
     mcp  local read-only stdio MCP server (MCPV0)
 
@@ -316,75 +307,6 @@ var hiddenCommands = map[string]string{}
 
 // hiddenHelpNote ends the help topic of each hiddenCommands verb.
 const hiddenHelpNote = "\nUnlisted in root help: an internal or historical verb that stays callable.\n"
-
-const testValidityHelp = `Project test-level results through the shared test-validity shape.
-
-Usage:
-  corvint [--root PATH] test-validity [--receipt FILE [--route-stubs] | --discover | --static [PATH...]]
-      [--producer]
-  corvint [--root PATH] test-validity negate --provider ABSOLUTE_FILE --spec S --test T
-      [--project P] (--step TITLE | --all-steps) [--max-runs N] [--baseline-repeat N]
-      [external-server provider options]
-
-FILE is one corvint-js-test-provider stdout document (at most 4 MiB). The command
-recomputes, from its receipt member alone, one corvint-test-validity/0 document:
-one projection per test and one run projection, each with five independent
-axes (association, hygiene, freshness, execution, strength). The projections
-the document already carries are never trusted. No axis is a pass/fail summary,
-and a PASSED execution axis states no strength: strength stays NOT_MEASURED
-until a mutation run supplies a witness.
-
-Without --receipt there is no test-level evidence: tests is empty and every
-run axis is UNSUPPORTED with reason no-input-supplied. --route-stubs makes every
-JavaScript test carry routeStubs: a receipt with no route-stub producer record
-then states NOT_PRODUCED with reason route-stub-producer-absent, and a profiled
-receipt states route-stub-external-profile, instead of omitting the member. An unreadable, oversized,
-malformed or receipt-less FILE exits 2 with no stdout. --producer appends one
-"producer" member (version, build, commit, commitState; "unknown" or
-"unstamped" when not stated) and leaves every other member unchanged.
-
---discover instead reads the newest completed provider document retained as a
-regular *.json file directly under .corvint/test-evidence of the worktree (at
-most 256 entries, 16 read attempts, no symlinks). Its bound digests are
-compared with the worktree now: a mismatch makes freshness STALE, an identity
-that cannot be recomputed makes it UNKNOWN, and only fully matched digests are
-CURRENT. With no usable document every run axis stays UNSUPPORTED. For an
-RSpec document it also reads each example's spec file whose Git blob still
-equals the retained one: hygiene is ELIGIBLE, INELIGIBLE on a skipped, pending,
-focused, shared-example-only or memoized-block-expectation finding, or
-ABSTAINED when the file or line cannot be read; strength stays NOT_MEASURED
-with the example-body expectation count or a described_class stub as its
-reason, and sourceRules lists the findings. The command runs no test and never
-writes. Experimental.
-
-Every test carries location: its repository-relative file, declaring line and
-literal titlePath where the provider or a bound source reading knows them, and
-absent naming each missing member with one closed reason (an RSpec shared
-example adds includedAt).
-
---static [PATH...] needs no retained run: it reads the committed HEAD RSpec
-(_spec.rb) and JS/TS test files under each repository-relative PATH (default:
-the whole tree) and projects one test per example. Hygiene comes from source
-(skipped, pending, focused, fixme and assertion-free tests are named in
-sourceRules); execution, freshness and strength stay NOT_OBSERVED. It reads Git
-objects only and writes nothing. A PATH with no committed test file exits 2.
-
-negate is the only mode that runs tests or writes. It execs the named
-corvint-js-test-provider file (never a PATH lookup), which runs the one test
-unfaulted --baseline-repeat times (1 to 5, default 1) against an externally
-managed application on profile /0 or /1, then one derived network or DOM fault
-per step (--step) or one joint run (--all-steps), within --max-runs (baselines
-included; default 3 or 2). Retries are 0 and there is one worker. It prints one
-corvint-step-negation/0 document, a human summary on stderr (a step with no
-derivable fault reads "strength: UNPROVEN (manual control needed)"), and
-retains the merged document under .corvint/strength-evidence. It repeats the
-test's own side effects on the application and is not a sandbox. An
-unqualified runtime tuple, owned server, /2, /3, --keep-reporters, freshness or
-watch refuses before any run (exit 2, no stdout), as does a selection that
-matches no test or several. Incomplete cleanup or a retention failure exits 1
-after the document. Results are diagnostic: no strength axis joins them until
-the live matrix is qualified. Experimental.
-`
 
 const activationHelp = `Compile one bounded mechanical repository inventory.
 
@@ -1285,50 +1207,6 @@ and feature commands are removed (decision 0597).
 review reads one repository: --workspace FILE, or a discovered
 --root/.corvint/workspace.json without --no-workspace, refuses as
 workspace-unsupported naming the ignored aliases.
-`
-
-const testPlanHelp = `Propose a candidate consolidation of declared test variations.
-
-Usage:
-  corvint [--root PATH] test-plan consolidate --input FILE [--tests FILE]...
-      [--map FILE]... [--revision REV] [--max-steps N] [--format table|json]
-  corvint [--root PATH] test-plan check --plan FILE --input FILE [--tests FILE]...
-      [--map FILE]... [--revision REV] [--max-steps N]
-
-FILE --input is one test-consolidation-input/0 document (at most 8 MiB). The
-planner abstains every variation with a missing anchor, reuses a variation only
-when a --tests provider document (at most 8) shows a passing, associated,
-eligible e2e test whose bound digests match --revision (default HEAD), classes
-duplicates, isolates destructive and conflicting variations, and groups the rest
-by context into ordered tests of at most N steps (2..32, default 8). --map (at
-most 8 AMAP-V0 maps) validates screens, routes and lineage freshness at the
-revision; without it anchor validation is NOT_RUN. Plan authority is always
-candidate: it states no test adequacy.
-
-check recomputes the plan and compares it with the one table header and its rows
-inside --plan (a Markdown file may surround it). It exits 0 when they match and
-the plan is COMPLETE, 1 on test-plan-mismatch, test-plan-incomplete or
-test-plan-header-missing, and 2 on invalid arguments or input, with no stdout.
-The command reads only its named files and Git, runs no test and never writes.
-Experimental.
-
-Prefix lint (ANL-V0-009..011, ANL-V0-035..036):
-  corvint [--root PATH] test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]
-      [--check [--baseline FILE]] [--revision REV] [--budget N | --full]
-Flags specs whose test-sequence prefix (two or more screen transitions) only crosses edges the
---ledger (application-edge-ledger/0) proves and ends on a fresh deep-linkable screen, with the
-replacement goto and saved steps. --facts (test-prefix-facts/0) declares read-only, mutating and
-assertion-target edges per spec; undeclared effects abstain. A step the map classifies from
-page-object source is read-only only when navigation-only and fresh; state-effect and unknown steps
-abstain and the sidecar cannot upgrade them. --check exits 1 when a flagged test is not in
---baseline. Learned, read-only, offline.
-
-Page-state grouping (ANL-V0-012..014, ANL-V0-033):
-  corvint [--root PATH] test-plan page-state --input FILE [--check --baseline FILE]
-Groups non-destructive, state-preserving variations of one input that share app, screen, setup,
-user, org and required facts, so one visit can serve several assertions. Destructive, state-changing
-or anchor-missing variations are listed as blocked, never merged. --check exits 1 when a group or
-blocked variation differs from the --baseline report. Read-only, offline.
 `
 
 const breakageHelp = `Inspect an experimental declared cross-repository API relationship map.

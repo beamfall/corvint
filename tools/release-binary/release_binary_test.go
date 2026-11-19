@@ -172,10 +172,16 @@ func TestEmbeddedCatalogNamesTheProductBinaries(t *testing.T) {
 			t.Errorf("%s: a withheld binary cites decision 0596 and has no set or stamp rule, got %+v", binary.Name, binary)
 		}
 	}
-	for _, name := range []string{"corvint-analyzer-go", "corvint-test-validity-mcp", "corvint-test-runner", "corvint-go-test-provider", "corvint-cli", "corvint-web-flows"} {
+	for _, name := range []string{
+		"corvint-analyzer-go", "corvint-test-runner", "corvint-go-test-provider",
+		"corvint-cli", "corvint-web-flows",
+	} {
 		if binary, ok := catalog.find(name); !ok || binary.Role != "withheld" {
 			t.Errorf("%s: want withheld (PROD-INT-006 does not ship it), got %+v", name, binary)
 		}
+	}
+	if binary, ok := catalog.find("corvint-test-validity-mcp"); ok {
+		t.Errorf("RMV-V1-008: removed binary remains in the catalog: %+v", binary)
 	}
 	if withheld == 0 {
 		t.Fatal("catalog withholds nothing")

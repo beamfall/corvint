@@ -4,8 +4,8 @@ Owner: Russell Lewis
 Date: 2026-10-08
 Requirement prefix: `TCN-V0`
 Intent status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031)
-Delivery status: experimental
-Health: KEEP
+Delivery status: retired
+Health: RETIRE
 Authoritative inputs: owner request [issue 681](https://github.com/beamfall/corvint/issues/681)
 (native ticket V1-1023), `AGENTS.md` invariants 1, 2, 4, 7 and 8,
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/application-map-v0.md` (AMAP-V0 screens, element
@@ -17,9 +17,12 @@ declared test-link vocabulary) and `docs/specs/live-proof-carrying-verification-
 precondition channel TCN-V0-013..015; native ticket V1-1031 for the synthetic-only `REUSED`
 narrowing in TCN-V0-016.
 
+Retirement status: source-removal B2, RMV-V1-008/009 (owner, 2026-11-18).
+Shared projection constants and the provider flake rule remain under RMV-V1-009.
+
 ## Agent digest
 - Claim: A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.
-- Status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031); experimental. GitHub #681 is the V0 request. Acceptance settles intent only.
+- Status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031) / retired
 - Exists: `internal/testplan` and `corvint test-plan consolidate|check`; the `corvint-corpus-mcp` tool `corvint.consolidate_tests` was removed by decision 0594; TCN-V0-001..016 each have passing focused tests (Deterministic acceptance and traceability).
 - Blocked on: owner-run qualification on the adopter's labelled variation set (`NOT_RUN`); a lane qualification on this repository's console tests ran (44 variations, 31 new tests; Repository qualification); `REUSED` is synthetic-only in V0 (TCN-V0-016).
 - Read next: Requirements; Grouping algorithm; Implementation notes; Owner questions.

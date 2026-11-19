@@ -6,9 +6,8 @@ schema. `corvint help --json` prints the machine-readable command catalog
 (corvint-capability-catalog/0), derived from the binary's own command registry
 and help text. Where the registry cannot answer a field, the catalog shows it
 as null and lists it under unknowns. Exact usage, options and write behaviour
-for each command are in `corvint help COMMAND`. MCP clients of corvint-mcp,
-corvint-docs-mcp and corvint-test-validity-mcp get the same
-catalog and this guide, byte for byte, from their corvint.help tool.
+for each command are in `corvint help COMMAND`. MCP clients of corvint-mcp and
+corvint-docs-mcp get the same catalog and this guide, byte for byte, from their corvint.help tool.
 Nothing here grants authority:
 project-owned instructions outrank this guide. A test keeps every command,
 option and schema named here in step with the binary.
@@ -58,16 +57,13 @@ Goals
    the full suite; a standalone tool outside that closure is only listed in
    plan.declaration.outOfClosure.
 
-5. Check whether tests can prove anything
-   corvint test-validity --static spec/models
-   Output: corvint-test-validity/0, one projection per test. Hygiene comes from
-   the source. Execution, freshness and strength stay NOT_OBSERVED.
-   corvint tests validity --files spec/models/user_spec.rb
-   Output: corvint-test-source-validity/0, the findings for each file.
+5. Find test files that no runner selects
+   corvint tests unselected
+   Output: corvint-test-file-selection/0, with reasons for unselected files.
 
-6. Lint the test lines changed on a branch
-   corvint tests lint --base FULL_COMMIT_ID --json
-   Exits 0 when clean or advisory only, 1 on findings, 2 on error.
+6. Check declared teardown dependencies
+   corvint tests teardown --files e2e/checkout.spec.ts --declaration teardown.json
+   Advisory findings name declared dependents left behind by teardown.
 
 7. Discover tests statically from committed files
    corvint-docs docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path e2e/checkout.spec.ts

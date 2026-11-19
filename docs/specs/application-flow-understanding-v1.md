@@ -1,5 +1,8 @@
 # Application Flow Understanding V1 — proven flows, safe E2E selection, navigation and documentation
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Owner: Russell Lewis
 Date: 2026-09-24
 Intent status: accepted (decision 0385)
@@ -61,7 +64,7 @@ At `978b37b`:
   attempt. The external reporter emits the same complete inventory only under the separate `/3`
   profile (`internal/jstestprovider/attempt_details.go`); earlier profiles continue to refuse it.
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
-  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:199-204@cea38e20`). S4
+  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:200-205@cea38e20`). S4
   leaves it so: only `internal/appflows/selection.go` produces an `e2e-safe` omission.
 
 ## Definitions
@@ -1926,33 +1929,26 @@ test that one consumer counts as passed is never failed or missing in another. I
 `test.fail()` test whose body passes, which Playwright itself reports `unexpected`, is never a pass.
 Accepted under the owner's standing auto-accept (2026-10-11).
 
-- **AFU-V1-950**: Three decoders of a Playwright `--reporter=json` report remain, each a different
-  projection with its own refusal rules: `jstestprovider.ParsePlaywrightJSON` (a tolerant decode into
-  receipt outcomes, with the run-evidence hygiene and secret screen), `internal/playwrightruns`
-  (a strict-shape, bounded decode keyed by project, file and title path, for repeats, stability and
-  baselines) and the `internal/appflows` run ingest (a bounded decode keyed by repository path, for
-  attempt records). For one report they MUST agree on attribution: the same tests in report order,
-  each with the same file and title (a failed `ParsePlaywrightJSON` outcome anchors at its failure
-  location instead), the same project where the decoder records one, the same
-  number of attempts, and the same pass verdict. The two decoders that record attempt outcomes
-  (`ParsePlaywrightJSON` and the run ingest) record the same outcome per attempt. A test is a
-  pass only when its last attempt passed, its `expectedStatus` is `passed` (or absent), and
-  Playwright did not mark it `unexpected`. `ParsePlaywrightJSON` therefore records a passed attempt
-  of a test whose `expectedStatus` is not `passed`, or a passed last attempt of an `unexpected` test,
-  as `failed` with the reason as its failure message, as the run ingest already does.
+- **AFU-V1-950**: The JS provider's `jstestprovider.ParsePlaywrightJSON` and the
+  `internal/appflows` run ingest MUST agree on attribution for a Playwright
+  `--reporter=json` report. They read the same tests in report order, with the same file
+  and title (a failed provider outcome anchors at its failure location), the same project
+  where recorded, the same attempt count and outcomes, and the same pass verdict. A test
+  passes only when its last attempt passed, its `expectedStatus` is `passed` or absent,
+  and Playwright did not mark it `unexpected`. The provider records a passed attempt of a
+  test whose `expectedStatus` is not `passed`, or a passed last attempt of an `unexpected`
+  test, as `failed` with the reason as its failure message.
 
-Acceptance: `TestAFUV1950PlaywrightDecodersAgree` decodes one real Playwright 1.61.1 report
-(`internal/appflows/testdata/playwright-attribution.json`: a plain pass, a `test.fail()` test that
-fails, a `test.fail()` test that passes twice, and a test that passes on retry, in project `p1`
-under one describe block) through all three decoders and compares file, title, project, attempt
-count and the pass verdict per test, and the attempt outcomes of the two decoders that record them. It failed before the change: `ParsePlaywrightJSON`
-reported `expected fail passes` as `passed`. `jstestprovider`, `playwrightruns` and `appflows`
-existing tests pass unchanged.
+Acceptance: `TestAFUV1950PlaywrightDecodersAgree` sends
+`internal/appflows/testdata/playwright-attribution.json` through the provider and the flow
+ingest. The real Playwright 1.61.1 report covers a plain pass, an expected failure that
+fails, an expected failure that passes twice, and a pass on retry, under one describe block
+in project `p1`. The test checks file, title, attempt count and pass verdict against expected
+rows, checks the project on the ingest rows, and compares the two lists of attempt outcomes.
 
-Decision (why three remain): merging the decoders would change the refusal behaviour that each
-consumer's existing tests pin. `playwrightruns` refuses a missing `projectName` or an unknown status
-with `ErrShape`, `ParsePlaywrightJSON` tolerates both, and the run ingest bounds the raw report
-before decode. The shared fixture test is the guard that keeps them consistent.
+The provider tolerates incomplete report fields and screens receipt outcomes for sensitive
+data. The flow ingest bounds the raw report before decoding repository paths and attempts.
+The shared fixture checks attribution across these two consumers.
 
 Non-goals: one shared decoder package; the qualified reporter
 (`internal/jstestprovider/qualified-reporter.cjs`), which builds receipts from reporter callbacks

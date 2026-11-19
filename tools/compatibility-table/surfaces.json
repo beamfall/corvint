@@ -287,13 +287,9 @@
         {
           "package": "./cmd/corvint-docs-mcp",
           "name": "TestServeToolsListAndCallRoundTripsDocsDraftAndConsume"
-        },
-        {
-          "package": "./conformance/mcp-test-validity-v0",
-          "name": "TestToolCatalogueIsExactlyOneReadOnlyTool"
         }
       ],
-      "notes": "The tool names of `corvint-mcp`, `corvint-docs-mcp` and `corvint-test-validity-mcp`; their input and output schemas are preview. The tool table of change `mcp-tool-table` does not exist yet."
+      "notes": "The tool names of `corvint-mcp` and `corvint-docs-mcp`; their input and output schemas are preview. The tool table of change `mcp-tool-table` does not exist yet."
     },
     {
       "id": "docs-search-mcp-schemas",

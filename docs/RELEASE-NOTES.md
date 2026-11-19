@@ -1029,9 +1029,9 @@ unmet. Decisions are cited by full filename.
   move; the dogfood scripts build the binary they run.
 - **Work Queue Observation V0** accepted and amended with derived path clashes and a maximal
   collision-free wave (`docs/decisions/0046-work-queue-observation-v0-acceptance-and-clash-wave-amendment-2026-09-04.md`,
-  `WQO-V0-041..045`), then implemented as experimental: `internal/workqueue`, `corvint work
-  observe` and `propose-wave`, the self-dogfood adapter (`script/corvint-work-queue`,
-  `docs/worklist.json`, `.corvint/work-queue-policy.json`), and `conformance/work-queue-v0`. The
+  `WQO-V0-041..045`), then implemented as an experimental queue, adapter and conformance suite,
+  now retired.
+  Source-removal B1 records their removed paths and recovery revision. The
   exact wave search carries a clique-cover bound and a node budget after review found it
   enumerating every equal-size maximum.
 - **Eight proposed specs accepted as intent**

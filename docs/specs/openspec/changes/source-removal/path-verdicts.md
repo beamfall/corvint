@@ -118,7 +118,7 @@ The 11 `internal/analyzer*` rows below are covered by the B5 wildcard `internal/
 
 | Path | Verdict | Reason | Check |
 | --- | --- | --- | --- |
-| `tools/affected-edit-oracle` | remove in B1 | no caller | `mk=- gh=- st=- ot=-` |
+| `tools/affected-edit-oracle` | keep | FIH-V1-011 parity oracle; cut needs a coordinated FIH change | `tools/fault-harness/parity_test.go`, `runParityCommand`; round-2 decision 2026-11-18 |
 | `tools/affected-zero-unknown-replay` | keep | AZU-V0-009 frozen merge-tree replay of selection safety | `st=script/affected-zero-unknown-replay.sh` |
 | `tools/cem-structural-closure` | remove in B6b | digests the Go parser closure for CEM structural predicates | `ot=protocol/cem-1.0/structural-corpus/CORPUS.json` |
 | `tools/check-analyzer-go.sh` | remove in B5 | analyzer check | `ot=` perf raw output only |
@@ -163,6 +163,7 @@ The 11 `internal/analyzer*` rows below are covered by the B5 wildcard `internal/
 
 | Path | Verdict | Reason | Check |
 | --- | --- | --- | --- |
+| `spec-toolchain-conformance.sh` | keep | STA-V0-011 upstream validation and integration packaging remain live; OCM comparison is already removed | script header, Makefile and retained B0 workflow; round-2 audit 2026-11-18 |
 | `affected-zero-unknown-replay.sh`, `affected-zero-unknown-merges.txt` | keep | driver and input of `tools/affected-zero-unknown-replay` | `st=tools/affected-zero-unknown-replay/main.go` |
 | `agent-preflight.sh`, `agent-preflight_test.sh` | remove in B8b | lane preflight | `mk=1287` (test target only) |
 | `atm-fixture-store.sh` | move to `beamfall/corvint-tasks` in B10 (RMV-V1-036; decided 2026-11-09 under R42, E1; the missing rule named in this row is settled) | Tasks fixture store for demos; missing: whether `conformance/interactive-alpha` and `benchmarks/daily-loop-v0` stay after B10 | `ot=benchmarks/daily-loop-v0/corpus.json,conformance/interactive-alpha/*` |
@@ -312,3 +313,20 @@ re-records each of these.
   `tools/affected-edit-oracle/testdata/corpus.json`,
   `tools/ci-forward-row/testdata/outcomes/shard-4.json`.
 - Prose: `AGENTS.md`, `llms.txt`.
+
+## B2 current-base retention decisions (2026-11-18)
+
+- `internal/tcq`: retain the evaluator chain with its existing assertions. Frozen CEM migration
+  records under `protocol/cem-1.0/stable/` name its evaluator and canonical implementation;
+  these are outside the authorized history exclusions and cannot be rewritten in this lane.
+  The provider `Flaky` rule and result constants remain unchanged as RMV-V1-009 requires.
+- `internal/testsource`: `tests example-join` calls `JSExampleSources` and
+  `RSpecExampleSourcesWithSupport`, both of which call `ValidityFindings`. Keep their shared
+  rule implementations. The retired validity report, selection overlay, environment projection
+  and seed evaluator compile only in package tests. `UnselectedFiles` reads the runner
+  configuration directly. Teardown owns its 256-file bound.
+- `script/spec-coverage-audit`: retain; the current repository read-scope qualification test
+  `internal/liveverify/affected/liverepo/readscope_narrowing_repo_test.go` still uses this path.
+- `internal/testvaliditydoc/read.go`: retain compatibility wrappers for receipt decoder callers
+  and platform-refusal tests; the implementation already lives in `internal/pinnedread`.
+  The remaining runner and external-origin file readers now import `pinnedread` directly.

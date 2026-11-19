@@ -23,11 +23,11 @@ func TestCLIReadVerbsLeaveTheRepositoryByteIdentical(t *testing.T) {
 		wantExit int
 	}{
 		{
-			name: "test-validity abstains without a receipt",
+			name: "unselected reads committed source",
 			setup: func(t *testing.T) (string, func() int) {
 				root := cliRepository(t)
 				return root, func() int {
-					code, _, _ := runCLI(t, "--root", root, "test-validity")
+					code, _, _ := runCLI(t, "--root", root, "tests", "unselected")
 					return code
 				}
 			},

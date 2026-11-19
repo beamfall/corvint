@@ -189,13 +189,6 @@ export async function until(predicate, child, timeout = 60000) {
   while (Date.now() < deadline) { const result = await predicate(); if (result) return result; if (child?.closed) throw new Error(`child exited while waiting: ${child.stdout} ${child.stderr}`); await delay(25); }
   throw new Error('bounded observation timeout');
 }
-export const meta = { 'io.modelcontextprotocol/protocolVersion': '2026-07-28', 'io.modelcontextprotocol/clientCapabilities': {} };
-export async function mcp(executable, root, method = 'tools/call', params = { name: 'corvint.test_validity', arguments: { discover: true } }) {
-  const child = new Child([executable, '--root', root], root, 15000);
-  child.process.stdin.end(JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: { _meta: meta, ...params } }) + '\n');
-  const raw = await child.join(); const parsed = JSON.parse(raw); assert(parsed.jsonrpc === '2.0' && parsed.id === 1 && !parsed.error, 'MCP envelope failure'); return { raw, result: parsed.result };
-}
-
 export async function fixtureIdentity(name, root, bindings) {
   const value = { name, treeSha256: await treeSHA(root, ['.git', '.corvint', 'node_modules']) };
   for (const key of ['package', 'lock', 'config', 'test']) value[key + 'Sha256'] = bindings[key] ? await fileSHA(join(root, bindings[key])) : '';

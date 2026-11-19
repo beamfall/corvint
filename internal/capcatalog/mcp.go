@@ -14,10 +14,6 @@ const (
 	ServerCore = "corvint mcp"
 	// ServerDocs is `corvint-docs mcp`: the documentation tools.
 	ServerDocs = "corvint-docs mcp"
-	// ServerTestValidity is the retiring standalone corvint-test-validity-mcp
-	// binary, the only server left that answers corvint.test_validity; it
-	// leaves the release list in its removal batch (MTT-V1-010).
-	ServerTestValidity = "corvint-test-validity-mcp"
 	// ServerNone marks a "no MCP tool" row: an answer deliberately served
 	// only by a command line (MTT-V1-006).
 	ServerNone = "none"
@@ -138,7 +134,7 @@ var toolName = regexp.MustCompile(`^corvint\.[a-z]+(_[a-z]+)*$`)
 var parityTest = regexp.MustCompile(`^corvint(-[a-z0-9]+)* Test[A-Za-z0-9_]+$`)
 
 var (
-	knownServers      = []string{ServerCore, ServerDocs, ServerTestValidity, ServerNone}
+	knownServers      = []string{ServerCore, ServerDocs, ServerNone}
 	knownAvailability = []string{AvailabilityStable, AvailabilityExperimental, AvailabilityPreview, AvailabilityDeprecated, AvailabilityPlanned}
 )
 
@@ -323,7 +319,7 @@ func mcpToolRows() []MCPTool {
 	return []MCPTool{
 		// corvint mcp: the testing and flow-report tools (MTT-V1-005).
 		{
-			Name: "corvint.help", Server: ServerCore, AlsoOn: []string{ServerDocs, ServerTestValidity}, Availability: AvailabilityExperimental,
+			Name: "corvint.help", Server: ServerCore, AlsoOn: []string{ServerDocs}, Availability: AvailabilityExperimental,
 			Summary:     "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server",
 			InputSchema: "internal/mcp/bridge/help.go",
 			Inputs: []MCPInput{
@@ -511,17 +507,6 @@ func mcpToolRows() []MCPTool {
 		},
 
 		// The retiring standalone server and the deliberate CLI-only answers.
-		{
-			Name: "corvint.test_validity", Server: ServerTestValidity, Availability: AvailabilityDeprecated,
-			Summary:     "Five-axis projection of retained test evidence",
-			InputSchema: "internal/mcp/testvaliditybridge/testvaliditybridge.go",
-			Inputs: []MCPInput{
-				in("discover", "Discover retained receipts instead of naming one."),
-				in("receipt", "Retained test receipt to project."),
-			},
-			OutputProfile: "corvint-mcp-test-validity-result/0", Errors: errorsOf("internal-error", "repository-unavailable"),
-			Note: "removed from corvint mcp with the G24 batch (M12); served only by the retiring corvint-test-validity-mcp binary until its removal batch (MTT-V1-010), so no CLI parity is claimed for it",
-		},
 		{
 			Name: "corvint-tasks", Server: ServerNone, Availability: AvailabilityStable,
 			Summary:       "Corvint Tasks is used through its command line; neither server serves a Tasks tool",

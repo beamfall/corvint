@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -192,7 +191,7 @@ func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 		root := taskContextRepository(t)
 		rev := cemGit(t, root, "rev-parse", "HEAD")
 		writeCorpusFixture(t, root, rev, "cache")
-		commands := [][]string{{"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}}
+		commands := [][]string{{"impact", "cache/demux.go"}, {"affected"}}
 		for _, args := range commands {
 			t.Run(args[0], func(t *testing.T) {
 				code, base, stderr := coreCLI(t, root, args...)
@@ -225,8 +224,7 @@ func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 		}
 	})
 }
-func TestCorpusNativeReceiptJoin(t *testing.T) {
-	useCoreBinary(t)
+func TestCorpusRetainedObservation(t *testing.T) {
 	t.Run("DCP-V1-007 DCP-V1-013 observation", func(t *testing.T) {
 		root := taskContextRepository(t)
 		source := cemGit(t, root, "rev-parse", "HEAD")
@@ -273,20 +271,23 @@ func TestCorpusNativeReceiptJoin(t *testing.T) {
 		}
 		data, _ := doccorpus.Encode(corpus)
 		cemWrite(t, root, "corpus.json", string(data))
-		code, out, stderr := corpusCLI(t, root, "test-validity", "--receipt", filepath.Join(root, "evidence/run.json"), "--corpus=corpus.json")
-		if code != 0 {
-			t.Fatal(stderr)
-		}
-		var result struct {
-			Documentation struct {
-				Observations []doccorpus.Observation `json:"observations"`
-			} `json:"documentation"`
-		}
-		if err := json.Unmarshal([]byte(out), &result); err != nil {
+		read, err := doccorpus.OpenReadFile(t.Context(), root, "corpus.json", doccorpus.ReadOptions{})
+		if err != nil {
 			t.Fatal(err)
 		}
-		if len(result.Documentation.Observations) != 1 || result.Documentation.Observations[0].Document.Tests[0].Projection.Execution.State != "FAILED" {
-			t.Fatalf("exact native failed receipt not preserved: %s", out)
+		if len(read.Observations) != 1 || read.Observations[0].InputSHA256 != doccorpus.Digest([]byte(raw)) ||
+			len(read.Observations[0].Document.Tests) != 1 || read.Observations[0].Document.Tests[0].Projection.Execution.State != "FAILED" {
+			t.Fatalf("exact native failed receipt not preserved: %+v", read.Observations)
+		}
+		for _, command := range []string{"test-validity", "future-reader"} {
+			for _, artifact := range []string{"corpus.json", "missing.json"} {
+				code, out, stderr := corpusCLI(t, root, command, "--corpus="+artifact)
+				var refusal struct{ Code, Error string }
+				if code != 2 || out != "" || json.Unmarshal([]byte(stderr), &refusal) != nil ||
+					refusal.Code != "invalid-arguments" || refusal.Error != "--corpus is supported only on native evidence reads" {
+					t.Fatalf("%s --corpus=%s: exit %d stdout %q stderr %q", command, artifact, code, out, stderr)
+				}
+			}
 		}
 	})
 }
@@ -442,7 +443,7 @@ func TestCorpusAdoptionCLIMCPPagination(t *testing.T) {
 		if err = json.Unmarshal([]byte(out), &receipt); err != nil || len(receipt.Results) != 1 || receipt.Offset != 1 || receipt.Omitted == 0 {
 			t.Fatal("missing page metadata", err)
 		}
-		for _, args := range [][]string{{"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}} {
+		for _, args := range [][]string{{"impact", "cache/demux.go"}, {"affected"}} {
 			code, base, stderr := coreCLI(t, root, args...)
 			if code != 0 {
 				t.Fatal(stderr)

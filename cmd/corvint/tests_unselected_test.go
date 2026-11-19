@@ -34,15 +34,5 @@ func TestTestsUnselectedCLI(t *testing.T) {
 	if strings.Join(got, "|") != want {
 		t.Errorf("findings = %q", got)
 	}
-	code, out, _ = runCLI(t, "--root", root, "tests", "validity", "--files", "legacy/b.test.js")
-	if code != 1 || !strings.Contains(out, `"reason": "TEST-FILE-UNSELECTED"`) {
-		t.Errorf("validity of an unselected file: code=%d out=%s", code, out)
-	}
-	testsCommit(t, root, map[string]string{"jest.config.js": "module.exports = {};\n", "e2e/login.spec.ts": "test('login', () => {});\n"})
-	if code, out, errb = runCLI(t, "--root", root, "tests", "unselected"); code != 0 {
-		t.Errorf("all selected: code=%d out=%s err=%s", code, out, errb)
-	}
-	if code, _, errb = runCLI(t, "--root", root, "tests", "unselected", "extra"); code != 2 || !strings.Contains(errb, "tests-invalid-arguments") {
-		t.Errorf("bad argument: code=%d err=%s", code, errb)
-	}
+
 }

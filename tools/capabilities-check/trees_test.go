@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -23,17 +24,46 @@ func TestCAPV0047RepositoryCommandTreesMatchDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nodes := map[string]int{}
+	nodes := map[string][]clitree.Node{}
 	for _, tree := range trees {
-		nodes[tree.Binary] = len(tree.Nodes)
+		nodes[tree.Binary] = tree.Nodes
 	}
-	// corvint lost the docs subtree to corvint-docs (decision 0594 item 3), then the flows and how
-	// nodes it forwards (decision 0595): 66 and 97 nodes when the floors were set.
-	for binary, least := range map[string]int{"corvint": 60, "corvint-docs": 90} {
-		if nodes[binary] < least {
-			t.Errorf("%s tree has %d nodes, want at least %d", binary, nodes[binary], least)
+	if err := checkB2CoreRoutes(nodes["corvint"]); err != nil {
+		t.Fatal(err)
+	}
+	if count := len(nodes["corvint-docs"]); count < 90 {
+		t.Errorf("corvint-docs tree has %d nodes, want at least 90", count)
+	}
+
+	// A same-size substitution for refresh must fail even though the topic still exists.
+	changed := slices.Clone(nodes["corvint"])
+	for i, node := range changed {
+		if slices.Equal(node.Path, []string{"line-evidence", "refresh"}) {
+			changed[i].Path = []string{"line-evidence", "future"}
+			break
 		}
 	}
+	if err := checkB2CoreRoutes(changed); err == nil {
+		t.Error("accepted an unknown line-evidence route in place of refresh")
+	}
+}
+
+func checkB2CoreRoutes(nodes []clitree.Node) error {
+	// LEV-V1-001 adds a topic and its only writing verb to the 50 B2 routes.
+	var lineEvidence []string
+	for _, node := range nodes {
+		if len(node.Path) > 0 && node.Path[0] == "line-evidence" {
+			lineEvidence = append(lineEvidence, strings.Join(node.Path, " "))
+		}
+	}
+	slices.Sort(lineEvidence)
+	if !slices.Equal(lineEvidence, []string{"line-evidence", "line-evidence refresh"}) {
+		return fmt.Errorf("unexpected line-evidence routes: %q", lineEvidence)
+	}
+	if count := len(nodes) - len(lineEvidence); count != 50 {
+		return fmt.Errorf("corvint tree has %d nodes outside line-evidence, want exactly 50 retained by B2", count)
+	}
+	return nil
 }
 
 // TestCAPV0048RatchetMatchesCeiling pins the committed ratchet to its ceiling, so removing a row

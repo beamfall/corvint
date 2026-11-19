@@ -27,8 +27,8 @@ corpus, generated-block maintenance and flow documentation, and the application-
 ` + "`corvint docs ...`, `corvint flows ...`, `corvint how ...` and `corvint --corpus=FILE ...` forward to\n" +
 	"this executable unchanged, so the two spellings print the same bytes; only\n" +
 	"`flows test-evidence` stays in corvint.\n" +
-	`With --corpus=FILE [--corpus-depth=N] before a core read (impact, affected or
-test-validity), corvint-docs runs that read in the corvint executable beside it or on PATH and
+	`With --corpus=FILE [--corpus-depth=N] before a core read (impact or affected),
+corvint-docs runs that read in the corvint executable beside it or on PATH and
 joins the corpus receipt onto its output.
 Required: a Git repository at --root (default .) for every verb but the corpus operations that
 read only their input files.
@@ -324,7 +324,6 @@ var commandTreeInternal = []clitree.Internal{
 	{Word: "report", Reason: "spaced spelling of docs corpus audit-report"},
 	{Word: "impact", Reason: "core read the --corpus=FILE join runs in corvint"},
 	{Word: "affected", Reason: "core read the --corpus=FILE join runs in corvint"},
-	{Word: "test-validity", Reason: "core read the --corpus=FILE join runs in corvint"},
 }
 
 // commandTree is this binary's command tree, derived from the help topics it prints, so no

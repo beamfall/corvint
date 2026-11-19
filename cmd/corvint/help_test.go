@@ -69,36 +69,6 @@ func TestArgparseOptionLikeClassification(t *testing.T) {
 // list: an option-like next token is refused through that parser's own
 // missing-value path, while the inline `=` form and a negative number are
 // values.
-func TestNativeVerbOptionValuesFollowArgparseOptionLikeClassification(t *testing.T) {
-	t.Parallel()
-	errorOf := func(_ any, err error) error { return err }
-	// The docs parsers moved to cmd/corvint-docs with their own copy of this pin.
-	for _, test := range []struct {
-		name, missing string
-		parse         func(value string, inline bool) error
-	}{
-		{"test-validity", "missing value for --receipt", func(v string, inline bool) error {
-			if inline {
-				return errorOf(parseTestValidityOptions([]string{"--receipt=" + v}))
-			}
-			return errorOf(parseTestValidityOptions([]string{"--receipt", v}))
-		}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			for _, value := range []string{"-x", "--help", "-h"} {
-				if err := test.parse(value, false); err == nil || !strings.Contains(err.Error(), test.missing) {
-					t.Errorf("bare value %q: err=%v, want %q", value, err, test.missing)
-				}
-				if err := test.parse(value, true); err != nil && strings.Contains(err.Error(), test.missing) {
-					t.Errorf("inline value %q refused as missing: %v", value, err)
-				}
-			}
-			if err := test.parse("-5", false); err != nil && strings.Contains(err.Error(), test.missing) {
-				t.Errorf("negative number refused as missing: %v", err)
-			}
-		})
-	}
-}
 
 func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 	t.Parallel()

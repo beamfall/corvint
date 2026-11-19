@@ -600,9 +600,8 @@ func unicodeDecimalDigit(character rune) (int, bool) {
 // is called on every .go blob during an index build, including blobs that do
 // not compile, and must never panic.
 //
-// The edge set feeds internal/workqueue's direct-neighbour collision closure.
-// A missed import can omit a real collision group, while a spurious import only
-// over-constrains a wave proposal.
+// A missed import can omit a real dependency, while a spurious import only
+// over-constrains dependency analysis.
 //
 // So the parse-failure path UNIONS whatever the parser recovered with the
 // legacy line scanner (goImportsScan) rather than returning the parser's

@@ -118,16 +118,13 @@ func helpTopicText(topic, name string) (command, text string, known bool) {
 
 // helpCommandNames lists the commands in the frozen MCP help enum (MMR-V0-001).
 func helpCommandNames() []any {
-	_, names, _ := capcatalog.Slice(capcatalog.Snapshot(), "")
-	enum := make([]any, 0, len(names))
-	for _, name := range names {
-		// LEV-V1-012 shares the affected reader; it does not widen tools/list.
-		// The experimental CLI command remains in the full help catalog.
-		if name != "line-evidence" {
-			enum = append(enum, name)
-		}
+	// Catalog changes do not automatically change the enum pinned by tools/list.
+	// A command receipt also requires a current catalog slice in helpTopicText.
+	return []any{
+		"init", "adopt", "impact", "cem", "context", "instructions", "affected", "index",
+		"docs", "test-evidence", "review", "flows",
+		"test", "tests", "watch", "inventory", "mcp", "how",
 	}
-	return enum
 }
 
 // helpResult binds text into the READY result. Cancellation is checked before

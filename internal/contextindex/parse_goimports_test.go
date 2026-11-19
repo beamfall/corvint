@@ -70,7 +70,7 @@ func TestGoImportsFormsTheScannerMishandles(t *testing.T) {
 // TestGoImportsStaysTotalOnUnparseableSource fixes the parse-failure contract:
 // a source the parser rejects must still surrender every import edge the legacy
 // scanner could see, because an empty set reads as "imports nothing" and would
-// let internal/workqueue omit a real collision group.
+// let dependency analysis omit a real import edge.
 func TestGoImportsStaysTotalOnUnparseableSource(t *testing.T) {
 	// A bare fragment with no package clause: the parser refuses it outright and
 	// recovers no imports at all, so only the fallback can supply the edges.

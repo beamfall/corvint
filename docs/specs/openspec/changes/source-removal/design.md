@@ -173,7 +173,8 @@ Paths removed:
 - `cmd/corvint-test-validity-mcp`, `internal/mcp/testvaliditybridge` (imported by
   `cmd/corvint-test-validity-mcp`, `internal/mcp/cli/groups.go`, `internal/mcp/cli/unavailable.go`
   and `tools/capabilities-check/machine.go`; VERIFIED).
-- `internal/testsource/validity*.go` (46 files; VERIFIED count).
+- Exclude the retired validity report, selection and environment projections and seed rules from
+  production builds. Keep the example-join rule readers under RMV-V1-008.
 - `internal/tcq` code used only inside `tcq`. `tcq` is imported by `internal/appflows/query.go`,
   `runevidence.go`, `internal/jstestprovider/freshness.go`, `playwright.go`, `projection.go`,
   `internal/rubytestprovider/document.go` and `internal/testvalidity/projection.go` (VERIFIED);

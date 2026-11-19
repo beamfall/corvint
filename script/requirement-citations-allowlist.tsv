@@ -38,8 +38,6 @@ OLD-V1-001	fixture requirement id that exists only inside test fixtures (tools/o
 OTH-V0-001	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
 R-001	fixture requirement id that exists only inside test fixtures (internal/pathbrief/brief_test.go)
 R-002	fixture requirement id that exists only inside test fixtures (internal/pathbrief/brief_test.go)
-ROW-000	TUI row label expected by the pi-tui fixture (tools/pi-tui-fixture/main.go), not a requirement id
-ROW-021	TUI row label expected by the pi-tui fixture (tools/pi-tui-fixture/main.go), not a requirement id
 RUN-V0-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/spec_cited_test.go)
 SHA-256	hash algorithm name (SHA-256), not a requirement id
 T-V0-001	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
