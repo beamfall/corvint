@@ -368,7 +368,13 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   is covered by another suite package's declared test read scope in `.corvint/test-read-scopes.json`.
   A test can read a source file as data without executing its statements. The package's own scope
   does not exclude it under this rule. An absent declaration leaves eligibility under
-  `GLS-V0-032` unchanged. An unreadable or invalid declaration MUST fail qualification.
+  `GLS-V0-032` unchanged. Qualification reads the declaration at the index commit. Before the
+  baseline, it requires absence on both sides or a regular file with identical worktree bytes.
+  An unreadable or invalid declaration, including any key outside the observed root-module
+  packages, MUST fail qualification. Reports retain excluded packages and reasons in package
+  order in `excludedControls` when nonempty. Summarization requires matching exclusions across
+  chunks and carries them into the summary. The qualification record binds the parser source
+  `internal/gateselect/readscopes.go` under `GLS-V0-034`.
 - `GLS-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4365) The report
   (`-report FILE`, JSON `linecov-qualification/1`) retains the seed, index digest and commit, runner,
   the mutated and suite packages, every mutant's site, kind, operator, kept and failing tests, misses
@@ -733,7 +739,7 @@ need the same regeneration, and until then plans stay SHADOW in the same fail-cl
 | GLS-V0-017, GLS-V0-018 | `internal/linecov/envaudit.go`, `audit.go`, `collect.go`, `compact.go`, `index.go`, `decide.go`, `select.go`, `windows.go` | `TestEnvAuditParse`, `TestEnvUnbound`, `TestUnboundIndexDecidesNothing`, `TestEnvAuditVersionAdmission`, `TestSyscallEnvironmentMutation`, `TestFaultInjection` (`environment:` and `collector-set variable:` cases, collector-own read checks), `TestCompactRoundTrip`, `TestAffectedLineFCOrCIChangeKeepsStaticPlan` (a changed `CI` a test reads) |
 | GLS-V0-020 | `cmd/corvint/test.go`, `affected_linecov.go`, `internal/sessiontest/plan.go` | `TestLineNarrowingAppliesWhenQualified`, `TestCorvintTestLineIndexNarrowsTheRun`, `TestCorvintTestUnqualifiedLineIndexIsShadow`, `TestRunnerEnvCarriesBuildFlags`, `TestRunnerEnvKeepsSavedGoFlags`, `TestRunnerEnvSavedTestFlagOrFailedGoEnvFallsBack`, `TestRunnerEnvDeclaredVerbosityKeepsInverseVerboseTest`, `TestRunnerEnvRefusesUncarriedDeclaredEnv`, `TestCorvintTestUncarriedGoFlagKeepsStaticPlan`, `TestCorvintTestDeclaredVerbosityKeepsInverseVerboseTest`, `TestLocalQualificationRequiresMatchingEvidence` |
 | GLS-V0-030..034 | `tools/linecov/qualify.go` | `TestQualifyFixtureHasNoMiss`, `TestQualifyReportsASeededMiss`, `TestSummarizeAndQualified`, `TestWorkflowQualifiedInvocationMatchesWrapperRecord`; `.github/linecov/qualification.json`; build log |
-| GLS-V0-060 | `controlEligibility` in `tools/linecov/qualify.go` | `TestGLSV0060ControlReadScopes` |
+| GLS-V0-060 | `controlEligibility` in `tools/linecov/qualify.go` | `TestGLSV0060ControlReadScopes`, `TestGLSV0060CheckoutDeclaration`, `TestGLSV0060ControlExclusionsReport`, `TestQualifyRefusesFailingBaseline`, `TestSummarizeAndQualified` |
 | GLS-V0-035 | `tools/linecov/qualify.go` (unchanged) over the fixture in `tools/linecov/qualify_crosspkg_test.go` | `TestQualifyCrossPackageFixtureHasNoMiss` (every site of lib, each kind valid, zero misses, a lib mutant killed only by `app.TestReport`, the control keeps none), `TestQualifyReportsACrossPackageSeededMiss` (the seeded index fails qualify naming `app.TestReport`); build log `2026-11-11-selection-baseline-profile.md` |
 | GLS-V0-056, GLS-V0-057 | `tools/linecov/qualify.go` (`failingTests`), `internal/linecov/pgroup*.go` (`RunIsolated`) | `TestQualifyRunCannotSignalCaller`, `TestQualifyInterruptKillsRunGroup`; build log `2026-11-11-linecov-qualify-pgroup.md` |
 | GLS-V0-058, GLS-V0-059 | `tools/linecov/qualify.go` (`failingTests`, `-max-rss`), `internal/linecov/pgroup.go` (`RunIsolatedRSS`), `internal/linecov/pgroup_rss_linux.go`, `pgroup_rss_other.go` | `TestRunIsolatedRSSKillsGroupOverLimit`, `TestRunIsolatedRSSUnderLimitKeepsResult`, `TestRSSWatchdogEnforcedOnlyOnLinux`, `TestRSSWatchdogFailsClosedWithoutProcfs`, `TestQualifyRunOverRSSLimitIsInvalid`, `TestMaxRSSFlag`; build log `2026-11-15-linecov-qualify-rss-watchdog.md` |

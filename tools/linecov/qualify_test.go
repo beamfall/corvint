@@ -324,6 +324,13 @@ func TestSummarizeAndQualified(t *testing.T) {
 	if err := summarizeReports(root, filepath.Join(dir, "nocontrol.record"), []string{b}); err == nil {
 		t.Error("a record without a control was written")
 	}
+	parserPath := "internal/gateselect/readscopes.go"
+	write(t, root, parserPath, "package x // parser changed\n")
+	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qam", "change parser")
+	if err := qualified([]string{"-root", root, "-record", record, "-rev", "HEAD"}); err == nil || !strings.Contains(err.Error(), parserPath) {
+		t.Fatalf("changed read-scope parser: got %v, want a blob mismatch for %s", err, parserPath)
+	}
+	run(t, root, "git", "checkout", "-q", "--detach", "HEAD~1")
 	write(t, root, qualifiedSources[3], "package x // changed\n")
 	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qam", "change")
 	if err := summarizeReports(root, filepath.Join(dir, "relabeled.record"), []string{a, b}); err == nil {
@@ -345,7 +352,20 @@ func TestQualifyRefusesFailingBaseline(t *testing.T) {
 		t.Fatal(err)
 	}
 	file := filepath.Join(t.TempDir(), "report.json")
-	err := qualify([]string{"-root", root, "-index", index, "-packages", "p", "-mutants", "1", "-controls", "1", "-report", file})
+	args := []string{"-root", root, "-index", index, "-packages", "p", "-mutants", "1", "-controls", "1", "-report", file}
+	// This suite fails its baseline. An untracked declaration added after
+	// collection must be rejected before that baseline can write a report.
+	write(t, root, affected.ReadScopesPath, `{"profile":"corvint-test-read-scopes/0","packages":{"p":[]}}`)
+	if err := qualify(args); err == nil || !strings.Contains(err.Error(), affected.ReadScopesPath) {
+		t.Fatalf("untracked declaration: got %v, want declaration mismatch", err)
+	}
+	if _, err := os.Stat(file); !os.IsNotExist(err) {
+		t.Fatalf("baseline produced a report or could not be checked: %v", err)
+	}
+	if err := os.Remove(filepath.Join(root, affected.ReadScopesPath)); err != nil {
+		t.Fatal(err)
+	}
+	err := qualify(args)
 	if err == nil || !strings.Contains(err.Error(), "baseline failed") {
 		t.Fatalf("failed baseline admitted: %v", err)
 	}
@@ -378,13 +398,20 @@ func TestMaxRSSFlag(t *testing.T) {
 func TestGLSV0060ControlReadScopes(t *testing.T) {
 	for _, tc := range []struct {
 		name, packages, excluded string
+		reject                   bool
 	}{
-		{"directory and reader's own scope", `{"reader":["lib/","reader/"]}`, "lib"},
-		{"exact file", `{"reader":["lib/data.txt"]}`, "lib"},
-		{"root file", `{"reader":["root.go"]}`, "."},
-		{"outside suite", `{"other":["lib/"]}`, ""},
-		{"missing declaration", "", ""},
-		{"invalid JSON", "{", ""},
+		{"directory and reader's own scope", `{"reader":["lib/","reader/"]}`, "lib", false},
+		{"exact file", `{"reader":["lib/data.txt"]}`, "lib", false},
+		{"root file", `{"reader":["root.go"]}`, ".", false},
+		{"untracked root data", `{"reader":["local.txt"]}`, "", false},
+		{"outside suite", `{"other":["lib/"]}`, "", false},
+		{"missing declaration", "", "", false},
+		{"invalid JSON", "{", "", true},
+		{"unknown entry form", `{"reader":[{"prefix":"lib"}]}`, "", true},
+		{"misspelled reader", `{"raeder":["lib/"]}`, "", true},
+		{"directory without Go files", `{"assets":["lib/"]}`, "", true},
+		{"nested module outside suite", `{"nested":["lib/"]}`, "", true},
+		{"fixture package outside suite", `{"reader/testdata/pkg":["lib/"]}`, "", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -397,12 +424,21 @@ func TestGLSV0060ControlReadScopes(t *testing.T) {
 				ix.Tests = append(ix.Tests, linecov.Test{Package: pkg, Name: "TestOne"})
 			}
 			write(t, root, "lib/data.txt", "fixture data")
+			write(t, root, "other/other.go", "package other\n")
+			write(t, root, "assets/data", "fixture data")
+			write(t, root, "nested/go.mod", "module example.com/nested\n")
+			write(t, root, "nested/nested.go", "package nested\n")
+			write(t, root, "reader/testdata/pkg/fixture.go", "package fixture\n")
 			if tc.packages != "" {
 				write(t, root, affected.ReadScopesPath, `{"profile":"corvint-test-read-scopes/0","packages":`+tc.packages+`}`)
 			}
-
+			run(t, root, "git", "init", "-q")
+			run(t, root, "git", "add", ".")
+			run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "scope fixture")
+			ix.Commit = strings.TrimSpace(gitOut(t, root, "rev-parse", "HEAD"))
+			write(t, root, "local.txt", "untracked data")
 			ok, excluded, err := controlEligibility(root, ix, suite)
-			if tc.name == "invalid JSON" {
+			if tc.reject {
 				if err == nil || !strings.Contains(err.Error(), affected.ReadScopesPath) || ok != nil {
 					t.Fatalf("invalid declaration returned eligibility %t, error %v", ok != nil, err)
 				}
@@ -424,5 +460,90 @@ func TestGLSV0060ControlReadScopes(t *testing.T) {
 				t.Errorf("exclusions = %v, want %v", excluded, want)
 			}
 		})
+	}
+}
+
+// GLS-V0-060: equality includes presence, file type and the exact bytes.
+func TestGLSV0060CheckoutDeclaration(t *testing.T) {
+	const declaration = `{"profile":"corvint-test-read-scopes/0","packages":{"calc":[]}}`
+	for _, tc := range []struct {
+		name, committed, checkout string
+	}{
+		{"empty untracked file", "absent", ""},
+		{"empty committed blob", "", ""},
+		{"missing worktree file", declaration, "absent"},
+		{"same JSON with different bytes", declaration, declaration + "\n"},
+		{"directory at declaration path", "absent", "directory"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := qualifyModule(t)
+			name := filepath.Join(root, affected.ReadScopesPath)
+			if tc.committed != "absent" {
+				write(t, root, affected.ReadScopesPath, tc.committed)
+				run(t, root, "git", "add", ".")
+				run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "scope")
+			}
+			ix := &linecov.Index{Commit: strings.TrimSpace(gitOut(t, root, "rev-parse", "HEAD"))}
+			switch tc.checkout {
+			case "absent":
+				if err := os.Remove(name); err != nil {
+					t.Fatal(err)
+				}
+			case "directory":
+				if err := os.MkdirAll(name, 0755); err != nil {
+					t.Fatal(err)
+				}
+			default:
+				write(t, root, affected.ReadScopesPath, tc.checkout)
+			}
+			ok, _, err := controlEligibility(root, ix, []string{"calc"})
+			if err == nil || !strings.Contains(err.Error(), affected.ReadScopesPath) || ok != nil {
+				t.Fatalf("invalid declaration returned eligibility %t, error %v", ok != nil, err)
+			}
+		})
+	}
+}
+
+// GLS-V0-060: the saved report and its folded chunks identify every excluded
+// control package even if no control was requested.
+func TestGLSV0060ControlExclusionsReport(t *testing.T) {
+	root := crossPackageModule(t)
+	write(t, root, affected.ReadScopesPath, `{"profile":"corvint-test-read-scopes/0","packages":{"lib":["app/"],"app":["lib/"]}}`)
+	run(t, root, "git", "add", ".")
+	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "declare scopes")
+	dir := t.TempDir()
+	index := filepath.Join(dir, "index")
+	if err := collect([]string{"-root", root, "-out", index}); err != nil {
+		t.Fatal(err)
+	}
+	reason := "another suite package's declared test read scope covers it (GLS-V0-060)"
+	want := []controlExclusion{{"app", reason}, {"lib", reason}}
+	var reports []string
+	for i := range 2 {
+		report := filepath.Join(dir, fmt.Sprintf("report-%d.json", i))
+		if err := qualify([]string{"-root", root, "-index", index, "-packages", "lib", "-suite", "lib,app", "-start", fmt.Sprint(i), "-count", "1", "-report", report}); err != nil {
+			t.Fatal(err)
+		}
+		if got := readReport(t, report).ExcludedControls; !slices.Equal(got, want) {
+			t.Fatalf("saved exclusions = %+v, want %+v", got, want)
+		}
+		reports = append(reports, report)
+	}
+	var err error
+	summary := captureStdout(t, func() { err = summarizeReports(root, "", reports) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got QualReport
+	if err := json.Unmarshal([]byte(summary), &got); err != nil || !slices.Equal(got.ExcludedControls, want) {
+		t.Fatalf("summary exclusions = %+v, want %+v (decode error %v)", got.ExcludedControls, want, err)
+	}
+	chunk := readReport(t, reports[1])
+	chunk.ExcludedControls = nil
+	if err := writeJSON(reports[1], chunk); err != nil {
+		t.Fatal(err)
+	}
+	if err := summarizeReports(root, "", reports); err == nil {
+		t.Fatal("summarized chunks with different control exclusions")
 	}
 }

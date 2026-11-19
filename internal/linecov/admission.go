@@ -15,6 +15,7 @@ const QualifiedProfile = "linecov-qualified/1"
 
 var QualifiedSources = []string{
 	"cmd/corvint/affected_linecov.go",
+	"internal/gateselect/readscopes.go",
 	"internal/linecov/admission.go",
 	"internal/linecov/audit.go",
 	"internal/linecov/collect.go",

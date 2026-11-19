@@ -43,6 +43,7 @@ func TestQualifiedSourcesBindSelectorDependencies(t *testing.T) {
 	}
 	for _, p := range []string{
 		"cmd/corvint/affected_linecov.go",
+		"internal/gateselect/readscopes.go",
 		"internal/liveverify/affected/readers.go",
 		"tools/linecov/ci.go",
 		"tools/linecov/main.go",
