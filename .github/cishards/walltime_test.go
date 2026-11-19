@@ -392,7 +392,7 @@ func TestAFPV02181Run41568676566Replay(t *testing.T) {
 // frozen when those tables are refreshed again.
 const run41568676566 = "" +
 	"benchmarks 8923; benchmarks/dogfood-measure 27156; benchmarks/dogfood-workers 1095; " +
-	"benchmarks/runner 1146; benchmarks/selfuse-batch 78818; " +
+	"benchmarks/runner 1146; " +
 	"cmd/corvint 308045,312587,313009,311137; cmd/corvint-analyzer-c-jni 1441; " +
 	"cmd/corvint-analyzer-dotnet 1046; cmd/corvint-analyzer-go 4791; " +
 	"cmd/corvint-analyzer-html-css 24373; cmd/corvint-analyzer-java 1464; " +
@@ -415,22 +415,20 @@ const run41568676566 = "" +
 	"cmd/corvint-pulse 1373; cmd/corvint-readiness-record 1031; cmd/corvint-release-candidate 1; " +
 	"cmd/corvint-release-gate 1013; cmd/corvint-release-install 1; " +
 	"cmd/corvint-remote-provider 1015; cmd/corvint-ruby-test-provider 1162; cmd/corvint-tasks 1; " +
-	"cmd/corvint-test 55756; cmd/corvint-test-runner 12789; cmd/corvint-test-validity-mcp 1892; " +
+	"cmd/corvint-test 55756; cmd/corvint-test-runner 12789; " +
 	"cmd/corvint-tests-accept 1041; cmd/corvint-update 1016; cmd/corvint-web-flows 1047; " +
 	"cmd/corvint-work-queue 2414; conformance 1012; conformance/cli-errors-v0 29366; " +
 	"conformance/cli-parity-v0 46871; conformance/dashboard-snapshot-v0 22418; " +
 	"conformance/frontier-v0 1068; conformance/go-live-test-v0 54289; " +
 	"conformance/harness-event-v0 1035; conformance/host-lifecycle-v1 3483; " +
 	"conformance/human-documentation-compiler-v0 2496; conformance/mcp-2026-07-28 28438; " +
-	"conformance/mcp-test-validity-v0 3909; conformance/ocm-v0 4171; conformance/perf-v0 1012; " +
+	"conformance/ocm-v0 4171; conformance/perf-v0 1012; " +
 	"conformance/pulse-snapshot-v0 66471; conformance/release-artifact-v0 25522; " +
 	"conformance/release-artifact-v0/archive-verifier 1019; " +
 	"conformance/release-artifact-v0/archivebuild 1042; " +
 	"conformance/release-artifact-v0/archiveverify 1254; " +
 	"conformance/release-artifact-v0/archivewire 1; conformance/use-cases-v0 1235; " +
-	"conformance/work-queue-v0 14439; conformance/work-queue-v0/cmd/cli-adapter 1; " +
-	"conformance/work-queue-v0/cmd/cli-prose 1; conformance/work-queue-v0/cmd/cli-replay 1; " +
-	"conformance/work-queue-v0/cmd/cli-scope 1; examples/evidence-provider/v0 1013; " +
+	"examples/evidence-provider/v0 1013; " +
 	"examples/evidence-provider/v0/check 1032; examples/evidence-provider/v0/conformance 54417; " +
 	"experimental/analyzers/sqlnative 7091; integrations/testfixture 1; internal/analyzercap 5958; " +
 	"internal/analyzerdotnet 1138; internal/analyzerexec 1581; internal/analyzergo 4132; " +
@@ -490,13 +488,13 @@ const run41568676566 = "" +
 	"internal/lspstdio 33628; internal/mcp/bridge 68863; internal/mcp/cli 34231; " +
 	"internal/mcp/corpusbridge 16472; internal/mcp/docsbridge 29997; internal/mcp/protocol 1022; " +
 	"internal/mcp/rootbind 1; internal/mcp/server 2818; internal/mcp/tasksbridge 4293; " +
-	"internal/mcp/tasksread 1013; internal/mcp/testvaliditybridge 1123; internal/mcp/toolgroup 1; " +
+	"internal/mcp/tasksread 1013; internal/mcp/toolgroup 1; " +
 	"internal/migrationratchet 1136; internal/modelgateway 1077; internal/necessity 1333; " +
 	"internal/obscorpus 1143; internal/observations 2808; internal/observedstale 1085; " +
 	"internal/opencodequalification 75599; internal/outcomecal 1037; internal/perfbudget 112975; " +
 	"internal/perfbudget/cmd/perf-budget 7595; internal/plansnapshot 1176; " +
 	"internal/playwrightminimize 1316; internal/playwrightminimize/cli 1; " +
-	"internal/playwrightruns 1753; internal/postmergeconnector 2758; internal/postmergehost 36680; " +
+	"internal/postmergeconnector 2758; internal/postmergehost 36680; " +
 	"internal/postmergemetrics 3319; internal/postmergeproof 14317; " +
 	"internal/postmergeproof/procfs 1190; internal/postmergeworkflow 105377; " +
 	"internal/procgroup 105644; internal/procprofile 3107; internal/projectpath 1032; " +
@@ -525,7 +523,7 @@ const run41568676566 = "" +
 	"internal/tasks/testhooks 1017; internal/tasks/ticket 1293; internal/tasks/transaction 90942; " +
 	"internal/tasks/wire 1534; internal/tasks/worktrail 1016; internal/tcq 1514; " +
 	"internal/testacceptance 73945; internal/testacceptance/cli 1; internal/testevidence 1114; " +
-	"internal/testplan 6570; internal/testplatform 1052; internal/testrunner 64463; " +
+	"internal/testplatform 1052; internal/testrunner 64463; " +
 	"internal/testrunner/cli 1; internal/testrunner/dynamic 14557; internal/testrunner/mobile 7176; " +
 	"internal/testrunner/native 13688; internal/testrunner/platform 10253; " +
 	"internal/testrunner/registry 1025; internal/testrunner/sql 1074; internal/testsource 18112; " +
@@ -535,7 +533,7 @@ const run41568676566 = "" +
 	"internal/tracerecordrepo 47466; internal/tracerepopaths 1; internal/unplannedread 2474; " +
 	"internal/untrackedallowance 1011; internal/update 22640; internal/upgradechanges 9268; " +
 	"internal/versionline 1015; internal/witness 13481; internal/witnesscollapse 1952; " +
-	"internal/witnesspaths/datareaders 1; internal/worklistadapter 1; internal/workqueue 3459; " +
+	"internal/witnesspaths/datareaders 1; internal/worklistadapter 1; " +
 	"internal/worksource 2477; internal/workspace 1033; internal/worktreeimpact 8025; " +
 	"internal/wp3codec 1023; protocol/integrations 1028; script/spec-coverage-audit 1021; " +
 	"tools/beamfall-shadow 25116; tools/beamfall-shadow/fdexec 1; " +
@@ -549,10 +547,10 @@ const run41568676566 = "" +
 	"tools/compat-trial/fixtures/old 1; tools/corvint-pr-tests 119588; tools/cw-trial 18782; " +
 	"tools/declaration-compat-check 1075; tools/docs-blinded-task 1; tools/docs-ci-plan 4664; " +
 	"tools/dogfood-guard-hunks 1; tools/dogfood-inherit-citations 1809; " +
-	"tools/fixture-maintenance-check 3693; tools/flow-guide-check 5943; " +
-	"tools/gate-affected-select 4231; tools/gate-ledger 32760; tools/gotest-evidence 1092; " +
+	"tools/flow-guide-check 5943; " +
+	"tools/gate-affected-select 4231; tools/gate-ledger 32760; " +
 	"tools/heading-nav-bench 1083; tools/native-hook-observer 1317; tools/paired-trial 1042; " +
-	"tools/pi-tui-fixture 1020; tools/plan-delta 1018; tools/qualify-opencode 1; " +
+	"tools/qualify-opencode 1; " +
 	"tools/requirement-id-collisions 1469; tools/retrieval-bench 4429; " +
 	"tools/selection-baseline 1097; tools/str-parity 1022; tools/tasks-profiles-check 1026; " +
 	"tools/test-commands-check 1735; tools/test-commands-run 1035; " +
