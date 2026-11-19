@@ -133,7 +133,7 @@ two runs SHALL report identical ranks.
 
 A change to ranking, corpus build, the corpus format, or any promoted verb or tool after a passing
 qualification MUST rerun RCF-V1-008 and RCF-V1-009 before the promotion lands or before the next
-candidate tag.
+candidate tag. This includes changes to pagination and the construction of result citations.
 
 #### Scenario: Late ranking fix
 
@@ -173,12 +173,26 @@ the CMP-V1-004 notice rule.
 
 The release-candidate currency check MUST derive trigger patterns from the owner entries in
 `.corvint/test-selection.json` naming `cmd/corvint-docs/rcf_qualification_test.go` at both the
-qualified and candidate commits. It MUST use the existing owner-pattern dialect and include
-deleted and renamed paths. Missing or invalid selection or qualification pins MUST fail closed.
+qualified and candidate commits. Those owners MUST cover every non-test Go source file in the
+repository packages serving the promoted CLI verbs and MCP tools, including their transitive
+implementation dependencies. Use package-wide patterns so a newly added file is covered.
+The catalog MUST identify one corvint-docs product in the package exercised by the live runner.
+Pin reuse requires owned regular blobs in the candidate tree for local production inputs.
+Missing or unsupported catalogs MUST identify the read or validation failure before live setup.
+The release builder and its profile MUST have qualification owners. Pin reuse requires the
+same resolved local input set for each shipped target at the qualified and candidate commits.
+Unmodeled command-directory entries, including automatic PGO profiles, require fresh qualification.
+Before pin reuse the gate MUST verify owner coverage of the production import closure and
+resolved embedded inputs for every shipped target. Uncovered inputs, unsupported build inputs
+or an incomplete closure MUST require fresh qualification. The DCS-V1-404 ranking fixture
+directory MUST select both qualification and ranking tests. The gate MUST use the
+existing owner-pattern dialect and include deleted and renamed paths. Missing or invalid
+selection or qualification pins MUST fail closed.
 The committed `docs/specs/rcf-qualification.json` MUST pin the last qualified commit and report
 SHA-256. With no trigger diff and unchanged selection, the check MAY reuse that pinned evidence.
 Otherwise it MUST require `CORVINT_RCF_QUALIFY`, run `TestRCFV1008Qualification` uncached at the
-clean candidate checkout, observe that named test pass, and validate a fresh PASS report against
+isolated checkout of the candidate commit under the release build environment, observe that named
+test pass, and validate a fresh PASS report against
 the candidate's frozen query-set digest. It MUST also observe two uncached passes of
 `TestDCSV1404SearchRankingEvalFixture`, which checks identical ranks across evaluations.
 Missing configuration, a skipped test, failed execution, missing or stale report, or a changed
@@ -188,12 +202,12 @@ Only a dispatched release-candidate gate SHALL invoke the check, never ordinary 
 
 #### Scenario: Stale qualification holds the candidate
 
-- GIVEN a ranking change after the pinned qualification
+- GIVEN a ranking or pagination change after the pinned qualification
 - WHEN the release-candidate currency check has no live configuration or fresh passing report
 - THEN it fails with the missing evidence named, even if ordinary package tests passed
 
 #### Scenario: Unchanged promoted scope
 
 - GIVEN a valid qualification pin and selection at both immutable commits
-- WHEN no trigger path or selection declaration changed
+- WHEN the gate proves production owner coverage for all shipped targets and no trigger path or selection declaration changed
 - THEN the check passes and names the reused commit and report digest
