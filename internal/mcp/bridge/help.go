@@ -107,19 +107,25 @@ func helpTopicText(topic, name string) (command, text string, known bool) {
 	case helpTopicGuide:
 		return "corvint help guide", capcatalog.Guide(), name == ""
 	case helpTopicCommand:
+		if !slices.Contains(helpCommandNames(), any(name)) {
+			return "", "", false
+		}
 		slice, _, ok := capcatalog.Slice(capcatalog.Snapshot(), name)
 		return helpCommandPrefix + name, string(slice), ok
 	}
 	return "", "", false
 }
 
-// helpCommandNames lists every command of the embedded catalog, the
-// command argument's enum.
+// helpCommandNames lists the commands in the frozen MCP help enum (MMR-V0-001).
 func helpCommandNames() []any {
 	_, names, _ := capcatalog.Slice(capcatalog.Snapshot(), "")
-	enum := make([]any, len(names))
-	for index, name := range names {
-		enum[index] = name
+	enum := make([]any, 0, len(names))
+	for _, name := range names {
+		// LEV-V1-012 shares the affected reader; it does not widen tools/list.
+		// The experimental CLI command remains in the full help catalog.
+		if name != "line-evidence" {
+			enum = append(enum, name)
+		}
 	}
 	return enum
 }

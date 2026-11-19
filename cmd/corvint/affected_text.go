@@ -35,6 +35,12 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 	}
 	for _, selection := range receipt.Plan.Selected {
 		fmt.Fprintf(&out, "selected %s tests=%d test-files=%d %s", textWord(selection.UnitID), selection.TestCount, selection.TestFileCount, textWord(selection.Witness.Kind))
+		if selection.Tier != "" {
+			fmt.Fprintf(&out, " instance=%s tier=%s exact=false %s", textWord(selection.Instance), selection.Tier, textWord(selection.Reason))
+			if len(selection.Rank) != 0 {
+				fmt.Fprintf(&out, " rank=%s", textWord(strings.Join(selection.Rank, ",")))
+			}
+		}
 		if selection.Witness.DirtyPath != "" {
 			fmt.Fprintf(&out, " <- %s", textWord(selection.Witness.DirtyPath))
 		}

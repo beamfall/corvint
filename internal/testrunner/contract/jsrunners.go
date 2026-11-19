@@ -76,6 +76,20 @@ func unfilterable(command Command) Command {
 }
 
 func narrowed(request Request, argv []string, env []string, reasons []string) Command {
+	// LEV-V1-014: an overflowing file selection cannot be launched. The
+	// full command keeps runner-specific reporting and widens safely.
+	if !ArgvFits(argv) {
+		runner, ok := For(request.Instance.Runner)
+		if ok {
+			request.Tests = nil
+			command, err := runner.Command(request)
+			if err == nil {
+				command.Exact, command.Reason = false, ReasonArgvLimit
+				return command
+			}
+		}
+	}
+
 	command := Command{Argv: argv, Dir: request.Instance.Root, Env: env, Report: request.Report, Tier: tierOf(request), Exact: len(reasons) == 0}
 	if !command.Exact {
 		command.Reason = strings.Join(reasons, "; ")

@@ -134,6 +134,12 @@ type affectedCompactCheck struct {
 }
 
 type affectedCompactSelection struct {
+	Tier     string   `json:"tier,omitempty"`
+	Exact    *bool    `json:"exact,omitempty"`
+	Instance string   `json:"instance,omitempty"`
+	Reason   string   `json:"reason,omitempty"`
+	Rank     []string `json:"rank,omitempty"`
+
 	Kind   string   `json:"kind,omitempty"`
 	Run    []string `json:"run,omitempty"`
 	UnitID string   `json:"unitId"`
@@ -330,7 +336,7 @@ func compactAffectedSelections(selections []affected.Selection) ([]affectedCompa
 		if !linkAffectedChain(selection.UnitID, witness, links, prefixes) {
 			compact.Via = witness.Chain()
 		}
-		selected = append(selected, affectedCompactSelection{UnitID: selection.UnitID, TestCount: len(selection.Tests), TestFileCount: len(selection.Tests), Witness: compact, Kind: selection.Kind, Run: selection.Run, Argv: selection.Argv, Workflow: selection.Workflow, Job: selection.Job, Flows: selection.Flows, TestKind: selection.TestKind})
+		selected = append(selected, affectedCompactSelection{Tier: selection.Tier, Exact: selection.Exact, Instance: selection.Instance, Reason: selection.Reason, Rank: selection.Rank, UnitID: selection.UnitID, TestCount: len(selection.Tests), TestFileCount: len(selection.Tests), Witness: compact, Kind: selection.Kind, Run: selection.Run, Argv: selection.Argv, Workflow: selection.Workflow, Job: selection.Job, Flows: selection.Flows, TestKind: selection.TestKind})
 	}
 	if len(links) == 0 {
 		links = nil

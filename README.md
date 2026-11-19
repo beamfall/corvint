@@ -70,6 +70,7 @@ with the code.
 | Capability | What you get | Try it | Maturity |
 |---|---|---|---|
 | Affected test selection | The tests to run for a branch, the mandatory checks, and an explicit unknown frontier instead of a silent full run | `corvint affected --base FULL_SHA` | core |
+| Line evidence | Private per-instance evidence that adds or ranks tests; line-level narrowing remains unqualified | `corvint line-evidence refresh --runner go --root .` | experimental |
 | Impact of a change | What a path or a committed range reaches, with uncertainty where a rule is missing | `corvint impact internal/date/parse.go` | core |
 | Application map | A checked map of a web application that E2E-safe test selection reads | `corvint flows appmap build --manifest appmap.json --revision HEAD` | experimental |
 | Documentation search | Search source-pinned documentation and read passages verified against the pinned commit, from the CLI (corpus build, search, get and info) or MCP; result order is preview | `corvint.docs_search` on `corvint-docs mcp --corpus-artifact corpus.json` | stable |

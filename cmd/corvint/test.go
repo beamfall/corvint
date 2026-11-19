@@ -226,8 +226,9 @@ type testOptions struct {
 	base, placement, profile, confine, manifest, receipt, shardPlan string
 	// lineIndex is --line-index, the linecov index whose line selection
 	// narrows a NARROWED run (GLS-V0-020).
-	lineIndex         string
-	shard, shardCount int
+	lineEvidenceIndex, lineEvidenceFamily, lineEvidenceConfig string
+	lineIndex                                                 string
+	shard, shardCount                                         int
 	// goParallel is --go-parallel, the local Go `-p` (STR-V0-173); zero
 	// keeps the declared flags.
 	goParallel int
@@ -391,11 +392,16 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	if len(args) > 0 && args[0] == "reuse" {
 		return runTestReuse(ctx, root, args[1:], stdout, stderr)
 	}
+	return runTestWithEvidence(ctx, root, args, stdout, stderr, affectedInvocation{})
+}
+
+func runTestWithEvidence(ctx context.Context, root string, args []string, stdout, stderr io.Writer, evidence affectedInvocation) int {
 	options, err := parseTestOptions(args)
 	if err != nil {
 		emitError(stderr, err)
 		return 2
 	}
+	options.lineEvidenceIndex, options.lineEvidenceFamily, options.lineEvidenceConfig = evidence.lineEvidenceIndex, evidence.lineEvidenceFamily, evidence.lineEvidenceConfig
 	// RNC-V1-008: the kill switch is read before any planning, and a value
 	// outside the kill-switch grammar exits 2 and runs nothing.
 	selectionSwitch, err := killswitch.FromEnv(os.Getenv)
@@ -492,6 +498,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		return 2
 	}
 	input, pins := testRunInput(ctx, root, options, source, observed)
+	for _, line := range pins.lineEvidence {
+		_, _ = fmt.Fprintln(stderr, line)
+	}
 	if input.Declared.Invalid {
 		// RNC-V1-013: a malformed adopter declaration is refused, never
 		// replaced by a built-in default.
@@ -723,7 +732,7 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 	// The compile reuses the identity's HEAD and dirty set, and its closing
 	// recheck spans the identity read too (AFP-V0-824).
 	declared := sessiontest.ReadDeclared(root)
-	invocation := affectedInvocation{Root: root, Base: options.base, observed: observed, LineIndex: options.lineIndex}
+	invocation := affectedInvocation{Root: root, Base: options.base, observed: observed, LineIndex: options.lineIndex, lineEvidenceIndex: options.lineEvidenceIndex, lineEvidenceFamily: options.lineEvidenceFamily, lineEvidenceConfig: options.lineEvidenceConfig}
 	if options.profile == sessiontest.ProfileCI {
 		// The CI profile runs every test under the confinement wrapper, which
 		// the runner identity names (GLS-V0-020).
@@ -746,6 +755,13 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 		input.GraphDigest = graph.Digest()
 		err = testFillPlan(ctx, &input, receipt, graph, root, options.base, index)
 	}
+	if err == nil {
+		for _, selection := range receipt.Plan.Selected {
+			if selection.Tier != "" {
+				pins.lineEvidence = append(pins.lineEvidence, fmt.Sprintf("%s tier=%s exact=false %s", selection.Instance, selection.Tier, selection.Reason))
+			}
+		}
+	}
 	if err == nil && options.pins {
 		pins.tokens = testChangedTokens(ctx, root, options.base, receipt.Plan.Dirty)
 		pins.units = testPins(receipt.Plan, graph, root, pins.tokens)
@@ -763,8 +779,9 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 
 // testPinsResult carries the --pins report inputs (TSP-V0-944).
 type testPinsResult struct {
-	tokens testPinTokens
-	units  []testPinUnit
+	lineEvidence []string
+	tokens       testPinTokens
+	units        []testPinUnit
 }
 
 func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root, base string, index *gateselect.Index) error {
@@ -814,6 +831,15 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	slices.SortFunc(input.Declared.Languages, func(a, b sessiontest.LanguageCommand) int { return strings.Compare(a.Language, b.Language) })
 	testPlanScope(input, receipt, plan, graph, root, index)
 	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
+	// An instance-wide stale verdict authorizes only whole Go packages. Static
+	// test-name slicing must not narrow a line-evidence FULL fallback.
+	for _, selection := range receipt.Plan.Selected {
+		if selection.Tier == "full" && selection.Reason == "line-evidence-stale" {
+			if pkg, ok := strings.CutPrefix(selection.UnitID, "go:"); ok {
+				input.GoSlices[pkg] = sessiontest.GoSlice{Reason: "line-evidence-stale"}
+			}
+		}
+	}
 	for _, language := range affectedLanguages() {
 		if language.Name() == "go" || language.Name() == affected.DriverNamespace {
 			continue
@@ -835,6 +861,18 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 // receipt. `corvint test` builds its manifest from them and `corvint
 // affected` its selection verdict, so both decide one scope (SLF-V1-007).
 func testPlanScope(input *sessiontest.Input, receipt affectedReceipt, plan gateselect.Receipt, graph *affected.Graph, root string, index *gateselect.Index) {
+	for instance, reason := range receipt.Plan.FullInstances {
+		if input.FullInstances == nil {
+			input.FullInstances = map[string]string{}
+		}
+		input.FullInstances[instance] = reason
+		if strings.HasPrefix(instance, "go@") {
+			if input.FullGoInstances == nil {
+				input.FullGoInstances = map[string]string{}
+			}
+			input.FullGoInstances[instance] = reason
+		}
+	}
 	input.SelectedTests = map[string][]string{}
 	for _, selection := range receipt.Plan.Selected {
 		input.Selected = append(input.Selected, selection.UnitID)
@@ -882,7 +920,15 @@ func testInventoryScope(ctx context.Context, root string, input *sessiontest.Inp
 	}
 	input.KillSwitch = selectionSwitch
 	input.ListedTests = listed
-	input.FullInstances = map[string]string{}
+	if input.FullInstances == nil {
+		input.FullInstances = map[string]string{}
+	}
+	for i := range inventory.Instances {
+		instance := &inventory.Instances[i]
+		if reason := input.FullInstances[instance.Key]; reason != "" {
+			instance.Full, instance.Reason, instance.Cause = true, reason, ""
+		}
+	}
 	for _, instance := range inventory.Instances {
 		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})
 		if instance.Full {

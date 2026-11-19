@@ -1479,6 +1479,52 @@
       ]
     },
     {
+      "name": "line-evidence",
+      "helpTopic": "corvint help line-evidence",
+      "purpose": "refresh private line evidence",
+      "maturity": "experimental",
+      "owningSpec": "LEV-V1",
+      "freezeContract": null,
+      "operations": [
+        "refresh"
+      ],
+      "nestedOperations": {},
+      "requiredFlags": {},
+      "flags": [
+        "--runner"
+      ],
+      "schemaIds": [
+        "linecov-index/4"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "Only refresh collects or writes evidence.",
+        "Tests and their hooks execute project code and may write their own outputs."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "exitCodesMentioned",
+          "reason": "the help text states no exit status"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
+    },
+    {
       "name": "mcp",
       "helpTopic": "corvint help mcp",
       "purpose": "local read-only stdio MCP server",
@@ -1719,6 +1765,7 @@
       "tests",
       "watch",
       "inventory",
+      "line-evidence",
       "mcp",
       "how"
     ],
