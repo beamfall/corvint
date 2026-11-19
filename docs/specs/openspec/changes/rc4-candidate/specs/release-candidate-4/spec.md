@@ -133,7 +133,7 @@ two runs SHALL report identical ranks.
 
 A change to ranking, corpus build, the corpus format, or any promoted verb or tool after a passing
 qualification MUST rerun RCF-V1-008 and RCF-V1-009 before the promotion lands or before the next
-candidate tag.
+candidate tag. This includes changes to pagination and the construction of result citations.
 
 #### Scenario: Late ranking fix
 
@@ -173,8 +173,12 @@ the CMP-V1-004 notice rule.
 
 The release-candidate currency check MUST derive trigger patterns from the owner entries in
 `.corvint/test-selection.json` naming `cmd/corvint-docs/rcf_qualification_test.go` at both the
-qualified and candidate commits. It MUST use the existing owner-pattern dialect and include
-deleted and renamed paths. Missing or invalid selection or qualification pins MUST fail closed.
+qualified and candidate commits. Those owners MUST cover every non-test Go source file in the
+repository packages serving the promoted CLI verbs and MCP tools, including their transitive
+implementation dependencies. Use package-wide patterns so a newly added file is covered.
+When adding a package dependency, extend the owners to cover it. The gate MUST use the
+existing owner-pattern dialect and include deleted and renamed paths. Missing or invalid
+selection or qualification pins MUST fail closed.
 The committed `docs/specs/rcf-qualification.json` MUST pin the last qualified commit and report
 SHA-256. With no trigger diff and unchanged selection, the check MAY reuse that pinned evidence.
 Otherwise it MUST require `CORVINT_RCF_QUALIFY`, run `TestRCFV1008Qualification` uncached at the
@@ -188,7 +192,7 @@ Only a dispatched release-candidate gate SHALL invoke the check, never ordinary 
 
 #### Scenario: Stale qualification holds the candidate
 
-- GIVEN a ranking change after the pinned qualification
+- GIVEN a ranking or pagination change after the pinned qualification
 - WHEN the release-candidate currency check has no live configuration or fresh passing report
 - THEN it fails with the missing evidence named, even if ordinary package tests passed
 

@@ -331,3 +331,43 @@ func TestLiveTest(t *testing.T) {
 		})
 	}
 }
+
+// RCF-V1-010/013: keep the real owner declaration identical at both revisions.
+// Each candidate edits only the body of an existing source file.
+func TestCurrencyPromotedSourceChange(t *testing.T) {
+	owners, err := readFile(filepath.Join("..", "..", selectionPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{
+		"internal/doccorpus/pagination.go",     //corvint:fixture-path
+		"internal/doccorpus/compact_anchor.go", //corvint:fixture-path
+		"cmd/corvint-docs/shared.go",           //corvint:fixture-path
+		"internal/mcp/protocol/decode.go",      //corvint:fixture-path
+		"internal/lineanchor/lineanchor.go",    //corvint:fixture-path
+	} {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			g := gate{root: t.TempDir()}
+			fixtureGit(t, g.root, "init", "-q")
+			write(t, filepath.Join(g.root, selectionPath), owners)
+			source := filepath.Join(g.root, filepath.FromSlash(path))
+			write(t, source, []byte("package fixture\nfunc value() int { return 1 }\n"))
+			qualified := commit(t, g.root)
+			pin, err := json.Marshal(qualificationPin{Commit: qualified, ReportSHA256: strings.Repeat("c", 64)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			write(t, filepath.Join(g.root, pinPath), pin)
+			result, err := g.check(commit(t, g.root), "")
+			if err != nil || !strings.Contains(result, "reason=no-trigger-diff") {
+				t.Fatalf("pin alone: result=%q err=%v", result, err)
+			}
+
+			write(t, source, []byte("package fixture\nfunc value() int { return 2 }\n"))
+			result, err = g.check(commit(t, g.root), "")
+			if result != "" || err == nil || !strings.Contains(err.Error(), "trigger diff requires CORVINT_RCF_QUALIFY") {
+				t.Fatalf("%s alone: result=%q err=%v; want live qualification required", path, result, err)
+			}
+		})
+	}
+}
