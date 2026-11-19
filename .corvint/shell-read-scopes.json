@@ -12,11 +12,7 @@
       "reads": [
         "Makefile"
       ],
-      "reason": "Runs only ai-coauthor-trailers-check from the repository Makefile in a temporary Git fixture; all commits, event payloads and remotes are private to that fixture (V1-5621).",
-      "localReads": [
-        "script/check-ai-coauthor-trailers.sh",
-        "script/pre-push-windows-vet.sh"
-      ]
+      "reason": "V1-5621: reads Makefile in private Git fixtures; script/ keeps its default scope."
     },
     "script/check-install-lifecycle_test.sh": {
       "reads": [
