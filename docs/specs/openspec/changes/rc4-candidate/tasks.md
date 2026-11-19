@@ -50,6 +50,6 @@ Task numbers remain stable; these prerequisites do not depend on running qualifi
 
 ## 5. Review
 
-- [x] 5.1 One independent review of the runner and promotion commit; fix P0/P1 findings.
+- [ ] 5.1 One independent review of the runner and promotion commit; fix P0/P1 findings.
   Requirements: all. Proof: review record `docs/build-log/2026-11-18-rc4-qualification-review-repair.md`;
-  P1-3 (rerun enforcement) rescoped to V1-5692 and held by readiness row 13.
+  Review done; P1-3 (rerun enforcement) rescoped to V1-5692 and held by readiness row 13. Tick after 4.4.
