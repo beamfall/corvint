@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -42,6 +43,7 @@ func commit(t *testing.T, root string) string {
 }
 
 func selection(patterns ...string) []byte {
+	slices.Sort(patterns)
 	owners := []map[string]any{}
 	for _, p := range patterns {
 		owners = append(owners, map[string]any{"paths": p, "tests": []string{qualificationSource}})
@@ -270,6 +272,34 @@ func TestTriggerPatterns(t *testing.T) {
 	}
 	if _, err := triggerPatterns(selection("rank/*.go", "corpus/**")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// RCF-V1-013, V1-5692: ambiguous or invalid declarations cannot narrow triggers
+// or proceed to live qualification, even with an otherwise unchanged candidate.
+func TestTriggerDeclarationsFailClosed(t *testing.T) {
+	valid := string(selection("corpus/**", "rank/*.go"))
+	for _, tc := range []struct{ name, raw, want string }{
+		{"duplicate owners", strings.Replace(valid, `"owners":`, `"owners":[],"owners":`, 1), `duplicate object member name "owners"`},
+		{"duplicate paths", strings.Replace(valid, `"paths":"rank/*.go"`, `"paths":"rank/*.go","paths":"unrelated/**"`, 1), `duplicate object member name "paths"`},
+		{"unknown member", strings.Replace(valid, `"owners":`, `"owner":[],"owners":`, 1), `unknown object member name "owner"`},
+		{"unknown owner member", strings.Replace(valid, `"paths":"rank/*.go"`, `"path":"rank/*.go","paths":"unrelated/**"`, 1), `unknown object member name "path"`},
+		{"invalid unrelated owner", strings.Replace(valid, `"owners":[`, `"owners":[{"paths":"../invalid","tests":["other/test.go"]},`, 1), `owners paths "../invalid"`},
+		{"invalid mustRun", strings.Replace(valid, `"owners":`, `"mustRun":[{"tests":"other/test.go","reason":""}],"owners":`, 1), `reason must be`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g, _, _, _ := currencyFixture(t)
+			write(t, filepath.Join(g.root, selectionPath), []byte(tc.raw))
+			candidate := commit(t, g.root)
+			g.runTest = func(_, _ string) error {
+				t.Fatal("invalid declaration reached live qualification")
+				return nil
+			}
+			result, err := g.check(candidate, "")
+			if result != "" || err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("result=%q err=%v; want no result and %q", result, err, tc.want)
+			}
+		})
 	}
 }
 

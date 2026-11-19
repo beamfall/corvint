@@ -188,3 +188,32 @@ The repair commit includes the required delivered-state trailer to repair the or
 trailer block without rewriting history. The ticket's external host-integration limits above
 remain PARTIAL; the trailer does not supply the missing hosted gate or qualification evidence.
 Dogfood/CEM is unavailable under decision 0594 and the charter override. No seal is produced.
+
+## Independent review repair 2
+
+V1-5692 / RCF-V1-010, RCF-V1-013: the review found that permissive selection decoding could
+silently narrow qualification triggers. Extract the existing production declaration parser as
+`affected.ParseTestSelection` and call it from both the production loader and the currency tool.
+It retains `encoding/json/v2` duplicate-name rejection, unknown-member rejection, and every
+existing declaration validation. The gate's profile preflight preserves its existing diagnostic;
+owner extraction happens only after complete shared validation. No second schema or pattern
+validator is maintained. Valid fixture owners are sorted to satisfy the production contract.
+
+`TestTriggerDeclarationsFailClosed` covers duplicate owners/paths, unknown top-level/owner
+members, an invalid unrelated owner and an invalid must-run entry. Each case requires a named
+error and no PASS result before live qualification. Existing assertions remain intact.
+This is enforcement of the existing fail-closed requirement, with no spec or wire-shape change.
+The release job is already supplied by PR #238; this repair does not edit `.github/`.
+
+Repair verification used `corvint affected --base a359919975da48761fd263869cc2f000dae1fb79`.
+It selected both touched packages; overall scope remains UNKNOWN (six retained unknowns).
+Whole-package tests through `script/heavy.sh`, without filters, passed for `tools/rcf-currency`
+(1.864 seconds) and `internal/liveverify/affected` (9.907 seconds). Both packages passed
+`go vet` through the same wrapper. Toolchain: `go1.27.4`. Raw logs remain outside the repository
+in `~/lanes/rcf-enforce-evidence/`. Test-log SHA-256 digests:
+
+- `repair2-currency-test.log`:
+  `d7ca9ff2d17e4e5f24025b6ede91a25df81f62f68aaf3cb22a68088a9f1d0092`.
+
+- `repair2-affected-test.log`:
+  `dd92e25bf7336afa8cc18199a816aaff017958313e77f834cc62a8991da9797b`.

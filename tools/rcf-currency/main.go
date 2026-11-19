@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"flag"
 	"fmt"
@@ -128,34 +129,33 @@ func (g gate) cleanCandidate(candidate string) error {
 
 // Use the production owner matcher, not a second trigger list or glob dialect.
 func triggerPatterns(raw []byte) ([]string, error) {
-	var selection struct {
-		Profile string               `json:"profile"`
-		Owners  []affected.TestOwner `json:"owners"`
+	// Preserve this gate's profile diagnostic; the shared parser below validates
+	// the complete declaration, including every member omitted by this preflight.
+	var header struct {
+		Profile string `json:"profile"`
 	}
 	if len(raw) > 64<<10 {
 		return nil, errors.New("selection exceeds 64 KiB")
 	}
-	if err := json.Unmarshal(raw, &selection); err != nil {
+	if err := jsonv2.Unmarshal(raw, &header); err != nil {
 		return nil, err
 	}
-	if selection.Profile != affected.DeclaredTreeReaderSelectionProfile {
+	if header.Profile != affected.DeclaredTreeReaderSelectionProfile {
 		return nil, errors.New("unsupported selection profile")
+	}
+	selection, err := affected.ParseTestSelection(raw)
+	if err != nil {
+		return nil, err
+	}
+	if selection == nil {
+		return nil, errors.New("missing qualification trigger owners")
 	}
 	var patterns []string
 	for _, owner := range selection.Owners {
 		if !slices.Contains(owner.Tests, qualificationSource) {
 			continue
 		}
-		p := owner.Paths
-		if p == "" || len(p) > 256 || strings.ContainsAny(p, "[]{}\\\r\n\t") {
-			return nil, fmt.Errorf("invalid trigger pattern %q", p)
-		}
-		for _, segment := range strings.Split(p, "/") {
-			if segment == "" || segment == "." || segment == ".." || (segment != "**" && strings.Contains(segment, "**")) {
-				return nil, fmt.Errorf("invalid trigger pattern %q", p)
-			}
-		}
-		patterns = append(patterns, p)
+		patterns = append(patterns, owner.Paths)
 	}
 	if len(patterns) == 0 {
 		return nil, errors.New("missing qualification trigger owners")
