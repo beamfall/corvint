@@ -43,7 +43,12 @@ func (Language) AncestorBoundFrontiers() []string {
 // `tsconfig*.json` or `jsconfig*.json` whose `paths` steer alias resolution. A change there may
 // rebind any import, so the plan keeps every frontier entry.
 func (Language) ResolutionInput(relative string) bool {
-	return observedName(path.Base(relative))
+	base := path.Base(relative)
+	if strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml") {
+		_, runner := configRunner(relative, "")
+		return runner || ambiguousTestAsset(relative)
+	}
+	return observedName(base)
 }
 
 // CrossLanguageFrontiers names the reasons that stand for a runtime edge from

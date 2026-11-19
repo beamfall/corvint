@@ -28,12 +28,15 @@ import (
 // the Go index, first runs everything for an unowned dirty path no Go rule
 // attributes (NCM-V1-001, `unowned-path`), so wherever that selector decides
 // the run an entry admitted here is an attributed one. A NO_SELECTABLE_TEST
-// unit gets no test from a FULL run either. Every other entry forces FULL.
+// unit gets no test from a FULL run either. CIN-V1-942 also admits unresolved
+// runtime edges: the trusted planner already selected their whole reverse closure.
+// Every other entry forces FULL.
 func AllowedUnknown(reason, detail string) bool {
 	switch reason {
 	case "LANGUAGE_FRONTIER":
 		return detail == "go:build-constraint-variants" || detail == "go:nested-module-frontier" ||
-			strings.HasPrefix(detail, driverFrontier)
+			strings.HasPrefix(detail, driverFrontier) ||
+			strings.HasPrefix(detail, "runtime:unresolved-edge: tests=")
 	case "UNOWNED_DIRTY_PATH", "NO_SELECTABLE_TEST":
 		return true
 	}

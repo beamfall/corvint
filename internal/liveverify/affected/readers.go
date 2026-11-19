@@ -330,6 +330,11 @@ func (graph *Graph) unboundedReadersOf(reached map[string]Witness, dirty []strin
 	}
 	for _, id := range graph.unbounded {
 		if _, seen := reached[id]; !seen {
+			if witness, widened := graph.runtimeWidening[id]; widened {
+				witness.DirtyPath = dirty[0]
+				reached[id] = witness
+				continue
+			}
 			// A name-only walker is witnessed by the smallest dirty path
 			// that can change a listing, and not selected without one
 			// (AFP-V0-9963).

@@ -1789,7 +1789,7 @@ func affectedPathListGraph(ctx context.Context, gitExecutable, root, revision st
 		if err != nil {
 			return nil, nil, affectedStatusError(err)
 		}
-		rebuilt, err := affected.Build(affectedGraphContext(ctx), root, affectedLanguages()...)
+		rebuilt, err := affectedBuildGraph(affectedGraphContext(ctx), affectedInvocation{Root: root})
 		release()
 		if err != nil {
 			return nil, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
@@ -2478,7 +2478,7 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		}
 		receipt = playwrightAffectedReceipt{Snapshot: snapshot.Scope(), OK: true, Plan: plan, Profile: typescript.PlaywrightProfile, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
 	} else {
-		graph, err := affected.Build(ctx, root, affectedLanguages()...)
+		graph, err := affectedBuildGraph(ctx, affectedInvocation{Root: root})
 		if err != nil {
 			return nil, snapshotAffectedError()
 		}

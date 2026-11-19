@@ -81,6 +81,16 @@ func WitnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 			return false
 		}
 		chain := witness.Via[:len(witness.Via)-1]
+		// CIN-V1-941: only an explicit runtime degradation can replace the
+		// build proof. Ordinary unbounded reads do not imply a rebuilt binary.
+		// Require the exact one-unit cause and its graph-bound frontier entry;
+		// unknown cause forms fall through to the ordinary build proof.
+		causeChain, cause := graph.UnboundedChain(commandID)
+		if len(chain) == 1 && slices.Equal(causeChain, chain) &&
+			slices.Contains(graph.UnboundedReaders(), commandID) &&
+			strings.HasPrefix(cause, "runtime:unresolved-edge:") && slices.Contains(graph.Frontier(), cause) {
+			return true
+		}
 		kind := affected.WitnessDependency
 		if len(chain) == 1 {
 			kind = affected.WitnessDirectSource

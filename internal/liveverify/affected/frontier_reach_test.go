@@ -29,7 +29,8 @@ type reading struct{ reaching }
 func (reading) ReadsAnyPath() bool { return true }
 
 // bystander is the plugin y of the AFP-V0-511 tests: one path-open reason, two
-// source-bound ones (one located, one bounded) and one fixture-closed reason
+// source-bound ones (one located, one overflow with complete site records)
+// and one fixture-closed reason
 // with a bounded entry and a located site outside every fixture.
 func bystander(extra ...string) reaching {
 	frontier := append([]string{
@@ -40,9 +41,10 @@ func bystander(extra ...string) reaching {
 		"y:runner-unknown:app_test.y",
 	}, extra...)
 	return reaching{
-		fake: fake{name: "y", frontier: sortedKeys(toSet(frontier)), units: []Unit{
-			{ID: "y:app", Sources: []string{"app.y"}, Tests: []string{"app_test.y"}},
-		}},
+		fake: fake{name: "y", frontier: sortedKeys(toSet(frontier)),
+			frontierSites: map[string][]string{"y:path-alias": {"app.y:4 `@first`", "app.y:5 `@second`"}}, units: []Unit{
+				{ID: "y:app", Sources: []string{"app.y"}, Tests: []string{"app_test.y"}},
+			}},
 		sourceBound:   []string{"y:import-unresolved", "y:path-alias"},
 		fixtureClosed: []string{"y:runner-unknown"},
 	}

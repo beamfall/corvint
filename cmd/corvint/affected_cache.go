@@ -280,7 +280,14 @@ var affectedCacheObserved = func(affected.CacheOutcome) {}
 
 // affectedBuildGraph builds the plan graph, through the verified cache when
 // --cache named one (AFP-V0-390 to AFP-V0-393).
-func affectedBuildGraph(ctx context.Context, invocation affectedInvocation) (*affected.Graph, error) {
+func affectedBuildGraph(ctx context.Context, invocation affectedInvocation) (graph *affected.Graph, err error) {
+	defer func() {
+		if affected.IsUnknownRuntimeUnit(err) {
+			// Failed strict builds write no cache entry. Revalidate every declaration
+			// on the compatibility path; other graph failures retain their refusal.
+			graph, err = affected.BuildWithRuntimeEdgeWidening(ctx, invocation.Root, affectedLanguages()...)
+		}
+	}()
 	if invocation.Cache == "" {
 		return affected.Build(ctx, invocation.Root, affectedLanguages()...)
 	}
