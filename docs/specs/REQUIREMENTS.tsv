@@ -6674,7 +6674,7 @@ MCJ-V0-017	docs/specs/map-coverage-join-v0.md	Shared-step exclusion runs in shad
 MCJ-V0-018	docs/specs/map-coverage-join-v0.md	A miss marks that equivalence class divergent in the next index until a blob in	unrecorded	-
 MCJ-V0-019	docs/specs/map-coverage-join-v0.md	The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 10	unrecorded	-
 MCJ-V0-025	docs/specs/map-coverage-join-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-4944
-MMR-V0-001	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) `corvint-mcp` MUST accept	owner	decision 0441; V1-0938
+MMR-V0-001	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938; enum amended by owner delegation 2026-11-19	owner	decision 0441; V1-0938; 2026-11-19; V1-5694
 MMR-V0-002	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) An alias MUST match	owner	decision 0441; V1-0938
 MMR-V0-003	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) Every declared root MUST be validated	owner	decision 0441; V1-0938
 MMR-V0-004	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) In multi-root mode `tools/list` MUST	owner	decision 0441; V1-0938

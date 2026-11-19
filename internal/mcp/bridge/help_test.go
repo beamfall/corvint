@@ -40,9 +40,12 @@ func TestMMRV0001ExperimentalCLIHelpKeepsFrozenEnum(t *testing.T) {
 	}
 }
 
-// RMV-V1-008: a retired enum value cannot yield a binary-authority receipt.
+// RMV-V1-008: help omits retired commands and refuses calls for them.
 func TestFrozenHelpRequiresCurrentCatalogEntry(t *testing.T) {
 	for _, name := range []string{"test-validity", "test-plan", "runs", "future-command"} {
+		if slices.Contains(helpCommandNames(), any(name)) {
+			t.Errorf("help advertises %q", name)
+		}
 		if _, err := callHelp(t.Context(), []byte(`{"command":"`+name+`"}`)); err == nil || err.Code != "invalid-arguments" {
 			t.Fatalf("help for %q: error=%v", name, err)
 		}

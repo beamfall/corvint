@@ -94,6 +94,9 @@ and the removed `test-validity` group exits 2 the same way. The deprecated `corv
 binary serves the same tools except `corvint.affected`, whose planner only the `corvint`
 binary holds.
 
+The command enum for `corvint.help` omits the retired commands `test-validity`,
+`test-plan` and `runs`. Help calls for these commands return `invalid-arguments`.
+
 `corvint.affected` answers with the exact `affected-summary/1` bytes `corvint affected --summary`
 prints, or, where the command line would exit 2, a successful select-all answer naming its reason:
 a `CORVINT_SELECTION` kill switch (MTT-V1-008) or a stale binary (MTT-V1-011). One planner runs

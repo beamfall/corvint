@@ -173,7 +173,9 @@ may exercise those components as test fixtures. B2 SHALL keep the JS/TS and RSpe
 and their shared findings for `tests example-join`, and teardown's independent 256-file limit.
 `tests unselected` uses `UnselectedFiles` directly. B2 also retires the `test-validity --corpus`
 join. The compiled corpus retains pinned observations (DCP-V1-007), and the native join serves
-only impact and affected (DCP-V1-013, DCP-V1-036).
+only impact and affected (DCP-V1-013, DCP-V1-036). Under the owner-delegated V1-5694 decision,
+B2 SHALL remove `test-validity`, `test-plan` and `runs` from the advertised `corvint.help`
+command enum on every profile. Help calls for all three SHALL still return `invalid-arguments`.
 
 Because `internal/testplan` is one of the three
 tests-layer flow readers that `tools/import-ratchet/flows_layer_test.go` pins for CMS-V0-915

@@ -118,11 +118,11 @@ func helpTopicText(topic, name string) (command, text string, known bool) {
 
 // helpCommandNames lists the commands in the frozen MCP help enum (MMR-V0-001).
 func helpCommandNames() []any {
-	// Catalog additions and retirements cannot change a profile's frozen descriptor.
+	// Catalog changes do not automatically change the enum pinned by tools/list.
 	// A command receipt also requires a current catalog slice in helpTopicText.
 	return []any{
 		"init", "adopt", "impact", "cem", "context", "instructions", "affected", "index",
-		"docs", "test-evidence", "test-validity", "test-plan", "review", "flows", "runs",
+		"docs", "test-evidence", "review", "flows",
 		"test", "tests", "watch", "inventory", "mcp", "how",
 	}
 }
