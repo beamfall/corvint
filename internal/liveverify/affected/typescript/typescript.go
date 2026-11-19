@@ -346,7 +346,9 @@ type sourceIndex struct {
 	// specifiers maps the content offset of every literal import, export-from, require and
 	// literal dynamic-import specifier to its text (TJAA-V0-126).
 	specifiers map[int]string
-	starts     []int
+	// literalRequires keeps CommonJS paths before query or fragment interpretation.
+	literalRequires []string
+	starts          []int
 	// spelled maps a reference an alias rewrote to the specifier the module spelled.
 	spelled map[string]string
 }
@@ -534,7 +536,10 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			continue
 		}
 		scan := scanImportSites(relative, body)
-		sites[relative] = &sourceIndex{body: body, offsets: scan.offsets, specifiers: scan.specifiers}
+		sites[relative] = &sourceIndex{
+			body: body, offsets: scan.offsets, specifiers: scan.specifiers,
+			literalRequires: scan.literalRequires,
+		}
 		opaque[relative] = scan.err != nil || scan.dynamic >= 0 || scan.unresolved >= 0
 		if scan.err != nil {
 			frontier.at(FrontierUnparsedSource, relative, body, scan.syntax)
@@ -650,6 +655,14 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		}
 		observation.aliasTargets = candidates
 		observation.dataTokens = jsonModuleTokens(root, observation.path, observation.refs, frontier)
+		// Node require treats query and fragment characters as literal filename bytes.
+		// Keep that read alongside the existing URL interpretation, before token pruning.
+		for _, ref := range sites[observation.path].literalRequires {
+			candidate := path.Clean(path.Join(path.Dir(observation.path), ref))
+			tokens, bounded := foreignModuleCandidates(root, candidate)
+			observation.dataTokens = append(observation.dataTokens, tokens...)
+			observation.aliasBounded = observation.aliasBounded || bounded
+		}
 	}
 	var e2eConfigs []string
 	for _, config := range configs {
@@ -1156,16 +1169,17 @@ func scanImports(relative, body string) ([]string, bool, error) {
 // mocks holds the offset of every jest.mock or vi.mock call whose target is not a literal
 // (SLF-V1-004); a literal target is a reference in refs.
 type importScan struct {
-	refs           []string
-	offsets        map[string]int
-	specifiers     map[int]string
-	dynamic        int
-	requireDynamic int
-	unresolved     int
-	syntax         int
-	err            error
-	globs          []loaderCall
-	mocks          []loaderCall
+	refs            []string
+	offsets         map[string]int
+	specifiers      map[int]string
+	literalRequires []string
+	dynamic         int
+	requireDynamic  int
+	unresolved      int
+	syntax          int
+	err             error
+	globs           []loaderCall
+	mocks           []loaderCall
 }
 
 func scanImportSites(relative, body string) importScan {
@@ -1220,6 +1234,9 @@ func scanImportSites(relative, body string) importScan {
 				}
 			}
 			continue
+		}
+		if ref.commonJS && strings.HasPrefix(ref.text, ".") && strings.ContainsAny(ref.text, "?#") {
+			scan.literalRequires = append(scan.literalRequires, ref.text)
 		}
 		add(ref.text, ref.offset)
 		scan.specifiers[ref.offset] = ref.text
@@ -1428,9 +1445,10 @@ func scanRequires(body string, typed bool) ([]importRef, int, bool) {
 // importRef is one literal specifier and the byte offset where it starts, or, with loader set, a
 // glob or mock call (SLF-V1-003, SLF-V1-004).
 type importRef struct {
-	text   string
-	offset int
-	loader *loaderCall
+	text     string
+	offset   int
+	loader   *loaderCall
+	commonJS bool
 }
 
 // markDynamic records the offset of the first computed loading call.
@@ -1528,7 +1546,7 @@ func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, type
 		if end > len(body) {
 			return len(body), false
 		}
-		*refs = append(*refs, importRef{text: body[after+1 : end-1], offset: after + 1})
+		*refs = append(*refs, importRef{text: body[after+1 : end-1], offset: after + 1, commonJS: true})
 		index = end
 	}
 	return len(body), !stopAtBrace

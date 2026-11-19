@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"path"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -19,7 +20,8 @@ func foreignModuleCandidates(root *affected.Source, candidate string) ([]string,
 	}
 	tokens := []string{candidate}
 	for _, c := range candidate {
-		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '/' || c == ' ' || c == '.' || c == '_' || c == '-' || c == '@' || c == '#') {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
+			strings.ContainsRune("/ ._-@#?", c)) {
 			return tokens, true
 		}
 	}

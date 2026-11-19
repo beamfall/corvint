@@ -72,6 +72,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   A source-bound frontier declaration SHALL NOT discard a site that names an unowned dirty path.
   Located sites SHALL retain their literal and resolved alias targets, including exact tsconfig
   aliases, package.json imports mappings, extensionless JSON loads and recorded overflow sites.
+  CommonJS relative `require` paths retain literal `#` and `?` filename characters alongside
+  URL-style source alternatives; unsupported literal forms retain a frontier. ESM resolution
+  keeps its existing query and fragment interpretation.
   Resolving another import SHALL NOT erase these targets. Unsupported mappings, unavailable
   resolution tables, unowned located sites and bounded token sets SHALL retain uncertainty.
   A bare source-bound reason with an explicit `SourceOnlyFrontiers` declaration retains
@@ -1388,6 +1391,11 @@ or receipt member changes either way.
 Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without their readers.
 
 ## Traceability
+
+CommonJS literal-path repair (AZU-V1-960): `TestCommonJSLiteralPaths_AZU_V1_960` and
+`TestCommonJSUnknownLiteralPath_AZU_V1_960` in
+`internal/liveverify/affected/typescript/commonjs_literal_path_test.go` cover hash/query reads
+beside source alternatives, ESM parity and the unsupported-form frontier.
 
 | Requirement | Tickets | Evidence |
 |---|---|---|
