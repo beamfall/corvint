@@ -28,7 +28,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // QualificationProfile names the qualify report (GLS-V0-033) and
@@ -85,20 +87,21 @@ type BaselineResult struct {
 
 // QualReport is one qualify run (GLS-V0-033).
 type QualReport struct {
-	Sources   map[string]string `json:"sources,omitempty"`
-	Baseline  []BaselineResult  `json:"baseline,omitempty"`
-	Profile   string            `json:"profile"`
-	Seed      int64             `json:"seed"`
-	Index     ReportIndex       `json:"index"`
-	Packages  []string          `json:"packages"`
-	Suite     []string          `json:"suite"`
-	Start     int               `json:"start"`
-	Sites     int               `json:"sites"` // sites of the seeded order this run consumed
-	Order     int               `json:"order"` // sites in the seeded order
-	Mutants   []MutantResult    `json:"mutants"`
-	Controls  []MutantResult    `json:"controls"`
-	Counts    ReportCounts      `json:"counts"`
-	ElapsedMS int64             `json:"elapsedMillis"`
+	Sources          map[string]string  `json:"sources,omitempty"`
+	Baseline         []BaselineResult   `json:"baseline,omitempty"`
+	Profile          string             `json:"profile"`
+	Seed             int64              `json:"seed"`
+	Index            ReportIndex        `json:"index"`
+	Packages         []string           `json:"packages"`
+	Suite            []string           `json:"suite"`
+	Start            int                `json:"start"`
+	Sites            int                `json:"sites"` // sites of the seeded order this run consumed
+	Order            int                `json:"order"` // sites in the seeded order
+	Mutants          []MutantResult     `json:"mutants"`
+	Controls         []MutantResult     `json:"controls"`
+	ExcludedControls []controlExclusion `json:"excludedControls,omitempty"`
+	Counts           ReportCounts       `json:"counts"`
+	ElapsedMS        int64              `json:"elapsedMillis"`
 	// MaxRSS is the -max-rss bound on each suite run's process group, and
 	// MaxRSSEnforced whether this host's watchdog could measure it; where it
 	// could not, only the test deadline bounded the runs (GLS-V0-058).
@@ -203,8 +206,8 @@ func qualify(args []string) error {
 	if err != nil {
 		return err
 	}
-	for _, pkg := range excludedControls {
-		fmt.Fprintf(os.Stderr, "linecov qualify: no controls in %s: an unrecorded test of it or of a suite importer could execute any body (GLS-V0-032)\n", pkg)
+	for _, exclusion := range excludedControls {
+		fmt.Fprintf(os.Stderr, "linecov qualify: no controls in %s: %s\n", exclusion.Package, exclusion.Reason)
 	}
 	sites, controlSites, err := mutationSites(*root, ix, dirs, *seed, controlOK)
 	if err != nil {
@@ -212,7 +215,7 @@ func qualify(args []string) error {
 	}
 	began := time.Now()
 	rep := QualReport{Sources: executableSources(*root), Profile: QualificationProfile, Seed: *seed, Index: ReportIndex{Commit: ix.Commit, Digest: ix.Digest(), Runner: ix.Runner},
-		Packages: dirs, Suite: suite, Start: *start, Order: len(sites), Mutants: []MutantResult{}, Controls: []MutantResult{},
+		Packages: dirs, Suite: suite, ExcludedControls: excludedControls, Start: *start, Order: len(sites), Mutants: []MutantResult{}, Controls: []MutantResult{},
 		MaxRSS: int64(maxRSS), MaxRSSEnforced: linecov.RSSWatchdogEnforced()}
 	if !rep.MaxRSSEnforced {
 		fmt.Fprintf(os.Stderr, "linecov qualify: -max-rss %d bytes is unenforced on this platform; only the test deadline bounds each run (GLS-V0-058)\n", rep.MaxRSS)
@@ -447,13 +450,22 @@ func (q qualifier) mutant(s Site) (MutantResult, error) {
 	return res, nil
 }
 
+type controlExclusion struct {
+	Package string `json:"package"`
+	Reason  string `json:"reason"`
+}
+
 // controlEligibility reports, per package, whether a body no record executed
 // is known unexecuted: every declared test of the package, and of every suite
 // package that depends on it, has a record. An unrecorded test (divergent,
 // timed out, a starter of an uninstrumented child) could execute any body, so
 // a control there proves nothing (GLS-V0-032). It also lists the ineligible
-// suite packages.
-func controlEligibility(root string, ix *linecov.Index, suite []string) (func(pkg string) bool, []string, error) {
+// suite packages, including those another suite package reads as data (GLS-V0-060).
+func controlEligibility(root string, ix *linecov.Index, suite []string) (func(pkg string) bool, []controlExclusion, error) {
+	scoped, err := readScopedControlPackages(root, ix.Commit, suite)
+	if err != nil {
+		return nil, nil, err
+	}
 	heads, err := linecov.HeadTestNames(root, suite)
 	if err != nil {
 		return nil, nil, err
@@ -500,7 +512,7 @@ func controlEligibility(root string, ix *linecov.Index, suite []string) (func(pk
 		}
 	}
 	eligible := map[string]bool{}
-	var excluded []string
+	var excluded []controlExclusion
 	for _, pkg := range suite {
 		ok := !unrecorded[pkg]
 		for other := range dependsOn {
@@ -508,13 +520,59 @@ func controlEligibility(root string, ix *linecov.Index, suite []string) (func(pk
 				ok = false
 			}
 		}
-		eligible[pkg] = ok
-		if !ok {
-			excluded = append(excluded, pkg)
+		eligible[pkg] = ok && !scoped[pkg]
+		switch {
+		case !ok:
+			excluded = append(excluded, controlExclusion{pkg, "an unrecorded test of it or of a suite importer could execute any body (GLS-V0-032)"})
+		case scoped[pkg]:
+			excluded = append(excluded, controlExclusion{pkg, "another suite package's declared test read scope covers it (GLS-V0-060)"})
 		}
 	}
-	sort.Strings(excluded)
+	slices.SortFunc(excluded, func(a, b controlExclusion) int { return strings.Compare(a.Package, b.Package) })
 	return func(pkg string) bool { return eligible[pkg] }, excluded, nil
+}
+
+// readScopedControlPackages finds packages whose files another suite package can
+// read as data, even when no coverage record reaches their statements.
+func readScopedControlPackages(root, commit string, suite []string) (map[string]bool, error) {
+	scopes, err := gateselect.CheckoutReadScopes(root, commit)
+	if err != nil {
+		return nil, fmt.Errorf("qualify: %s: %w", affected.ReadScopesPath, err)
+	}
+
+	if len(scopes) == 0 {
+		return nil, nil
+	}
+	scoped := map[string]bool{}
+	for _, pkg := range suite {
+		// The matcher covers a directory that is an ancestor of a declared
+		// file. Root files have no directory prefix, so check them by name.
+		paths := []string{pkg}
+		if pkg == "." {
+			files, err := linecov.OIDs(context.Background(), root, commit)
+			if err != nil {
+				return nil, err
+			}
+			for name := range files {
+				if path.Dir(name) == "." {
+					paths = append(paths, name)
+				}
+			}
+		}
+		for _, other := range suite {
+			scope, declared := scopes[other]
+			// A package's own scope does not exclude it: its own test records
+			// already decide whether its bodies are eligible for controls.
+			if other == pkg || !declared {
+				continue
+			}
+			if slices.ContainsFunc(paths, func(p string) bool { return affected.InReadScope(other, scope, p) }) {
+				scoped[pkg] = true
+				break
+			}
+		}
+	}
+	return scoped, nil
 }
 
 // mutationSites returns the seeded order of mutation sites in executed
@@ -958,9 +1016,12 @@ func summarizeReports(root, record string, files []string) error {
 			return fmt.Errorf("%s: profile %q", file, r.Profile)
 		}
 		if i == 0 {
-			all = QualReport{Profile: QualificationProfile, Seed: r.Seed, Index: r.Index, Packages: r.Packages, Suite: r.Suite, Order: r.Order, Sources: r.Sources}
+			all = QualReport{Profile: QualificationProfile, Seed: r.Seed, Index: r.Index, Packages: r.Packages, Suite: r.Suite, Order: r.Order, Sources: r.Sources, ExcludedControls: r.ExcludedControls}
 		} else if !reflect.DeepEqual(r.Sources, all.Sources) || r.Seed != all.Seed || r.Index != all.Index || strings.Join(r.Packages, ",") != strings.Join(all.Packages, ",") || strings.Join(r.Suite, ",") != strings.Join(all.Suite, ",") {
 			return fmt.Errorf("%s: another implementation, index, seed, package set or suite than %s", file, files[0])
+		}
+		if !slices.Equal(r.ExcludedControls, all.ExcludedControls) {
+			return fmt.Errorf("%s: control exclusions differ from %s", file, files[0])
 		}
 		for _, b := range r.Baseline {
 			if b.State != "passed" {

@@ -44,6 +44,24 @@ type readScopeFile struct {
 // declaration, or an error for any declaration that is not exactly valid,
 // including one naming a directory that holds no indexed package.
 func (index *repositoryIndex) readScopes(root string) (map[string][]string, error) {
+	body, err := diskReadScopeFile(root)
+	if err != nil || body == nil {
+		return nil, err
+	}
+	scopes, err := parseReadScopes(body)
+	if err != nil {
+		return nil, err
+	}
+	for directory := range scopes {
+		if index.packages[directory] == nil {
+			return nil, fmt.Errorf("%s: package %q", readScopesPath, directory)
+		}
+	}
+	return scopes, nil
+}
+
+// diskReadScopeFile returns nil only when the declaration is absent.
+func diskReadScopeFile(root string) ([]byte, error) {
 	name := filepath.Join(root, filepath.FromSlash(readScopesPath))
 	info, err := os.Lstat(name)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -67,16 +85,7 @@ func (index *repositoryIndex) readScopes(root string) (map[string][]string, erro
 	if len(body) > maxReadScopeBytes {
 		return nil, fmt.Errorf("%s exceeds %d bytes", readScopesPath, maxReadScopeBytes)
 	}
-	scopes, err := parseReadScopes(body)
-	if err != nil {
-		return nil, err
-	}
-	for directory := range scopes {
-		if index.packages[directory] == nil {
-			return nil, fmt.Errorf("%s: package %q", readScopesPath, directory)
-		}
-	}
-	return scopes, nil
+	return body, nil
 }
 
 // parseReadScopes decodes one declaration body and checks its exact grammar,
@@ -217,28 +226,80 @@ func baseReadScopes(plan Receipt, root string) map[string][]string {
 	if commit == "" {
 		commit = plan.Revision
 	}
-	if plan.Snapshot != nil || !fullObjectID.MatchString(commit) {
+	if plan.Snapshot != nil {
 		return nil
 	}
-	listing, err := baseGit(root, maxBaseTreeBytes, "ls-tree", "-r", "-t", "-z", "--full-tree", commit+"^{commit}")
+	entries, body, err := committedScopeFile(root, commit)
 	if err != nil {
 		return nil
-	}
-	entries, ok := parseBaseTree(listing)
-	if !ok {
-		return nil
-	}
-	scopes := map[string][]string{}
-	if body, present, ok := baseBlob(root, entries, readScopesPath, maxReadScopeBytes); !ok {
-		return nil
-	} else if present {
-		if scopes, err = parseReadScopes(body); err != nil {
-			return nil
-		}
 	}
 	listed, err := baseWorkspace(root, entries)
 	if err != nil {
 		return nil
+	}
+	scopes, _ := committedScopePackages(entries, body, listed)
+	return scopes
+}
+
+// CheckoutReadScopes uses the indexed declaration only when the checkout has
+// the same regular file, byte for byte, or both trees lack the declaration.
+func CheckoutReadScopes(root, commit string) (map[string][]string, error) {
+	entries, body, err := committedScopeFile(root, commit)
+	if err != nil {
+		return nil, err
+	}
+	parent := path.Dir(readScopesPath)
+	if entry, ok := entries[parent]; ok && entry.mode != treeMode {
+		return nil, fmt.Errorf("%s is not a directory at %s", parent, commit)
+	}
+	info, err := os.Lstat(filepath.Join(root, parent))
+	if err == nil && !info.IsDir() {
+		return nil, fmt.Errorf("%s is not a directory", parent)
+	}
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	checkout, err := diskReadScopeFile(root)
+	if err != nil {
+		return nil, err
+	}
+	if (body == nil) != (checkout == nil) || !bytes.Equal(body, checkout) {
+		return nil, fmt.Errorf("%s differs from commit %s", readScopesPath, commit)
+	}
+	if body == nil {
+		return nil, nil
+	}
+	// Qualification runs packages of the single module named by its index.
+	return committedScopePackages(entries, body, map[string]bool{".": true})
+}
+
+func committedScopeFile(root, commit string) (map[string]baseTreeEntry, []byte, error) {
+	if !fullObjectID.MatchString(commit) {
+		return nil, nil, fmt.Errorf("invalid commit %q", commit)
+	}
+	listing, err := baseGit(root, maxBaseTreeBytes, "ls-tree", "-r", "-t", "-z", "--full-tree", commit+"^{commit}")
+	if err != nil {
+		return nil, nil, err
+	}
+	entries, ok := parseBaseTree(listing)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid or oversized tree at %s", commit)
+	}
+	body, _, ok := baseBlob(root, entries, readScopesPath, maxReadScopeBytes)
+	if !ok {
+		return nil, nil, fmt.Errorf("cannot read %s at %s", readScopesPath, commit)
+	}
+	return entries, body, nil
+}
+
+func committedScopePackages(entries map[string]baseTreeEntry, body []byte, listed map[string]bool) (map[string][]string, error) {
+	scopes := map[string][]string{}
+	if body != nil {
+		var err error
+		scopes, err = ParseReadScopes(body)
+		if err != nil {
+			return nil, err
+		}
 	}
 	goDirectories := map[string]bool{}
 	for name, entry := range entries {
@@ -247,15 +308,12 @@ func baseReadScopes(plan Receipt, root string) map[string][]string {
 		}
 	}
 	for directory := range scopes {
-		if !walkedDirectory(directory) || !goDirectories[directory] {
-			return nil
-		}
 		owner, observed := baseOwner(entries, listed, directory)
-		if !observed || inTestdataComponent(relativeTo(directory, owner)) {
-			return nil
+		if !walkedDirectory(directory) || !goDirectories[directory] || !observed || inTestdataComponent(relativeTo(directory, owner)) {
+			return nil, fmt.Errorf("%s: package %q", readScopesPath, directory)
 		}
 	}
-	return scopes
+	return scopes, nil
 }
 
 // parseBaseTree reads `git ls-tree -r -t -z` records, `<mode> <type> <object>\t<path>`.

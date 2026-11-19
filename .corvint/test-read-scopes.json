@@ -1942,6 +1942,7 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/linecov": [
+      ".corvint/test-read-scopes.json",
       ".github/linecov/ruby-qualification.json",
       ".github/workflows/ci.yml"
     ],
