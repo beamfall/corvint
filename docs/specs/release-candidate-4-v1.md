@@ -216,23 +216,66 @@ the CMP-V1-004 notice rule.
 Each entry names the task in `tasks.md`, then the requirements, implementation and evidence.
 
 - Tasks 4.3 and 4.4 (RCF-V1-001, RCF-V1-002): NOT_PRODUCED until the owner tags rc.4.
-- Tasks 4.1 and 4.2 (RCF-V1-003): NOT_PRODUCED until the readiness record is written.
-- Task 4.4 (RCF-V1-004, RCF-V1-005): NOT_PRODUCED until the rc.4 release notes.
-- Task 3.2 (RCF-V1-006): NOT_PRODUCED until the promotion commit.
+- Task 4.1 (RCF-V1-003): done (RCF-D1 applied, V1-5545 COMPLETED).
+- Task 4.2 (RCF-V1-003): first-pass record `docs/build-log/2026-11-18-rc4-readiness.md` is HOLD:
+  rows M4, removals, flow links, held-out pools and V1-0374 are `NOT_RUN`, and release gates are
+  `FAIL`. The task completes only when every row is `PASS` or `WAIVED` on the candidate commit.
+- Task 5.1 (all): independent review (gpt-6.1-sol, high) found three P1s and one P2. The repair
+  (`e86fc10a2`) fixed live-span verification, artifact binding and checkout identity; the
+  fix-only re-review confirmed all three. P1-3, executable enforcement of the RCF-V1-010 rerun,
+  stayed open after two rounds. It is rescoped to V1-5692 under the lane convergence cap, and until
+  then readiness row 13 holds the tag. Record: `docs/build-log/2026-11-18-rc4-qualification-review-repair.md`.
+- Task 4.4 (RCF-V1-004, RCF-V1-005): draft section "1.0.0-rc.4 release candidate" in
+  `docs/RELEASE-NOTES.md`, with V1-0019 `NOT_RUN`. It is final once the tag is published.
+- Task 3.2 (RCF-V1-006): delivery `validated` for exactly the promoted scope: the four CLI verbs,
+  the three MCP tools and `corvint-evidence-corpus/2`. Every other docs verb, tool and format keeps
+  its label (`docs/CAPABILITIES.md`, `docs/COMPATIBILITY.md`). The corpus spec headers are frozen
+  and their specs still hold `standing` requirements (SRG-V0-010), so the scoped status is
+  recorded here and in PROD-DOCS-009, not in those headers.
 - Task 2.1 (RCF-V1-007): `cmd/corvint-docs/testdata/rcf-v1-qualification/queries.json`
-  (Corvint, `beamfall/core` and `prometheus/prometheus`, 25 queries each, each repository pinned
+  (Corvint, `beamfall/core` and `vuejs/core`, 25 queries each, each repository pinned
   to a commit) and its digest `queries.sha256`. Evidence: `TestRCFV1007FrozenQuerySet`.
 - Task 2.2 (RCF-V1-008): `cmd/corvint-docs/rcf_qualification_test.go` (`rcfQualify`, and the
   opt-in run `TestRCFV1008Qualification` under `CORVINT_RCF_QUALIFY`). Evidence:
   `TestRCFV1008QualificationPassesOnAFixture`, `TestRCFV1008UnverifiedPassageFailsTheRun`,
-  `TestRCFV1008SurfaceMismatchFailsTheRun`, `TestRCFV1008DigestOnlyReport`. The run itself
-  (task 2.3) is NOT_RUN.
-- Task 2.3 (RCF-V1-009): two runs of `TestDCSV1404SearchRankingEvalFixture`. NOT_RUN.
+  `TestRCFV1008SurfaceMismatchFailsTheRun`, `TestRCFV1008DigestOnlyReport`,
+  `TestRCFV1008LiveSymbolSpanFailsTheRun`, `TestRCFV1008UnknownReceiptFormFailsClosed`,
+  `TestRCFV1008ArtifactReplacementFailsTheRun`, `TestRCFV1008CheckoutMutationFailsTheRun`,
+  `TestRCFV1008UnknownCheckoutFormFailsClosed`. Search receipts are decoded as closed subject
+  results, every live symbol span is verified, receipts bind the admitted artifact content digest,
+  and before/after checks compare artifact bytes, HEAD, index entries and worktree contents.
+  The earlier run itself
+  (task 2.3) passed twice on `1f35e9f28` with byte-identical reports
+  (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
+- Task 2.3 (RCF-V1-009): two runs of `TestDCSV1404SearchRankingEvalFixture`, both PASS with equal
+  ranks (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
 - Task 2.4 (RCF-V1-010): owner rows in `.corvint/test-selection.json` select the runner and the
   DCS-V1-404 evaluation for ranking, corpus build, corpus format and promoted-surface paths.
   Evidence: `corvint affected` on a ranking diff names both test packages.
-- Tasks 3.1 and 3.2 (RCF-V1-011): NOT_PRODUCED until the promotion commit.
-- Task 3.3 (RCF-V1-012): NOT_PRODUCED until the revert drill.
+- Task 3.1 (RCF-V1-011, RCF-D2): `TestRCFV1011DocsToolSchemas`,
+  `TestRCFV1011DocsToolOutputs` and `TestRCFV1011CorpusFormat` in
+  `internal/mcp/corpusbridge/parity_test.go`, extending the existing typed schema and compact
+  receipt fixtures. Field contracts live in `internal/mcp/corpusbridge/testdata/rcf-contract/`;
+  they pin input/output fields and nested manifest/artifact types without ranking order.
+  Schema comparison rejects unpinned constraints; runtime checks validate each member against
+  closed record variants. Comparator regressions are `TestRCFV1011SchemaComparatorRejectsRestrictions`,
+  `TestRCFV1011SchemaComparatorClosedForms` and `TestRCFV1011OutputComparatorChecksEveryMember`
+  in `internal/mcp/corpusbridge/rcf_contract_test.go`.
+  The corpus guard also pins scalar underlying kinds and checks representative JSON encodings.
+  `TestRCFV1011ScalarContractClosedForms` and `TestRCFV1011AttemptStateJSON` in
+  `internal/mcp/corpusbridge/rcf_scalar_test.go` reject named scalar retyping, unknown scalar
+  forms and custom scalar encoders. Dynamic receipt results and raw JSON contents remain
+  outside this static scalar check; the output fixtures above cover their exercised forms.
+- Task 3.2 (RCF-V1-011): the promotion commit. `tools/compatibility-table/surfaces.json` rows
+  `docs-search-mcp-schemas` and `evidence-corpus-format` are `stable` with the task 3.1 contract
+  tests; `mcp-schemas` stays `preview` for every other tool and for result order (CMP-V1-003
+  item 6 and CMP-V1-005 amended). `README.md` gains a `stable` Documentation search row;
+  PROD-DOCS-009 is `validated`, `DELIVERED`. Independent external utility is
+  `EXTERNAL_DEPENDENT` and `NOT_RUN`. Evidence: `make compatibility-check`,
+  `make capabilities-check`, `make openspec-check`.
+- Task 3.3 (RCF-V1-012): reverting the two promotion commits restores the pre-promotion tree
+  byte for byte, and the compatibility, capabilities, openspec and spec-requirements checks pass
+  on it (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
 
 ## Rollback
 

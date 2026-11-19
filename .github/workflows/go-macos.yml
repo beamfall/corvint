@@ -54,8 +54,8 @@ jobs:
 
   docs-plan:
     # DCI-V0: only trusted event-base code may classify the tested merge. This
-    # job runs unless the change is routine (CIN-V0-4754); absent tools/qualification select FULL,
-    # never an empty skip.
+    # job runs unless the change is routine (CIN-V0-4754); an unavailable trusted docs classifier
+    # selects FULL, never an empty skip.
     needs: [cadence-plan]
     if: ${{ !cancelled() && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') }}
     runs-on: ubuntu-24.04

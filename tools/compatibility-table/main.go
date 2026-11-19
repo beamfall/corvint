@@ -110,6 +110,9 @@ var catalogue = map[string]group{
 	"agent-package-version-range": stableSet,
 	// CMP-V1-003 item 5: the MCP tool names.
 	"mcp-tool-names": stableSet,
+	// CMP-V1-003 item 6 (RCF-V1-011): the docs search tools' schemas and the corpus format.
+	"docs-search-mcp-schemas": stableSet,
+	"evidence-corpus-format":  stableSet,
 	// CMP-V1-005: preview by name.
 	"feature-map":         previewSet,
 	"data-map":            previewSet,
