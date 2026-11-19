@@ -134,9 +134,13 @@ func TestFLPV1007PendingIntegrationNeverNarrows(t *testing.T) {
 	if control.E2E == nil || control.E2E.Scope != affected.E2EScopeBounded {
 		t.Fatalf("version 0 control: %+v", control.E2E)
 	}
+	original, err := ReadFlowsDeclaration(f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, state := range []string{"absent", "accepted", "unaccepted"} {
 		t.Run(state, func(t *testing.T) {
-			declared := FlowsDeclaration{Dir: "flows"}
+			declared := FlowsDeclaration{Dir: "flows", Kinds: original.Kinds}
 			if state != "absent" {
 				link := fixtureFlowTestLink()
 				link.Confidence = 1
@@ -150,8 +154,8 @@ func TestFLPV1007PendingIntegrationNeverNarrows(t *testing.T) {
 				t.Fatal(err)
 			}
 			writeRaw(t, f.root, FlowsDeclarationPath, body)
-			before, got := f.plan(t, "src/checkout.ts", "lib/lib.go")
-			if !reflect.DeepEqual(before.Selected, got.Selected) {
+			_, got := f.plan(t, "src/checkout.ts", "lib/lib.go")
+			if !reflect.DeepEqual(control.Selected, got.Selected) {
 				t.Fatal("version 1 changed non-E2E selections")
 			}
 			if got.E2E == nil || got.E2E.Scope != affected.E2EScopeFull || len(got.E2E.Selected) != 0 || len(got.E2E.Unknown) != 1 || got.E2E.Unknown[0].Reason != affected.UnknownE2EInventoryUnderivable {

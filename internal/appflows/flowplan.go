@@ -171,6 +171,13 @@ func JoinFlowPlan(ctx context.Context, root string, graph *affected.Graph, plan 
 	if err != nil {
 		return flowsDeclarationInvalid(plan, "", err.Error())
 	}
+	for i, s := range plan.Selected {
+		paths := s.Tests
+		if len(paths) == 0 && s.Kind == "DECLARED_CONSUMER" {
+			paths = []string{strings.TrimPrefix(s.UnitID, "declared-consumer:")}
+		}
+		plan.Selected[i].TestKind = declared.KindOf(paths)
+	}
 	if declared.Version == 1 {
 		// FLP-V1-007: do not let the legacy path-level join interpret version
 		// 1 records. The required route and tier contracts are not on this
@@ -183,13 +190,6 @@ func JoinFlowPlan(ctx context.Context, root string, graph *affected.Graph, plan 
 				Detail: FlowsDeclarationPath,
 				Hint:   "version 1 link selection awaits the canonical inventory, route and tier integration; every E2E test must run"}}}
 		return plan
-	}
-	for i, s := range plan.Selected {
-		paths := s.Tests
-		if len(paths) == 0 && s.Kind == "DECLARED_CONSUMER" {
-			paths = []string{strings.TrimPrefix(s.UnitID, "declared-consumer:")}
-		}
-		plan.Selected[i].TestKind = declared.KindOf(paths)
 	}
 	if graph == nil {
 		return flowsDeclarationInvalid(plan, declared.Dir, "no graph to join the flows over")

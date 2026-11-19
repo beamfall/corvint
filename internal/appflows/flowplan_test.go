@@ -287,6 +287,32 @@ func TestAPKV0002EverySelectionCarriesItsKind_V15251(t *testing.T) {
 	}
 }
 
+// APK-V0-002: upgrading the declaration preserves kind rules independently
+// of the version 1 E2E fallback. Unmatched selections remain UNKNOWN.
+func TestAPKV0002Version1EverySelectionCarriesItsKind(t *testing.T) {
+	f := flowPlanRepo(t, false)
+	writeRaw(t, f.root, FlowsDeclarationPath, []byte(strings.Replace(flowPlanDeclaration, "corvint-flows/0", "corvint-flows/1", 1)))
+	_, plan := f.plan(t, "lib/lib.go", "other/other.go")
+	want := map[string]string{
+		"go:example.test/m/lib":         affected.TestKindUnit,
+		"go:example.test/m/integration": affected.TestKindIntegration,
+		"go:example.test/m/other":       affected.TestKindUnknown,
+	}
+	for unit, kind := range want {
+		if got, ok := selectionKind(plan, unit); !ok || got != kind {
+			t.Errorf("%s: ok=%v kind=%q want %q", unit, ok, got, kind)
+		}
+	}
+	for _, s := range plan.Selected {
+		if s.TestKind == "" {
+			t.Errorf("selection without a kind: %+v", s)
+		}
+	}
+	if plan.E2E == nil || plan.E2E.Scope != affected.E2EScopeFull {
+		t.Fatalf("version 1 must retain its FULL E2E fallback: %+v", plan.E2E)
+	}
+}
+
 // APK-V0-003 (V1-5251): a test two variations attach appears once, naming
 // both variations with the changed path of each, and its test keys.
 func TestAPKV0003E2ESelectionsNameFlowAndVariation_V15251(t *testing.T) {
