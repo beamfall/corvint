@@ -92,12 +92,13 @@ type affectedRange struct {
 // affectedInvocation is one parsed `affected` command line. Providers,
 // Checkouts, and SelectionProfile are set only by the ETS-V0 flags.
 type affectedInvocation struct {
-	Snapshot  string
-	PathList  []string // `--path` set planned at a clean HEAD (AFP-V0-094)
-	Root      string
-	Base      string
-	Providers []string
-	Checkouts []extevidence.Checkout
+	lineEvidenceIndex, lineEvidenceFamily, lineEvidenceConfig string
+	Snapshot                                                  string
+	PathList                                                  []string // `--path` set planned at a clean HEAD (AFP-V0-094)
+	Root                                                      string
+	Base                                                      string
+	Providers                                                 []string
+	Checkouts                                                 []extevidence.Checkout
 	// RepositoryBases maps a bound --repository ID to its --repository-base commit; e2e-safe only (AFU-V1-067).
 	RepositoryBases     map[string]string
 	SelectionProfile    string
@@ -636,7 +637,7 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	// --appmap-impact binds a report to a declared --repository checkout without a selection
 	// provider (ANL-V0-060); otherwise a checkout only feeds a provider.
-	if len(invocation.Providers) == 0 && (invocation.SelectionProfile != "" || (len(invocation.Checkouts) != 0 && len(invocation.AppmapImpacts) == 0)) {
+	if len(invocation.Providers) == 0 && (invocation.SelectionProfile != "" && invocation.SelectionProfile != e2eLineExperimental || (len(invocation.Checkouts) != 0 && len(invocation.AppmapImpacts) == 0)) {
 		return affectedInvocation{}, argumentError("--repository and --selection-profile require --provider")
 	}
 	if invocation.Full && invocation.PlaywrightConfig != "" {
@@ -906,7 +907,7 @@ func setAffectedSelectionProfile(invocation *affectedInvocation, value string) e
 	if invocation.SelectionProfile != "" {
 		return argumentError("--selection-profile requires exactly one value")
 	}
-	if !extevidence.ValidSelectionProfile(value) && value != appflows.E2ESafeProfile {
+	if !extevidence.ValidSelectionProfile(value) && value != appflows.E2ESafeProfile && value != e2eLineExperimental {
 		return argumentError("--selection-profile must be strict, coverage or e2e-safe, got " + value)
 	}
 	invocation.SelectionProfile = value
@@ -1433,6 +1434,8 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	inputs := affectedPlanInputs{
 		gitExecutable: gitExecutable, repository: root, tree: root, base: invocation.Base, revision: revision,
 		additive: len(invocation.PathList) == 0, shared: invocation.sharedVia, ownership: ownership,
+		lineEvidence:      invocation.LineIndex == "",
+		lineEvidenceIndex: invocation.lineEvidenceIndex, lineEvidenceFamily: invocation.lineEvidenceFamily, lineEvidenceConfig: invocation.lineEvidenceConfig,
 	}
 	graph, plan, provider, advice := planAffectedGraph(ctx, inputs, graph, changed)
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
@@ -1443,7 +1446,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		// AFU-V1-145: the provider's test_selection is the selection to run;
 		// the derived inventory records what the provider leaves out.
 		appflows.ReconcileProvider(root, invocation.Providers[0], plan.E2E)
-	} else if len(invocation.Providers) != 0 {
+	} else if len(invocation.Providers) != 0 && invocation.SelectionProfile != e2eLineExperimental {
 		input := affectedSelectionInput(invocation, plan, dirty, advice)
 		input.CheckoutStatus = func(ctx context.Context, dir string) ([]string, error) {
 			return affected.DirtyPaths(ctx, gitExecutable, dir)
@@ -1509,6 +1512,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if invocation.Worktree {
 		receipt.Warning = affectedWorktreeWarning(revision, dirty)
 		receipt.Degradations = append(receipt.Degradations, affectedWorktreeDegradation)
+	}
+	if invocation.SelectionProfile == e2eLineExperimental {
+		receipt.Warning = strings.TrimSpace(receipt.Warning + " e2e-line-experimental: experimental; line evidence only adds or ranks, with no FIH promotion.")
 	}
 	return receipt, graph, nil
 }
@@ -1622,9 +1628,11 @@ func affectedSparseCheckout(ctx context.Context, gitExecutable, root string) boo
 // over (the worktree, or a review's materialized snapshot), and whether the
 // plan records ADN-V0-001 additive changes (not in --path mode, ADN-V0-009).
 type affectedPlanInputs struct {
-	gitExecutable, repository, tree, base, revision string
-	additive, shared                                bool
-	ownership                                       *affectedOwnershipObservation
+	gitExecutable, repository, tree, base, revision           string
+	additive, shared                                          bool
+	lineEvidence                                              bool
+	lineEvidenceIndex, lineEvidenceFamily, lineEvidenceConfig string
+	ownership                                                 *affectedOwnershipObservation
 }
 
 // planAffectedGraph is the one planning tail of `corvint affected` and of a
@@ -1682,6 +1690,9 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	// change, so an absent one is no deletion.
 	if in.additive && !(in.tree == in.repository && affectedSparseCheckout(ctx, in.gitExecutable, in.repository)) {
 		plan.Deleted = affectedDeletedPaths(in.tree, plan.Dirty)
+	}
+	if in.lineEvidence {
+		applyLineEvidence(ctx, in, graph, &plan)
 	}
 	provider := providerGoProjection(graph, plan)
 	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.tree, in.base, plan)

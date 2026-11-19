@@ -864,6 +864,41 @@
     },
     {
       "path": [
+        "line-evidence"
+      ],
+      "command": "corvint line-evidence",
+      "summary": "Collect private, tree-bound line evidence (experimental, LEV-V1)",
+      "usage": [
+        "corvint [--root PATH] line-evidence refresh [--runner RUNNER] [--root DIR]"
+      ],
+      "flags": [
+        "--root",
+        "--runner"
+      ],
+      "required": [],
+      "example": "corvint line-evidence refresh",
+      "help": "corvint line-evidence --help"
+    },
+    {
+      "path": [
+        "line-evidence",
+        "refresh"
+      ],
+      "command": "corvint line-evidence refresh",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] line-evidence refresh [--runner RUNNER] [--root DIR]"
+      ],
+      "flags": [
+        "--root",
+        "--runner"
+      ],
+      "required": [],
+      "example": "corvint line-evidence refresh",
+      "help": "corvint line-evidence refresh --help"
+    },
+    {
+      "path": [
         "mcp"
       ],
       "command": "corvint mcp",

@@ -372,6 +372,8 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint instructions` | Print the instruction load set of a tracked file (experimental, IID-V0) | `corvint instructions --subject PATH --host HOST --host-version VERSION --cwd DIR --profile default` | `corvint instructions --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint inventory` | Refresh the committed test inventory (experimental, TIV-V1) | `corvint inventory refresh` | `corvint inventory --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint inventory refresh` |  | `corvint inventory refresh` | `corvint inventory refresh --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint line-evidence` | Collect private, tree-bound line evidence (experimental, LEV-V1) | `corvint line-evidence refresh` | `corvint line-evidence --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint line-evidence refresh` |  | `corvint line-evidence refresh` | `corvint line-evidence refresh --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint mcp` | Serve the local read-only stdio MCP server (AHI-373, experimental) | `corvint mcp --root ABSOLUTE_ROOT` | `corvint mcp --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint review` | Experimental change review: affected plan and local branch overlap | `corvint review --base FULL_COMMIT_ID` | `corvint review --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint runs` | Read Playwright JSON reports across runs (experimental, PWR-V0) | `corvint runs baseline diff --baseline FILE --runs FILE[,FILE...]` | `corvint runs --help`; [corvint](../internal/capcatalog/trees/corvint.json) |

@@ -129,6 +129,14 @@ type UnboundedCause struct {
 
 // Selection is one unit whose tests the plan requires.
 type Selection struct {
+	// LEV-V1-009/010: populated by the default evidence reader; an exact
+	// result is never claimed by a plan before execution.
+	Tier     string   `json:"tier,omitempty"`
+	Exact    *bool    `json:"exact,omitempty"`
+	Instance string   `json:"instance,omitempty"`
+	Reason   string   `json:"reason,omitempty"`
+	Rank     []string `json:"rank,omitempty"`
+
 	Kind    string   `json:"kind,omitempty"`
 	Run     []string `json:"run,omitempty"`
 	UnitID  string   `json:"unitId"`

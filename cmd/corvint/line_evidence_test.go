@@ -1,0 +1,296 @@
+// SPDX-License-Identifier: Apache-2.0
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/lineevidence"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testinventory"
+	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
+)
+
+func TestLEVV1001RefreshAndConsumers(t *testing.T) {
+	root := inventoryRepository(t, map[string]string{
+		"go.mod":       "module example.com/lev\n\ngo 1.27.4\n",
+		"calc.go":      "package lev\nfunc Add(a,b int)int{return a+b}\n",
+		"calc_test.go": "package lev\nimport \"testing\"\nfunc TestAdd(t *testing.T){if Add(1,2)!=3{t.Fatal(\"sum\")}}\n",
+	})
+	code, out, diagnostic := inventoryCLI(t, "--root", root, "line-evidence", "refresh", "--runner", "go")
+	if code != 0 {
+		t.Fatalf("refresh %d: %s %s", code, out, diagnostic)
+	}
+	var refreshed []lineevidence.Refreshed
+	if err := json.Unmarshal([]byte(out), &refreshed); err != nil || len(refreshed) != 1 {
+		t.Fatalf("%s: %v", out, err)
+	}
+	name := refreshed[0].Path
+	before, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out, diagnostic = inventoryCLI(t, "--root", root, "line-evidence", "refresh", "--runner", "go")
+	if code != 0 {
+		t.Fatalf("second refresh %d: %s %s", code, out, diagnostic)
+	}
+	again, _ := os.ReadFile(name)
+	if !bytes.Equal(before, again) {
+		t.Fatal("same tree produced different index bytes")
+	}
+	ix, err := linecov.Load(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ix.Close()
+	if ix.RunnerFamily != "go" || ix.Config != "go.mod" {
+		t.Fatalf("identity %+v", ix)
+	}
+	found := false
+	for _, test := range ix.Tests {
+		if test.Name == "go:.::TestAdd" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("canonical ID missing")
+	}
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	for _, staged := range []bool{true, false} {
+		if staged {
+			writeInventoryFiles(t, root, map[string]string{"calc.go": "package lev\nfunc Add(a,b int)int{return a+b+1}\n"})
+			affectedGit(t, root, "add", "calc.go")
+		} else {
+			writeInventoryFiles(t, root, map[string]string{"extra.go": "package lev\nfunc Extra(){}\n"})
+		}
+		_, raw, stderr, code := runAffectedCLI(t, root, "--base", base)
+		if code != 0 {
+			t.Fatalf("affected %d %s", code, stderr)
+		}
+		reason := lineevidence.Unqualified
+		if !staged {
+			reason = lineevidence.Stale
+		}
+		if !bytes.Contains(raw, []byte(`"tier":"file"`)) || !bytes.Contains(raw, []byte(reason)) {
+			t.Fatalf("affected missing file reason: %s", raw)
+		}
+		_, summary, stderr, code := runAffectedCLI(t, root, "--summary", "--base", base)
+		if code != 0 {
+			t.Fatalf("summary %d %s", code, stderr)
+		}
+		responses := mcpAffectedChild(t, root, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"corvint.affected","arguments":{"base":"`+base+`"}}}`)
+		checkMCPAffectedAnswer(t, responses["1"], summary)
+		code, out, stderr = inventoryCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--accept-stale-binary")
+		if code != 0 && code != 3 {
+			t.Fatalf("test %d: %s %s", code, out, stderr)
+		}
+		if !strings.Contains(stderr, reason) {
+			t.Fatalf("test lost reason: %s", stderr)
+		}
+	}
+	code, out, diagnostic = inventoryCLI(t, "--root", root, "watch", "--index", name, "--once", "--dry-run")
+	if code != 0 || !strings.Contains(out, lineevidence.Stale) {
+		t.Fatalf("watch %d %s %s", code, out, diagnostic)
+	}
+	after, _ := os.ReadFile(name)
+	if !bytes.Equal(before, after) {
+		t.Fatal("consumer modified private evidence")
+	}
+}
+
+func TestLEVV1006PytestFileTier(t *testing.T) {
+	root := inventoryRepository(t, map[string]string{"pytest.ini": "[pytest]\n", "app.py": "def add(a,b): return a+b\n", "test_app.py": "from app import add\ndef test_add(): assert add(1,2)==3\n"})
+	if err := os.MkdirAll(filepath.Join(root, ".git", "corvint", "line-evidence"), 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	writeInventoryFiles(t, root, map[string]string{"app.py": "def add(a,b): return a+b+1\n"})
+	_, raw, stderr, code := runAffectedCLI(t, root)
+	if code != 0 || !bytes.Contains(raw, []byte(`"tier":"file"`)) || !bytes.Contains(raw, []byte("pytest-file-level")) {
+		t.Fatalf("%d %s %s", code, raw, stderr)
+	}
+}
+
+func TestLEVV1012VitestWatch(t *testing.T) {
+	root := inventoryRepository(t, map[string]string{
+		"vitest.config.ts": "export default {}\n", "package.json": "{\"type\":\"module\"}\n",
+		"sum.js": "export const sum=(a,b)=>a+b;\n", "sum.test.js": "import {sum} from './sum.js'; test('sum',()=>sum(1,2));\n",
+	})
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	oids, err := linecov.OIDs(context.Background(), root, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix, err := linecov.Build(".", head, "unavailable-runtime", oids, []linecov.Record{{Package: "sum.test.js", Name: "vitest:sum.test.js::sum", Profile: []byte("mode: atomic\n./sum.js:1.1,1.33 1 1\n")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix.Language, ix.RunnerFamily, ix.Config = "js", "vitest", "vitest.config.ts"
+	ix.Command = []string{"node_modules/.bin/vitest", "run"}
+	d := testinventory.Declared{Key: "vitest@.", Runner: "vitest", Root: ".", Config: "vitest.config.ts"}
+	name, err := lineevidence.Write(filepath.Join(root, ".git", "corvint", "line-evidence"), d, ix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeInventoryFiles(t, root, map[string]string{"sum.js": "export const sum=(a,b)=>a+b+1;\n"})
+	code, out, stderr := inventoryCLI(t, "--root", root, "watch", "--index", name, "--once", "--dry-run")
+	if code != 0 || !strings.Contains(out, lineevidence.Stale) || strings.Contains(stderr, "watch-index-language") {
+		t.Fatalf("%d %s %s", code, out, stderr)
+	}
+}
+
+func TestLEVV1008ExperimentalProfile(t *testing.T) {
+	root := inventoryRepository(t, map[string]string{"README.md": "fixture\n"})
+	_, _, stderr, code := runAffectedCLI(t, root, "--selection-profile", e2eLineExperimental)
+	if code != 0 {
+		t.Fatalf("%d %s", code, stderr)
+	}
+	code, out, stderr := inventoryCLI(t, "line-evidence", "refresh", "--help")
+	if code != 0 || !strings.Contains(out, "Example:") || !strings.Contains(out, "--runner") {
+		t.Fatalf("%d %s %s", code, out, stderr)
+	}
+}
+
+// levLanguage supplies a file plan independent of coverage: A is retained, and
+// B is not statically reached. Evidence may only add B and rank its canonical ID.
+type levLanguage struct{}
+
+func (levLanguage) Name() string          { return "typescript" }
+func (levLanguage) Owns(name string) bool { return strings.HasSuffix(name, ".js") }
+func (levLanguage) Units(context.Context, string) (affected.Result, error) {
+	return affected.Result{Units: []affected.Unit{
+		{ID: "typescript:app", Sources: []string{"app.js"}},
+		{ID: "typescript:playwright:a.spec.js", Tests: []string{"a.spec.js"}},
+		{ID: "typescript:playwright:b.spec.js", Tests: []string{"b.spec.js"}},
+	}}, nil
+}
+
+func TestLEVV1007PlaywrightOnlyAddsAndRanks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX version-probe fixture")
+	}
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	root := inventoryRepository(t, map[string]string{".gitignore": "node_modules/\n", "playwright.config.js": "export default {}\n", "app.js": "export const value=1;\n", "a.spec.js": "// retained by accepted flow\n", "b.spec.js": "// reached only by evidence\n"})
+	writeInventoryFiles(t, root, map[string]string{"node_modules/.bin/playwright": "#!/bin/sh\necho 'Version 1.56.0'\n"})
+	if err := os.Chmod(filepath.Join(root, "node_modules/.bin/playwright"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	git := testinventory.Git{Executable: "git", Root: root}
+	head, err := git.Head(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := testinventory.NewWorkTree(ctx, git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _ := tree.Files()
+	d := testinventory.Declared{Key: "playwright@.", Runner: "playwright", Root: ".", Config: "playwright.config.js"}
+	native, err := lineevidence.NativeIdentity(ctx, root, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := lineevidence.Command(d)
+	ix, err := linecov.Build(".", head, lineevidence.Binding(d, files, command, native), files, []linecov.Record{{Package: "b.spec.js", Name: "playwright:b.spec.js::chromium::covers", Profile: []byte("mode: atomic\n./app.js:1.1,1.22 1 1\n")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix.Language, ix.RunnerFamily, ix.Config, ix.Command = "js", d.Runner, d.Config, command
+	store, err := lineevidence.Store(ctx, git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(store, 0700); err != nil {
+		t.Fatal(err)
+	}
+	var encoded bytes.Buffer
+	if err := ix.Encode(&encoded); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store, lineevidence.Filename(d)), encoded.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	writeInventoryFiles(t, root, map[string]string{"app.js": "export const value=2;\n"})
+	graph, err := affected.Build(ctx, root, levLanguage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Plan{Dirty: []string{"app.js"}, Selected: []affected.Selection{{UnitID: "typescript:playwright:a.spec.js", Tests: []string{"a.spec.js"}, Flows: []string{"accepted-flow"}}}, Excluded: []affected.Exclusion{{UnitID: "typescript:playwright:b.spec.js"}}}
+	applyLineEvidence(ctx, affectedPlanInputs{gitExecutable: "git", repository: root, tree: root, revision: head}, graph, &plan)
+	if len(plan.Selected) != 2 || len(plan.Excluded) != 0 {
+		t.Fatalf("%+v", plan)
+	}
+	if plan.Selected[0].UnitID != "typescript:playwright:a.spec.js" || plan.Selected[0].Tier != "flow" || plan.Selected[1].Tier != "full" || len(plan.Selected[1].Rank) != 1 {
+		t.Fatalf("%+v", plan.Selected)
+	}
+	for _, s := range plan.Selected {
+		if s.Exact == nil || *s.Exact || s.Reason != lineevidence.Unqualified {
+			t.Fatalf("%+v", s)
+		}
+	}
+}
+
+func TestLEVV1003StaleInstanceExecution(t *testing.T) {
+	root := inventoryRepository(t, map[string]string{
+		"go.mod":              "module example.com/lev\n\ngo 1.27.4\n",
+		"calc.go":             "package lev\nfunc Add(a,b int)int{return a+b}\n",
+		"calc_test.go":        "package lev\nimport \"testing\"\nfunc TestAdd(t *testing.T){Add(1,2)}\n",
+		"other/other_test.go": "package other\nimport \"testing\"\nfunc TestOther(t *testing.T){}\n",
+	})
+	ctx := context.Background()
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	oids, err := linecov.OIDs(ctx, root, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix, err := linecov.Build("example.com/lev", head, "different-runner", oids, []linecov.Record{{Package: ".", Name: "go:.::TestAdd", Profile: []byte("mode: atomic\nexample.com/lev/calc.go:2.1,2.32 1 1\n")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix.Language, ix.RunnerFamily, ix.Config, ix.Command = "go", "go", "go.mod", []string{"go", "test", "./..."}
+	d := testinventory.Declared{Key: "go@.", Runner: "go", Root: ".", Config: "go.mod"}
+	if _, err := lineevidence.Write(filepath.Join(root, ".git", "corvint", "line-evidence"), d, ix); err != nil {
+		t.Fatal(err)
+	}
+	writeInventoryFiles(t, root, map[string]string{"calc.go": "package lev\nfunc Add(a,b int)int{return a+b+1}\n"})
+	input, _ := testRunInput(ctx, root, testOptions{base: head}, sessiontest.SourceIdentity{}, nil)
+	if input.FullInstances[d.Key] != lineevidence.Stale {
+		t.Fatalf("missing full instance: %+v", input.FullInstances)
+	}
+	if len(input.GoSlices) != 2 {
+		t.Fatalf("lost packages: %+v", input.GoSlices)
+	}
+	for _, slice := range input.GoSlices {
+		if slice.Pattern != "" {
+			t.Fatalf("stale evidence narrowed: %+v", slice)
+		}
+	}
+	testInventoryScope(ctx, root, &input, killswitch.Switch{})
+	if input.FullInstances[d.Key] != lineevidence.Stale {
+		t.Fatalf("inventory lost full instance: %+v", input.FullInstances)
+	}
+}
+
+func TestLEVV1002NestedInstance(t *testing.T) {
+	root := testinventory.Declared{Key: "go@.", Runner: "go", Root: "."}
+	nested := testinventory.Declared{Key: "go@a", Runner: "go", Root: "a"}
+	unit := affected.Unit{ID: "go:example.com/nested", Tests: []string{"a/calc_test.go"}}
+	for _, declarations := range [][]testinventory.Declared{{root, nested}, {nested, root}} {
+		got, ok := lineInstance(unit, declarations)
+		if !ok || got.Key != nested.Key {
+			t.Fatalf("one-character root lost ownership: %+v", got)
+		}
+	}
+}
