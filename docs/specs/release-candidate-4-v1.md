@@ -23,7 +23,7 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/rc4-candidate/`
 
 The owner wants the next release candidate named and bounded, and the documentation corpus search
 read path out of `experimental` (request of 2026-11-18). This spec is the canonical home of
-RCF-V1-001 to RCF-V1-012, copied from the change's spec delta. Decisions, failure modes and risks
+RCF-V1-001 to RCF-V1-013, synchronized with the change's spec delta. Decisions and failure modes
 stay in the change's `design.md`, which owns them. Ticket: V1-5679.
 
 Non-goals (from the change): no promotion of generation, flows, claims, drafts, navigation,
@@ -211,6 +211,51 @@ the CMP-V1-004 notice rule.
 - WHEN the commit is reverted
 - THEN `docs/COMPATIBILITY.md` and the corpus specs show their earlier labels and checks pass
 
+- `RCF-V1-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5692)
+  The release-candidate currency check MUST derive trigger patterns from the owner entries in
+  `.corvint/test-selection.json` naming `cmd/corvint-docs/rcf_qualification_test.go` at both the
+  qualified and candidate commits. It MUST use the existing owner-pattern dialect and include
+  deleted and renamed paths. Missing or invalid selection or qualification pins MUST fail closed.
+  The committed `docs/specs/rcf-qualification.json` MUST pin the last qualified commit and report
+  SHA-256. With no trigger diff and unchanged selection, the check MAY reuse that pinned evidence.
+  Otherwise it MUST require `CORVINT_RCF_QUALIFY`, run `TestRCFV1008Qualification` uncached at the
+  clean candidate checkout, observe that named test pass, and validate a fresh PASS report against
+  the candidate's frozen query-set digest. It MUST also observe two uncached passes of
+  `TestDCSV1404SearchRankingEvalFixture`, which checks identical ranks across evaluations.
+  Missing configuration, a skipped test, failed execution, missing or stale report, or a changed
+  checkout MUST produce a named nonzero failure, never PASS. The gate's retained output MUST bind
+  the report digest to the candidate commit; the existing qualification report format is unchanged.
+  Only a dispatched release-candidate gate SHALL invoke the check, never ordinary main PRs.
+
+**Scenario: Stale qualification holds the candidate**
+
+- GIVEN a ranking change after the pinned qualification
+- WHEN the release-candidate currency check has no live configuration or fresh passing report
+- THEN it fails with the missing evidence named, even if ordinary package tests passed
+
+**Scenario: Unchanged promoted scope**
+
+- GIVEN a valid qualification pin and selection at both immutable commits
+- WHEN no trigger path or selection declaration changed
+- THEN the check passes and names the reused commit and report digest
+
+## Currency gate failure modes and acceptance
+
+`tools/rcf-currency` is release support, not a shipped binary or a core command. It reads Git
+objects, refuses a dirty or mismatched candidate checkout, and never fetches or changes repository
+state. The configuration uses an absolute path; its new report must live outside the checkout.
+The live run uses the existing three-repository configuration; the gate does not provision private
+data.
+The owner-supplied historical pin is an assertion of accepted evidence, not independently
+reconstructed proof. A missing historical Git object fails closed. Input files are bounded at
+8 MiB; the selection file at 64 KiB. Test output streams to the caller for external retention.
+
+Acceptance tests cover unchanged scope, trigger changes, additions/deletions/renames, removed
+owner mappings, missing configuration, a skipped named test, missing/stale/failing reports,
+wrong query-set digest, wrong candidate checkout, and live success bound to the candidate.
+The release workflow integration and readiness citation remain pending host integration under the
+lane's prohibition on `.github/` edits. The exact workflow patch is in the V1-5692 build log.
+
 ## Delivery and traceability
 
 Each entry names the task in `tasks.md`, then the requirements, implementation and evidence.
@@ -277,6 +322,10 @@ Each entry names the task in `tasks.md`, then the requirements, implementation a
   byte for byte, and the compatibility, capabilities, openspec and spec-requirements checks pass
   on it (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
 
+| Requirement | Implementation | Acceptance evidence |
+|---|---|---|
+| RCF-V1-013, RCF-V1-010 | `tools/rcf-currency`, `docs/specs/rcf-qualification.json` | `TestCurrency`, `TestNamedTestPass`, `TestTriggerPatterns` in `tools/rcf-currency/main_test.go`; `docs/build-log/2026-11-18-rcf-currency-gate.md` |
+
 ## Rollback
 
 Before rc.4 is published: revert the promotion commit; the three surfaces return to `experimental`
@@ -284,3 +333,7 @@ and `preview`, and no data migration is needed. After publication: the surfaces 
 removal follows the CMP-V1-004 notice rule. Reverting the readiness record or the rc.4 numbering
 changes no shipped bytes. Reverting the runner commit removes the query set, the runner and its
 owner rows; the RCF-V1 IDs are then retired, not reused.
+
+Currency gate rollback: revert the support tool, qualification pin and dispatch-only integration
+patch together. Restore the explicit readiness hold for RCF-V1-010; removing enforcement is not
+qualification evidence and cannot authorize a tag. No product JSON or compatibility label changes.

@@ -168,3 +168,32 @@ the CMP-V1-004 notice rule.
 - **GIVEN** the promotion commit has landed and rc.4 is not published
 - **WHEN** the commit is reverted
 - **THEN** `docs/COMPATIBILITY.md` and the corpus specs show their earlier labels and checks pass
+
+### Requirement: RCF-V1-013 Release-candidate qualification currency
+
+The release-candidate currency check MUST derive trigger patterns from the owner entries in
+`.corvint/test-selection.json` naming `cmd/corvint-docs/rcf_qualification_test.go` at both the
+qualified and candidate commits. It MUST use the existing owner-pattern dialect and include
+deleted and renamed paths. Missing or invalid selection or qualification pins MUST fail closed.
+The committed `docs/specs/rcf-qualification.json` MUST pin the last qualified commit and report
+SHA-256. With no trigger diff and unchanged selection, the check MAY reuse that pinned evidence.
+Otherwise it MUST require `CORVINT_RCF_QUALIFY`, run `TestRCFV1008Qualification` uncached at the
+clean candidate checkout, observe that named test pass, and validate a fresh PASS report against
+the candidate's frozen query-set digest. It MUST also observe two uncached passes of
+`TestDCSV1404SearchRankingEvalFixture`, which checks identical ranks across evaluations.
+Missing configuration, a skipped test, failed execution, missing or stale report, or a changed
+checkout MUST produce a named nonzero failure, never PASS. The gate's retained output MUST bind
+the report digest to the candidate commit; the existing qualification report format is unchanged.
+Only a dispatched release-candidate gate SHALL invoke the check, never ordinary main PRs.
+
+#### Scenario: Stale qualification holds the candidate
+
+- GIVEN a ranking change after the pinned qualification
+- WHEN the release-candidate currency check has no live configuration or fresh passing report
+- THEN it fails with the missing evidence named, even if ordinary package tests passed
+
+#### Scenario: Unchanged promoted scope
+
+- GIVEN a valid qualification pin and selection at both immutable commits
+- WHEN no trigger path or selection declaration changed
+- THEN the check passes and names the reused commit and report digest
