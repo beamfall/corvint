@@ -161,10 +161,10 @@ async function compareRetained(snapshot) {
   assert.equal(snapshot.omitted, 0, "editor snapshot omitted test items");
   assertUnique(snapshot.items.map((item) => item.id), "editor snapshot item IDs");
   await waitForRetainedDocument(snapshot.documentDigest);
-  const { document } = await readRetainedEvidence(root);
+  const { document, raw } = await readRetainedEvidence(root);
   const evidence = document.discovery?.evidence;
   assert.ok(evidence, "retained reader discover did not select retained evidence");
-  const retainedBytes = await readFile(path.join(root, evidence), "utf8");
+  const retainedBytes = raw.toString("utf8");
   const retained = JSON.parse(retainedBytes);
   const valueSpan = retainedBytes.trim();
   const digest = `sha256:${createHash("sha256").update(valueSpan).digest("hex")}`;

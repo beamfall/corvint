@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm, readFile, utimes } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile, realpath, utimes } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -71,4 +72,69 @@ test('unknown forms and observation disagreements fail closed', () => {
   }
   const unknownGo = fixture('go', 'passed'); unknownGo.testProjections[0].action = 'future-action';
   assert.throws(() => decode(JSON.stringify(unknownGo)), /unsupported Go/);
+});
+
+// RMV-V1-009: run the same qualification entry points that consume the release binaries.
+test('core sessions capture the provider bytes without an MCP executable', async t => {
+  const scratch = await mkdtemp(join(tmpdir(), 'core-retained-session-'));
+  t.after(() => rm(scratch, { recursive: true, force: true }));
+  const raw = JSON.stringify(fixture('unit', 'passed')) + '\n';
+  const output = join(scratch, 'proof');
+  await mkdir(output);
+  // Stop the real session at its next exclusive capture, before it needs a second receipt.
+  const nextCapture = 'js-unit-pending-fail-mcp.json';
+  await writeFile(join(output, nextCapture), '');
+  await writeFile(join(scratch, 'corvint-js-test-provider'), `#!/usr/bin/env node
+const fs = require('node:fs');
+const raw = ${JSON.stringify(raw)};
+const dir = '.corvint/test-evidence';
+fs.mkdirSync(dir, { recursive: true });
+fs.writeSync(1, raw);
+fs.writeFileSync(dir + '/.corvint-js-test-provider-1-abc.tmp', raw);
+fs.renameSync(dir + '/.corvint-js-test-provider-1-abc.tmp', dir + '/corvint-js-test-provider-1-abc.json');
+process.stdin.resume();
+`, { mode: 0o700 });
+  const result = spawnSync(process.execPath, [
+    resolve('conformance/interactive-alpha/core-provider-proof.mjs'), scratch, resolve('.'),
+    join(scratch, 'work'), join(scratch, 'attachment'), output, 'sessions',
+  ], { encoding: 'utf8', timeout: 15000 });
+  if (result.error) throw result.error;
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /EEXIST[^\n]*js-unit-pending-fail-mcp\.json/);
+  assert.deepEqual(await readFile(join(output, 'js-unit-initial-mcp.json')), Buffer.from(raw));
+});
+
+test('installed runner accepts both provider paths without the MCP environment variable', async t => {
+  const scratch = await realpath(await mkdtemp(join(tmpdir(), 'installed-retained-preflight-')));
+  t.after(() => rm(scratch, { recursive: true, force: true }));
+  const release = join(scratch, 'release');
+  await mkdir(release);
+  const env = {
+    ...process.env,
+    CORVINT_RELEASE_EXTRACTED_ROOT: release,
+    CORVINT_JS_PROVIDER: join(release, 'js-provider'),
+    CORVINT_GO_PROVIDER: join(release, 'go-provider'),
+    CORVINT_RELEASE_ARCHIVE: join(scratch, 'release.tar'),
+    CORVINT_VSIX: join(scratch, 'outside-release.vsix'),
+  };
+  delete env.CORVINT_TEST_VALIDITY_MCP;
+  for (const file of [env.CORVINT_JS_PROVIDER, env.CORVINT_GO_PROVIDER, env.CORVINT_RELEASE_ARCHIVE, env.CORVINT_VSIX]) {
+    await writeFile(file, '', { mode: 0o700 });
+  }
+  // Redirect the two macOS host paths. Keep all release and provider checks on the real filesystem.
+  const preload = join(scratch, 'host-paths.cjs');
+  await writeFile(preload, `
+const fs = require('node:fs/promises');
+const { access, mkdtemp } = fs;
+fs.access = (file, mode) => access(file === '/Applications/Visual Studio Code.app/Contents/MacOS/Code' ? process.execPath : file, mode);
+fs.mkdtemp = prefix => mkdtemp(prefix === '/private/tmp/corvint-interactive-alpha-' ? __dirname + '/profile-' : prefix);
+require('node:module').syncBuiltinESMExports();
+`);
+  const result = spawnSync(process.execPath, ['--require', preload, resolve('extensions/vscode/test/installed/run.mjs')], {
+    env, encoding: 'utf8', timeout: 10000,
+  });
+  if (result.error) throw result.error;
+  assert.equal(result.status, 1, result.stderr);
+  // The VSIX confinement check follows successful provider validation and precedes launching Code.
+  assert.match(result.stderr, /Error: CORVINT_VSIX is not a file inside CORVINT_RELEASE_EXTRACTED_ROOT/);
 });
