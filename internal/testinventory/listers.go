@@ -28,6 +28,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/testid"
+	reader "github.com/Beamfall/corvint/internal/testinventory/reader"
 )
 
 // The bounds one lister works within.
@@ -128,7 +129,7 @@ func listInstance(ctx context.Context, input listInput, instance Declared) (Inst
 	if instance.Runner == testid.Pytest {
 		// PYR-V1-001, review P3-b: every conftest.py under the rootdir is
 		// bound too, as a test file's staleness input (judgeInstance).
-		bound = append(bound, conftests(input.Files, instance.Root)...)
+		bound = append(bound, reader.Conftests(input.Files, instance.Root)...)
 	}
 	seen := map[string]bool{}
 	for _, name := range bound {
@@ -137,7 +138,7 @@ func listInstance(ctx context.Context, input listInput, instance Declared) (Inst
 		}
 		seen[name] = true
 		blob, ok := input.Files[name]
-		if !ok || !under(instance.Root, name) {
+		if !ok || !reader.UnderRoot(instance.Root, name) {
 			return Instance{}, lister, fmt.Errorf("the lister names %s, which is not a listed file under %s", name, instance.Root)
 		}
 		record.Files = append(record.Files, File{Path: name, Blob: blob})
@@ -410,7 +411,7 @@ func repoRoots(root string) []string {
 func listVitest(ctx context.Context, input listInput, instance Declared) (listing, error) {
 	bin, err := nodeBin(input, instance.Root, "vitest")
 	result := listing{command: []string{"node_modules/.bin/vitest", "list", "--json", "--config", relativeTo(instance.Root, instance.Config)}}
-	if path.Base(instance.Config) == packageJSON {
+	if path.Base(instance.Config) == "package.json" {
 		// A package.json-declared instance has no vitest config to pass.
 		result.command = result.command[:3]
 	}
@@ -648,7 +649,7 @@ func RunLister(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	command.Dir = dir
 	command.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1", "NO_COLOR=1", "FORCE_COLOR=0", "CI=1")
 	var stderr bytes.Buffer
-	command.Stderr = &limitedBuffer{buffer: &stderr, limit: MaxErrorBytes}
+	command.Stderr = reader.LimitOutput(&stderr, MaxErrorBytes)
 	stdout, err := command.StdoutPipe()
 	if err != nil {
 		return nil, err

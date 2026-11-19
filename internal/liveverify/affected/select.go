@@ -129,6 +129,9 @@ type UnboundedCause struct {
 	Reads string `json:"reads"`
 }
 
+// TierFlow identifies selection from accepted flow evidence (LEV-V1-009).
+const TierFlow = "flow"
+
 // Selection is one unit whose tests the plan requires.
 type Selection struct {
 	// LEV-V1-009/010: populated by the default evidence reader; an exact

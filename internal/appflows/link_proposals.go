@@ -26,7 +26,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 	"github.com/Beamfall/corvint/internal/testid"
-	"github.com/Beamfall/corvint/internal/testinventory"
+	"github.com/Beamfall/corvint/internal/testinventory/reader"
 )
 
 const proposalProfile = "corvint-flow-link-proposals/0"
@@ -96,7 +96,7 @@ func linkVariations(set IntentSet) map[string]linkVariation {
 }
 
 func browserTest(runner string, t testinventory.Test) bool {
-	return runner == testid.Playwright || (runner == testid.Pytest || runner == testid.RSpec) && t.Kind == testinventory.KindE2E ||
+	return runner == testid.Playwright || (runner == testid.Pytest || runner == testid.RSpec) && t.Kind == affected.TestKindE2E ||
 		runner == testid.RSpec && strings.Contains("/"+t.File, "/spec/system/")
 }
 

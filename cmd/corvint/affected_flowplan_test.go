@@ -354,7 +354,7 @@ func TestFSVV1004UnsupportedVersionViaCLI_V15410(t *testing.T) {
 		t.Fatalf("e2e: %v", e2e)
 	}
 	entry := unknown[0].(map[string]any)
-	if entry["reason"] != "FLOWS_SCHEMA_UNSUPPORTED" || entry["detail"] != ".corvint/flows.json version 7; supported 0" || !strings.Contains(entry["hint"].(string), "every E2E test is selected") {
+	if entry["reason"] != "FLOWS_SCHEMA_UNSUPPORTED" || entry["detail"] != ".corvint/flows.json version 7; supported 0,1" || !strings.Contains(entry["hint"].(string), "every E2E test is selected") {
 		t.Fatalf("unknown: %v", entry)
 	}
 	for _, item := range receipt["plan"].(map[string]any)["unknown"].([]any) {
@@ -374,9 +374,28 @@ func TestFSVV1004UnsupportedVersionViaCLI_V15410(t *testing.T) {
 	if code := runContext(context.Background(), []string{"--root", root, "affected", "--base", base, "--format", "text"}, strings.NewReader(""), &text, &textErr); code != 0 {
 		t.Fatalf("--format text exit %d: %s", code, textErr.String())
 	}
-	for _, want := range []string{"e2e-scope FULL inventory=flows:0", "e2e-unknown FLOWS_SCHEMA_UNSUPPORTED .corvint/flows.json version 7; supported 0"} {
+	for _, want := range []string{"e2e-scope FULL inventory=flows:0", "e2e-unknown FLOWS_SCHEMA_UNSUPPORTED .corvint/flows.json version 7; supported 0,1"} {
 		if !strings.Contains(text.String(), want) {
 			t.Fatalf("text lacks %q:\n%s", want, text.String())
 		}
+	}
+}
+
+// A known version with a future member cannot use the known part to narrow (FSV-V1-004).
+func TestFLPV1006UnknownV1MemberRefusesNarrowingViaCLI(t *testing.T) {
+	t.Parallel()
+	root, base := flowPlanCLIRepo(t, `{"profile":"corvint-flows/1","flows":"flows","links":[],"future":{}}`, flowPlanCLIConfig)
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--base", base)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	e2e := flowPlanE2E(t, receipt)
+	unknown := e2e["unknown"].([]any)
+	if e2e["scope"] != "UNKNOWN" || len(e2e["selected"].([]any)) != 0 || len(unknown) != 1 {
+		t.Fatalf("e2e: %v", e2e)
+	}
+	entry := unknown[0].(map[string]any)
+	if entry["reason"] != "FLOWS_DECLARATION_INVALID" || !strings.Contains(entry["hint"].(string), "future") {
+		t.Fatalf("e2e: %v", e2e)
 	}
 }

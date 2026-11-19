@@ -1000,7 +1000,7 @@ func provePytest(p *proof, root, config string, files map[string]string, read fu
 		provePytestConfig(p, name+" ", name, read)
 	}
 	for name := range files {
-		if path.Base(name) != "conftest.py" || !under(root, name) {
+		if path.Base(name) != "conftest.py" || !UnderRoot(root, name) {
 			continue
 		}
 		source, err := read(name, maxConfigProbe)

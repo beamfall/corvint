@@ -59,6 +59,9 @@ var lockfileNames = map[string][]string{
 	testid.Minitest:   {"Gemfile.lock"},
 }
 
+// TempPattern names temporary files written by inventory refresh.
+const TempPattern = ".test-inventory-*.tmp"
+
 // maxConfigProbe bounds the bytes read from a shared Python config to see
 // whether it declares pytest.
 const maxConfigProbe = 1 << 20
@@ -94,7 +97,7 @@ func candidateSkipped(instance Declared, name string) bool {
 		return skipped(instance.Runner, path.Dir(name))
 	}
 	if dir, base := path.Split(name); dir == path.Dir(Path)+"/" {
-		if temp, _ := path.Match(tempPattern, base); temp {
+		if temp, _ := path.Match(TempPattern, base); temp {
 			return true
 		}
 	}
@@ -258,18 +261,18 @@ func candidate(instance Declared, file string) bool {
 func Candidates(files map[string]string, instance Declared, all []Declared) []string {
 	var nested []string
 	for _, other := range all {
-		if instance.Pattern == "" && other.Runner == instance.Runner && other.Root != instance.Root && under(instance.Root, other.Root) {
+		if instance.Pattern == "" && other.Runner == instance.Runner && other.Root != instance.Root && UnderRoot(instance.Root, other.Root) {
 			nested = append(nested, other.Root)
 		}
 	}
 	var out []string
 	for name := range files {
-		if !under(instance.Root, name) || name == instance.Config || name == instance.Lockfile || !candidate(instance, name) || candidateSkipped(instance, name) {
+		if !UnderRoot(instance.Root, name) || name == instance.Config || name == instance.Lockfile || !candidate(instance, name) || candidateSkipped(instance, name) {
 			continue
 		}
 		inner := false
 		for _, root := range nested {
-			if under(root, name) {
+			if UnderRoot(root, name) {
 				inner = true
 				break
 			}

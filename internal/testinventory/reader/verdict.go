@@ -292,11 +292,11 @@ func judgeInstance(instance Declared, record Instance, files map[string]string, 
 	return verdict
 }
 
-// conftests are the conftest.py files of files under root, sorted.
-func conftests(files map[string]string, root string) []string {
+// Conftests are the conftest.py files of files under root, sorted.
+func Conftests(files map[string]string, root string) []string {
 	var out []string
 	for name := range files {
-		if path.Base(name) == "conftest.py" && under(root, name) {
+		if path.Base(name) == "conftest.py" && UnderRoot(root, name) {
 			out = append(out, name)
 		}
 	}
@@ -308,7 +308,7 @@ func conftests(files map[string]string, root string) []string {
 // to root, the ones pytest loads for it.
 func conftestPath(root, file string) []string {
 	var out []string
-	for dir := path.Dir(file); under(root, dir) || dir == "."; dir = path.Dir(dir) {
+	for dir := path.Dir(file); UnderRoot(root, dir) || dir == "."; dir = path.Dir(dir) {
 		out = append(out, path.Join(dir, "conftest.py"))
 		if dir == root || dir == "." {
 			break

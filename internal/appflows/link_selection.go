@@ -12,11 +12,10 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
-	"github.com/Beamfall/corvint/internal/lineevidence"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/testid"
-	"github.com/Beamfall/corvint/internal/testinventory"
+	"github.com/Beamfall/corvint/internal/testinventory/reader"
 )
 
 const (
@@ -281,7 +280,7 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 				}
 				for i, s := range plan.Selected {
 					if s.UnitID == "typescript:playwright:"+t.File && !j.full && plan.FullInstances[instance.Key] == "" {
-						plan.Selected[i].Tier = string(lineevidence.Flow)
+						plan.Selected[i].Tier = affected.TierFlow
 						plan.Selected[i].Reason = affected.E2EReasonFlowReach
 					}
 				}

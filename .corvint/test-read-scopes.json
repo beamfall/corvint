@@ -677,6 +677,7 @@
       "internal/testevidence/",
       "internal/testevidencedoc/",
       "internal/testid/",
+      "internal/testinventory/reader/",
       "internal/testrunner/",
       "internal/testsource/",
       "internal/testvalidity/",
@@ -1037,8 +1038,15 @@
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/command/flows": [
+      ".claude/hooks/",
+      ".codex/hooks.json",
+      ".githooks/",
+      ".github/workflows/",
+      "cmd/",
       "internal/appflows/testdata/playwright-attribution.json",
-      "internal/appmap/testdata/"
+      "internal/appmap/testdata/",
+      "internal/mcp/",
+      "script/"
     ],
     "internal/corerelease": [
       "protocol/cem-1.0/stable/MIGRATION.json",
@@ -1164,6 +1172,7 @@
       "internal/testevidence/",
       "internal/testevidencedoc/",
       "internal/testid/",
+      "internal/testinventory/reader/",
       "internal/testreuse/",
       "internal/testrunner/",
       "internal/testsource/",

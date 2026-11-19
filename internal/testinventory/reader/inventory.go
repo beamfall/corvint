@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// Package testinventory reads and writes the committed test inventory of the
+// Package testinventory decodes, encodes and judges the committed test inventory of the
 // seven blocking runners (docs/specs/test-inventory-v1.md):
 // `.corvint/test-inventory.json`, profile `corvint-test-inventory/0`, one
 // record per runner instance listing its tests by canonical test ID
@@ -166,7 +166,7 @@ func Decode(data []byte) (Inventory, error) {
 // indented, one trailing newline, so equal inventories give equal bytes. It
 // refuses an invalid inventory and one over MaxBytes (ErrTooLarge).
 func Encode(inventory Inventory) ([]byte, error) {
-	inventory = inventory.canonical()
+	inventory = inventory.Canonical()
 	if err := inventory.validate(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
@@ -181,8 +181,8 @@ func Encode(inventory Inventory) ([]byte, error) {
 	return data, nil
 }
 
-// canonical sorts every list and turns nil lists into empty ones.
-func (inventory Inventory) canonical() Inventory {
+// Canonical sorts every list and turns nil lists into empty ones.
+func (inventory Inventory) Canonical() Inventory {
 	out := inventory
 	out.Instances = append([]Instance{}, inventory.Instances...)
 	out.Failures = append([]Failure{}, inventory.Failures...)
@@ -245,7 +245,7 @@ func validateIdentity(key, runner, root, config string) error {
 	if !testid.CleanFile(root) {
 		return fmt.Errorf("root %q is not a clean repository-relative path", root)
 	}
-	if !testid.CleanFile(config) || config == "." || !under(root, config) {
+	if !testid.CleanFile(config) || config == "." || !UnderRoot(root, config) {
 		return fmt.Errorf("config %q is not a file under root %q", config, root)
 	}
 	if key != Key(runner, root) {
@@ -278,7 +278,7 @@ func (instance Instance) validate() error {
 	}
 	files := map[string]bool{}
 	for index, file := range instance.Files {
-		if !testid.CleanFile(file.Path) || file.Path == "." || !under(instance.Root, file.Path) {
+		if !testid.CleanFile(file.Path) || file.Path == "." || !UnderRoot(instance.Root, file.Path) {
 			return fmt.Errorf("file %q is not under root %q", file.Path, instance.Root)
 		}
 		if !objectID(file.Blob) {
@@ -300,7 +300,7 @@ func (instance Instance) validate() error {
 		if !files[test.File] {
 			return fmt.Errorf("test %q names unlisted file %q", test.ID, test.File)
 		}
-		if owner := ownerOf(instance.Runner, test.File); owner != id.File {
+		if owner := OwnerOf(instance.Runner, test.File); owner != id.File {
 			return fmt.Errorf("test %q does not live in %q", test.ID, test.File)
 		}
 		if test.Reason != "" && (test.Reason != testid.ReasonUnmapped || !id.IsFileLevel()) {
@@ -335,17 +335,17 @@ func (lister Lister) validate() error {
 	return nil
 }
 
-// ownerOf is the canonical ID file part of a test living in file: the
+// OwnerOf is the canonical ID file part of a test living in file: the
 // package directory for Go (CTI-V1-003), the file itself otherwise.
-func ownerOf(runner, file string) string {
+func OwnerOf(runner, file string) string {
 	if runner == testid.Go {
 		return path.Dir(file)
 	}
 	return file
 }
 
-// under reports whether the clean path file is root or lies below it.
-func under(root, file string) bool {
+// UnderRoot reports whether the clean path file is root or lies below it.
+func UnderRoot(root, file string) bool {
 	return root == "." || file == root || strings.HasPrefix(file, root+"/")
 }
 

@@ -9,7 +9,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/testid"
-	"github.com/Beamfall/corvint/internal/testinventory"
+	"github.com/Beamfall/corvint/internal/testinventory/reader"
 )
 
 type canonicalLinkReport struct {

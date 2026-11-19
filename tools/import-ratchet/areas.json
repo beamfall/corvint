@@ -71,6 +71,7 @@
         "internal/testdiscovery",
         "internal/testduration",
         "internal/testid",
+        "internal/testinventory/reader",
         "internal/testplatform",
         "internal/testsupport",
         "internal/testvalidity",

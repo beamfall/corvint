@@ -1136,6 +1136,12 @@
       ]
     },
     {
+      "paths": "internal/testinventory/reader/*.go",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "internal/testrunner/dynamic/README.md",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"

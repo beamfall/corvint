@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	reader "github.com/Beamfall/corvint/internal/testinventory/reader"
 )
 
 // ruleTree is a repository with one RSpec and one Vitest instance.
@@ -44,7 +46,7 @@ func recordOf(t *testing.T, tree MapTree, instance Declared) Instance {
 	declared := Detect(files, tree.Read)
 	for _, name := range Candidates(files, instance, declared) {
 		record.Files = append(record.Files, File{Path: name, Blob: files[name]})
-		record.Tests = append(record.Tests, Test{ID: instance.Runner + ":" + ownerOf(instance.Runner, name), File: name, Reason: "test-id-unmapped"})
+		record.Tests = append(record.Tests, Test{ID: instance.Runner + ":" + reader.OwnerOf(instance.Runner, name), File: name, Reason: "test-id-unmapped"})
 	}
 	return record
 }
