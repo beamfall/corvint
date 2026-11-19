@@ -227,3 +227,9 @@ dispatch refusals. No retained assertion was relaxed to accommodate an environme
 The subsequent whole core run (156.814s) has only the seven ancestor-repository environment
 failures already described. Catalog/MCP parity and retained reader-code completeness pass.
 The latest test-only repairs are verified again at the final boundary with B3.
+
+The repository flow test found two stale review anchors after B2 removed the validity-only
+MCP discovery/list calls from core-provider-proof.mjs. Its Go/JS session and selection assertions
+are unchanged. Both retained flow links now pin cd18d5924a1e3cd1f64cb50395b42f2b09a0431b,
+the immutable commit containing that reviewed consumer. A separate commit is needed because
+the existing qualification deliberately loads flow intents from HEAD, not the mutable worktree.
