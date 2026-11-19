@@ -68,7 +68,9 @@ kill switch keep their thresholds; no row is seeded or synthetic.
 - `CIN-V1-942`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5087)
   The existing `plan.unknown` LANGUAGE_FRONTIER detail SHALL identify every degraded edge's
   tests, runs, declaration reason and unresolved-target reason using the prefix
-  `runtime:unresolved-edge:`. The plan stays UNKNOWN. CI SHALL retain those details in the
+  `runtime:unresolved-edge:`. Each detail retains its reached test-holder bearers under
+  TSP-V0-942, including their reaching witnesses and the normal unit-source cap.
+  The plan stays UNKNOWN. CI SHALL retain those details in the
   optional `narrowing.json` `degradedRuntimeEdges` array without treating this widening as a
   FULL cause. This string array is the charter-authorized record addition; normal records
   omit it and retain their shape. Other guards remain binding. The `.github` caller patch

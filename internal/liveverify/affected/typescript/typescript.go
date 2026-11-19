@@ -659,7 +659,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		// Keep that read alongside the existing URL interpretation, before token pruning.
 		for _, ref := range sites[observation.path].literalRequires {
 			candidate := path.Clean(path.Join(path.Dir(observation.path), ref))
-			tokens, bounded := foreignModuleCandidates(root, candidate)
+			tokens, bounded := commonJSLiteralCandidates(root, candidate)
 			observation.dataTokens = append(observation.dataTokens, tokens...)
 			observation.aliasBounded = observation.aliasBounded || bounded
 		}

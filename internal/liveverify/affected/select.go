@@ -368,9 +368,6 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		frontier, excluded, bearers, involved, closable = graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
 	}
 	plan.Unknown = append(frontier, unknown...)
-	for _, edge := range graph.degradedRuntimeEdges {
-		plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: runtimeEdgeDegradation(edge)})
-	}
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
@@ -925,6 +922,20 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		unknown = append(unknown, entry)
 		if len(unowned) == 0 && slices.Contains(graph.frontierBy[name], reason) {
 			closable = append(closable, entry)
+		}
+	}
+	// Runtime degradation always bears on its reached test holders. Add its
+	// entry and sources together so the ordinary ordering and cap also apply.
+	for _, edge := range graph.degradedRuntimeEdges {
+		detail := runtimeEdgeDegradation(edge)
+		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: detail})
+		for id, witness := range reached {
+			if slices.ContainsFunc(graph.units[id].Tests, func(p string) bool {
+				return runtimeEdgeHolds(edge.Tests, p)
+			}) {
+				bear(FrontierBearer{Detail: detail, Via: FrontierBearerReachedUnit,
+					Unit: id, Witness: witness.Kind, DirtyPath: witness.DirtyPath})
+			}
 		}
 	}
 	var excluded []FrontierExclusion

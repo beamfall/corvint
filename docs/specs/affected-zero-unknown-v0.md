@@ -73,8 +73,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   Located sites SHALL retain their literal and resolved alias targets, including exact tsconfig
   aliases, package.json imports mappings, extensionless JSON loads and recorded overflow sites.
   CommonJS relative `require` paths retain literal `#` and `?` filename characters alongside
-  URL-style source alternatives; unsupported literal forms retain a frontier. ESM resolution
-  keeps its existing query and fragment interpretation.
+  URL-style source alternatives. Only an exact regular JSON file certifies the literal
+  resolution; extensionless sources, directory loads and all other literal forms retain a
+  frontier until their complete resolution is modeled. ESM resolution keeps its existing
+  query and fragment interpretation.
   Resolving another import SHALL NOT erase these targets. Unsupported mappings, unavailable
   resolution tables, unowned located sites and bounded token sets SHALL retain uncertainty.
   A bare source-bound reason with an explicit `SourceOnlyFrontiers` declaration retains

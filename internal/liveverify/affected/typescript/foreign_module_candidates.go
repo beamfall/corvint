@@ -50,3 +50,15 @@ func foreignModuleCandidates(root *affected.Source, candidate string) ([]string,
 	}
 	return tokens, false
 }
+
+// commonJSLiteralCandidates certifies only an exact regular JSON file. The
+// foreign data candidates do not model CommonJS source or directory resolution;
+// every other form retains uncertainty, including future loader extensions.
+func commonJSLiteralCandidates(root *affected.Source, candidate string) ([]string, bool) {
+	tokens, bounded := foreignModuleCandidates(root, candidate)
+	if bounded || path.Ext(candidate) != ".json" {
+		return tokens, true
+	}
+	info, err := root.Stat(candidate)
+	return tokens, err != nil || !info.Mode().IsRegular()
+}

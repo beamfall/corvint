@@ -65,6 +65,33 @@ func TestRuntimeEdgeWidening_CINV1940(t *testing.T) {
 			if !found {
 				t.Fatalf("missing degradation: %+v", plan.Unknown)
 			}
+			// TSP-V0-942: every frontier has a bearer, and every bearer
+			// explains an emitted frontier using a valid reached holder.
+			frontiers := map[string]bool{}
+			for _, unknown := range plan.Unknown {
+				if unknown.Reason == UnknownLanguageFrontier {
+					frontiers[unknown.Detail] = false
+				}
+			}
+			for _, bearer := range plan.FrontierBearers {
+				if _, exists := frontiers[bearer.Detail]; !exists {
+					t.Fatalf("bearer without frontier: %+v", bearer)
+				}
+				frontiers[bearer.Detail] = true
+				if strings.HasPrefix(bearer.Detail, "runtime:unresolved-edge:") {
+					witness, exists := witnesses(plan)[bearer.Unit]
+					if !exists || bearer.Unit != "g:holder" ||
+						bearer.Via != FrontierBearerReachedUnit ||
+						bearer.Witness != witness.Kind || bearer.DirtyPath != witness.DirtyPath {
+						t.Fatalf("invalid degradation bearer: %+v", bearer)
+					}
+				}
+			}
+			for detail, borne := range frontiers {
+				if !borne {
+					t.Fatalf("frontier without bearer: %s", detail)
+				}
+			}
 			for _, selected := range plan.Selected {
 				if len(selected.Tests) != 1 || selected.Witness.Kind != WitnessUnboundedReader || selected.Witness.Cause == nil {
 					t.Fatalf("not whole conservative selection: %+v", selected)

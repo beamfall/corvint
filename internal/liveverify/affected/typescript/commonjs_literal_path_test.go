@@ -79,3 +79,51 @@ func TestCommonJSUnknownLiteralPath_AZU_V1_960(t *testing.T) {
 		t.Fatalf("unsupported literal form lost its frontier: %+v", plan)
 	}
 }
+
+// AZU-V1-960: a stripped source match cannot prove literal source resolution.
+func TestCommonJSLiteralSourceAlternatives_AZU_V1_960(t *testing.T) {
+	for _, delimiter := range []string{"#", "?"} {
+		for _, target := range []string{".js", "/index.js", ".future"} {
+			t.Run(delimiter+target, func(t *testing.T) {
+				if runtime.GOOS == "windows" && delimiter == "?" {
+					t.Skip("Windows filenames cannot contain question marks")
+				}
+				root := t.TempDir()
+				literal := "settings" + delimiter + "one"
+				ref := literal
+				if target == ".future" {
+					ref += target
+				}
+				const reader = "read.test.cjs"
+				write(t, root, "settings.cjs", "module.exports = {};\n")
+				write(t, root, literal+target, "module.exports = {value: 1};\n")
+				write(t, root, reader, "const {test} = require('node:test');\n"+
+					"const data = require('./"+ref+"');\n"+
+					"test('read', () => data.value);\n")
+				result, err := New().Units(t.Context(), root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				unit := unitByID(result, unitID(runnerNode, reader))
+				if !slices.Contains(unit.Imports, unitID("", "settings.cjs")) {
+					t.Fatalf("fixture did not resolve stripped alternative: %+v", unit)
+				}
+				if !unit.PathTokensBounded {
+					t.Fatalf("unsupported source resolution was certified: %+v", unit)
+				}
+				graph, err := affected.Build(t.Context(), root, New())
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, dirty := range []string{literal + target, "future.input"} {
+					plan := affected.Select(graph, []string{dirty})
+					want := "typescript:path-token-bound:" + unit.ID
+					if plan.Scope != affected.ScopeUnknown ||
+						!slices.Contains(frontierDetails(plan), want) {
+						t.Fatalf("%s: incomplete resolution certified: %+v", dirty, plan)
+					}
+				}
+			})
+		}
+	}
+}
