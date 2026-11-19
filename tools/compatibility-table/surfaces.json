@@ -296,6 +296,40 @@
       "notes": "The tool names of `corvint-mcp`, `corvint-docs-mcp` and `corvint-test-validity-mcp`; their input and output schemas are preview. The tool table of change `mcp-tool-table` does not exist yet."
     },
     {
+      "id": "docs-search-mcp-schemas",
+      "surface": "Input and output schemas of `corvint.docs_search`, `corvint.docs_get` and `corvint.docs_info`",
+      "kind": "MCP",
+      "class": "in-repo",
+      "stability": "stable",
+      "tests": [
+        {
+          "package": "./internal/mcp/corpusbridge",
+          "name": "TestRCFV1011DocsToolSchemas"
+        },
+        {
+          "package": "./internal/mcp/corpusbridge",
+          "name": "TestRCFV1011DocsToolOutputs"
+        }
+      ],
+      "notes": "The three tools on `corvint-docs mcp` (RCF-V1-006, RCF-V1-011). Every documented input and output member keeps its name, type and meaning within 1.x; the fixtures under `internal/mcp/corpusbridge/testdata/rcf-contract/` hold them. Result order is preview, and every other docs tool's schemas stay preview."
+    },
+    {
+      "id": "evidence-corpus-format",
+      "surface": "Corpus artifact format",
+      "kind": "file",
+      "class": "in-repo",
+      "stability": "stable",
+      "label": "corvint-evidence-corpus/2",
+      "labelSource": "internal/doccorpus/capacity.go",
+      "tests": [
+        {
+          "package": "./internal/mcp/corpusbridge",
+          "name": "TestRCFV1011CorpusFormat"
+        }
+      ],
+      "notes": "The artifact `corvint-docs docs corpus build` writes and `search`, `get`, `info` and the three MCP tools read, with its manifest `corvint-corpus-input/2` and receipt (RCF-V1-006, RCF-V1-011); the fixture `internal/mcp/corpusbridge/testdata/rcf-contract/corpus-format.json` holds every documented member."
+    },
+    {
       "id": "feature-map",
       "surface": "Feature map `corvint-feature-map/0`",
       "kind": "`--json` format",
@@ -344,7 +378,7 @@
       "surface": "MCP input and output schemas",
       "kind": "MCP",
       "stability": "preview",
-      "notes": "Preview by name (CMP-V1-005); the tool names are a separate row."
+      "notes": "Preview by name (CMP-V1-005); the tool names are a separate row. The schemas of `corvint.docs_search`, `corvint.docs_get` and `corvint.docs_info` are stable in their own row, except result order, which stays preview (RCF-V1-011)."
     },
     {
       "id": "go-packages",

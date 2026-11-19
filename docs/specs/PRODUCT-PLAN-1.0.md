@@ -985,7 +985,12 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Changed: (changed 2026-11-09, answer 8) Source was `PROPOSED`; answer 8 puts docs search for
     agents in 1.0.
   - Source: answer 8.
-  - Intent: proposed. Delivery: experimental. State: PARTIAL.
+  - Intent: proposed. Delivery: validated. State: DELIVERED.
+  - Validated: (2026-11-18, RCF-V1-011) for the RCF-V1-006 scope: `corvint-docs docs corpus build`,
+    `search`, `get` and `info`, the MCP tools `corvint.docs_search`, `corvint.docs_get` and
+    `corvint.docs_info`, and `corvint-evidence-corpus/2`; RCF-V1-008 and RCF-V1-009 passed on
+    Corvint, Beamfall and `vuejs/core` (`docs/build-log/2026-11-18-rc4-docs-qualification.md`).
+    Independent external utility is `EXTERNAL_DEPENDENT` and `NOT_RUN`.
   - Scenario: an agent searches.
     - **WHEN** an agent searches the documentation for a term and opens one result
     - **THEN** it receives the passage with the file and commit it was read from

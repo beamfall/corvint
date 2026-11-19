@@ -57,7 +57,9 @@ Non-goals:
   fields of these formats: flow file, plan, test-run receipt, run evidence, ticket schema v1 and
   receipt reference v1; (3) the documented files under `.corvint/` and in the Tasks store; (4) the
   action's inputs and outputs, the action's major tag, and the Corvint version range that each agent
-  package declares; (5) the MCP tool names in the tool table. The label of each format in item 2
+  package declares; (5) the MCP tool names in the tool table; (6) the input and output schemas of
+  the MCP tools `corvint.docs_search`, `corvint.docs_get` and `corvint.docs_info` on `corvint-docs
+  mcp`, except their result order, and the corpus artifact format `corvint-evidence-corpus/2`. The label of each format in item 2
   MUST be read from the code before its row is written. A listed surface with no contract test gets
   no `stable` row, and the change's build-log entry names the gap. A listed surface that does not
   ship from this repository yet, or that another repository owns, gets a `not-promised` row that
@@ -65,6 +67,8 @@ Non-goals:
   test, the lane MUST stop and report that to the owner before it writes the table. (decided
   2026-11-09 under R42, D10 and D10a) (amended 2026-11-11 by the orchestrator under the owner's
   2026-11-02 delegation: `not-promised` rows; `docs/build-log/2026-11-11-compatibility-promise.md`)
+  (amended 2026-11-18 by RCF-V1-011, accepted by the owner with RCF-D2: item 6;
+  `docs/build-log/2026-11-18-rc4-docs-qualification.md`)
 - `CMP-V1-004`: (accepted automatically under G14, decision 0596; V1-5434) A `stable` surface MUST
   change only by addition within 1.x: a 1.x release that adds a field to a stable `--json` format
   keeps every documented field's name, type and meaning. Removing or renaming a stable verb, flag,
@@ -74,10 +78,11 @@ Non-goals:
 - `CMP-V1-005`: (accepted automatically under G14, decision 0596; V1-5434) `docs/COMPATIBILITY.md`
   MUST list these as `preview`, by name: `corvint-feature-map/0`, `corvint-data-map/0`,
   `corvint-change-report/0`, `corvint-review-check/0`, `corvint-flow-link-proposals/0`,
-  `corvint-harness-event/0`, the MCP input and output schemas, the Go packages, the index and every
+  `corvint-harness-event/0`, the MCP input and output schemas other than those CMP-V1-003 item 6
+  names, the result order of those three tools, the Go packages, the index and every
   cache. A `preview` surface MAY change in any release, and the release notes MUST name the change.
   An MCP tool name can be `stable` while its input schema is `preview`. (decided 2026-11-09 under
-  R42, D10 and D10a)
+  R42, D10 and D10a) (amended 2026-11-18 by RCF-V1-011: the item 6 schemas leave this list)
 - `CMP-V1-006`: (accepted automatically under G14, decision 0596; V1-5434) No profile label MUST be
   renamed at 1.0. The digit in a label is part of the name and MUST NOT be read as a stability mark;
   the stability column of CMP-V1-001 carries that meaning. A breaking change to a stable profile
