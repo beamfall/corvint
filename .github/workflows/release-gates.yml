@@ -204,6 +204,33 @@ jobs:
           path: ${{ runner.temp }}/evidence/release-checklist-*
           if-no-files-found: error
 
+  # RCF-V1-010/013: release dispatch only; ordinary PRs and nightlies do not run this job.
+  rcf-currency:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RUNNER_LABEL: ubuntu-24.04
+      # Hosted runners reuse the committed pin only when trigger inputs are unchanged.
+      # A trigger diff fails closed; refresh the pin after an owner-run live qualification.
+      CORVINT_RCF_QUALIFY: ""
+    steps:
+      - *check-inputs
+      - *checkout
+      - *verify-checkout
+      - *setup-go
+      - *provision
+      - *gate-log-helper
+      - name: Enforce RCF qualification currency
+        run: |
+          "$RUNNER_TEMP/run-gate" rcf-currency go run ./tools/rcf-currency --candidate "$SHA"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rcf-currency-${{ inputs.release }}-ubuntu-24.04
+          path: ${{ runner.temp }}/evidence/rcf-currency-*
+          if-no-files-found: error
+
   # linux/amd64 Core platform evidence (decision 0420 item 2, PRS-V1-004, PRS-V1-006): release
   # runbook steps 5, 6 and 8, run natively on this sha's own
   # linux/amd64 archive. The setup steps are the gate job's, by YAML alias.
