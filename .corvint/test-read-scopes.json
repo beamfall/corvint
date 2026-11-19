@@ -2218,6 +2218,7 @@
       "script/gen-spec-requirements.sh"
     ],
     "tools/plugin-dirs": [],
+    "tools/rcf-currency": [],
     "tools/requirement-id-collisions": [],
     "tools/runner-plugin": [],
     "tools/runner-qualification": [],

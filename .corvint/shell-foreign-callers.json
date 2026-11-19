@@ -492,6 +492,8 @@
         "script/merge-drivers_test.sh",
         "script/no-python-runtime-dependency_test.sh",
         "script/repin-use-case-receipts_test.sh",
+        "tools/rcf-currency/main.go",
+        "tools/rcf-currency/main_test.go",
         "tools/test-commands-check/heavycap_test.go",
         "tools/test-commands-check/main_test.go"
       ],
