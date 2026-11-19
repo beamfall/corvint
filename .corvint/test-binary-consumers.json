@@ -5,12 +5,20 @@
       "commands": [
         "cmd/corvint-go-test-provider",
         "cmd/corvint-js-test-provider"
+      ],
+      "run": [
+        "make",
+        "interactive-alpha-installed-core"
       ]
     },
     "extensions/vscode/test/installed/run.mjs": {
       "commands": [
         "cmd/corvint-go-test-provider",
         "cmd/corvint-js-test-provider"
+      ],
+      "run": [
+        "make",
+        "interactive-alpha-installed-editor"
       ]
     },
     "tools/web-flows/test/e2e.mjs": {

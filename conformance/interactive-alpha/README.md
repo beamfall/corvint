@@ -46,7 +46,8 @@ consumers of the two live test providers in
 (AFP-V0-762, AFU-V1-1655). `core-planning-proof.mjs` and `roadmap-proof.mjs` exec binaries decision
 0594 extracted or cut and have no runner.
 
-Every edit under `fixture/` selects two installed qualification targets. The portable Node
+Changes to either provider’s Go build closure select both installed qualification targets
+through the declared consumer commands. Edits under `fixture/` select both through their Make prerequisites. The portable Node
 regression exercises the launcher seams with stubs. For the installed results, run
 `make interactive-alpha-installed-editor` with the release environment above and
 `make interactive-alpha-installed-core` with the installed binaries in `CORVINT_PROVIDER_BIN_DIR`,

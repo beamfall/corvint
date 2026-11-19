@@ -214,11 +214,11 @@ unprofiled JS unit/E2E and Go session profile `/0` pass/fail/stale documents; un
 forms fail qualification. The receipt kind must match the invocation and each native projection
 must supply all five axes with the states its observation supports. JS qualification requires the
 producer's runtime, runner, configuration, package and test-file identities, environment and argv,
-and matching nonempty observation and projection names. A nonblocking descriptor check admits
-only bounded regular receipt files. Fixture changes select both installed qualification drivers.
-Discovery skips the producer's
-private temporary names and exact `.gitignore` housekeeping name. It establishes no current-input
-freshness or MCP transport claim.
+and matching nonempty observation and projection names. Before projection the reader validates
+the types and nested members emitted by the fixture reporters. Every poll opens only bounded
+regular receipts through a nonblocking descriptor. Discovery skips private producer temporary
+names and the exact `.gitignore` name. It establishes no current-input freshness or MCP transport
+claim. A fixture change or a change to either provider build closure selects both installed drivers.
 
 - `RMV-V1-010`: (proposed 2026-11-10) Runner protocol cut (G23)
 

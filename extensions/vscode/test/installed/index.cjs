@@ -1,9 +1,9 @@
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
-const { readFile, readdir, writeFile } = require("node:fs/promises");
+const { writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const vscode = require("vscode");
-const { readRetainedEvidence } = require("../../../../conformance/interactive-alpha/retained-evidence.cjs");
+const { retainedDocuments, readRetainedEvidence } = require("../../../../conformance/interactive-alpha/retained-evidence.cjs");
 
 const root = process.env.CORVINT_FIXTURE_ROOT;
 const rootUri = vscode.Uri.file(root);
@@ -186,19 +186,10 @@ async function compareRetained(snapshot) {
 }
 
 async function waitForRetainedDocument(digest) {
-  const directory = path.join(root, ".corvint/test-evidence");
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
-    let entries;
-    try { entries = await readdir(directory, { withFileTypes: true }); } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-      entries = [];
-    }
-    assert.ok(entries.length <= 256, "retained evidence exceeds discovery bound");
-    for (const entry of entries) {
-      if (!entry.isFile() || !/^corvint-(?:js|go)-test-provider-[0-9]+-[0-9a-f]+\.json$/.test(entry.name)) continue;
-      const bytes = await readFile(path.join(directory, entry.name), "utf8");
-      if (`sha256:${createHash("sha256").update(bytes.trim()).digest("hex")}` === digest) return;
+    for (const { raw } of await retainedDocuments(root)) {
+      if (`sha256:${createHash("sha256").update(raw.toString("utf8").trim()).digest("hex")}` === digest) return;
     }
     await delay(25);
   }

@@ -22,7 +22,16 @@ function fixture(kind, state) {
   const identity = { testFileDigests: { 'adds.js': hash }, configFile: runnerName + '.config.js',
     configDigest: hash, packageDigest: hash, nodeVersion: 'v22.0.0', runnerName,
     runnerVersion: kind === 'unit' ? '5.0.3' : '1.64.0', environment: {}, argv: ['npx', runnerName] };
-  return { receipt: { kind, identity, cancelled: false, staleAppBuild: false, tests: [{ name: 'adds', state }] }, testProjections: [{ name: 'adds', state, projection: { ...projection(state.toUpperCase()), association: axis('ASSOCIATED'), hygiene: axis('ELIGIBLE') } }], runProjection: unsupported };
+  const build = kind === 'unit' ? { digest: '', unknown: true, reason: 'source' } : { digest: hash, unknown: false };
+  const observation = { name: 'adds', fullName: 'adds', state, retries: 0, durationMs: 1.5 };
+  const receipt = { kind, identity, appBuildAtStart: build, appBuildAtPublish: build, cancelled: false,
+    staleAppBuild: false, tests: [observation] };
+  if (kind === 'e2e') {
+    receipt.serverDescendantsGone = true;
+    observation.anchor = { file: 'adds.js', line: 1 };
+    observation.attemptDetails = [{ state, retry: 0, durationMs: 1.5 }];
+  }
+  return { receipt, testProjections: [{ name: 'adds', state, projection: { ...projection(state.toUpperCase()), association: axis('ASSOCIATED'), hygiene: axis('ELIGIBLE') } }], runProjection: unsupported };
 }
 
 // RMV-V1-009: exercise the installed harness comparison without VS Code or any MCP binary.
@@ -59,6 +68,8 @@ test('retained unit, e2e and Go transitions agree with installed snapshots witho
       const result = await vm.runInNewContext('exports.compareRetained(JSON.parse(snapshotJSON))', context);
       assert.equal(result.evidence, '.corvint/test-evidence/' + name);
     }
+    await writeFile(join(directory, 'corvint-js-test-provider-100-abc.json'), Buffer.alloc(262145));
+    await assert.rejects(vm.runInNewContext('waitForRetainedDocument("missing-digest")', context), /bounded regular file/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -104,6 +115,31 @@ test('retained JS qualification requires producer identity and matching nonempty
   }
 });
 
+test('malformed receipt fields cannot qualify a passing observation', () => {
+  for (const change of [
+    r => { r.tests[0].durationMs = '1.5'; },
+    r => { delete r.tests[0].durationMs; },
+    r => { r.tests[0].retries = false; },
+    r => { r.tests[0].anchor.line = '1'; },
+    r => { r.tests[0].attemptDetails[0].durationMs = -1; },
+    r => { r.tests[0].attemptDetails[0].futureObservation = {}; },
+    r => { r.tests[0].attemptDetails[0].artifacts = [{ name: 'trace', path: 0 }]; },
+    r => { r.tests[0].attemptDetails[0].state = 'failed'; },
+    r => { r.serverDescendantsGone = 'true'; },
+    r => { r.appBuildAtStart.unknown = 'false'; },
+    r => { r.schedule = { futureShape: true }; },
+  ]) {
+    const value = fixture('e2e', 'passed');
+    change(value.receipt);
+    assert.throws(() => decode(JSON.stringify(value)));
+  }
+  for (const change of [v => { v.sequence = '1'; }, v => { v.detail = []; }]) {
+    const value = fixture('go', 'passed');
+    change(value);
+    assert.throws(() => decode(JSON.stringify(value)));
+  }
+});
+
 test('retained discovery refuses a FIFO without waiting for a writer', { skip: process.platform === 'win32' }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'retained-fifo-'));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -123,6 +159,25 @@ test('retained discovery refuses a FIFO without waiting for a writer', { skip: p
   assert.ifError(read.error);
   assert.equal(read.status, 1);
   assert.match(read.stderr, /bounded regular file/);
+});
+
+test('core launcher refuses a writerless receipt FIFO on its first poll', { skip: process.platform === 'win32' }, async t => {
+  const work = await mkdtemp(join(tmpdir(), 'core-retained-fifo-'));
+  t.after(() => rm(work, { recursive: true, force: true }));
+  const directory = join(work, 'unit/.corvint/test-evidence');
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(work, 'unit/math.js'), 'left + right');
+  const fifo = spawnSync('mkfifo', [join(directory, 'corvint-js-test-provider-1-abc.json')]);
+  assert.ifError(fifo.error);
+  assert.equal(fifo.status, 0, fifo.stderr.toString());
+  // Interrupt mode inspects existing receipts before starting a provider.
+  const launcher = spawnSync(process.execPath, [
+    resolve('conformance/interactive-alpha/core-provider-proof.mjs'), work, resolve('.'),
+    work, join(work, 'attachment'), join(work, 'proof'), 'interrupt',
+  ], { timeout: 5000, killSignal: 'SIGKILL', encoding: 'utf8' });
+  assert.ifError(launcher.error);
+  assert.equal(launcher.status, 1, launcher.stderr);
+  assert.match(launcher.stderr, /bounded regular file/);
 });
 
 test('unknown forms and observation disagreements fail closed', () => {
