@@ -35,10 +35,13 @@ Status: proposed 2026-11-09; delivery not-started.
 Each proposal MUST carry `confidence`, a number from 0.00 to 1.00 with two decimals, and
 `confidenceFormula`, the version of the formula that produced it. The formula MUST be deterministic
 over its cited evidence and MUST list any input it lacked. The score MUST NOT accept a link and MUST
-NOT be a selection input.
+NOT be a selection input. Version 1 uses the test title path matching the flow or variation name,
+a source tag naming the flow, and static reachability from the test file to declared flow files.
+Missing inputs contribute zero and MUST be cited as `absent`. Route visits and entry-symbol
+reachability require a later formula version.
 
 #### Scenario: same inputs, same score
-- **GIVEN** two proposal runs on the same commit, inventory and stored run evidence
+- **GIVEN** two proposal runs on the same commit, inventory and static evidence
 - **WHEN** their outputs are compared
 - **THEN** every proposal has the same score and formula version
 
@@ -72,7 +75,8 @@ Source: G11 (owner answer).
 Status: proposed 2026-11-09; delivery not-started.
 A link record MUST hold `test_id` (the canonical test ID, CTI-V1-001, carrying the file path and
 title path), `variation_id`, `evidence`, `confidence`, `confidenceFormula`, `accepted_by`,
-`accepted_at` (UTC), `pinned_commit`, `test_content_hash` and `routes_digest`. A record missing
+`accepted_at` (UTC), `pinned_commit`, `test_content_hash` and `variation_digest`, the SHA-256 of the canonical JSON
+variation record in `.corvint/flows.json` at `pinned_commit`. A record missing
 `accepted_by`, `accepted_at` or `pinned_commit` MUST be treated as unaccepted. A link record MUST
 NOT hold a test `kind`; the kind is read from the test inventory by `test_id` (decided 2026-11-09
 under R42, N2).
@@ -118,7 +122,8 @@ select or remove a test.
 Source: G11 (owner answer).
 Status: proposed 2026-11-09; delivery not-started.
 A link MUST be stale when the test file's blob digest differs from `test_content_hash` or the
-variation's routes digest differs from `routes_digest`. A stale link's test MUST run as `unassigned`
+variation's canonical record digest differs from `variation_digest`. Its test MUST run as
+`unassigned`
 with reason `link-stale`.
 
 #### Scenario: test edited after acceptance
@@ -130,7 +135,9 @@ with reason `link-stale`.
 Source: G11 and G2 (owner answers).
 Status: proposed 2026-11-09; delivery not-started.
 A link MUST remove a test only when static reachability at file and symbol level agrees with it.
-When they disagree, the test MUST run with reason `link-reachability-disagrees`. A link whose test ID
+When flow reachability cannot be computed at the candidate, its test MUST run as `unassigned`
+with reason `link-reachability-unknown`. When they disagree, the test MUST run with reason
+`link-reachability-disagrees`. A link whose test ID
 is not in the inventory or whose variation does not exist MUST be reported with `link-dangling` and
 MUST NOT narrow.
 

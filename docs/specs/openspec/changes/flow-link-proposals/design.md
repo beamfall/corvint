@@ -3,7 +3,7 @@
 ## Decisions
 
 1. **Propose.** `corvint-docs flows propose --links [--flow ID] [--all]` reads the flows in
-   `.corvint/flows.json`, the test inventory (TIV-V1-001), stored run evidence (RVD-V1-007) and
+   `.corvint/flows.json`, the test inventory (TIV-V1-001) and
    static reachability, and proposes for each unassigned E2E test the flow variations it most likely
    exercises. `--all` proposes for every E2E test in the inventory (bulk bootstrap). It runs no
    tests.
@@ -15,10 +15,10 @@
 
 3. **Confidence score.** Each proposal holds `confidence` from 0.00 to 1.00 with two decimals and
    `confidenceFormula` naming the formula version. The formula is deterministic: the same inputs give
-   the same score. Inputs are cited evidence items, each with a fixed weight, for example: routes the
-   test visited in a stored run match the variation's routes; static reachability from the test file
-   reaches the variation's entry symbols; the test title path matches the flow or variation name; a
-   tag in the test source names the flow. The weights are Open 1. The score orders and filters
+   the same score. Version 1 cites a title path matching the flow or variation name, a
+   source tag naming the flow, and static reachability from the test file to declared flow files.
+   Missing inputs contribute zero and are listed as `absent`. Route visits and entry-symbol
+   reachability are future inputs for a later formula version. The score orders and filters
    proposals for review; it never accepts, and never enters selection.
 
 4. **Accept.** `corvint-docs flows accept --flow ID --by NAME [--variation V] [--only TEST_ID...]`
@@ -30,10 +30,11 @@
    is Open 2.
 
 5. **Link record.** `{test_id, variation_id, evidence[], confidence, confidenceFormula, accepted_by,
-   accepted_at, pinned_commit, test_content_hash, routes_digest}`. `test_id` is the canonical test ID
+   accepted_at, pinned_commit, test_content_hash, variation_digest}`. `test_id` is the canonical test ID
    (CTI-V1-005 for Playwright, which holds the file path and title path). `pinned_commit` is HEAD at
    acceptance. `test_content_hash` is the blob digest of the test file at that commit;
-   `routes_digest` is the digest of the variation's routes at that commit. The record stores no
+   `variation_digest` is the SHA-256 of the variation's canonical JSON record in
+   `.corvint/flows.json` at that commit. The record stores no
    test `kind`. Kind is a property of the test: the report and the planner read it from the test
    inventory by the canonical `test_id`, with `unit` as the default and the kind source reported
    (`affected-plan-kinds` decision 2). A link whose `test_id` is not in the inventory is dangling
@@ -44,15 +45,22 @@
    source are evidence for proposals only.
 
 7. **Staleness and agreement.** A link is stale when the test file's blob digest differs from
-   `test_content_hash` or the variation's routes digest differs from `routes_digest`; a stale link's
+   `test_content_hash` or the canonical variation digest differs from `variation_digest`; a stale link's
    test runs as `unassigned` with reason `link-stale`. A link whose test is not reached by static
    reachability from the changed files while its flow is, or the reverse, does not narrow: the test
-   runs with reason `link-reachability-disagrees`. A link whose test ID is not in the inventory or
+   runs with reason `link-reachability-disagrees`. If flow reachability cannot be computed at the
+   candidate, the test runs as unassigned with reason `link-reachability-unknown`.
+   A link whose test ID is not in the inventory or
    whose variation no longer exists is dangling, reported with `link-dangling`, and never narrows.
 
 8. **Other browser runners.** pytest with pytest-playwright and RSpec system tests are kind `e2e`
    (G13). Their links may be proposed and accepted, but in 1.0 they select their whole group with a
    reason; only Playwright narrows by links.
+
+## Decision log
+
+Amended 2026-11-19 by the orchestrator under the owner's 1.0 delegation: route evidence is not in
+the base schemas; variation_digest and the reduced v1 inputs replace it, fail closed.
 
 ## Failure modes
 
@@ -62,11 +70,11 @@
 | Proposals file from another commit | `flows accept` refuses with `flow-proposals-stale`; rerun propose. |
 | Accept run from a script without a terminal | Refused, `flow-accept-needs-person`. |
 | Test file changed after acceptance | Link stale; test runs as `unassigned`, `link-stale`. |
-| Routes of the variation changed | Link stale; test runs, `link-stale`. |
+| Any variation field changed | Link stale; test runs, `link-stale`. |
 | Reachability disagrees with the link | Test runs, `link-reachability-disagrees`. |
 | Test renamed or deleted | Link dangling, reported, `link-dangling`; never narrows. |
 | Unknown flow file version | Refused per the G6 schema rules (owned elsewhere); every E2E test runs. |
-| Score inputs missing (no run evidence) | Score computed from the remaining evidence; missing inputs listed. |
+| Score inputs missing | Score computed from the remaining evidence; missing inputs listed. |
 
 ## Acceptance evidence
 
