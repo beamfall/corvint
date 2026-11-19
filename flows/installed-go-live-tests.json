@@ -85,7 +85,7 @@
         "path": "conformance/interactive-alpha/core-provider-proof.mjs",
         "test_key": "conformance/interactive-alpha/core-provider-proof.mjs"
       },
-      "reviewed_at": "cd18d5924a1e3cd1f64cb50395b42f2b09a0431b"
+      "reviewed_at": "15c2663c7618dbc96d93cebb86beae3c126e4523"
     },
     {
       "from": "installed-go-live-tests.default",

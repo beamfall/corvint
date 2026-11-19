@@ -233,3 +233,9 @@ MCP discovery/list calls from core-provider-proof.mjs. Its Go/JS session and sel
 are unchanged. Both retained flow links now pin cd18d5924a1e3cd1f64cb50395b42f2b09a0431b,
 the immutable commit containing that reviewed consumer. A separate commit is needed because
 the existing qualification deliberately loads flow intents from HEAD, not the mutable worktree.
+
+That first replay failed with anchor-not-intent-change: the anchor must change the intent
+itself (AFU-V1-008), not only the consumer. Commit 15c2663c7618dbc96d93cebb86beae3c126e4523
+changes both flow intent files, declares the same links, and holds the reviewed target bytes.
+The two anchors now point to that commit. The failed 141.884s replay is retained externally;
+the requireReviewed assertion remains true and unchanged.
