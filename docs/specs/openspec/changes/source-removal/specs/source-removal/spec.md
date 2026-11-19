@@ -138,8 +138,14 @@ names these paths one by one.
 B2 SHALL remove `corvint test-plan`, `corvint tests lint`, `corvint tests duplicates`,
 `internal/testplan`, `corvint runs`, `internal/playwrightruns`, the `test-validity` and
 `tests validity` verbs, `cmd/corvint-test-validity-mcp` (and its `binaries.json` row),
-`internal/mcp/testvaliditybridge`, the `test-validity` MCP group, the rule set in
-`internal/testsource/validity*.go`, and the `internal/tcq` code nothing outside `tcq` uses. Because `internal/testplan` is one of the three
+`internal/mcp/testvaliditybridge`, the `test-validity` MCP group, and the `internal/tcq` code
+nothing outside `tcq` uses. Production builds SHALL exclude the source-validity command report,
+its selection and environment projections, and its seed-rule evaluator. The existing rule tests
+may exercise those components as test fixtures. B2 SHALL keep the JS/TS and RSpec example readers
+and their shared findings for `tests example-join`, and teardown's independent 256-file limit.
+`tests unselected` uses `UnselectedFiles` directly.
+
+Because `internal/testplan` is one of the three
 tests-layer flow readers that `tools/import-ratchet/flows_layer_test.go` pins for CMS-V0-915
 (decision 0595), B2 SHALL drop it from that test's reader set and amend the CMS-V0-915 trace row
 in `docs/specs/core-bundled-apps-v0.md` in the same batch; the remaining readers, `cmd/corvint` and

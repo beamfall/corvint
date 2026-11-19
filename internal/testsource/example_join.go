@@ -554,3 +554,23 @@ func placeExample(examples map[int]testvalidity.ExampleSource, line int) (int, b
 	}
 	return best, best != 0
 }
+
+// RubySupportPaths reports whether path is in the support set of a spec under prefix (the text
+// before `spec/`): spec/spec_helper.rb, spec/rails_helper.rb or spec/support/**/*.rb (TSA-V0-088).
+func RubySupportPaths(prefix string) func(string) bool {
+	return func(path string) bool {
+		rest, ok := strings.CutPrefix(path, prefix+"spec/")
+		return ok && (rest == "spec_helper.rb" || rest == "rails_helper.rb" || strings.HasPrefix(rest, "support/") && strings.HasSuffix(rest, ".rb"))
+	}
+}
+
+// specPrefix is the text of a spec path before its `spec/` directory, or "" when it has none.
+func specPrefix(name string) string {
+	if strings.HasPrefix(name, "spec/") {
+		return ""
+	}
+	if k := strings.LastIndex(name, "/spec/"); k >= 0 {
+		return name[:k+1]
+	}
+	return ""
+}

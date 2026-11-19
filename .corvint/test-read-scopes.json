@@ -426,6 +426,7 @@
     ],
     "cmd/corvint-js-test-provider": [
       "cmd/corvint-docs/docs.go",
+      "conformance/interactive-alpha/retained-evidence.cjs",
       "internal/capcatalog/trees/corvint-js-test-provider.json"
     ],
     "cmd/corvint-readiness-record": [],

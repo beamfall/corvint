@@ -17,7 +17,7 @@ function fixture(kind, state) {
   if (kind === 'go') return { profile: 'corvint-go-live-session-event/0', identity: 'fixture', sequence: 1, scope: ['example.test/fixture'], detail: '', state,
     projection: projection(state === 'stale' ? 'INFRASTRUCTURE' : state.toUpperCase(), state === 'stale' ? 'STALE' : 'CURRENT'),
     testProjections: [{ package: 'example.test/fixture', name: 'TestAdds', action: state === 'stale' ? 'none' : state === 'passed' ? 'pass' : 'fail', projection: projection(state === 'stale' ? 'UNSUPPORTED' : state.toUpperCase(), state === 'stale' ? 'STALE' : 'CURRENT') }], testProjectionsOmitted: 0 };
-  return { receipt: { kind, cancelled: false, staleAppBuild: false, tests: [{ name: 'adds', state }] }, testProjections: [{ name: 'adds', state, projection: projection(state.toUpperCase()) }], runProjection: unsupported };
+  return { receipt: { kind, cancelled: false, staleAppBuild: false, tests: [{ name: 'adds', state }] }, testProjections: [{ name: 'adds', state, projection: { ...projection(state.toUpperCase()), association: axis('ASSOCIATED'), hygiene: axis('ELIGIBLE') } }], runProjection: unsupported };
 }
 
 // RMV-V1-009: exercise the installed harness comparison without VS Code or any MCP binary.
@@ -55,6 +55,31 @@ test('retained unit, e2e and Go transitions agree with installed snapshots witho
       assert.equal(result.evidence, '.corvint/test-evidence/' + name);
     }
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('selection binds the receipt to the invocation and requires every native axis', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'retained-invocation-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const directory = join(root, '.corvint/test-evidence');
+  await mkdir(directory, { recursive: true });
+  const name = 'corvint-js-test-provider-1-abc.json';
+  async function select(value, kind) {
+    const raw = Buffer.from(JSON.stringify(value));
+    await writeFile(join(directory, name), raw);
+    return selectedEvidence({ dir: root, kind }, { stdout: raw }, { name, raw }, 'passed');
+  }
+  await assert.rejects(select(fixture('e2e', 'passed'), 'unit'), /kind differs/);
+  await assert.rejects(select(fixture('unit', 'passed'), 'future-runner'), /unsupported invocation/);
+  for (const name of Object.keys(unsupported)) {
+    const value = fixture('unit', 'passed');
+    delete value.testProjections[0].projection[name];
+    await assert.rejects(select(value, 'unit'), /expected provider object/);
+  }
+  const future = fixture('unit', 'passed');
+  future.testProjections[0].projection.hygiene.state = 'FUTURE';
+  await assert.rejects(select(future, 'unit'), /unsupported provider hygiene/);
+  await writeFile(join(directory, '.gitignore.backup'), '');
+  await assert.rejects(select(fixture('unit', 'passed'), 'unit'), /unsupported retained evidence name/);
 });
 
 test('unknown forms and observation disagreements fail closed', () => {

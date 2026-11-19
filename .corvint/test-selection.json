@@ -422,6 +422,7 @@
     {
       "paths": "conformance/interactive-alpha/fixture/**",
       "tests": [
+        "conformance/interactive-alpha/retained-evidence.test.mjs",
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]
     },

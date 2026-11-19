@@ -166,8 +166,14 @@ names these paths one by one.
 B2 SHALL remove `corvint test-plan`, `corvint tests lint`, `corvint tests duplicates`,
 `internal/testplan`, `corvint runs`, `internal/playwrightruns`, the `test-validity` and
 `tests validity` verbs, `cmd/corvint-test-validity-mcp` (and its `binaries.json` row),
-`internal/mcp/testvaliditybridge`, the `test-validity` MCP group, the rule set in
-`internal/testsource/validity*.go`, and the `internal/tcq` code nothing outside `tcq` uses. Because `internal/testplan` is one of the three
+`internal/mcp/testvaliditybridge`, the `test-validity` MCP group, and the `internal/tcq` code
+nothing outside `tcq` uses. Production builds SHALL exclude the source-validity command report,
+its selection and environment projections, and its seed-rule evaluator. The existing rule tests
+may exercise those components as test fixtures. B2 SHALL keep the JS/TS and RSpec example readers
+and their shared findings for `tests example-join`, and teardown's independent 256-file limit.
+`tests unselected` uses `UnselectedFiles` directly.
+
+Because `internal/testplan` is one of the three
 tests-layer flow readers that `tools/import-ratchet/flows_layer_test.go` pins for CMS-V0-915
 (decision 0595), B2 SHALL drop it from that test's reader set and amend the CMS-V0-915 trace row
 in `docs/specs/core-bundled-apps-v0.md` in the same batch; the remaining readers, `cmd/corvint` and
@@ -201,7 +207,10 @@ MCP bridge. `conformance/interactive-alpha/retained-evidence.test.mjs` exercises
 selection check and installed-editor comparison for JS unit/E2E and Go transitions, plus
 unknown forms and observation/projection disagreements. This fixture reader admits only
 unprofiled JS unit/E2E and Go session profile `/0` pass/fail/stale documents; unsupported
-forms fail qualification. It establishes no current-input freshness or MCP transport claim.
+forms fail qualification. The receipt kind must match the invocation and each native projection
+must supply all five axes with the states its observation supports. Discovery skips the producer's
+private temporary names and exact `.gitignore` housekeeping name. It establishes no current-input
+freshness or MCP transport claim.
 
 - `RMV-V1-010`: (proposed 2026-11-10) Runner protocol cut (G23)
 

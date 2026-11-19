@@ -1051,14 +1051,14 @@ the `assertionParity` member, their tests and this section. Nothing is persisted
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-670 | `internal/testsource/assertion_parity.go`, `internal/testsource/validity_command.go` | `TestTSAV0671AssertionTuplesRSpecParity`, `TestTSAV0676AssertionParityAbstains` | experimental |
+| TSA-V0-670 | `internal/testsource/assertion_parity.go`, `internal/testsource/retired_validity_command_test.go` | `TestTSAV0671AssertionTuplesRSpecParity`, `TestTSAV0676AssertionParityAbstains` | experimental |
 | TSA-V0-671 | `internal/testsource/assertion_parity.go` | `TestTSAV0671AssertionTuplesRSpecParity`, `TestTSAV0672JasmineChaiCypressForms` | experimental |
 | TSA-V0-672 | `internal/testsource/assertion_parity.go` | `TestTSAV0672JasmineChaiCypressForms`, `TestTSAV0674CapybaraToPlaywrightFindings` | experimental |
 | TSA-V0-673 | `internal/testsource/assertion_parity.go` | `TestTSAV0671AssertionTuplesRSpecParity`, `TestTSAV0674CapybaraToPlaywrightFindings` | experimental |
 | TSA-V0-674 | `internal/testsource/assertion_parity.go`, `internal/testvalidity/source_rules_assertion.go` | `TestTSAV0674CapybaraToPlaywrightFindings` | experimental |
 | TSA-V0-675 | `internal/testsource/assertion_parity.go`, `internal/testvalidity/source_rules_assertion.go` | `TestTSAV0674CapybaraToPlaywrightFindings`, `TestTSAV0672JasmineChaiCypressForms` | experimental |
 | TSA-V0-676 | `internal/testsource/assertion_parity.go` | `TestTSAV0676AssertionParityAbstains` | experimental |
-| TSA-V0-677 | `internal/testsource/validity_command.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0676AssertionParityAbstains` | experimental |
+| TSA-V0-677 | `internal/testsource/retired_validity_command_test.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0676AssertionParityAbstains` | experimental |
 | TSA-V0-837 | `internal/testsource/assertion_parity.go` | `TestTSAV0837ValueFallbackIsNotConditional` | experimental |
 | TSA-V0-838 | `internal/appmap/jslex.go` | `TestUnselectedRegexInSubstitutionTSAV0838` | experimental |
 | TSA-V0-839 | `internal/contextindex/setup_select.go` | `TestSelectSetupDeclaringModuleReadsTSAV0839` | experimental |
@@ -1378,7 +1378,7 @@ Acceptance evidence: synthetic fixtures only.
 
 No live qualification on a real suite was run (NOT_RUN). Rollback removes
 `internal/testvalidity/source_rules_rspec.go`, `internal/testsource/validity_rspec_examples.go`,
-`internal/testsource/validity_command.go`, `internal/testvaliditydoc/ruby_source.go`, their tests,
+`internal/testsource/retired_validity_command_test.go`, `internal/testvaliditydoc/ruby_source.go`, their tests,
 the `tests validity` subcommand, the `DiscoverWithSources` callers, the pending line in
 `rubytestprovider.ProjectExample` and this section. Nothing is persisted.
 
@@ -1395,8 +1395,8 @@ the `tests validity` subcommand, the `DiscoverWithSources` callers, the pending 
 | TSA-V0-068 | `internal/testvaliditydoc/ruby_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverRubySourceRules`, `TestTestValidityDiscoverRSpecSourceRules` (removed), `TestApplyExampleSourceHygiene` | experimental |
 | TSA-V0-069 | `internal/testvalidity/source_rules_rspec.go` | `TestApplyExampleSourceStrength`, `TestTestValidityDiscoverRSpecSourceRules` (removed) | experimental |
 | TSA-V0-070 | `internal/rubytestprovider/document.go` | `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestTestValidityDiscoverRSpecSourceRules` (removed) | experimental |
-| TSA-V0-071 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTestsValidityCLI` (removed), `TestSourceValidityReport`, `TestSourceValidityRefusals` | experimental |
-| TSA-V0-072 | `internal/testsource/validity_command.go`, `internal/testsource/validity_rspec_examples.go` | `TestSourceValidityReport`, `TestDiscoverRubySourceRules` | experimental |
+| TSA-V0-071 | `internal/testsource/retired_validity_command_test.go`, `cmd/corvint/tests.go` | `TestTestsValidityCLI` (removed), `TestSourceValidityReport`, `TestSourceValidityRefusals` | experimental |
+| TSA-V0-072 | `internal/testsource/retired_validity_command_test.go`, `internal/testsource/validity_rspec_examples.go` | `TestSourceValidityReport`, `TestDiscoverRubySourceRules` | experimental |
 
 ## JS/TS example hygiene and strength in test-validity (V1-1858)
 
@@ -1581,7 +1581,7 @@ persisted.
 | TSA-V0-078 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
 | TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock`, `TestJSExampleBarrelAndAliasSubjects` | experimental |
 | TSA-V0-080 | `internal/testvalidity/source_rules_jsts.go` | `TestApplyJSExampleSource` | experimental |
-| TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` (removed) | experimental |
+| TSA-V0-081 | `internal/testsource/retired_validity_command_test.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` (removed) | experimental |
 | TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` (removed) | experimental |
 | TSA-V0-083 | `internal/testsource/validity_js_examples.go`, `internal/testvaliditydoc/js_source.go` | `TestJSExampleSourcesShapes`, `TestDiscoverJSSourceRules` | experimental |
 
@@ -1655,9 +1655,9 @@ call, restores `IsTestFile` at the five call sites, and removes this section. No
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-388 | `internal/testsource/validity_js_jest.go`, `internal/testsource/validity.go`, `internal/testsource/validity_command.go` | `TestJestValidityTestFile`, `TestJestValidityAxes` | experimental |
+| TSA-V0-388 | `internal/testsource/validity_js_jest.go`, `internal/testsource/validity.go`, `internal/testsource/retired_validity_command_test.go` | `TestJestValidityTestFile`, `TestJestValidityAxes` | experimental |
 | TSA-V0-389 | `internal/testsource/validity_js_jest.go`, `internal/testsource/validity_js_examples.go` | `TestJestAssertionNotAwaited`, `TestJestValidityAxes` | experimental |
-| TSA-V0-390 | `internal/testsource/validity_command.go` | `TestJestValidityAxes` | experimental |
+| TSA-V0-390 | `internal/testsource/retired_validity_command_test.go` | `TestJestValidityAxes` | experimental |
 
 ## Intra-example stub path and value origin (V1-1887, V1-1889)
 
@@ -1827,7 +1827,7 @@ reader caches they use; callers then read the earlier rules unchanged, and nothi
 | TSA-V0-127 | `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
 | TSA-V0-128 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
 | TSA-V0-129 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestJSExampleAssertions`, `TestFlowReviewRSpec` | experimental |
-| TSA-V0-130 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestTestsValidityCLI` (removed) | experimental |
+| TSA-V0-130 | `internal/testsource/retired_validity_command_test.go`, `cmd/corvint/tests.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestTestsValidityCLI` (removed) | experimental |
 
 ## Ruby vacuous examples and cross-file helpers in test-validity (V1-1866)
 
@@ -1920,7 +1920,7 @@ Acceptance evidence: synthetic fixtures only.
 
 No live qualification on a real suite was run (NOT_RUN). Rollback removes
 `internal/testsource/validity_rspec_vacuous.go`, its test, the `RB-*` rules and
-`SeverityAbstained`, the support plumbing in `validity_command.go` and this section; callers go
+`SeverityAbstained`, the support plumbing in `retired_validity_command_test.go` and this section; callers go
 back to `RSpecExampleSources`. Nothing is persisted.
 
 ### Traceability (V1-1866)
@@ -1931,7 +1931,7 @@ back to `RSpecExampleSources`. Nothing is persisted.
 | TSA-V0-085 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecChangeOnIdentity` | experimental |
 | TSA-V0-086 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecAssignmentInPredicate` | experimental |
 | TSA-V0-087 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecRaiseErrorOnlyIsAdvisory` | experimental |
-| TSA-V0-088 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testvalidity/source_rules.go`, `internal/testsource/validity_command.go` | `TestRSpecHelperAbstentions`, `TestRSpecBlockNeverYieldedAcrossFiles`, `TestRSpecResolutionAbstains`, `TestRSpecInclusionCustomizationOverride` | experimental |
+| TSA-V0-088 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testvalidity/source_rules.go`, `internal/testsource/retired_validity_command_test.go` | `TestRSpecHelperAbstentions`, `TestRSpecBlockNeverYieldedAcrossFiles`, `TestRSpecResolutionAbstains`, `TestRSpecInclusionCustomizationOverride` | experimental |
 
 ## RSpec shared examples through one inclusion (V1-1867)
 
@@ -2017,7 +2017,7 @@ section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-089 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_command.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently`, `TestRSpecInclusionSameFile`, `TestRSpecInclusionCustomizationOverride`, `TestSourceValidityQualifiedReference` | experimental |
+| TSA-V0-089 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/retired_validity_command_test.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently`, `TestRSpecInclusionSameFile`, `TestRSpecInclusionCustomizationOverride`, `TestSourceValidityQualifiedReference` | experimental |
 | TSA-V0-090 | `internal/testsource/validity_rspec_inclusion.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently` | experimental |
 | TSA-V0-091 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionRefusals`, `TestSourceValidityQualifiedReference` | experimental |
 | TSA-V0-092 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvaliditydoc/ruby_source.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionReceiptJoin`, `TestDiscoverRubyInclusionJoin` | experimental |
@@ -2097,7 +2097,7 @@ No live qualification on a real suite was run (NOT_RUN). Rollback removes `rubyV
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-396 | `internal/testsource/ruby_lexical.go`, `internal/testsource/teardown_reading.go` | `TestRSpecValueOpenersBalance`, `TestSourceValidityQualifiedSupportParse`, `TestTeardownConditionalCleanup` | experimental |
-| TSA-V0-397 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionUnreadSupportIsolated`, `TestSourceValidityQualifiedSupportParse` | experimental |
+| TSA-V0-397 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/retired_validity_command_test.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionUnreadSupportIsolated`, `TestSourceValidityQualifiedSupportParse` | experimental |
 
 ## Outcome, cleanup, input and vacuity rules (V1-1919, V1-1930, V1-1931, V1-1932)
 
@@ -2375,7 +2375,7 @@ Acceptance evidence: synthetic fixtures only. The five acceptance criteria are o
 unique keys and non-literal records (`TestSeedUniqueAndForms`); the closed profile
 (`TestDecodeSeedRules`); the committed-file read and the advisory severity
 (`TestSourceValiditySeedRules`). No live qualification on a real suite was run (NOT_RUN). Rollback
-removes `internal/testsource/validity_js_seeds.go`, its test,
+removes `internal/testsource/retired_validity_js_seeds_test.go`, its test,
 `internal/testvalidity/source_rules_seeds.go`, `seedRules` and its call in `SourceValidity`, and
 this section. Nothing is persisted.
 
@@ -2383,13 +2383,13 @@ this section. Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-240 | `internal/testsource/validity_js_seeds.go`, `internal/testsource/validity_command.go` | `TestDecodeSeedRules`, `TestSourceValiditySeedRules` | experimental |
-| TSA-V0-241 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedExclusiveBounds` | experimental |
-| TSA-V0-242 | `internal/testsource/validity_js_seeds.go` | `TestSeedExclusiveBounds` | experimental |
-| TSA-V0-243 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms`, `TestSeedReviewForms` | experimental |
-| TSA-V0-244 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms`, `TestSeedReviewForms` | experimental |
-| TSA-V0-245 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance` | experimental |
-| TSA-V0-246 | `internal/testvalidity/source_rules_seeds.go`, `internal/testsource/validity_command.go` | `TestSourceValiditySeedRules` | experimental |
+| TSA-V0-240 | `internal/testsource/retired_validity_js_seeds_test.go`, `internal/testsource/retired_validity_command_test.go` | `TestDecodeSeedRules`, `TestSourceValiditySeedRules` | experimental |
+| TSA-V0-241 | `internal/testsource/retired_validity_js_seeds_test.go` | `TestSeedAcceptance`, `TestSeedExclusiveBounds` | experimental |
+| TSA-V0-242 | `internal/testsource/retired_validity_js_seeds_test.go` | `TestSeedExclusiveBounds` | experimental |
+| TSA-V0-243 | `internal/testsource/retired_validity_js_seeds_test.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms`, `TestSeedReviewForms` | experimental |
+| TSA-V0-244 | `internal/testsource/retired_validity_js_seeds_test.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms`, `TestSeedReviewForms` | experimental |
+| TSA-V0-245 | `internal/testsource/retired_validity_js_seeds_test.go` | `TestSeedAcceptance` | experimental |
+| TSA-V0-246 | `internal/testvalidity/source_rules_seeds.go`, `internal/testsource/retired_validity_command_test.go` | `TestSourceValiditySeedRules` | experimental |
 
 ## Revision-pinned source citations (V1-1934)
 
@@ -2706,7 +2706,7 @@ persisted. Without the `abstentions` member, the report is the prior wire.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-300 | `internal/testvalidity/source_rules_crossfile.go`, `internal/testsource/validity.go`, `internal/testsource/validity_command.go` | `TestSourceValidityAbstentionsWire` | experimental |
+| TSA-V0-300 | `internal/testvalidity/source_rules_crossfile.go`, `internal/testsource/validity.go`, `internal/testsource/retired_validity_command_test.go` | `TestSourceValidityAbstentionsWire` | experimental |
 | TSA-V0-301 | `internal/testsource/validity_crossfile.go`, `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputCrossFile` | experimental |
 | TSA-V0-302 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputCrossFile` | experimental |
 | TSA-V0-303 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedCrossFile`, `TestSourceValidityAbstentionsWire` | experimental |
@@ -2973,7 +2973,7 @@ recall are NOT_MEASURED; no live qualification on a real Rails suite was run (NO
 Rollback: remove `internal/testsource/validity_rspec_stubs.go` and its test,
 `internal/testvalidity/source_rules_stubs.go`, the `Flags` and `Conditions` fields and their
 readers in `internal/testvalidity/source_rules_rspec.go`, `internal/testsource/validity_rspec.go`,
-`validity_rspec_examples.go`, `validity_rspec_flow.go`, `validity_command.go` and
+`validity_rspec_examples.go`, `validity_rspec_flow.go`, `retired_validity_command_test.go` and
 `example_join.go`, the help sentence in `cmd/corvint/tests.go`, and this section. Nothing is
 persisted; a committed `.corvint/flag-lookups.json` is then ignored.
 
@@ -2991,7 +2991,7 @@ persisted; a committed `.corvint/flag-lookups.json` is then ignored.
 | TSA-V0-437 | `internal/testsource/validity_rspec_stubs.go`, `internal/testvalidity/source_rules_stubs.go` | `TestFlagConditions`, `TestStubRuleEdges` | experimental |
 | TSA-V0-438 | `internal/testsource/validity_rspec_stubs.go` | `TestFlagConditions` | experimental |
 | TSA-V0-439 | `internal/testsource/validity_rspec_stubs.go` | `TestDecodeFlagLookups`, `TestSourceValidityFlagConditions` | experimental |
-| TSA-V0-440 | `internal/testsource/validity_command.go`, `internal/testsource/example_join.go` | `TestSourceValidityFlagConditions`, `TestExampleJoinFlagConditions`, `TestFlagConditions` | experimental |
+| TSA-V0-440 | `internal/testsource/retired_validity_command_test.go`, `internal/testsource/example_join.go` | `TestSourceValidityFlagConditions`, `TestExampleJoinFlagConditions`, `TestFlagConditions` | experimental |
 | TSA-V0-441 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion`, `TestMessageChainPrefixOnly`, `TestFlagConditions` | experimental |
 | TSA-V0-442 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion`, `TestFlagConditions` | experimental |
 
@@ -3147,7 +3147,7 @@ Rollback: remove `internal/testsource/validity_rspec_accessor.go` and its test,
 `internal/testvalidity/source_rules_accessor.go`, the `App` field in
 `internal/testvalidity/source_rules_rspec.go`, the `app` field in
 `internal/testsource/validity_rspec.go`, its wiring in `validity_rspec_examples.go` and
-`rubyApp` in `validity_command.go`, the help sentence in `cmd/corvint/tests.go`, and this section.
+`rubyApp` in `retired_validity_command_test.go`, the help sentence in `cmd/corvint/tests.go`, and this section.
 Nothing is persisted.
 
 ### Traceability (V1-2114)
@@ -3159,7 +3159,7 @@ Nothing is persisted.
 | TSA-V0-445 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten`, `TestAssertTargetUncertain` | experimental |
 | TSA-V0-446 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten`, `TestAssertTargetWritten`, `TestAssertTargetWithheld` | experimental |
 | TSA-V0-447 | `internal/testsource/validity_rspec_accessor.go`, `internal/testsource/validity_rspec.go` | `TestAssertTargetUncertain`, `TestAssertTargetWithheld`, `TestSourceValidityAccessorBudget` | experimental |
-| TSA-V0-448 | `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorBudget` | experimental |
+| TSA-V0-448 | `internal/testsource/retired_validity_command_test.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-449 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten` | experimental |
 | TSA-V0-450 | `internal/testsource/validity_rspec_skip_config.go`, `internal/testsource/validity_rspec_examples.go`, `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecConditionalAndConfigSkips`, `TestRSpecExampleSkippedAndFocused`, `TestRSpecMetadataForms`, `TestRSpecInclusionConfigExcluded` | experimental |
 
@@ -3317,7 +3317,7 @@ their tests and this section. Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-100 | `internal/testsource/validity_command.go`, `internal/testsource/seed_parity.go`, `cmd/corvint/tests.go` | `TestTSAV0100SeedLinkArguments`, `TestTSAV0108SeedParityCLI` (removed) | experimental |
+| TSA-V0-100 | `internal/testsource/retired_validity_command_test.go`, `internal/testsource/seed_parity.go`, `cmd/corvint/tests.go` | `TestTSAV0100SeedLinkArguments`, `TestTSAV0108SeedParityCLI` (removed) | experimental |
 | TSA-V0-101 | `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go`, `internal/testsource/validity_rspec.go` | `TestTSAV0101SeedShapeRSpec`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0101SeedNamedSubject`, `TestTSAV0101SeedOverriddenEagerLet`, `TestTSAV0101SeedYAMLQuotedComment` | experimental |
 | TSA-V0-102 | `internal/testsource/seed_parity.go` | `TestTSAV0102SeedNormalisation`, `TestTSAV0101SeedShapeRSpec` | experimental |
 | TSA-V0-103 | `internal/testsource/seed_parity.go`, `internal/testvalidity/source_rules_seed.go` | `TestTSAV0103SeedIdenticalShapesParity`, `TestTSAV0104SeedCountDivergence`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
@@ -3325,7 +3325,7 @@ their tests and this section. Nothing is persisted.
 | TSA-V0-105 | `internal/testsource/seed_parity.go` | `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
 | TSA-V0-106 | `internal/testsource/seed_parity.go` | `TestTSAV0106SeedAggregateSingleMember`, `TestTSAV0106SeedShouldAggregate` | experimental |
 | TSA-V0-107 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go` | `TestTSAV0107SeedNotAnalysed`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0107SeedFixtureOversizeNoFallback` | experimental |
-| TSA-V0-108 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0108SeedParityCLI` (removed) | experimental |
+| TSA-V0-108 | `internal/testsource/retired_validity_command_test.go`, `cmd/corvint/tests.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0108SeedParityCLI` (removed) | experimental |
 | TSA-V0-109 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go` | `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0100SeedLinkArguments` | experimental |
 | TSA-V0-644 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go` | `TestTSAV0644SeedHelpers` | experimental |
 
@@ -4009,7 +4009,7 @@ Failure modes:
 
 Acceptance evidence: synthetic fixtures and mutation checks only. Real-suite qualification is
 NOT_RUN. Rollback reverts this section's commits: `internal/testsource/env_contract_sources.go`,
-`internal/testsource/env_contract_routes.go`, `internal/testsource/validity_env.go`, their tests,
+`internal/testsource/env_contract_routes.go`, `internal/testsource/retired_validity_env_test.go`, their tests,
 the parser and resolver changes in `internal/testsource/env_contract.go`, the scope change in
 `internal/testsource/role_locators.go`, and the `--profile` flag of `corvint tests validity`.
 Nothing is persisted.
@@ -4031,7 +4031,7 @@ Nothing is persisted.
 | TSA-V0-360 | `internal/testsource/env_contract_routes.go` | `TestEnvContractHandlerBounded`, `TestEnvContractStandIn`, `TestEnvContractReaderEdges` | experimental |
 | TSA-V0-361 | `internal/testsource/env_contract.go` | `TestEnvContractBranchDependent`, `TestEnvContractReaderEdges` | experimental |
 | TSA-V0-362 | `internal/testsource/role_locators.go` | `TestRoleLocatorPerTestMounts` | experimental |
-| TSA-V0-363 | `internal/testsource/validity_env.go`, `cmd/corvint/tests.go` | `TestSourceValidityEnv`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
+| TSA-V0-363 | `internal/testsource/retired_validity_env_test.go`, `cmd/corvint/tests.go` | `TestSourceValidityEnv`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
 
 ## Fail-closed analyzer bounds (V1-1720)
 

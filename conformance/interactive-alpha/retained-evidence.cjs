@@ -10,12 +10,28 @@ function closed(value, keys) {
   assert.ok(Object.keys(value).every(key => keys.includes(key)), 'unsupported provider member');
 }
 
-function projection(value, execution, stale = false) {
-  closed(value, ['association', 'hygiene', 'execution', 'freshness', 'strength']);
-  assert.ok(value && value.execution && value.freshness && value.strength, 'missing provider axes');
-  assert.equal(value.execution.state, execution, 'provider execution disagrees with observation');
-  assert.equal(value.strength.state, 'NOT_MEASURED', 'provider promoted unmeasured strength');
-  assert.ok((stale ? ['STALE'] : ['CURRENT', 'UNKNOWN']).includes(value.freshness.state), 'unsupported provider freshness');
+// Each fixture provider emits these five native Axes, including null anchors when unbound.
+function validateAxes(value, states) {
+  closed(value, Object.keys(states));
+  for (const [name, expected] of Object.entries(states)) {
+    const axis = value[name];
+    closed(axis, ['state', 'reason', 'anchors']);
+    assert.equal(axis.state, expected, 'unsupported provider ' + name);
+    assert.equal(typeof axis.reason, 'string', 'missing provider axis reason');
+    assert.ok(axis.anchors === null || (Array.isArray(axis.anchors) && axis.anchors.every(a => typeof a === 'string')),
+      'unsupported provider axis anchors');
+  }
+}
+
+function projection(value, execution, provider, stale = false) {
+  const js = provider === 'js';
+  validateAxes(value, {
+    association: js ? 'ASSOCIATED' : 'UNSUPPORTED',
+    hygiene: js ? 'ELIGIBLE' : 'UNSUPPORTED',
+    execution,
+    freshness: js ? 'UNKNOWN' : stale ? 'STALE' : 'CURRENT',
+    strength: 'NOT_MEASURED',
+  });
   // Reading retained bytes does not establish currency against current inputs.
   return { ...value, freshness: { ...value.freshness, state: stale ? 'STALE' : 'UNKNOWN' } };
 }
@@ -31,13 +47,13 @@ function decode(raw) {
     assert.ok(Array.isArray(value.scope) && value.scope.length > 0 && value.scope.every(s => typeof s === 'string'), 'missing Go scope');
     assert.equal(value.testProjectionsOmitted, 0, 'Go tests omitted');
     const stale = value.state === 'stale';
-    run = projection(value.projection, stale ? 'INFRASTRUCTURE' : value.state.toUpperCase(), stale);
+    run = projection(value.projection, stale ? 'INFRASTRUCTURE' : value.state.toUpperCase(), 'go', stale);
     assert.ok(Array.isArray(value.testProjections) && value.testProjections.length > 0, 'missing Go tests');
     tests = value.testProjections.map(test => {
       closed(test, ['package', 'name', 'action', 'projection']);
       const execution = new Map([['pass', 'PASSED'], ['fail', 'FAILED'], ['skip', 'SKIPPED'], ['none', 'UNSUPPORTED'], ['', 'UNSUPPORTED']]).get(test.action);
       assert.ok(execution && typeof test.package === 'string' && typeof test.name === 'string', 'unsupported Go test observation');
-      return { ...test, projection: projection(test.projection, execution, stale) };
+      return { ...test, projection: projection(test.projection, execution, 'go', stale) };
     });
     kind = 'go-session'; source = 'corvint-go-test-provider'; extra = { tier: 'preview', promotable: false };
   } else if (value.profile === undefined && value.receipt &&
@@ -59,13 +75,13 @@ function decode(raw) {
       assert.ok(['passed', 'failed', 'skipped'].includes(observed.state), 'unsupported JS observation');
       assert.equal(test.name, observed.name, 'JS test identity differs');
       assert.equal(test.state, observed.state, 'JS test state differs');
-      return { ...test, projection: projection(test.projection, observed.state.toUpperCase()) };
+      return { ...test, projection: projection(test.projection, observed.state.toUpperCase(), 'js') };
     });
     // An ordinary JS receipt has no run-level execution observation.
-    closed(value.runProjection, ['association', 'hygiene', 'freshness', 'execution', 'strength']);
-    for (const axis of ['association', 'hygiene', 'freshness', 'execution', 'strength']) {
-      assert.equal(value.runProjection[axis]?.state, 'UNSUPPORTED', 'JS run promoted absent observation');
-    }
+    validateAxes(value.runProjection, {
+      association: 'UNSUPPORTED', hygiene: 'UNSUPPORTED', execution: 'UNSUPPORTED',
+      freshness: 'UNSUPPORTED', strength: 'UNSUPPORTED',
+    });
     run = value.runProjection;
   } else {
     throw new Error('unsupported retained provider form');
@@ -80,6 +96,7 @@ async function readRetainedEvidence(root) {
   assert.ok(names.length <= 256, 'retained evidence exceeds discovery bound');
   const rows = [];
   for (const name of names) {
+    if (name === '.gitignore') continue; // IgnoreRetained writes this when .corvint already exists.
     // Retain writes this exact private temporary form before its atomic rename.
     if (/^\.corvint-(?:js|go)-test-provider-[0-9]+-[0-9a-f]+\.tmp$/.test(name)) continue;
     assert.match(name, /^corvint-(?:js|go)-test-provider-[0-9]+-[0-9a-f]+\.json$/, 'unsupported retained evidence name');
@@ -104,6 +121,9 @@ async function readRetainedEvidence(root) {
 
 async function selectedEvidence(config, child, expectedRow, expectedState) {
   const response = await readRetainedEvidence(config.dir), doc = response.document;
+  const expectedKind = new Map([['go', 'go-session'], ['unit', 'unit'], ['e2e', 'e2e']]).get(config.kind);
+  assert.ok(expectedKind, 'unsupported invocation kind');
+  assert.equal(doc.kind, expectedKind, 'receipt kind differs from invocation');
   assert.ok(doc.discovery.evidence.endsWith('/' + expectedRow.name), 'reader did not select original retained document');
   assert.equal(doc.discovery.freshness.state, 'UNKNOWN', 'reader promoted unmeasured freshness');
   assert.ok(doc.tests.length > 0 && doc.tests.every(t => t.projection.execution.state === expectedState.toUpperCase() && t.projection.freshness.state === 'UNKNOWN' && t.projection.strength.state === 'NOT_MEASURED'), 'reader axes differ from actual execution');

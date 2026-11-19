@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// The retired command assembly remains a fixture for the rule regression suite.
 package testsource
 
 import (
@@ -354,26 +356,6 @@ func readSourceValidity(name, text string, support testvalidity.RubySupport) (So
 	return file, append(tests, findingTests(base.Findings, covered)...)
 }
 
-// RubySupportPaths reports whether path is in the support set of a spec under prefix (the text
-// before `spec/`): spec/spec_helper.rb, spec/rails_helper.rb or spec/support/**/*.rb (TSA-V0-088).
-func RubySupportPaths(prefix string) func(string) bool {
-	return func(path string) bool {
-		rest, ok := strings.CutPrefix(path, prefix+"spec/")
-		return ok && (rest == "spec_helper.rb" || rest == "rails_helper.rb" || strings.HasPrefix(rest, "support/") && strings.HasSuffix(rest, ".rb"))
-	}
-}
-
-// specPrefix is the text of a spec path before its `spec/` directory, or "" when it has none.
-func specPrefix(name string) string {
-	if strings.HasPrefix(name, "spec/") {
-		return ""
-	}
-	if k := strings.LastIndex(name, "/spec/"); k >= 0 {
-		return name[:k+1]
-	}
-	return ""
-}
-
 // rubySupport reads the committed support set of a spec at commit once per prefix. A read that
 // fails or exceeds the bounds leaves the set unbound with a named reason, so helper resolution
 // abstains instead of guessing (TSA-V0-088). The application source it binds draws on apps.
@@ -478,4 +460,75 @@ func exampleLines(examples map[int]testvalidity.ExampleSource) []int {
 	}
 	slices.Sort(lines)
 	return lines
+}
+
+// SelectedSourceValidity is SourceValidity with witness credit refused to the tests of every named
+// JS/TS file that no configured runner selects (TSA-V0-146): each such test gets an invalid
+// TEST-FILE-UNSELECTED finding, so its hygiene axis is INELIGIBLE. An uncertain selection changes
+// nothing.
+func SelectedSourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport, error) {
+	report, err := SourceValidity(r, options)
+	if err != nil {
+		return report, err
+	}
+	var set *runnerSet
+	resolver := newRepoResolver(r, report.Revision)
+	for fi := range report.Files {
+		file := &report.Files[fi]
+		if !isTestCandidatePath(file.Path) {
+			continue
+		}
+		if set == nil {
+			configs, _, err := readFiles(r, report.Revision, isRunnerConfigPath)
+			if err != nil {
+				return SourceValidityReport{}, err
+			}
+			discovered := discoverRunners(configs)
+			set = &discovered
+		}
+		data, _, err := readOne(r, report.Revision, file.Path, MaxFileBytes)
+		if err != nil {
+			return SourceValidityReport{}, err
+		}
+		s := parseSource(file.Path, string(data))
+		selection, ok := classifyFile(file.Path, s, *set, resolver)
+		if !ok || selection.Selection != SelectionUnselected {
+			continue
+		}
+		refuseUnselectedTests(&report, file, s, selection)
+	}
+	return report, nil
+}
+
+// refuseUnselectedTests adds one invalid finding per test of the unselected file and applies it.
+func refuseUnselectedTests(report *SourceValidityReport, file *SourceValidityFile, s *source, selection SelectionFile) {
+	cause := selection.Reason
+	if selection.Pattern != "" {
+		cause += ": " + selection.Pattern
+	}
+	finding := func(test string) testvalidity.SourceFinding {
+		return testvalidity.SourceFinding{Rule: CodeTestFileUnselected, Severity: testvalidity.SeverityInvalid, Test: test, Location: test,
+			Cause: cause, Message: fmt.Sprintf("no configured runner selects %s (%s), so its tests cannot witness a claim", file.Path, cause)}
+	}
+	seen := map[string]bool{}
+	for ti := range report.Tests {
+		test := &report.Tests[ti]
+		if !strings.HasPrefix(test.Test, file.Path+":") {
+			continue
+		}
+		seen[test.Test] = true
+		f := finding(test.Test)
+		file.Findings = append(file.Findings, f)
+		test.Hygiene = testvalidity.ApplySourceFindings(testvalidity.Projection{Hygiene: test.Hygiene}, []testvalidity.SourceFinding{f}).Hygiene
+	}
+	for _, d := range s.Decls {
+		test := fmt.Sprintf("%s:%d", file.Path, d.Line)
+		if d.Kind != "test" || seen[test] {
+			continue
+		}
+		seen[test] = true
+		f := finding(test)
+		file.Findings = append(file.Findings, f)
+		report.Tests = append(report.Tests, sourceTest(test, []testvalidity.SourceFinding{f}))
+	}
 }

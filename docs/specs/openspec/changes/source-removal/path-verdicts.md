@@ -320,9 +320,11 @@ re-records each of these.
   records under `protocol/cem-1.0/stable/` name its evaluator and canonical implementation;
   these are outside the authorized history exclusions and cannot be rewritten in this lane.
   The provider `Flaky` rule and result constants remain unchanged as RMV-V1-009 requires.
-- `internal/testsource/validity*.go`: retain the shared source reader. The kept `unselected.go`
-  adapter calls `SourceValidity` and the kept teardown reader uses `MaxValidityFiles`.
-  Deleting the files wholesale would break kept readers and their existing assertions.
+- `internal/testsource`: `tests example-join` calls `JSExampleSources` and
+  `RSpecExampleSourcesWithSupport`, both of which call `ValidityFindings`. Keep their shared
+  rule implementations. The retired validity report, selection overlay, environment projection
+  and seed evaluator compile only in package tests. `UnselectedFiles` reads the runner
+  configuration directly. Teardown owns its 256-file bound.
 - `script/spec-coverage-audit`: retain; the current repository read-scope qualification test
   `internal/liveverify/affected/liverepo/readscope_narrowing_repo_test.go` still uses this path.
 - `internal/testvaliditydoc/read.go`: retain compatibility wrappers for receipt decoder callers

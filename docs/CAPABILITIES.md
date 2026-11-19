@@ -82,7 +82,7 @@ and `impact` are qualified on Darwin and Linux only.
 | Look up documentation | `corvint docs corpus build --manifest M > corpus.json`, then `corvint docs corpus search --artifact corpus.json --query TERM`, or serve it with `corvint-docs mcp --corpus-artifact corpus.json` ([guide](DOCUMENTATION-CORPUS.md)) |
 | Map an application for E2E selection | `corvint flows appmap ...` ([application map](APPLICATION-MAP.md)) |
 | Inspect application flows | `corvint flows --manifest FILE`, then `flows coverage`, `flows gaps` (`--provider FILE` adds the E2E tests no variation links) and `flows status` (each flow, variation, attached tests and last result from `corvint test` receipts and ingested runs; gaps, status and impact run in `corvint` alone) ([flow coverage](FLOW-COVERAGE.md)) |
-| Give an agent host Corvint tools | `corvint mcp --root /abs/repo` over stdio; add `--tool-profile flows` or the groups `test-validity`, `test-evidence`, `docs`, `corpus` and `affected` (`corvint.affected`, `corvint mcp` only) ([MCP](MCP-SERVER.md)) |
+| Give an agent host Corvint tools | `corvint mcp --root /abs/repo` over stdio; add `--tool-profile flows` or the groups `test-evidence` and `affected` (`corvint.affected`, `corvint mcp` only) ([MCP](MCP-SERVER.md)) |
 
 ## Commands
 
