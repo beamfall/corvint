@@ -14,7 +14,7 @@ supported-command list, which these output changes must precede)
 Related changes, referred to by name: `tasks-conformance` (schema v1, supported-command list,
 conformance record), `tasks-integration` (Corvint-side coupling), `ticket-taxonomy` (ticket
 categories, duplicate refusal, required fields and search; written separately)
-Intent status: proposed (written 2026-11-10; only the owner can accept it)
+Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
 
