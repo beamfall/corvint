@@ -143,3 +143,48 @@ Friction and repros:
 Dogfood, CEM and seal are NOT_RUN under the charter's retirement override. Repository-wide gates,
 Windows vet (no push), model-backed review and live qualification are NOT_RUN under this lane's
 scope or because their required evidence is unavailable. No push or task-store write was performed.
+
+## Verifier repair 1
+
+The host found incomplete selection declarations for V1-5692. Under TSP-V0-005,
+`.corvint/shell-foreign-callers.json` now lists both RCF tool files as callers of the heavy
+wrapper: production executes it, and the adapter test invokes a temporary replacement through
+that production function. The existing completeness test passes with both entries. This also
+restores the driver graph that the invalid declaration had prevented from being observed.
+
+The restored graph then exposed the missing AFP-V0-023 read scope. The tool's existing tests
+read temporary repositories, generated reports and a temporary wrapper, with no enclosing
+repository reads outside the package. Declare `tools/rcf-currency` with an empty additional
+read scope. Both the unbounded-reader ratchet and read-scope check pass. No unbounded-reader
+exception was added, and no analyzer, test assertion, product output or wire shape changed.
+
+Finding class: incomplete project-owned dependency/read declarations, caught by existing
+fail-closed checks; no unrecognized analysis construct was accepted. The existing closed
+allowlist remains the exact caller/mention sets, verified against the source universe, and the
+package subtree plus declared read entries. Missing or invalid declarations retain their existing
+frontier or wider-selection behavior. No new syntax allowlist or analysis regression is needed.
+
+Verification used the required base with `corvint affected`: the original missing-driver refusal
+was reproduced before repair, then planning succeeded with retained UNKNOWN scope. Focused checks:
+
+- `make -s shell-foreign-callers-check`: PASS through the heavy wrapper; package time 9.851 seconds.
+- `make -s unbounded-readers-check test-read-scopes-check`: PASS after both declaration repairs.
+- `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m ./tools/rcf-currency`:
+  PASS, whole existing package, no filter; package time 1.882 seconds.
+- `script/heavy.sh env GOTOOLCHAIN=local go vet ./tools/rcf-currency`: PASS.
+
+Raw evidence stays in `~/lanes/rcf-enforce-evidence/`; SHA-256 digests:
+
+- `repair1-shell-callers.log`:
+  `f549c58b2a3a644d62da567e56a3d0e82405b24567996fcb0ec4cb0f8e7fa371`.
+- `repair1-reader-checks.log` (successful silent checks):
+  `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- `repair1-package-test.log`:
+  `fe89f73f01136447eda7ab71924bb4641d03e2046c957408b545be2b7b3179ab`.
+- `repair1-vet.log`:
+  `4c5f65332f5a2ef3697b1eb1c34e8b06a26ab3e16c0d4ef01b1a4ce9414a6651`.
+
+The repair commit includes the required delivered-state trailer to repair the original malformed
+trailer block without rewriting history. The ticket's external host-integration limits above
+remain PARTIAL; the trailer does not supply the missing hosted gate or qualification evidence.
+Dogfood/CEM is unavailable under decision 0594 and the charter override. No seal is produced.
