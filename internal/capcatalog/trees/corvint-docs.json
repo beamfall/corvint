@@ -34,10 +34,6 @@
     {
       "word": "affected",
       "reason": "core read the --corpus=FILE join runs in corvint"
-    },
-    {
-      "word": "test-validity",
-      "reason": "core read the --corpus=FILE join runs in corvint"
     }
   ],
   "nodes": [

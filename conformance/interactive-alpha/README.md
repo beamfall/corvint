@@ -46,6 +46,14 @@ consumers of the two live test providers in
 (AFP-V0-762, AFU-V1-1655). `core-planning-proof.mjs` and `roadmap-proof.mjs` exec binaries decision
 0594 extracted or cut and have no runner.
 
+Every edit under `fixture/` selects two installed qualification targets. The portable Node
+regression exercises the launcher seams with stubs. For the installed results, run
+`make interactive-alpha-installed-editor` with the release environment above and
+`make interactive-alpha-installed-core` with the installed binaries in `CORVINT_PROVIDER_BIN_DIR`,
+a fresh work directory in `CORVINT_CORE_WORK`, its matching `CORVINT_GO_AUTHORITY_BUNDLE`
+and a fresh evidence directory in `CORVINT_CORE_OUTPUT`. The core target runs the sessions driver.
+Both qualifications remain outstanding until their installed drivers succeed.
+
 The local reader admits only unprofiled JS unit/E2E receipts and
 `corvint-go-live-session-event/0` pass/fail/stale events. It cross-checks observations
 against emitted projections, rejects unknown forms and omitted tests, preserves stale

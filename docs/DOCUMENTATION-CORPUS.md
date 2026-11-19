@@ -138,12 +138,11 @@ attachments retain explicit projection omissions and mandatory check fallback.
 
 ## Native evidence consumers
 
-Use the inline `--corpus=FILE` option on `impact`, `affected`, `test-validity`,
-`work observe`, `work propose-wave`, or `cem status/verify/report`. It adds a separately attributed
-`documentation` member and preserves native result members. Work evidence carries no task authority.
-Impact follows exact source anchors and one explicitly recorded relation; incomplete selection always
-requires the repository's full mandatory checks. The corpus never executes tests. Test-validity joins
-only exact explicitly supplied `--receipt` bytes; discovery remains unlinked.
+Use the inline `--corpus=FILE` option on `impact` or `affected` to attach a separately attributed
+`documentation` member and preserve native result members. Impact follows exact source anchors and
+one explicitly recorded relation. Incomplete selection requires the repository's full mandatory
+checks. The corpus executes no tests and grants no task authority. Pinned observations remain
+available from the compiled corpus.
 
 A `corvint-corpus-flow-relations/1` provider declares flow-level relations: `depends-on` another
 flow, `produces` or `consumes` a named event or job, and `external` calls to a named system, each

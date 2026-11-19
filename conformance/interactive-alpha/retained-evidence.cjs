@@ -10,6 +10,29 @@ function closed(value, keys) {
   assert.ok(Object.keys(value).every(key => keys.includes(key)), 'unsupported provider member');
 }
 
+const nonempty = value => typeof value === 'string' && value.trim().length > 0;
+const digest = value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+
+function validateJSIdentity(identity, kind) {
+  closed(identity, ['testFileDigests', 'configFile', 'configDigest', 'packageDigest', 'nodeVersion',
+    'runnerName', 'runnerVersion', 'environment', 'argv', 'configInputDigests']);
+  assert.ok(nonempty(identity.configFile) && digest(identity.configDigest) && digest(identity.packageDigest),
+    'missing JS config or package identity');
+  assert.equal(identity.runnerName, kind === 'unit' ? 'vitest' : 'playwright', 'unexpected JS runner');
+  assert.ok(nonempty(identity.nodeVersion) && nonempty(identity.runnerVersion), 'missing JS runtime identity');
+  assert.ok(Array.isArray(identity.argv) && identity.argv.length > 0 && identity.argv.every(nonempty), 'missing JS argv');
+  assert.ok(identity.environment && typeof identity.environment === 'object' && !Array.isArray(identity.environment) &&
+    Object.entries(identity.environment).every(([key, value]) => nonempty(key) && typeof value === 'string'),
+    'invalid JS environment');
+  validateFileDigests(identity.testFileDigests);
+  if (Object.hasOwn(identity, 'configInputDigests')) validateFileDigests(identity.configInputDigests);
+}
+
+function validateFileDigests(files) {
+  assert.ok(files && typeof files === 'object' && !Array.isArray(files) && Object.keys(files).length > 0 &&
+    Object.entries(files).every(([path, value]) => nonempty(path) && digest(value)), 'missing JS file digests');
+}
+
 // Each fixture provider emits these five native Axes, including null anchors when unbound.
 function validateAxes(value, states) {
   closed(value, Object.keys(states));
@@ -61,6 +84,7 @@ function decode(raw) {
       ['unit', 'e2e'].includes(value.receipt.kind)) {
     closed(value, ['receipt', 'testProjections', 'runProjection']);
     closed(value.receipt, ['profile', 'kind', 'identity', 'appBuildAtStart', 'appBuildAtPublish', 'staleAppBuild', 'tests', 'cancelled', 'infrastructure', 'serverDescendantsGone', 'descendantObservation', 'runnerResources', 'schedule', 'testRepositoryAtStart', 'testRepositoryAtPublish']);
+    validateJSIdentity(value.receipt.identity, value.receipt.kind);
     assert.equal(value.receipt.cancelled, false, 'cancelled JS receipt');
     assert.equal(value.receipt.staleAppBuild, false, 'stale JS receipt');
     assert.ok(value.receipt.infrastructure == null, 'JS infrastructure failure');
@@ -73,6 +97,7 @@ function decode(raw) {
       const observed = value.receipt.tests[i];
       closed(observed, ['id', 'project', 'attempts', 'name', 'fullName', 'state', 'retries', 'durationMs', 'durationMissing', 'anchor', 'failureMessage', 'artifacts', 'attemptDetails']);
       assert.ok(['passed', 'failed', 'skipped'].includes(observed.state), 'unsupported JS observation');
+      assert.ok(nonempty(observed.name), 'missing JS test name');
       assert.equal(test.name, observed.name, 'JS test identity differs');
       assert.equal(test.state, observed.state, 'JS test state differs');
       return { ...test, projection: projection(test.projection, observed.state.toUpperCase(), 'js') };
@@ -100,7 +125,7 @@ async function readRetainedEvidence(root) {
     // Retain writes this exact private temporary form before its atomic rename.
     if (/^\.corvint-(?:js|go)-test-provider-[0-9]+-[0-9a-f]+\.tmp$/.test(name)) continue;
     assert.match(name, /^corvint-(?:js|go)-test-provider-[0-9]+-[0-9a-f]+\.json$/, 'unsupported retained evidence name');
-    const file = await open(join(directory, name), constants.O_RDONLY | constants.O_NOFOLLOW);
+    const file = await open(join(directory, name), constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW);
     try {
       const info = await file.stat();
       assert.ok(info.isFile() && info.size > 0 && info.size <= 262144, 'retained evidence must be a bounded regular file');

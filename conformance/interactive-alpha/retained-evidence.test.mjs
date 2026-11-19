@@ -17,7 +17,12 @@ function fixture(kind, state) {
   if (kind === 'go') return { profile: 'corvint-go-live-session-event/0', identity: 'fixture', sequence: 1, scope: ['example.test/fixture'], detail: '', state,
     projection: projection(state === 'stale' ? 'INFRASTRUCTURE' : state.toUpperCase(), state === 'stale' ? 'STALE' : 'CURRENT'),
     testProjections: [{ package: 'example.test/fixture', name: 'TestAdds', action: state === 'stale' ? 'none' : state === 'passed' ? 'pass' : 'fail', projection: projection(state === 'stale' ? 'UNSUPPORTED' : state.toUpperCase(), state === 'stale' ? 'STALE' : 'CURRENT') }], testProjectionsOmitted: 0 };
-  return { receipt: { kind, cancelled: false, staleAppBuild: false, tests: [{ name: 'adds', state }] }, testProjections: [{ name: 'adds', state, projection: { ...projection(state.toUpperCase()), association: axis('ASSOCIATED'), hygiene: axis('ELIGIBLE') } }], runProjection: unsupported };
+  const hash = 'a'.repeat(64);
+  const runnerName = kind === 'unit' ? 'vitest' : 'playwright';
+  const identity = { testFileDigests: { 'adds.js': hash }, configFile: runnerName + '.config.js',
+    configDigest: hash, packageDigest: hash, nodeVersion: 'v22.0.0', runnerName,
+    runnerVersion: kind === 'unit' ? '5.0.3' : '1.64.0', environment: {}, argv: ['npx', runnerName] };
+  return { receipt: { kind, identity, cancelled: false, staleAppBuild: false, tests: [{ name: 'adds', state }] }, testProjections: [{ name: 'adds', state, projection: { ...projection(state.toUpperCase()), association: axis('ASSOCIATED'), hygiene: axis('ELIGIBLE') } }], runProjection: unsupported };
 }
 
 // RMV-V1-009: exercise the installed harness comparison without VS Code or any MCP binary.
@@ -80,6 +85,44 @@ test('selection binds the receipt to the invocation and requires every native ax
   await assert.rejects(select(future, 'unit'), /unsupported provider hygiene/);
   await writeFile(join(directory, '.gitignore.backup'), '');
   await assert.rejects(select(fixture('unit', 'passed'), 'unit'), /unsupported retained evidence name/);
+});
+
+test('retained JS qualification requires producer identity and matching nonempty names', () => {
+  for (const kind of ['unit', 'e2e']) {
+    function refuses(change) {
+      const value = fixture(kind, 'passed');
+      change(value.receipt, value.testProjections[0]);
+      assert.throws(() => decode(JSON.stringify(value)));
+    }
+    refuses((r, t) => { delete r.identity; delete r.tests[0].name; delete t.name; });
+    for (const key of Object.keys(fixture(kind, 'passed').receipt.identity)) refuses(r => { delete r.identity[key]; });
+    refuses(r => { r.identity.futureBinding = {}; });
+    refuses(r => { r.identity.testFileDigests = { 'adds.js': null }; });
+    refuses(r => { r.identity.runnerName = 'future'; });
+    for (const name of [undefined, null, '', ' ', 42]) refuses((r, t) => { r.tests[0].name = t.name = name; });
+    refuses((r, t) => { t.name = 'another test'; });
+  }
+});
+
+test('retained discovery refuses a FIFO without waiting for a writer', { skip: process.platform === 'win32' }, async t => {
+  const root = await mkdtemp(join(tmpdir(), 'retained-fifo-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const directory = join(root, '.corvint/test-evidence');
+  await mkdir(directory, { recursive: true });
+  const path = join(directory, 'corvint-js-test-provider-1-abc.json');
+  await mkdir(path);
+  await assert.rejects(readRetainedEvidence(root), /bounded regular file/);
+  await rm(path, { recursive: true });
+  const fifo = spawnSync('mkfifo', [path]);
+  assert.ifError(fifo.error);
+  assert.equal(fifo.status, 0, fifo.stderr.toString());
+  // Bound the process itself so a regression blocking inside open cannot hang the suite.
+  const read = spawnSync(process.execPath, ['-e',
+    'require(process.argv[1]).readRetainedEvidence(process.argv[2]).catch(e => { console.error(e.message); process.exitCode = 1; })',
+    resolve('conformance/interactive-alpha/retained-evidence.cjs'), root], { timeout: 5000, encoding: 'utf8' });
+  assert.ifError(read.error);
+  assert.equal(read.status, 1);
+  assert.match(read.stderr, /bounded regular file/);
 });
 
 test('unknown forms and observation disagreements fail closed', () => {

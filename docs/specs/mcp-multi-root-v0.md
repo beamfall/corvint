@@ -44,6 +44,9 @@ into the tool catalogue.
   byte-identical to the server before this profile, and a plain root combined with any other root is
   refused. An aliased declaration with an empty root is refused. The form composes with
   `--protocol-version`, `--tool-profile` and `--error-profile` exactly as the single-root form does.
+  The frozen `corvint.help` command enum includes the historical spellings `test-validity`,
+  `test-plan` and `runs`. After RMV-V1-008 retires their catalog entries, a help call for any
+  of them returns `invalid-arguments`. Serving a command receipt requires its current catalog entry.
 - `MMR-V0-002`: (accepted by decision 0441; V1-0938) An alias MUST match
   `^[a-z][a-z0-9-]{0,31}$`, aliases MUST be unique, and at most 32 roots may be declared. Each root
   keeps the `MCPV0-001` bounds (absolute, clean, at most 4,096 UTF-8 bytes). A duplicate alias, more

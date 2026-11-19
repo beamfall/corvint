@@ -171,7 +171,9 @@ nothing outside `tcq` uses. Production builds SHALL exclude the source-validity 
 its selection and environment projections, and its seed-rule evaluator. The existing rule tests
 may exercise those components as test fixtures. B2 SHALL keep the JS/TS and RSpec example readers
 and their shared findings for `tests example-join`, and teardown's independent 256-file limit.
-`tests unselected` uses `UnselectedFiles` directly.
+`tests unselected` uses `UnselectedFiles` directly. B2 also retires the `test-validity --corpus`
+join. The compiled corpus retains pinned observations (DCP-V1-007), and the native join serves
+only impact and affected (DCP-V1-013, DCP-V1-036).
 
 Because `internal/testplan` is one of the three
 tests-layer flow readers that `tools/import-ratchet/flows_layer_test.go` pins for CMS-V0-915
@@ -208,7 +210,11 @@ selection check and installed-editor comparison for JS unit/E2E and Go transitio
 unknown forms and observation/projection disagreements. This fixture reader admits only
 unprofiled JS unit/E2E and Go session profile `/0` pass/fail/stale documents; unsupported
 forms fail qualification. The receipt kind must match the invocation and each native projection
-must supply all five axes with the states its observation supports. Discovery skips the producer's
+must supply all five axes with the states its observation supports. JS qualification requires the
+producer's runtime, runner, configuration, package and test-file identities, environment and argv,
+and matching nonempty observation and projection names. A nonblocking descriptor check admits
+only bounded regular receipt files. Fixture changes select both installed qualification drivers.
+Discovery skips the producer's
 private temporary names and exact `.gitignore` housekeeping name. It establishes no current-input
 freshness or MCP transport claim.
 
@@ -786,7 +792,8 @@ speaking `corvint-runner/1`, is removed. The selector, the store and the conform
 every compiled-in runner alike. The previous text allowed both forms.
 
 ##### Scenario: an out-of-process runner is declared
-- GIVEN a repository's `.corvint/runner-plugins.json` names a `corvint-runner/1` plugin
+- GIVEN the runner inventory or a test-command declaration names a runner with no compiled-in
+implementation (a legacy `.corvint/runner-plugins.json` alone does not declare one to the planner)
 - WHEN `corvint test` plans a change after B3
 - THEN no plugin process starts, and a runner with no compiled-in implementation runs all tests
 with reason `runner-removed` (RNC-V1-004)

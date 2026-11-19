@@ -482,8 +482,14 @@ func TestQualificationReadsSuccessiveRetentions(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
 		t.Fatal(err)
 	}
+	digest := strings.Repeat("a", 64)
+	identity := jstestprovider.Identity{
+		TestFileDigests: map[string]string{"adds.js": digest}, ConfigFile: "vitest.config.js",
+		ConfigDigest: digest, PackageDigest: digest, NodeVersion: "v22.0.0", RunnerName: "vitest",
+		RunnerVersion: "5.0.3", Environment: map[string]string{}, Argv: []string{"npx", "vitest"},
+	}
 	for _, state := range []jstestprovider.ExecutionState{jstestprovider.StatePassed, jstestprovider.StateFailed} {
-		receipt := jstestprovider.Receipt{Kind: "unit", Tests: []jstestprovider.TestOutcome{{Name: "adds", State: state}}}
+		receipt := jstestprovider.Receipt{Kind: "unit", Identity: identity, Tests: []jstestprovider.TestOutcome{{Name: "adds", State: state}}}
 		var stdout, stderr bytes.Buffer
 		if err := emit(&stdout, &stderr, receipt, root); err != nil {
 			t.Fatalf("%s: %v: %s", state, err, &stderr)

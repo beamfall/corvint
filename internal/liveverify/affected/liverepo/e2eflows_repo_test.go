@@ -92,3 +92,17 @@ func TestRepositoryE2EFlowsAreBoundAndReviewed_AFUV11655(t *testing.T) {
 // anchor is that commit itself; the next commit sets the anchors and turns it
 // back on.
 const requireReviewed = true
+
+// RMV-V1-009: the fixture is copied by both installed drivers. A previously unseen
+// filename under the fixture has the same qualification obligations as math.js.
+func TestInteractiveFixtureSelectsInstalledQualification(t *testing.T) {
+	graph, _ := repositoryOwnershipGraph(t)
+	for _, path := range []string{"conformance/interactive-alpha/fixture/math.js", "conformance/interactive-alpha/fixture/app/future.asset"} {
+		selected := selectedSet(affected.Select(graph, []string{path}))
+		for _, target := range []string{"interactive-alpha-installed-core", "interactive-alpha-installed-editor"} {
+			if _, ok := selected["driver:make:Makefile#"+target]; !ok {
+				t.Errorf("%s: missing installed qualification target %s", path, target)
+			}
+		}
+	}
+}

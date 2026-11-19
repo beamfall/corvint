@@ -1429,6 +1429,15 @@ host-adapter-test: typescript-test
 interactive-alpha-test: ## Run the interactive-alpha process harness tests (node:test)
 	node --test conformance/interactive-alpha/core-process.test.mjs conformance/interactive-alpha/retained-evidence.test.mjs
 
+# Both installed drivers copy this tree. A fixture edit selects both qualification
+# targets, including edits below a subdirectory or to a newly introduced fixture.
+.PHONY: interactive-alpha-installed-core interactive-alpha-installed-editor
+interactive-alpha-installed-core: conformance/interactive-alpha/fixture/
+	node conformance/interactive-alpha/core-provider-proof.mjs "$${CORVINT_PROVIDER_BIN_DIR:?}" "$(CURDIR)" "$${CORVINT_CORE_WORK:?}" "$${CORVINT_GO_AUTHORITY_BUNDLE:?}" "$${CORVINT_CORE_OUTPUT:?}" sessions
+
+interactive-alpha-installed-editor: conformance/interactive-alpha/fixture/
+	node extensions/vscode/test/installed/run.mjs
+
 # test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a
 # package over the agent's 600 s foreground limit runs as bounded pieces that together cover every
 # top-level test exactly once (ASD-V0-026, tools/test-shards). Reference splits:

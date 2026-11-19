@@ -40,6 +40,15 @@ func TestMMRV0001ExperimentalCLIHelpKeepsFrozenEnum(t *testing.T) {
 	}
 }
 
+// RMV-V1-008: a retired enum value cannot yield a binary-authority receipt.
+func TestFrozenHelpRequiresCurrentCatalogEntry(t *testing.T) {
+	for _, name := range []string{"test-validity", "test-plan", "runs", "future-command"} {
+		if _, err := callHelp(t.Context(), []byte(`{"command":"`+name+`"}`)); err == nil || err.Code != "invalid-arguments" {
+			t.Fatalf("help for %q: error=%v", name, err)
+		}
+	}
+}
+
 // MCPV0-100: every profile advertises and answers corvint.help from the
 // embedded catalog and guide, without reading the repository, within the
 // bridge budget, and refuses any other argument as invalid.
