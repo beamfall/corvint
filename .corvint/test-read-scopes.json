@@ -922,6 +922,7 @@
       "internal/workspace/"
     ],
     "conformance/release-artifact-v0/archive-verifier": [],
+    "conformance/release-artifact-v0/archivebuild": [],
     "conformance/release-artifact-v0/archiveverify": [
       "conformance/release-artifact-v0/archivebuild/archivebuild.go"
     ],
