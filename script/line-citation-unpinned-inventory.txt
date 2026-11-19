@@ -314,9 +314,6 @@ docs/specs/harness-authority-relation-v0.md	docs/specs/change-frontier-v0.md:508
 docs/specs/harness-authority-relation-v0.md	docs/specs/change-frontier-v0.md:519-521
 docs/specs/harness-authority-relation-v0.md	docs/specs/change-frontier-v0.md:91-95
 docs/specs/harness-authority-relation-v0.md	docs/specs/go-live-test-provider-v0.md:48-50
-docs/specs/harness-authority-relation-v0.md	docs/specs/test-claim-qualification-v0.md:42-44
-docs/specs/harness-authority-relation-v0.md	docs/specs/test-claim-qualification-v0.md:42-44
-docs/specs/harness-authority-relation-v0.md	docs/specs/test-claim-qualification-v0.md:532-537
 docs/specs/harness-authority-relation-v0.md	docs/specs/test-claim-qualification-v0.md:561-565
 docs/specs/harness-authority-relation-v0.md	internal/liveverify/provider/receipt.go:57
 docs/specs/harness-authority-relation-v0.md	internal/liveverify/provider/receipt.go:57

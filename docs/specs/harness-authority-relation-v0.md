@@ -36,7 +36,7 @@ has committed to. Every candidate root in this repository is caller-owned:
 And TCQ V0 states the boundary directly: Corvint "does **not** resist a malicious or compromised
 same-UID caller or task agent. That caller can fabricate a command artifact, JUnit report,
 observation, or clean-target statement. V0 has no portable authority, authentication, signature,
-trusted runner, or execution attestation" (`docs/specs/test-claim-qualification-v0.md:42-44`).
+trusted runner, or execution attestation" (`docs/specs/test-claim-qualification-v0.md:46-48@586ddd18`).
 
 **On a single-UID developer machine, with no daemon, no network, and no service —
 the boundary `docs/specs/agent-harness-integration-v0.md:261-263` commits to — there is no process
@@ -69,7 +69,7 @@ its finding is that the action is not currently available.
   was `internal/frontier/closure.go` line 165 at commit `52af6ee1` (deleted by V1-1278 S2b).
 - `TCQ-V0-046` reserves the upgrade path: "Only a future WP6 authority root and new relation/profile
   can define stronger behavior; signatures over V0 caller-controlled bytes do not qualify"
-  (`docs/specs/test-claim-qualification-v0.md:532-537`).
+  (`docs/specs/test-claim-qualification-v0.md:573-578@9d9a6e9a`).
 - `CF-V0`'s own deferred-decision list already sketches the shape: "one process owns the exact
   command launch, target, report bytes, and exit result and passes a non-caller capability directly
   to a new profile. Its wire and portability remain a separate decision"
@@ -124,7 +124,7 @@ its finding is that the action is not currently available.
   repository-owner acceptance naming a root and the evidence that qualified it.
 - `HAR-V0-005`: **a root MUST NOT be admitted merely because it is a separate process.** A same-UID
   caller can start any local process, hand it any inputs, and read or forge its outputs, which is
-  precisely the boundary `docs/specs/test-claim-qualification-v0.md:42-44` records. Admission
+  precisely the boundary `docs/specs/test-claim-qualification-v0.md:46-48@586ddd18` records. Admission
   requires a mechanism whose forgery a same-UID caller cannot perform. No such mechanism exists in
   this repository, and adding one means leaving the local-only, daemon-free, network-free boundary of
   `docs/specs/agent-harness-integration-v0.md:261-263`. That trade is Q1.

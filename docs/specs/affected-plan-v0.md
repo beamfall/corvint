@@ -1,5 +1,8 @@
 # Affected Plan V0
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`

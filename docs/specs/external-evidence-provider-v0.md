@@ -1,5 +1,8 @@
 # External Evidence Provider V0
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Owner: Russell Lewis
 Date: 2026-09-18
 Intent status: accepted (decision 0309)

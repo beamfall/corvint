@@ -313,3 +313,18 @@ re-records each of these.
   `tools/affected-edit-oracle/testdata/corpus.json`,
   `tools/ci-forward-row/testdata/outcomes/shard-4.json`.
 - Prose: `AGENTS.md`, `llms.txt`.
+
+## B2 current-base retention decisions (2026-11-18)
+
+- `internal/tcq`: retain the evaluator chain with its existing assertions. Frozen CEM migration
+  records under `protocol/cem-1.0/stable/` name its evaluator and canonical implementation;
+  these are outside the authorized history exclusions and cannot be rewritten in this lane.
+  The provider `Flaky` rule and result constants remain unchanged as RMV-V1-009 requires.
+- `internal/testsource/validity*.go`: retain the shared source reader. The kept `unselected.go`
+  adapter calls `SourceValidity` and the kept teardown reader uses `MaxValidityFiles`.
+  Deleting the files wholesale would break kept readers and their existing assertions.
+- `script/spec-coverage-audit`: retain; the current repository read-scope qualification test
+  `internal/liveverify/affected/liverepo/readscope_narrowing_repo_test.go` still uses this path.
+- `internal/testvaliditydoc/read.go`: retain compatibility wrappers for receipt decoder callers
+  and platform-refusal tests; the implementation already lives in `internal/pinnedread`.
+  The remaining runner and external-origin file readers now import `pinnedread` directly.

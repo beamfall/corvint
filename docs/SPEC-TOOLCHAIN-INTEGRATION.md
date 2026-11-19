@@ -40,13 +40,13 @@ code, the tests, and the execution, and no second party is left to witness any o
 
 The proposition is also already a stated non-goal, three times over: **autonomous code editing** and
 **a new specification language** are both listed at `docs/PRODUCT.md:377-379@27e81383`, and
-`docs/specs/live-proof-carrying-verification-v0.md:1391-1392@38b12d34` forbids "generating tests, weakening
+`docs/specs/live-proof-carrying-verification-v0.md:1394-1395@38b12d34` forbids "generating tests, weakening
 assertions, rewriting product code … auto-fixing failures, merging, deploying, or publishing".
 
 One apparent counterexample is not one: `internal/liveverify/gorunner/` really does run `go test`.
 But LPCV positions Corvint as owning "identity, composition, conservative scope, provenance, and honest
 uncertainty" while "runtime providers remain the authority for what executed"
-(`docs/specs/live-proof-carrying-verification-v0.md:54-56@bf0b8fa7`). Corvint executes as an instrument
+(`docs/specs/live-proof-carrying-verification-v0.md:57-59@bf0b8fa7`). Corvint executes as an instrument
 under an owning verifier's authority. That is the precedent, and it is the opposite of owning the
 build.
 

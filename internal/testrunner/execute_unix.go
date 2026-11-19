@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/groupreap"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/pinnedread"
 )
 
 // executionLimit derives the context that bounds an execution by its declared timeout; a phase
@@ -363,7 +363,7 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		if err = regularPath(reportRoot, n); err != nil {
 			return out, err
 		}
-		b, e := testvaliditydoc.ReadFileBounded(reportRoot, n, MaxReportBytes)
+		b, e := pinnedread.ReadFileBounded(reportRoot, n, MaxReportBytes)
 		if e != nil {
 			return out, e
 		}
@@ -461,7 +461,7 @@ func checkInputs(root *os.Root, files map[string]string) error {
 		if e := regularPath(root, n); e != nil {
 			return e
 		}
-		b, e := testvaliditydoc.ReadFileBounded(root, n, MaxReportBytes)
+		b, e := pinnedread.ReadFileBounded(root, n, MaxReportBytes)
 		if e != nil || Digest(b) != h {
 			return fmt.Errorf("declared source identity changed")
 		}

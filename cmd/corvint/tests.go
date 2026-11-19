@@ -5,13 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
-	"github.com/Beamfall/corvint/internal/playwrightruns"
 	"github.com/Beamfall/corvint/internal/testsource"
 )
 
@@ -20,14 +17,6 @@ const testsHelp = `Read committed JS/TS and RSpec test sources (experimental, TS
 Usage:
   corvint [--root PATH] tests setup-select --specs PATH[,PATH...] [--specs ...]
     [--rev REV] [--format json|lines]
-  corvint [--root PATH] tests lint (--base REV [--all-lines] | --all-lines)
-    [--rev REV] [--runs REPORT.json ...] [--json] [--advisory]
-  corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET]
-    [--threshold F] [--max-line-tests N] [--decisions FILE ...]
-    [--advisory]
-  corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
-    [--legacy NEW=LEGACY ...] [--rev REV] [--profile NAME]
-    [--advisory]
   corvint [--root PATH] tests teardown --files PATH[,PATH...] --declaration PATH
     [--receipt FILE ...] [--rev REV]
   corvint [--root PATH] tests unselected [--rev REV]
@@ -53,92 +42,6 @@ The output names the revision and a sha256 digest of every input read;
 --format lines prints only the setup paths, one per line, for a test
 provider's setup list.
 
-lint applies a closed rule set (no-assertion, weak-assertion-only,
-conditional-assertion, swallowed-wait-error, fixed-wait,
-tautological-assertion, brittle-selector, skip-only-without-reason) to test
-and page-object files, reporting only lines changed since --base unless
---all-lines, which lints every line at the revision and needs no --base.
-Two advisory rules never change the exit status:
-one-shot-ui-state-assertion flags expect(await X) where X is a one-shot
-UI-state read (isVisible, count, textContent, ...) directly or through a
-helper in the file or a relatively imported module, followed at most 3 hops;
-a helper it cannot follow is reported UNKNOWN. exact-text-cross-variant names
-an exact-text locator in a test whose Playwright outcome (--runs reports
-declaring corvintRunIdentity.testRevision) passes in one project and fails in
-another at the linted revision; without such evidence it is NOT_PRODUCED.
-A comment "corvint-lint-allow RULE: REASON" on the line, or
-alone on the line above, suppresses exactly RULE there; every suppression is
-echoed, and one without a reason or with an unknown rule suppresses nothing.
-Exit 0 clean or advisory only, 1 findings, 2 error.
-
-duplicates pairs tests in different files that share at least two
-normalised expect() lines, scored by Jaccard (default --threshold 0.5); a line
-held by more than --max-line-tests tests (default 5) is excluded. Pairs are
-candidates, not verdicts. --gate with --base keeps only pairs with a test
-added or changed since --base and exits 1 while any remains unresolved. The
-committed .corvint/test-duplicates.json (schema
-corvint-test-duplicate-decisions/0) resolves a pair with distinct-from and a
-reason, or covered-by and an obligation. --decisions FILE (repeatable, at most
-16, each at most 1 MiB, same schema) adds caller-supplied decisions read after
-the committed file, so a committed decision wins; a caller decision also needs
-a reviewer. A decision may carry reviewer, at (an RFC 3339 time or date),
-testBlob and otherBlob; a blob (at least 7 hex digits) that is not the test
-file's blob at the revision ignores the decision as blob-changed, reopening
-the pair. Each resolved pair names its decisionSource (repository:PATH or
-caller:FILE); each ignored decision its source and problem. A valid caller
-decision missing either blob is listed under warnings as unpinned: it does
-not expire when either test is edited. Validity and exit status are unchanged.
-Example: corvint tests duplicates --base origin/main --gate V1-1 --decisions review.json
-
-lint, duplicates and validity share an advisory mode: --advisory exits 0
-where the command would exit 1 (an error still exits 2).
-Example: corvint tests lint --base main --all-lines --advisory
-
-validity applies the static test-validity rules to at most 256 named
-committed files (each at most 1 MiB). To a JS/TS test file (a .spec. or .test.
-name, or any JS/TS file under a Jest __tests__ directory): ISOLATED-IN-SERIAL,
-JS-SKIPPED, JS-TODO, JS-FOCUSED and the advisory JS-EACH-ROW-BINDING,
-JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED,
-JS-BOUNDARY-MOCKED, JS-ASSERTION-NOT-AWAITED and WRITE-RESPONSE-UNASSERTED (WRITE-RESPONSE-UNRESOLVED
-when the waited method is unknown); with a committed .corvint/seed-rules.json
-(corvint-seed-rules/0) also the advisory SEED-VALIDATION-REJECTED,
-SEED-SIBLING-COLLISION, SEED-HOOK-BLAST-RADIUS and SEED-VALIDATION-UNRESOLVED.
-To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
-BLOCK-NOT-CALLED, RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY,
-RB-BLOCK-NEVER-YIELDED, RB-ASSIGNMENT-IN-PREDICATE and the advisory
-DESCRIBED-CLASS-STUBBED, RB-CHANGE-ON-IDENTITY, RB-RAISE-ERROR-ONLY and
-RB-DENIAL-WITHOUT-NO-EFFECT (RB-DENIAL-VERB-UNRESOLVED or RB-DENIAL-MATCHER-CUSTOM
-when the refused request or its matcher is unknown); an
-example that skips conditionally or that a committed filter_run_excluding
-removes abstains with RSPEC-CONDITIONAL-SKIP or RSPEC-CONFIG-EXCLUDED; a helper the reader cannot
-resolve through spec/spec_helper.rb, spec/rails_helper.rb and spec/support
-abstains with RB-HELPER-UNRESOLVED or RB-HELPER-AMBIGUOUS. A qualified
-reference SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE (SHARED may be "same") reads
-a shared example through that one inclusion, or abstains with a named
-rspec-inclusion-* or rspec-shared-group-* reason. To both, the advisory
-intra-example STUB-ON-PATH, STUB-NEVER-INVOKED (static form) and
-ASSERTED-VALUE-NOT-FROM-SUBJECT. A _spec.rb example also abstains with
-RB-STUB-DECIDES-ASSERTION or RB-MESSAGE-CHAIN-PREFIX-ONLY, and a stub of a
-flag lookup (the built-in list or a committed .corvint/flag-lookups.json,
-corvint-flag-lookups/0) gives the advisory RB-FLAG-CONDITIONAL and
-RB-FLAG-FORCED-NON-DEFAULT and a "conditional on flag KEY=VALUE" condition on
-the test. A _spec.rb example also abstains with RB-ASSERT-TARGET-NEVER-WRITTEN
-when it asserts a plain attr_accessor of an object it builds that nothing it
-exercises writes, read from the committed app/, lib/ and db/schema.rb. It
-prints one
-corvint-test-source-validity/0 document: each file's findings (uncertain with
-a reason where the reader abstained) and the tests. A JS/TS file lists every
-example in line order with its hygiene and a NOT_MEASURED strength; other
-files list each test a finding names with the hygiene those findings give it.
-A JS/TS test file also gets EITHER-OR-OUTCOME and the advisory
-CLEANUP-HANDLE-OUTLIVED, UNSTUBBED-OUTBOUND-INPUT and VACUOUS-EMPTY-EQUALITY;
-another JS/TS file (a fixture file) CLEANUP-HANDLE-OUTLIVED; and a Markdown,
-YAML or JSON behaviour contract EITHER-OR-OUTCOME for "X or Y" expected values.
-Exit 1 when an invalid finding
-makes a test INELIGIBLE (refused as proof), 0 otherwise. A named JS/TS test
-file that unselected reports also gives each of its tests an invalid
-TEST-FILE-UNSELECTED finding.
-
 unselected lists every committed test-looking JS/TS file (a test name or
 test directory, and a test or describe call) and whether a configured Jest,
 Vitest, Playwright or Mocha runner selects it under its literal configuration
@@ -148,31 +51,6 @@ pattern) or suffix-mismatch. A configuration it cannot read literally, an
 unmodelled runner or framework, or no runner evidence at all makes the file
 uncertain, never reported. It prints one corvint-test-file-selection/0
 document. Exit 1 when any file is reported, 0 otherwise.
-
---legacy NEW=LEGACY (repeatable, at most 256; --files may then be omitted)
-links a new test to the legacy test it claims to preserve, each PATH:LINE of
-the example's declaring line. The report's seedParity lists, per link, each
-side's setup as entity kinds, counts and explicitly set attributes (RSpec
-FactoryBot create/create_list/build/build_list and YAML fixtures; JS/TS
-create/build/createList/buildList factory calls) and the advisory
-SEED-PARITY-DIVERGES, SEED-PARITY-UNCERTAIN, SEED-AGGREGATE-SINGLE-MEMBER and
-SEED-PARITY-NOT-ANALYSED findings. Parity is never reported when a side was
-not analysed, a call may not run, or an unknown value meets a different one.
-Seed parity never changes the exit code. Next to it, assertionParity lists per
-link each side's expectation tuples (subject, matcher, class exact|contains|
-presence|other, polarity, expected value) read from RSpec and Capybara,
-Jest/Jasmine, Mocha/Chai, Cypress (.cy. files too) and Playwright examples,
-pairs legacy with new tuples by expected value and polarity, and gives the
-advisory ASSERTION-PARITY-UNMATCHED-LEGACY, ASSERTION-PARITY-NEW-WITHOUT-ORIGIN,
-ASSERTION-PARITY-WEAKENED and ASSERTION-PARITY-NOT-ANALYSED findings. A side
-with an assertion helper, a conditional or loop, a compound or unknown
-expectation form, or no expectation abstains with a reason and no parity is
-reported. Assertion parity never changes the exit code.
-Example: corvint tests validity --legacy e2e/a.spec.ts:3=spec/a_spec.rb:2
-
---profile NAME adds an env section: profile NAME's ENV-HARD-CODED-* warnings
-on the named files, each with the path:line of the test containing it; it is
-advisory and changes no hygiene or exit status.
 
 teardown lists, for each resource an example creates and deletes in teardown
 (afterEach and finally in JS/TS; after and ensure in RSpec), the actions on it
@@ -231,6 +109,25 @@ revisions, at another --rev, or bound to a file whose committed content
 differs is refused. --select and --requirements (one SELECTOR=REQ[,REQ...]
 pair per line) echo requirement IDs on the examples a PATH, PATH:LINE or
 PATH[ID] selector names, marked caller-asserted; they never change a verdict.
+
+Shared source-reader finding vocabulary (retained library rules):
+ASSERTED-VALUE-NOT-FROM-SUBJECT, ASSERTION-PARITY-NEW-WITHOUT-ORIGIN,
+ASSERTION-PARITY-NOT-ANALYSED, ASSERTION-PARITY-UNMATCHED-LEGACY, ASSERTION-PARITY-WEAKENED,
+BLOCK-NOT-CALLED, CLEANUP-HANDLE-OUTLIVED, DESCRIBED-CLASS-STUBBED, EITHER-OR-OUTCOME,
+ENV-HARD-CODED-ADDRESS, ENV-HARD-CODED-OFFSET, ISOLATED-IN-SERIAL, JS-ASSERTION-NOT-AWAITED,
+JS-BOUNDARY-MOCKED, JS-CONSTANT-EXPECTATION, JS-EACH-ROW-BINDING, JS-FOCUSED, JS-NO-ASSERTION,
+JS-SKIPPED, JS-SUBJECT-MOCKED, JS-TODO, MEMOIZED-BLOCK-EXPECTATION,
+RB-ASSERT-TARGET-NEVER-WRITTEN, RB-ASSIGNMENT-IN-PREDICATE, RB-BLOCK-NEVER-YIELDED,
+RB-CHANGE-ON-IDENTITY, RB-DENIAL-MATCHER-CUSTOM, RB-DENIAL-VERB-UNRESOLVED,
+RB-DENIAL-WITHOUT-NO-EFFECT, RB-FLAG-CONDITIONAL, RB-FLAG-FORCED-NON-DEFAULT,
+RB-HELPER-AMBIGUOUS, RB-HELPER-UNRESOLVED, RB-MESSAGE-CHAIN-PREFIX-ONLY, RB-RAISE-ERROR-ONLY,
+RB-STUB-DECIDES-ASSERTION, ROLE-LOCATOR-UNRENDERED, RSPEC-CONDITIONAL-SKIP,
+RSPEC-CONFIG-EXCLUDED, RSPEC-FOCUSED, RSPEC-SKIPPED, SEED-AGGREGATE-SINGLE-MEMBER,
+SEED-HOOK-BLAST-RADIUS, SEED-PARITY-DIVERGES, SEED-PARITY-NOT-ANALYSED, SEED-PARITY-UNCERTAIN,
+SEED-SIBLING-COLLISION, SEED-VALIDATION-REJECTED, SEED-VALIDATION-UNRESOLVED,
+SHARED-EXAMPLE-ONLY, STUB-NEVER-INVOKED, STUB-ON-PATH, TEARDOWN-DEPENDENT-LEFTOVER,
+TEST-FILE-UNSELECTED, UNSTUBBED-OUTBOUND-INPUT, VACUOUS-EMPTY-EQUALITY,
+WRITE-RESPONSE-UNASSERTED, WRITE-RESPONSE-UNRESOLVED.
 
 Reads committed Git content and the named receipts only; writes nothing and
 uses no network.
@@ -315,12 +212,6 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 	switch args[0] {
 	case "setup-select":
 		return runTestsSetupSelect(ctx, repo, resolved, args[1:], out, diagnostic)
-	case "lint":
-		return runTestsLint(repo, resolved, args[1:], out, diagnostic)
-	case "duplicates":
-		return runTestsDuplicates(repo, resolved, args[1:], out, diagnostic)
-	case "validity":
-		return runTestsValidity(repo, resolved, args[1:], out, diagnostic)
 	case "teardown":
 		return runTestsTeardown(repo, args[1:], out, diagnostic)
 	case "unselected":
@@ -396,186 +287,9 @@ func runTestsSetupSelect(ctx context.Context, repo testsource.Repo, root string,
 	return 0
 }
 
-func runTestsLint(repo testsource.Repo, root string, args []string, out, diagnostic io.Writer) int {
-	gate, args, gateErr := splitGateAgreement(args)
-	f, once := testsFlags("tests lint")
-	options := testsource.LintOptions{Revision: "HEAD"}
-	once("base", &options.Base)
-	once("rev", &options.Revision)
-	f.BoolVar(&options.AllLines, "all-lines", false, "")
-	runs := []string{}
-	f.Func("runs", "Playwright JSON reports", func(value string) error {
-		if len(runs) >= 64 {
-			return errors.New("too many reports")
-		}
-		runs = append(runs, value)
-		return nil
-	})
-	asJSON := f.Bool("json", false, "")
-	if err := f.Parse(args); gateErr != nil || err != nil || f.NArg() != 0 || options.Base == "" && !options.AllLines {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests lint (--base REV [--all-lines] | --all-lines) [--rev REV] [--runs REPORT.json ...] [--json] "+gateAgreementUsage)
-	}
-	for _, name := range runs {
-		run, err := playwrightruns.ReadFile(name)
-		if err != nil {
-			return testsRefuse(diagnostic, "tests-source-unavailable", "the Playwright report "+strconv.Quote(name)+" is unreadable: "+err.Error())
-		}
-		evidence := testsource.RunEvidence{Revision: run.TestRevision, Root: run.TestRootPath, Tests: make([]testsource.RunTest, 0, len(run.Tests))}
-		for _, t := range run.Tests {
-			evidence.Tests = append(evidence.Tests, testsource.RunTest{Project: t.Project, File: t.File, TitlePath: t.TitlePath, Status: t.Status, Executed: t.Executed})
-		}
-		options.Runs = append(options.Runs, evidence)
-	}
-	report, err := testsource.Lint(repo, options)
-	if err != nil {
-		return testsFailure(diagnostic, err)
-	}
-	status := 0
-	if report.Blocking() > 0 {
-		status = 1
-	}
-	status = gate.finish(status)
-	if *asJSON {
-		if code := testsWrite(out, diagnostic, report); code != 0 {
-			return code
-		}
-		return status
-	}
-	var b strings.Builder
-	for _, finding := range report.Findings {
-		label := finding.Rule
-		switch {
-		case finding.Resolution != "":
-			label += " (advisory, " + finding.Resolution + ")"
-		case finding.Advisory:
-			label += " (advisory)"
-		}
-		fmt.Fprintf(&b, "%s:%d: %s: %s\n", finding.Path, finding.Line, label, finding.Message)
-	}
-	for _, s := range report.Suppressions {
-		state := "unused"
-		switch {
-		case !s.Valid:
-			state = "ignored (" + s.Problem + ")"
-		case s.Used:
-			state = "applied"
-		}
-		fmt.Fprintf(&b, "%s:%d: suppression %s %s: %s\n", s.Path, s.Line, s.Rule, state, s.Reason)
-	}
-	for _, name := range report.Uncertain {
-		fmt.Fprintf(&b, "%s: uncertain: the file did not lex or balance; findings may be incomplete\n", name)
-	}
-	cross := report.CrossVariant
-	if cross.Status == "PRODUCED" {
-		fmt.Fprintf(&b, "cross-variant: PRODUCED from %d run(s), projects %s, %d split test(s)\n", cross.Runs, strings.Join(cross.Projects, ","), len(cross.Splits))
-	} else {
-		fmt.Fprintf(&b, "cross-variant: NOT_PRODUCED (%s)\n", cross.Reason)
-	}
-	base := report.Base
-	if base == "" {
-		base = "none"
-	}
-	fmt.Fprintf(&b, "%d finding(s), %d suppressed, %d file(s), base %s, revision %s, %s\n",
-		len(report.Findings), len(report.Suppressed), len(report.Files), base, report.Revision, report.Scope)
-	if _, err := io.WriteString(out, b.String()); err != nil {
-		return testsRefuse(diagnostic, "tests-output-unavailable", "the output could not be written")
-	}
-	return status
-}
-
-func runTestsDuplicates(repo testsource.Repo, root string, args []string, out, diagnostic io.Writer) int {
-	gate, args, gateErr := splitGateAgreement(args)
-	f, once := testsFlags("tests duplicates")
-	options := testsource.DuplicatesOptions{Revision: "HEAD"}
-	threshold, cutoff := "0.5", "5"
-	once("ref", &options.Revision)
-	once("base", &options.Base)
-	once("gate", &options.Gate)
-	once("threshold", &threshold)
-	once("max-line-tests", &cutoff)
-	decisionFiles := []string{}
-	f.Func("decisions", "caller decision file", func(value string) error {
-		if len(decisionFiles) >= testsource.MaxDecisionFiles || strings.TrimSpace(value) == "" {
-			return errors.New("too many or empty")
-		}
-		decisionFiles = append(decisionFiles, value)
-		return nil
-	})
-	usage := "usage: corvint tests duplicates [--ref REV] [--base REV --gate TICKET] [--threshold F] [--max-line-tests N] [--decisions FILE ...] " + gateAgreementUsage
-	if err := f.Parse(args); gateErr != nil || err != nil || f.NArg() != 0 || strings.ContainsAny(options.Gate, "\x00\n\r") {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", usage)
-	}
-	for _, name := range decisionFiles {
-		data, err := readBoundedFile(name, testsource.MaxDecisionFileBytes)
-		if err != nil {
-			return testsRefuse(diagnostic, "tests-decisions-invalid", "the decision file "+strconv.Quote(name)+" is unreadable or larger than 1 MiB")
-		}
-		options.CallerDecisions = append(options.CallerDecisions, testsource.DecisionFile{Name: name, Data: data})
-	}
-	var err error
-	if options.Threshold, err = strconv.ParseFloat(threshold, 64); err != nil {
-		return testsRefuse(diagnostic, "tests-invalid-option", "--threshold must be a number in (0,1]")
-	}
-	if options.MaxLineTests, err = strconv.Atoi(cutoff); err != nil {
-		return testsRefuse(diagnostic, "tests-invalid-option", "--max-line-tests must be an integer in [2,100]")
-	}
-	report, err := testsource.Duplicates(repo, options)
-	if err != nil {
-		return testsFailure(diagnostic, err)
-	}
-	status := 0
-	if options.Gate != "" && report.UnresolvedCount > 0 {
-		status = 1
-	}
-	status = gate.finish(status)
-	if code := testsWrite(out, diagnostic, report); code != 0 {
-		return code
-	}
-	return status
-}
-
 // runTestsValidity prints the static test-validity findings of the named committed files
 // (TSA-V0-071) and the advisory seed parity of each --legacy link (TSA-V0-108). It exits 1 when a
 // finding refuses a test as proof; --advisory applies as on lint (GVA-V0-094).
-func runTestsValidity(repo testsource.Repo, root string, args []string, out, diagnostic io.Writer) int {
-	gate, args, gateErr := splitGateAgreement(args)
-	f, once := testsFlags("tests validity")
-	options := testsource.SourceValidityOptions{Revision: "HEAD"}
-	f.Func("files", "test file paths", func(value string) error {
-		for _, name := range strings.Split(value, ",") {
-			if strings.TrimSpace(name) != "" {
-				options.Files = append(options.Files, name)
-			}
-		}
-		return nil
-	})
-	f.Func("legacy", "NEW=LEGACY test link, each PATH:LINE", func(value string) error {
-		current, legacy, ok := strings.Cut(value, "=")
-		if !ok || current == "" || legacy == "" {
-			return fmt.Errorf("want NEW=LEGACY")
-		}
-		options.Links = append(options.Links, testsource.SeedLink{New: current, Legacy: legacy})
-		return nil
-	})
-	once("rev", &options.Revision)
-	once("profile", &options.Profile)
-	if err := f.Parse(args); gateErr != nil || err != nil || f.NArg() != 0 || len(options.Files) == 0 && len(options.Links) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--legacy NEW=LEGACY ...] [--rev REV] [--profile NAME] "+gateAgreementUsage)
-	}
-	report, err := testsource.SelectedSourceValidity(repo, options)
-	if err != nil {
-		return testsFailure(diagnostic, err)
-	}
-	status := 0
-	if report.Refused() {
-		status = 1
-	}
-	status = gate.finish(status)
-	if code := testsWrite(out, diagnostic, report); code != 0 {
-		return code
-	}
-	return status
-}
 
 // runTestsCitations prints the revision-pinned citation findings of the selected committed
 // documents (TSA-V0-255, TSA-V0-386). It exits 1 when a citation is not supported by the object

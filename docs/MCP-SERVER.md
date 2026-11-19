@@ -216,7 +216,7 @@ Corvint's agent guide, one command's catalog entry, or the full command catalog,
 - Input schema: `internal/mcp/bridge/help.go`
 - Input `command`: Command name whose catalog entry to return, with topic command.
 - Input `topic`: guide (the default), command or catalog.
-- Also served by: `corvint-docs mcp`, `corvint-test-validity-mcp`
+- Also served by: `corvint-docs mcp`
 - Output profile: `corvint-mcp-help/0`
 - Tool errors: `cancelled`, `server-busy`, `internal-error`
 - Parity test: `corvint TestMTTV1009HelpToolMatchesCLI`
@@ -611,28 +611,6 @@ Corpus vocabulary entries matching a term.
 - Output profile: `corvint-corpus-receipt/2`
 - Tool errors: `cancelled`, `server-busy`, `corpus-input-unavailable`, `corpus-refused`, `corpus-unavailable`, `deadline-exceeded`, `internal-error`, `corvint-envelope-terminator-collision`
 - Parity test: `corvint-docs TestCorpusTypedCLIMCPEndToEnd`
-
-## `corvint-test-validity-mcp`: retiring
-
-`corvint.test_validity` left `corvint mcp` with the G24 batch (owner decision M12). Until
-its removal batch takes the `corvint-test-validity-mcp` binary off the release list
-(MTT-V1-010), that binary is the only server that answers it.
-
-| Tool | Availability | Opt-in | Description | Same answer on the command line |
-|---|---|---|---|---|
-| `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
-| `corvint.test_validity` | deprecated | default | Five-axis projection of retained test evidence | none |
-
-### `corvint.test_validity`
-
-Five-axis projection of retained test evidence.
-
-- Input schema: `internal/mcp/testvaliditybridge/testvaliditybridge.go`
-- Input `discover`: Discover retained receipts instead of naming one.
-- Input `receipt`: Retained test receipt to project.
-- Output profile: `corvint-mcp-test-validity-result/0`
-- Tool errors: `cancelled`, `server-busy`, `internal-error`, `repository-unavailable`
-- Note: removed from corvint mcp with the G24 batch (M12); served only by the retiring corvint-test-validity-mcp binary until its removal batch (MTT-V1-010), so no CLI parity is claimed for it
 
 ## No MCP tool
 

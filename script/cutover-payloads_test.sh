@@ -15,12 +15,12 @@ fail() { printf 'cutover-payloads_test: FAIL %s\n' "$1" >&2; exit 1; }
 
 repo=$root/repo
 change=$repo/docs/specs/openspec/changes/tasks-store-cutover
-mkdir -p "$change" "$repo/internal/testplan"
+mkdir -p "$change" "$repo/internal/exampleplan"
 cp "$here/../docs/specs/ticket-vocabulary.json" "$repo/docs/specs/ticket-vocabulary.json"
 cp "$here/../docs/specs/openspec/changes/tasks-store-cutover/taxonomy-mapping.tsv" "$change/"
 printf 'id\tfile\n' > "$repo/docs/specs/REQUIREMENTS.tsv"
 printf 'PROD-TEST-001\tdocs/specs/PRODUCT-PLAN-1.0.md\n' >> "$repo/docs/specs/REQUIREMENTS.tsv"
-printf 'package testplan\n' > "$repo/internal/testplan/plan.go"
+printf 'package exampleplan\n' > "$repo/internal/exampleplan/plan.go"
 git -C "$repo" init -q
 git -C "$repo" add -A
 git -C "$repo" -c user.name=t -c user.email=t@example.invalid commit -q -m fixture
@@ -43,9 +43,9 @@ item() {
 }
 {
   item V1-0001 BUG 'affected: miss a renamed file' '["bugs"]' \
-    '["internal/testplan/plan.go","gone/old file.go"]' '["PROD-TEST-001","GONE-001"]' '["V1-0002"]'
-  item V1-0002 FEATURE 'Speed up planning' '["optimizations"]' '["internal/testplan/"]' '[]' '[]'
-  item V1-0003 MANUAL 'Accept the release' '[]' '["internal/testplan/"]' '[]' '["V1-0999"]'
+    '["internal/exampleplan/plan.go","gone/old file.go"]' '["PROD-TEST-001","GONE-001"]' '["V1-0002"]'
+  item V1-0002 FEATURE 'Speed up planning' '["optimizations"]' '["internal/exampleplan/"]' '[]' '[]'
+  item V1-0003 MANUAL 'Accept the release' '[]' '["internal/exampleplan/"]' '[]' '["V1-0999"]'
 } > "$root/dump.jsonl"
 
 rc=0
@@ -65,7 +65,7 @@ p1=$(jq -c 'select(.oldId == "V1-0001") | .payload' "$root/out/payloads.jsonl")
 test "$(printf '%s' "$p1" | jq -c '[.labels, .title, .milestone, .requirementRefs,
   .effects.touchPaths, (.dependencies | length)]')" = \
   '[["component:affected","type:bug"],"miss a renamed file","v1-0",["PROD-TEST-001"],'\
-'["internal/testplan/plan.go"],1]' || fail "V1-0001 payload: $p1"
+'["internal/exampleplan/plan.go"],1]' || fail "V1-0001 payload: $p1"
 p2=$(jq -c 'select(.oldId == "V1-0002") | .payload | [.labels, .kind]' "$root/out/payloads.jsonl")
 test "$p2" = '[["component:affected","type:optimization"],"CHORE"]' || fail "V1-0002: $p2"
 p3=$(jq -c 'select(.oldId == "V1-0003") | .payload | [.labels, .dependencies]' \

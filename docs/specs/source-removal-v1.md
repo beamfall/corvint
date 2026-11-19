@@ -1,5 +1,8 @@
 # Source removal V1
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Owner: Russell Lewis
 Date: 2026-11-10
 Intent status: proposed

@@ -4,17 +4,20 @@ Owner: Russell Lewis
 Date: 2026-09-12
 Requirement prefix: `MTV-V0`
 Intent status: accepted (decision 0147, 2026-09-12)
-Delivery status: experimental
-Health: KEEP
+Delivery status: retired
+Health: RETIRE
 Authoritative inputs: AGENTS.md invariants 2, 4, 7 and 8; `public-release-v0.md` `PUB-V0-006`;
 `live-proof-carrying-verification-v0.md` `LPCV-V0-047..054`; `mcp-server-2026-07-28-v0.md`
 `MCPV0-008`; `../decisions/0103-mcp-v0-stays-three-tools-2026-09-12.md`;
 `../decisions/0147-mcp-test-validity-descendant-profile-2026-09-12.md`;
 `../decisions/0202-retained-test-evidence-discovery-2026-09-13.md`.
 
+Retirement status: source-removal B2, RMV-V1-008/009 (owner, 2026-11-18).
+Shared projection constants and the provider flake rule remain under RMV-V1-009.
+
 ## Agent digest
 - Claim: A separate local stdio MCP tool projects repository-confined JavaScript receipts and completed Go preview-session events into the shared five-axis shape.
-- Status: accepted (decision 0147, 2026-09-12) / experimental
+- Status: accepted (decision 0147, 2026-09-12) / retired
 - Exists: `cmd/corvint-test-validity-mcp`, `internal/mcp/testvaliditybridge`, `internal/testvaliditydoc` (shared with `corvint test-validity`), `conformance/mcp-test-validity-v0`.
 - Blocked on: host qualification is not observed; opt-in producer retention is available under `LPCV-V0-055`; Go sessions remain preview-only and non-promotable; no qualified host run.
 - Read next: Requirements; Non-goals and failure modes.
@@ -101,7 +104,8 @@ freshness to the worktree's current digests, exactly as `corvint test-validity -
   `os/exec`. Only `internal/testvaliditydoc/read_unix.go` MAY import `syscall`, solely for
   `O_DIRECTORY`, `O_NOFOLLOW`, `O_NONBLOCK` and `O_CLOEXEC` file-open constants; it MUST NOT invoke
   syscall functions.
-- `MTV-V0-008`: `conformance/mcp-test-validity-v0/cases.json` MUST hold the profile's black-box
+- `MTV-V0-008`: Retired by source-removal B2; the former black-box corpus was removed.
+  Historically, `conformance/mcp-test-validity-v0/cases.json` held the profile's black-box
   vectors, each naming its requirement, and `blackbox_test.go` MUST run every vector against the
   built executable over stdio only, importing no Corvint package, and MUST fail when the repository
   tree changes across the run. A vector whose expected result the server no longer produces is a

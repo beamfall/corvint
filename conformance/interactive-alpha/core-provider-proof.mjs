@@ -6,7 +6,6 @@ import { coreBrowserExecutable, Child, run, cleanup, until, delay, sha, fileSHA,
 const [bin, source, root, attachment, output, mode] = process.argv.slice(2);
 for (const path of [bin, source, root, attachment, output]) assert(path?.startsWith('/'), 'core provider needs absolute paths');
 assert(['sessions', 'interrupt'].includes(mode), 'unknown core provider mode');
-const mcpPath = join(bin, 'corvint-test-validity-mcp');
 const evidence = async (name, raw) => writeFile(join(output, name + '.json'), raw, { flag: 'wx', mode: 0o600 });
 const fixtureSource = join(source, 'conformance/interactive-alpha/fixture');
 const configs = new Map();
@@ -78,7 +77,6 @@ async function sessions() {
     try {
       const initial = await until(async () => (await documents(c.dir))[0], child, 120000); assert(providerState(initial) === 'passed', 'initial provider did not pass');
       await evidence(prefix + '-initial-provider', initial.raw); await selected(c, child, prefix + '-initial-mcp', initial, 'passed');
-      if (kind === 'unit') for (const [method, name] of [['server/discover', 'test-validity-discover'], ['tools/list', 'test-validity-list']]) await evidence(name, (await mcp(mcpPath, c.dir, method, {})).raw);
       await writeFile(c.watched, c.broken); const pendingFailSha256 = await selected(c, child, prefix + '-pending-fail-mcp', initial, 'passed');
       const failed = await until(async () => (await documents(c.dir))[1], child, 90000); assert(providerState(failed) === 'failed', 'saved failing source did not fail');
       await evidence(prefix + '-fail-provider', failed.raw); await selected(c, child, prefix + '-fail-mcp', failed, 'failed');

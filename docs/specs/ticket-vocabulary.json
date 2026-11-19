@@ -19,7 +19,6 @@
       "product": "testing",
       "roots": [
         "cmd/corvint/affected.go",
-        "internal/testplan/",
         "internal/gateselect/",
         "internal/runnerselection/"
       ]

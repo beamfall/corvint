@@ -33,7 +33,6 @@ const (
 // planner, the gate and runner selection and the plan snapshot.
 var rvdSelectionPrefixes = []string{
 	"internal/liveverify/affected", //corvint:fixture-path
-	"internal/testplan",            //corvint:fixture-path
 	"internal/testsource",          //corvint:fixture-path
 	"internal/gateselect",          //corvint:fixture-path
 	"internal/runnerselection",     //corvint:fixture-path
@@ -89,15 +88,15 @@ func TestRVDV1011NoSelectionPackageReadsTheStore(t *testing.T) {
 	}
 
 	spy := t.TempDir()
-	planner := filepath.Join(spy, "internal", "testplan")
+	planner := filepath.Join(spy, "internal", "exampleplan")
 	if err := os.MkdirAll(planner, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	source := "package testplan\n\nimport flows \"" + m.Module + "/" + rvdAppflows + "\"\n\nfunc Plan() { _, _, _ = flows.RunEvidenceFor(nil, \"\", nil, false) }\n"
+	source := "package exampleplan\n\nimport flows \"" + m.Module + "/" + rvdAppflows + "\"\n\nfunc Plan() { _, _, _ = flows.RunEvidenceFor(nil, \"\", nil, false) }\n"
 	if err := os.WriteFile(filepath.Join(planner, "plan.go"), []byte(source), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := rvdStoreReferences(spy, "internal/testplan", m.Module); err != nil || !slices.Equal(got, []string{"plan.go Plan appflows.RunEvidenceFor"}) {
+	if got, err := rvdStoreReferences(spy, "internal/exampleplan", m.Module); err != nil || !slices.Equal(got, []string{"plan.go Plan appflows.RunEvidenceFor"}) {
 		t.Errorf("SPY_INEFFECTIVE a planner calling the store reader: got %q %v", got, err)
 	}
 }

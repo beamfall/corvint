@@ -46,7 +46,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "111ef4f75d2230eddea291a399a0423bdc91f3b00e0bcd156feb0ee556db1b74"
+    "sha256": "cfd5132d952970d4ce98ec69f1d578804360af830cadd938d6eb363231763710"
   },
   "commands": [
     {
@@ -772,146 +772,6 @@
       ]
     },
     {
-      "name": "test-validity",
-      "helpTopic": "corvint help test-validity",
-      "purpose": "project a live-test receipt",
-      "maturity": "experimental",
-      "owningSpec": "MTV-V0",
-      "freezeContract": null,
-      "operations": [
-        "negate"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "test-validity negate": [
-          "--provider",
-          "--spec",
-          "--test"
-        ]
-      },
-      "flags": [
-        "--all-steps",
-        "--baseline-repeat",
-        "--discover",
-        "--keep-reporters",
-        "--max-runs",
-        "--producer",
-        "--project",
-        "--provider",
-        "--receipt",
-        "--route-stubs",
-        "--spec",
-        "--static",
-        "--step",
-        "--test"
-      ],
-      "schemaIds": [
-        "corvint-step-negation/0",
-        "corvint-test-validity/0"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        1,
-        2
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "No axis is a pass/fail summary, and a PASSED execution axis states no strength: strength stays NOT_MEASURED until a mutation run supplies a witness.",
-        "The command runs no test and never writes.",
-        "It reads Git objects only and writes nothing.",
-        "negate is the only mode that runs tests or writes."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "test-plan",
-      "helpTopic": "corvint help test-plan",
-      "purpose": "test consolidation plan",
-      "maturity": "experimental",
-      "owningSpec": "TCN-V0",
-      "freezeContract": null,
-      "operations": [
-        "check",
-        "consolidate",
-        "page-state",
-        "prefixes"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "test-plan check": [
-          "--input",
-          "--plan"
-        ],
-        "test-plan consolidate": [
-          "--input"
-        ]
-      },
-      "flags": [
-        "--baseline",
-        "--budget",
-        "--check",
-        "--facts",
-        "--format",
-        "--full",
-        "--input",
-        "--ledger",
-        "--map",
-        "--max-steps",
-        "--plan",
-        "--revision",
-        "--tests"
-      ],
-      "schemaIds": [
-        "application-edge-ledger/0",
-        "test-consolidation-input/0",
-        "test-prefix-facts/0"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        0,
-        1
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "The command reads only its named files and Git, runs no test and never writes.",
-        "--facts (test-prefix-facts/0) declares read-only, mutating and assertion-target edges per spec; undeclared effects abstain.",
-        "A step the map classifies from page-object source is read-only only when navigation-only and fresh; state-effect and unknown steps abstain and the sidecar cannot upgrade them.",
-        "Learned, read-only, offline.",
-        "Read-only, offline."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
       "name": "review",
       "helpTopic": "corvint help review",
       "purpose": "change review: affected plan and branch overlap",
@@ -1049,113 +909,6 @@
       ]
     },
     {
-      "name": "runs",
-      "helpTopic": "corvint help runs",
-      "purpose": "Playwright verdicts",
-      "maturity": "experimental",
-      "owningSpec": "PWR-V0",
-      "freezeContract": null,
-      "operations": [
-        "baseline",
-        "compare",
-        "redundancy",
-        "response-wait",
-        "reusable",
-        "server-errors",
-        "stability"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "runs compare": [
-          "--baseline",
-          "--candidate"
-        ],
-        "runs redundancy": [
-          "--runs"
-        ],
-        "runs response-wait": [
-          "--log",
-          "--timeout-ms",
-          "--url-contains",
-          "--wait-start"
-        ],
-        "runs reusable": [
-          "--selection"
-        ],
-        "runs server-errors": [
-          "--runs",
-          "--server-log"
-        ],
-        "runs stability": [
-          "--runs"
-        ]
-      },
-      "flags": [
-        "--allow-unobserved",
-        "--base",
-        "--baseline",
-        "--candidate",
-        "--full",
-        "--identity",
-        "--identity-sidecars",
-        "--isolated",
-        "--last",
-        "--list",
-        "--log",
-        "--max-age",
-        "--method",
-        "--min-runs",
-        "--own",
-        "--pool-by",
-        "--prior",
-        "--repeat-each",
-        "--requests",
-        "--rev",
-        "--runs",
-        "--selection",
-        "--server-log",
-        "--since",
-        "--summary",
-        "--support-path",
-        "--timeout-ms",
-        "--url-contains",
-        "--wait-start",
-        "--window",
-        "--window-ms"
-      ],
-      "schemaIds": [
-        "corvint-run-baseline/0",
-        "corvint-run-identity-sidecar/0",
-        "corvint-test-closure/0",
-        "server-error-log/0"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        0,
-        1
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Reads only the named regular files (relative to --root when given; at most 64 per option, 64 MiB each; a baseline 16 MiB) and, for baseline, bounded Git reads of the repository at --root; writes nothing and uses no network."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
       "name": "test",
       "helpTopic": "corvint help test",
       "purpose": "affected tests",
@@ -1274,15 +1027,12 @@
       "freezeContract": null,
       "operations": [
         "citations",
-        "duplicates",
         "env",
         "example-join",
-        "lint",
         "role-locators",
         "setup-select",
         "teardown",
-        "unselected",
-        "validity"
+        "unselected"
       ],
       "nestedOperations": {},
       "requiredFlags": {
@@ -1301,62 +1051,42 @@
         "tests teardown": [
           "--declaration",
           "--files"
-        ],
-        "tests validity": [
-          "--files"
         ]
       },
       "flags": [
-        "--advisory",
-        "--all-lines",
         "--base",
-        "--decisions",
         "--declaration",
         "--docs",
         "--files",
         "--format",
-        "--gate",
         "--glob",
-        "--json",
-        "--legacy",
         "--manifest",
         "--marker",
-        "--max-line-tests",
         "--pattern",
         "--profile",
         "--receipt",
-        "--ref",
         "--repository",
         "--requirements",
         "--rev",
-        "--runs",
         "--select",
         "--specs",
-        "--syntax",
-        "--threshold"
+        "--syntax"
       ],
       "schemaIds": [
         "corvint-example-join/0",
-        "corvint-flag-lookups/0",
-        "corvint-seed-rules/0",
         "corvint-side-effect-declaration/0",
         "corvint-source-citations/1",
-        "corvint-test-duplicate-decisions/0",
-        "corvint-test-file-selection/0",
-        "corvint-test-source-validity/0"
+        "corvint-test-file-selection/0"
       ],
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [
-        0,
-        1,
-        2
+        1
       ],
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "name, or any JS/TS file under a Jest __tests__ directory): ISOLATED-IN-SERIAL, JS-SKIPPED, JS-TODO, JS-FOCUSED and the advisory JS-EACH-ROW-BINDING, JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED, JS-BOUNDARY-MOCKED, JS-ASSERTION-NOT-AWAITED and WRITE-RESPONSE-UNASSERTED (WRITE-RESPONSE-UNRESOLVED when the waited method is unknown); with a committed .corvint/seed-rules.json (corvint-seed-rules/0) also the advisory SEED-VALIDATION-REJECTED, SEED-SIBLING-COLLISION, SEED-HOOK-BLAST-RADIUS and SEED-VALIDATION-UNRESOLVED.",
-        "A _spec.rb example also abstains with RB-ASSERT-TARGET-NEVER-WRITTEN when it asserts a plain attr_accessor of an object it builds that nothing it exercises writes, read from the committed app/, lib/ and db/schema.rb.",
+        "Shared source-reader finding vocabulary (retained library rules): ASSERTED-VALUE-NOT-FROM-SUBJECT, ASSERTION-PARITY-NEW-WITHOUT-ORIGIN, ASSERTION-PARITY-NOT-ANALYSED, ASSERTION-PARITY-UNMATCHED-LEGACY, ASSERTION-PARITY-WEAKENED, BLOCK-NOT-CALLED, CLEANUP-HANDLE-OUTLIVED, DESCRIBED-CLASS-STUBBED, EITHER-OR-OUTCOME, ENV-HARD-CODED-ADDRESS, ENV-HARD-CODED-OFFSET, ISOLATED-IN-SERIAL, JS-ASSERTION-NOT-AWAITED, JS-BOUNDARY-MOCKED, JS-CONSTANT-EXPECTATION, JS-EACH-ROW-BINDING, JS-FOCUSED, JS-NO-ASSERTION, JS-SKIPPED, JS-SUBJECT-MOCKED, JS-TODO, MEMOIZED-BLOCK-EXPECTATION, RB-ASSERT-TARGET-NEVER-WRITTEN, RB-ASSIGNMENT-IN-PREDICATE, RB-BLOCK-NEVER-YIELDED, RB-CHANGE-ON-IDENTITY, RB-DENIAL-MATCHER-CUSTOM, RB-DENIAL-VERB-UNRESOLVED, RB-DENIAL-WITHOUT-NO-EFFECT, RB-FLAG-CONDITIONAL, RB-FLAG-FORCED-NON-DEFAULT, RB-HELPER-AMBIGUOUS, RB-HELPER-UNRESOLVED, RB-MESSAGE-CHAIN-PREFIX-ONLY, RB-RAISE-ERROR-ONLY, RB-STUB-DECIDES-ASSERTION, ROLE-LOCATOR-UNRENDERED, RSPEC-CONDITIONAL-SKIP, RSPEC-CONFIG-EXCLUDED, RSPEC-FOCUSED, RSPEC-SKIPPED, SEED-AGGREGATE-SINGLE-MEMBER, SEED-HOOK-BLAST-RADIUS, SEED-PARITY-DIVERGES, SEED-PARITY-NOT-ANALYSED, SEED-PARITY-UNCERTAIN, SEED-SIBLING-COLLISION, SEED-VALIDATION-REJECTED, SEED-VALIDATION-UNRESOLVED, SHARED-EXAMPLE-ONLY, STUB-NEVER-INVOKED, STUB-ON-PATH, TEARDOWN-DEPENDENT-LEFTOVER, TEST-FILE-UNSELECTED, UNSTUBBED-OUTBOUND-INPUT, VACUOUS-EMPTY-EQUALITY, WRITE-RESPONSE-UNASSERTED, WRITE-RESPONSE-UNRESOLVED.",
         "Reads committed Git content and the named receipts only; writes nothing and uses no network."
       ],
       "unknowns": [
@@ -1710,11 +1440,8 @@
       "index",
       "docs",
       "test-evidence",
-      "test-validity",
-      "test-plan",
       "review",
       "flows",
-      "runs",
       "test",
       "tests",
       "watch",
@@ -1744,8 +1471,7 @@
     "schema": "corvint-profile-knobs/0",
     "scope": "every command dispatched by the corvint binary, and every listed MCP server, one profile per process",
     "servers": [
-      "corvint-docs-mcp",
-      "corvint-test-validity-mcp"
+      "corvint-docs-mcp"
     ],
     "written": "on process exit, and on SIGINT or SIGTERM"
   },
@@ -1889,11 +1615,6 @@
       "binary": "corvint-test-runner",
       "command": "corvint-cli --binary corvint-test-runner help --json",
       "snapshot": "internal/capcatalog/trees/corvint-test-runner.json"
-    },
-    {
-      "binary": "corvint-test-validity-mcp",
-      "command": "corvint-test-validity-mcp help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-test-validity-mcp.json"
     },
     {
       "binary": "corvint-update",
@@ -3170,8 +2891,7 @@
       "name": "corvint.help",
       "server": "corvint mcp",
       "alsoOn": [
-        "corvint-docs mcp",
-        "corvint-test-validity-mcp"
+        "corvint-docs mcp"
       ],
       "availability": "experimental",
       "summary": "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on every server",
@@ -3292,31 +3012,6 @@
       ],
       "cliEquivalent": "corvint test-evidence",
       "parityTest": "corvint TestMTTV1009TestEvidenceToolMatchesCLI"
-    },
-    {
-      "name": "corvint.test_validity",
-      "server": "corvint-test-validity-mcp",
-      "availability": "deprecated",
-      "summary": "Five-axis projection of retained test evidence",
-      "inputSchema": "internal/mcp/testvaliditybridge/testvaliditybridge.go",
-      "inputs": [
-        {
-          "name": "discover",
-          "description": "Discover retained receipts instead of naming one."
-        },
-        {
-          "name": "receipt",
-          "description": "Retained test receipt to project."
-        }
-      ],
-      "outputProfile": "corvint-mcp-test-validity-result/0",
-      "errors": [
-        "cancelled",
-        "server-busy",
-        "internal-error",
-        "repository-unavailable"
-      ],
-      "note": "removed from corvint mcp with the G24 batch (M12); served only by the retiring corvint-test-validity-mcp binary until its removal batch (MTT-V1-010), so no CLI parity is claimed for it"
     }
   ]
 }

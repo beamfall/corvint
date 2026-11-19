@@ -127,7 +127,6 @@ func Render(rows []capcatalog.MCPTool) []byte {
 	for _, server := range []struct{ name, title, intro string }{
 		{capcatalog.ServerCore, "`corvint mcp`: testing and flow reports", coreIntro},
 		{capcatalog.ServerDocs, "`corvint-docs mcp`: documentation", docsIntro},
-		{capcatalog.ServerTestValidity, "`corvint-test-validity-mcp`: retiring", testValidityIntro},
 	} {
 		fmt.Fprintf(&out, "\n## %s\n\n%s\n", server.title, server.intro)
 		var served []capcatalog.MCPTool
@@ -308,10 +307,6 @@ be opened, each corpus call answers the tool error ` + "`corpus-refused`" + ` na
 and consume tools run the ` + "`corvint-docs`" + ` executable's ` + "`docs-tool`" + ` verb. The deprecated
 ` + "`corvint-docs-mcp`" + ` binary still serves ` + "`corvint.help`" + `, ` + "`corvint.docs_draft`" + ` and
 ` + "`corvint.docs_consume`" + ` until its removal is decided.`
-
-const testValidityIntro = `` + "`corvint.test_validity`" + ` left ` + "`corvint mcp`" + ` with the G24 batch (owner decision M12). Until
-its removal batch takes the ` + "`corvint-test-validity-mcp`" + ` binary off the release list
-(MTT-V1-010), that binary is the only server that answers it.`
 
 const footer = `
 ## Limits and lifecycle

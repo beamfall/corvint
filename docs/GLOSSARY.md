@@ -77,11 +77,11 @@ dashboard spec cites it.
 | Surface | Values | Casing | Citation |
 |---|---|---|---|
 | Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go` lines 40-46 at 4663b4e2; `docs/specs/local-observability-dashboard-v0.md:85@4b5e015c` |
-| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE`, `CORVINT_BINARY` (`corvint.help` only, `MCPV0-100`) | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:638@982aa756`; `docs/specs/mcp-server-2026-07-28-v0.md:262@f4047e06` |
+| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE`, `CORVINT_BINARY` (`corvint.help` only, `MCPV0-100`) | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:638@982aa756`; `docs/specs/mcp-server-2026-07-28-v0.md:265@f4047e06` |
 | Change Frontier item | `NONE`, `PRODUCER_DECLARED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/change-frontier-v0.md:245@1e1231f8` |
 | Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `docs/lrf-0.schema.json:65,69@4aafd5d4`; `docs/specs/lexical-relevance-floor-v0.md:273,275@1875648f` |
 | Verification Planner/Observer | `CORVINT_PROCESS_OBSERVED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/verification-planner-observer-v0.md:391,287@8b000654` |
-| Test Claim Qualification | `CALLER_REPORTED` (schema `const`) | SCREAMING_SNAKE | `docs/tcq-0.schema.json:125@49b495d9`; `docs/specs/test-claim-qualification-v0.md:44@1e6cb0de` |
+| Test Claim Qualification | `CALLER_REPORTED` (schema `const`) | SCREAMING_SNAKE | `docs/tcq-0.schema.json:125@49b495d9`; `docs/specs/test-claim-qualification-v0.md:47@1e6cb0de` |
 
 `REPOSITORY_EVIDENCE` and `GIT_REPOSITORY` appear in no other set.
 `PRODUCER_DECLARED` is absent from the dashboard lattice. `CORVINT_PROCESS_OBSERVED` is absent from
@@ -127,8 +127,8 @@ cross-profile definition and the following table is the mapping between the fiel
 |---|---|---|---|
 | MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:636@e32959ff`; `docs/MCP-SERVER.md:73@84842141` |
 | LRF edge tuple | `outcome` | `cem-lexical-v0` / `lexically-proximate-candidate`, `rejected`, `abstained` | `docs/specs/lexical-relevance-floor-v0.md:273,276@dc369243`; the deleted lrf/0 evaluator (V1-2665) |
-| TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:136@b607a27b` |
-| TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:137@902d0f8a` |
+| TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:139@b607a27b` |
+| TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:140@902d0f8a` |
 
 LRF is the only surface that distinguishes **abstained** from **rejected**, and the distinction is
 normative for the whole vocabulary: `abstained` means the inputs could not be evaluated and the
@@ -203,7 +203,7 @@ closing authority exists, `stop` returns `frontier.state: UNAVAILABLE` with
 **Normative definition.** Integrity-bound caller input without an independent execution authority
 root (`docs/specs/change-frontier-v0.md:72@7d410827`). It is evidence for review and is mechanically
 non-closing: it cannot remove a frontier item
-(`docs/specs/test-claim-qualification-v0.md:44@1e6cb0de`; `docs/TEST-CLAIM-QUALIFICATION.md:16@65656d2d`).
+(`docs/specs/test-claim-qualification-v0.md:47@1e6cb0de`; `docs/TEST-CLAIM-QUALIFICATION.md:16@65656d2d`).
 
 **Declared variants.** `internal/dashboard/model/types.go` line 44 at 4663b4e2;
 `docs/specs/change-frontier-v0.md:245@1e1231f8`; `docs/tcq-0.schema.json:125@49b495d9`;

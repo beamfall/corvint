@@ -432,12 +432,6 @@
       ]
     },
     {
-      "paths": "conformance/mcp-test-validity-v0/cases.json",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "conformance/perf-v0/**",
       "tests": [
         "conformance/perf-v0/"
@@ -866,12 +860,6 @@
       ]
     },
     {
-      "paths": "internal/playwrightruns/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/pythonsyntax/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -915,12 +903,6 @@
     },
     {
       "paths": "internal/testid/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/testplan/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
       ]

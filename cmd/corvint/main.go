@@ -554,7 +554,7 @@ var (
 	// adds are appended in the order rootHelp documents them.
 	topLevelCommands = []string{"init", "adopt", "impact", "cem", "context",
 		"instructions", "affected", "index", "docs",
-		"test-evidence", "test-validity", "test-plan", "review", "flows", "runs", "test", "tests", "watch", "inventory", "mcp", "how"}
+		"test-evidence", "review", "flows", "test", "tests", "watch", "inventory", "mcp", "how"}
 )
 
 func emit(stream io.Writer, value any) error {
@@ -667,9 +667,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 				return 2
 			}
 			return runAffected(ctx, root, stdout, stderr)
-		}
-		if root, rest, requested := runsInvocation(arguments); requested {
-			return runRuns(ctx, root, rest, stdout, stderr)
 		}
 		if root, rest, requested := testInvocation(arguments); requested {
 			return runTest(ctx, root, rest, stdout, stderr)

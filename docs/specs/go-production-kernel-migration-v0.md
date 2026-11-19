@@ -1,5 +1,8 @@
 # Go production kernel migration V0
 
+Retirement status: source-removal B2 retires the test-quality command witnesses named below.
+Their historical requirements remain; shared receipt readers and provider contracts are kept.
+
 Health: KEEP
 
 - Owner: Russell Lewis

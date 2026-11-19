@@ -28,9 +28,9 @@ func TestCAPV0047RepositoryCommandTreesMatchDispatch(t *testing.T) {
 		nodes[tree.Binary] = len(tree.Nodes)
 	}
 	// corvint lost the docs subtree to corvint-docs (decision 0594 item 3), then the flows and how
-	// nodes it forwards (decision 0595): 66 and 97 nodes when the floors were set.
-	for binary, least := range map[string]int{"corvint": 60, "corvint-docs": 90} {
-		if nodes[binary] < least {
+	// nodes it forwards (decision 0595); B2 leaves exactly 50 core nodes.
+	for binary, least := range map[string]int{"corvint": 50, "corvint-docs": 90} {
+		if nodes[binary] < least || (binary == "corvint" && nodes[binary] != least) {
 			t.Errorf("%s tree has %d nodes, want at least %d", binary, nodes[binary], least)
 		}
 	}

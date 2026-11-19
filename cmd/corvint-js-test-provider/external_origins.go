@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/pinnedread"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc/externalorigins"
 )
 
@@ -95,5 +95,5 @@ func readBoundedInput(path string, limit int64) ([]byte, error) {
 		return nil, err
 	}
 	defer root.Close()
-	return testvaliditydoc.ReadFileBounded(root, filepath.Base(absolute), limit)
+	return pinnedread.ReadFileBounded(root, filepath.Base(absolute), limit)
 }

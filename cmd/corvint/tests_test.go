@@ -53,7 +53,7 @@ func TestTestsCLI(t *testing.T) {
 	}
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")
-	base := testsCommit(t, root, map[string]string{
+	testsCommit(t, root, map[string]string{
 		"setup/users.seed.ts":  "export const users = ['ada'];\n",
 		"setup/other.setup.ts": "export const other = 1;\n",
 		"e2e/cart.spec.ts":     testsCartSpec,
@@ -77,224 +77,16 @@ func TestTestsCLI(t *testing.T) {
 		t.Fatalf("setup-select lines ALL: code=%d out=%q", code, out)
 	}
 
-	if code, out, _ := runCLI(t, "--root", root, "tests", "lint", "--base", head); code != 0 || !strings.Contains(out, "0 finding(s)") {
-		t.Fatalf("lint clean: code=%d out=%q", code, out)
-	}
-	code, out, _ = runCLI(t, "--root", root, "tests", "lint", "--base", base)
-	if code != 1 || !strings.Contains(out, "e2e/basket.spec.ts:7: fixed-wait:") || !strings.Contains(out, "e2e/basket.spec.ts:6: no-assertion:") {
-		t.Fatalf("lint findings: code=%d out=%q", code, out)
-	}
-	code, first, _ := runCLI(t, "--root", root, "tests", "lint", "--base", base, "--json")
-	_, second, _ := runCLI(t, "--root", root, "tests", "lint", "--base", base, "--json")
-	if code != 1 || first != second || !strings.Contains(first, `"schema": "corvint-tests-lint/0"`) {
-		t.Fatalf("lint json: code=%d deterministic=%v", code, first == second)
-	}
-	// --all-lines needs no base (TSA-V0-650).
-	if code, out, _ := runCLI(t, "--root", root, "tests", "lint", "--all-lines"); code != 1 || !strings.Contains(out, "base none") ||
-		!strings.Contains(out, "e2e/basket.spec.ts:7: fixed-wait:") {
-		t.Fatalf("lint --all-lines without --base: code=%d out=%q", code, out)
-	}
-	for _, args := range [][]string{{"tests", "lint"}, {"tests", "lint", "--base", "no-such-rev"}, {"tests", "nope"}, {"tests"}} {
-		if code, out, errb := runCLI(t, append([]string{"--root", root}, args...)...); code != 2 || out != "" || !strings.Contains(errb, `"ok":false`) {
+	for _, args := range [][]string{{"tests", "nope"}, {"tests"}} {
+		code, out, errb := runCLI(t, append([]string{"--root", root}, args...)...)
+		if code != 2 || out != "" || !strings.Contains(errb, `"ok":false`) {
 			t.Fatalf("%v: code=%d out=%q err=%q", args, code, out, errb)
 		}
 	}
 
-	code, out, _ = runCLI(t, "--root", root, "tests", "duplicates", "--max-line-tests", "2")
-	if code != 0 || !strings.Contains(out, "not verdicts") || !strings.Contains(out, `"e2e/basket.spec.ts :: basket gains"`) {
-		t.Fatalf("duplicates report: code=%d out=%s", code, out)
-	}
-	if code, _, _ := runCLI(t, "--root", root, "tests", "duplicates", "--max-line-tests", "2", "--base", base, "--gate", "V1-1592"); code != 1 {
-		t.Fatalf("duplicates gate with an unresolved pair: code=%d", code)
-	}
-	if code, _, _ := runCLI(t, "--root", root, "tests", "duplicates", "--max-line-tests", "2", "--base", head, "--gate", "V1-1592"); code != 0 {
-		t.Fatalf("duplicates gate with no changed test: code=%d", code)
-	}
-	if code, _, errb := runCLI(t, "--root", root, "tests", "duplicates", "--threshold", "2"); code != 2 || !strings.Contains(errb, "tests-invalid-option") {
-		t.Fatalf("bad threshold: code=%d err=%q", code, errb)
-	}
 }
 
-// testsRunReport is a minimal Playwright JSON report declaring the test revision and root, with
-// e2e/name.spec.ts :: "shows the name" passing in desktop and failing in mobile.
-func testsRunReport(t *testing.T, path, revision string) {
-	t.Helper()
-	test := func(project, status, result string) map[string]any {
-		return map[string]any{"projectName": project, "expectedStatus": "passed", "status": status, "annotations": []any{},
-			"results": []any{map[string]any{"workerIndex": 0, "status": result, "duration": 5, "retry": 0, "errors": []any{}}}}
-	}
-	doc := map[string]any{
-		"config": map[string]any{"version": "1.61.1", "rootDir": "/work/e2e", "workers": 1,
-			"metadata": map[string]any{"corvintRunIdentity": map[string]any{"testRevision": revision, "testRootPath": "e2e"}},
-			"projects": []any{map[string]any{"name": "desktop"}, map[string]any{"name": "mobile"}}},
-		"suites": []any{map[string]any{"title": "name.spec.ts", "file": "name.spec.ts", "suites": []any{}, "specs": []any{
-			map[string]any{"title": "shows the name", "file": "name.spec.ts", "line": 1, "column": 1, "tests": []any{
-				test("desktop", "expected", "passed"), test("mobile", "unexpected", "failed")}}}}},
-		"errors": []any{}, "stats": map[string]any{},
-	}
-	raw, err := json.Marshal(doc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, raw, 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// TestTestsLintAdvisoryCLI proves the advisory rules print labelled findings without changing the
-// exit status, --runs joins a report at the linted revision into a PRODUCED cross-variant line,
-// its absence is NOT_PRODUCED, and an unreadable report is refused (TSA-V0-031, TSA-V0-032).
-func TestTestsLintAdvisoryCLI(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	cemGit(t, root, "init", "-q")
-	base := testsCommit(t, root, map[string]string{"src/app.ts": "export const x = 1;\n"})
-	head := testsCommit(t, root, map[string]string{"e2e/name.spec.ts": `test('shows the name', async ({ page }) => {
-  expect(await page.getByTestId('rows').count()).toBe(2);
-  await expect(page.getByText('Ada Lovelace', { exact: true })).toBeVisible();
-  expect(await nameShown(page)).toBe(true);
-});
-`})
-	code, out, errb := runCLI(t, "--root", root, "tests", "lint", "--base", base)
-	if code != 0 || !strings.Contains(out, "one-shot-ui-state-assertion (advisory)") ||
-		!strings.Contains(out, "one-shot-ui-state-assertion (advisory, UNKNOWN)") || !strings.Contains(out, "cross-variant: NOT_PRODUCED (no-run-evidence)") {
-		t.Fatalf("lint without runs: code=%d out=%q err=%q", code, out, errb)
-	}
-	report := filepath.Join(t.TempDir(), "report.json")
-	testsRunReport(t, report, head)
-	code, out, errb = runCLI(t, "--root", root, "tests", "lint", "--base", base, "--runs", report)
-	if code != 0 || !strings.Contains(out, "exact-text-cross-variant (advisory)") ||
-		!strings.Contains(out, "cross-variant: PRODUCED from 1 run(s), projects desktop,mobile, 1 split test(s)") {
-		t.Fatalf("lint with runs: code=%d out=%q err=%q", code, out, errb)
-	}
-	code, out, _ = runCLI(t, "--root", root, "tests", "lint", "--base", base, "--runs", report, "--json")
-	if code != 0 || !strings.Contains(out, `"exactText": true`) || !strings.Contains(out, `"advisory": true`) {
-		t.Fatalf("lint json with runs: code=%d out=%s", code, out)
-	}
-	code, out, errb = runCLI(t, "--root", root, "tests", "lint", "--base", base, "--runs", filepath.Join(root, "absent.json"))
-	if code != 2 || out != "" || !strings.Contains(errb, "tests-source-unavailable") {
-		t.Fatalf("lint with an unreadable report: code=%d out=%q err=%q", code, out, errb)
-	}
-}
-
-const testsSerialSpec = `test.describe('alpha', () => {
-  test.describe.configure({ mode: 'serial' });
-  test('alpha-01 existing', async () => { expect(1).toBe(1); });
-  test('alpha-02 new row', { tag: '@isolated' }, async () => { expect(2).toBe(2); });
-});
-`
-
-const testsMemoizedSpec = `RSpec.describe Widget do
-  subject(:widget) { create(:widget) }
-  before { widget }
-  it 'creates a widget' do
-    expect { widget }.to change(Widget, :count)
-  end
-end
-`
-
-// TestTestsValidityCLI: `corvint tests validity` reports the ISOLATED-IN-SERIAL and
-// MEMOIZED-BLOCK-EXPECTATION findings of the named committed files and refuses an example with an
-// invalid finding as proof (exit 1, hygiene INELIGIBLE); a JS/TS file lists every example with
-// its strength; advisory-only files exit 0; bad arguments refuse with exit 2 (TSA-V0-071,
-// TSA-V0-081, V1-1787).
-func TestTestsValidityCLI(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	cemGit(t, root, "init", "-q")
-	head := testsCommit(t, root, map[string]string{"e2e/alpha.spec.ts": testsSerialSpec, "spec/widget_spec.rb": testsMemoizedSpec})
-	code, out, errb := runCLI(t, "--root", root, "tests", "validity", "--files", "e2e/alpha.spec.ts,spec/widget_spec.rb")
-	var report struct {
-		Schema, Revision string
-		Files            []struct {
-			Path     string
-			Findings []struct{ Rule, Severity, Test string }
-		}
-		Tests []struct {
-			Test     string
-			Hygiene  struct{ State, Reason string }
-			Strength *struct{ State, Reason string }
-		}
-	}
-	if code != 1 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != "corvint-test-source-validity/0" || report.Revision != head || len(report.Files) != 2 {
-		t.Fatalf("validity: code=%d out=%s err=%s", code, out, errb)
-	}
-	if f := report.Files[0].Findings; len(f) != 3 || f[0].Rule != "ISOLATED-IN-SERIAL" || f[0].Severity != "advisory" || f[1].Rule != "JS-CONSTANT-EXPECTATION" || f[2].Rule != "JS-CONSTANT-EXPECTATION" {
-		t.Errorf("serial findings %+v", f)
-	}
-	if f := report.Files[1].Findings; len(f) != 1 || f[0].Rule != "MEMOIZED-BLOCK-EXPECTATION" || f[0].Test != "spec/widget_spec.rb:4" {
-		t.Errorf("memoized findings %+v", f)
-	}
-	// One entry per JS example in line order, each with a NOT_MEASURED strength (TSA-V0-081).
-	if len(report.Tests) != 3 || report.Tests[0].Test != "e2e/alpha.spec.ts:3" || report.Tests[1].Test != "e2e/alpha.spec.ts:4" ||
-		report.Tests[0].Hygiene.State != "ELIGIBLE" || report.Tests[1].Hygiene.State != "ELIGIBLE" ||
-		report.Tests[1].Strength == nil || report.Tests[1].Strength.State != "NOT_MEASURED" || report.Tests[1].Strength.Reason != "constant-expectations-only" ||
-		report.Tests[2].Strength != nil || report.Tests[2].Hygiene.State != "INELIGIBLE" || report.Tests[2].Hygiene.Reason != "memoized-block-expectation" {
-		t.Errorf("tests %+v", report.Tests)
-	}
-	if code, _, errb := runCLI(t, "--root", root, "tests", "validity", "--files", "e2e/alpha.spec.ts", "--rev", head); code != 0 {
-		t.Errorf("advisory only: code=%d err=%s", code, errb)
-	}
-	for _, args := range [][]string{{}, {"--files", "../x_spec.rb"}, {"--files", "spec/absent_spec.rb"}, {"--files", "a_spec.rb", "extra"}} {
-		if code, out, _ := runCLI(t, append([]string{"--root", root, "tests", "validity"}, args...)...); code != 2 || out != "" {
-			t.Errorf("%v: code=%d out=%q", args, code, out)
-		}
-	}
-	if code, out, _ := runCLI(t, "tests", "--help"); code != 0 || !strings.Contains(out, "tests validity --files") {
-		t.Errorf("help: code=%d", code)
-	}
-}
-
-// TestTSAV0108SeedParityCLI: --legacy NEW=LEGACY (repeatable) adds the advisory seedParity member
-// without --files and never changes the exit code; a malformed link refuses with exit 2
-// (TSA-V0-100, TSA-V0-108).
-func TestTSAV0108SeedParityCLI(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	cemGit(t, root, "init", "-q")
-	testsCommit(t, root, map[string]string{
-		"spec/legacy_spec.rb": "RSpec.describe A do\n  it 'a' do\n    create_list(:item, 2)\n    expect(Item.count).to eq(2)\n  end\nend\n",
-		"spec/new_spec.rb":    "RSpec.describe A do\n  it 'a' do\n    create(:item)\n    expect(Item.count).to eq(1)\n  end\nend\n",
-		"spec/skip_spec.rb":   "RSpec.describe A do\n  xit 'a' do\n    create_list(:item, 2)\n  end\nend\n",
-	})
-	code, out, errb := runCLI(t, "--root", root, "tests", "validity", "--legacy", "spec/new_spec.rb:2=spec/legacy_spec.rb:2",
-		"--legacy", "spec/new_spec.rb:2=spec/new_spec.rb:2")
-	var report struct {
-		Files      []json.RawMessage
-		SeedParity []struct {
-			New, Legacy, Status string
-			Findings            []struct{ Rule, Severity, Location, Cause, Message string }
-		}
-	}
-	if code != 0 || json.Unmarshal([]byte(out), &report) != nil || len(report.Files) != 0 || len(report.SeedParity) != 2 {
-		t.Fatalf("seed parity: code=%d out=%s err=%s", code, out, errb)
-	}
-	p := report.SeedParity[0]
-	if p.New != "spec/new_spec.rb:2" || p.Legacy != "spec/legacy_spec.rb:2" || p.Status != "diverges" || len(p.Findings) != 1 ||
-		p.Findings[0].Rule != "SEED-PARITY-DIVERGES" || p.Findings[0].Severity != "advisory" || p.Findings[0].Location != "spec/new_spec.rb:3" ||
-		p.Findings[0].Message != "legacy seeds 2 item, new seeds 1; asserting lines reading item: legacy spec/legacy_spec.rb:4; new spec/new_spec.rb:4" {
-		t.Errorf("link %+v", p)
-	}
-	if p := report.SeedParity[1]; p.Status != "parity" || len(p.Findings) != 0 {
-		t.Errorf("self link %+v", p)
-	}
-	// A skipped new test still exits 1 from its hygiene alone; seed parity adds nothing to it.
-	if code, _, errb := runCLI(t, "--root", root, "tests", "validity", "--files", "spec/skip_spec.rb", "--legacy", "spec/skip_spec.rb:2=spec/legacy_spec.rb:2"); code != 1 {
-		t.Errorf("hygiene exit: code=%d err=%s", code, errb)
-	}
-	for _, args := range [][]string{{"--legacy", "spec/new_spec.rb:2"}, {"--legacy", "=spec/legacy_spec.rb:2"}, {"--legacy", "spec/new_spec.rb=spec/legacy_spec.rb:2"}} {
-		if code, out, _ := runCLI(t, append([]string{"--root", root, "tests", "validity"}, args...)...); code != 2 || out != "" {
-			t.Errorf("%v: code=%d out=%q", args, code, out)
-		}
-	}
-	if code, out, _ := runCLI(t, "tests", "--help"); code != 0 || !strings.Contains(out, "--legacy NEW=LEGACY") {
-		t.Errorf("help: code=%d", code)
-	}
-}
-
-// TestTestsCitationsCLI: `corvint tests citations` prints the corvint-source-citations/1 report,
-// exits 1 while a citation is unsupported and 0 when every citation holds; bad arguments refuse
-// with exit 2 (TSA-V0-255).
+// TestTestsCitationsCLI checks committed source citations.
 func TestTestsCitationsCLI(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

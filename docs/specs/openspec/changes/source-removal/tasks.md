@@ -22,7 +22,7 @@ RMV-V1-004 (importers re-checked on the batch base), RMV-V1-005 (tests rewritten
 - [ ] 3 B0, `.github`-only repair of dangling references, with the ruleset check. Requirements:
    RMV-V1-002, RMV-V1-006. Proof: RMV-V1-003 items 3 and 4 for the removed workflow names; the
    ruleset required-check list before and after.
-- [x] 4 B1, dead leaves and dangling scripts, including `internal/docviews` and the orphans and
+- [ ] 4 B1, dead leaves and dangling scripts, including `internal/docviews` and the orphans and
    `remove` rows of `path-verdicts.md`. Requirements: RMV-V1-007, RMV-V1-031. Proof: RMV-V1-003;
    the batch's orphan table in its build-log entry.
 - [ ] 5 B2, test-quality cut and keeps. Requirements: RMV-V1-008, RMV-V1-009. Proof: RMV-V1-003; the
