@@ -107,6 +107,11 @@ identity mismatch requires its full suite. No runner can use tier `line` without
 Python has no collector in 1.0; file-level pytest remains a release exception and a G4 risk.
 Playwright evidence cannot remove a test. Action integration and FIH admission are separate tasks.
 
+The refresh CLI reports `line-evidence-invalid-arguments` for invalid invocation or unresolved
+repository/Git inputs, and `line-evidence-unavailable` when collection fails. Both use the existing
+CLI diagnostic envelope and exit 2. These codes belong to the LEV-V1-001 writing command; they do
+not replace the reader's widening reasons.
+
 ## Partial integration boundary
 
 Default annotation of an entirely absent private store is NOT_PRODUCED. The base's frozen-output
