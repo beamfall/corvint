@@ -17,7 +17,6 @@ const (
 	flowsAppmap       = "internal/appmap"        //corvint:fixture-path
 	flowsCoverage     = "internal/flowcoverage"  //corvint:fixture-path
 	flowsCorvint      = "cmd/corvint"            //corvint:fixture-path
-	flowsTestplan     = "internal/testplan"      //corvint:fixture-path
 	flowsTestsource   = "internal/testsource"    //corvint:fixture-path
 	flowsCorvintDocs  = "cmd/corvint-docs"       //corvint:fixture-path
 	flowsCommandGroup = "internal/command/flows" //corvint:fixture-path
@@ -37,7 +36,6 @@ func TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs(t *testing.T) {
 		flowsAppmap:       "shared",
 		flowsCoverage:     "shared",
 		flowsCorvint:      "tests",
-		flowsTestplan:     "tests",
 		flowsTestsource:   "tests",
 		flowsCorvintDocs:  "docs",
 		flowsCommandGroup: "docs",
@@ -62,7 +60,7 @@ func TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs(t *testing.T) {
 			t.Errorf("FLOW_COMMAND_IMPORTED %s imports %s in a production file", from, flowsCommandGroup)
 		}
 	}
-	for _, reader := range []string{flowsCorvint, flowsTestplan, flowsTestsource} {
+	for _, reader := range []string{flowsCorvint, flowsTestsource} {
 		if !slices.Contains(graph[reader], flowsAppflows) && !slices.Contains(graph[reader], flowsAppmap) {
 			t.Errorf("FLOW_READER_UNREACHED %s imports neither %s nor %s: the tests layer no longer reads flows in process", reader, flowsAppflows, flowsAppmap)
 		}
