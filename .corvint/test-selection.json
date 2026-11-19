@@ -445,6 +445,12 @@
       ]
     },
     {
+      "paths": "conformance/release-artifact-v0/archivebuild/**",
+      "tests": [
+        "cmd/corvint-docs/rcf_qualification_test.go"
+      ]
+    },
+    {
       "paths": "conformance/ruby-profile-v0/README.md",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
@@ -1534,7 +1540,7 @@
       ]
     },
     {
-      "paths": "tools/release-binary/binaries.json",
+      "paths": "tools/release-binary/**",
       "tests": [
         "cmd/corvint-docs/rcf_qualification_test.go"
       ]

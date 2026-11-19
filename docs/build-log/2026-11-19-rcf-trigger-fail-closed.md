@@ -81,3 +81,24 @@ This conservative directory rule preserves the release builder's PGO settings.
 The repository owner regression checks the real command and transitive production inputs
 on each catalog target using the checked-in declaration. Its confined read scope grants
 the command, module metadata, catalog and dependency directories used by that check.
+
+## Resolved inputs and release profile
+
+An added nested module can remove a dependency's embedded files without changing their
+blobs. For each shipped target the gate compares the qualified and candidate checkouts'
+resolved inputs by package, input kind and path. Both inventories require ownership and
+regular Git modes. An incomplete inventory or any difference requires fresh qualification.
+The nested-module regression first proves reuse with two owned payloads, then adds only
+the unowned module marker and requires a fresh run.
+
+The builder, dependency listing and live tests use one release environment. The entire
+release driver directory and its archivebuild package select qualification so new
+build helpers or data files are covered. Keeping the profile in archivebuild preserves
+the release driver's existing import and subprocess allowlists (ARTIFACT-BIN-V0-006). Qualification and both ranking runs use a detached checkout. Only the absolute
+qualification configuration and local heavy-wrapper controls supplement the build
+environment. The live adapter regression supplies a host overlay, an unknown host setting
+and an ignored source file, and checks all three invocations against the candidate SHA.
+
+The gate returns the candidate catalog's Git read or validation failure before it considers
+live configuration. The executable mapping, unsupported schema, unknown field and missing
+catalog cases exercise this ordering with and without configuration.

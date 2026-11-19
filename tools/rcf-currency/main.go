@@ -15,9 +15,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
+	"github.com/Beamfall/corvint/conformance/release-artifact-v0/archivebuild"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
@@ -55,7 +57,6 @@ func main() {
 		os.Exit(1)
 	}
 	g := gate{root: "."}
-	g.runTest = g.liveTest
 	result, err := g.check(*candidate, os.Getenv("CORVINT_RCF_QUALIFY"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "FAIL RCF-V1-010:", err)
@@ -88,7 +89,21 @@ func readFile(name string) ([]byte, error) {
 func (g gate) git(args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = g.root
+	cmd.Env = append(archivebuild.ReleaseEnvironment(runtime.GOOS, runtime.GOARCH), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1", "GIT_NO_REPLACE_OBJECTS=1")
 	return commandOutput(cmd, "git "+strings.Join(args, " "))
+}
+
+// checkout reads only committed files, including when the caller has ignored build inputs.
+func (g gate) checkout(commit, destination string) error {
+	root, err := filepath.Abs(g.root)
+	if err != nil {
+		return err
+	}
+	if _, err := g.git("clone", "--quiet", "--shared", "--no-checkout", root, destination); err != nil {
+		return err
+	}
+	_, err = (gate{root: destination}).git("checkout", "--quiet", "--detach", commit)
+	return err
 }
 
 func commandOutput(cmd *exec.Cmd, label string) ([]byte, error) {
@@ -214,9 +229,23 @@ func (g gate) check(candidate, config string) (string, error) {
 		changed = changed || qualificationOwns(patterns, name)
 	}
 	rawCatalog, err := g.git("show", candidate+":"+releaseCatalog)
-	build, runnable := qualificationBuild(rawCatalog)
-	runnable = runnable && err == nil
-	if !changed && runnable && g.productionCovered(build, patterns, pin.Commit, candidate) {
+	if err != nil {
+		return "", err
+	}
+	build, err := qualificationBuild(rawCatalog)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", releaseCatalog, err)
+	}
+	scratch, err := os.MkdirTemp("", "rcf-currency-")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(scratch)
+	checkout := gate{root: filepath.Join(scratch, "candidate")}
+	if err := g.checkout(candidate, checkout.root); err != nil {
+		return "", err
+	}
+	if !changed && g.productionCovered(build, patterns, pin.Commit, candidate, scratch, checkout.root) {
 		if err := g.cleanCandidate(candidate); err != nil {
 			return "", err
 		}
@@ -264,10 +293,11 @@ func (g gate) check(candidate, config string) (string, error) {
 	if _, err := os.Lstat(cfg.Report); !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("stale report: destination must not exist before live run: %s", cfg.Report)
 	}
-	if !runnable {
-		return "", fmt.Errorf("%s: missing named live PASS", qualificationTest)
+	runTest := g.runTest
+	if runTest == nil {
+		runTest = func(pkg, name string) error { return checkout.liveTest(pkg, name, config) }
 	}
-	if err := g.runTest(build.pkg, qualificationTest); err != nil {
+	if err := runTest(build.pkg, qualificationTest); err != nil {
 		return "", err
 	}
 	report, err := readFile(cfg.Report)
@@ -282,9 +312,12 @@ func (g gate) check(candidate, config string) (string, error) {
 		return "", err
 	}
 	for range 2 {
-		if err := g.runTest("./internal/mcp/corpusbridge", rankingTest); err != nil {
+		if err := runTest("./internal/mcp/corpusbridge", rankingTest); err != nil {
 			return "", err
 		}
+	}
+	if err := checkout.cleanCandidate(candidate); err != nil {
+		return "", err
 	}
 	if err := g.cleanCandidate(candidate); err != nil {
 		return "", err
@@ -376,11 +409,12 @@ func namedTestPass(r io.Reader, pkg, name string) error {
 	return nil
 }
 
-func (g gate) liveTest(pkg, name string) error {
-	cmd := exec.Command("bash", "script/heavy.sh", "go", "test", "-json", "-count=1", "-timeout", "30m", "-run", "^"+name+"$", pkg)
+func (g gate) liveTest(pkg, name, config string) error {
+	cmd := exec.Command("bash", "script/heavy.sh", "go", "test", archivebuild.ReleaseTrimpath, "-json", "-count=1", "-timeout", "30m", "-run", "^"+name+"$", pkg)
 	cmd.Dir = g.root
 	// Qualification configuration, private corpora and the report are host-local.
-	cmd.Env = append(cmd.Environ(), "HEAVY_REMOTE=0",
+	cmd.Env = append(archivebuild.ReleaseEnvironment(runtime.GOOS, runtime.GOARCH),
+		"CORVINT_RCF_QUALIFY="+config, "HEAVY_REMOTE_HOST="+os.Getenv("HEAVY_REMOTE_HOST"), "HEAVY_REMOTE=0",
 		"HEAVY_LOCAL_REASON=qualification requires local configuration, private corpora and report")
 	cmd.Stderr = os.Stderr
 	out, err := cmd.StdoutPipe()
