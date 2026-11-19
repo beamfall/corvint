@@ -184,17 +184,6 @@ Every directory under `cmd/` that builds a program. Companions are separate exec
 |---|---|---|---|---|
 | `corvint-pr-tests --mode packages` | Which packages must FULL CI consider? | Build `./tools/corvint-pr-tests`, then `corvint-pr-tests --mode packages --root .` | Internal development tool; sorted import paths from `go list ./...` plus the dot- and underscore-directory packages `./...` skips. A walk or `go list` failure refuses. Requires only the repository root; runs no tests. | [AFP-V0-9012](specs/affected-plan-selection-v0.md) |
 
-## Runner plugin development tools
-
-These tools are explicitly built and are not in the default release manifest.
-The host and conformance kit remain shadow-only; conformance execution is NOT_RUN
-in the build-only T10 lane. See [host and kit](../internal/runnerprotocol/README.md).
-
-| Command | Question | Minimal call | Output and limits | Spec |
-|---|---|---|---|---|
-| `corvint-runner-plugin install` | Install an operator-reviewed local runner executable? | `corvint-runner-plugin install --manifest FILE [--store DIRECTORY]` | Digest-keyed per-user store; strict pins; no download, repository write or qualification; [help and snapshot](../tools/runner-plugin/command-tree.json) | [RSP-V0-028, 041](specs/runner-selection-plugins-v0.md) |
-| `corvint-runner-reference` | Exercise the compiled-in reference over stdio? | `corvint-runner-reference < requests.jsonl` | Unqualified Go reference twin; describes commands and parses captured artifacts; [help and snapshot](../tools/runner-reference/command-tree.json) | [RSP-V0-025..032](specs/runner-selection-plugins-v0.md) |
-
 ## Line coverage development tool
 
 Build with `go build -o /tmp/linecov ./tools/linecov`. Its command snapshot is
@@ -216,17 +205,6 @@ Build with `go build -o /tmp/linecov ./tools/linecov`. Its command snapshot is
 | `linecov js-collect` | Which node tests reached each source line? | `linecov js-collect -root DIR -out INDEX -runner node-test -executable /usr/bin/node -files test/a.test.js` | Shared index from the node collector with source maps; missing runners refuse | [LPCV-V0-7606](specs/live-proof-carrying-verification-v0.md) |
 | `linecov js-select` | Which tests can a JavaScript or TypeScript diff affect? | `linecov js-select -root DIR -index INDEX -base FULL_SHA` | Coverage, fallback and excluded test counts; candidate-only exclusions until runner qualification is admitted | [LPCV-V0-7606](specs/live-proof-carrying-verification-v0.md) |
 | `linecov watch` | Which tests should rerun after a local save? | `linecov watch -root DIR -index INDEX -go-wrapper ./script/heavy.sh` | Foreground native Linux (inotify) or macOS (kqueue) events, or `-events-stdin` / `-once`; the same loop as `corvint watch` (`internal/linecov/watch`), plus `-command` for non-Go suites; streamed user-scoped observations never close CI gates; a stopped event source ends with an explicit `error` event | [LPCV-V0-7607](specs/live-proof-carrying-verification-v0.md), [LPCV-V0-1086..1087](specs/live-proof-carrying-verification-v0.md) |
-
-## Runner qualification development tool
-
-`tools/runner-qualification` is an unshipped, operator-invoked evidence evaluator.
-Build it into scratch with `go build -o /tmp/runner-qualification ./tools/runner-qualification`.
-Its local command snapshot is `tools/runner-qualification/command-tree.json`; regenerate it
-with `runner-qualification help --json`. It adds no core command or release executable.
-
-| Command | Question | Minimal call | Output and limits | Spec |
-|---|---|---|---|---|
-| `runner-qualification replay` | Do retained FULL experiments satisfy the runner's qualification claims? | `runner-qualification replay -input captures.json -checkout /src/project -out candidate.json -budget 20m` | New, private, unadmitted candidate record; verifies merge pins, seeded draw, outcomes, controls, parity and bounds; missing captures stay unqualified. Does not collect live captures or enable narrowing. | [RSP-V0-033..036, 056](specs/runner-selection-plugins-v0.md) |
 
 ## MCP tools
 

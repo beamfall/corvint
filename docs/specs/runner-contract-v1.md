@@ -10,6 +10,9 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/runner-contract
 (PROD-TEST-006, PROD-TEST-011) and `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md`
 (owner decisions R6, R7, R10, R11, R13 to R16, R19, R32 and R38).
 
+Retirement status: source-removal B3 removes the external protocol witnesses named here.
+The compiled-in contract remains active and unchanged.
+
 ## Agent digest
 - Claim: One compiled-in contract drives every blocking runner by canonical test ID and runner instance; every fallback runs a full command with a reason.
 - Status: accepted / partial. Change `runner-contract` auto-accepted under G14 (decision 0596); tasks 1 to 4, 6 and 9 delivered under V1-5416; task 5 (but Minitest) and part of task 7 under V1-5443.

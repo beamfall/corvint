@@ -1616,11 +1616,6 @@
     "internal/rubytestprovider": [
       "internal/rubytestprovider/testdata/live/"
     ],
-    "internal/runnerpolicy": [],
-    "internal/runnerprotocol": [
-      "docs/specs/runner-selection-plugins-v0.md"
-    ],
-    "internal/runnerqualification": [],
     "internal/runnerselection": [],
     "internal/secretscreen": [],
     "internal/sessiontest": [
@@ -1940,8 +1935,6 @@
     ],
     "tools/plugin-dirs": [],
     "tools/requirement-id-collisions": [],
-    "tools/runner-plugin": [],
-    "tools/runner-qualification": [],
     "tools/selection-baseline": [
       ".github/cishards/",
       ".github/forward-rows/github-guard.sh",

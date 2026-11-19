@@ -51,14 +51,7 @@
     },
     "runner": {
       "product": "testing",
-      "roots": [
-        "internal/runnerprotocol/",
-        "internal/runnerpolicy/",
-        "internal/runnerqualification/",
-        "tools/runner-plugin/",
-        "tools/runner-qualification/",
-        "tools/runner-reference/"
-      ]
+      "roots": []
     },
     "run-evidence": {
       "product": "testing",

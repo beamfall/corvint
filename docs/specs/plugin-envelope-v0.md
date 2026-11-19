@@ -94,8 +94,8 @@ measured under `CMS-V0-010` before it enters the default path.
   keyed by the SHA-256 digest that a tracked, project-owned declaration pins; never from `PATH`, a
   repository path, a URL, a download, a shell string or an interpreter. It MUST open the file
   without following links, verify the digest and execute that same file (`ACC-V0-002`). Each
-  profile names its declaration file (for `runner`, `.corvint/runner-plugins.json` per
-  `RSP-V0-028`). An absent entry is `not-installed`, a digest that differs is `digest-mismatch`,
+  profile names its declaration file. The runner example was retired by source-removal B3
+  (`RSP-V0-028` REMOVED); compiled-in runners use no plugin declaration. An absent entry is `not-installed`, a digest that differs is `digest-mismatch`,
   and a declaration that does not parse strictly is `declaration-invalid`.
 - `CPE-V0-008`: (proposed 2026-11-11; V1-4819) Plugin output MUST be evidence, never authority
   (invariant 3, `RSP-V0-030`). A plugin MUST NOT be able to widen trust, mark itself or anything

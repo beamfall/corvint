@@ -258,15 +258,22 @@ Baseline at `origin/main` c6b6cbb0:
 
 ### Two plugin forms and the runner protocol
 
-- `RSP-V0-025`: (accepted, decision 0592 (owner 2026-11-07, "Yes, both forms")) A runner's pieces
-  are provided in one of two forms: compiled-in, implementing the in-process runner-plugin
-  interface; or out-of-process, one `corvint-runner-<name>` executable speaking `corvint-runner/1`.
-  The selector, the store and the conformance kit treat both alike. Go, shell and make, and the
-  JavaScript and TypeScript runners stay compiled-in (hot path).
+Retirement status: source-removal B3 removes the out-of-process runner protocol and its tools.
+RSP-V0-025 is MODIFIED; RSP-V0-026..032 and RSP-V0-047 are REMOVED (owner, 2026-11-18).
+The historical clauses below retain their IDs; they no longer authorize plugin execution.
+
+- `RSP-V0-025`: (accepted, decision 0596; amended 2026-11-18 under RMV-V1-010) MODIFIED:
+  A runner's pieces are compiled in, implementing `registry.RunnerPlugin`. The selector,
+  store and conformance kit treat every compiled-in runner alike. The external executable
+  form is removed. The single runner contract is owned by the runner-contract change.
+Status: RSP-V0-026 REMOVED by source-removal B3 (RMV-V1-010).
+
 - `RSP-V0-026`: (accepted, decision 0592 (owner 2026-11-07, "Yes, both forms")) `corvint-runner/1`
   is UTF-8 JSON over the plugin's standard input and output, one object per line, each request
   carrying an `id` its response echoes. Decoding is strict: an unknown member, a duplicate member,
   a wrong type or invalid UTF-8 is a protocol error. Standard error is diagnostic only.
+Status: RSP-V0-027 REMOVED by source-removal B3 (RMV-V1-010).
+
 - `RSP-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) The
   methods are `hello` (protocol version, plugin name and version, runners served, pieces offered,
   optional features), `command` (the argv, working directory and environment for a purpose:
@@ -274,6 +281,8 @@ Baseline at `origin/main` c6b6cbb0:
   `RSP-V0-002` entries), `parse` (native report to per-test results), `evidence` (artifacts to
   `RSP-V0-006` components other than the trace components) and `shutdown`. The core executes every
   runner command under its tracer; the plugin never starts the runner or any test process.
+Status: RSP-V0-028 REMOVED by source-removal B3 (RMV-V1-010).
+
 - `RSP-V0-028`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592)
   Discovery is declared, bounded and project-owned: the tracked `.corvint/runner-plugins.json`
   names each plugin, its protocol, its SHA-256 executable digest and the runners it serves. The core
@@ -305,6 +314,8 @@ Baseline at `origin/main` c6b6cbb0:
   ```json
   {"schema":"corvint-runner-plugins/1","plugins":[{"name":"reference","protocol":"corvint-runner/1","executable":"./corvint-runner-reference","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","runners":["reference-go-test"]}]}
   ```
+Status: RSP-V0-029 REMOVED by source-removal B3 (RMV-V1-010).
+
 - `RSP-V0-029`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) One
   plugin process per run serves every request of that run (decision 0591 §4). Defaults, which the
   project may lower but not raise past the ceiling: message 1 MiB (ceiling 8 MiB); session output
@@ -312,10 +323,14 @@ Baseline at `origin/main` c6b6cbb0:
   The plugin runs in its own process group with the repository as working directory, is killed with
   the group 2 s after `shutdown` or standard-input end, and must leave the repository's tracked and
   untracked status unchanged, which the core checks after the session.
+Status: RSP-V0-030 REMOVED by source-removal B3 (RMV-V1-010).
+
 - `RSP-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Plugin
   output is evidence, never authority: a plugin cannot exclude a test, mark itself or a runner
   qualified, or change a class. Qualification results are computed by the core harness, keyed by
   plugin digest, and admitted only under `RSP-V0-042`, so a new digest starts unqualified.
+Status: RSP-V0-031 REMOVED by source-removal B3 (RMV-V1-010).
+
 - `RSP-V0-031`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A
   plugin launch failure, crash, timeout, oversize message, protocol error, schema violation
   (`RSP-V0-047`), `error` response, version mismatch, digest mismatch, repository mutation, or
@@ -328,11 +343,15 @@ Baseline at `origin/main` c6b6cbb0:
   without the plugin exists only where core already has a pre-plugin execution path for that runner
   (rollback below); otherwise the failure stands. Orchestrator-made under the owner's delegated 1.0
   choices (PR #143 review).
+Status: RSP-V0-032 REMOVED by source-removal B3 (RMV-V1-010).
+
 - `RSP-V0-032`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592)
   `corvint-runner/1` changes only additively through features named in `hello`; a breaking change is
   `corvint-runner/2`, and the core supports the current and previous major versions. When the
   `corvint-plugin/1` envelope (V1-4819) lands, this protocol becomes its runner profile with these
   requirement IDs kept.
+Status: RSP-V0-047 REMOVED by source-removal B3 (RMV-V1-010).
+
 - `RSP-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Every
   `corvint-runner/1` request and response has a JSON Schema in the conformance kit with the shapes
   of "Protocol messages" below, and the kit validates every frame in both directions against it.

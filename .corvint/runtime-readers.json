@@ -236,18 +236,6 @@
     {
       "path": "tools/release-binary/binaries.json",
       "reason": "the per-binary release catalog (V1-5236, ARTIFACT-BIN-V0-001) embedded by tools/release-binary (go:embed) and checked by its package tests and make release-binaries-check; enclosing-package and embed reader rules keep that selection (AZU-V0-002)"
-    },
-    {
-      "path": "tools/runner-plugin/command-tree.json",
-      "reason": "generated runner-plugin command-tree snapshot embedded by tools/runner-plugin (go:embed) and checked by its package tests; enclosing-package and embed reader rules keep that selection (AZU-V0-002)"
-    },
-    {
-      "path": "tools/runner-qualification/command-tree.json",
-      "reason": "generated runner-qualification command-tree snapshot embedded by tools/runner-qualification (go:embed) and checked by its package tests; enclosing-package and embed reader rules keep that selection (AZU-V0-002)"
-    },
-    {
-      "path": "tools/runner-reference/command-tree.json",
-      "reason": "generated runner-reference command-tree snapshot embedded by tools/runner-reference (go:embed) and checked by its package tests; enclosing-package and embed reader rules keep that selection (AZU-V0-002)"
     }
   ]
 }
