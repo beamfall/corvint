@@ -74,7 +74,7 @@ func applyLineEvidence(ctx context.Context, in affectedPlanInputs, graph *affect
 		}
 		if _, err := os.Lstat(name); err == nil {
 			native, nativeErr := lineevidence.NativeIdentity(ctx, in.repository, d)
-			command := lineevidence.Command(d)
+			command := lineevidence.CommandForTree(d, files, declared)
 			runner := lineevidence.Binding(d, files, command, native)
 			if nativeErr != nil {
 				runner = ""
@@ -89,7 +89,7 @@ func applyLineEvidence(ctx context.Context, in affectedPlanInputs, graph *affect
 			v.Reason = lineevidence.Damaged
 		}
 		verdicts[d.Key] = v
-		if v.Tier == lineevidence.Full && v.Reason == lineevidence.Stale {
+		if !lineEvidenceFileBounded(v) && !(d.Runner == testid.Playwright && playwrightLineFlow(v)) {
 			if plan.FullInstances == nil {
 				plan.FullInstances = map[string]string{}
 			}
@@ -110,7 +110,7 @@ func applyLineEvidence(ctx context.Context, in affectedPlanInputs, graph *affect
 			continue
 		}
 		v := verdicts[d.Key]
-		add := v.Tier == lineevidence.Full && v.Reason == lineevidence.Stale
+		add := plan.FullInstances[d.Key] != ""
 		for _, idString := range v.Rank {
 			id, e := testid.Parse(idString)
 			if e != nil {
@@ -151,6 +151,20 @@ func applyLineEvidence(ctx context.Context, in affectedPlanInputs, graph *affect
 		}
 		exact := false
 		s.Tier, s.Exact, s.Instance, s.Reason, s.Rank = string(v.Tier), &exact, v.Instance, v.Reason, v.Rank
+	}
+}
+
+// Only these understood verdicts certify a file-bounded instance. A full or
+// future verdict retains a whole-instance obligation, even with no graph tests.
+func lineEvidenceFileBounded(v lineevidence.Verdict) bool {
+	if v.Tier != lineevidence.File {
+		return false
+	}
+	switch v.Reason {
+	case lineevidence.Absent, lineevidence.Damaged, lineevidence.Unqualified, lineevidence.Stale:
+		return true
+	default:
+		return false
 	}
 }
 

@@ -866,6 +866,12 @@ func testPlanScope(input *sessiontest.Input, receipt affectedReceipt, plan gates
 			input.FullInstances = map[string]string{}
 		}
 		input.FullInstances[instance] = reason
+		if strings.HasPrefix(instance, "go@") {
+			if input.FullGoInstances == nil {
+				input.FullGoInstances = map[string]string{}
+			}
+			input.FullGoInstances[instance] = reason
+		}
 	}
 	input.SelectedTests = map[string][]string{}
 	for _, selection := range receipt.Plan.Selected {

@@ -1681,18 +1681,18 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	// worktree binds; a snapshot plan keeps every consumer.
 	if in.tree == in.repository {
 		plan = appflows.BindE2EFlows(ctx, in.repository, graph, plan)
-		// APK-V0-001: a repository that declares its flows gets one plan for
-		// every test kind, the E2E selections joined here from the intents
-		// at HEAD; a snapshot plan has no HEAD of its own and carries none.
+	}
+	if in.lineEvidence {
+		applyLineEvidence(ctx, in, graph, &plan)
+	}
+	// Join after the additive overlay so E2E and test kinds reflect every selection.
+	if in.tree == in.repository {
 		plan = appflows.JoinFlowPlan(ctx, in.repository, graph, plan, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision))
 	}
 	// A --path plan (additive off, ADN-V0-009) names paths to probe, not a
 	// change, so an absent one is no deletion.
 	if in.additive && !(in.tree == in.repository && affectedSparseCheckout(ctx, in.gitExecutable, in.repository)) {
 		plan.Deleted = affectedDeletedPaths(in.tree, plan.Dirty)
-	}
-	if in.lineEvidence {
-		applyLineEvidence(ctx, in, graph, &plan)
 	}
 	provider := providerGoProjection(graph, plan)
 	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.tree, in.base, plan)

@@ -126,9 +126,21 @@ func Command(d testinventory.Declared) []string {
 		}
 		return []string{"rspec"}
 	case testid.Minitest:
-		return []string{"ruby", "-Itest", "-e", `Dir['test/**/*_test.rb'].sort.each { |f| require File.expand_path(f) }`}
+		return []string{"ruby", "-Itest", "-e", `ARGV.shift(ARGV.length).each { |f| require File.expand_path(f) }`, "--"}
 	}
 	return nil
+}
+
+// CommandForTree binds collection to the inventory's candidate set. In particular,
+// Minitest must not rediscover a smaller suite with a second filename glob.
+func CommandForTree(d testinventory.Declared, files map[string]string, all []testinventory.Declared) []string {
+	command := Command(d)
+	if d.Runner == testid.Minitest {
+		for _, file := range testinventory.Candidates(files, d, all) {
+			command = append(command, Relative(d.Root, file))
+		}
+	}
+	return command
 }
 
 // NativeIdentity uses the same Go runtime contract as explicit line indexes. For
@@ -186,7 +198,7 @@ func Collect(ctx context.Context, git testinventory.Git, d testinventory.Declare
 	for _, name := range candidates {
 		names = append(names, Relative(d.Root, name))
 	}
-	command := Command(d)
+	command := CommandForTree(d, files, all)
 	runner := Binding(d, files, command, native)
 	var ix *linecov.Index
 	switch d.Runner {

@@ -3,9 +3,11 @@ package lineevidence
 
 import (
 	"context"
+	"github.com/Beamfall/corvint/internal/linecov"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -66,6 +68,7 @@ func TestLEVV1005NativeCollectors(t *testing.T) {
 				files["test/test_helper.rb"] = "require 'minitest/autorun'\n"
 				files["lib/calc.rb"] = "def add(a,b)\n a+b\nend\n"
 				files["test/calc_test.rb"] = "require_relative 'test_helper'\nrequire_relative '../lib/calc'\nclass CalcTest < Minitest::Test\n def test_add\n assert_equal 3, add(1,2)\n end\nend\n"
+				files["test/test_other.rb"] = "require_relative 'test_helper'\nrequire_relative '../lib/calc'\nclass OtherTest < Minitest::Test\n def test_other\n assert_equal 5, add(2,3)\n end\nend\n"
 				source = "lib/calc.rb"
 			}
 			for name, body := range files {
@@ -94,6 +97,22 @@ func TestLEVV1005NativeCollectors(t *testing.T) {
 			if len(refreshed) != 1 {
 				t.Fatal(refreshed)
 			}
+			if runner == "minitest" {
+				f, err := os.Open(refreshed[0].Path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				ix, err := linecov.Decode(f)
+				f.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, id := range []string{"minitest:test/calc_test.rb::CalcTest::test_add", "minitest:test/test_other.rb::OtherTest::test_other"} {
+					if !slices.ContainsFunc(ix.Tests, func(test linecov.Test) bool { return test.Name == id }) {
+						t.Fatalf("missing %s: %+v", id, ix.Tests)
+					}
+				}
+			}
 			tree, err := testinventory.NewWorkTree(ctx, git)
 			if err != nil {
 				t.Fatal(err)
@@ -110,7 +129,7 @@ func TestLEVV1005NativeCollectors(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			command := Command(d)
+			command := CommandForTree(d, blobs, declared)
 			body, err := os.ReadFile(filepath.Join(root, source))
 			if err != nil {
 				t.Fatal(err)
@@ -128,5 +147,26 @@ func TestLEVV1005NativeCollectors(t *testing.T) {
 				t.Fatalf("%+v", got)
 			}
 		})
+	}
+}
+
+// Candidate admission has one owner. An unknown pattern widens to every Ruby
+// candidate; the collector must not silently apply its own narrower allowlist.
+func TestLEVV1005MinitestCandidateCommand(t *testing.T) {
+	d := testinventory.Declared{Key: "minitest@ruby", Runner: "minitest", Root: "ruby", Config: "ruby/test/test_helper.rb"}
+	files := map[string]string{"ruby/test/calc_test.rb": "a", "ruby/test/test_other.rb": "b", "ruby/unusual.rb": "c", "ruby/test/test_helper.rb": "d"}
+	for _, unknown := range []bool{false, true} {
+		if unknown {
+			d.Pattern, d.Extensions = "future-pattern", []string{".rb"}
+		}
+		all := []testinventory.Declared{d}
+		command := CommandForTree(d, files, all)
+		want := []string{"test/calc_test.rb", "test/test_other.rb"}
+		if unknown {
+			want = append(want, "unusual.rb")
+		}
+		if !slices.Equal(command[len(Command(d)):], want) {
+			t.Fatalf("unknown=%t: %q", unknown, command)
+		}
 	}
 }

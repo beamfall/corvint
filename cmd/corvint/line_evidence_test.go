@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -452,5 +453,200 @@ func TestLEVV1003PlaywrightFlowAllowlist(t *testing.T) {
 		if got := playwrightLineFlow(lineevidence.Verdict{Tier: tc.tier, Reason: tc.reason}); got != tc.flow {
 			t.Errorf("%s/%s: flow=%t want %t", tc.tier, tc.reason, got, tc.flow)
 		}
+	}
+}
+
+// LEV-V1-003: a root edit still executes a stale, unobserved nested module.
+// A future evidence language is not a certificate for omitting that suite.
+func TestLEVV1003StaleNestedModuleManifest(t *testing.T) {
+	root := inventoryRepository(t, map[string]string{
+		"go.mod":               "module example.com/lev\n\ngo 1.27.4\n",
+		"calc.go":              "package lev\nfunc Add(a,b int)int{return a+b}\n",
+		"calc_test.go":         "package lev\nimport \"testing\"\nfunc TestAdd(t *testing.T){Add(1,2)}\n",
+		"nested/go.mod":        "module example.com/nested\n\ngo 1.27.4\n",
+		"nested/other_test.go": "package nested\nimport \"testing\"\nfunc TestOther(t *testing.T){}\n",
+	})
+	ctx := context.Background()
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	d := testinventory.Declared{Key: "go@nested", Runner: "go", Root: "nested", Config: "nested/go.mod"}
+	ix, err := linecov.Build("example.com/nested", head, "different-runner", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix.RunnerFamily, ix.Config, ix.Command = "go", d.Config, lineevidence.Command(d)
+	writeInventoryFiles(t, root, map[string]string{"calc.go": "package lev\nfunc Add(a,b int)int{return a+b+1}\n"})
+	for _, language := range []string{"go", "future-language"} {
+		t.Run(language, func(t *testing.T) {
+			ix.Language = language
+			if _, err := lineevidence.Write(filepath.Join(root, ".git", "corvint", "line-evidence"), d, ix); err != nil {
+				t.Fatal(err)
+			}
+			for _, profile := range []string{sessiontest.ProfileLocal, sessiontest.ProfileCI} {
+				input, _ := testRunInput(ctx, root, testOptions{base: head}, sessiontest.SourceIdentity{}, nil)
+				input.RunnerProfile, input.ShardCount = profile, 1
+				testInventoryScope(ctx, root, &input, killswitch.Switch{})
+				if input.FullInstances[d.Key] != lineevidence.Stale {
+					t.Fatalf("fallback lost: %+v", input)
+				}
+				manifest, err := sessiontest.Build(input)
+				if err != nil {
+					t.Fatal(err)
+				}
+				found := false
+				for _, invocation := range sessiontest.Invocations(manifest, input.Declared, 0, root, "") {
+					if invocation.Dir == "nested" {
+						found = true
+						if !slices.Contains(invocation.Argv, "./...") || slices.Contains(invocation.Argv, "-run") {
+							t.Fatalf("narrowed module: %+v", invocation)
+						}
+					}
+				}
+				if profile == sessiontest.ProfileLocal && !found {
+					t.Fatalf("missing module: %+v", manifest)
+				}
+				if profile == sessiontest.ProfileCI && (found || !slices.Contains(manifest.Checks, sessiontest.ModuleCheck("nested"))) {
+					t.Fatalf("CI obligation: %+v", manifest)
+				}
+			}
+		})
+	}
+}
+
+func TestLEVV1003FileVerdictAllowlist(t *testing.T) {
+	for _, tc := range []struct {
+		tier    lineevidence.Tier
+		reason  string
+		bounded bool
+	}{
+		{lineevidence.File, lineevidence.Absent, true},
+		{lineevidence.File, lineevidence.Damaged, true},
+		{lineevidence.File, lineevidence.Unqualified, true},
+		{lineevidence.File, lineevidence.Stale, true},
+		{lineevidence.Full, lineevidence.Stale, false},
+		{lineevidence.File, "future-reason", false},
+		{"future-tier", lineevidence.Unqualified, false},
+	} {
+		if got := lineEvidenceFileBounded(lineevidence.Verdict{Tier: tc.tier, Reason: tc.reason}); got != tc.bounded {
+			t.Fatalf("%+v: bounded=%t", tc, got)
+		}
+	}
+}
+
+// LEV-V1-007/012: exercise the complete summary producer, not only plan.Selected.
+func TestLEVV1007EvidenceSummaryProjection(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX version-probe fixture")
+	}
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	root, base := flowPlanCLIRepo(t, flowPlanCLIDeclaration, flowPlanCLIConfig)
+	baseline, _, stderr, code := runAffectedCLI(t, root, "--summary", "--base", base)
+	if code != 0 {
+		t.Fatalf("baseline %d: %s", code, stderr)
+	}
+	writeInventoryFiles(t, root, map[string]string{
+		".git/info/exclude":            "node_modules/\n",
+		"node_modules/.bin/playwright": "#!/bin/sh\necho 'Version 1.56.0'\n",
+	})
+	if err := os.Chmod(filepath.Join(root, "node_modules/.bin/playwright"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	git := testinventory.Git{Executable: "git", Root: root}
+	tree, err := testinventory.NewWorkTree(ctx, git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _ := tree.Files()
+	all := testinventory.Detect(files, tree.Read)
+	var d testinventory.Declared
+	for _, instance := range all {
+		if instance.Runner == "playwright" {
+			d = instance
+		}
+	}
+	if d.Key == "" {
+		t.Fatal("no Playwright instance")
+	}
+	native, err := lineevidence.NativeIdentity(ctx, root, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := lineevidence.CommandForTree(d, files, all)
+	oids, err := linecov.OIDs(ctx, root, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix, err := linecov.Build(".", base, lineevidence.Binding(d, files, command, native), oids, []linecov.Record{{
+		Package: "e2e/search.spec.ts", Name: "playwright:e2e/search.spec.ts::chromium::finds",
+		Profile: []byte("mode: atomic\n./src/checkout.ts:4.1,4.23 1 1\n"),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix.Language, ix.RunnerFamily, ix.Config, ix.Command = "js", d.Runner, d.Config, command
+	store, err := lineevidence.Store(ctx, git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, cause := range []string{"fresh", "identity", "unknown-language"} {
+		t.Run(cause, func(t *testing.T) {
+			index := *ix
+			if cause == "identity" {
+				index.Runner = "different"
+			}
+			if cause == "unknown-language" {
+				index.Language = "future-language"
+			}
+			var encoded bytes.Buffer
+			if err := index.Encode(&encoded); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(store, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(store, lineevidence.Filename(d)), encoded.Bytes(), 0600); err != nil {
+				t.Fatal(err)
+			}
+			summary, raw, stderr, code := runAffectedCLI(t, root, "--summary", "--base", base)
+			if code != 0 {
+				t.Fatalf("summary %d: %s", code, stderr)
+			}
+			scope := "BOUNDED"
+			if cause != "fresh" {
+				scope = "FULL"
+			}
+			want := map[string]any{
+				"scope": scope, "inventory": float64(3),
+				"selected": []any{
+					map[string]any{"path": "e2e/checkout.spec.ts", "project": "chromium"},
+					map[string]any{"path": "e2e/orphan.spec.ts", "project": "chromium"},
+					map[string]any{"path": "e2e/search.spec.ts", "project": "chromium"},
+				},
+				"variations": baseline["e2e"].(map[string]any)["variations"],
+			}
+			if cause != "fresh" {
+				want["unknown"] = []any{affected.UnknownE2EPlanUnbounded}
+			}
+			if summary["profile"] != "affected-summary/1" || !reflect.DeepEqual(summary["e2e"], want) {
+				t.Fatalf("summary: %s\nwant e2e: %#v", raw, want)
+			}
+			full, _, stderr, code := runAffectedCLI(t, root, "--base", base)
+			if code != 0 {
+				t.Fatalf("plan %d: %s", code, stderr)
+			}
+			plan := full["plan"].(map[string]any)
+			for _, item := range plan["selected"].([]any) {
+				selection := item.(map[string]any)
+				if kind, ok := selection["testKind"].(string); !ok || kind == "" {
+					t.Fatalf("missing test kind: %+v", selection)
+				}
+			}
+			if cause == "fresh" {
+				responses := mcpAffectedChild(t, root, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"corvint.affected","arguments":{"base":"`+base+`"}}}`)
+				checkMCPAffectedAnswer(t, responses["1"], raw)
+			}
+		})
 	}
 }

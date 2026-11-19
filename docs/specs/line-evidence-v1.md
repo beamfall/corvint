@@ -113,6 +113,15 @@ commit is unavailable locally. Refresh accepts only a successful empty Git statu
 and before publication, including index changes, executable modes, symbolic links and gitlinks.
 Unknown status output refuses publication and preserves the previous private index.
 
+Whole-instance obligations reach execution even when an unobserved Go module has no graph tests.
+Local manifests run that module's full suite; CI manifests retain its separate suite obligation.
+Only known file-bounded reader verdicts permit retaining file scope; future forms widen.
+The flow projection is joined after the additive overlay, preserving its added E2E files,
+projects and test-kind metadata. Stale or unknown Playwright instances widen the E2E projection.
+Minitest collection uses inventory candidate files verbatim, including both naming conventions
+and any broader candidate set required by an unproven pattern, rather than a second glob.
+
+
 The refresh CLI reports `line-evidence-invalid-arguments` for invalid invocation or unresolved
 repository/Git inputs, and `line-evidence-unavailable` when collection fails. Both use the existing
 CLI diagnostic envelope and exit 2. These codes belong to the LEV-V1-001 writing command; they do
@@ -144,11 +153,11 @@ retained and skipped explicitly. This is not a line-level qualification result.
 | --- | --- |
 | LEV-V1-001 | `TestLEVV1001RefreshAndConsumers` (`cmd/corvint`); consumers leave index bytes unchanged |
 | LEV-V1-002 | `TestLEVV1002PrivateDeterministicInstances` (`internal/lineevidence`); canonical IDs and repeat refresh in `TestLEVV1001RefreshAndConsumers` |
-| LEV-V1-003 | `TestLEVV1003Freshness` (`internal/lineevidence`); `TestLEVV1003StaleInstanceExecution`, `TestLEVV1003StalePlaywrightExecution` (`cmd/corvint`); `TestLEVV1003RefreshCleanGitState`, `TestLEVV1003RefreshUnknownStatus` (`internal/lineevidence`) |
+| LEV-V1-003 | `TestLEVV1003Freshness` (`internal/lineevidence`); `TestLEVV1003StaleNestedModuleManifest`, `TestLEVV1003FileVerdictAllowlist`, `TestLEVV1003StaleInstanceExecution`, `TestLEVV1003StalePlaywrightExecution` (`cmd/corvint`); `TestLEVV1003RefreshCleanGitState`, `TestLEVV1003RefreshUnknownStatus` (`internal/lineevidence`) |
 | LEV-V1-004 | Default absent-store output PARTIAL (freeze boundary); `TestLEVV1004AbsentDamagedReadOnly` (`internal/lineevidence`) |
-| LEV-V1-005 | `TestLEVV1005NativeCollectors` (`internal/lineevidence`): Vitest and Jest observed; RSpec and Minitest NOT_RUN (Ruby unavailable). Go: `TestLEVV1001RefreshAndConsumers`. Synthetic per-runner fallback: `TestLEVV1005EveryRunnerUnqualified` |
+| LEV-V1-005 | `TestLEVV1005NativeCollectors` (`internal/lineevidence`): Vitest and Jest observed; RSpec and Minitest NOT_RUN (Ruby unavailable). Go: `TestLEVV1001RefreshAndConsumers`. `TestLEVV1005MinitestCandidateCommand` covers mixed names and unproven patterns. Synthetic per-runner fallback: `TestLEVV1005EveryRunnerUnqualified` |
 | LEV-V1-006 | `TestLEVV1006PytestFileTier` (`cmd/corvint`) |
-| LEV-V1-007 | `TestLEVV1007PlaywrightOnlyAddsAndRanks` (`cmd/corvint`) |
+| LEV-V1-007 | `TestLEVV1007EvidenceSummaryProjection` (complete CLI summary and MCP); `TestLEVV1007PlaywrightOnlyAddsAndRanks` (`cmd/corvint`) |
 | LEV-V1-008 | `TestLEVV1008ExperimentalProfile` (`cmd/corvint`); promotion NOT_PRODUCED (no FIH or wall-clock proof) |
 | LEV-V1-009 | Default absent-store output PARTIAL (freeze boundary); `TestLEVV1009TierReasonGolden` (`internal/lineevidence`); `TestLEVV1007PlaywrightOnlyAddsAndRanks` |
 | LEV-V1-010 | Default absent-store output PARTIAL (freeze boundary); `TestLEVV1009TierReasonGolden`; `TestLEVV1001RefreshAndConsumers` |

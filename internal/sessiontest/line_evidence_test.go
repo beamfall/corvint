@@ -53,3 +53,42 @@ func TestLEVV1014PytestArgumentFile(t *testing.T) {
 		t.Fatal("argument file lost a selection")
 	}
 }
+
+// LEV-V1-003: no reason-string allowlist may discard a full instance obligation.
+func TestLEVV1003FullGoInstances(t *testing.T) {
+	for _, reason := range []string{"line-evidence-stale", "future-reason"} {
+		for _, profile := range []string{ProfileLocal, ProfileCI} {
+			input := fixtureInput()
+			input.RunnerProfile = profile
+			input.Instances = []contract.Instance{{Runner: "go", Root: "."}, {Runner: "go", Root: "nested"}}
+			input.FullGoInstances = map[string]string{"go@.": reason, "go@nested": reason}
+			input.GoSlices = map[string]GoSlice{"example.test/m/a": {Pattern: "TestOnly"}}
+			manifest, err := Build(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			root, nested := 0, 0
+			for _, unit := range manifest.Units {
+				if unit.Unit == ModuleUnitPrefix+"nested" {
+					nested++
+					continue
+				}
+				if unit.Adapter == AdapterGo {
+					root++
+					if unit.Slice != SliceWhole {
+						t.Fatalf("narrowed root: %+v", unit)
+					}
+				}
+			}
+			if root != len(input.Universe) {
+				t.Fatalf("lost root packages: %+v", manifest)
+			}
+			if profile == ProfileLocal && nested != 1 {
+				t.Fatalf("lost module: %+v", manifest)
+			}
+			if profile == ProfileCI && (nested != 0 || !slices.Contains(manifest.Checks, ModuleCheck("nested"))) {
+				t.Fatalf("lost CI obligation: %+v", manifest)
+			}
+		}
+	}
+}
