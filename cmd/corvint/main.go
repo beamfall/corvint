@@ -554,7 +554,7 @@ var (
 	// adds are appended in the order rootHelp documents them.
 	topLevelCommands = []string{"init", "adopt", "impact", "cem", "context",
 		"instructions", "affected", "index", "docs",
-		"test-evidence", "review", "flows", "test", "tests", "watch", "inventory", "mcp", "how"}
+		"test-evidence", "review", "flows", "test", "tests", "watch", "inventory", "line-evidence", "mcp", "how"}
 )
 
 func emit(stream io.Writer, value any) error {
@@ -676,6 +676,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		if root, rest, requested := watchInvocation(arguments); requested {
 			return runWatch(ctx, root, rest, stdin, stdout, stderr)
+		}
+		if root, rest, requested := lineEvidenceInvocation(arguments); requested {
+			return runLineEvidence(ctx, root, rest, stdout, stderr)
 		}
 		if root, rest, requested := inventoryInvocation(arguments); requested {
 			return runInventory(ctx, root, rest, stdout, stderr)

@@ -309,6 +309,15 @@ type FrontierReach interface {
 	FixtureClosedFrontiers() []string
 }
 
+// SourceOnlyFrontiers strengthens FrontierReach for reasons whose hidden edges
+// resolve only to owned source, never foreign path tokens (AFP-V0-511). For a
+// bare entry, this static proof does not need located sites. Only reasons also
+// declared source-bound qualify; located entries still retain their read evidence
+// (AZU-V1-960). Without this declaration, missing sites retain uncertainty.
+type SourceOnlyFrontiers interface {
+	SourceOnlyFrontiers() []string
+}
+
 // The FrontierDirection values (AZU-V0-003, AZU-V0-008).
 const (
 	// FrontierOutbound marks a reason whose hidden edge starts at the

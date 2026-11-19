@@ -227,6 +227,8 @@ func topicText(topic string) string {
 		return testsHelp
 	case "watch":
 		return watchHelp
+	case "line-evidence":
+		return lineEvidenceHelp
 	case "inventory":
 		return inventoryHelp
 	case "context":
@@ -274,6 +276,7 @@ Commands:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
     watch  rerun the tests a save can affect (LPCV-V0)
+    line-evidence  refresh private line evidence (LEV-V1)
     inventory  refresh the committed test inventory (TIV-V1)
     test-evidence  read retained test dependencies (RSP-V0)
   Experimental, agent hosts and local records:
@@ -361,6 +364,14 @@ Usage:
   corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID
           --appmap-impact REPORT [--appmap-impact REPORT ...]
           [--repository ID=DIR --repository-base ID=FULL_COMMIT_ID ...]
+
+After line-evidence refresh initializes the private store, plans read it without
+collecting. Selections name the instance, tier (line, file, flow or full),
+exact=false until execution, and widening reason. Fresh evidence remains
+line-evidence-unqualified: no runner has an admitted FIH record. Without a store,
+the existing file-level plan is unchanged. The opt-in --selection-profile
+e2e-line-experimental is experimental and only adds or ranks E2E tests.
+Example: corvint affected --selection-profile e2e-line-experimental --format text
 
 The command reads the Git worktree status, builds the multi-language unit graph
 from source text, and writes one affected-plan/1 document to stdout: the

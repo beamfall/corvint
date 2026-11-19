@@ -1,0 +1,4 @@
+go@. tier=line exact=false qualified-fixture-only
+go@. tier=file exact=false line-evidence-unqualified
+playwright@web tier=flow exact=false accepted-flow
+jest@web tier=full exact=false line-evidence-stale

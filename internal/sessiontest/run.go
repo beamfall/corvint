@@ -211,6 +211,10 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 			planned = append(planned, Planned{Adapter: AdapterGo, Argv: argv, Dir: unit.Dir, Env: env, Units: []Unit{unit}})
 		case unit.Adapter == AdapterGo && unit.Slice != SliceWhole:
 			argv := append(append([]string{}, goPrefix...), unit.Flag, unit.Pattern, strings.TrimPrefix(unit.Unit, "go:"))
+			if !contract.ArgvFits(argv) {
+				argv = append(append([]string{}, goPrefix...), strings.TrimPrefix(unit.Unit, "go:"))
+				unit.Reason = contract.ReasonArgvLimit
+			}
 			planned = append(planned, Planned{Adapter: AdapterGo, Argv: argv, Env: goEnv, Units: []Unit{unit}})
 		case unit.Adapter == AdapterDeclared && name == "go":
 			argv := append(append([]string{"go", "test"}, goFlags...), "./...")
@@ -817,6 +821,9 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 			recorded.Outcomes = notRun(planned.Units)
 			return recorded, "", []string{"contract " + recorded.Instance + ": the machine report file cannot be prepared: " + err.Error() + "; its selected tests are NOT_RUN"}
 		}
+		command = pytestArguments(runCtx, planned.contract, command, r.Root, env, path)
+		exact := command.Exact
+		recorded.Tier, recorded.Exact, recorded.ExactReason = command.Tier, &exact, command.Reason
 		// The environment is the re-derived command's, so the placeholder
 		// report path never reaches the runner or the receipt.
 		argv, report = command.Argv, path

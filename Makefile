@@ -1063,6 +1063,7 @@ batch-precheck-test:
 # request's base. A pull request without BASE_SHA fails; any other CI run without BASE_SHA (a
 # merge-queue run or a push) or a tree without the check script says so and passes. With
 # DOGFOOD_BASE set it checks DOGFOOD_BASE..HEAD; batch-precheck calls the script directly.
+# V1-5621: author/committer identities use the same guard; the PR event supplies its exact head.
 .PHONY: ai-coauthor-trailers-check
 ai-coauthor-trailers-check:
 	@if [ -n "$(DOGFOOD_BASE)" ]; then \
@@ -1073,7 +1074,12 @@ ai-coauthor-trailers-check:
 	  echo 'CIN-V0-006: no BASE_SHA (not a pull request); the trailer check is skipped.'; \
 	elif [ ! -f script/check-ai-coauthor-trailers.sh ]; then \
 	  echo 'CIN-V0-006: this tree has no script/check-ai-coauthor-trailers.sh; the trailer check is skipped.'; \
-	else bash script/check-ai-coauthor-trailers.sh "$$BASE_SHA" HEAD; fi
+	else head=HEAD; \
+	  if [ "$${GITHUB_EVENT_NAME-}" = pull_request ] && [ -n "$${GITHUB_EVENT_PATH-}" ]; then \
+	    head=$$(jq -er '.pull_request.head.sha | select(type == "string" and test("^[0-9a-f]{40}$$"))' "$$GITHUB_EVENT_PATH") || { \
+	      echo 'CIN-V0-006: cannot read the pull request head SHA; the identity and trailer check cannot run' >&2; exit 1; }; \
+	  fi; \
+	  bash script/check-ai-coauthor-trailers.sh "$$BASE_SHA" "$$head"; fi
 
 # selection-baseline-check (V1-2892) builds this tree's corvint and gate-affected-select, replays them
 # over the fixed change set benchmarks/selection-baseline/changes.json (merged lane changes and the

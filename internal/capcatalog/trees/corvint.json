@@ -864,6 +864,41 @@
     },
     {
       "path": [
+        "line-evidence"
+      ],
+      "command": "corvint line-evidence",
+      "summary": "Collect private, tree-bound line evidence (experimental, LEV-V1)",
+      "usage": [
+        "corvint [--root PATH] line-evidence refresh [--runner RUNNER] [--root DIR]"
+      ],
+      "flags": [
+        "--root",
+        "--runner"
+      ],
+      "required": [],
+      "example": "corvint line-evidence refresh",
+      "help": "corvint line-evidence --help"
+    },
+    {
+      "path": [
+        "line-evidence",
+        "refresh"
+      ],
+      "command": "corvint line-evidence refresh",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] line-evidence refresh [--runner RUNNER] [--root DIR]"
+      ],
+      "flags": [
+        "--root",
+        "--runner"
+      ],
+      "required": [],
+      "example": "corvint line-evidence refresh",
+      "help": "corvint line-evidence refresh --help"
+    },
+    {
+      "path": [
         "mcp"
       ],
       "command": "corvint mcp",
@@ -906,6 +941,293 @@
       ],
       "example": "corvint review --base FULL_COMMIT_ID",
       "help": "corvint review --help"
+    },
+    {
+      "path": [
+        "runs"
+      ],
+      "command": "corvint runs",
+      "summary": "Read Playwright JSON reports across runs (experimental, PWR-V0)",
+      "usage": [
+        "corvint [--root PATH] runs baseline diff --baseline FILE --runs FILE[,FILE...] [--own PATH[,PATH...]] [--base REV] [--max-age N] [--identity REPORT=FILE...] [--identity-sidecars]",
+        "corvint [--root PATH] runs baseline record --rev REV --full FILE[,FILE...] --isolated FILE[,FILE...] [--allow-unobserved] [--identity REPORT=FILE...] [--identity-sidecars]",
+        "corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,FILE...] [--identity REPORT=FILE...] [--identity-sidecars]",
+        "corvint [--root PATH] runs redundancy --runs FILE[,FILE...] [--since TIME] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]",
+        "corvint [--root PATH] runs response-wait --log FILE --url-contains S [--method M] --wait-start RFC3339 --timeout-ms N",
+        "corvint [--root PATH] runs reusable --selection FILE [--prior FILE[,FILE...]] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]",
+        "corvint [--root PATH] runs server-errors --runs FILE[,FILE...] --server-log FILE [--requests FILE] [--support-path P[,P...]] [--window-ms N]",
+        "corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-runs N] [--last N [--window all|completed]] [--pool-by inputs|closure] [--identity REPORT=FILE...] [--identity-sidecars]"
+      ],
+      "flags": [
+        "--allow-unobserved",
+        "--base",
+        "--baseline",
+        "--candidate",
+        "--full",
+        "--identity",
+        "--identity-sidecars",
+        "--isolated",
+        "--last",
+        "--log",
+        "--max-age",
+        "--method",
+        "--min-runs",
+        "--own",
+        "--pool-by",
+        "--prior",
+        "--requests",
+        "--rev",
+        "--root",
+        "--runs",
+        "--selection",
+        "--server-log",
+        "--since",
+        "--summary",
+        "--support-path",
+        "--timeout-ms",
+        "--url-contains",
+        "--wait-start",
+        "--window",
+        "--window-ms"
+      ],
+      "required": [],
+      "example": "corvint runs baseline diff --baseline FILE --runs FILE[,FILE...]",
+      "help": "corvint runs --help"
+    },
+    {
+      "path": [
+        "runs",
+        "baseline"
+      ],
+      "command": "corvint runs baseline",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs baseline diff --baseline FILE --runs FILE[,FILE...] [--own PATH[,PATH...]] [--base REV] [--max-age N] [--identity REPORT=FILE...] [--identity-sidecars]",
+        "corvint [--root PATH] runs baseline record --rev REV --full FILE[,FILE...] --isolated FILE[,FILE...] [--allow-unobserved] [--identity REPORT=FILE...] [--identity-sidecars]"
+      ],
+      "flags": [
+        "--allow-unobserved",
+        "--base",
+        "--baseline",
+        "--full",
+        "--identity",
+        "--identity-sidecars",
+        "--isolated",
+        "--max-age",
+        "--own",
+        "--rev",
+        "--root",
+        "--runs"
+      ],
+      "required": [],
+      "example": "corvint runs baseline diff --baseline FILE --runs FILE[,FILE...]",
+      "help": "corvint runs baseline --help"
+    },
+    {
+      "path": [
+        "runs",
+        "baseline",
+        "diff"
+      ],
+      "command": "corvint runs baseline diff",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs baseline diff --baseline FILE --runs FILE[,FILE...] [--own PATH[,PATH...]] [--base REV] [--max-age N] [--identity REPORT=FILE...] [--identity-sidecars]"
+      ],
+      "flags": [
+        "--base",
+        "--baseline",
+        "--identity",
+        "--identity-sidecars",
+        "--max-age",
+        "--own",
+        "--root",
+        "--runs"
+      ],
+      "required": [
+        "--baseline FILE",
+        "--runs"
+      ],
+      "example": "corvint runs baseline diff --baseline FILE --runs FILE[,FILE...]",
+      "help": "corvint runs baseline diff --help"
+    },
+    {
+      "path": [
+        "runs",
+        "baseline",
+        "record"
+      ],
+      "command": "corvint runs baseline record",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs baseline record --rev REV --full FILE[,FILE...] --isolated FILE[,FILE...] [--allow-unobserved] [--identity REPORT=FILE...] [--identity-sidecars]"
+      ],
+      "flags": [
+        "--allow-unobserved",
+        "--full",
+        "--identity",
+        "--identity-sidecars",
+        "--isolated",
+        "--rev",
+        "--root"
+      ],
+      "required": [
+        "--rev REV",
+        "--full",
+        "--isolated"
+      ],
+      "example": "corvint runs baseline record --rev REV --full FILE[,FILE...] --isolated FILE[,FILE...]",
+      "help": "corvint runs baseline record --help"
+    },
+    {
+      "path": [
+        "runs",
+        "compare"
+      ],
+      "command": "corvint runs compare",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,FILE...] [--identity REPORT=FILE...] [--identity-sidecars]"
+      ],
+      "flags": [
+        "--baseline",
+        "--candidate",
+        "--identity",
+        "--identity-sidecars",
+        "--root"
+      ],
+      "required": [
+        "--baseline",
+        "--candidate"
+      ],
+      "example": "corvint runs compare --baseline FILE[,FILE...] --candidate FILE[,FILE...]",
+      "help": "corvint runs compare --help"
+    },
+    {
+      "path": [
+        "runs",
+        "redundancy"
+      ],
+      "command": "corvint runs redundancy",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs redundancy --runs FILE[,FILE...] [--since TIME] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]"
+      ],
+      "flags": [
+        "--identity",
+        "--identity-sidecars",
+        "--root",
+        "--runs",
+        "--since",
+        "--summary"
+      ],
+      "required": [
+        "--runs"
+      ],
+      "example": "corvint runs redundancy --runs FILE[,FILE...]",
+      "help": "corvint runs redundancy --help"
+    },
+    {
+      "path": [
+        "runs",
+        "response-wait"
+      ],
+      "command": "corvint runs response-wait",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs response-wait --log FILE --url-contains S [--method M] --wait-start RFC3339 --timeout-ms N"
+      ],
+      "flags": [
+        "--log",
+        "--method",
+        "--root",
+        "--timeout-ms",
+        "--url-contains",
+        "--wait-start"
+      ],
+      "required": [
+        "--log FILE",
+        "--url-contains S",
+        "--wait-start RFC3339",
+        "--timeout-ms N"
+      ],
+      "example": "corvint runs response-wait --log FILE --url-contains S --wait-start RFC3339 --timeout-ms N",
+      "help": "corvint runs response-wait --help"
+    },
+    {
+      "path": [
+        "runs",
+        "reusable"
+      ],
+      "command": "corvint runs reusable",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs reusable --selection FILE [--prior FILE[,FILE...]] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]"
+      ],
+      "flags": [
+        "--identity",
+        "--identity-sidecars",
+        "--prior",
+        "--root",
+        "--selection",
+        "--summary"
+      ],
+      "required": [
+        "--selection FILE"
+      ],
+      "example": "corvint runs reusable --selection FILE",
+      "help": "corvint runs reusable --help"
+    },
+    {
+      "path": [
+        "runs",
+        "server-errors"
+      ],
+      "command": "corvint runs server-errors",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs server-errors --runs FILE[,FILE...] --server-log FILE [--requests FILE] [--support-path P[,P...]] [--window-ms N]"
+      ],
+      "flags": [
+        "--requests",
+        "--root",
+        "--runs",
+        "--server-log",
+        "--support-path",
+        "--window-ms"
+      ],
+      "required": [
+        "--runs",
+        "--server-log FILE"
+      ],
+      "example": "corvint runs server-errors --runs FILE[,FILE...] --server-log FILE",
+      "help": "corvint runs server-errors --help"
+    },
+    {
+      "path": [
+        "runs",
+        "stability"
+      ],
+      "command": "corvint runs stability",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-runs N] [--last N [--window all|completed]] [--pool-by inputs|closure] [--identity REPORT=FILE...] [--identity-sidecars]"
+      ],
+      "flags": [
+        "--identity",
+        "--identity-sidecars",
+        "--last",
+        "--min-runs",
+        "--pool-by",
+        "--root",
+        "--runs",
+        "--window"
+      ],
+      "required": [
+        "--runs"
+      ],
+      "example": "corvint runs stability --runs FILE[,FILE...]",
+      "help": "corvint runs stability --help"
     },
     {
       "path": [
@@ -1103,38 +1425,233 @@
     },
     {
       "path": [
+        "test-plan"
+      ],
+      "command": "corvint test-plan",
+      "summary": "Propose a candidate consolidation of declared test variations",
+      "usage": [
+        "corvint [--root PATH] test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]... [--revision REV] [--max-steps N]",
+        "corvint [--root PATH] test-plan consolidate --input FILE [--tests FILE]... [--map FILE]... [--revision REV] [--max-steps N] [--format table|json]",
+        "corvint [--root PATH] test-plan page-state --input FILE [--check --baseline FILE]",
+        "corvint [--root PATH] test-plan prefixes --map FILE [--ledger FILE] [--facts FILE] [--check [--baseline FILE]] [--revision REV] [--budget N | --full]"
+      ],
+      "flags": [
+        "--baseline",
+        "--budget",
+        "--check",
+        "--facts",
+        "--format",
+        "--full",
+        "--input",
+        "--ledger",
+        "--map",
+        "--max-steps",
+        "--plan",
+        "--revision",
+        "--root",
+        "--tests"
+      ],
+      "required": [],
+      "example": "corvint test-plan check --plan FILE --input FILE",
+      "help": "corvint test-plan --help"
+    },
+    {
+      "path": [
+        "test-plan",
+        "check"
+      ],
+      "command": "corvint test-plan check",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]... [--revision REV] [--max-steps N]"
+      ],
+      "flags": [
+        "--input",
+        "--map",
+        "--max-steps",
+        "--plan",
+        "--revision",
+        "--root",
+        "--tests"
+      ],
+      "required": [
+        "--plan FILE",
+        "--input FILE"
+      ],
+      "example": "corvint test-plan check --plan FILE --input FILE",
+      "help": "corvint test-plan check --help"
+    },
+    {
+      "path": [
+        "test-plan",
+        "consolidate"
+      ],
+      "command": "corvint test-plan consolidate",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] test-plan consolidate --input FILE [--tests FILE]... [--map FILE]... [--revision REV] [--max-steps N] [--format table|json]"
+      ],
+      "flags": [
+        "--format",
+        "--input",
+        "--map",
+        "--max-steps",
+        "--revision",
+        "--root",
+        "--tests"
+      ],
+      "required": [
+        "--input FILE"
+      ],
+      "example": "corvint test-plan consolidate --input FILE",
+      "help": "corvint test-plan consolidate --help"
+    },
+    {
+      "path": [
+        "test-plan",
+        "page-state"
+      ],
+      "command": "corvint test-plan page-state",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] test-plan page-state --input FILE [--check --baseline FILE]"
+      ],
+      "flags": [
+        "--baseline",
+        "--check",
+        "--input",
+        "--root"
+      ],
+      "required": [
+        "--input FILE"
+      ],
+      "example": "corvint test-plan page-state --input FILE",
+      "help": "corvint test-plan page-state --help"
+    },
+    {
+      "path": [
+        "test-plan",
+        "prefixes"
+      ],
+      "command": "corvint test-plan prefixes",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] test-plan prefixes --map FILE [--ledger FILE] [--facts FILE] [--check [--baseline FILE]] [--revision REV] [--budget N | --full]"
+      ],
+      "flags": [
+        "--baseline",
+        "--budget",
+        "--check",
+        "--facts",
+        "--full",
+        "--ledger",
+        "--map",
+        "--revision",
+        "--root"
+      ],
+      "required": [
+        "--map FILE"
+      ],
+      "example": "corvint test-plan prefixes --map FILE",
+      "help": "corvint test-plan prefixes --help"
+    },
+    {
+      "path": [
+        "test-validity"
+      ],
+      "command": "corvint test-validity",
+      "summary": "Project test-level results through the shared test-validity shape",
+      "usage": [
+        "corvint [--root PATH] test-validity [--receipt FILE [--route-stubs] | --discover | --static [PATH...]] [--producer]"
+      ],
+      "flags": [
+        "--discover",
+        "--producer",
+        "--receipt",
+        "--root",
+        "--route-stubs",
+        "--static"
+      ],
+      "required": [],
+      "example": "corvint test-validity",
+      "help": "corvint test-validity --help"
+    },
+    {
+      "path": [
+        "test-validity",
+        "negate"
+      ],
+      "command": "corvint test-validity negate",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] test-validity negate --provider ABSOLUTE_FILE --spec S --test T [--project P] (--step TITLE | --all-steps) [--max-runs N] [--baseline-repeat N] [external-server provider options]"
+      ],
+      "flags": [
+        "--all-steps",
+        "--baseline-repeat",
+        "--max-runs",
+        "--project",
+        "--provider",
+        "--root",
+        "--spec",
+        "--step",
+        "--test"
+      ],
+      "required": [
+        "--provider ABSOLUTE_FILE",
+        "--spec S",
+        "--test T"
+      ],
+      "example": "corvint test-validity negate --provider ABSOLUTE_FILE --spec S --test T --step TITLE",
+      "help": "corvint test-validity negate --help"
+    },
+    {
+      "path": [
         "tests"
       ],
       "command": "corvint tests",
       "summary": "Read committed JS/TS and RSpec test sources (experimental, TSA-V0)",
       "usage": [
         "corvint [--root PATH] tests citations --docs PATH[,PATH...] [--docs ...] [--manifest PATH ...] [--glob PATTERN ...] [--syntax inline-code|html-sub] [--pattern RE [--marker RE]] [--repository NAME] [--rev REV]",
+        "corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET] [--threshold F] [--max-line-tests N] [--decisions FILE ...] [--advisory]",
         "corvint [--root PATH] tests env --profile NAME [--rev REV] [--base REV]",
         "corvint [--root PATH] tests example-join --receipt FILE [--rev REV] [--select SELECTOR=REQ[,REQ...] ...] [--requirements FILE]",
+        "corvint [--root PATH] tests lint (--base REV [--all-lines] | --all-lines) [--rev REV] [--runs REPORT.json ...] [--json] [--advisory]",
         "corvint [--root PATH] tests role-locators [--rev REV]",
         "corvint [--root PATH] tests setup-select --specs PATH[,PATH...] [--specs ...] [--rev REV] [--format json|lines]",
         "corvint [--root PATH] tests teardown --files PATH[,PATH...] --declaration PATH [--receipt FILE ...] [--rev REV]",
-        "corvint [--root PATH] tests unselected [--rev REV]"
+        "corvint [--root PATH] tests unselected [--rev REV]",
+        "corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...] [--legacy NEW=LEGACY ...] [--rev REV] [--profile NAME] [--advisory]"
       ],
       "flags": [
+        "--advisory",
+        "--all-lines",
         "--base",
+        "--decisions",
         "--declaration",
         "--docs",
         "--files",
         "--format",
+        "--gate",
         "--glob",
+        "--json",
+        "--legacy",
         "--manifest",
         "--marker",
+        "--max-line-tests",
         "--pattern",
         "--profile",
         "--receipt",
+        "--ref",
         "--repository",
         "--requirements",
         "--rev",
         "--root",
+        "--runs",
         "--select",
         "--specs",
-        "--syntax"
+        "--syntax",
+        "--threshold"
       ],
       "required": [],
       "example": "corvint tests citations --docs PATH[,PATH...]",
@@ -1166,6 +1683,30 @@
       ],
       "example": "corvint tests citations --docs PATH[,PATH...]",
       "help": "corvint tests citations --help"
+    },
+    {
+      "path": [
+        "tests",
+        "duplicates"
+      ],
+      "command": "corvint tests duplicates",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET] [--threshold F] [--max-line-tests N] [--decisions FILE ...] [--advisory]"
+      ],
+      "flags": [
+        "--advisory",
+        "--base",
+        "--decisions",
+        "--gate",
+        "--max-line-tests",
+        "--ref",
+        "--root",
+        "--threshold"
+      ],
+      "required": [],
+      "example": "corvint tests duplicates",
+      "help": "corvint tests duplicates --help"
     },
     {
       "path": [
@@ -1211,6 +1752,29 @@
       ],
       "example": "corvint tests example-join --receipt FILE",
       "help": "corvint tests example-join --help"
+    },
+    {
+      "path": [
+        "tests",
+        "lint"
+      ],
+      "command": "corvint tests lint",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] tests lint (--base REV [--all-lines] | --all-lines) [--rev REV] [--runs REPORT.json ...] [--json] [--advisory]"
+      ],
+      "flags": [
+        "--advisory",
+        "--all-lines",
+        "--base",
+        "--json",
+        "--rev",
+        "--root",
+        "--runs"
+      ],
+      "required": [],
+      "example": "corvint tests lint --base REV [--all-lines]",
+      "help": "corvint tests lint --help"
     },
     {
       "path": [
@@ -1293,6 +1857,30 @@
       "required": [],
       "example": "corvint tests unselected",
       "help": "corvint tests unselected --help"
+    },
+    {
+      "path": [
+        "tests",
+        "validity"
+      ],
+      "command": "corvint tests validity",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...] [--legacy NEW=LEGACY ...] [--rev REV] [--profile NAME] [--advisory]"
+      ],
+      "flags": [
+        "--advisory",
+        "--files",
+        "--legacy",
+        "--profile",
+        "--rev",
+        "--root"
+      ],
+      "required": [
+        "--files"
+      ],
+      "example": "corvint tests validity --files PATH[,PATH...]",
+      "help": "corvint tests validity --help"
     },
     {
       "path": [

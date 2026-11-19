@@ -16,7 +16,7 @@
     },
     {
       "path": "cmd/corvint/affected.go",
-      "sha256": "2dc68bed2a017fd2311bd79793de8fa96ee55a3d77b11bcd885f1c11adecd91b"
+      "sha256": "4031b94b2466ddd5550e1fe037c56faff04eb18551832389ee0aade34f227485"
     }
   ],
   "useCaseId": "UC-CHANGE-CONSEQUENCE"

@@ -142,6 +142,7 @@
         "internal/jslinecov",
         "internal/jstestprovider",
         "internal/linecov",
+        "internal/lineevidence",
         "internal/liveverify",
         "internal/mcp/cli",
         "internal/nativelinecov",
