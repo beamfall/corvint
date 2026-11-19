@@ -324,7 +324,7 @@ func TestSummarizeAndQualified(t *testing.T) {
 	if err := summarizeReports(root, filepath.Join(dir, "nocontrol.record"), []string{b}); err == nil {
 		t.Error("a record without a control was written")
 	}
-	parserPath := "internal/gateselect/readscopes.go"
+	parserPath := "internal/gateselect/readscopes.go" //corvint:fixture-path
 	write(t, root, parserPath, "package x // parser changed\n")
 	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qam", "change parser")
 	if err := qualified([]string{"-root", root, "-record", record, "-rev", "HEAD"}); err == nil || !strings.Contains(err.Error(), parserPath) {
