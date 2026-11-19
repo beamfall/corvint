@@ -62,7 +62,12 @@ per batch):
    last two only until B6 removes them), `.taskman/` (the append-only task store), and
    frozen, digest-bound fixtures recording historical trees or base pins: the retained
    FIH-V1-011 corpus under `tools/affected-edit-oracle/testdata/` and CI outcome/selection
-   fixtures whose data are bound by a digest. Each batch build log SHALL list every remaining
+   fixtures whose data are bound by a digest; frozen measurement and receipt records under
+   `benchmarks/**/runs/**`, `benchmarks/**/*summary*.json`, `benchmarks/**/corpus.json`,
+   `benchmarks/**/admission.json`, `conformance/**/receipts/**` and `.github/cishards/testdata/**`;
+   and `.corvint/requirement-links.json`, the pinned TBC-V1-012 historical export. For this
+   branch the proof excludes `.github/`, whose active remainder ships in a separate PR.
+   Each batch build log SHALL list every remaining
    hit in those excluded files by path (owner-delegated decision, 2026-11-18);
 5. `GOTOOLCHAIN=local go test -count=1 ./tools/import-ratchet/...` passing, with
    `tools/import-ratchet/areas.json` and `baseline.json` edited in the same batch: every prefix

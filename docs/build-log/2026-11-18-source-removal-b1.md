@@ -340,3 +340,39 @@ successful final run; this paragraph records its result only.
 The final affected plan retained the same counts and unknowns reported above (129 dirty paths).
 `b1-affected-final.json` SHA-256:
 `e6c1889e71b872413a1cbdf214af6eea8ed395a2ecd6dded0fae79f167807aac`.
+
+## Round 3: B1 completion (2026-11-18)
+
+The orchestrator amended RMV-V1-003 item 4 to exclude frozen measurement and receipt records.
+The capability spec and change delta carry that decision. The pinned TBC-V1-012 export
+`.corvint/requirement-links.json` is restored byte-for-byte from selection base
+`9f4d5d89ab0648425db40e617f3d890598f9ff79`; its historical paths are expected.
+This section supersedes the preceding PARTIAL disposition and the earlier filtered-export claim.
+
+Newly excluded hits, by path:
+
+- `.github/cishards/testdata/run42408095814.json`
+- `benchmarks/daily-loop-v0/corpus.json`
+- `benchmarks/daily-loop-v0/runs/run-001.json`
+- `benchmarks/daily-loop-v0/runs/run-002.json`
+- `benchmarks/taskcontext-lookup/default-summary.json`
+- `benchmarks/taskcontext-lookup/pack-summary.json`
+- `benchmarks/untouched-repository-v1/corvint/runs/run-002.json`
+- `benchmarks/untouched-repository-v1/viper/admission.json`
+- `conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood/prechange-query.json`
+- `.corvint/requirement-links.json`
+
+Item 3: `CORVINT_GATE_LEDGER=off make -n gate doc-gates shell-test release-binaries-check`
+passed. Disabling ledger reuse makes recursive make inherit dry-run mode without executing the
+ledger program. The documentation timing wrapper runs only recursive dry-run recipes. No tests,
+gates or whole-repository selection ran. Raw output is `b1-make-dry-run.log` in lane evidence.
+
+Item 4: zero removed-path hits outside the stated exclusions and `.github/`. The exact remaining
+active files are `.github/cishards/package-costs.json`, `.github/cishards/walltime_test.go` and
+`.github/linecov/qualification.json`, pending the separate authorized GitHub-only PR. The handback
+carries its patch and the qualification regeneration command. Items 1, 2 and 5 reuse the preceding
+successful code-bound runs: this round's B1 repair changes documentation and restores a historical
+export only. Independent review and merge-head verification belong to the orchestrator.
+
+RMV-V1-007/031 B1 is complete under the round-3 proof boundary; B2 may proceed. The retained
+FIH-V1-011 oracle and prior orphan table are unchanged. Rollback: revert this repair commit.
