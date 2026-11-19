@@ -33,14 +33,11 @@ runs the table above on the repaired source; agent-authored passing tests alone 
 Review the reports separately for obligation preservation and attribution. Do not turn a successful
 checkpoint receipt into completion, evidence of read/remember/use, or execution authority.
 
-## Reproduce
+## Historical reproduction protocol
 
-Build Corvint from the revision being evaluated and select that binary explicitly:
-
-```sh
-GOTOOLCHAIN=local go build -o /tmp/corvint-handoff-bin ./cmd/corvint
-python3 script/qualify-checkpoint-handoff.py --corvint /tmp/corvint-handoff-bin
-```
+The harness was retired by source-removal B1. Its recovery revision and removed path are in
+`docs/build-log/2026-11-18-source-removal-b1.md`. The protocol below describes that historical
+revision; the current checkout cannot run the pilot.
 
 The script prints a new output directory. `--output NEW_DIRECTORY` chooses a path; an existing
 path is refused before any command. The runner uses Python's standard library, Git and Go, makes
@@ -73,10 +70,7 @@ not host telemetry. Concurrent runs share machine load; timing is descriptive on
 
 For each arm, independently evaluate its current repaired files:
 
-```sh
-python3 script/qualify-checkpoint-handoff.py --evaluate /ABSOLUTE/OUTPUT/checkpoint-arm
-python3 script/qualify-checkpoint-handoff.py --evaluate /ABSOLUTE/OUTPUT/notes-arm
-```
+Use the retired harness at the recovery revision with `--evaluate` and each arm directory.
 
 Evaluation clones the arm and overlays only the two permitted working files, then adds the
 independent boundary test. It does not modify the agent's repository. Changes to other files are

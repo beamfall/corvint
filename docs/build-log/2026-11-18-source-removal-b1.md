@@ -139,3 +139,204 @@ Raw evidence is outside the repository in `/home/russell/lanes/sr-b13-evidence/`
 | `b1-zero-reference-audit.json` | 5633 | `72933a304c764fea67f12c6bf891d137a482b5c8ffdce7bc9761805c5ba8c7a1` |
 | `b1-affected.json` | 285799 | `0dfe8375cec00fb5c727f501d6234283c2ff4071973a197905414aaead49cae8` |
 | `b1-orphan-audit.txt` | 10941 | `7b322d4c3bc2cbbc1e59ffab9034f450c284e7912cb10e6eff2d68b2ccf7c0e9` |
+
+## sr-b23: authorized history exclusions and active reference repair
+
+Authority: owner-delegated 1.0 decision in the sr-b23 charter, 2026-11-18; V1-5694.
+Input head: `8b94fc5e54b5c877249778e744caafd954bc0faf`.
+Selection base: `83d95f840c4506c43d0314b339686ba7273224d6`.
+This section supersedes the earlier statement that the task store and retained oracle are blockers.
+
+RMV-V1-003 item 4 now excludes the append-only task store, the retained FIH oracle corpus, and
+frozen CI outcome/selection fixtures bound by a digest. Both the capability spec and change delta
+carry the same amendment. No new requirement ID or broader historical exclusion was added.
+The remaining hits in the newly excluded files are enumerated below, with the existing history
+exclusions as well. The externally retained JSON audit maps each file to every removed path it hits.
+
+RMV-V1-007 and RMV-V1-031: removed stale implementation entries from the spec index, stale rows
+from the derived requirement path map, the retired tool's vocabulary root, and the dead conformance
+citation-list entry. Active prose and code comments now describe surviving behavior or identify
+retirement. The pilot document retains its historical protocol but no longer offers missing scripts
+as current runnable commands. Test assertions, wire shapes, errors, goldens and frozen fixtures are
+unchanged. Only comments changed in Go and TypeScript source. The old import and orphan proof
+above still applies: this follow-up removes no additional source or dependency.
+
+### Item 1 to 5 proof disposition
+
+1. Root and interop module `GOTOOLCHAIN=local go vet ./...`: PASS, through `script/heavy.sh`.
+2. `make windows-vet`: PASS, root and interop modules; Go 1.27.4.
+3. Recursive `make -n gate doc-gates shell-test release-binaries-check`: NOT_RUN. The charter
+   prohibits doc-gates and whole-repository selection. Make runs recursive recipe lines even
+   with `-n`; the ledger and timed doc recipes invoke programs before their recursive make.
+   No equivalent proof is claimed. The host must run this check at the integration boundary.
+4. Literal removed-path audit: FAIL, with 12 remaining files outside the exact exclusions.
+   Four are under `.github/`, which this lane may not edit. Eight are frozen observations or
+   corpus/admission records, including the untouched-repository evidence RMV-V1-036 retains.
+   The charter names only the FIH corpus and digest-bound CI fixtures as new exclusions;
+   it also prohibits changing frozen outputs. A request to exclude the retained benchmark and
+   conformance records is pending; no approval or wider exclusion is inferred from silence.
+5. Existing whole `tools/import-ratchet` package: PASS, 0.995s. Registrations remain consistent;
+   this follow-up removes no new package and introduces no new baseline edge.
+
+The existing whole `internal/contextindex` package also passed (33.647s). All Go tests used the
+heavy wrapper, one package per command, with no filter, identity export or lock override.
+Affected selected contextindex directly, the import ratchet by enclosing package, and specindex
+as a literal reader. Its plan is UNKNOWN: 399 selected, 293 excluded, 79 unknowns and 9 unresolved
+packages. Unknown reasons: LANGUAGE_FRONTIER 58, UNINDEXED_SOURCE_PATH 5, UNOWNED_DIRTY_PATH 14,
+UNSELECTED_BINARY_CONSUMER 2. The broad fallback was not executed.
+
+B1 stays PARTIAL; task 4 is not ticked. RMV-V1-001 requires the completed proof before B2;
+therefore RMV-V1-008/009 and RMV-V1-010/011 remain NOT_STARTED. No B2/B3 deletion, provider parity,
+reader migration or runner-protocol claim is made. The orchestrator owns independent review.
+No publication, native task write, CEM, dogfood or seal was attempted. Rollback is a revert of
+this follow-up; the initial B1 source cut has its separate recovery parent above.
+
+### Remaining non-excluded files
+
+- `.github/cishards/package-costs.json`
+- `.github/cishards/testdata/run42408095814.json`
+- `.github/cishards/walltime_test.go`
+- `.github/linecov/qualification.json`
+- `benchmarks/daily-loop-v0/corpus.json`
+- `benchmarks/daily-loop-v0/runs/run-001.json`
+- `benchmarks/daily-loop-v0/runs/run-002.json`
+- `benchmarks/taskcontext-lookup/default-summary.json`
+- `benchmarks/taskcontext-lookup/pack-summary.json`
+- `benchmarks/untouched-repository-v1/corvint/runs/run-002.json`
+- `benchmarks/untouched-repository-v1/viper/admission.json`
+- `conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood/prechange-query.json`
+
+### Excluded hit inventory
+
+- `.agent-evidence/ctx-w58/verification/affected-final.json`
+- `.agent-evidence/ctx-w58/verification/affected.json`
+- `.agent-evidence/cx-affected-selection-replay.json`
+- `.agent-evidence/lineidx-qualification-blocked.json`
+- `.agent-evidence/native-taskman/affected-dirty.json`
+- `.agent-evidence/native-taskman/gate-a-implementation.md`
+- `.agent-evidence/pk-tstore-fix1/affected-final.json`
+- `.agent-evidence/pk-tstore-fix1/affected-narrow-final.json`
+- `.agent-evidence/pk-tstore-fix1/base-binding.json`
+- `.agent-evidence/pk-tstore/affected-delivered.json`
+- `.agent-evidence/pk-tstore/affected-start.json`
+- `.corvint/changes/2903292b5abe8528e2d3c1fb6bb994391daffbf5.cem.json`
+- `.corvint/changes/405f18aebbcc9a1ca81353dfad6a2335b08abda4.cem.json`
+- `.corvint/changes/41f821ff6867a933e6205cf71672fcf5a6398ea8.cem.json`
+- `.corvint/changes/4be7c81296b780e9195424e0975856db2dfcba94.cem.json`
+- `.corvint/changes/4cb33a048d853b6c2e34eaf2a2493dffac3d1420.cem.json`
+- `.corvint/changes/7b896f87cc6bcd5e054532936936be1c5148e383.cem.json`
+- `.corvint/changes/a14de43f6af0506d5ce617a54ddad8e4d1d681d9.cem.json`
+- `.corvint/changes/b0f69f0c1430925fe1df9f2585e4452ad25123e3.cem.json`
+- `.corvint/changes/b9f67a6471db95f13bb502bf7fc80ed3785f6075.cem.json`
+- `.taskman/tickets/V1-0404.json`
+- `.taskman/tickets/V1-0473.json`
+- `.taskman/tickets/V1-0506.json`
+- `benchmarks/results/v2892-selection-baseline-2026-10-31-base.json`
+- `benchmarks/results/v2892-selection-baseline-2026-10-31-lane.json`
+- `benchmarks/results/v2892-selection-baseline-2026-10-31-merge.json`
+- `benchmarks/results/v2892-selection-baseline-2026-10-31-pre14.json`
+- `benchmarks/results/v2892-selection-baseline-2026-11-01-58.json`
+- `benchmarks/results/v3348-source-and-test-slices-2026-10-31.json`
+- `docs/build-log/2026-10-31-lsp-cem-w2.md`
+- `docs/build-log/2026-10-31-scripts-w2.md`
+- `docs/build-log/2026-11-01-afr-w31.md`
+- `docs/build-log/2026-11-01-afs-w27.md`
+- `docs/build-log/2026-11-01-ci-w34.md`
+- `docs/build-log/2026-11-01-scr-w16.md`
+- `docs/build-log/2026-11-03-floor-typed-reach.md`
+- `docs/build-log/2026-11-03-reuse-verified-results.md`
+- `docs/build-log/2026-11-04-floor-review-c.md`
+- `docs/build-log/2026-11-04-floor-review-e.md`
+- `docs/build-log/2026-11-04-reuse-review-round-3-confinement-closures.md`
+- `docs/build-log/2026-11-04-reuse-review-round-soundness.md`
+- `docs/build-log/2026-11-06-derived-cishards-membership.md`
+- `docs/build-log/2026-11-06-mbrescue.md`
+- `docs/build-log/2026-11-06-selgo.md`
+- `docs/build-log/2026-11-06-unbounded-readers.md`
+- `docs/build-log/2026-11-07-mbapproved-typedreach-review-fixes.md`
+- `docs/build-log/2026-11-07-rscope.md`
+- `docs/build-log/2026-11-07-rsdecl.md`
+- `docs/build-log/2026-11-07-rspt11dn-self-review-repair.md`
+- `docs/build-log/2026-11-08-citeperf.md`
+- `docs/build-log/2026-11-08-tree-scope-predicates.md`
+- `docs/build-log/2026-11-09-linequal.md`
+- `docs/build-log/2026-11-11-affmeasure.md`
+- `docs/build-log/2026-11-11-deadcode-ratchet.md`
+- `docs/build-log/2026-11-11-nomiss.md`
+- `docs/build-log/2026-11-11-orphans.md`
+- `docs/build-log/2026-11-11-trial-harness-archive.md`
+- `docs/build-log/2026-11-13-macgate1113.md`
+- `docs/build-log/2026-11-13-selwalk1113.md`
+- `docs/build-log/2026-11-16-r1replay-ownership-replay-complete.md`
+- `docs/build-log/2026-11-18-source-removal-b1-benchmark-ownership-repair.md`
+- `docs/build-log/2026-11-18-source-removal-b1.md`
+- `docs/build-log/evidence/2026-11-11-relhyg-untested/classification.tsv`
+- `docs/decisions/0048-four-owner-calls-2026-09-04.md`
+- `docs/decisions/0250-source-view-native-port-gaps-2026-09-13.md`
+- `docs/decisions/0308-single-name-corvint-identity-2026-09-17.md`
+- `docs/decisions/0348-self-dogfood-mapping-qualifies-store-scope-2026-09-22.md`
+- `docs/decisions/0364-compact-evidence-summaries-exact-drill-down-2026-09-23.md`
+- `docs/specs/affected-plan-reuse-v0.md`
+- `docs/specs/affected-plan-selection-v0.md`
+- `docs/specs/authoring-step-scope-v0.md`
+- `docs/specs/cem-content-keyed-claims-v0.md`
+- `docs/specs/dogfood-citation-plan-precheck-v0.md`
+- `docs/specs/experimental-source-views-v0.md`
+- `docs/specs/go-test-evidence-v0.md`
+- `docs/specs/immutable-delta-v0.md`
+- `docs/specs/openspec/changes/source-removal/design.md`
+- `docs/specs/openspec/changes/source-removal/path-verdicts.md`
+- `docs/specs/openspec/changes/spec-set-cleanup/specs-verdicts.md`
+- `docs/specs/openspec/changes/spec-set-cleanup/tasks.md`
+- `docs/specs/test-selection-precision-v0.md`
+- `docs/specs/work-queue-observation-v0.md`
+- `tools/affected-edit-oracle/testdata/corpus.json`
+- `tools/ci-forward-row/testdata/outcomes/shard-0.json`
+- `tools/ci-forward-row/testdata/outcomes/shard-2.json`
+- `tools/ci-forward-row/testdata/outcomes/shard-3.json`
+- `tools/ci-forward-row/testdata/outcomes/shard-4.json`
+- `tools/ci-forward-row/testdata/outcomes/shard-5.json`
+- `tools/ci-forward-row/testdata/outcomes/shard-7.json`
+- `tools/ci-forward-row/testdata/selection/shard-0.json`
+- `tools/ci-forward-row/testdata/selection/shard-2.json`
+- `tools/ci-forward-row/testdata/selection/shard-3.json`
+- `tools/ci-forward-row/testdata/selection/shard-4.json`
+- `tools/ci-forward-row/testdata/selection/shard-5.json`
+- `tools/ci-forward-row/testdata/selection/shard-7.json`
+- `tools/ci-forward-row/testdata/shadow/dry-run-3.json`
+- `tools/ci-forward-row/testdata/shadow/manifest-3.json`
+- `tools/ci-forward-row/testdata/streams/pr38476173623-shard7-attempt1.json`
+
+### sr-b23 retained evidence
+
+`b1-reference-active.json` (1990 bytes), SHA-256:
+`0ab8e0b3a19df21677965c75f759148c9acdd2aca013394960b95f8a45e63498`.
+
+`b1-reference-excluded.json` (12315 bytes), SHA-256:
+`3cd8e2be69ebc86bd0cd1d9bab4a7a59b314f8b07016dfeb0ab923e38f6904dd`.
+
+`b1-affected.json` (339411 bytes), SHA-256:
+`e3d767d990d5ebfe8ab6700d096f26441f29e7cbd52184ba1fd817e3fce6ed35`.
+
+`b1-github-active.patch` (4350 bytes), SHA-256:
+`0a030af2f2f67ca2a5ae3ad5fc49a88103171177da1a72e76445cbfec4cc14db`.
+
+Raw evidence directory: `/home/russell/lanes/sr-b23-evidence/`.
+
+### Verification repair
+
+The first final spec check rejected wrapping an Agent digest field over multiple lines
+(`TestIndexCoversSpecsAndHeaders`). The detailed implementation list now lives in a normal body
+section, with a one-line digest pointer. No test or checker was changed. The generated README
+row remains generator-formatted; its table format exceeds 100 columns. Authored Markdown additions
+otherwise stay within 100 columns. The failed run remains in `b1-doc-checks-final.log`.
+
+Final focused documentation gate: PASS after the digest repair. The whole specindex package,
+spec requirements, line citations, OpenSpec (65 existing baseline findings, zero failures), and
+long-line check passed. `make changed-checks` also passed its citation, unbounded-reader and
+read-scope checks. Repinning found no moved anchors. No code or spec inputs changed after that
+successful final run; this paragraph records its result only.
+
+The final affected plan retained the same counts and unknowns reported above (129 dirty paths).
+`b1-affected-final.json` SHA-256:
+`e6c1889e71b872413a1cbdf214af6eea8ed395a2ecd6dded0fae79f167807aac`.

@@ -10,7 +10,7 @@ Health: KEEP
 ## Agent digest
 - Claim: Affected plans name timeouts and deletions, narrow fixture and go-list reads, retain runtime-rooted Go readers, match CI, and honour owners and must-run tests.
 - Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental.
-- Exists: `wholeTree` and `readTrees` in `tools/test-read-scopes-check/main.go` with `.corvint/test-read-scope-trees.json`, `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `resolves`, `namesAny` and `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `parentBackslash` in `internal/gateselect/readers.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`; `internal/liveverify/affected/golang/typedreach`, `testTypedSlices` in `cmd/corvint/test_typed_slices.go`, `tools/typed-reach-measure`; `boundedJoinConsumed` in `internal/liveverify/affected/golang/locatorproof.go` and `internal/gateselect/locatorproof.go`, `driverGoBuildOnlyCommands`, `driverXargs` and `scanShellOutput` in `internal/liveverify/affected/driver_shell.go`, `RequireLiveTier` in `internal/testsupport/livetier.go`, `LiveTests` in `.github/cishards/live.go`, `Size` in `.github/cishards/size.go` and `.github/forward-rows/github-guard.sh`.
+- Exists: Selection, read-scope and typed-reach machinery; see Implemented readers.
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
@@ -87,6 +87,31 @@ Lane affux (2026-11-11; V1-4399) adds AFP-V0-9987 to AFP-V0-9989 here for the sa
 build-log entry `2026-11-11-affux`.
 Lane guardsel (2026-11-11; V1-5364, V1-5365) adds AFP-V0-9980 to AFP-V0-9983 here for guard
 predicates that match only the guard's reads; see build-log entry `2026-11-11-guardsel`.
+
+## Implemented readers
+
+`wholeTree` and `readTrees` in `tools/test-read-scopes-check/main.go` with
+`.corvint/test-read-scope-trees.json`, `fixtureOnlyClaim` in
+`internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`,
+`withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in
+`internal/liveverify/affected/golang/golang.go`, the measured rounds of
+`TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`;
+`goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`,
+`importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `resolves`, `namesAny` and
+`anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`,
+`affectedDeletedPaths` in `cmd/corvint/affected.go`; `parentBackslash` in
+`internal/gateselect/readers.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in
+`internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in
+`cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and
+`droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in
+`internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`;
+`internal/liveverify/affected/golang/typedreach`, `testTypedSlices` in
+`cmd/corvint/test_typed_slices.go`; `boundedJoinConsumed` in
+`internal/liveverify/affected/golang/locatorproof.go` and `internal/gateselect/locatorproof.go`,
+`driverGoBuildOnlyCommands`, `driverXargs` and `scanShellOutput` in
+`internal/liveverify/affected/driver_shell.go`, `RequireLiveTier` in
+`internal/testsupport/livetier.go`, `LiveTests` in `.github/cishards/live.go`, `Size` in
+`.github/cishards/size.go` and `.github/forward-rows/github-guard.sh`.
 
 ## User and current state
 
@@ -2608,7 +2633,8 @@ one list, so a later class cannot reopen it.
 Retirement status: AFP-V0-2378 is retired by source-removal B1 (owner, 2026-11-18).
 The clause and trace row remain as history; the measurement tool is removed.
 
-- **AFP-V0-2378:** (experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing
+- **AFP-V0-2378:** (experimental; V1-2744) The retired typed-reach harness SHALL replay
+  the narrowing
   of one package for the Go change between a base and a checked-out head and, with `-oracle`, run
   each test function alone in a test binary built at head and in one with
   `panic("typed-reach fault")` at the entry of every changed function, classifying each outcome

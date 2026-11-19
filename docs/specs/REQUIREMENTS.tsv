@@ -376,7 +376,7 @@ AFP-V0-2374	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A d
 AFP-V0-2375	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A narrowed package SHALL run `-run ^(KEPT...)$` with	unrecorded	-
 AFP-V0-2376	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) The changed declarations SHALL be read per changed	unrecorded	-
 AFP-V0-2377	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A package SHALL be refused narrowing, with the reason	unrecorded	-
-AFP-V0-2378	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing	unrecorded	-
+AFP-V0-2378	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) The retired typed-reach harness SHALL replay	unrecorded	-
 AFP-V0-9009	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-9010	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-9011	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
@@ -7463,7 +7463,7 @@ PGO-V0-012	docs/specs/process-group-owner-v0.md	(accepted under the owner's stan
 PGO-V0-016	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1244). In the	standing	2026-10-11; V1-1244
 PGO-V0-017	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2111) Every Ow	standing	2026-10-11; V1-2111
 PGO-V0-018	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) `Owner.S	standing	2026-10-11; V1-1387
-PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The deve	standing	2026-10-11; V1-1387
+PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The	standing	2026-10-11; V1-1387
 PGO-V0-020	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1651) The obse	standing	2026-10-11; V1-1651
 PGO-V0-021	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0692) The POSI	standing	2026-10-11; V1-0692
 PGO-V0-022	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2399) On Linux	standing	2026-10-11; V1-2399

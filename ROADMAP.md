@@ -261,7 +261,7 @@ local work. All behavioral tickets inherit the build/review/dogfood loop above.
   dirty-state refusal, and measured three-to-five-read latency/RSS against separate calls. Adopt on the next eligible task.
   **Status 2026-09-04:** delivered as `corvint batch` under proposed `SBQ-V0-001..006` after Gate A and a fresh Astra review; measured 0.23 s/152 MB against 1.71 s/246 MB for four separate calls on this repository; adopted for the AT-05 grounding; full gate pending.
 
-  **Development adoption 2026-09-06:** the opt-in `benchmarks/selfuse-batch` consumer exercises
+  **Development adoption 2026-09-06:** the retired self-use batch consumer exercised
   ordinary batching with full evidence and explicit fallback; independent review removed its
   unqualified possession shortcut. A clean same-snapshot comparison retained four exact packets
   (one Corvint process versus four); the failed-view control stayed failed. This is mechanism evidence,

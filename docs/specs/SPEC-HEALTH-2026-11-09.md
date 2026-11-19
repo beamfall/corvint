@@ -295,7 +295,7 @@ acceptance checklist in the plan covers the classes as a whole.
 | `go-format-gate-v0.md` | repository gate | accepted | implemented | 7 | 0 | 0 | 7 | 0 | 0 | A repository check that keeps running; no product requirement depends on it. |
 | `go-only-cutover-v0.md` | history | accepted, no decision named | experimental | 13 | 0 | 0 | 13 | 9 | 0 | Record of a finished migration. |
 | `go-production-kernel-migration-v0.md` | history | accepted, no decision named | experimental | 102 | 25 | 22 | 55 | 51 | 14 | Migration record; 14 untraced lines; depends on a retired spec. |
-| `go-test-evidence-v0.md` | kept command | proposed | experimental | 7 | 0 | 0 | 7 | 6 | 1 | Operator tool `tools/gotest-evidence`. Intent is proposed. |
+| [GTE][gte-b1] | retired | proposed | retired | 7 | 0 | 0 | 7 | 6 | 1 | B1 retirement |
 | `heading-navigation-experiment-v0.md` | experiment | proposed | experimental | 5 | 0 | 0 | 5 | 5 | 0 | Measurement or trial programme for context quality; not part of the three products. |
 | `kotlin-android-candidate-v0.md` | analyzers | proposed | deferred | 10 | 0 | 0 | 10 | 1 | 9 | Candidate analyzer, deferred, not registered with selection. See the analyzers finding below. |
 | `learned-trace-admission-v0.md` | experiment | accepted | experimental | 20 | 5 | 1 | 14 | 8 | 0 | Local ledger named by product invariant 4 in `AGENTS.md`; stays as written. |
@@ -833,3 +833,5 @@ plan lists the supported set as an owner decision.
 - It did not classify the 38 Tasks spec files. They are retired here and are not yet on the `main`
   branch of the Tasks repository.
 - It did not verify by running a binary that a command is absent; those rows say "Verify first".
+
+[gte-b1]: go-test-evidence-v0.md

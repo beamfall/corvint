@@ -327,9 +327,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "protocol/step"
-    ],
+    "implementation": [],
     "health": "RETIRE"
   },
   {
@@ -1348,9 +1346,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "protocol/delta"
-    ],
+    "implementation": [],
     "health": "RETIRE"
   },
   {
@@ -3333,10 +3329,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/workqueue",
       "cmd/corvint",
-      "internal/worklistadapter",
-      "conformance/work-queue-v0"
+      "internal/worklistadapter"
     ],
     "health": "RETIRE"
   },

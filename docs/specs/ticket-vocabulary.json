@@ -64,8 +64,7 @@
     "run-evidence": {
       "product": "testing",
       "roots": [
-        "internal/testevidence/",
-        "tools/gotest-evidence/"
+        "internal/testevidence/"
       ]
     },
     "measurement": {

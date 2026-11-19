@@ -5541,7 +5541,7 @@ from the rest of the diff, which selects that code's own changes. (2) A text con
 future member; the JSON document stays the contract. Acceptance evidence: the traceability rows;
 AFP-V0-930 and AFP-V0-931 fail on base `c5d5f0829` (the snapshot review selected both declared
 packages; the module-anchor holder was a sealed-CEM and sidecar reader). Measured on this repository for a sealed CEM: `Select` rule (c) readers 39 to 33; the six
-dropped (`conformance/work-queue-v0`, `internal/delta`, `internal/slotlearn`,
+dropped (`internal/delta`, `internal/slotlearn`,
 `internal/testevidence`, `internal/touchsurprise`, `tools/ci-forward-row`) held only the `/`
 anchor, and the 33 left each hold a parent-only token, where `Select` stays broader than the
 planner on purpose. The bb943b524 merge (24 paths, three of them

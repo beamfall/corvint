@@ -59,7 +59,11 @@ per batch):
    exclusion list: `docs/build-log/`, `docs/decisions/`, spec files carrying a retirement status
    line, `benchmarks/results/`, `docs/specs/openspec/changes/` (active and archived change folders,
    which are the removal's own plan and record), `.agent-evidence/` and `.corvint/changes/` (the
-   last two only until B6 removes them);
+   last two only until B6 removes them), `.taskman/` (the append-only task store), and
+   frozen, digest-bound fixtures recording historical trees or base pins: the retained
+   FIH-V1-011 corpus under `tools/affected-edit-oracle/testdata/` and CI outcome/selection
+   fixtures whose data are bound by a digest. Each batch build log SHALL list every remaining
+   hit in those excluded files by path (owner-delegated decision, 2026-11-18);
 5. `GOTOOLCHAIN=local go test -count=1 ./tools/import-ratchet/...` passing, with
    `tools/import-ratchet/areas.json` and `baseline.json` edited in the same batch: every prefix
    naming a deleted package is removed (the ratchet reports STALE_AREA_PREFIX otherwise), every
