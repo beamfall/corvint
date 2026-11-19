@@ -1454,6 +1454,7 @@
     ],
     "internal/mcp/corpusbridge": [],
     "internal/mcp/docsbridge": [],
+    "internal/mcp/docsserver": [],
     "internal/mcp/toolgroup": [],
     "internal/mergedrivers": [],
     "internal/nativelinecov": [],
@@ -1891,6 +1892,7 @@
       "internal/",
       "tools/"
     ],
+    "tools/deadcode-ratchet": [],
     "tools/declaration-compat-check": [],
     "tools/docs-ci-plan": [
       "go.mod",
@@ -1934,6 +1936,7 @@
       "script/gen-spec-requirements.sh"
     ],
     "tools/plugin-dirs": [],
+    "tools/rcf-currency": [],
     "tools/requirement-id-collisions": [],
     "tools/selection-baseline": [
       ".github/cishards/",
@@ -1955,9 +1958,7 @@
       ".github/forward-rows/tiers.jq",
       ".github/forward-rows/tiers.sh"
     ],
-    "tools/unbounded-readers": [],
-    "tools/deadcode-ratchet": [],
-    "internal/mcp/docsserver": []
+    "tools/unbounded-readers": []
   },
   "profile": "corvint-test-read-scopes/0"
 }

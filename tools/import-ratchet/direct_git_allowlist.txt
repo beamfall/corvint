@@ -43,6 +43,7 @@ tools/declaration-compat-check/main.go:tracked: inherits the environment with no
 tools/docs-ci-plan/main.go:repo.git: classifierSha256 in .github/qualifications/docs-only.json binds tools/docs-ci-plan only (DCI-V0-855), so an edit requalifies it and a gitrun import adds unbound code
 tools/flows-smoke/main.go:buildFixture: CombinedOutput with a fixed fixture environment and pinned author dates and no timeout; the message carries exec's error and combined output
 tools/py-signal-lint/main.go:main: inherits the environment with no timeout or output bound and prints exec's error
+tools/rcf-currency/main.go:gate.git: inherited environment with no timeout; stdout read through readBounded at maxInput and stderr captured for the error
 tools/release-binary/build.go:gitOutput: inherits the environment with no output bound; the error text carries exec's error and stderr
 tools/requirement-id-collisions/main.go:git: maps exec.ExitError to its own exit code and stderr error and passes the caller environment minus GIT_ variables
 tools/test-exec-writes-check/main.go:run: inherits the environment with no timeout or output bound

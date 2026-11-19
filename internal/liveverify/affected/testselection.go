@@ -133,6 +133,16 @@ func readTestSelection(root *Source) (*testSelection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", DeclaredSelectionPath, err)
 	}
+	return ParseTestSelection(body)
+}
+
+// ParseTestSelection validates immutable declaration bytes using the same closed
+// schema and bounds as the production declaration loader. An empty declaration
+// returns nil. Callers must not interpret a parse error as an empty declaration.
+func ParseTestSelection(body []byte) (*testSelection, error) {
+	if len(body) > maxDeclaredSelectionBytes {
+		return nil, fmt.Errorf("%s: selection exceeds 64 KiB", DeclaredSelectionPath)
+	}
 	var declared testSelectionFile
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
 		return nil, fmt.Errorf("%s: %w", DeclaredSelectionPath, err)
