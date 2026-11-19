@@ -6221,6 +6221,21 @@ LRF-V0-013	docs/specs/lexical-relevance-floor-v0.md	the profile MUST be an addit
 LRF-V0-014	docs/specs/lexical-relevance-floor-v0.md	input, deterministic work, and canonical output MUST remain within the exact fro	unrecorded	-
 LRF-V0-015	docs/specs/lexical-relevance-floor-v0.md	every corpus subject, selection, artifact, source-edge, raw-label, adjudication,	unrecorded	-
 LRF-V0-016	docs/specs/lexical-relevance-floor-v0.md	the trusted independent custodian MUST run the frozen implementation over all si	unrecorded	-
+LEV-V1-001	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One writing verb for line evidence.	owner	2026-11-18; #235
+LEV-V1-002	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Private storage per runner instance.	owner	2026-11-18; #235
+LEV-V1-003	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Evidence bound to the tree.	owner	2026-11-18; #235
+LEV-V1-004	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Missing or damaged evidence widens.	owner	2026-11-18; #235
+LEV-V1-005	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Line-exact runners.	owner	2026-11-18; #235
+LEV-V1-006	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) pytest selects by file with its tier label.	owner	2026-11-18; #235
+LEV-V1-007	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Line evidence never removes a browser E2E test.	owner	2026-11-18; #235
+LEV-V1-008	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Per-test E2E line narrowing is opt-in and experim	owner	2026-11-18; #235
+LEV-V1-009	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One tier vocabulary.	owner	2026-11-18; #235
+LEV-V1-010	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One-line reason per selection.	owner	2026-11-18; #235
+LEV-V1-011	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Tier line only after fault-injection proof.	owner	2026-11-18; #235
+LEV-V1-012	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One reader for every consumer.	owner	2026-11-18; #235
+LEV-V1-013	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) The Action builds and caches evidence.	owner	2026-11-18; #235
+LEV-V1-014	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) Argument limits.	owner	2026-11-18; #235
+LEV-V1-015	docs/specs/line-evidence-v1.md	(accepted 2026-11-18, PR #235) One-shot commands plan the working tree.	owner	2026-11-18; #235
 LPCV-V0-7705	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3938)	standing	2026-10-11; V1-3938
 LPCV-V0-001	docs/specs/live-proof-carrying-verification-v0.md	Every edit event MUST produce or reference one WSI before selection begins.	unrecorded	-
 LPCV-V0-002	docs/specs/live-proof-carrying-verification-v0.md	The WSI MUST cover accepted unsaved editor buffers as content-addressed overlays	unrecorded	-

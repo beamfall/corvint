@@ -7,12 +7,38 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
+
+// MMR-V0-001 and MCPV0-953: an experimental CLI command must not expand the
+// frozen MCP help enum or be accepted outside it. The full catalog still describes it.
+func TestMMRV0001ExperimentalCLIHelpKeepsFrozenEnum(t *testing.T) {
+	t.Parallel()
+	if slices.Contains(helpCommandNames(), any("line-evidence")) {
+		t.Fatal("the frozen help enum gained line-evidence")
+	}
+	if _, _, ok := capcatalog.Slice(capcatalog.Snapshot(), "line-evidence"); !ok {
+		t.Fatal("the CLI catalog lost line-evidence")
+	}
+	result, callErr := callHelp(context.Background(), []byte(`{"topic":"catalog"}`))
+	if callErr != nil || result.Receipt["text"] != string(capcatalog.Snapshot()) {
+		t.Fatalf("full help catalog changed: result=%+v error=%v", result, callErr)
+	}
+	for _, args := range []string{
+		`{"command":"line-evidence"}`,
+		`{"topic":"command","command":"line-evidence"}`,
+	} {
+		if _, err := callHelp(context.Background(), []byte(args)); err == nil ||
+			err.Code != "invalid-arguments" {
+			t.Fatalf("unadvertised command %s: error=%v", args, err)
+		}
+	}
+}
 
 // MCPV0-100: every profile advertises and answers corvint.help from the
 // embedded catalog and guide, without reading the repository, within the

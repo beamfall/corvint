@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"path"
 	"path/filepath"
 	"slices"
@@ -241,6 +242,17 @@ func (j *flowJoiner) join() *affected.E2EPlan {
 	j.checkBounds()
 	j.checkGlobal()
 	j.checkPlanUnbounded()
+	for _, key := range slices.Sorted(maps.Keys(j.plan.FullInstances)) {
+		reason := j.plan.FullInstances[key]
+		if strings.HasPrefix(key, "playwright@") {
+			// No flow exclusion can certify a stale or unrecognized instance.
+			// A repository-wide E2E fallback also covers underived graph units.
+			j.full = true
+			j.unknown = append(j.unknown, affected.Unknown{
+				Reason: affected.UnknownE2EPlanUnbounded, Detail: key, Hint: reason,
+			})
+		}
+	}
 	// Flow hits (APK-V0-003): a link whose target the change reaches
 	// selects the test files of its selecting variations.
 	for _, intent := range j.set.Flows {
@@ -319,6 +331,19 @@ func (j *flowJoiner) join() *affected.E2EPlan {
 		}
 		if j.full {
 			j.pick(file, j.fullReason())
+		}
+	}
+	// LEV-V1-007: the additive overlay is authoritative for inclusion, never
+	// exclusion. Project every added browser file through the same inventory,
+	// retaining every project and existing flow hit.
+	for _, selection := range j.plan.Selected {
+		if selection.Witness.Kind != "LINE_EVIDENCE" || !strings.HasPrefix(selection.UnitID, "typescript:playwright:") {
+			continue
+		}
+		for _, p := range selection.Tests {
+			for _, file := range j.filesOf(p) {
+				j.pick(file, selection.Reason)
+			}
 		}
 	}
 	for _, sel := range j.selected {

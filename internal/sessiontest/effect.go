@@ -317,7 +317,7 @@ func (decision scopeDecision) verdict(input Input) SelectionVerdict {
 		language, ok := runnerLanguages[instance.Runner]
 		switch {
 		case instance.Runner == testid.Go:
-			if input.KillSwitch.Full(testid.Go) && instance.Root != "." && input.RunnerProfile != ProfileCI {
+			if (input.FullGoInstances[instance.Key()] != "" || input.KillSwitch.Full(testid.Go) && instance.Root != ".") && (instance.Root == "." || input.RunnerProfile != ProfileCI) {
 				// RNC-V1-008: a nested module's own suite runs whole.
 				raise("go", contract.TierFull)
 			}

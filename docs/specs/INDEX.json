@@ -5011,5 +5011,18 @@
     "closableToday": false,
     "implementation": [],
     "health": "KEEP"
+  },
+  {
+    "path": "docs/specs/line-evidence-v1.md",
+    "title": "Line Evidence V1",
+    "reqPrefix": "LEV-V1",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Private tree-bound line evidence augments file selection with explicit widening reasons.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [],
+    "health": "KEEP"
   }
 ]
