@@ -1431,10 +1431,11 @@ interactive-alpha-test: ## Run the interactive-alpha process harness tests (node
 
 # Both installed drivers copy this tree. A fixture edit selects both qualification
 # targets, including edits below a subdirectory or to a newly introduced fixture.
-.PHONY: interactive-alpha-installed-core interactive-alpha-installed-editor
+.PHONY: interactive-alpha-installed-core
 interactive-alpha-installed-core: conformance/interactive-alpha/fixture/
 	node conformance/interactive-alpha/core-provider-proof.mjs "$${CORVINT_PROVIDER_BIN_DIR:?}" "$(CURDIR)" "$${CORVINT_CORE_WORK:?}" "$${CORVINT_GO_AUTHORITY_BUNDLE:?}" "$${CORVINT_CORE_OUTPUT:?}" sessions
 
+.PHONY: interactive-alpha-installed-editor
 interactive-alpha-installed-editor: conformance/interactive-alpha/fixture/
 	node extensions/vscode/test/installed/run.mjs
 
