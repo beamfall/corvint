@@ -20,6 +20,10 @@ func (Language) SourceBoundFrontiers() []string {
 	return []string{FrontierConditionalImport, FrontierDynamicImport, FrontierRelativeImport, FrontierPytestPlugins, FrontierAbsoluteImport}
 }
 
+// SourceOnlyFrontiers preserves the source-only import proof for bare reasons
+// without requiring located sites (AFP-V0-511, AZU-V1-960).
+func (language Language) SourceOnlyFrontiers() []string { return language.SourceBoundFrontiers() }
+
 // FrontierDirection declares FrontierAbsoluteImport OUTBOUND (SLF-V1-002):
 // its hidden edge starts at the import in the site's own file, so a bearing
 // entry selects the importing unit with its dependents. Every other Python

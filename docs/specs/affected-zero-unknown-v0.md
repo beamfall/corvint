@@ -74,6 +74,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   aliases, package.json imports mappings, extensionless JSON loads and recorded overflow sites.
   Resolving another import SHALL NOT erase these targets. Unsupported mappings, unavailable
   resolution tables, unowned located sites and bounded token sets SHALL retain uncertainty.
+  A bare source-bound reason with an explicit `SourceOnlyFrontiers` declaration retains
+  AFP-V0-511's static proof: its hidden edges resolve only to owned source, never foreign
+  path tokens. Without that stronger declaration, missing site records remain uncertain;
+  located entries retain their read evidence even with the declaration.
   This strengthens the negative proof in AFP-V0-511 without changing the wire contract.
 - `AZU-V1-961`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4679)
   The AZU-V0-211 hosted-fixture proof SHALL apply to nonparticipating plugins on unowned changes

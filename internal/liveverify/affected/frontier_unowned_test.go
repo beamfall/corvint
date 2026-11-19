@@ -7,6 +7,54 @@ import (
 	"testing"
 )
 
+type sourceOnlyDirected struct {
+	directed
+	only []string
+}
+
+func (language sourceOnlyDirected) SourceOnlyFrontiers() []string { return language.only }
+
+// AFP-V0-511 and AZU-V1-960: a static source-only proof closes bare entries,
+// but never replaces located read evidence or the validated source-bound declaration.
+func TestSourceOnlyUnownedFrontiers_AFPV0511(t *testing.T) {
+	for _, tc := range []struct {
+		name, entry                          string
+		unclassified, steered, bounded, want bool
+	}{
+		{name: "bare", entry: "y:import"},
+		{name: "unclassified", entry: "y:import", unclassified: true, want: true},
+		{name: "resolution input", entry: "y:import", steered: true, want: true},
+		{name: "located read", entry: "y:import:app.y:1 `./data.json`", want: true},
+		{name: "unowned site", entry: "y:import:config.json", want: true},
+		{name: "unknown site", entry: "y:import:future(site=app.y)", want: true},
+		{name: "overflow", entry: "y:import:+2", want: true},
+		{name: "bounded site", entry: "y:import:app.y", bounded: true, want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			language := sourceOnlyDirected{
+				directed: directed{reaching: reaching{
+					fake: fake{name: "y", frontier: []string{tc.entry}, units: []Unit{{
+						ID: "y:app", Sources: []string{"app.y"}, PathTokensBounded: tc.bounded,
+					}}},
+					inputs: func(string) bool { return tc.steered },
+				}},
+				only: []string{"y:import"},
+			}
+			if !tc.unclassified {
+				language.sourceBound = []string{"y:import"}
+			}
+			graph, err := Build(context.Background(), t.TempDir(), language)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := Select(graph, []string{"data.json"})
+			if got := slices.Contains(languageFrontier(plan), tc.entry); got != tc.want {
+				t.Fatalf("frontier bears=%v want %v: %+v", got, tc.want, plan.Unknown)
+			}
+		})
+	}
+}
+
 // AZU-V1-960: a source-bound declaration cannot erase a named foreign read,
 // including an overflow site's tokens or a resolution table with no owner.
 func TestUnownedSourceBoundReads_AZU_V1_960(t *testing.T) {

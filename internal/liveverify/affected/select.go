@@ -1232,6 +1232,14 @@ func (graph *Graph) bearsOnUnowned(name, entry string, fixtures, unowned []strin
 	}
 	reason := fields[0] + ":" + fields[1]
 	if graph.sourceBound[name][reason] {
+		if len(fields) == 2 {
+			// Source-only resolution proves a bare reason cannot bind a
+			// foreign path, independently of site records (AFP-V0-511).
+			if only, ok := graph.claimants[name].(SourceOnlyFrontiers); ok &&
+				slices.Contains(only.SourceOnlyFrontiers(), reason) {
+				return false
+			}
+		}
 		return graph.entryNamesAny(name, entry, unowned)
 	}
 	if !graph.fixtureClosed[name][reason] || len(fixtures) == 0 {
