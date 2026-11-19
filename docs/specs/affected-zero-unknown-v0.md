@@ -1007,7 +1007,9 @@ tree reader, a tested wrapper is followed, and the guard's marker is a tested li
   test SHALL fail when the plan of `go.mod` alone leaves out a Go unit with tests. Evidence:
   `TestGoModSelectsEveryGoTestUnit_AZU_V0_8925`.
 - **AZU-V0-8926: Miss-class regressions.** The plan of each audited path alone SHALL select its
-  reader: `.github/cishards/package-costs.json` both Python tests that read it (N1, by owner),
+  reader: `.github/cishards/package-costs.json` the surviving Python shard test and Go shard
+  package (N1, by owner), `.github/cishards/test-split-allow.json` the Go shard package
+  (the replay tool and its Python test were retired by source-removal B1),
   `conformance/divergence-register.md` `dr-numbers-check` (N2),
   `internal/mcp/cli/testdata/tools-list-default.golden.jsonl` and `benchmarks/README.md` the
   whole-tree content checks (W), and `go.mod` every Go test unit (G). Evidence:

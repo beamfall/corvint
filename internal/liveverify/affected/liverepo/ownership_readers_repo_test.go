@@ -75,10 +75,11 @@ func TestOwnershipReaderMissClasses_AZU_V0_8926(t *testing.T) {
 		class, path string
 		units       []string
 	}{
-		// N1: the Python tests read the cost and split tables; the Python
-		// plugin carries no path literal, so the owner names them.
-		{"N1", ".github/cishards/package-costs.json", []string{"python:.github.macos.shard_test", "python:tools.ci-reuse-replay.replay_test"}},
-		{"N1", ".github/cishards/test-split-allow.json", []string{"python:tools.ci-reuse-replay.replay_test"}},
+		// N1: the Python shard test reads the cost table; the Python plugin
+		// carries no path literal, so the owner names it. The Go shard package
+		// embeds both tables and survives the replay tool's retirement.
+		{"N1", ".github/cishards/package-costs.json", []string{"python:.github.macos.shard_test", "go:github.com/Beamfall/corvint/.github/cishards"}},
+		{"N1", ".github/cishards/test-split-allow.json", []string{"go:github.com/Beamfall/corvint/.github/cishards"}},
 		// N2: dr-numbers-check runs a script that reads the register as
 		// the default word of ${1:-...}.
 		{"N2", "conformance/divergence-register.md", []string{"driver:make:Makefile#dr-numbers-check"}},
