@@ -84,7 +84,8 @@
         "type": "test",
         "path": "conformance/interactive-alpha/core-provider-proof.mjs",
         "test_key": "conformance/interactive-alpha/core-provider-proof.mjs"
-      }
+      },
+      "reviewed_at": "9bc6b141ddf91427e2d5e43f4a7c25c7c8253e8e"
     },
     {
       "from": "installed-js-live-tests.default",
