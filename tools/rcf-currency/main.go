@@ -366,6 +366,9 @@ func namedTestPass(r io.Reader, pkg, name string) error {
 func (g gate) liveTest(pkg, name string) error {
 	cmd := exec.Command("bash", "script/heavy.sh", "go", "test", "-json", "-count=1", "-timeout", "30m", "-run", "^"+name+"$", pkg)
 	cmd.Dir = g.root
+	// Qualification configuration, private corpora and the report are host-local.
+	cmd.Env = append(cmd.Environ(), "HEAVY_REMOTE=0",
+		"HEAVY_LOCAL_REASON=qualification requires local configuration, private corpora and report")
 	cmd.Stderr = os.Stderr
 	out, err := cmd.StdoutPipe()
 	if err != nil {

@@ -279,11 +279,18 @@ func TestLiveTest(t *testing.T) {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash is unavailable")
 	}
+	// A configured remote must not receive qualification with host-local inputs.
+	t.Setenv("HEAVY_REMOTE", "1")
+	t.Setenv("HEAVY_REMOTE_HOST", "qualification-remote.invalid")
+	t.Setenv("HEAVY_LOCAL_REASON", "")
 	for _, action := range []string{"pass", "skip", "fail"} {
 		t.Run(action, func(t *testing.T) {
 			root := t.TempDir()
 			const pkg = "./cmd/corvint-docs"
 			script := "#!/usr/bin/env bash\nset -eu\n" +
+				"test \"$HEAVY_REMOTE_HOST\" = qualification-remote.invalid\n" +
+				"test \"$HEAVY_REMOTE\" = 0\n" +
+				"test -n \"$HEAVY_LOCAL_REASON\"\n" +
 				"test \"$*\" = 'go test -json -count=1 -timeout 30m -run ^" + qualificationTest + "$ " + pkg + "'\n" +
 				"cat <<'EVENTS'\n" + events(pkg, qualificationTest, action) + "EVENTS\n"
 			write(t, filepath.Join(root, "script", "heavy.sh"), []byte(script))
