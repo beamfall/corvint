@@ -176,6 +176,9 @@ The release-candidate currency check MUST derive trigger patterns from the owner
 qualified and candidate commits. Those owners MUST cover every non-test Go source file in the
 repository packages serving the promoted CLI verbs and MCP tools, including their transitive
 implementation dependencies. Use package-wide patterns so a newly added file is covered.
+The catalog MUST identify one corvint-docs product in the package exercised by the live runner.
+Pin reuse requires owned regular blobs in the candidate tree for local production inputs.
+Unmodeled command-directory entries, including automatic PGO profiles, require fresh qualification.
 Before pin reuse the gate MUST verify owner coverage of the production import closure and
 resolved embedded inputs for every shipped target. Uncovered inputs, unsupported build inputs
 or an incomplete closure MUST require fresh qualification. The DCS-V1-404 ranking fixture

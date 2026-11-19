@@ -22,13 +22,15 @@ import (
 )
 
 const (
-	pinPath             = "docs/specs/rcf-qualification.json"
-	selectionPath       = ".corvint/test-selection.json"
-	qualificationTest   = "TestRCFV1008Qualification"
-	qualificationSource = "cmd/corvint-docs/rcf_qualification_test.go"
-	queryPath           = "cmd/corvint-docs/testdata/rcf-v1-qualification/queries.json"
-	rankingTest         = "TestDCSV1404SearchRankingEvalFixture"
-	maxInput            = 8 << 20
+	pinPath              = "docs/specs/rcf-qualification.json"
+	selectionPath        = ".corvint/test-selection.json"
+	qualificationTest    = "TestRCFV1008Qualification"
+	qualificationDir     = "cmd/corvint-docs"
+	qualificationPackage = "./" + qualificationDir
+	qualificationSource  = qualificationDir + "/rcf_qualification_test.go"
+	queryPath            = "cmd/corvint-docs/testdata/rcf-v1-qualification/queries.json"
+	rankingTest          = "TestDCSV1404SearchRankingEvalFixture"
+	maxInput             = 8 << 20
 )
 
 type qualificationPin struct {
@@ -211,7 +213,10 @@ func (g gate) check(candidate, config string) (string, error) {
 	for _, name := range strings.Split(string(diff), "\x00") {
 		changed = changed || qualificationOwns(patterns, name)
 	}
-	if !changed && g.productionCovered(patterns, pin.Commit, candidate) {
+	rawCatalog, err := g.git("show", candidate+":"+releaseCatalog)
+	build, runnable := qualificationBuild(rawCatalog)
+	runnable = runnable && err == nil
+	if !changed && runnable && g.productionCovered(build, patterns, pin.Commit, candidate) {
 		if err := g.cleanCandidate(candidate); err != nil {
 			return "", err
 		}
@@ -259,7 +264,10 @@ func (g gate) check(candidate, config string) (string, error) {
 	if _, err := os.Lstat(cfg.Report); !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("stale report: destination must not exist before live run: %s", cfg.Report)
 	}
-	if err := g.runTest("./cmd/corvint-docs", qualificationTest); err != nil {
+	if !runnable {
+		return "", fmt.Errorf("%s: missing named live PASS", qualificationTest)
+	}
+	if err := g.runTest(build.pkg, qualificationTest); err != nil {
 		return "", err
 	}
 	report, err := readFile(cfg.Report)

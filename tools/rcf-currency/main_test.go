@@ -54,11 +54,14 @@ func selection(patterns ...string) []byte {
 	return b
 }
 
+const fixtureDocsProduct = `{"name":"corvint-docs","role":"product","package":"./cmd/corvint-docs"}` //corvint:fixture-path
+const fixtureCatalog = `{"schema":"corvint.release-binaries/1","targets":[{"goos":"linux","goarch":"amd64"},{"goos":"linux","goarch":"arm64"},{"goos":"darwin","goarch":"arm64"}],"binaries":[` + fixtureDocsProduct + `]}`
+
 // Model the release entry point and target matrix in each private checkout.
 func writeBuildFixture(t *testing.T, root string) {
 	t.Helper()
 	write(t, filepath.Join(root, "go.mod"), []byte("module fixture\n\ngo 1.27.4\n")) //corvint:fixture-path
-	write(t, filepath.Join(root, releaseCatalog), []byte(`{"targets":[{"goos":"linux","goarch":"amd64"},{"goos":"linux","goarch":"arm64"},{"goos":"darwin","goarch":"arm64"}]}`))
+	write(t, filepath.Join(root, releaseCatalog), []byte(fixtureCatalog))
 	write(t, filepath.Join(root, "cmd", "corvint-docs", "main.go"), []byte("package main\nfunc main() {}\n")) //corvint:fixture-path
 }
 
@@ -474,7 +477,7 @@ func TestCurrencyUnknownPackageField(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return coveredPackages(root, raw, []string{"cmd/corvint-docs/*.go"}, nil)
+		return coveredPackages(root, qualificationDir, raw, func(path string) bool { return path == qualificationDir+"/main.go" }, nil)
 	}
 	if !covered() {
 		t.Fatal("plain Go command lacks coverage")
@@ -482,5 +485,130 @@ func TestCurrencyUnknownPackageField(t *testing.T) {
 	pkg["FutureInputs"] = []string{"input.blob"}
 	if covered() {
 		t.Fatal("unrecognized build metadata allowed reuse")
+	}
+}
+
+// RCF-V1-010/013: a tree path and its owner must identify the bytes Go reads.
+func TestCurrencySourceIdentity(t *testing.T) {
+	for _, symlink := range []bool{true, false} {
+		name := "ignored untracked source"
+		if symlink {
+			name = "tracked symlink"
+		}
+		t.Run(name, func(t *testing.T) {
+			g, _, _, _ := currencyFixture(t)
+			const dir = "internal/doccorpus/" //corvint:fixture-path
+			source := dir + "rank.go"
+			write(t, filepath.Join(g.root, selectionPath), selection(qualificationDir+"/*.go", dir+"*.go", "go.mod", releaseCatalog))
+			write(t, filepath.Join(g.root, qualificationDir, "main.go"), []byte("package main\nimport _ \"fixture/internal/doccorpus\"\nfunc main() {}\n"))
+			if symlink {
+				if err := os.MkdirAll(filepath.Join(g.root, dir), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink("rank.src", filepath.Join(g.root, source)); err != nil {
+					t.Fatal(err)
+				}
+				source = dir + "rank.src"
+			} else {
+				write(t, filepath.Join(g.root, ".gitignore"), []byte("/"+source+"\n"))
+			}
+			write(t, filepath.Join(g.root, source), []byte("package doccorpus\nconst Rank = 1\n"))
+			pin, err := json.Marshal(qualificationPin{Commit: commit(t, g.root), ReportSHA256: strings.Repeat("c", 64)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			write(t, filepath.Join(g.root, pinPath), pin)
+			write(t, filepath.Join(g.root, source), []byte("package doccorpus\nconst Rank = 2\n"))
+			requireLiveQualification(t, g, commit(t, g.root))
+		})
+	}
+}
+
+func requireLiveQualification(t *testing.T, g gate, candidate string) {
+	t.Helper()
+	result, err := g.check(candidate, "")
+	if result != "" || err == nil || !strings.Contains(err.Error(), "trigger diff requires CORVINT_RCF_QUALIFY") {
+		t.Fatalf("result=%q err=%v; want live qualification required", result, err)
+	}
+}
+
+// RCF-V1-013: even a previously pinned catalog cannot transfer qualification
+// to a different executable or an unknown build description.
+func TestCurrencyReleaseExecutable(t *testing.T) {
+	for _, tc := range []struct{ name, product string }{
+		{"moved package", strings.Replace(fixtureDocsProduct, qualificationPackage, "./cmd/alternate", 1)},
+		{"unknown build field", strings.Replace(fixtureDocsProduct, "}", `,"buildTags":["other"]}`, 1)},
+		{"ambiguous product", fixtureDocsProduct + "," + fixtureDocsProduct},
+		{"missing product", ""},
+		{"unreleased", strings.Replace(fixtureDocsProduct, "product", "withheld", 1)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g, config, _, _ := currencyFixture(t)
+			write(t, filepath.Join(g.root, releaseCatalog), []byte(strings.Replace(fixtureCatalog, fixtureDocsProduct, tc.product, 1)))
+			path := filepath.Join(g.root, "cmd", "alternate", "main.go")
+			write(t, path, []byte("package main\nfunc main() { println(1) }\n"))
+			pin, err := json.Marshal(qualificationPin{Commit: commit(t, g.root), ReportSHA256: strings.Repeat("c", 64)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			write(t, filepath.Join(g.root, pinPath), pin)
+			write(t, path, []byte("package main\nfunc main() { println(2) }\n"))
+			candidate := commit(t, g.root)
+			requireLiveQualification(t, g, candidate)
+			g.runTest = func(_, _ string) error { t.Fatal("unbound executable reached live qualification"); return nil }
+			if result, err := g.check(candidate, config); result != "" || err == nil || !strings.Contains(err.Error(), "missing named live PASS") {
+				t.Fatalf("unbound live result=%q err=%v", result, err)
+			}
+		})
+	}
+}
+
+// RCF-V1-013: exercise implicit inputs which do not appear in go list JSON.
+func TestCurrencyImplicitCommandInput(t *testing.T) {
+	for _, name := range []string{"default.pgo", "future.build-input"} {
+		t.Run(name, func(t *testing.T) {
+			g, _, _, _ := currencyFixture(t)
+			write(t, filepath.Join(g.root, qualificationDir, name), []byte("malformed profile\n"))
+			requireLiveQualification(t, g, commit(t, g.root))
+		})
+	}
+}
+
+// RCF-V1-010/013: removing any required owner from the checked-in declaration
+// must break the test even when no synthetic fixture imports that dependency.
+func TestCurrencyRepositoryProductionOwners(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := readFile(filepath.Join(root, releaseCatalog))
+	if err != nil {
+		t.Fatal(err)
+	}
+	build, ok := qualificationBuild(raw)
+	if !ok {
+		t.Fatal("release catalog has no supported docs product")
+	}
+	raw, err = readFile(filepath.Join(root, selectionPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	patterns, err := triggerPatterns(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owned := func(path string) bool {
+		ok := qualificationOwns(patterns, path)
+		if !ok {
+			t.Errorf("production input %s lacks a qualification owner", path)
+		}
+		return ok
+	}
+	for _, target := range build.targets {
+		t.Run(target.GOOS+"/"+target.GOARCH, func(t *testing.T) {
+			if !(docsBuild{build.pkg, []releaseTarget{target}}).covered(root, owned, nil) {
+				t.Fatal("could not verify production owner coverage")
+			}
+		})
 	}
 }

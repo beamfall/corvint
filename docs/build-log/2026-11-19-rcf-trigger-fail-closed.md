@@ -63,3 +63,21 @@ newly pinned unowned dependency each produced the existing missing-configuration
 `TestCurrencyProductionCoverage` exercises these edits in private Git fixtures, including
 target-specific imports and removal of an embedded file. `TestCurrencyUnknownPackageField`
 checks the default for a future Go input kind. The report and the pin format are unchanged.
+
+## Independent review repair
+
+A Go filename can name bytes outside its Git blob. Pin reuse now admits local source,
+embeds, the module file and the release catalog only at owned candidate-tree paths with
+mode 100644 or 100755. The gate resolves the unique docs product in version 1 of the
+release catalog and requires its package to match the one the qualification test exercises.
+A moved package needs a matching qualification runner before either evidence path can pass.
+
+Go omits the automatic PGO profile from its package listing. In the command directory
+the reuse proof admits owned regular Go files and the fixture directory `testdata/`.
+All other entries require live qualification, including an unfamiliar file type or an
+ignored profile. Resolved embeds inside the fixture directory still need their own owners.
+This conservative directory rule preserves the release builder's PGO settings.
+
+The repository owner regression checks the real command and transitive production inputs
+on each catalog target using the checked-in declaration. Its confined read scope grants
+the command, module metadata, catalog and dependency directories used by that check.
