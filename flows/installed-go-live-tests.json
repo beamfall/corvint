@@ -85,7 +85,7 @@
         "path": "conformance/interactive-alpha/core-provider-proof.mjs",
         "test_key": "conformance/interactive-alpha/core-provider-proof.mjs"
       },
-      "reviewed_at": "15c2663c7618dbc96d93cebb86beae3c126e4523"
+      "reviewed_at": "02b6cd88d785d216e9cc2703242a1617fa4611d7"
     },
     {
       "from": "installed-go-live-tests.default",
@@ -95,7 +95,7 @@
         "path": "extensions/vscode/test/installed/run.mjs",
         "test_key": "extensions/vscode/test/installed/run.mjs"
       },
-      "reviewed_at": "bc58d11a7e8d5a09dce781368c2fc1bdc9e92f9d"
+      "reviewed_at": "02b6cd88d785d216e9cc2703242a1617fa4611d7"
     }
   ]
 }
