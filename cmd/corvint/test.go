@@ -861,13 +861,11 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 // receipt. `corvint test` builds its manifest from them and `corvint
 // affected` its selection verdict, so both decide one scope (SLF-V1-007).
 func testPlanScope(input *sessiontest.Input, receipt affectedReceipt, plan gateselect.Receipt, graph *affected.Graph, root string, index *gateselect.Index) {
-	for _, selection := range receipt.Plan.Selected {
-		if selection.Tier == "full" && selection.Reason == "line-evidence-stale" {
-			if input.FullInstances == nil {
-				input.FullInstances = map[string]string{}
-			}
-			input.FullInstances[selection.Instance] = selection.Reason
+	for instance, reason := range receipt.Plan.FullInstances {
+		if input.FullInstances == nil {
+			input.FullInstances = map[string]string{}
 		}
+		input.FullInstances[instance] = reason
 	}
 	input.SelectedTests = map[string][]string{}
 	for _, selection := range receipt.Plan.Selected {

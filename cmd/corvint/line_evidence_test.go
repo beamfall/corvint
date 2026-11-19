@@ -12,12 +12,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/lineevidence"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 	"github.com/Beamfall/corvint/internal/testinventory"
+	"github.com/Beamfall/corvint/internal/testrunner/contract"
 	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
+	"slices"
 )
 
 func TestLEVV1001RefreshAndConsumers(t *testing.T) {
@@ -145,6 +148,31 @@ func TestLEVV1012VitestWatch(t *testing.T) {
 	code, out, stderr := inventoryCLI(t, "--root", root, "watch", "--index", name, "--once", "--dry-run")
 	if code != 0 || !strings.Contains(out, lineevidence.Stale) || strings.Contains(stderr, "watch-index-language") {
 		t.Fatalf("%d %s %s", code, out, stderr)
+	}
+	for _, cause := range []string{"unavailable-commit", "unknown-language"} {
+		t.Run(cause, func(t *testing.T) {
+			stale := *ix
+			if cause == "unavailable-commit" {
+				stale.Commit = strings.Repeat("a", 40)
+			} else {
+				stale.Language = "future-language"
+			}
+			if _, err := lineevidence.Write(filepath.Dir(name), d, &stale); err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			code, out, stderr := inventoryCLI(t, "--root", root, "watch", "--index", name, "--once", "--dry-run")
+			if code != 0 || !strings.Contains(out, lineevidence.Stale) || !strings.Contains(out, `"tier":"full"`) {
+				t.Fatalf("%d %s %s", code, out, stderr)
+			}
+			after, err := os.ReadFile(name)
+			if err != nil || !bytes.Equal(before, after) {
+				t.Fatalf("watch mutated evidence: %v", err)
+			}
+		})
 	}
 }
 
@@ -291,6 +319,138 @@ func TestLEVV1002NestedInstance(t *testing.T) {
 		got, ok := lineInstance(unit, declarations)
 		if !ok || got.Key != nested.Key {
 			t.Fatalf("one-character root lost ownership: %+v", got)
+		}
+	}
+}
+
+// Every unit already has a flow link: no added unlinked unit can accidentally
+// preserve the instance fallback for the linked units.
+func TestLEVV1003StalePlaywrightExecution(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX runner fixture")
+	}
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	root := inventoryRepository(t, map[string]string{
+		".gitignore": "node_modules/\n", "playwright.config.js": "export default {}\n",
+		"app.js": "export const value=1;\n", "a.spec.js": "// flow A\n", "b.spec.js": "// flow B\n",
+	})
+	writeInventoryFiles(t, root, map[string]string{"node_modules/.bin/playwright": "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'Version 1.56.0'; exit; fi\nprintf '%s\\n' \"$@\"\n"})
+	if err := os.Chmod(filepath.Join(root, "node_modules/.bin/playwright"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	git := testinventory.Git{Executable: "git", Root: root}
+	head, err := git.Head(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := testinventory.NewWorkTree(ctx, git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _ := tree.Files()
+	d := testinventory.Declared{Key: "playwright@.", Runner: "playwright", Root: ".", Config: "playwright.config.js"}
+	native, err := lineevidence.NativeIdentity(ctx, root, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := lineevidence.Command(d)
+	ix, err := linecov.Build(".", head, lineevidence.Binding(d, files, command, native), files, []linecov.Record{{Package: "a.spec.js", Name: "playwright:a.spec.js::chromium::covers", Profile: []byte("mode: atomic\n./app.js:1.1,1.22 1 1\n")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix.Language, ix.RunnerFamily, ix.Config, ix.Command = "js", d.Runner, d.Config, command
+	store, err := lineevidence.Store(ctx, git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(store, 0700); err != nil {
+		t.Fatal(err)
+	}
+	graph, err := affected.Build(ctx, root, levLanguage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeInventoryFiles(t, root, map[string]string{"app.js": "export const value=2;\n"})
+	for _, cause := range []string{"identity", "unavailable-commit", "unknown-language"} {
+		t.Run(cause, func(t *testing.T) {
+			stale := *ix
+			switch cause {
+			case "identity":
+				stale.Runner = "different"
+			case "unavailable-commit":
+				stale.Commit = strings.Repeat("a", 40)
+			case "unknown-language":
+				stale.Language = "future-language"
+			}
+			var encoded bytes.Buffer
+			if err := stale.Encode(&encoded); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(store, lineevidence.Filename(d)), encoded.Bytes(), 0600); err != nil {
+				t.Fatal(err)
+			}
+			plan := affected.Plan{Dirty: []string{"app.js"}, Selected: []affected.Selection{
+				{UnitID: "typescript:playwright:a.spec.js", Tests: []string{"a.spec.js"}, Flows: []string{"flow-a"}},
+				{UnitID: "typescript:playwright:b.spec.js", Tests: []string{"b.spec.js"}, Flows: []string{"flow-b"}},
+			}}
+			applyLineEvidence(ctx, affectedPlanInputs{gitExecutable: "git", repository: root, tree: root, revision: head}, graph, &plan)
+			if len(plan.Selected) != 2 {
+				t.Fatalf("lost selection: %+v", plan)
+			}
+			for _, selection := range plan.Selected {
+				if selection.Tier != "full" || selection.Reason != lineevidence.Stale {
+					t.Fatalf("stale flow: %+v", selection)
+				}
+			}
+			// Execution must not infer the fallback from presentation labels, including
+			// a label a future producer might add.
+			for i := range plan.Selected {
+				plan.Selected[i].Tier = "future-tier"
+			}
+			input := sessiontest.Input{ShardCount: 1, RunnerProfile: sessiontest.ProfileLocal,
+				Declared: sessiontest.BuiltInDeclared(), Instances: []contract.Instance{{Runner: d.Runner, Root: d.Root, Config: d.Config}}}
+			input.Declared.Runners = []sessiontest.RunnerCommand{{Key: d.Runner, Argv: command}}
+			testPlanScope(&input, affectedReceipt{Plan: plan}, gateselect.Receipt{}, graph, root, nil)
+			if input.FullInstances[d.Key] != lineevidence.Stale {
+				t.Fatalf("fallback lost: %+v", input.FullInstances)
+			}
+			manifest, err := sessiontest.Build(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			runs := sessiontest.Invocations(manifest, input.Declared, 0, root, "")
+			if len(runs) != 1 || !slices.Equal(runs[0].Argv, command) {
+				t.Fatalf("filtered execution: %+v; manifest %+v", runs, manifest)
+			}
+			run := exec.CommandContext(ctx, runs[0].Argv[0], runs[0].Argv[1:]...)
+			run.Dir = root
+			out, err := run.CombinedOutput()
+			if err != nil || string(out) != "test\n" {
+				t.Fatalf("execution %v: %s", err, out)
+			}
+		})
+	}
+}
+
+func TestLEVV1003PlaywrightFlowAllowlist(t *testing.T) {
+	for _, tc := range []struct {
+		tier   lineevidence.Tier
+		reason string
+		flow   bool
+	}{
+		{lineevidence.File, lineevidence.Unqualified, true},
+		{lineevidence.File, lineevidence.Stale, true},
+		{lineevidence.Full, lineevidence.Absent, true},
+		{lineevidence.Full, lineevidence.Damaged, true},
+		{lineevidence.Full, lineevidence.Stale, false},
+		{lineevidence.File, "future-reason", false},
+		{"future-tier", lineevidence.Unqualified, false},
+	} {
+		if got := playwrightLineFlow(lineevidence.Verdict{Tier: tc.tier, Reason: tc.reason}); got != tc.flow {
+			t.Errorf("%s/%s: flow=%t want %t", tc.tier, tc.reason, got, tc.flow)
 		}
 	}
 }

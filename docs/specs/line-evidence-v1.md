@@ -107,6 +107,12 @@ identity mismatch requires its full suite. No runner can use tier `line` without
 Python has no collector in 1.0; file-level pytest remains a release exception and a G4 risk.
 Playwright evidence cannot remove a test. Action integration and FIH admission are separate tasks.
 
+Freshness refusal survives Playwright flow annotation and is carried separately into execution
+scope. The shared watch planner checks HEAD ancestry through the reader even when the evidence
+commit is unavailable locally. Refresh accepts only a successful empty Git status before collection
+and before publication, including index changes, executable modes, symbolic links and gitlinks.
+Unknown status output refuses publication and preserves the previous private index.
+
 The refresh CLI reports `line-evidence-invalid-arguments` for invalid invocation or unresolved
 repository/Git inputs, and `line-evidence-unavailable` when collection fails. Both use the existing
 CLI diagnostic envelope and exit 2. These codes belong to the LEV-V1-001 writing command; they do
@@ -138,7 +144,7 @@ retained and skipped explicitly. This is not a line-level qualification result.
 | --- | --- |
 | LEV-V1-001 | `TestLEVV1001RefreshAndConsumers` (`cmd/corvint`); consumers leave index bytes unchanged |
 | LEV-V1-002 | `TestLEVV1002PrivateDeterministicInstances` (`internal/lineevidence`); canonical IDs and repeat refresh in `TestLEVV1001RefreshAndConsumers` |
-| LEV-V1-003 | `TestLEVV1003Freshness` (`internal/lineevidence`); `TestLEVV1003StaleInstanceExecution` (`cmd/corvint`) |
+| LEV-V1-003 | `TestLEVV1003Freshness` (`internal/lineevidence`); `TestLEVV1003StaleInstanceExecution`, `TestLEVV1003StalePlaywrightExecution` (`cmd/corvint`); `TestLEVV1003RefreshCleanGitState`, `TestLEVV1003RefreshUnknownStatus` (`internal/lineevidence`) |
 | LEV-V1-004 | Default absent-store output PARTIAL (freeze boundary); `TestLEVV1004AbsentDamagedReadOnly` (`internal/lineevidence`) |
 | LEV-V1-005 | `TestLEVV1005NativeCollectors` (`internal/lineevidence`): Vitest and Jest observed; RSpec and Minitest NOT_RUN (Ruby unavailable). Go: `TestLEVV1001RefreshAndConsumers`. Synthetic per-runner fallback: `TestLEVV1005EveryRunnerUnqualified` |
 | LEV-V1-006 | `TestLEVV1006PytestFileTier` (`cmd/corvint`) |
@@ -147,7 +153,7 @@ retained and skipped explicitly. This is not a line-level qualification result.
 | LEV-V1-009 | Default absent-store output PARTIAL (freeze boundary); `TestLEVV1009TierReasonGolden` (`internal/lineevidence`); `TestLEVV1007PlaywrightOnlyAddsAndRanks` |
 | LEV-V1-010 | Default absent-store output PARTIAL (freeze boundary); `TestLEVV1009TierReasonGolden`; `TestLEVV1001RefreshAndConsumers` |
 | LEV-V1-011 | `TestLEVV1005EveryRunnerUnqualified`; tier `line` admission NOT_PRODUCED (task 11 outside lane) |
-| LEV-V1-012 | Initialized stores and explicit watch indexes only; default absent-store annotations PARTIAL; `TestLEVV1001RefreshAndConsumers`, `TestLEVV1012VitestWatch` (`cmd/corvint`) |
+| LEV-V1-012 | Initialized stores and explicit watch indexes only; default absent-store annotations PARTIAL; `TestLEVV1001RefreshAndConsumers`, `TestLEVV1012VitestWatch` (including unavailable commits and unknown languages; `cmd/corvint`) |
 | LEV-V1-013 | NOT_PRODUCED (task 10 outside lane; separate Action change) |
 | LEV-V1-014 | `TestLEVV1014GoNamesWidenToPackages`, `TestLEVV1014FileOverflowWidens` (`internal/testrunner/contract`); `TestLEVV1014GoSliceArgumentLimit`, `TestLEVV1014PytestArgumentFile` (`internal/sessiontest`) |
 | LEV-V1-015 | `TestLEVV1001RefreshAndConsumers` (staged and untracked paths on affected, test and MCP); `TestLEVV1003Freshness` (blob and ancestry failures) |

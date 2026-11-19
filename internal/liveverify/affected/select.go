@@ -179,6 +179,10 @@ type Unknown struct {
 // Plan is the selection result: what to verify, what was deliberately left out
 // and why, and what could not be justified at all.
 type Plan struct {
+	// FullInstances carries execution fallbacks independently of display tiers.
+	// It is private planning state, never part of the affected wire contract.
+	FullInstances map[string]string `json:"-"`
+
 	GraphDigest string   `json:"graphDigest"`
 	Dirty       []string `json:"dirty"`
 	// GoChanges explains stopped compile propagation (AFP-V0-3323).

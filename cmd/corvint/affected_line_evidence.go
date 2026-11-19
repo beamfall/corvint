@@ -89,6 +89,12 @@ func applyLineEvidence(ctx context.Context, in affectedPlanInputs, graph *affect
 			v.Reason = lineevidence.Damaged
 		}
 		verdicts[d.Key] = v
+		if v.Tier == lineevidence.Full && v.Reason == lineevidence.Stale {
+			if plan.FullInstances == nil {
+				plan.FullInstances = map[string]string{}
+			}
+			plan.FullInstances[d.Key] = v.Reason
+		}
 	}
 	selected := map[string]bool{}
 	for _, s := range plan.Selected {
@@ -135,13 +141,29 @@ func applyLineEvidence(ctx context.Context, in affectedPlanInputs, graph *affect
 			v.Tier = lineevidence.Full
 		}
 		if ok && d.Runner == testid.Playwright {
+			flow := playwrightLineFlow(v)
 			v.Tier = lineevidence.Full
-			if len(s.Flows) != 0 {
+			// Flow is allowed only for a known usable reader verdict. Unknown
+			// reasons and stale FULL evidence retain the full instance boundary.
+			if plan.Scope != "FULL" && len(s.Flows) != 0 && flow {
 				v.Tier = lineevidence.Flow
 			}
 		}
 		exact := false
 		s.Tier, s.Exact, s.Instance, s.Reason, s.Rank = string(v.Tier), &exact, v.Instance, v.Reason, v.Rank
+	}
+}
+
+// These reader forms retain file/flow selection. All other forms, including
+// stale FULL and future verdicts, keep the full Playwright boundary.
+func playwrightLineFlow(v lineevidence.Verdict) bool {
+	switch v.Reason {
+	case lineevidence.Absent, lineevidence.Damaged:
+		return v.Tier == lineevidence.File || v.Tier == lineevidence.Full
+	case lineevidence.Unqualified, lineevidence.Stale:
+		return v.Tier == lineevidence.File
+	default:
+		return false
 	}
 }
 

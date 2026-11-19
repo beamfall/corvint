@@ -87,8 +87,11 @@ type Options struct {
 	// Run executes a plan; nil emits plans only and no result events.
 	Run func(context.Context, Plan) error
 	// NonGo plans the working tree of an index whose Language is not Go;
-	// nil refuses such an index before the first save.
+	// nil refuses such an index before the first save unless WorkingTree is set.
 	NonGo func(ctx context.Context, diffs []linecov.FileDiff) (any, error)
+	// WorkingTree plans a non-Go path with its own base and freshness checks.
+	// Unlike NonGo it does not require the evidence commit to resolve first.
+	WorkingTree func(ctx context.Context) (any, error)
 	// Inventory, when set, reads the state each plan event reports beside
 	// the plan; it must only read.
 	Inventory func(ctx context.Context) any
@@ -108,7 +111,7 @@ func Run(ctx context.Context, o Options) error {
 		return errors.New("watch: root, index and output are required")
 	}
 	nonGo := ix.Language != "" && ix.Language != "go"
-	if nonGo && o.NonGo == nil {
+	if nonGo && o.NonGo == nil && o.WorkingTree == nil {
 		return fmt.Errorf("watch: index language %q needs a non-Go plan; use linecov watch -command", ix.Language)
 	}
 	enc := json.NewEncoder(o.Out)
@@ -139,19 +142,26 @@ func Run(ctx context.Context, o Options) error {
 			}
 		}
 		start := time.Now()
-		diffs, err := linecov.WorkingDiff(ctx, o.Root, ix.Commit)
-		if err != nil {
-			return replanErr(ctx, err)
-		}
 		p := Plan{Index: ix.Commit, Base: ix.Commit, Head: "working-tree"}
 		var lp any
-		if nonGo {
-			// Non-Go candidates use the same analyzers. Effective execution remains
-			// the whole caller-supplied suite while external qualification is pending.
-			if lp, err = o.NonGo(ctx, diffs); err != nil {
+		var err error
+		if nonGo && o.WorkingTree != nil {
+			lp, err = o.WorkingTree(ctx)
+		} else {
+			var diffs []linecov.FileDiff
+			diffs, err = linecov.WorkingDiff(ctx, o.Root, ix.Commit)
+			if err != nil {
 				return replanErr(ctx, err)
 			}
-		} else if err = goPlan(ctx, o, diffs, &p); err != nil {
+			if nonGo {
+				// Non-Go candidates use the same analyzers. Effective execution remains
+				// the whole caller-supplied suite while external qualification is pending.
+				lp, err = o.NonGo(ctx, diffs)
+			} else {
+				err = goPlan(ctx, o, diffs, &p)
+			}
+		}
+		if err != nil {
 			return replanErr(ctx, err)
 		}
 		p.ElapsedMS = time.Since(start).Milliseconds()

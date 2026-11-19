@@ -38,6 +38,9 @@ func Refresh(ctx context.Context, o Options) ([]Refreshed, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !refreshTreeClean(ctx, o.Git) {
+		return nil, errors.New("line-evidence: refresh requires a clean tree")
+	}
 	tree, err := testinventory.NewWorkTree(ctx, o.Git)
 	if err != nil {
 		return nil, err
@@ -81,7 +84,7 @@ func Refresh(ctx context.Context, o Options) ([]Refreshed, error) {
 		}
 		afterFiles, _ := after.Files()
 		afterHead, err := o.Git.Head(ctx)
-		if err != nil || afterHead != head || !maps.Equal(files, afterFiles) {
+		if err != nil || afterHead != head || !maps.Equal(files, afterFiles) || !refreshTreeClean(ctx, o.Git) {
 			return result, errors.New("line-evidence: tree changed during collection")
 		}
 		name, err := Write(store, d, ix)
@@ -94,6 +97,16 @@ func Refresh(ctx context.Context, o Options) ([]Refreshed, error) {
 		return result, errors.New("line-evidence: no matching collectable runner instance")
 	}
 	return result, nil
+}
+
+// Only a successful, empty Git status certifies cleanliness. Do not filter
+// records by path or kind: modes, links, submodules, conflicts and future status
+// forms must all refuse publication. Local ignore settings cannot hide gitlinks
+// or executable-bit changes. Git.Output disables optional index writes.
+func refreshTreeClean(ctx context.Context, git testinventory.Git) bool {
+	status, err := git.Output(ctx, "-c", "core.fileMode=true", "-c", "core.symlinks=true",
+		"status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")
+	return err == nil && len(status) == 0
 }
 
 // Command is the complete suite command at an instance root, never a shell string.

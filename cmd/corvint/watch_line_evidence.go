@@ -19,7 +19,7 @@ func runLineEvidenceWatch(ctx context.Context, root, index string, ix *linecov.I
 	failed := false
 	o := watch.Options{Root: root, Index: &observed, Saves: source.C, Stopped: source.Err, Out: out,
 		Inventory: func(ctx context.Context) any { return readInventoryVerdict(ctx, root, true) },
-		NonGo: func(ctx context.Context, _ []linecov.FileDiff) (any, error) {
+		WorkingTree: func(ctx context.Context) (any, error) {
 			invocation := affectedInvocation{Root: root, lineEvidenceIndex: index, lineEvidenceFamily: ix.RunnerFamily, lineEvidenceConfig: ix.Config}
 			receipt, _, err := compileAffectedGraph(ctx, invocation)
 			return receipt, err
