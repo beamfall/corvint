@@ -428,6 +428,40 @@ func (d Declared) InstanceCommand(key, root string) (argv []string, dir, source 
 	return implementation.Default(contract.Instance{Runner: runner, Root: dir}, exists), dir, CommandDefault
 }
 
+// PlaywrightCommandBinds checks whether a direct Playwright test invocation (optionally
+// through npx) uses config. Without an explicit argument it requires a sole standard
+// config in the command's working directory (FLP-V1-007).
+func PlaywrightCommandBinds(root, dir string, argv []string, config string) bool {
+	if len(argv) > 0 && argv[0] == "npx" {
+		argv = argv[1:]
+	}
+	if len(argv) < 2 || argv[0] != "playwright" || argv[1] != "test" {
+		return false
+	}
+	var name string
+	switch args := argv[2:]; {
+	case len(args) == 0:
+		names, err := fs.Glob(os.DirFS(filepath.Join(root, dir)), "playwright.config.*")
+		if err != nil || len(names) != 1 || (names[0] != "playwright.config.ts" && names[0] != "playwright.config.js") {
+			return false
+		}
+		name = names[0]
+	case len(args) == 2 && (args[0] == "--config" || args[0] == "-c"):
+		name = args[1]
+	case len(args) == 1 && strings.HasPrefix(args[0], "--config="):
+		name = strings.TrimPrefix(args[0], "--config=")
+	default:
+		return false
+	}
+	name = strings.TrimPrefix(name, "./")
+	if !testid.CleanFile(name) || !filepath.IsLocal(name) || strings.ContainsAny(name, `\:`) ||
+		filepath.ToSlash(filepath.Join(dir, name)) != config {
+		return false
+	}
+	info, err := os.Lstat(filepath.Join(root, config))
+	return err == nil && info.Mode().IsRegular()
+}
+
 // providerCommand admits one providers entry (STR-V0-8701): a runner of the
 // closed set, whose argv names the provider executable and that runner's
 // subcommand in plain words, is a one-shot run and does not end the

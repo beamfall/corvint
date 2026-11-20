@@ -1045,7 +1045,7 @@ func testE2EConfigRefusal(root string, e2e *affected.E2EPlan, input sessiontest.
 		if hasLanguage {
 			argv, dir = language.Argv, "."
 		}
-		bound[instance.Key()] = playwrightCommandBinds(root, dir, argv, instance.Config)
+		bound[instance.Key()] = sessiontest.PlaywrightCommandBinds(root, dir, argv, instance.Config)
 	}
 	for _, file := range slices.Sorted(maps.Keys(byPath)) {
 		configs := byPath[file]
@@ -1073,39 +1073,6 @@ func testE2EConfigRefusal(root string, e2e *affected.E2EPlan, input sessiontest.
 		return argumentError(fmt.Sprintf("UNKNOWN playwright-config-unrepresentable: %s requires %s", file, strings.Join(configs, ", ")))
 	}
 	return nil
-}
-
-// Admit only a direct Playwright test invocation, optionally through npx. With no
-// explicit config, a sole standard config must be present in its working directory.
-func playwrightCommandBinds(root, dir string, argv []string, config string) bool {
-	if len(argv) > 0 && argv[0] == "npx" {
-		argv = argv[1:]
-	}
-	if len(argv) < 2 || argv[0] != "playwright" || argv[1] != "test" {
-		return false
-	}
-	var name string
-	switch args := argv[2:]; {
-	case len(args) == 0:
-		names, err := fs.Glob(os.DirFS(filepath.Join(root, dir)), "playwright.config.*")
-		if err != nil || len(names) != 1 || (names[0] != "playwright.config.ts" && names[0] != "playwright.config.js") {
-			return false
-		}
-		name = names[0]
-	case len(args) == 2 && (args[0] == "--config" || args[0] == "-c"):
-		name = args[1]
-	case len(args) == 1 && strings.HasPrefix(args[0], "--config="):
-		name = strings.TrimPrefix(args[0], "--config=")
-	default:
-		return false
-	}
-	name = strings.TrimPrefix(name, "./")
-	if !testid.CleanFile(name) || !filepath.IsLocal(name) || strings.ContainsAny(name, `\:`) ||
-		filepath.ToSlash(filepath.Join(dir, name)) != config {
-		return false
-	}
-	info, err := os.Lstat(filepath.Join(root, config))
-	return err == nil && info.Mode().IsRegular()
 }
 
 // testE2EUnits reads the plan's joined E2E member (APK-V0-001, STR-V0-8706).

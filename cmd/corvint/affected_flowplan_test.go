@@ -478,17 +478,19 @@ func TestFLPV1007PlaywrightCommandBindsConfigAtRunnerRoot(t *testing.T) {
 		want bool
 	}{
 		{"web", []string{"npx", "playwright", "test"}, true},
+		{"web", []string{"npx", "playwright", "test", "--config", "playwright.config.ts"}, true},
+		{"web", []string{"npx", "future-runner", "test", "--config", "playwright.config.ts"}, false},
 		{".", []string{"playwright", "test", "--config=web/playwright.config.ts"}, true},
 		{"web", []string{"playwright", "test", "-c", "./playwright.config.ts"}, true},
 		{".", []string{"playwright", "test"}, false},
 		{"web", []string{"playwright", "test", "--config", "playwright.config.ts", "--future-option"}, false},
 	} {
-		if got := playwrightCommandBinds(root, tc.dir, tc.argv, config); got != tc.want {
+		if got := sessiontest.PlaywrightCommandBinds(root, tc.dir, tc.argv, config); got != tc.want {
 			t.Fatalf("%v in %s bound %s: %t, want %t", tc.argv, tc.dir, config, got, tc.want)
 		}
 	}
 	shopWrite(t, root, map[string]string{"web/playwright.config.js": flowPlanCLIConfig})
-	if playwrightCommandBinds(root, "web", []string{"playwright", "test"}, config) {
+	if sessiontest.PlaywrightCommandBinds(root, "web", []string{"playwright", "test"}, config) {
 		t.Fatal("ambiguous default config admitted")
 	}
 }
