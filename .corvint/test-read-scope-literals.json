@@ -274,8 +274,6 @@
       "internal/gateselect/select.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
       "internal/gateselect/select_test.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
       "internal/sessiontest/plan.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
-      "tools/capabilities-check": "github_guard_test.go names it only in the expected mapped-package list of a temporary fixture repository's workflow edit; the directory is not read",
-      "tools/ci-reuse-plan": "github_guard_test.go names it only in the expected mapped-package list of a temporary fixture repository's workflow edit; the directory is not read",
       "tools/gate-affected-select/main.go": "pinlag_test.go writes it into a temporary fixture repository whose commits the pin-lag check compares; the repository's own file is not read",
       "tools/tiers-replay": "narrowing_reasons_test.go names it as a package of the fixture module example.org/m written under a temporary repository; the repository's own directory is not read",
       "tools/web-flows/test/e2e.mjs": "maintenance_test.go names it inside a fixture selection document's check text; the file is never read",
