@@ -182,21 +182,25 @@ MUST select its whole group with a printed reason, and an accepted link MUST NOT
 
 The plan joins committed inventory IDs to accepted variation records and checks the candidate
 test blob, variation and static graph. Unassigned IDs stay selected inside mixed Playwright files.
-Independent full-instance or static obligations may widen execution.
+An exclusion requires the Playwright closure for the test's config to prove every dirty path
+excludable for that file (TJAA-V0-140/141). An open or widened closure retains the test.
+Default proposals require every link of a test to bind before treating it as assigned.
+Variation gaps count current accepted links at the report commit. Independent full-instance
+obligations run the declared language command when one exists.
 
 | Requirement | Implementation | Evidence |
 | --- | --- | --- |
-| FLP-V1-001 | Unassigned, bulk and per-flow proposals | `TestFLPV1001PrivateBulkProposals` |
+| FLP-V1-001 | Unassigned, bulk and per-flow proposals | `TestFLPV1001PrivateBulkProposals`, `TestFLPV1001MixedLinksAndVariationGaps` |
 | FLP-V1-002 | Private replacement, isolated from selection | `TestFLPV1001PrivateBulkProposals`, `TestFLPV1007AcceptedOnly` |
 | FLP-V1-003 | Versioned weights, pinned citations and absent inputs | `TestFLPV1003ConfidenceInputs`, `TestFLPV1001PrivateBulkProposals` |
 | FLP-V1-004 | Per-flow acceptance, absent and stale refusals | `TestFLPV1004AcceptanceCLI`, `TestFLPV1005NoAutomationAccepts` |
 | FLP-V1-005 | Terminal check before acceptance | `TestFLPV1004AcceptanceCLI`, `TestFLPV1005NoAutomationAccepts` |
 | FLP-V1-006 | Closed record and acceptance fields | `TestFLPV1006LinkRecordRoundTrip`, `TestFLPV1006MissingAcceptance`, `TestFLPV1006ClosedRecord` |
-| FLP-V1-007 | Mixed-file selection and flow tier, full fallback without inventory | `TestFLPV1007AcceptedOnly`, `TestFLPV1007PendingIntegrationNeverNarrows` |
+| FLP-V1-007 | Mixed-file selection and flow tier, full fallback without inventory | `TestFLPV1007AcceptedOnly`, `TestFLPV1007PendingIntegrationNeverNarrows`, `TestFLPV1007DeclaredDiscoverySurvivesOtherInventories` |
 | FLP-V1-008 | Tags affect proposal order only | `TestFLPV1007AcceptedOnly`, `TestFLPV1003ConfidenceInputs` |
 | FLP-V1-009 | Test blob and canonical variation bindings | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1009CanonicalVariationDigest` |
-| FLP-V1-010 | Disagreement, unknown reach, missing test or variation | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1010DanglingTest` |
-| FLP-V1-011 | Browser pytest instance keeps its whole-group execution obligation | `TestFLPV1007AcceptedOnly` |
+| FLP-V1-010 | Disagreement, unknown reach, missing test or variation | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1010DanglingTest`, `TestFLPV1010UnresolvedRuntimeRetainsAcceptedTest` |
+| FLP-V1-011 | Browser pytest instance keeps its whole-group execution obligation | `TestFLPV1007AcceptedOnly`, `TestFLPV1011DeclaredCommandRunsForBrowserGroup` |
 
 ## Storage, trust boundary and limits
 
@@ -224,9 +228,11 @@ cannot produce a verified candidate set.
 
 ## Compatibility and rollback
 
-The writer emits version 1. The version 0 discovery path still serves repositories without
-canonical inventory. With canonical inventory, every unassigned browser test remains an obligation
-before the first acceptance. A reader that cannot interpret the schema widens to FULL.
+The writer emits version 1. A declared discovery suite retains its whole-file obligations
+unless a current canonical Playwright instance binds its exact config. Version 0 repositories
+without canonical inventory continue to use their discovery join. With canonical inventory, every
+unassigned browser test remains an obligation before the first acceptance. A reader that cannot interpret the
+schema widens to FULL.
 
 Revert the implementation commits and remove the private proposal file to roll back. Retain the
 FLP-V1 IDs. Task 8 remains open for a person's self-use acceptance.

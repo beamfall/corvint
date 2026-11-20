@@ -35,6 +35,28 @@ type linkCandidate struct {
 	invalidPins map[string]bool
 }
 
+// bindingReason checks the acceptance itself, independent of a particular change.
+func (c linkCandidate) bindingReason(l FlowTestLink, file string) string {
+	v, ok := c.variants[l.VariationID]
+	switch {
+	case !ok:
+		return linkDangling
+	case !l.HasAcceptance():
+		return "unaccepted"
+	case c.invalidPins[l.TestID+"\x00"+l.VariationID] || c.files[file] == "" || l.TestContentHash != c.files[file] || l.VariationDigest != v.digest:
+		return linkStale
+	}
+	return ""
+}
+
+func linksByTest(links []FlowTestLink) map[string][]FlowTestLink {
+	byTest := map[string][]FlowTestLink{}
+	for _, l := range links {
+		byTest[l.TestID] = append(byTest[l.TestID], l)
+	}
+	return byTest
+}
+
 // A version 0 declaration with a canonical inventory participates before its first
 // acceptance. Without that inventory its existing discovery/provider contract applies.
 func usesCanonicalLinks(root string, d *FlowsDeclaration) bool {
@@ -162,12 +184,29 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 	if err == nil && len(c.verdict.Instances) == 0 {
 		err = errors.New("no declared runner instances")
 	}
+	j := flowJoiner{ctx: ctx, root: root, declared: d, graph: graph, plan: plan, selected: map[e2eFile]*affected.E2ESelection{}}
+	// A runner name or sibling config does not bind the declared discovery suite.
+	// Keep its file-level obligations alongside any other canonical instances.
+	coversConfig := c.committed && slices.ContainsFunc(c.verdict.Instances, func(v testinventory.InstanceVerdict) bool {
+		return v.Runner == testid.Playwright && !v.Full && v.Config == d.PlaywrightConfig
+	})
+	if d.PlaywrightConfig != "" && !coversConfig {
+		set, loadErr := LoadIntentsAt(ctx, root, d.Dir, "HEAD")
+		if loadErr != nil {
+			j.full = true
+			j.unknown = append(j.unknown, affected.Unknown{Reason: affected.UnknownE2EInventoryUnderivable, Detail: d.Dir, Hint: loadErr.Error()})
+		} else {
+			j.set = set
+			out.Inventory = j.deriveInventory()
+		}
+	}
 	if err != nil {
-		out.Scope = affected.E2EScopeFull
-		out.Unknown = []affected.Unknown{{Reason: affected.UnknownE2EInventoryUnderivable, Detail: FlowsDeclarationPath, Hint: err.Error()}}
+		j.full = true
+		j.unknown = append(j.unknown, affected.Unknown{Reason: affected.UnknownE2EInventoryUnderivable, Detail: FlowsDeclarationPath, Hint: err.Error()})
+		out.Unknown = j.unknown
+		j.finishCanonicalPlan(out)
 		return plan
 	}
-	j := flowJoiner{declared: d, graph: graph, plan: plan, selected: map[e2eFile]*affected.E2ESelection{}}
 	j.checkGlobal()
 	j.checkPlanUnbounded()
 	inventoryFiles := 0
@@ -176,10 +215,10 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 			inventoryFiles += len(in.Files)
 		}
 	}
-	j.checkBounds(inventoryFiles)
+	j.checkBounds(inventoryFiles + len(j.inventory))
 	out.Unknown = j.unknown
-	// A reviewed link addresses only the browser runtime edge. Other unresolved
-	// static edges cannot certify either side of the agreement check.
+	// An unresolved browser runtime edge still permits positive static hits.
+	// Two static misses only authorize exclusion when that edge is also bounded.
 	available := graph != nil && c.committed && !j.full && (plan.Scope == affected.ScopeBounded || plan.Scope == affected.ScopeUnknown && len(plan.Unknown) > 0)
 	for _, u := range plan.Unknown {
 		if u.Reason != affected.UnknownNoSelectableTest && !(u.Reason == affected.UnknownLanguageFrontier && frontierReason(u.Detail) == typescript.FrontierE2ERuntimeDependency) {
@@ -195,10 +234,7 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 			}
 		}
 	}
-	byTest := map[string][]FlowTestLink{}
-	for _, l := range d.Links {
-		byTest[l.TestID] = append(byTest[l.TestID], l)
-	}
+	byTest := linksByTest(d.Links)
 	verdicts := map[string]testinventory.InstanceVerdict{}
 	plan.FullInstances = maps.Clone(plan.FullInstances)
 	if plan.FullInstances == nil {
@@ -229,6 +265,7 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 		if !declared {
 			continue
 		}
+		var runtimeExclusions map[string]bool
 		for _, t := range instance.Tests {
 			if !browserTest(instance.Runner, t) || slices.Contains(iv.Removed, t.File) {
 				continue
@@ -236,7 +273,15 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 			known[t.ID] = true
 			out.Inventory.Count++
 			id, _ := testid.Parse(t.ID)
-			state, hit := assessFlowTest(byTest[t.ID], c, id, graph, owners, plan.Dirty, available && !iv.Full && !t.Duplicate && !id.IsFileLevel() && t.Reason == "")
+			state, hit := assessFlowTest(byTest[t.ID], c, t, id, graph, owners, plan.Dirty, available && !iv.Full)
+			if state == "" && instance.Runner == testid.Playwright {
+				if runtimeExclusions == nil {
+					runtimeExclusions = provenRuntimeExclusions(root, iv.Config, plan.Dirty)
+				}
+				if !runtimeExclusions[t.File] {
+					state = linkUnknown
+				}
+			}
 			if state != "" && state != affected.E2EReasonFlowReach {
 				out.Inventory.Unlinked = appendUnique(out.Inventory.Unlinked, t.File)
 			}
@@ -292,6 +337,16 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 			out.Unknown = append(out.Unknown, affected.Unknown{Reason: linkDangling, Detail: l.TestID + " " + l.VariationID})
 		}
 	}
+	j.finishCanonicalPlan(out)
+	return plan
+}
+
+func (j *flowJoiner) finishCanonicalPlan(out *affected.E2EPlan) {
+	for _, file := range j.inventory {
+		sel := j.pick(file, testinventory.ReasonUnassigned)
+		sel.TestKeys = nil // A different config's ID cannot restrict this file.
+		out.Inventory.Unlinked = appendUnique(out.Inventory.Unlinked, file.path)
+	}
 	for _, sel := range j.selected {
 		slices.Sort(sel.TestKeys)
 		slices.Sort(sel.Reasons)
@@ -305,41 +360,75 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 	if j.full {
 		out.Scope = affected.E2EScopeFull
 	}
-	return plan
 }
 
-func assessFlowTest(links []FlowTestLink, c linkCandidate, id testid.ID, graph *affected.Graph, owners map[string]string, dirty []string, available bool) (string, *affected.E2EFlowHit) {
-	if len(links) == 0 {
-		return testinventory.ReasonUnassigned, nil
+// Only a file explicitly proved excludable by the per-test Playwright closure
+// can discharge a runtime dependency. A missing frontier entry or a file absent
+// from the import walk is not such a proof (TJAA-V0-140/141, FLP-V1-010).
+func provenRuntimeExclusions(root, config string, dirty []string) map[string]bool {
+	proven := map[string]bool{}
+	closures, err := typescript.PlaywrightTestClosures(root, config)
+	if err != nil {
+		return proven
 	}
+	for _, closure := range closures {
+		if closure.Unknown != "" || closure.Widened != "" {
+			continue
+		}
+		proven[closure.Test] = !slices.ContainsFunc(dirty, func(path string) bool {
+			_, found := slices.BinarySearch(closure.Excludable, path)
+			return !found
+		})
+	}
+	return proven
+}
+
+// assignmentReason is shared by default proposals and selection. All links
+// of the test must bind and their source paths must resolve at the candidate.
+func (c linkCandidate) assignmentReason(links []FlowTestLink, t testinventory.Test, id testid.ID, graph *affected.Graph) string {
+	if len(links) == 0 {
+		return testinventory.ReasonUnassigned
+	}
+	for _, l := range links {
+		if reason := c.bindingReason(l, id.File); reason != "" {
+			return reason
+		}
+	}
+	if graph == nil || t.Duplicate || t.Reason != "" || id.IsFileLevel() {
+		return linkUnknown
+	}
+	if _, ok := graph.OwnerOf(id.File); !ok {
+		return linkUnknown
+	}
+	for _, l := range links {
+		sources := c.variants[l.VariationID].sources
+		if len(sources) == 0 || slices.ContainsFunc(sources, func(p string) bool {
+			_, ok := graph.OwnerOf(p)
+			return !ok
+		}) {
+			return linkUnknown
+		}
+	}
+	return ""
+}
+
+func assessFlowTest(links []FlowTestLink, c linkCandidate, t testinventory.Test, id testid.ID, graph *affected.Graph, owners map[string]string, dirty []string, available bool) (string, *affected.E2EFlowHit) {
+	if reason := c.assignmentReason(links, t, id, graph); reason != "" {
+		return reason, nil
+	}
+	if !available {
+		return linkUnknown, nil
+	}
+	reached := reach(graph, owners, dirty, id.File) != nil
 	var hit *affected.E2EFlowHit
 	for _, l := range links {
-		v, ok := c.variants[l.VariationID]
-		if !ok {
-			return linkDangling, nil
-		}
-		if !l.HasAcceptance() {
-			return "unaccepted", nil
-		}
-		if c.invalidPins[l.TestID+"\x00"+l.VariationID] || c.files[id.File] == "" || l.TestContentHash != c.files[id.File] || l.VariationDigest != v.digest {
-			return linkStale, nil
-		}
-		if !available || len(v.sources) == 0 {
-			return linkUnknown, nil
-		}
-		if _, ok := graph.OwnerOf(id.File); !ok {
-			return linkUnknown, nil
-		}
+		v := c.variants[l.VariationID]
 		var flowHit *affected.E2EFlowHit
 		for _, p := range v.sources {
-			if _, ok := graph.OwnerOf(p); !ok {
-				return linkUnknown, nil
-			}
 			if via := reach(graph, owners, dirty, p); len(via) > 0 && flowHit == nil {
 				flowHit = &affected.E2EFlowHit{Flow: v.flow, Variation: v.id, ChangedPath: via[0], Target: p}
 			}
 		}
-		reached := reach(graph, owners, dirty, id.File) != nil
 		if reached != (flowHit != nil) {
 			return linkDisagrees, nil
 		}

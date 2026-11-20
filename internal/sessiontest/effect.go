@@ -326,8 +326,8 @@ func (decision scopeDecision) verdict(input Input) SelectionVerdict {
 			// RNC-V1-008: its declared language command or declared:<instance>.
 			raise(language, contract.TierFull)
 		case input.RunnerProfile != ProfileCI && contractRunners[instance.Runner] && input.FullInstances[instance.Key()] != "":
-			if _, declared := input.Declared.Command(language); !declared {
-				// RNC-V1-019, TIV-V1-006: declared:<instance> runs whole.
+			// The declared language command or the instance fallback runs whole.
+			if command, declared := input.Declared.Command(language); !declared || len(command.Argv) != 0 {
 				raise(language, contract.TierFull)
 			}
 		}

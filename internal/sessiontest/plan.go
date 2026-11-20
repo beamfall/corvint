@@ -452,7 +452,11 @@ func Build(input Input) (Manifest, error) {
 			if input.FullInstances[key] == "" || !contractRunners[instance.Runner] || slices.Contains(killed, key) || slices.Contains(fallback, key) {
 				continue
 			}
-			if _, declared := input.Declared.Command(runnerLanguages[instance.Runner]); declared {
+			language := runnerLanguages[instance.Runner]
+			if command, declared := input.Declared.Command(language); declared {
+				if len(command.Argv) != 0 {
+					languages[language] = true
+				}
 				continue
 			}
 			fallback = append(fallback, key)

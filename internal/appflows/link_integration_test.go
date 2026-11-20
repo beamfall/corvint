@@ -25,6 +25,11 @@ const pyCart = "pytest:tests/test_cart.py::test_cart"
 
 func linkFixture(t *testing.T) flowPlanFixture {
 	t.Helper()
+	return linkFixtureWithSource(t, "import { pay } from '../src/checkout';\n// @flow:checkout\ntest('checkout',()=>pay(1));\ntest('guest',()=>{});\n")
+}
+
+func linkFixtureWithSource(t *testing.T, source string) flowPlanFixture {
+	t.Helper()
 	f := flowPlanRepo(t, true)
 	d, err := ReadFlowsDeclaration(f.root)
 	if err != nil {
@@ -35,7 +40,11 @@ func linkFixture(t *testing.T) flowPlanFixture {
 		t.Fatal(err)
 	}
 	writeRaw(t, f.root, FlowsDeclarationPath, body)
-	writeRaw(t, f.root, cartFile, []byte("import { pay } from '../src/checkout';\n// @flow:checkout\ntest('checkout',()=>pay(1));\ntest('guest',()=>{});\n"))
+	writeRaw(t, f.root, cartFile, []byte(source))
+	// The search spec owns this import, so its helper is provably excludable
+	// from checkout even though both files run in the browser suite.
+	const searchSpec = "e2e/search.spec.ts"
+	writeRaw(t, f.root, searchSpec, []byte("import '../src/search';\n"+readFile(t, f.root, searchSpec)))
 	writeRaw(t, f.root, "pytest.ini", []byte("[pytest]\n"))
 	writeRaw(t, f.root, "tests/test_cart.py", []byte("def test_cart(page): pass\n"))
 	var inv testinventory.Inventory
@@ -299,5 +308,147 @@ func TestFLPV1009CanonicalVariationDigest(t *testing.T) {
 	first := digest(`{"steps":[],"variation_id":"v"}`)
 	if first != digest(`{ "variation_id": "v", "steps": [] }`) || first == digest(`{"variation_id":"v","steps":null}`) || first == digest(`{"variation_id":"v"}`) {
 		t.Fatal("canonical record failed to bind variation content")
+	}
+}
+
+func TestFLPV1010UnresolvedRuntimeRetainsAcceptedTest(t *testing.T) {
+	f := linkFixtureWithSource(t, "test('checkout', async ({page}) => { await page.goto('/checkout') });\ntest('guest',()=>{});\n")
+	writeRaw(t, f.root, "server/checkout.go", []byte("package server\nimport \"net/http\"\nfunc Routes(mux *http.ServeMux) { mux.HandleFunc(\"/checkout\", Checkout) }\nfunc Checkout(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }\n"))
+	commitAll(t, f.root, "serve checkout")
+	acceptCart(t, f, linkedCart)
+	graph, err := affected.Build(t.Context(), f.root, languages.All()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	control := JoinFlowPlan(t.Context(), f.root, graph, affected.Select(graph, []string{"src/search.ts"}), "")
+	row, ok := e2eEntry(control, cartFile)
+	if !ok || !slices.Equal(row.TestKeys, []string{otherCart}) {
+		t.Fatal("the search-only helper has a closed exclusion", row)
+	}
+	for _, tc := range []struct {
+		name  string
+		dirty []string
+	}{
+		{"browser route", []string{"server/checkout.go"}},
+		{"mixed paths", []string{"src/search.ts", "server/checkout.go"}},
+		{"future frontier", []string{"src/search.ts"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := affected.Select(graph, tc.dirty)
+			if tc.name == "future frontier" {
+				plan.Unknown = []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: "future:runtime-binding:src/search.ts"}}
+				plan.Scope = affected.ScopeUnknown
+			}
+			got := JoinFlowPlan(t.Context(), f.root, graph, plan, "")
+			sel, ok := e2eEntry(got, cartFile)
+			if !ok || !slices.Contains(sel.TestKeys, linkedCart) || !slices.Contains(sel.Reasons, linkUnknown) || !slices.Contains(sel.Reasons, "unassigned") {
+				t.Fatalf("open frontier %+v dropped checkout: %+v", plan.Unknown, sel)
+			}
+		})
+	}
+}
+
+func TestFLPV1007DeclaredDiscoverySurvivesOtherInventories(t *testing.T) {
+	for _, name := range []string{"go only", "other Playwright config", "missing receipt"} {
+		t.Run(name, func(t *testing.T) {
+			f := linkFixture(t)
+			const config = "e2e.config.ts"
+			writeRaw(t, f.root, config, []byte(readFile(t, f.root, "playwright.config.ts")))
+			writeRaw(t, f.root, FlowsDeclarationPath, []byte(strings.Replace(flowPlanDeclarationPlaywright, "playwright.config.ts", config, 1)))
+			if name != "other Playwright config" {
+				for _, file := range []string{"playwright.config.ts", "pytest.ini", "tests/test_cart.py"} {
+					if err := os.Remove(filepath.Join(f.root, file)); err != nil {
+						t.Fatal(err)
+					}
+				}
+				lister, _ := testinventory.CurrentLister(testid.Go)
+				inv := testinventory.Inventory{Profile: testinventory.Profile, Instances: []testinventory.Instance{{
+					Key: "go@.", Root: ".", Runner: testid.Go, Config: "go.mod", ConfigDigest: testinventory.BlobID("sha1", []byte(readFile(t, f.root, "go.mod"))),
+					Commit: f.head, Lister: testinventory.Lister{Name: lister.Name, Version: lister.Version, Kind: lister.Kind},
+				}}}
+				body, err := testinventory.Encode(inv)
+				if err != nil {
+					t.Fatal(err)
+				}
+				writeRaw(t, f.root, testinventory.Path, body)
+			}
+			f.head = commitAll(t, f.root, "declare custom browser config")
+			f.writeDiscovery(t, f.head)
+			if name == "missing receipt" {
+				if err := os.Remove(filepath.Join(f.root, "discovery.json")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			_, got := f.plan(t, "lib/lib.go")
+			if got.E2E.Inventory.Source != affected.E2EInventoryDiscovery {
+				t.Fatal(got.E2E)
+			}
+			if name == "missing receipt" {
+				if got.E2E.Scope != affected.E2EScopeFull || !slices.Contains(e2eUnknownReasons(got), affected.UnknownE2EInventoryUnderivable) {
+					t.Fatal(got.E2E)
+				}
+				return
+			}
+			if got.E2E.Inventory.State != "MATCHED" {
+				t.Fatal(got.E2E)
+			}
+			for _, path := range []string{cartFile, "e2e/search.spec.ts", "e2e/orphan.spec.ts"} {
+				sel, ok := e2eEntry(got, path)
+				if !ok || sel.Project != "chromium" || len(sel.TestKeys) != 0 {
+					t.Fatalf("declared suite lost whole file %s: %+v", path, got.E2E)
+				}
+			}
+			if name == "other Playwright config" && got.FullInstances["pytest@."] == "" {
+				t.Fatal("lost the independent pytest group", got.FullInstances)
+			}
+		})
+	}
+}
+
+func TestFLPV1001MixedLinksAndVariationGaps(t *testing.T) {
+	f := linkFixture(t)
+	set, err := LoadIntents(f.root, "flows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	intent := set.Flows[0]
+	intent.Links = slices.DeleteFunc(intent.Links, func(l FlowLink) bool { return l.Target.Type == "test" })
+	writeIntent(t, f.root, "flows/checkout.json", intent)
+	commitAll(t, f.root, "only canonical test links")
+	acceptCart(t, f, linkedCart)
+	if _, err := ProposeLinks(t.Context(), f.root, "checkout", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AcceptLinks(t.Context(), f.root, "checkout", "Reviewer", "checkout.guest", []string{linkedCart}); err != nil {
+		t.Fatal(err)
+	}
+	commitAll(t, f.root, "second accepted variation")
+	intent.Variations[1].ObservableFacts = []string{"a different result"}
+	writeIntent(t, f.root, "flows/checkout.json", intent)
+	commitAll(t, f.root, "stale guest variation")
+
+	proposals, err := ProposeLinks(t.Context(), f.root, "", false)
+	if err != nil || !slices.ContainsFunc(proposals.Proposals, func(p LinkProposal) bool { return p.Test == linkedCart }) {
+		t.Fatalf("mixed links dropped from default proposals: %+v %v", proposals, err)
+	}
+	_, plan := f.plan(t, "src/search.ts")
+	row, _ := e2eEntry(plan, cartFile)
+	if !slices.Contains(row.TestKeys, linkedCart) || !slices.Contains(row.Reasons, linkStale) {
+		t.Fatal(row)
+	}
+	set, err = LoadIntentsAt(t.Context(), f.root, "flows", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := FlowGaps(t.Context(), f.root, set, nil, "", nil)
+	var report GapsReport
+	if err != nil || json.Unmarshal(raw, &report) != nil {
+		t.Fatalf("gaps %s %v", raw, err)
+	}
+	has := func(code, member string) bool {
+		return slices.ContainsFunc(report.Flows[0].Gaps, func(g Gap) bool { return g.Code == code && g.Member == member })
+	}
+	if has(GapNoTest, "checkout.happy") || !has(GapTestWithoutAssertion, "checkout.happy") || !has(GapNoTest, "checkout.guest") {
+		t.Fatal(report.Flows)
 	}
 }

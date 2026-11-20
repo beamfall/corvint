@@ -238,27 +238,23 @@ func collectProposals(ctx context.Context, root string, tree *testinventory.Comm
 	verdict := testinventory.Judge(tree)
 	listed := testinventory.Listed(data, verdict)
 	files, _ := tree.Files()
-	invalid := invalidLinkPins(ctx, tree.Git, result.Commit, d)
-	assigned := map[string]bool{}
-	for _, l := range d.Links {
-		id, _ := testid.Parse(l.TestID)
-		v, ok := variants[l.VariationID]
-		if ok && !invalid[l.TestID+"\x00"+l.VariationID] && l.HasAcceptance() && l.TestContentHash == files[id.File] && l.VariationDigest == v.digest {
-			assigned[l.TestID] = true
-		}
-	}
+	bindings := linkCandidate{files: files, variants: variants, invalidPins: invalidLinkPins(ctx, tree.Git, result.Commit, d)}
+	byTest := linksByTest(d.Links)
 	graph := proposalGraph(ctx, root, result.Commit)
 	seen := map[string]bool{}
 	comparisons := 0
 	keys := slices.Sorted(maps.Keys(variants))
 	for _, instance := range inv.Instances {
 		for _, t := range instance.Tests {
-			if !browserTest(instance.Runner, t) || seen[t.ID] || !all && assigned[t.ID] || !slices.Contains(listed[instance.Key][t.File], t.ID) {
+			if !browserTest(instance.Runner, t) || seen[t.ID] || !slices.Contains(listed[instance.Key][t.File], t.ID) {
 				continue
 			}
 			seen[t.ID] = true
-			source, _ := tree.Read(t.File, MaxBytes)
 			id, _ := testid.Parse(t.ID)
+			if !all && bindings.assignmentReason(byTest[t.ID], t, id, graph) == "" {
+				continue
+			}
+			source, _ := tree.Read(t.File, MaxBytes)
 			start := len(result.Proposals)
 			var best json.Number
 			for _, key := range keys {

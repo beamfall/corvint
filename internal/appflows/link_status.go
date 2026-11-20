@@ -13,6 +13,7 @@ import (
 )
 
 type canonicalLinkReport struct {
+	current    []EvaluatedLink
 	rows       map[string][]StatusTest
 	inventory  InventoryState
 	gaps       []Gap
@@ -74,7 +75,8 @@ func linkStatus(ctx context.Context, root string, set IntentSet, at head) (*cano
 	}
 	assigned := map[string]bool{}
 	reasons := map[string]string{}
-	invalid := invalidLinkPins(ctx, tree.Git, at.commit, d)
+	bindings := linkCandidate{files: files, variants: variants, invalidPins: invalidLinkPins(ctx, tree.Git, at.commit, d)}
+	var current []EvaluatedLink
 	for _, l := range d.Links {
 		id, _ := testid.Parse(l.TestID)
 		v, ok := variants[l.VariationID]
@@ -88,17 +90,23 @@ func linkStatus(ctx context.Context, root string, set IntentSet, at head) (*cano
 			project = id.Segments[0]
 		}
 		row := StatusTest{TestKey: l.TestID, Project: project, Result: ResultNotObserved}
+		row.Reason = bindings.bindingReason(l, id.File)
 		switch {
-		case !l.HasAcceptance():
-			row.Reason = "unaccepted"
+		case row.Reason == "unaccepted":
 		case !known[l.TestID] && inventory.State == InventoryComplete:
 			row.Reason = linkDangling
-		case invalid[l.TestID+"\x00"+l.VariationID] || l.TestContentHash != files[id.File] || l.VariationDigest != v.digest:
-			row.Stale, row.Reason = true, linkStale
-		case !known[l.TestID] || len(v.sources) == 0:
+		case row.Reason != "":
+			row.Stale = row.Reason == linkStale
+		case !known[l.TestID]:
 			row.Reason = linkUnknown
 		default:
-			assigned[l.TestID] = true
+			current = append(current, EvaluatedLink{Flow: v.flow, From: v.id, Basis: "declared", ReviewState: ReviewReviewed,
+				Target: LinkTarget{Type: "test", Path: id.File, TestKey: l.TestID}})
+			if len(v.sources) == 0 {
+				row.Reason = linkUnknown
+			} else {
+				assigned[l.TestID] = true
+			}
 		}
 		if row.Reason != "" {
 			reasons[l.TestID] = row.Reason
@@ -106,7 +114,7 @@ func linkStatus(ctx context.Context, root string, set IntentSet, at head) (*cano
 		rows[v.id] = append(rows[v.id], row)
 	}
 	inventory.Tests = len(known)
-	report := &canonicalLinkReport{rows: rows, inventory: inventory, gaps: []Gap{}}
+	report := &canonicalLinkReport{current: current, rows: rows, inventory: inventory, gaps: []Gap{}}
 	for _, key := range slices.Sorted(maps.Keys(known)) {
 		if assigned[key] && reasons[key] == "" {
 			continue

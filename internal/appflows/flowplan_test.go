@@ -112,11 +112,15 @@ func flowPlanRepo(t *testing.T, playwright bool) flowPlanFixture {
 // source digest of the tree as it is now.
 func (f flowPlanFixture) writeDiscovery(t *testing.T, revision string) {
 	t.Helper()
-	config, err := os.ReadFile(filepath.Join(f.root, "playwright.config.ts"))
+	d, err := ReadFlowsDeclaration(f.root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest, err := typescript.ObservePlaywrightSources(f.root, "playwright.config.ts")
+	config, err := os.ReadFile(filepath.Join(f.root, d.PlaywrightConfig))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, err := typescript.ObservePlaywrightSources(f.root, d.PlaywrightConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +133,7 @@ func (f flowPlanFixture) writeDiscovery(t *testing.T, revision string) {
 		units = append(units, typescript.PlaywrightDiscoveryUnit{Project: "chromium", Test: "e2e/" + filepath.Base(spec)})
 	}
 	sum := sha256.Sum256(config)
-	receipt := typescript.PlaywrightDiscovery{Config: typescript.PlaywrightConfigIdentity{Path: "playwright.config.ts", SHA256: hex.EncodeToString(sum[:])},
+	receipt := typescript.PlaywrightDiscovery{Config: typescript.PlaywrightConfigIdentity{Path: d.PlaywrightConfig, SHA256: hex.EncodeToString(sum[:])},
 		Profile: "playwright-discovery/0", Revision: revision, SourceDigest: digest, Units: units}
 	raw, err := jsonv2.Marshal(receipt, jsonv2.Deterministic(true))
 	if err != nil {
