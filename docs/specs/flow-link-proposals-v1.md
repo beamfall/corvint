@@ -119,6 +119,10 @@ links. A browser E2E test with no accepted link MUST run and MUST be counted `un
 selection made through an accepted link MUST carry tier `flow` (LEV-V1-009). Execution MUST
 preserve every Playwright config that selected the file. If the executor cannot represent those
 configs, it MUST refuse before launch with an UNKNOWN reason naming the file and configs.
+The command and its working directory must bind the config. A declaration without a discovery
+config retains the intent join's selected files and flow hits alongside the canonical inventory.
+Every selecting variation appears in the plan (APK-V0-003). Status preserves reviewed intent
+results alongside canonical rows, counting each test key and project once per variation.
 
 #### Scenario: after acceptance
 - **GIVEN** an accepted link to variation V and a change inside the project's resolved testDir
@@ -180,6 +184,7 @@ MUST NOT narrow.
 
 Links for browser E2E tests run by pytest or RSpec MAY be proposed and accepted. In 1.0 such a test
 MUST select its whole group with a printed reason, and an accepted link MUST NOT remove it.
+The Go-only CI profile lists that group as a required check with its reason (STR-V0-012).
 
 #### Scenario: pytest-playwright test with a link
 - **GIVEN** an accepted link for a pytest-playwright test
@@ -205,11 +210,11 @@ obligations run the declared language command when one exists.
 | FLP-V1-004 | Per-flow acceptance, absent and stale refusals | `TestFLPV1004AcceptanceCLI`, `TestFLPV1005NoAutomationAccepts` |
 | FLP-V1-005 | Terminal check before acceptance | `TestFLPV1004AcceptanceCLI`, `TestFLPV1005NoAutomationAccepts` |
 | FLP-V1-006 | Closed record and acceptance fields | `TestFLPV1006LinkRecordRoundTrip`, `TestFLPV1006MissingAcceptance`, `TestFLPV1006ClosedRecord` |
-| FLP-V1-007 | Mixed-file selection and flow tier, full fallback without inventory | `TestFLPV1007AcceptedOnly`, `TestFLPV1007PendingIntegrationNeverNarrows`, `TestFLPV1007DeclaredDiscoverySurvivesOtherInventories`, `TestFLPV1007PlaywrightConfigIdentityAtExecution` |
+| FLP-V1-007 | Mixed-file selection and flow tier, full fallback without inventory | `TestFLPV1007AcceptedOnly`, `TestFLPV1007PendingIntegrationNeverNarrows`, `TestFLPV1007DeclaredDiscoverySurvivesOtherInventories`, `TestFLPV1007PlaywrightConfigIdentityAtExecution`, `TestFLPV1007IntentOnlySuiteSurvivesOtherInventory`, `TestFLPV1001MixedLinksAndVariationGaps`, `TestFLPV1007StatusKeepsReviewedIntentResults` |
 | FLP-V1-008 | Tags affect proposal order only | `TestFLPV1007AcceptedOnly`, `TestFLPV1003ConfidenceInputs` |
 | FLP-V1-009 | Test blob and canonical variation bindings | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1009CanonicalVariationDigest` |
 | FLP-V1-010 | Disagreement, unknown reach, missing test or variation | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1010DanglingTest`, `TestFLPV1010UnresolvedRuntimeRetainsAcceptedTest`, `TestFLPV1010BrowserLoadedApplicationFile`, `TestFLPV1010ProjectTestDirBounds` |
-| FLP-V1-011 | Browser pytest instance keeps its whole-group execution obligation | `TestFLPV1007AcceptedOnly`, `TestFLPV1011DeclaredCommandRunsForBrowserGroup` |
+| FLP-V1-011 | Browser pytest instance keeps its whole-group execution obligation | `TestFLPV1007AcceptedOnly`, `TestFLPV1011DeclaredCommandRunsForBrowserGroup`, `TestFLPV1011CIBrowserGroupCheckForGoChange` |
 
 ## Storage, trust boundary and limits
 

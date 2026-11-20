@@ -17,6 +17,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
 
@@ -433,5 +434,61 @@ func TestFLPV1007PlaywrightConfigIdentityAtExecution(t *testing.T) {
 		if code != 2 || !strings.Contains(stderr.String(), "UNKNOWN playwright-config-unrepresentable: "+spec+" requires "+custom+", "+standard) {
 			t.Fatalf("%v: exit %d, stdout %s, stderr %s", args, code, stdout.String(), stderr.String())
 		}
+	}
+
+	// Both configs can report the same project and test titles. Only the standard
+	// config selects the file now, regardless of what the command actually runs.
+	shopWrite(t, root, map[string]string{custom: flowPlanCLIConfig, appflows.FlowsDeclarationPath: flowPlanCLIDeclaration})
+	for _, tc := range []struct {
+		name, command string
+		bound         bool
+	}{
+		{"mismatched instance", `"instances":{"playwright@.":["npx","playwright","test","--config","e2e.config.ts"]}`, false},
+		{"opaque runner", `"runners":{"playwright":["future-runner","--config","playwright.config.ts"]}`, false},
+		{"opaque language", `"languages":{"typescript":["make","browser-tests"]}`, false},
+		{"matching runner", `"runners":{"playwright":["playwright","test","--config","playwright.config.ts"]}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			shopWrite(t, root, map[string]string{sessiontest.CommandsPath: `{"profile":"corvint-test-commands/0",` + tc.command + `}`})
+			head := shopCommit(t, root, tc.name)
+			writeFlowPlanDiscovery(t, root, head, standard, "chromium")
+			manifest := filepath.Join(t.TempDir(), "manifest.json")
+			args := []string{"--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", manifest}
+			var stdout, stderr bytes.Buffer
+			code := runContext(t.Context(), args, strings.NewReader(""), &stdout, &stderr)
+			if tc.bound {
+				if code != 0 || !strings.Contains(stdout.String(), `"--config","playwright.config.ts"`) {
+					t.Fatalf("matching runner: %d %s %s", code, stdout.String(), stderr.String())
+				}
+			} else if _, err := os.Stat(manifest); !os.IsNotExist(err) || code != 2 ||
+				!strings.Contains(stderr.String(), "UNKNOWN playwright-config-unrepresentable: "+spec+" requires "+standard) {
+				t.Fatalf("unbound runner: manifest err %v, exit %d, stderr %s", err, code, stderr.String())
+			}
+		})
+	}
+}
+
+func TestFLPV1007PlaywrightCommandBindsConfigAtRunnerRoot(t *testing.T) {
+	root := t.TempDir()
+	const config = "web/playwright.config.ts"
+	shopWrite(t, root, map[string]string{config: flowPlanCLIConfig, "playwright.config.ts": flowPlanCLIConfig})
+	for _, tc := range []struct {
+		dir  string
+		argv []string
+		want bool
+	}{
+		{"web", []string{"npx", "playwright", "test"}, true},
+		{".", []string{"playwright", "test", "--config=web/playwright.config.ts"}, true},
+		{"web", []string{"playwright", "test", "-c", "./playwright.config.ts"}, true},
+		{".", []string{"playwright", "test"}, false},
+		{"web", []string{"playwright", "test", "--config", "playwright.config.ts", "--future-option"}, false},
+	} {
+		if got := playwrightCommandBinds(root, tc.dir, tc.argv, config); got != tc.want {
+			t.Fatalf("%v in %s bound %s: %t, want %t", tc.argv, tc.dir, config, got, tc.want)
+		}
+	}
+	shopWrite(t, root, map[string]string{"web/playwright.config.js": flowPlanCLIConfig})
+	if playwrightCommandBinds(root, "web", []string{"playwright", "test"}, config) {
+		t.Fatal("ambiguous default config admitted")
 	}
 }

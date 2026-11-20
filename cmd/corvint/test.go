@@ -514,7 +514,7 @@ func runTestWithEvidence(ctx context.Context, root string, args []string, stdout
 	// instances it judges are the ones whose full commands a language with
 	// no declared command runs (RNC-V1-013, RNC-V1-014).
 	inventory := testInventoryScope(ctx, root, &input, selectionSwitch)
-	if err := testE2EConfigRefusal(details.e2e, input.Instances); err != nil {
+	if err := testE2EConfigRefusal(root, details.e2e, input); err != nil {
 		emitError(stderr, err)
 		return 2
 	}
@@ -939,7 +939,9 @@ func testInventoryScope(ctx context.Context, root string, input *sessiontest.Inp
 	}
 	for _, instance := range inventory.Instances {
 		input.Instances = append(input.Instances, contract.Instance{Runner: instance.Runner, Root: instance.Root, Config: instance.Config})
-		if instance.Full {
+		// CI has no contract invocations to widen. Keep the plan's explicit
+		// obligations in FullInstances and inventory diagnostics in the verdict.
+		if instance.Full && input.RunnerProfile != sessiontest.ProfileCI {
 			// RNC-V1-002: an instance whose inventory record is absent,
 			// stale or unreadable runs its full command, with the reason,
 			// instead of a contract selection.
@@ -1021,13 +1023,29 @@ func testSelectionUnits(selection map[string]any) ([]string, string) {
 
 // Contract and provider units identify a file by path, and an executor instance by
 // runner and root. Refuse before launch if these keys cannot bind its admitting configs.
-func testE2EConfigRefusal(e2e *affected.E2EPlan, instances []contract.Instance) error {
+func testE2EConfigRefusal(root string, e2e *affected.E2EPlan, input sessiontest.Input) error {
 	if e2e == nil {
 		return nil
 	}
 	byPath := map[string][]string{}
 	for _, row := range e2e.Selected {
 		byPath[row.Path] = append(byPath[row.Path], row.Configs...)
+	}
+	// Resolve the same command and working directory the session adapter uses.
+	// A provider has its own launch protocol and cannot certify a config here.
+	bound := map[string]bool{}
+	_, provider := input.Declared.Provider(testid.Playwright)
+	language, hasLanguage := input.Declared.Command("typescript")
+	for _, instance := range input.Instances {
+		_, shadowed := input.Declared.Command(instance.Key())
+		if instance.Runner != testid.Playwright || provider || shadowed {
+			continue
+		}
+		argv, dir, _ := input.Declared.InstanceCommand(instance.Key(), root)
+		if hasLanguage {
+			argv, dir = language.Argv, "."
+		}
+		bound[instance.Key()] = playwrightCommandBinds(root, dir, argv, instance.Config)
 	}
 	for _, file := range slices.Sorted(maps.Keys(byPath)) {
 		configs := byPath[file]
@@ -1036,15 +1054,58 @@ func testE2EConfigRefusal(e2e *affected.E2EPlan, instances []contract.Instance) 
 		if len(configs) == 0 {
 			continue // A flows-only selection has no config binding.
 		}
-		if len(configs) == 1 && slices.ContainsFunc(instances, func(instance contract.Instance) bool {
-			return instance.Runner == testid.Playwright && instance.Config == configs[0] &&
-				instance.Owns((testid.ID{Runner: testid.Playwright, File: file}).String())
-		}) {
-			continue
+		if len(configs) == 1 {
+			id := (testid.ID{Runner: testid.Playwright, File: file}).String()
+			covered := false
+			for _, instance := range input.Instances {
+				if instance.Runner != testid.Playwright || !instance.Owns(id) {
+					continue
+				}
+				covered = instance.Config == configs[0] && bound[instance.Key()]
+				if !covered {
+					break
+				}
+			}
+			if covered {
+				continue
+			}
 		}
 		return argumentError(fmt.Sprintf("UNKNOWN playwright-config-unrepresentable: %s requires %s", file, strings.Join(configs, ", ")))
 	}
 	return nil
+}
+
+// Admit only a direct Playwright test invocation, optionally through npx. With no
+// explicit config, a sole standard config must be present in its working directory.
+func playwrightCommandBinds(root, dir string, argv []string, config string) bool {
+	if len(argv) > 0 && argv[0] == "npx" {
+		argv = argv[1:]
+	}
+	if len(argv) < 2 || argv[0] != "playwright" || argv[1] != "test" {
+		return false
+	}
+	var name string
+	switch args := argv[2:]; {
+	case len(args) == 0:
+		names, err := fs.Glob(os.DirFS(filepath.Join(root, dir)), "playwright.config.*")
+		if err != nil || len(names) != 1 || (names[0] != "playwright.config.ts" && names[0] != "playwright.config.js") {
+			return false
+		}
+		name = names[0]
+	case len(args) == 2 && (args[0] == "--config" || args[0] == "-c"):
+		name = args[1]
+	case len(args) == 1 && strings.HasPrefix(args[0], "--config="):
+		name = strings.TrimPrefix(args[0], "--config=")
+	default:
+		return false
+	}
+	name = strings.TrimPrefix(name, "./")
+	if !testid.CleanFile(name) || !filepath.IsLocal(name) || strings.ContainsAny(name, `\:`) ||
+		filepath.ToSlash(filepath.Join(dir, name)) != config {
+		return false
+	}
+	info, err := os.Lstat(filepath.Join(root, config))
+	return err == nil && info.Mode().IsRegular()
 }
 
 // testE2EUnits reads the plan's joined E2E member (APK-V0-001, STR-V0-8706).

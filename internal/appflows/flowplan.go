@@ -179,8 +179,12 @@ func JoinFlowPlan(ctx context.Context, root string, graph *affected.Graph, plan 
 		plan.Selected[i].TestKind = declared.KindOf(paths)
 	}
 	if usesCanonicalLinks(root, declared) {
-		return joinAcceptedLinks(ctx, root, graph, plan, declared)
+		return joinAcceptedLinks(ctx, root, graph, plan, declared, measured)
 	}
+	return joinIntentPlan(ctx, root, graph, plan, declared, measured)
+}
+
+func joinIntentPlan(ctx context.Context, root string, graph *affected.Graph, plan affected.Plan, declared *FlowsDeclaration, measured string) affected.Plan {
 	if graph == nil {
 		return flowsDeclarationInvalid(plan, declared.Dir, "no graph to join the flows over")
 	}

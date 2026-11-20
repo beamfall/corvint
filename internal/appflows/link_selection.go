@@ -177,7 +177,7 @@ func bindingAt(ctx context.Context, g testinventory.Git, head, commit, dir strin
 	return files, linkVariations(set)
 }
 
-func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, plan affected.Plan, d *FlowsDeclaration) affected.Plan {
+func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, plan affected.Plan, d *FlowsDeclaration, measured string) affected.Plan {
 	out := &affected.E2EPlan{Flows: d.Dir, Scope: affected.E2EScopeBounded, Inventory: affected.E2EInventory{Source: affected.E2EInventoryFlows, State: "n/a"}, Selected: []affected.E2ESelection{}}
 	plan.E2E = out
 	c, err := readLinkCandidate(ctx, root, d)
@@ -190,6 +190,19 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 	coversConfig := c.committed && slices.ContainsFunc(c.verdict.Instances, func(v testinventory.InstanceVerdict) bool {
 		return v.Runner == testid.Playwright && !v.Full && v.Config == d.PlaywrightConfig
 	})
+	// Without a discovery config, browser inventory cannot bind the suite of
+	// an intent link. Preserve the original join's file obligations and hits.
+	hasIntentPlan := d.PlaywrightConfig == "" && (err == nil || d.Version == 0)
+	if hasIntentPlan {
+		intent := joinIntentPlan(ctx, root, graph, plan, d, measured).E2E
+		out.Inventory = intent.Inventory
+		out.Scope = intent.Scope
+		j.unknown = append(j.unknown, intent.Unknown...)
+		j.full = intent.Scope == affected.E2EScopeFull
+		for _, row := range intent.Selected {
+			j.selected[e2eFile{row.Project, row.Path}] = &row
+		}
+	}
 	if d.PlaywrightConfig != "" && !coversConfig {
 		set, loadErr := LoadIntentsAt(ctx, root, d.Dir, "HEAD")
 		if loadErr != nil {
@@ -207,15 +220,17 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 		j.finishCanonicalPlan(out)
 		return plan
 	}
-	j.checkGlobal()
-	j.checkPlanUnbounded()
-	inventoryFiles := 0
+	if !hasIntentPlan {
+		j.checkGlobal()
+		j.checkPlanUnbounded()
+	}
+	inventoryFiles := out.Inventory.Count
 	for _, in := range c.inv.Instances {
 		if in.Runner == testid.Playwright || in.Runner == testid.Pytest || in.Runner == testid.RSpec {
 			inventoryFiles += len(in.Files)
 		}
 	}
-	j.checkBounds(inventoryFiles + len(j.inventory))
+	j.checkBounds(inventoryFiles)
 	out.Unknown = j.unknown
 	// An unresolved browser runtime edge still permits positive static hits.
 	// Two static misses only authorize exclusion when that edge is also bounded.
@@ -279,7 +294,7 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 				project = id.Segments[0]
 			}
 			file := e2eFile{project, t.File}
-			state, hit := assessFlowTest(byTest[t.ID], c, t, id, graph, owners, plan.Dirty, available && !iv.Full)
+			state, hits := assessFlowTest(byTest[t.ID], c, t, id, graph, owners, plan.Dirty, available && !iv.Full)
 			if state == "" && instance.Runner == testid.Playwright {
 				if runtimeExclusions == nil {
 					runtimeExclusions = provenRuntimeExclusions(root, iv.Config, plan.Dirty)
@@ -322,10 +337,12 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 				sel.Reasons = appendUnique(sel.Reasons, testinventory.ReasonUnassigned)
 			}
 			sel.TestKeys = appendUnique(sel.TestKeys, t.ID)
-			if hit != nil {
-				if !slices.Contains(sel.Flows, *hit) {
-					sel.Flows = append(sel.Flows, *hit)
+			for _, hit := range hits {
+				if !slices.Contains(sel.Flows, hit) {
+					sel.Flows = append(sel.Flows, hit)
 				}
+			}
+			if state == affected.E2EReasonFlowReach {
 				for i, s := range plan.Selected {
 					if s.UnitID == "typescript:playwright:"+t.File && !j.full && plan.FullInstances[instance.Key] == "" {
 						plan.Selected[i].Tier = affected.TierFlow
@@ -419,7 +436,7 @@ func (c linkCandidate) assignmentReason(links []FlowTestLink, t testinventory.Te
 	return ""
 }
 
-func assessFlowTest(links []FlowTestLink, c linkCandidate, t testinventory.Test, id testid.ID, graph *affected.Graph, owners map[string]string, dirty []string, available bool) (string, *affected.E2EFlowHit) {
+func assessFlowTest(links []FlowTestLink, c linkCandidate, t testinventory.Test, id testid.ID, graph *affected.Graph, owners map[string]string, dirty []string, available bool) (string, []affected.E2EFlowHit) {
 	if reason := c.assignmentReason(links, t, id, graph); reason != "" {
 		return reason, nil
 	}
@@ -427,24 +444,28 @@ func assessFlowTest(links []FlowTestLink, c linkCandidate, t testinventory.Test,
 		return linkUnknown, nil
 	}
 	reached := reach(graph, owners, dirty, id.File) != nil
-	var hit *affected.E2EFlowHit
+	var hits []affected.E2EFlowHit
+	disagrees := false
 	for _, l := range links {
 		v := c.variants[l.VariationID]
-		var flowHit *affected.E2EFlowHit
+		// APK-V0-003 names one target per selecting variation and changed path.
+		// Sources are sorted, so the first witness is deterministic.
+		changed := map[string]bool{}
 		for _, p := range v.sources {
-			if via := reach(graph, owners, dirty, p); len(via) > 0 && flowHit == nil {
-				flowHit = &affected.E2EFlowHit{Flow: v.flow, Variation: v.id, ChangedPath: via[0], Target: p}
+			if via := reach(graph, owners, dirty, p); len(via) > 0 && !changed[via[0]] {
+				changed[via[0]] = true
+				hits = append(hits, affected.E2EFlowHit{Flow: v.flow, Variation: v.id, ChangedPath: via[0], Target: p})
 			}
 		}
-		if reached != (flowHit != nil) {
-			return linkDisagrees, nil
-		}
-		if flowHit != nil {
-			hit = flowHit
+		if reached != (len(changed) != 0) {
+			disagrees = true
 		}
 	}
-	if hit != nil {
-		return affected.E2EReasonFlowReach, hit
+	if disagrees {
+		return linkDisagrees, hits
+	}
+	if len(hits) > 0 {
+		return affected.E2EReasonFlowReach, hits
 	}
 	return "", nil
 }

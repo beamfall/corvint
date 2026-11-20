@@ -202,3 +202,27 @@ func TestFLPV1011DeclaredCommandRunsForBrowserGroup(t *testing.T) {
 		t.Fatal(input.SelectionVerdict())
 	}
 }
+
+func TestFLPV1011CIBrowserGroupCheckForGoChange(t *testing.T) {
+	for _, tc := range []struct {
+		name, reason string
+		commands     []LanguageCommand
+		want         []string
+	}{
+		{"instance commands", "browser-group-full", nil, []string{"pytest@services/a full command (browser-group-full)", "pytest@services/b full command (browser-group-full)"}},
+		{"declared command", "browser-group-full", []LanguageCommand{{Language: "python", Argv: []string{"make", "all-python-tests"}}}, []string{"make all-python-tests (browser-group-full)"}},
+		{"unknown group reason", "future-group-obligation", nil, []string{"pytest@services/a full command (future-group-obligation)", "pytest@services/b full command (future-group-obligation)"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := pytestInput()
+			input.Selected = []string{"go:m/a"}
+			input.RunnerProfile = ProfileCI
+			input.Declared.Languages = tc.commands
+			input.FullInstances = map[string]string{"pytest@services/a": tc.reason, "pytest@services/b": tc.reason}
+			m, err := Build(input)
+			if err != nil || m.Scope != ScopeNarrowed || !slices.Equal(m.Checks, tc.want) || !slices.Equal(contractUnitKeys(m), []string{"go go:m/a [whole]"}) {
+				t.Fatalf("CI units %v checks %v scope %s: %v", m.Units, m.Checks, m.Scope, err)
+			}
+		})
+	}
+}

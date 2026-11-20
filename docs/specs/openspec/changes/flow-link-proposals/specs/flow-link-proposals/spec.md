@@ -98,6 +98,10 @@ links. A browser E2E test with no accepted link MUST run and MUST be counted `un
 selection made through an accepted link MUST carry tier `flow` (LEV-V1-009). Execution MUST
 preserve every Playwright config that selected the file. If the executor cannot represent those
 configs, it MUST refuse before launch with an UNKNOWN reason naming the file and configs.
+The command and its working directory must bind the config. A declaration without a discovery
+config retains the intent join's selected files and flow hits alongside the canonical inventory.
+Every selecting variation appears in the plan (APK-V0-003). Status preserves reviewed intent
+results alongside canonical rows, counting each test key and project once per variation.
 
 #### Scenario: after acceptance
 - **GIVEN** an accepted link to variation V and a change inside the project's resolved testDir
@@ -162,6 +166,7 @@ Source: G13 (owner answer).
 Status: proposed 2026-11-09; delivery not-started.
 Links for browser E2E tests run by pytest or RSpec MAY be proposed and accepted. In 1.0 such a test
 MUST select its whole group with a printed reason, and an accepted link MUST NOT remove it.
+The Go-only CI profile lists that group as a required check with its reason (STR-V0-012).
 
 #### Scenario: pytest-playwright test with a link
 - **GIVEN** an accepted link for a pytest-playwright test

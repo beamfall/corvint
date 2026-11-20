@@ -182,9 +182,19 @@ func FlowStatus(ctx context.Context, root string, set IntentSet, options StatusO
 				projects = []string{""}
 			}
 			targets := attachedTestTargets(own, v.VariationID)
+			// Count overlapping key/project pairs once, including rows past the cap.
+			// A failed canonical binding remains visible on the merged row.
+			canonical := map[[2]string]int{}
 			if records != nil {
-				targets = nil
 				for _, row := range records.rows[v.VariationID] {
+					key := [2]string{row.TestKey, row.Project}
+					if i, exists := canonical[key]; exists {
+						if i < len(variation.Tests) && row.Reason != "" && variation.Tests[i].Reason == "" {
+							variation.Tests[i] = row
+						}
+						continue
+					}
+					canonical[key] = len(variation.Tests)
 					report.Totals.Tests++
 					if report.Totals.Tests > MaxStatusTests {
 						report.Truncated = true
@@ -200,6 +210,9 @@ func FlowStatus(ctx context.Context, root string, set IntentSet, options StatusO
 			}
 			for _, target := range targets {
 				for _, project := range projects {
+					if _, exists := canonical[[2]string{target.key, project}]; exists {
+						continue
+					}
 					report.Totals.Tests++
 					if report.Totals.Tests > MaxStatusTests {
 						report.Truncated = true

@@ -417,6 +417,7 @@ func TestFLPV1001MixedLinksAndVariationGaps(t *testing.T) {
 	}
 	intent := set.Flows[0]
 	intent.Links = slices.DeleteFunc(intent.Links, func(l FlowLink) bool { return l.Target.Type == "test" })
+	intent.Links = append(intent.Links, FlowLink{From: "pay", Basis: "declared", Target: LinkTarget{Type: "source", Path: "src/cart.ts"}})
 	writeIntent(t, f.root, "flows/checkout.json", intent)
 	commitAll(t, f.root, "only canonical test links")
 	acceptCart(t, f, linkedCart)
@@ -427,6 +428,19 @@ func TestFLPV1001MixedLinksAndVariationGaps(t *testing.T) {
 		t.Fatal(err)
 	}
 	commitAll(t, f.root, "second accepted variation")
+	for _, paths := range [][]string{{"src/cart.ts"}, {"src/cart.ts", "src/checkout.ts"}} {
+		_, both := f.plan(t, paths...)
+		selected, _ := e2eEntry(both, cartFile)
+		var want []affected.E2EFlowHit
+		for _, variation := range []string{"checkout.guest", "checkout.happy"} {
+			for _, changed := range paths {
+				want = append(want, affected.E2EFlowHit{Flow: "checkout", Variation: variation, ChangedPath: changed, Target: changed})
+			}
+		}
+		if !slices.Equal(selected.Flows, want) || !slices.Contains(selected.Reasons, affected.E2EReasonFlowReach) {
+			t.Fatalf("selected hits %+v, want %+v", selected, want)
+		}
+	}
 	intent.Variations[1].ObservableFacts = []string{"a different result"}
 	writeIntent(t, f.root, "flows/checkout.json", intent)
 	commitAll(t, f.root, "stale guest variation")
@@ -504,5 +518,93 @@ func TestFLPV1010ProjectTestDirBounds(t *testing.T) {
 	};`))
 	if provenRuntimeExclusions(f.root, config, []string{otherSpec})[key] {
 		t.Fatal("dynamic project directory authorized exclusion")
+	}
+}
+
+func TestFLPV1007IntentOnlySuiteSurvivesOtherInventory(t *testing.T) {
+	f := flowPlanRepo(t, false)
+	set, err := LoadIntents(f.root, "flows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkout := set.Flows[0]
+	checkout.Links[0].Target.Path = "lib/lib.go"
+	writeIntent(t, f.root, "flows/checkout.json", checkout)
+	checkout.Links[0].ReviewedAt = commitAll(t, f.root, "checkout uses Go")
+	writeIntent(t, f.root, "flows/checkout.json", checkout)
+	if err := os.Remove(filepath.Join(f.root, "playwright.config.ts")); err != nil {
+		t.Fatal(err)
+	}
+	f.head = commitAll(t, f.root, "review checkout source")
+	_, control := f.plan(t, "lib/lib.go")
+	expected, ok := e2eEntry(control, cartFile)
+	if !ok || !slices.Contains(expected.Reasons, affected.E2EReasonFlowReach) {
+		t.Fatalf("intent control %+v", control.E2E)
+	}
+	lister, _ := testinventory.CurrentLister(testid.Go)
+	body, err := testinventory.Encode(testinventory.Inventory{Profile: testinventory.Profile, Instances: []testinventory.Instance{{
+		Key: "go@.", Root: ".", Runner: testid.Go, Config: "go.mod", ConfigDigest: testinventory.BlobID("sha1", []byte(readFile(t, f.root, "go.mod"))),
+		Commit: f.head, Lister: testinventory.Lister{Name: lister.Name, Version: lister.Version, Kind: lister.Kind},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name      string
+		inventory []byte
+	}{
+		{"Go inventory", body}, {"unknown inventory", []byte(`{"profile":"future-inventory/9"}`)},
+	} {
+		writeRaw(t, f.root, testinventory.Path, tc.inventory)
+		commitAll(t, f.root, tc.name)
+		_, plan := f.plan(t, "lib/lib.go")
+		got, ok := e2eEntry(plan, cartFile)
+		if !ok || !reflect.DeepEqual(got, expected) {
+			t.Fatalf("%s lost intent obligation: %+v", tc.name, plan.E2E)
+		}
+		if tc.name == "Go inventory" && !reflect.DeepEqual(control.E2E, plan.E2E) {
+			t.Fatalf("Go inventory changed intent selection: %+v, want %+v", plan.E2E, control.E2E)
+		}
+	}
+}
+
+func TestFLPV1007StatusKeepsReviewedIntentResults(t *testing.T) {
+	f := linkFixture(t)
+	set, err := LoadIntents(f.root, "flows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.Flows[0].Links[1].Target.TestKey = linkedCart
+	for _, flow := range set.Flows {
+		for i := range flow.Links {
+			flow.Links[i].ReviewedAt = ""
+		}
+		writeIntent(t, f.root, set.IntentPath(flow.FlowID), flow)
+	}
+	anchor := commitAll(t, f.root, "declare current checkout and search targets")
+	for _, flow := range set.Flows {
+		for i := range flow.Links {
+			flow.Links[i].ReviewedAt = anchor
+		}
+		writeIntent(t, f.root, set.IntentPath(flow.FlowID), flow)
+	}
+	commitAll(t, f.root, "review current checkout and search targets")
+	acceptCart(t, f, linkedCart)
+	set, err = LoadIntentsAt(t.Context(), f.root, "flows", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := TestRunEvidence{TestKey: "search.spec.ts > finds", Project: "chromium", RunID: "search-run", Attempts: []RunAttempt{{Outcome: "failed"}}}
+	raw, err := FlowStatus(t.Context(), f.root, set, StatusOptions{Results: Results{Records: []TestRunEvidence{record}}})
+	var status StatusReport
+	if err != nil || json.Unmarshal(raw, &status) != nil {
+		t.Fatalf("status %s: %v", raw, err)
+	}
+	checkout := status.Flows[0].Variations[0]
+	search := status.Flows[1].Variations[0]
+	if len(checkout.Tests) != 1 || checkout.Tests[0].TestKey != linkedCart || checkout.Tests[0].Reason != "" ||
+		status.Totals.Tests != 3 || search.Code != "" || len(search.Tests) != 1 || search.Tests[0].TestKey != record.TestKey ||
+		search.Tests[0].Result != "failed" || search.Tests[0].RunID != record.RunID {
+		t.Fatalf("merged status %s", raw)
 	}
 }
