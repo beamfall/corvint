@@ -4,6 +4,8 @@ package appflows
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"maps"
 	"slices"
 
@@ -51,6 +53,11 @@ func linkStatus(ctx context.Context, root string, set IntentSet, at head) (*cano
 	known := map[string]bool{}
 	inventory := InventoryState{Source: testinventory.Path, State: InventoryUnverified, BoundTo: at.commit, Reason: "canonical inventory is unavailable"}
 	data, err := tree.Read(testinventory.Path, testinventory.MaxBytes)
+	if errors.Is(err, fs.ErrNotExist) && len(d.Links) == 0 {
+		// No accepted links and no canonical inventory: nothing to bind, so the
+		// report keeps its provider-based inventory state (AFL-V1-001).
+		return nil, nil
+	}
 	if err == nil {
 		inv, e := testinventory.Decode(data)
 		if e == nil {

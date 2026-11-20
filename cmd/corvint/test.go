@@ -23,6 +23,7 @@ import (
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/langplugin"
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
@@ -1035,7 +1036,8 @@ func testE2EConfigRefusal(root string, e2e *affected.E2EPlan, input sessiontest.
 	// A provider has its own launch protocol and cannot certify a config here.
 	bound := map[string]bool{}
 	_, provider := input.Declared.Provider(testid.Playwright)
-	language, hasLanguage := input.Declared.Command("typescript")
+	playwrightLanguage, _ := langplugin.RunnerLanguage(testid.Playwright)
+	language, hasLanguage := input.Declared.Command(playwrightLanguage)
 	for _, instance := range input.Instances {
 		_, shadowed := input.Declared.Command(instance.Key())
 		if instance.Runner != testid.Playwright || provider || shadowed {

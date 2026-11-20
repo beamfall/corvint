@@ -8,8 +8,8 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -74,11 +74,11 @@ func TestFLPV1004AcceptanceCLI(t *testing.T) {
 	if d, err := appflows.ReadFlowsDeclaration(fx.root); err != nil || len(d.Links) != 0 {
 		t.Fatal("non-terminal changed the declaration", d, err)
 	}
-	terminal, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0)
+	terminal, closeTerminal, err := openTestTerminal()
 	if err != nil {
 		t.Skip("no pseudo-terminal to exercise positive acceptance", err)
 	}
-	defer terminal.Close()
+	defer closeTerminal()
 	os.Stdin = terminal
 	run(2, "flow-proposals-absent", args...)
 	run(0, "", "propose", "--links", "--flow", "checkout")
@@ -109,12 +109,56 @@ func TestFLPV1005NoAutomationAccepts(t *testing.T) {
 			t.Fatalf("accept exposed as %s", tool.Name)
 		}
 	}
-	cmd := fixtureGitCommand("grep", "-n", "-E", `(flows["', ]+accept|AcceptLinks\(|runFlowsAccept\()`, "--",
-		":(top)internal/mcp", ":(top,glob)cmd/*/*hook*.go", ":(top,glob)script/*hook*",
-		":(top).github/workflows", ":(top).githooks", ":(top).claude/hooks", ":(top).codex/hooks.json", ":(top,exclude,glob)**/*_test.go")
-	data, err := cmd.CombinedOutput()
-	var exit *exec.ExitError
-	if !errors.As(err, &exit) || exit.ExitCode() != 1 {
-		t.Fatalf("automation accept path or search failure: %v %s", err, data)
+	// Walk the tree instead of git grep: CI tests run in a source export with no .git.
+	pattern := regexp.MustCompile(`(flows["', ]+accept|AcceptLinks\(|runFlowsAccept\()`)
+	root := filepath.Join("..", "..", "..")
+	automation := func(rel string) bool {
+		if strings.HasSuffix(rel, "_test.go") {
+			return false
+		}
+		base := filepath.Base(rel)
+		switch dir := filepath.Dir(rel); {
+		case strings.HasPrefix(rel, "internal/mcp/"), strings.HasPrefix(rel, ".github/workflows/"),
+			strings.HasPrefix(rel, ".githooks/"), strings.HasPrefix(rel, ".claude/hooks/"), rel == ".codex/hooks.json":
+			return true
+		case strings.Count(rel, "/") == 2 && strings.HasPrefix(rel, "cmd/"):
+			return strings.Contains(base, "hook") && strings.HasSuffix(base, ".go")
+		case dir == "script":
+			return strings.Contains(base, "hook")
+		}
+		return false
+	}
+	var hits []string
+	for _, top := range []string{"internal/mcp", "cmd", "script", ".github/workflows", ".githooks", ".claude/hooks", ".codex/hooks.json"} {
+		err := filepath.WalkDir(filepath.Join(root, top), func(path string, e os.DirEntry, err error) error {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			if err != nil || e.IsDir() {
+				return err
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
+			if !automation(rel) {
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if pattern.Match(data) {
+				hits = append(hits, rel)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("automation search failure: %v", err)
+		}
+	}
+	if len(hits) != 0 {
+		t.Fatalf("automation accept path: %v", hits)
 	}
 }
