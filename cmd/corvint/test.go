@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -27,6 +28,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/runevidence"
 	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 	"github.com/Beamfall/corvint/internal/testrunner/contract"
 	"github.com/Beamfall/corvint/internal/testrunner/killswitch"
@@ -497,8 +499,8 @@ func runTestWithEvidence(ctx context.Context, root string, args []string, stdout
 		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "test cannot capture the source identity: " + err.Error()})
 		return 2
 	}
-	input, pins := testRunInput(ctx, root, options, source, observed)
-	for _, line := range pins.lineEvidence {
+	input, details := testRunInput(ctx, root, options, source, observed)
+	for _, line := range details.lineEvidence {
 		_, _ = fmt.Fprintln(stderr, line)
 	}
 	if input.Declared.Invalid {
@@ -512,6 +514,10 @@ func runTestWithEvidence(ctx context.Context, root string, args []string, stdout
 	// instances it judges are the ones whose full commands a language with
 	// no declared command runs (RNC-V1-013, RNC-V1-014).
 	inventory := testInventoryScope(ctx, root, &input, selectionSwitch)
+	if err := testE2EConfigRefusal(details.e2e, input.Instances); err != nil {
+		emitError(stderr, err)
+		return 2
+	}
 	if options.goParallel != 0 {
 		input.Declared = input.Declared.WithGoParallel(options.goParallel)
 	}
@@ -537,7 +543,7 @@ func runTestWithEvidence(ctx context.Context, root string, args []string, stdout
 	}
 	if options.dryRun {
 		if options.pins {
-			_, _ = io.WriteString(stdout, testPinsReport(digest, pins.tokens, pins.units))
+			_, _ = io.WriteString(stdout, testPinsReport(digest, details.tokens, details.units))
 		}
 		return testDryRun(manifest, digest, input.Declared, root, options, inventory, selection, stdout, stderr)
 	}
@@ -705,7 +711,7 @@ func testScanMemo(invocation affectedInvocation, module string) *gateselect.Scan
 // testRunInput plans in process through `corvint affected --base` and the
 // AFP-V0-012 attribution, and reads the declared full scope and partition
 // files independently of the planner (STR-V0-001..003, STR-V0-018).
-func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity, observed *affectedObservation) (sessiontest.Input, testPinsResult) {
+func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity, observed *affectedObservation) (sessiontest.Input, testPlanDetails) {
 	input := sessiontest.Input{
 		Base: options.base, Placement: options.placement, Producer: manifestProducer(), RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
 		Partition: sessiontest.PartitionFiles{
@@ -721,7 +727,7 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 	// Read the full scope independently of planning so a failure still finds
 	// every declared full command. Selected consumer argv augment this scope.
 	input.Declared = sessiontest.ReadDeclared(root)
-	var pins testPinsResult
+	var details testPlanDetails
 	// The graph comes from the default affected graph cache when one can be
 	// placed, as `corvint affected` reads it, so an unchanged tree is not
 	// re-scanned; the cache returns the same graph bytes (AFP-V0-438,
@@ -752,19 +758,20 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 		receipt, graph, err = compileAffectedGraph(ctx, invocation)
 	}
 	if err == nil {
+		details.e2e = receipt.Plan.E2E
 		input.GraphDigest = graph.Digest()
 		err = testFillPlan(ctx, &input, receipt, graph, root, options.base, index)
 	}
 	if err == nil {
 		for _, selection := range receipt.Plan.Selected {
 			if selection.Tier != "" {
-				pins.lineEvidence = append(pins.lineEvidence, fmt.Sprintf("%s tier=%s exact=false %s", selection.Instance, selection.Tier, selection.Reason))
+				details.lineEvidence = append(details.lineEvidence, fmt.Sprintf("%s tier=%s exact=false %s", selection.Instance, selection.Tier, selection.Reason))
 			}
 		}
 	}
 	if err == nil && options.pins {
-		pins.tokens = testChangedTokens(ctx, root, options.base, receipt.Plan.Dirty)
-		pins.units = testPins(receipt.Plan, graph, root, pins.tokens)
+		details.tokens = testChangedTokens(ctx, root, options.base, receipt.Plan.Dirty)
+		details.units = testPins(receipt.Plan, graph, root, details.tokens)
 	}
 	if err != nil {
 		message := err.Error()
@@ -774,11 +781,12 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 		}
 		input.PlanError = message
 	}
-	return input, pins
+	return input, details
 }
 
-// testPinsResult carries the --pins report inputs (TSP-V0-944).
-type testPinsResult struct {
+// testPlanDetails retains the selected config identities and the --pins report inputs.
+type testPlanDetails struct {
+	e2e          *affected.E2EPlan
 	lineEvidence []string
 	tokens       testPinTokens
 	units        []testPinUnit
@@ -1009,6 +1017,34 @@ func testSelectionUnits(selection map[string]any) ([]string, string) {
 	}
 	slices.Sort(units)
 	return units, ""
+}
+
+// Contract and provider units identify a file by path, and an executor instance by
+// runner and root. Refuse before launch if these keys cannot bind its admitting configs.
+func testE2EConfigRefusal(e2e *affected.E2EPlan, instances []contract.Instance) error {
+	if e2e == nil {
+		return nil
+	}
+	byPath := map[string][]string{}
+	for _, row := range e2e.Selected {
+		byPath[row.Path] = append(byPath[row.Path], row.Configs...)
+	}
+	for _, file := range slices.Sorted(maps.Keys(byPath)) {
+		configs := byPath[file]
+		slices.Sort(configs)
+		configs = slices.Compact(configs)
+		if len(configs) == 0 {
+			continue // A flows-only selection has no config binding.
+		}
+		if len(configs) == 1 && slices.ContainsFunc(instances, func(instance contract.Instance) bool {
+			return instance.Runner == testid.Playwright && instance.Config == configs[0] &&
+				instance.Owns((testid.ID{Runner: testid.Playwright, File: file}).String())
+		}) {
+			continue
+		}
+		return argumentError(fmt.Sprintf("UNKNOWN playwright-config-unrepresentable: %s requires %s", file, strings.Join(configs, ", ")))
+	}
+	return nil
 }
 
 // testE2EUnits reads the plan's joined E2E member (APK-V0-001, STR-V0-8706).

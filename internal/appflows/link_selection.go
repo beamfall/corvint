@@ -252,7 +252,8 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 		}
 		for _, p := range v.Unassigned {
 			if v.Runner == testid.Playwright {
-				j.pick(e2eFile{path: p}, testinventory.ReasonUnassigned)
+				sel := j.pick(e2eFile{path: p}, testinventory.ReasonUnassigned)
+				sel.Configs = appendUnique(sel.Configs, v.Config)
 			} else {
 				plan.FullInstances[v.Key] = testinventory.ReasonUnassigned
 			}
@@ -265,7 +266,7 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 		if !declared {
 			continue
 		}
-		var runtimeExclusions map[string]bool
+		var runtimeExclusions map[e2eFile]bool
 		for _, t := range instance.Tests {
 			if !browserTest(instance.Runner, t) || slices.Contains(iv.Removed, t.File) {
 				continue
@@ -273,12 +274,17 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 			known[t.ID] = true
 			out.Inventory.Count++
 			id, _ := testid.Parse(t.ID)
+			project := ""
+			if len(id.Segments) > 0 {
+				project = id.Segments[0]
+			}
+			file := e2eFile{project, t.File}
 			state, hit := assessFlowTest(byTest[t.ID], c, t, id, graph, owners, plan.Dirty, available && !iv.Full)
 			if state == "" && instance.Runner == testid.Playwright {
 				if runtimeExclusions == nil {
 					runtimeExclusions = provenRuntimeExclusions(root, iv.Config, plan.Dirty)
 				}
-				if !runtimeExclusions[t.File] {
+				if !runtimeExclusions[file] {
 					state = linkUnknown
 				}
 			}
@@ -310,11 +316,8 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 					continue
 				}
 			}
-			project := ""
-			if len(id.Segments) > 0 {
-				project = id.Segments[0]
-			}
-			sel := j.pick(e2eFile{project, t.File}, state)
+			sel := j.pick(file, state)
+			sel.Configs = appendUnique(sel.Configs, instance.Config)
 			if state == linkStale || state == linkUnknown || state == linkDisagrees || state == linkDangling || state == "unaccepted" {
 				sel.Reasons = appendUnique(sel.Reasons, testinventory.ReasonUnassigned)
 			}
@@ -344,6 +347,7 @@ func joinAcceptedLinks(ctx context.Context, root string, graph *affected.Graph, 
 func (j *flowJoiner) finishCanonicalPlan(out *affected.E2EPlan) {
 	for _, file := range j.inventory {
 		sel := j.pick(file, testinventory.ReasonUnassigned)
+		sel.Configs = appendUnique(sel.Configs, j.declared.PlaywrightConfig)
 		sel.TestKeys = nil // A different config's ID cannot restrict this file.
 		out.Inventory.Unlinked = appendUnique(out.Inventory.Unlinked, file.path)
 	}
@@ -365,8 +369,8 @@ func (j *flowJoiner) finishCanonicalPlan(out *affected.E2EPlan) {
 // Only a file explicitly proved excludable by the per-test Playwright closure
 // can discharge a runtime dependency. A missing frontier entry or a file absent
 // from the import walk is not such a proof (TJAA-V0-140/141, FLP-V1-010).
-func provenRuntimeExclusions(root, config string, dirty []string) map[string]bool {
-	proven := map[string]bool{}
+func provenRuntimeExclusions(root, config string, dirty []string) map[e2eFile]bool {
+	proven := map[e2eFile]bool{}
 	closures, err := typescript.PlaywrightTestClosures(root, config)
 	if err != nil {
 		return proven
@@ -375,10 +379,13 @@ func provenRuntimeExclusions(root, config string, dirty []string) map[string]boo
 		if closure.Unknown != "" || closure.Widened != "" {
 			continue
 		}
-		proven[closure.Test] = !slices.ContainsFunc(dirty, func(path string) bool {
-			_, found := slices.BinarySearch(closure.Excludable, path)
-			return !found
-		})
+		// The import walk cannot see a browser fetching application files by URL.
+		for project, dir := range closure.TestDirs {
+			proven[e2eFile{project, closure.Test}] = dir != "" && !slices.ContainsFunc(dirty, func(path string) bool {
+				_, found := slices.BinarySearch(closure.Excludable, path)
+				return !found || (dir != "." && !strings.HasPrefix(path, dir+"/"))
+			})
+		}
 	}
 	return proven
 }

@@ -66,6 +66,9 @@
 Amended 2026-11-19 by the orchestrator under the owner's 1.0 delegation: route evidence is not in
 the base schemas; variation_digest and the reduced v1 inputs replace it, fail closed.
 
+Amended 2026-11-19 (round 3): application files outside testDir never prove browser non-reach;
+execution keeps Playwright config identity.
+
 ## Failure modes
 
 | Failure | Behaviour |

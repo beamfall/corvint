@@ -98,7 +98,9 @@ type E2EInventory struct {
 
 // E2ESelection is one E2E test file the change requires.
 type E2ESelection struct {
-	Path string `json:"path"`
+	// Configs binds the in-process execution obligations even when two rows share a project and path.
+	Configs []string `json:"-"`
+	Path    string   `json:"path"`
 	// Project is the Playwright project of a discovered file; omitted for a
 	// flows-only inventory.
 	Project  string `json:"project,omitempty"`

@@ -65,8 +65,10 @@ type PlaywrightProject struct {
 	TestIgnore     []string `json:"testIgnore"`
 	TestMatch      []string `json:"testMatch"`
 
-	matchers []playwrightMatcher
-	ignores  []playwrightMatcher
+	// resolvedTestDir also accounts for the implicit directory of a nested config.
+	resolvedTestDir string
+	matchers        []playwrightMatcher
+	ignores         []playwrightMatcher
 	// ignoreInherited marks a TestIgnore taken from the config's global testIgnore
 	// (TJAA-V0-770).
 	ignoreInherited bool
@@ -772,7 +774,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 		if strings.TrimSpace(item) == "" {
 			continue
 		}
-		project, itemUnknown := parsePlaywrightProject(scope, configPath, globalTestDir, item, properties["use"], global)
+		project, itemUnknown := parsePlaywrightProject(scope, configPath, globalTestDir, item, properties, global)
 		unknown = append(unknown, itemUnknown...)
 		if project.Name == "" {
 			continue
@@ -860,7 +862,7 @@ type playwrightGlobalIgnore struct {
 	matchers []playwrightMatcher
 }
 
-func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir, raw, globalUse string, global playwrightGlobalIgnore) (PlaywrightProject, []PlaywrightUnknown) {
+func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir, raw string, configProperties map[string]string, global playwrightGlobalIgnore) (PlaywrightProject, []PlaywrightUnknown) {
 	properties, ok := playwrightObjectProperties(raw)
 	if !ok {
 		return PlaywrightProject{}, []PlaywrightUnknown{selectionUnknown(PlaywrightUnknownProjectSet, "project entry is not a static object")}
@@ -872,6 +874,7 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 	project := PlaywrightProject{Name: name, TestDir: globalTestDir, TestIgnore: []string{}, TestMatch: []string{}, Dependencies: []string{}}
 	project.Argv = []string{"npx", "playwright", "test", "--config=" + configPath, "--project=" + name}
 	fragmentSum := sha256.Sum256([]byte(strings.TrimSpace(raw)))
+	globalUse := configProperties["use"]
 	if globalUse != "" {
 		fragmentSum = sha256.Sum256([]byte(strings.TrimSpace(globalUse) + "\n" + strings.TrimSpace(raw)))
 	}
@@ -889,6 +892,10 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 		} else {
 			project.TestDir = joined
 		}
+	}
+	project.resolvedTestDir = project.TestDir
+	if _, local := properties["testDir"]; !local && configProperties["testDir"] == "" {
+		project.resolvedTestDir = path.Dir(configPath)
 	}
 	project.TestMatch, project.matchers, unknown = parsePlaywrightMatchers(name, "testMatch", properties, unknown)
 	project.TestIgnore, project.ignores, unknown = parsePlaywrightMatchers(name, "testIgnore", properties, unknown)

@@ -14,6 +14,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -41,8 +42,7 @@ func linkFixtureWithSource(t *testing.T, source string) flowPlanFixture {
 	}
 	writeRaw(t, f.root, FlowsDeclarationPath, body)
 	writeRaw(t, f.root, cartFile, []byte(source))
-	// The search spec owns this import, so its helper is provably excludable
-	// from checkout even though both files run in the browser suite.
+	// Only search imports this application file. Checkout can still fetch it by URL.
 	const searchSpec = "e2e/search.spec.ts"
 	writeRaw(t, f.root, searchSpec, []byte("import '../src/search';\n"+readFile(t, f.root, searchSpec)))
 	writeRaw(t, f.root, "pytest.ini", []byte("[pytest]\n"))
@@ -169,7 +169,7 @@ func TestFLPV1007AcceptedOnly(t *testing.T) {
 		before := affected.Select(graph, []string{dirty})
 		return JoinFlowPlan(context.Background(), f.root, graph, before, "")
 	}
-	result := plan("src/search.ts")
+	result := plan("e2e/search.spec.ts")
 	before, ok := e2eEntry(result, cartFile)
 	if !ok || !slices.Contains(before.Reasons, "unassigned") || !slices.Equal(before.TestKeys, []string{linkedCart, otherCart}) {
 		t.Fatalf("tag alone: %+v", result.E2E)
@@ -177,11 +177,11 @@ func TestFLPV1007AcceptedOnly(t *testing.T) {
 	if _, err := ProposeLinks(t.Context(), f.root, "", true); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(result.E2E, plan("src/search.ts").E2E) {
+	if !reflect.DeepEqual(result.E2E, plan("e2e/search.spec.ts").E2E) {
 		t.Fatal("proposals altered selection")
 	}
 	acceptCart(t, f, linkedCart, pyCart)
-	after := plan("src/search.ts")
+	after := plan("e2e/search.spec.ts")
 	selected, _ := e2eEntry(after, cartFile)
 	if !slices.Equal(selected.TestKeys, []string{otherCart}) {
 		t.Fatalf("mixed file: %+v; unknown %+v", after.E2E, after.Unknown)
@@ -320,23 +320,23 @@ func TestFLPV1010UnresolvedRuntimeRetainsAcceptedTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	control := JoinFlowPlan(t.Context(), f.root, graph, affected.Select(graph, []string{"src/search.ts"}), "")
+	control := JoinFlowPlan(t.Context(), f.root, graph, affected.Select(graph, []string{"e2e/search.spec.ts"}), "")
 	row, ok := e2eEntry(control, cartFile)
 	if !ok || !slices.Equal(row.TestKeys, []string{otherCart}) {
-		t.Fatal("the search-only helper has a closed exclusion", row)
+		t.Fatal("the search spec has a closed exclusion", row)
 	}
 	for _, tc := range []struct {
 		name  string
 		dirty []string
 	}{
 		{"browser route", []string{"server/checkout.go"}},
-		{"mixed paths", []string{"src/search.ts", "server/checkout.go"}},
-		{"future frontier", []string{"src/search.ts"}},
+		{"mixed paths", []string{"e2e/search.spec.ts", "server/checkout.go"}},
+		{"future frontier", []string{"e2e/search.spec.ts"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			plan := affected.Select(graph, tc.dirty)
 			if tc.name == "future frontier" {
-				plan.Unknown = []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: "future:runtime-binding:src/search.ts"}}
+				plan.Unknown = []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: "future:runtime-binding:e2e/search.spec.ts"}}
 				plan.Scope = affected.ScopeUnknown
 			}
 			got := JoinFlowPlan(t.Context(), f.root, graph, plan, "")
@@ -397,6 +397,10 @@ func TestFLPV1007DeclaredDiscoverySurvivesOtherInventories(t *testing.T) {
 				if !ok || sel.Project != "chromium" || len(sel.TestKeys) != 0 {
 					t.Fatalf("declared suite lost whole file %s: %+v", path, got.E2E)
 				}
+				if name == "other Playwright config" && (!slices.Contains(sel.Configs, config) ||
+					!slices.Contains(sel.Configs, "playwright.config.ts")) {
+					t.Fatalf("shared project and file lost a config: %+v", sel)
+				}
 			}
 			if name == "other Playwright config" && got.FullInstances["pytest@."] == "" {
 				t.Fatal("lost the independent pytest group", got.FullInstances)
@@ -450,5 +454,55 @@ func TestFLPV1001MixedLinksAndVariationGaps(t *testing.T) {
 	}
 	if has(GapNoTest, "checkout.happy") || !has(GapTestWithoutAssertion, "checkout.happy") || !has(GapNoTest, "checkout.guest") {
 		t.Fatal(report.Flows)
+	}
+}
+
+func TestFLPV1010BrowserLoadedApplicationFile(t *testing.T) {
+	const asset = "src/search.ts"
+	f := linkFixtureWithSource(t, `test('checkout', async ({page}) => {
+  const url = '/' + ['src', 'search'].join('/') + '.ts';
+  const response = await page.goto(url);
+  expect(await response.text()).toContain('return q');
+});
+test('guest', () => {});
+`)
+	acceptCart(t, f, linkedCart, otherCart)
+	writeRaw(t, f.root, asset, []byte("export function find(q: string) { return ''; }\n"))
+	closures, err := typescript.PlaywrightTestClosures(f.root, "playwright.config.ts")
+	if err != nil || !slices.ContainsFunc(closures, func(c typescript.PlaywrightTestClosure) bool {
+		return c.Test == cartFile && slices.Contains(c.Excludable, asset)
+	}) {
+		t.Fatalf("fixture must admit the static exclusion: %+v, %v", closures, err)
+	}
+	_, plan := f.plan(t, asset)
+	row, ok := e2eEntry(plan, cartFile)
+	if !ok || !slices.Equal(row.TestKeys, []string{linkedCart, otherCart}) || !slices.Contains(row.Reasons, linkUnknown) {
+		t.Fatalf("URL-loaded asset lost accepted checkout tests: %+v", row)
+	}
+}
+
+func TestFLPV1010ProjectTestDirBounds(t *testing.T) {
+	f := linkFixture(t)
+	const config = "playwright.config.ts"
+	const otherSpec = "e2e/search.spec.ts"
+	writeRaw(t, f.root, config, []byte(`export default {
+		testDir: "src", projects: [{ name: "chromium", testDir: "e2e" }]
+	};`))
+	key := e2eFile{"chromium", cartFile}
+	if !provenRuntimeExclusions(f.root, config, []string{otherSpec})[key] ||
+		provenRuntimeExclusions(f.root, config, []string{otherSpec, "src/search.ts"})[key] {
+		t.Fatal("project testDir must override the config directory for every dirty file")
+	}
+	const nested = "e2e/implicit.config.ts"
+	writeRaw(t, f.root, nested, []byte(`export default { projects: [{ name: "chromium" }] };`))
+	if !provenRuntimeExclusions(f.root, nested, []string{otherSpec})[key] ||
+		provenRuntimeExclusions(f.root, nested, []string{"src/search.ts"})[key] {
+		t.Fatal("implicit testDir must be the nested config's directory")
+	}
+	writeRaw(t, f.root, config, []byte(`export default {
+		testDir: "e2e", projects: [{ name: "chromium", testDir: process.env.TEST_DIR }]
+	};`))
+	if provenRuntimeExclusions(f.root, config, []string{otherSpec})[key] {
+		t.Fatal("dynamic project directory authorized exclusion")
 	}
 }

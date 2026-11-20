@@ -86,6 +86,8 @@ const PlaywrightTestClosureRule = "corvint-test-closure/0"
 // empty, when the test's closure is known but a frontier outside the whole suite's closure may load
 // a suite file, so no file can be proved excludable (TJAA-V0-141).
 type PlaywrightTestClosure struct {
+	// TestDirs maps each project admitting Test to its resolved repository-relative directory.
+	TestDirs   map[string]string `json:"-"`
 	Test       string
 	Files      []string
 	Excludable []string
@@ -283,6 +285,10 @@ func playwrightTestClosure(graph *affected.Graph, configPath string, p playwrigh
 		return PlaywrightTestClosure{Test: test, Unknown: closure.unknown}
 	}
 	result := PlaywrightTestClosure{Test: test, Files: []string{}, Excludable: []string{}}
+	result.TestDirs = make(map[string]string, len(projects))
+	for _, name := range projects {
+		result.TestDirs[name] = byName[name].resolvedTestDir
+	}
 	for _, id := range sortedKeys(whole.units) {
 		unit, _ := graph.Unit(id)
 		owned := append(slices.Clone(unit.Sources), unit.Tests...)

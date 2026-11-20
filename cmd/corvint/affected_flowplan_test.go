@@ -17,6 +17,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
+	"github.com/Beamfall/corvint/internal/testinventory"
 )
 
 // flowPlanCLIRepo is the APK fixture (V1-5251, V1-5252) as a committed
@@ -61,7 +62,7 @@ func flowPlanCLIRepo(t *testing.T, declaration, config string) (root, base strin
 		"lib/lib.go":      "package lib\n\nfunc Help() string { return \"help!\" }\n",
 	})
 	head := shopCommit(t, root, "C: the change")
-	writeFlowPlanDiscovery(t, root, head)
+	writeFlowPlanDiscovery(t, root, head, "playwright.config.ts", "chromium")
 	return root, base
 }
 
@@ -101,22 +102,22 @@ func flowPlanIntents(t *testing.T, anchor string) map[string]string {
 	return out
 }
 
-func writeFlowPlanDiscovery(t *testing.T, root, revision string) {
+func writeFlowPlanDiscovery(t *testing.T, root, revision, configPath, project string) {
 	t.Helper()
-	config, err := os.ReadFile(filepath.Join(root, "playwright.config.ts"))
+	config, err := os.ReadFile(filepath.Join(root, configPath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest, err := typescript.ObservePlaywrightSources(root, "playwright.config.ts")
+	digest, err := typescript.ObservePlaywrightSources(root, configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	units := []typescript.PlaywrightDiscoveryUnit{}
 	for _, spec := range []string{"checkout", "orphan", "search"} {
-		units = append(units, typescript.PlaywrightDiscoveryUnit{Project: "chromium", Test: "e2e/" + spec + ".spec.ts"})
+		units = append(units, typescript.PlaywrightDiscoveryUnit{Project: project, Test: "e2e/" + spec + ".spec.ts"})
 	}
 	sum := sha256.Sum256(config)
-	receipt := typescript.PlaywrightDiscovery{Config: typescript.PlaywrightConfigIdentity{Path: "playwright.config.ts", SHA256: hex.EncodeToString(sum[:])},
+	receipt := typescript.PlaywrightDiscovery{Config: typescript.PlaywrightConfigIdentity{Path: configPath, SHA256: hex.EncodeToString(sum[:])},
 		Profile: "playwright-discovery/0", Revision: revision, SourceDigest: digest, Units: units}
 	raw, err := jsonv2.Marshal(receipt, jsonv2.Deterministic(true))
 	if err != nil {
@@ -397,5 +398,40 @@ func TestFLPV1006UnknownV1MemberRefusesNarrowingViaCLI(t *testing.T) {
 	entry := unknown[0].(map[string]any)
 	if entry["reason"] != "FLOWS_DECLARATION_INVALID" || !strings.Contains(entry["hint"].(string), "future") {
 		t.Fatalf("e2e: %v", e2e)
+	}
+}
+
+func TestFLPV1007PlaywrightConfigIdentityAtExecution(t *testing.T) {
+	const custom = "e2e.config.ts"
+	const standard = "playwright.config.ts"
+	const spec = "e2e/checkout.spec.ts"
+	root, _ := flowPlanCLIRepo(t, flowPlanCLIDeclaration, flowPlanCLIConfig)
+	shopWrite(t, root, map[string]string{
+		custom:                        strings.Replace(flowPlanCLIConfig, "chromium", "webkit", 1),
+		appflows.FlowsDeclarationPath: strings.Replace(flowPlanCLIDeclaration, standard, custom, 1),
+	})
+	base := shopCommit(t, root, "add the webkit discovery config")
+	blob := func(file string) string { return shopGit(t, root, "rev-parse", base+":"+file) }
+	lister, _ := testinventory.CurrentLister("playwright")
+	inv, err := testinventory.Encode(testinventory.Inventory{Profile: testinventory.Profile, Instances: []testinventory.Instance{{
+		Key: "playwright@.", Runner: "playwright", Root: ".", Config: standard, ConfigDigest: blob(standard),
+		Commit: base, Lockfile: "package-lock.json", LockfileDigest: blob("package-lock.json"),
+		Lister: testinventory.Lister{Name: lister.Name, Kind: lister.Kind, Version: lister.Version, Command: []string{"fixture-list"}},
+		Files:  []testinventory.File{{Path: spec, Blob: blob(spec)}},
+		Tests:  []testinventory.Test{{File: spec, ID: "playwright:" + spec + "::chromium::pays"}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shopWrite(t, root, map[string]string{testinventory.Path: string(inv)})
+	head := shopCommit(t, root, "bind chromium inventory")
+	writeFlowPlanDiscovery(t, root, head, custom, "webkit")
+	for _, extra := range [][]string{{"--dry-run"}, {}} {
+		var stdout, stderr bytes.Buffer
+		args := append([]string{"--root", root, "test", "--base", base}, extra...)
+		code := runContext(t.Context(), args, strings.NewReader(""), &stdout, &stderr)
+		if code != 2 || !strings.Contains(stderr.String(), "UNKNOWN playwright-config-unrepresentable: "+spec+" requires "+custom+", "+standard) {
+			t.Fatalf("%v: exit %d, stdout %s, stderr %s", args, code, stdout.String(), stderr.String())
+		}
 	}
 }

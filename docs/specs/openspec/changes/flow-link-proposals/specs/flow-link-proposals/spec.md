@@ -95,19 +95,21 @@ Source: G11 and G2 (owner answers); owner decision R12 (2026-11-09).
 Status: proposed 2026-11-09; delivery not-started.
 E2E selection MUST read link records only from `.corvint/flows.json` and MUST use only accepted
 links. A browser E2E test with no accepted link MUST run and MUST be counted `unassigned`. A
-selection made through an accepted link MUST carry tier `flow` (LEV-V1-009).
+selection made through an accepted link MUST carry tier `flow` (LEV-V1-009). Execution MUST
+preserve every Playwright config that selected the file. If the executor cannot represent those
+configs, it MUST refuse before launch with an UNKNOWN reason naming the file and configs.
 
 #### Scenario: after acceptance
-- **GIVEN** an accepted link from a Playwright test to variation V, and a change that reaches no
-  file
-  or symbol of V
+- **GIVEN** an accepted link to variation V and a change inside the project's resolved testDir
+  that the test's closure excludes and that reaches no file or symbol of V
 - **WHEN** `corvint affected` plans the change
 - **THEN** that test is not selected, and every unassigned E2E test is selected
 
 #### Scenario: one spec file with a linked and an unlinked test
 Added from the watch-flows verdicts, finding 10.
 - **GIVEN** a spec file holding one test with an accepted link to variation V and one test with no
-  accepted link, and a change that reaches no linked variation
+  accepted link, and a change inside testDir that its closure excludes and that reaches no
+  linked variation
 - **WHEN** `corvint affected` plans the change
 - **THEN** the linked test is not selected, and the unlinked test in the same file still runs and
   is counted `unassigned`
@@ -140,6 +142,10 @@ with reason `link-stale`.
 Source: G11 and G2 (owner answers).
 Status: proposed 2026-11-09; delivery not-started.
 A link MUST remove a test only when static reachability at file and symbol level agrees with it.
+For a Playwright exclusion, every dirty file MUST be in the test closure's Excludable set and
+inside the resolved testDir of the admitting project, including an inherited config testDir.
+A path outside that directory or an unresolved testDir MUST retain the test on a static miss
+with reason `link-reachability-unknown`.
 When flow reachability cannot be computed at the candidate, its test MUST run as `unassigned`
 with reason `link-reachability-unknown`. When they disagree, the test MUST run with reason
 `link-reachability-disagrees`. A link whose test ID

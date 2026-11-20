@@ -352,6 +352,9 @@ func (j *flowJoiner) join() *affected.E2EPlan {
 		}
 	}
 	for _, sel := range j.selected {
+		if j.declared.PlaywrightConfig != "" {
+			sel.Configs = []string{j.declared.PlaywrightConfig}
+		}
 		slices.Sort(sel.Reasons)
 		slices.Sort(sel.TestKeys)
 		slices.SortFunc(sel.Flows, compareHits)

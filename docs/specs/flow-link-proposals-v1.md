@@ -26,6 +26,8 @@ required by task 1 until its technical contract and integration evidence are com
 
 Non-goals: automatic acceptance, a new flow-intent format, source tags as selection authority,
 line-evidence narrowing of browser tests, a CI ratchet, and hosted or network services.
+Modelling files under testDir that the browser loads by URL is outside scope (TJAA-V0-140).
+The inherited cmd/corvint-docs RCF qualification issue belongs to V1-5692.
 The baseline is running every unassigned E2E test. Corvint cannot prove a person ran acceptance;
 review of the commit changing `.corvint/flows.json` is the check.
 
@@ -114,19 +116,21 @@ under R42, N2).
 
 E2E selection MUST read link records only from `.corvint/flows.json` and MUST use only accepted
 links. A browser E2E test with no accepted link MUST run and MUST be counted `unassigned`. A
-selection made through an accepted link MUST carry tier `flow` (LEV-V1-009).
+selection made through an accepted link MUST carry tier `flow` (LEV-V1-009). Execution MUST
+preserve every Playwright config that selected the file. If the executor cannot represent those
+configs, it MUST refuse before launch with an UNKNOWN reason naming the file and configs.
 
 #### Scenario: after acceptance
-- **GIVEN** an accepted link from a Playwright test to variation V, and a change that reaches no
-file
-  or symbol of V
+- **GIVEN** an accepted link to variation V and a change inside the project's resolved testDir
+  that the test's closure excludes and that reaches no file or symbol of V
 - **WHEN** `corvint affected` plans the change
 - **THEN** that test is not selected, and every unassigned E2E test is selected
 
 #### Scenario: one spec file with a linked and an unlinked test
 Added from the watch-flows verdicts, finding 10.
 - **GIVEN** a spec file holding one test with an accepted link to variation V and one test with no
-  accepted link, and a change that reaches no linked variation
+  accepted link, and a change inside testDir that its closure excludes and that reaches no
+  linked variation
 - **WHEN** `corvint affected` plans the change
 - **THEN** the linked test is not selected, and the unlinked test in the same file still runs and
   is counted `unassigned`
@@ -156,6 +160,10 @@ with reason `link-stale`.
 - `FLP-V1-010`: Reachability agreement and dangling links
 
 A link MUST remove a test only when static reachability at file and symbol level agrees with it.
+For a Playwright exclusion, every dirty file MUST be in the test closure's Excludable set and
+inside the resolved testDir of the admitting project, including an inherited config testDir.
+A path outside that directory or an unresolved testDir MUST retain the test on a static miss
+with reason `link-reachability-unknown`.
 When flow reachability cannot be computed at the candidate, its test MUST run as `unassigned`
 with reason `link-reachability-unknown`. When they disagree, the test MUST run with reason
 `link-reachability-disagrees`. A link whose test
@@ -183,7 +191,8 @@ MUST select its whole group with a printed reason, and an accepted link MUST NOT
 The plan joins committed inventory IDs to accepted variation records and checks the candidate
 test blob, variation and static graph. Unassigned IDs stay selected inside mixed Playwright files.
 An exclusion requires the Playwright closure for the test's config to prove every dirty path
-excludable for that file (TJAA-V0-140/141). An open or widened closure retains the test.
+excludable for that file (TJAA-V0-140/141) within the admitting project's resolved testDir.
+An open or widened closure retains the test.
 Default proposals require every link of a test to bind before treating it as assigned.
 Variation gaps count current accepted links at the report commit. Independent full-instance
 obligations run the declared language command when one exists.
@@ -196,10 +205,10 @@ obligations run the declared language command when one exists.
 | FLP-V1-004 | Per-flow acceptance, absent and stale refusals | `TestFLPV1004AcceptanceCLI`, `TestFLPV1005NoAutomationAccepts` |
 | FLP-V1-005 | Terminal check before acceptance | `TestFLPV1004AcceptanceCLI`, `TestFLPV1005NoAutomationAccepts` |
 | FLP-V1-006 | Closed record and acceptance fields | `TestFLPV1006LinkRecordRoundTrip`, `TestFLPV1006MissingAcceptance`, `TestFLPV1006ClosedRecord` |
-| FLP-V1-007 | Mixed-file selection and flow tier, full fallback without inventory | `TestFLPV1007AcceptedOnly`, `TestFLPV1007PendingIntegrationNeverNarrows`, `TestFLPV1007DeclaredDiscoverySurvivesOtherInventories` |
+| FLP-V1-007 | Mixed-file selection and flow tier, full fallback without inventory | `TestFLPV1007AcceptedOnly`, `TestFLPV1007PendingIntegrationNeverNarrows`, `TestFLPV1007DeclaredDiscoverySurvivesOtherInventories`, `TestFLPV1007PlaywrightConfigIdentityAtExecution` |
 | FLP-V1-008 | Tags affect proposal order only | `TestFLPV1007AcceptedOnly`, `TestFLPV1003ConfidenceInputs` |
 | FLP-V1-009 | Test blob and canonical variation bindings | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1009CanonicalVariationDigest` |
-| FLP-V1-010 | Disagreement, unknown reach, missing test or variation | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1010DanglingTest`, `TestFLPV1010UnresolvedRuntimeRetainsAcceptedTest` |
+| FLP-V1-010 | Disagreement, unknown reach, missing test or variation | `TestFLPV1009DoubtfulLinksRun`, `TestFLPV1010DanglingTest`, `TestFLPV1010UnresolvedRuntimeRetainsAcceptedTest`, `TestFLPV1010BrowserLoadedApplicationFile`, `TestFLPV1010ProjectTestDirBounds` |
 | FLP-V1-011 | Browser pytest instance keeps its whole-group execution obligation | `TestFLPV1007AcceptedOnly`, `TestFLPV1011DeclaredCommandRunsForBrowserGroup` |
 
 ## Storage, trust boundary and limits
