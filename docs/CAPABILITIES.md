@@ -462,6 +462,7 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-docs docs pages maintain` | Experimental automatic maintenance of one human documentation page | `corvint-docs docs pages maintain --check --page PATH` | `corvint-docs docs pages maintain --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs docs-tool` | Answer one MCP documentation tool call for corvint-mcp (protocol verb) | `corvint-docs docs-tool --root ABSOLUTE_ROOT TOOL < arguments.json` | `corvint-docs docs-tool --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows` | Inspect experimental web-flow assertion candidates and runtime observations | `corvint-docs flows --manifest FILE` | `corvint-docs flows --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
+| `corvint-docs flows accept` |  | `corvint-docs flows accept --flow ID --by NAME` | `corvint-docs flows accept --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows appmap` |  | `corvint-docs flows appmap actions --map FILE` | `corvint-docs flows appmap --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows appmap actions` |  | `corvint-docs flows appmap actions --map FILE` | `corvint-docs flows appmap actions --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows appmap blocker` |  | `corvint-docs flows appmap blocker --map FILE --note TEXT` | `corvint-docs flows appmap blocker --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
@@ -499,6 +500,7 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-docs flows ingest-coverage` |  | `corvint-docs flows ingest-coverage --format v8 --from FILE --evidence FILE... --revision FULL_COMMIT` | `corvint-docs flows ingest-coverage --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows map` |  | `corvint-docs flows map --flows DIR` | `corvint-docs flows map --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows navigate` |  | `corvint-docs flows navigate --flows DIR` | `corvint-docs flows navigate --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
+| `corvint-docs flows propose` |  | `corvint-docs flows propose --links` | `corvint-docs flows propose --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows record` |  | `corvint-docs flows record --manifest FILE --evidence FILE --output FILE` | `corvint-docs flows record --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows request-path` |  | `corvint-docs flows request-path --file PATH --route 'METHOD /path'` | `corvint-docs flows request-path --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |
 | `corvint-docs flows stability` |  | `corvint-docs flows stability --registry FILE` | `corvint-docs flows stability --help`; [corvint-docs](../internal/capcatalog/trees/corvint-docs.json) |

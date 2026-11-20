@@ -173,3 +173,56 @@ func writeJestInstall(t *testing.T, root, version string) {
 		t.Fatal(err)
 	}
 }
+
+func TestFLPV1011DeclaredCommandRunsForBrowserGroup(t *testing.T) {
+	input := pytestInput()
+	input.GoSelection = "NOTHING TypeScript-only change"
+	input.Selected = []string{"typescript:src/search.ts"}
+	input.FullInstances = map[string]string{"pytest@services/a": "browser-group-full", "pytest@services/b": "browser-group-full"}
+	argv := []string{"make", "all-python-tests"}
+	input.Declared.Languages = []LanguageCommand{{Language: "python", Argv: argv}, {Language: "typescript", Argv: []string{"make", "ts-tests"}}}
+	m, err := Build(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Scope != ScopeNarrowed || !slices.Contains(contractUnitKeys(m), "declared declared:python [whole]") {
+		t.Fatalf("browser group missing: %+v", m)
+	}
+	runs := Invocations(m, input.Declared, 0, t.TempDir(), "")
+	count := 0
+	for _, run := range runs {
+		if slices.Equal(run.Argv, argv) {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("expected the declared Python argv once: %+v", runs)
+	}
+	if !slices.Contains(input.SelectionVerdict().Runners, RunnerVerdict{Runner: "python", Tier: contract.TierFull}) {
+		t.Fatal(input.SelectionVerdict())
+	}
+}
+
+func TestFLPV1011CIBrowserGroupCheckForGoChange(t *testing.T) {
+	for _, tc := range []struct {
+		name, reason string
+		commands     []LanguageCommand
+		want         []string
+	}{
+		{"instance commands", "browser-group-full", nil, []string{"pytest@services/a full command (browser-group-full)", "pytest@services/b full command (browser-group-full)"}},
+		{"declared command", "browser-group-full", []LanguageCommand{{Language: "python", Argv: []string{"make", "all-python-tests"}}}, []string{"make all-python-tests (browser-group-full)"}},
+		{"unknown group reason", "future-group-obligation", nil, []string{"pytest@services/a full command (future-group-obligation)", "pytest@services/b full command (future-group-obligation)"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := pytestInput()
+			input.Selected = []string{"go:m/a"}
+			input.RunnerProfile = ProfileCI
+			input.Declared.Languages = tc.commands
+			input.FullInstances = map[string]string{"pytest@services/a": tc.reason, "pytest@services/b": tc.reason}
+			m, err := Build(input)
+			if err != nil || m.Scope != ScopeNarrowed || !slices.Equal(m.Checks, tc.want) || !slices.Equal(contractUnitKeys(m), []string{"go go:m/a [whole]"}) {
+				t.Fatalf("CI units %v checks %v scope %s: %v", m.Units, m.Checks, m.Scope, err)
+			}
+		})
+	}
+}

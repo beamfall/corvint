@@ -1,7 +1,7 @@
 # Change proposal: proposed flow links with a confidence score, accepted by a person
 
 Change name: `flow-link-proposals`
-Ticket: none filed yet; to be filed in `.taskman/` before dispatch (not filed by this proposal).
+Ticket: V1-5695.
 Product requirement served: PROD-DOCS-012 in `docs/specs/PRODUCT-PLAN-1.0.md` (propose flow
 declarations and test links with cited evidence; a person accepts per flow), and the E2E basis of
 PROD-TEST-004.
@@ -11,7 +11,7 @@ Requirement IDs this change adds: FLP-V1-001 to FLP-V1-011. `FLP-` has no entry 
 `docs/specs/REQUIREMENTS.tsv` and appears in no other folder under `docs/specs/openspec/changes/`
 (checked 2026-11-09).
 Intent status: accepted (owner, 2026-11-18; G14 classification under decision 0596)
-Delivery status: not-started
+Delivery status: experimental
 Written before dispatch: yes.
 
 ## Needs first
@@ -19,11 +19,12 @@ Written before dispatch: yes.
 - `canonical-test-id`: a link names its test by canonical test ID.
 - `test-inventory`: proposals are made for tests in the inventory, and dangling links are found
   against it.
-- `run-evidence`: observed routes and outcomes are proposal evidence.
+- Route and entry-symbol evidence is deferred to a later confidence formula (2026-11-19).
 - `line-evidence`: tier `flow` and the one-line reason come from there.
 
 This change is fifth and last in the build order fixed by owner decision R38 (2026-11-09). The flow
-file `.corvint/flows.json` and its schema version belong to change `affected-plan-kinds` and the flow
+file `.corvint/flows.json` and its schema version belong to change `affected-plan-kinds` and the
+flow
 schema work under G6; this change adds link records to it.
 
 ## Why
@@ -89,5 +90,6 @@ outside it.
   `corvint-docs`, G5).
 - `.corvint/flows.json` gains link records. Accepting links changes a `.corvint` config file, so the
   next plan runs in full once (owner decision R31).
-- E2E selection (changes `e2e-inventory-discovery`, `affected-plan-kinds`) reads accepted links only.
+- E2E selection (changes `e2e-inventory-discovery`, `affected-plan-kinds`) reads accepted links
+  only.
 - `flows-unlinked-tests-report` and `flows-status-report` report stale and dangling links.

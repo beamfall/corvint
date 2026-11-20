@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
 )
@@ -26,7 +27,7 @@ type Tier string
 const (
 	Line        Tier = "line"
 	File        Tier = "file"
-	Flow        Tier = "flow"
+	Flow        Tier = affected.TierFlow
 	Full        Tier = "full"
 	Absent           = "line-evidence-absent"
 	Stale            = "line-evidence-stale"

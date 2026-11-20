@@ -65,6 +65,8 @@ type FlowsDeclaration struct {
 	// `playwright` member (AFU-V1-140).
 	PlaywrightConfig    string
 	PlaywrightDiscovery string
+	// Links are reviewed against canonical inventory and candidate reachability.
+	Links []FlowTestLink
 }
 
 // KindRule assigns Kind to every path at or under Path; "." is the whole
@@ -176,6 +178,13 @@ func JoinFlowPlan(ctx context.Context, root string, graph *affected.Graph, plan 
 		}
 		plan.Selected[i].TestKind = declared.KindOf(paths)
 	}
+	if usesCanonicalLinks(root, declared) {
+		return joinAcceptedLinks(ctx, root, graph, plan, declared, measured)
+	}
+	return joinIntentPlan(ctx, root, graph, plan, declared, measured)
+}
+
+func joinIntentPlan(ctx context.Context, root string, graph *affected.Graph, plan affected.Plan, declared *FlowsDeclaration, measured string) affected.Plan {
 	if graph == nil {
 		return flowsDeclarationInvalid(plan, declared.Dir, "no graph to join the flows over")
 	}
@@ -239,7 +248,7 @@ type flowJoiner struct {
 func (j *flowJoiner) join() *affected.E2EPlan {
 	out := &affected.E2EPlan{Flows: j.declared.Dir, Selected: []affected.E2ESelection{}}
 	out.Inventory = j.deriveInventory()
-	j.checkBounds()
+	j.checkBounds(len(j.inventory))
 	j.checkGlobal()
 	j.checkPlanUnbounded()
 	for _, key := range slices.Sorted(maps.Keys(j.plan.FullInstances)) {
@@ -347,6 +356,9 @@ func (j *flowJoiner) join() *affected.E2EPlan {
 		}
 	}
 	for _, sel := range j.selected {
+		if j.declared.PlaywrightConfig != "" {
+			sel.Configs = []string{j.declared.PlaywrightConfig}
+		}
 		slices.Sort(sel.Reasons)
 		slices.Sort(sel.TestKeys)
 		slices.SortFunc(sel.Flows, compareHits)
@@ -494,11 +506,11 @@ func (j *flowJoiner) fullReason() string {
 	return affected.E2EReasonBoundExceeded
 }
 
-func (j *flowJoiner) checkBounds() {
-	if len(j.plan.Dirty) > maxFlowPlanDirty || len(j.inventory) > maxFlowPlanInventory {
+func (j *flowJoiner) checkBounds(inventorySize int) {
+	if len(j.plan.Dirty) > maxFlowPlanDirty || inventorySize > maxFlowPlanInventory {
 		j.full = true
 		j.unknown = append(j.unknown, affected.Unknown{Reason: affected.UnknownE2EBoundExceeded,
-			Detail: fmt.Sprintf("changed-paths=%d inventory=%d", len(j.plan.Dirty), len(j.inventory)),
+			Detail: fmt.Sprintf("changed-paths=%d inventory=%d", len(j.plan.Dirty), inventorySize),
 			Hint:   fmt.Sprintf("the join is bounded at %d changed paths and %d inventory files; every E2E test is selected (APK-V0-004)", maxFlowPlanDirty, maxFlowPlanInventory)})
 	}
 }

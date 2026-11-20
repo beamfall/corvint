@@ -128,7 +128,7 @@ or projects file, `mergeConfig` over a package or alias, a Jest `preset`, `inclu
 bound every candidate file, which in a large root could pass the 8 MiB cap and make refresh refuse.
 
 Decision: invert the rule. An executing instance is default-pattern only when the reader proves
-it (`internal/testinventory/proof.go`, spec Surfaces "Default-pattern proof"). Anything else is
+it (`internal/testinventory/reader/proof.go`, spec Surfaces "Default-pattern proof"). Anything else is
 unproven, and `Declared.Pattern` keeps the cause text.
 - JavaScript and TypeScript configs are proven from a small tokenizer, not a parser. The proof
   refuses whatever it cannot evaluate: any import but the runner's own package, any call but
@@ -175,7 +175,7 @@ was unassigned. All three are fixed by failing closed.
   header, so `python_files` went unseen when it was indented or quoted, when its header was
   indented, when it was a dotted key under `[tool]`, or when it sat in the pytest 9 native
   `[tool.pytest]` table. TOML configs are now scanned for each key's full path
-  (`internal/testinventory/pytestconfig.go`). A file the scanner cannot read, an escaped key, or
+  (`internal/testinventory/reader/pytestconfig.go`). A file the scanner cannot read, an escaped key, or
   the pytest table set inline is unproven. INI files are now read as pytest's `iniconfig` reads
   them: a header may carry a comment, and an indented line is a continuation. An indented line that
   holds the pytest header is unproven, because a reader that trims lines would see a section there.

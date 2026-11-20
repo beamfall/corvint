@@ -104,7 +104,7 @@ func (git Git) command(ctx context.Context, arguments ...string) *exec.Cmd {
 func (git Git) Output(ctx context.Context, arguments ...string) ([]byte, error) {
 	command := git.command(ctx, arguments...)
 	var stderr bytes.Buffer
-	command.Stderr = &limitedBuffer{buffer: &stderr, limit: 4096}
+	command.Stderr = LimitOutput(&stderr, 4096)
 	stdout, err := command.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -124,6 +124,11 @@ func (git Git) Output(ctx context.Context, arguments ...string) ([]byte, error) 
 		return nil, fmt.Errorf("git %s: %v: %s", arguments[0], waitErr, strings.TrimSpace(stderr.String()))
 	}
 	return data, nil
+}
+
+// LimitOutput retains the first limit bytes of command output and drains the rest.
+func LimitOutput(buffer *bytes.Buffer, limit int) io.Writer {
+	return &limitedBuffer{buffer: buffer, limit: limit}
 }
 
 type limitedBuffer struct {

@@ -113,6 +113,7 @@ func runFlows(ctx context.Context, root string, args []string, out, diagnostic i
 type flowSubcommand func(ctx context.Context, root string, args []string, out, diag io.Writer) error
 
 var flowSubcommands = map[string]flowSubcommand{
+	"propose": runFlowsPropose, "accept": runFlowsAccept,
 	"appmap": runFlowsAppmap, "navigate": runFlowsNavigate, "request-path": runFlowsRequestPath, "status": refuseMovedReport("status"), "export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
 	"gaps": refuseMovedReport("gaps"), "impact": refuseMovedReport("impact"), "ingest": runFlowsIngest, "docs": runFlowsDocs,
 	"stability": runFlowsStability, "ingest-coverage": runFlowsIngestCoverage, "test-evidence": refuseFlowsTestEvidence}
@@ -399,6 +400,14 @@ func appendIngested(ctx context.Context, root string, document []byte) (string, 
 
 // IntentHelp documents the AFU-V1 intent subcommands; help.go appends it to flowsHelp.
 const IntentHelp = `
+  corvint-docs [--root PATH] flows propose --links [--all] [--flow ID]
+  corvint-docs [--root PATH] flows accept --flow ID --by NAME [--variation V] [--only TEST_ID]...
+
+propose writes private, commit-bound suggestions. --all includes already assigned tests.
+Example: corvint-docs flows propose --links --flow checkout
+accept requires a terminal and a reviewer name. Repeat --only to choose tests.
+Example: corvint-docs flows accept --flow checkout --by "Reviewer" --variation checkout.guest
+
 Flow variation coverage:
   corvint-docs [--root PATH] flows coverage --denominator FILE --receipts FILE [--revision SHA]
     [--offset N --limit N] [--write-back FRESH_DIR | --check DIR]

@@ -1922,6 +1922,30 @@
     {
       "path": [
         "flows",
+        "accept"
+      ],
+      "command": "corvint-docs flows accept",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] flows accept --flow ID --by NAME [--variation V] [--only TEST_ID]..."
+      ],
+      "flags": [
+        "--by",
+        "--flow",
+        "--only",
+        "--root",
+        "--variation"
+      ],
+      "required": [
+        "--flow ID",
+        "--by NAME"
+      ],
+      "example": "corvint-docs flows accept --flow ID --by NAME",
+      "help": "corvint-docs flows accept --help"
+    },
+    {
+      "path": [
+        "flows",
         "appmap"
       ],
       "command": "corvint-docs flows appmap",
@@ -2938,6 +2962,28 @@
       ],
       "example": "corvint-docs flows navigate --flows DIR",
       "help": "corvint-docs flows navigate --help"
+    },
+    {
+      "path": [
+        "flows",
+        "propose"
+      ],
+      "command": "corvint-docs flows propose",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] flows propose --links [--all] [--flow ID]"
+      ],
+      "flags": [
+        "--all",
+        "--flow",
+        "--links",
+        "--root"
+      ],
+      "required": [
+        "--links"
+      ],
+      "example": "corvint-docs flows propose --links",
+      "help": "corvint-docs flows propose --help"
     },
     {
       "path": [

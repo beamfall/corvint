@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	reader "github.com/Beamfall/corvint/internal/testinventory/reader"
 )
 
 // Options configures one refresh.
@@ -101,7 +103,7 @@ func build(ctx context.Context, options Options) (Inventory, string, string, err
 		}
 		inventory.Instances = append(inventory.Instances, record)
 	}
-	return inventory.canonical(), head, before, nil
+	return inventory.Canonical(), head, before, nil
 }
 
 // Refusal is a refresh that writes nothing: Code is ReasonDrift or
@@ -141,7 +143,7 @@ func checkDrift(ctx context.Context, git Git, head, before, during string) error
 }
 
 // tempPattern is the name writeAtomic gives its temporary file beside Path.
-const tempPattern = ".test-inventory-*.tmp"
+const tempPattern = reader.TempPattern
 
 // sourceDigest is the SHA-256 of every listed file and its blob, the
 // inventory file itself and writeAtomic's temporary files excluded.

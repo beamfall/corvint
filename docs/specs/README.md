@@ -329,6 +329,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Jest runner V1 | [`jest-runner-v1.md`](jest-runner-v1.md) JST-V1-001..020; health KEEP | accepted | partial | Jest runs inside the compiled-in runner contract: named discovery, anchored name selection with an honest `exact`, per-test results, full runs for odd setups. |
 | pytest provider V1 | [`pytest-provider-v1.md`](pytest-provider-v1.md) PYR-V1-001..010; health KEEP | accepted automatically under G14 (decision 0596, 2026-11-10; V1-5456) | experimental; partially delivered | `corvint test` runs the pytest files a plan selects through the compiled-in runner contract, one run per rootdir at tier `file`, with per-test results. |
 | Release candidate 4 V1 | [`release-candidate-4-v1.md`](release-candidate-4-v1.md) RCF-V1-001..013; health KEEP | accepted by the owner on 2026-11-18 | partial | rc.4 is the M5a candidate; docs corpus search leaves experimental after a frozen run. |
+| Flow Link Proposals V1 | [`flow-link-proposals-v1.md`](flow-link-proposals-v1.md) FLP-V1-001..011; health KEEP | proposed | experimental | Propose flow links for human acceptance; only accepted, fresh links may narrow E2E tests. |
 | Line Evidence V1 | [`line-evidence-v1.md`](line-evidence-v1.md) LEV-V1-001..015; health KEEP | accepted | experimental | Private tree-bound line evidence augments file selection with explicit widening reasons. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while

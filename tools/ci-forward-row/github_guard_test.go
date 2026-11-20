@@ -200,13 +200,14 @@ func TestAFPV02720GuardNamesOnlyTheNarrowingInputs_AFPV02720(t *testing.T) {
 	}
 	// CIN-V0-8423 (V1-5202): the two workflows that run the forward rows and the verdict on main
 	// are mapped to their test packages, not global.
+	const wantReaders = "internal/command/flows tools/capabilities-check tools/ci-forward-row tools/ci-reuse-plan" //corvint:fixture-path
 	for _, tc := range []struct {
 		name string
 		edit func()
 		want string
 	}{
-		{"the forward bar workflow", func() { r.write(".github/workflows/ci-forward-bar.yml", "name: bar2\n") }, ".github/workflows/ci-forward-bar.yml tools/capabilities-check tools/ci-forward-row tools/ci-reuse-plan"},
-		{"the control plane workflow", func() { r.write(".github/workflows/ci-control-plane.yml", "name: c2\n") }, ".github/workflows/ci-control-plane.yml tools/capabilities-check tools/ci-forward-row tools/ci-reuse-plan"},
+		{"the forward bar workflow", func() { r.write(".github/workflows/ci-forward-bar.yml", "name: bar2\n") }, ".github/workflows/ci-forward-bar.yml " + wantReaders},
+		{"the control plane workflow", func() { r.write(".github/workflows/ci-control-plane.yml", "name: c2\n") }, ".github/workflows/ci-control-plane.yml " + wantReaders},
 	} {
 		t.Run("mapped: "+tc.name, func(t *testing.T) {
 			target := r.change(strings.ReplaceAll(tc.name, " ", "-"), tc.edit)

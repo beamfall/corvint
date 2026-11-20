@@ -113,7 +113,7 @@ consumers() {
     echo "tools/ci-forward-row tools/tiers-replay"
     ;;
   .github/workflows/ci-control-plane.yml | .github/workflows/ci-forward-bar.yml)
-    echo "tools/capabilities-check tools/ci-forward-row tools/ci-reuse-plan"
+    echo "internal/command/flows tools/capabilities-check tools/ci-forward-row tools/ci-reuse-plan"
     ;;
   esac
 }

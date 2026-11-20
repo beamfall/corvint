@@ -13,6 +13,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testid"
+	reader "github.com/Beamfall/corvint/internal/testinventory/reader"
 )
 
 // namedByFixture reports whether the fixture lister names file: it holds a
@@ -46,10 +47,10 @@ func listedInventory(t *testing.T, tree MapTree) string {
 		}
 		if instance.Runner == testid.Pytest {
 			// listInstance binds every conftest.py under the rootdir.
-			bound = append(bound, conftests(files, instance.Root)...)
+			bound = append(bound, reader.Conftests(files, instance.Root)...)
 		}
 		for name, content := range tree {
-			if name != Path && under(instance.Root, name) && namedByFixture(content) && !slices.Contains(bound, name) {
+			if name != Path && reader.UnderRoot(instance.Root, name) && namedByFixture(content) && !slices.Contains(bound, name) {
 				bound = append(bound, name)
 			}
 		}

@@ -112,11 +112,15 @@ func flowPlanRepo(t *testing.T, playwright bool) flowPlanFixture {
 // source digest of the tree as it is now.
 func (f flowPlanFixture) writeDiscovery(t *testing.T, revision string) {
 	t.Helper()
-	config, err := os.ReadFile(filepath.Join(f.root, "playwright.config.ts"))
+	d, err := ReadFlowsDeclaration(f.root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest, err := typescript.ObservePlaywrightSources(f.root, "playwright.config.ts")
+	config, err := os.ReadFile(filepath.Join(f.root, d.PlaywrightConfig))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, err := typescript.ObservePlaywrightSources(f.root, d.PlaywrightConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +133,7 @@ func (f flowPlanFixture) writeDiscovery(t *testing.T, revision string) {
 		units = append(units, typescript.PlaywrightDiscoveryUnit{Project: "chromium", Test: "e2e/" + filepath.Base(spec)})
 	}
 	sum := sha256.Sum256(config)
-	receipt := typescript.PlaywrightDiscovery{Config: typescript.PlaywrightConfigIdentity{Path: "playwright.config.ts", SHA256: hex.EncodeToString(sum[:])},
+	receipt := typescript.PlaywrightDiscovery{Config: typescript.PlaywrightConfigIdentity{Path: d.PlaywrightConfig, SHA256: hex.EncodeToString(sum[:])},
 		Profile: "playwright-discovery/0", Revision: revision, SourceDigest: digest, Units: units}
 	raw, err := jsonv2.Marshal(receipt, jsonv2.Deterministic(true))
 	if err != nil {
@@ -284,6 +288,32 @@ func TestAPKV0002EverySelectionCarriesItsKind_V15251(t *testing.T) {
 	}
 	if got := declared.KindOf(nil); got != affected.TestKindUnknown {
 		t.Fatalf("no paths: %q", got)
+	}
+}
+
+// APK-V0-002: upgrading the declaration preserves kind rules independently
+// of the version 1 E2E fallback. Unmatched selections remain UNKNOWN.
+func TestAPKV0002Version1EverySelectionCarriesItsKind(t *testing.T) {
+	f := flowPlanRepo(t, false)
+	writeRaw(t, f.root, FlowsDeclarationPath, []byte(strings.Replace(flowPlanDeclaration, "corvint-flows/0", "corvint-flows/1", 1)))
+	_, plan := f.plan(t, "lib/lib.go", "other/other.go")
+	want := map[string]string{
+		"go:example.test/m/lib":         affected.TestKindUnit,
+		"go:example.test/m/integration": affected.TestKindIntegration,
+		"go:example.test/m/other":       affected.TestKindUnknown,
+	}
+	for unit, kind := range want {
+		if got, ok := selectionKind(plan, unit); !ok || got != kind {
+			t.Errorf("%s: ok=%v kind=%q want %q", unit, ok, got, kind)
+		}
+	}
+	for _, s := range plan.Selected {
+		if s.TestKind == "" {
+			t.Errorf("selection without a kind: %+v", s)
+		}
+	}
+	if plan.E2E == nil || plan.E2E.Scope != affected.E2EScopeFull {
+		t.Fatalf("version 1 must retain its FULL E2E fallback: %+v", plan.E2E)
 	}
 }
 

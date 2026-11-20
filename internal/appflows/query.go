@@ -219,14 +219,22 @@ func FlowGaps(ctx context.Context, root string, set IntentSet, evidence []TestRu
 	}
 	at.stability = readFlowStability(ctx, root, registry, evidence, at)
 	report := GapsReport{Schema: GapsSchema, Revision: at.commit, Flows: []GapFlow{}, Inventory: absentInventory(), UnlinkedTests: []Gap{}}
-	for _, intent := range set.Flows {
-		gaps := flowGaps(intent, flowLinks(links, intent.FlowID), evidence, at)
-		report.Flows = append(report.Flows, GapFlow{FlowID: intent.FlowID, Status: status(gaps), Gaps: gaps})
+	records, err := linkStatus(ctx, root, set, at)
+	if err != nil {
+		return nil, err
 	}
-	if provider != nil {
+	if records != nil {
+		links = append(links, records.current...)
+		report.Inventory, report.UnlinkedTests, report.UnlinkedTotal = records.inventory, records.gaps, records.unassigned
+		report.UnlinkedTruncated = len(records.gaps) < records.unassigned
+	} else if provider != nil {
 		report.Inventory = provider.state(root, at)
 		report.UnlinkedTests, report.UnlinkedTotal = unlinkedTests(set, links, provider.Provider.Inventory)
 		report.UnlinkedTruncated = report.UnlinkedTotal > len(report.UnlinkedTests)
+	}
+	for _, intent := range set.Flows {
+		gaps := flowGaps(intent, flowLinks(links, intent.FlowID), evidence, at)
+		report.Flows = append(report.Flows, GapFlow{FlowID: intent.FlowID, Status: status(gaps), Gaps: gaps})
 	}
 	return doccorpus.Encode(report)
 }

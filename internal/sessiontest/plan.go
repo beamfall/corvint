@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"os/exec"
 	"slices"
 	"sort"
@@ -452,7 +453,11 @@ func Build(input Input) (Manifest, error) {
 			if input.FullInstances[key] == "" || !contractRunners[instance.Runner] || slices.Contains(killed, key) || slices.Contains(fallback, key) {
 				continue
 			}
-			if _, declared := input.Declared.Command(runnerLanguages[instance.Runner]); declared {
+			language := runnerLanguages[instance.Runner]
+			if command, declared := input.Declared.Command(language); declared {
+				if len(command.Argv) != 0 {
+					languages[language] = true
+				}
 				continue
 			}
 			fallback = append(fallback, key)
@@ -531,6 +536,25 @@ func Build(input Input) (Manifest, error) {
 		// In FULL every instance already runs its full command, so the
 		// selected files add nothing.
 		manifest.placeContract(input, contracted)
+	}
+	// FLP-V1-011: CI launches only Go. Carry explicit whole-instance obligations
+	// into its required checks even if no selected unit names that language.
+	if input.RunnerProfile == ProfileCI {
+		for _, key := range slices.Sorted(maps.Keys(input.FullInstances)) {
+			runner, _, _ := strings.Cut(key, "@")
+			reason := input.FullInstances[key]
+			if runner == testid.Go || reason == "" {
+				continue
+			}
+			name := key + " full command"
+			if command, ok := input.Declared.Command(runnerLanguages[runner]); ok && len(command.Argv) > 0 {
+				name = strings.Join(command.Argv, " ")
+			}
+			check := name + " (" + reason + ")"
+			if !slices.Contains(manifest.Checks, check) {
+				manifest.Checks = append(manifest.Checks, check)
+			}
+		}
 	}
 	manifest.Incomplete = append(manifest.Incomplete, input.SelectionIncomplete...)
 	return manifest.bounded(), nil

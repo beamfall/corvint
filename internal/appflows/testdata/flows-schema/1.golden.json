@@ -1,0 +1,34 @@
+{
+  "profile": "corvint-flows/1",
+  "flows": "flows",
+  "kinds": [
+    {
+      "path": ".",
+      "kind": "unit"
+    },
+    {
+      "path": "test/integration",
+      "kind": "integration"
+    }
+  ],
+  "playwright": {
+    "config": "playwright.config.ts",
+    "discovery": ".corvint/playwright-discovery.json"
+  },
+  "links": [
+    {
+      "test_id": "playwright:e2e/cart.spec.ts::cart::buys",
+      "variation_id": "cart.buy",
+      "evidence": [
+        "0123456789abcdef0123456789abcdef01234567:e2e/cart.spec.ts"
+      ],
+      "confidence": 0.75,
+      "confidenceFormula": "fixture/0",
+      "accepted_by": "Fixture reviewer",
+      "accepted_at": "2026-11-18T12:00:00Z",
+      "pinned_commit": "0123456789abcdef0123456789abcdef01234567",
+      "test_content_hash": "1111111111111111111111111111111111111111",
+      "variation_digest": "2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ]
+}

@@ -5000,6 +5000,22 @@
     "health": "KEEP"
   },
   {
+    "path": "docs/specs/flow-link-proposals-v1.md",
+    "title": "Flow Link Proposals V1",
+    "reqPrefix": "FLP-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Propose flow links for human acceptance; only accepted, fresh links may narrow E2E tests.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appflows",
+      "internal/command/flows"
+    ],
+    "health": "KEEP"
+  },
+  {
     "path": "docs/specs/line-evidence-v1.md",
     "title": "Line Evidence V1",
     "reqPrefix": "LEV-V1",

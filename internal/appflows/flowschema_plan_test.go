@@ -37,7 +37,7 @@ func TestFSVV1004UnsupportedVersionSelectsEveryE2ETest_V15410(t *testing.T) {
 			t.Fatalf("%s: %+v", body, e2e)
 		}
 		unknown := e2e.Unknown[0]
-		if unknown.Reason != affected.UnknownFlowsSchemaUnsupported || unknown.Detail != FlowsDeclarationPath+" version 7; supported 0" {
+		if unknown.Reason != affected.UnknownFlowsSchemaUnsupported || unknown.Detail != FlowsDeclarationPath+" version 7; supported 0,1" {
 			t.Fatalf("%s: unknown %+v", body, unknown)
 		}
 		for _, want := range []string{"schema version 7", "reads version 0", "every E2E test is selected"} {

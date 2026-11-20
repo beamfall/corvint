@@ -9,6 +9,35 @@
       "cmd/": "internal/appflows/flowsreaderscan/scan_test.go secondFlowsReaders walks cmd/ and reads every non-test .go file outside testdata, so no package but internal/appflows names .corvint/flows.json (FSV-V1-003)",
       "internal/": "internal/appflows/flowsreaderscan/scan_test.go secondFlowsReaders walks internal/ and reads every non-test .go file outside testdata, so no package but internal/appflows names .corvint/flows.json (FSV-V1-003)"
     },
+    "internal/command/flows": {
+      ".githooks/": {
+        "reason": "internal/command/flows/flow_links_test.go searches every tracked Git hook for automation that accepts a flow link (FLP-V1-005)",
+        "contentPredicate": "[Aa]ccept",
+        "samples": [
+          "corvint-docs flows accept",
+          "AcceptLinks(",
+          "runFlowsAccept("
+        ]
+      },
+      "cmd/": {
+        "reason": "internal/command/flows/flow_links_test.go searches tracked cmd/*/*hook*.go files for automation that accepts a flow link (FLP-V1-005)",
+        "contentPredicate": "[Aa]ccept",
+        "samples": [
+          "corvint-docs flows accept",
+          "AcceptLinks(",
+          "runFlowsAccept("
+        ]
+      },
+      "script/": {
+        "reason": "internal/command/flows/flow_links_test.go searches tracked script/*hook* files for automation that accepts a flow link (FLP-V1-005)",
+        "contentPredicate": "[Aa]ccept",
+        "samples": [
+          "corvint-docs flows accept",
+          "AcceptLinks(",
+          "runFlowsAccept("
+        ]
+      }
+    },
     "internal/diagnostic": {
       "cmd/": "internal/diagnostic/gate_test.go treeSources walks cmd/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))",
       "internal/": "internal/diagnostic/gate_test.go treeSources walks internal/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))"

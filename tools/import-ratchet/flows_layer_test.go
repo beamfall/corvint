@@ -40,6 +40,10 @@ func TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs(t *testing.T) {
 		flowsCorvintDocs:  "docs",
 		flowsCommandGroup: "docs",
 	}
+	// Only the inventory reader is shared. An unclassified sibling stays in the tests area.
+	keyed["internal/testinventory/reader"] = "shared" //corvint:fixture-path
+	keyed["internal/testinventory"] = "tests"         //corvint:fixture-path
+	keyed["internal/testinventory/future"] = "tests"  //corvint:fixture-path
 	for pkg, want := range keyed {
 		if a, _, ok := m.areaOf(pkg); !ok || a.Name != want {
 			t.Errorf("FLOW_LAYER_REKEYED %s: area %v, want %s (decision 0595)", pkg, a, want)
