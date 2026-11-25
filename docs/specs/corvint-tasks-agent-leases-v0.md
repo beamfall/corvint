@@ -5707,15 +5707,17 @@ a release's progress is visible from its readiness read.
   use. Its members are `total`; `byStatus`, `byPriority`, `byKind`, `byExecutionClass` and
   `byEligibility`, each listing every closed value including zeros; `byNextAction` and
   `byBlockerCode`, listing only non-zero keys, where a blocker code counts each non-terminal ticket
-  once (terminal list items carry no blockers, CAL-V0-173); `byMilestone` and `byLabel`, each the
-  64 most frequent keys with ties in byte order, plus `milestonesOmitted` and `labelsOmitted`; and
-  `withoutMilestone`. Every count is a wire Count. The same store and arguments MUST give the same
+  once (terminal list items carry no blockers, CAL-V0-173); `byMilestone`, `byLabel` and `byRequirement` (the
+  tickets' `requirementRefs`, V1-5736), each the 64 most frequent keys with ties in byte order, plus
+  `milestonesOmitted`, `labelsOmitted` and `requirementsOmitted`; and `withoutMilestone`. `ticket
+  search --requirement REF` filters on exact membership of `REF` in `requirementRefs`, conjunctive
+  with the other filters. Every count is a wire Count. The same store and arguments MUST give the same
   bytes. Without the flag the result MUST keep its earlier bytes. A repeated `--facets` refuses
   `MALFORMED`; a value-flag value spelled `--facets` stays a value. A result decoder MUST refuse
   `MALFORMED` any `facets` member that is not this summary: a missing or unknown member, a
   non-Count, a closed map missing or adding a value or not summing to `total`, a `byNextAction` key
   outside the next-action set or counts not summing to `total`, a blocker key that is not a detail
-  code, an open-map key that is not a label, a zero or above-`total` open count, `withoutMilestone`
+  code, an open-map key that is not a label (an Identifier for `byRequirement`), a zero or above-`total` open count, `withoutMilestone`
   plus milestone counts above `total`, or an open map over 64 keys or under 64 with a non-zero
   omitted count (V1-1052).
 - `CAL-V0-207`: (accepted, decision 0476) The same verbs MUST accept `--count`, which returns the CAL-V0-206
